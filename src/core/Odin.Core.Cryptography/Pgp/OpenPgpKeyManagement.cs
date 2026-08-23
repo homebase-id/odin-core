@@ -33,11 +33,25 @@ public static class OpenPgpKeyManagement
     /// The OpenPGP user id. Must contain the tenant's email address for WKD lookups to
     /// match, e.g. "michael@michael.seifert.page".
     /// </param>
-    public static OpenPgpKeyMaterial GenerateP384KeyMaterial(string userId)
+    /// <param name="additionalSeed">
+    /// Optional extra entropy — the Email setup app collects it from the phone's accelerometer
+    /// so the user can see their own movement go into their key.
+    ///
+    /// It is ADDED to the generator's OS-seeded state, never substituted for it: BouncyCastle's
+    /// SecureRandom.SetSeed mixes into DigestRandomGenerator rather than resetting it, so the
+    /// floor is always the platform's own entropy and a hostile or degenerate value cannot
+    /// weaken the key. TestSeedIsAdditiveNotDeterministic is the proof, and is what should fail
+    /// if a future BouncyCastle changes that behaviour.
+    /// </param>
+    public static OpenPgpKeyMaterial GenerateP384KeyMaterial(string userId, byte[] additionalSeed = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId, nameof(userId));
 
         var random = new SecureRandom();
+        if (additionalSeed is { Length: > 0 })
+        {
+            random.SetSeed(additionalSeed);
+        }
         var created = DateTime.UtcNow;
 
         var generator = new ECKeyPairGenerator();

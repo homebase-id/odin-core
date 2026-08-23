@@ -7,9 +7,13 @@ using Odin.Services.Email;
 namespace Odin.Hosting.Controllers.OwnerToken.Mail
 {
     /// <summary>
-    /// Email activation and mailbox management (docs/email-keys-plan.md). Called by
-    /// the app AFTER it has created the email drive and stored the keypair on it -
-    /// only the PUBLIC certificate crosses this API.
+    /// Email activation and mailbox management for the OWNER CONSOLE (docs/email-keys-plan.md).
+    /// On this path the caller already holds a keypair and only the PUBLIC certificate crosses
+    /// the API.
+    ///
+    /// The app path is different and lives at /api/v2/mail (see EmailAppService): chat-kmp runs
+    /// on an app token, so the server generates the keyring there and writes it straight to the
+    /// email drive.
     /// </summary>
     [ApiController]
     [AuthorizeValidOwnerToken]

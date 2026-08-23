@@ -1,5 +1,7 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Email;
@@ -47,6 +49,41 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         return await emailAppService.EnsureMailboxAsync(request.PrimaryEmailAddress, WebOdinContext);
+    }
+
+    /// <summary>
+    /// Generates the identity's OpenPGP keyring, writes it to the email drive, and publishes its
+    /// certificate. The last setup step; call it again to rotate.
+    ///
+    /// The private half is never returned — it is written straight to the drive, so the client
+    /// reads it back by the returned unique id and no once-only delivery can be dropped.
+    /// </summary>
+    [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
+    [HttpPost("setup/keys")]
+    [ProducesResponseType(typeof(EmailKeyGenerationResult), 200)]
+    public async Task<EmailKeyGenerationResult> GenerateKey([FromBody] GenerateEmailKeyRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+
+        byte[] entropy = [];
+        if (!string.IsNullOrEmpty(request.ClientEntropyBase64))
+        {
+            try
+            {
+                entropy = Convert.FromBase64String(request.ClientEntropyBase64);
+            }
+            catch (FormatException e)
+            {
+                throw new OdinClientException("ClientEntropyBase64 is not valid base64", inner: e);
+            }
+
+            if (entropy.Length is < 32 or > 1024)
+            {
+                throw new OdinClientException("Client entropy must be between 32 and 1024 bytes");
+            }
+        }
+
+        return await emailAppService.GenerateKeyAsync(request.PrimaryEmailAddress, entropy, WebOdinContext);
     }
 
     /// <summary>
@@ -114,4 +151,18 @@ public class IssueAppPasswordRequest
 
     /// <summary>What the credential is for, e.g. "Thunderbird — laptop". Shown back to the user.</summary>
     public string Label { get; init; } = "";
+}
+
+public class GenerateEmailKeyRequest
+{
+    public string PrimaryEmailAddress { get; init; } = "";
+
+    /// <summary>
+    /// Optional caller-collected entropy, base64, 32..1024 bytes — the Email setup app collects it
+    /// from the phone's accelerometer. Additive only: it is mixed into the server's own OS-seeded
+    /// generator, never substituted for it, so a hostile or degenerate value cannot weaken the key.
+    /// Empty is normal and expected on desktop and web, where there is no sensor; key generation
+    /// is never blocked on one.
+    /// </summary>
+    public string ClientEntropyBase64 { get; init; } = "";
 }

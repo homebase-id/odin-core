@@ -20,6 +20,9 @@ public interface IMailHttpClientApiV2
     [Post(Root + "/setup/mailbox")]
     Task<ApiResponse<MailboxSetupResult>> EnsureMailbox([Body] EnsureMailboxRequest request);
 
+    [Post(Root + "/setup/keys")]
+    Task<ApiResponse<EmailKeyGenerationResult>> GenerateKey([Body] GenerateEmailKeyRequest request);
+
     [Post(Root + "/app-passwords")]
     Task<ApiResponse<AppPasswordIssueResult>> IssueAppPassword([Body] IssueAppPasswordRequest request);
 

@@ -17,6 +17,60 @@ namespace Odin.Core.Cryptography.Tests
     {
         private const string UserId = "frodo@frodo.dotyou.cloud";
 
+        /// <summary>
+        /// The property that makes client-supplied entropy safe to accept: the seed is MIXED into
+        /// the generator's existing OS-seeded state, not substituted for it. If it were
+        /// substituted, a caller sending the same bytes twice — or a hostile caller sending
+        /// chosen bytes — would determine the key.
+        ///
+        /// Asserted behaviourally rather than by reading BouncyCastle's source, so it fails loudly
+        /// if a future version changes what SetSeed does.
+        /// </summary>
+        [Test]
+        public void SeedIsAdditiveNotDeterministic()
+        {
+            var seed = new byte[64];
+            for (var i = 0; i < seed.Length; i++)
+            {
+                seed[i] = (byte)i;
+            }
+
+            var first = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId, seed);
+            var second = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId, seed);
+
+            ClassicAssert.AreNotEqual(
+                first.FingerprintHex,
+                second.FingerprintHex,
+                "the same additional seed must NOT determine the key - it is mixed in, not substituted");
+        }
+
+        /// <summary>A seeded key is a normal key: publishable, and it round-trips.</summary>
+        [Test]
+        public void SeededKeyIsStillPublishableAndUsable()
+        {
+            var seed = System.Text.Encoding.UTF8.GetBytes("shake entropy from a phone, whitened");
+
+            var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId, seed);
+
+            // Throws if there is no usable encryption subkey - the publish path's own check.
+            var spki = OpenPgpKeyManagement.GetEncryptionSubkeySpkiDer(material.PublicCertificateArmored);
+            ClassicAssert.IsTrue(spki.Length > 0);
+
+            var plaintext = Encoding.UTF8.GetBytes("hello from a shaken key");
+            var encrypted = OpenPgpKeyManagement.Encrypt(plaintext, material.PublicCertificateArmored);
+            var decrypted = OpenPgpKeyManagement.Decrypt(encrypted, material.SecretKeyArmored);
+
+            ClassicAssert.AreEqual(plaintext, decrypted);
+        }
+
+        /// <summary>No entropy from the client (desktop, web, or a declined shake) still works.</summary>
+        [Test]
+        public void GenerationWithoutASeedStillWorks()
+        {
+            var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId, null);
+            ClassicAssert.IsTrue(material.FingerprintHex.Length > 0);
+        }
+
         [Test]
         public void GeneratedCertificateIsMinimalP384WithEncryptionSubkey()
         {

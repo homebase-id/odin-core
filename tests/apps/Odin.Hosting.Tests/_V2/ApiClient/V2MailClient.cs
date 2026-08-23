@@ -25,6 +25,15 @@ public class V2MailClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<MailboxSetupResult>> EnsureMailboxAsync(string primaryEmailAddress) =>
         await Service().EnsureMailbox(new EnsureMailboxRequest { PrimaryEmailAddress = primaryEmailAddress });
 
+    public async Task<ApiResponse<EmailKeyGenerationResult>> GenerateKeyAsync(
+        string primaryEmailAddress,
+        string clientEntropyBase64 = "") =>
+        await Service().GenerateKey(new GenerateEmailKeyRequest
+        {
+            PrimaryEmailAddress = primaryEmailAddress,
+            ClientEntropyBase64 = clientEntropyBase64,
+        });
+
     public async Task<ApiResponse<AppPasswordIssueResult>> IssueAppPasswordAsync(string primaryEmailAddress, string label) =>
         await Service().IssueAppPassword(new IssueAppPasswordRequest
         {

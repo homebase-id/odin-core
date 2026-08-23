@@ -1,5 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Cryptography.Pgp;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -31,6 +35,7 @@ public class EmailAppService(
     IDkimStore dkimStore,
     EmailPublicKeyService emailPublicKeyService,
     EmailSetupStateService setupStateService,
+    EmailKeyMaterialWriter keyMaterialWriter,
     MailActivationService mailActivationService)
 {
     /// <summary>
@@ -93,6 +98,63 @@ public class EmailAppService(
             PrimaryEmailAddress = primaryEmailAddress,
             DnsRecordsWritten = result.DnsRecordsWritten,
             DkimRecords = result.DkimRecords,
+        };
+    }
+
+    /// <summary>
+    /// Generates the identity's OpenPGP keyring and puts it to work. The last setup step, and the
+    /// only one whose ordering is load-bearing:
+    ///
+    ///   1. write the keyring to the email drive — durable, encrypted, owner-only
+    ///   2. only then publish its certificate and hand it to the mail server
+    ///
+    /// Mail arriving after step 2 is encrypted to that certificate. Doing it the other way round
+    /// would open a window where a published key has no readable private half, which is the
+    /// unrecoverable row of the custody table in docs/email-keys-plan.md.
+    ///
+    /// Rotation is the same call again: a new keyring is appended, the pointer moves, and the old
+    /// keyring stays exactly where it is so older mail keeps opening.
+    /// </summary>
+    public async Task<EmailKeyGenerationResult> GenerateKeyAsync(
+        string primaryEmailAddress,
+        byte[] clientEntropy,
+        IOdinContext odinContext)
+    {
+        await AssertEmailDriveAccessAsync(odinContext);
+        AssertTenantMailEnabled();
+
+        var domain = tenantContext.HostOdinId.DomainName;
+        if (string.IsNullOrWhiteSpace(primaryEmailAddress) ||
+            !primaryEmailAddress.EndsWith($"@{domain}", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new OdinClientException($"Primary email address must be an address at {domain}");
+        }
+
+        byte[]? seed = null;
+        if (clientEntropy is { Length: > 0 })
+        {
+            // Whitened before it reaches the generator, and combined with fresh server randomness
+            // so the seed is never wholly caller-controlled even before BouncyCastle mixes it in.
+            // Raw accelerometer samples are correlated and low-entropy; treating them as a key
+            // seed directly would be worse than not collecting them.
+            seed = SHA512.HashData(ByteArrayUtil.Combine(clientEntropy, ByteArrayUtil.GetRndByteArray(64)));
+        }
+
+        var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(primaryEmailAddress, seed);
+
+        // Durable first.
+        var keyFileUniqueId = await keyMaterialWriter.WriteKeyMaterialAsync(material, primaryEmailAddress, odinContext);
+        await keyMaterialWriter.UpdateCurrentKeyPointerAsync(keyFileUniqueId, material.FingerprintHex, odinContext);
+
+        // Then, and only then, publish.
+        await mailActivationService.PublishKeyAsync(material.PublicCertificateArmored);
+        await setupStateService.SetCurrentKeyAsync(keyFileUniqueId);
+
+        return new EmailKeyGenerationResult
+        {
+            KeyFileUniqueId = keyFileUniqueId,
+            FingerprintHex = material.FingerprintHex,
+            ClientEntropyUsed = seed != null,
         };
     }
 
@@ -206,6 +268,20 @@ public class EmailAppService(
         return odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read) &&
                odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);
     }
+}
+
+public class EmailKeyGenerationResult
+{
+    /// <summary>The drive file holding the new keyring — the client reads it back from there.</summary>
+    public Guid KeyFileUniqueId { get; init; }
+
+    public string FingerprintHex { get; init; } = "";
+
+    /// <summary>
+    /// Whether the caller's entropy was mixed in. Reported honestly so a client that skipped the
+    /// shake (desktop, web, or the user declining) is not told otherwise.
+    /// </summary>
+    public bool ClientEntropyUsed { get; init; }
 }
 
 public class MailboxSetupResult
