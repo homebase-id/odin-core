@@ -1,6 +1,8 @@
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.UnifiedV2.Mail;
 using Odin.Services.Email;
 using Refit;
 
@@ -8,17 +10,31 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public class V2MailClient(OdinId identity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<MailAppStatusResult>> GetStatusAsync()
+    private IMailHttpClientApiV2 Service()
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
-        var svc = RefitCreator.RestServiceFor<IMailHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetStatus();
+        return RefitCreator.RestServiceFor<IMailHttpClientApiV2>(client, sharedSecret);
     }
 
-    public async Task<ApiResponse<MailRoundTripChallenge>> CreateChallengeAsync()
-    {
-        var client = factory.CreateHttpClient(identity, out var sharedSecret);
-        var svc = RefitCreator.RestServiceFor<IMailHttpClientApiV2>(client, sharedSecret);
-        return await svc.CreateChallenge();
-    }
+    public async Task<ApiResponse<MailAppStatusResult>> GetStatusAsync() =>
+        await Service().GetStatus();
+
+    public async Task<ApiResponse<MailRoundTripChallenge>> CreateChallengeAsync() =>
+        await Service().CreateChallenge();
+
+    public async Task<ApiResponse<MailboxSetupResult>> EnsureMailboxAsync(string primaryEmailAddress) =>
+        await Service().EnsureMailbox(new EnsureMailboxRequest { PrimaryEmailAddress = primaryEmailAddress });
+
+    public async Task<ApiResponse<AppPasswordIssueResult>> IssueAppPasswordAsync(string primaryEmailAddress, string label) =>
+        await Service().IssueAppPassword(new IssueAppPasswordRequest
+        {
+            PrimaryEmailAddress = primaryEmailAddress,
+            Label = label,
+        });
+
+    public async Task<ApiResponse<HttpContent>> RevokeAppPasswordAsync(string id) =>
+        await Service().RevokeAppPassword(id);
+
+    public async Task<ApiResponse<MailStorageResult>> GetStorageAsync() =>
+        await Service().GetStorage();
 }

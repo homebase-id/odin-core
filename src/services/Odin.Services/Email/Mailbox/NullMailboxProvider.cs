@@ -1,5 +1,9 @@
+#nullable enable
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Email.Dkim;
 
@@ -43,9 +47,35 @@ public class NullMailboxProvider(ILogger<NullMailboxProvider> logger) : IMailbox
         return Task.CompletedTask;
     }
 
-    public Task ProvisionAppPasswordAsync(string domain, string primaryAddress, string clearTextPassword, string label)
+    /// <summary>
+    /// Generates a plausible credential so the flow — and anything reading it back off the
+    /// drive — behaves the same shape it will against a real mail server. Nothing can
+    /// authenticate with it, because there is no mail server here.
+    /// </summary>
+    public Task<AppPasswordProvision> ProvisionAppPasswordAsync(string domain, string primaryAddress, string label)
     {
-        logger.LogDebug("NullMailboxProvider: skipping app password '{label}' for {domain}", label, domain);
+        logger.LogDebug("NullMailboxProvider: issuing a local-only app password '{label}' for {domain}", label, domain);
+        return Task.FromResult(new AppPasswordProvision(Guid.NewGuid().ToString("N"), GenerateAppPassword()));
+    }
+
+    public Task RevokeAppPasswordAsync(string domain, string appPasswordId)
+    {
+        logger.LogDebug("NullMailboxProvider: skipping app password revoke {id} for {domain}", appPasswordId, domain);
         return Task.CompletedTask;
+    }
+
+    public Task<MailboxUsage?> GetUsageAsync(string domain)
+    {
+        logger.LogDebug("NullMailboxProvider: no usage to report for {domain}", domain);
+        return Task.FromResult<MailboxUsage?>(null);
+    }
+
+    // 20 random bytes as 4 blocks of 5 base32 chars - typed into a mail client once
+    private static string GenerateAppPassword()
+    {
+        const string alphabet = "abcdefghijklmnopqrstuvwxyz234567";
+        var random = ByteArrayUtil.GetRndByteArray(20);
+        var chars = random.Select(b => alphabet[b % 32]).ToArray();
+        return string.Join("-", Enumerable.Range(0, 4).Select(i => new string(chars, i * 5, 5)));
     }
 }
