@@ -813,7 +813,7 @@ approach DataImporterTests had to use."
   - `ExportRow` with `Kind`, `Db`, `Table`, `Data`
   - `IdentityJsonExporter.ExportAsync(ILogger, Stream, Guid, string, SystemDatabase, IdentityDatabase, long, long, bool)` returning `Task<long>` (rows written)
 
-- [ ] **Step 1: Write the format types**
+- [x] **Step 1: Write the format types**
 
 Create `src/core/Odin.Core.Storage/DatabaseImport/IdentityExportFile.cs`:
 
@@ -872,7 +872,7 @@ public class ExportRow
 }
 ```
 
-- [ ] **Step 2: Write the failing exporter test**
+- [x] **Step 2: Write the failing exporter test**
 
 Create `tests/core/Odin.Core.Storage.Tests/IdentityJsonExport/IdentityJsonExporterTests.cs`:
 
@@ -1044,12 +1044,12 @@ public class IdentityJsonExporterTests
 }
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityJsonExporterTests"`
 Expected: compile error, `IdentityJsonExporter` does not exist.
 
-- [ ] **Step 4: Write the exporter**
+- [x] **Step 4: Write the exporter**
 
 Create `src/core/Odin.Core.Storage/DatabaseImport/IdentityJsonExporter.cs`:
 
@@ -1158,12 +1158,12 @@ public static class IdentityJsonExporter
 
 Note the `SystemDatabase.ExportAsync` argument order is `(OdinId domain, Guid identityId, ...)`, because Task 5 sorts scope parameters ordinally and `domain` precedes `identityId`. If the build disagrees, read the generated signature and match it rather than editing generated code.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityJsonExporterTests"`
 Expected: 6 tests PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /workspace/odin-core
