@@ -713,7 +713,7 @@ public class DataSubscriptionAndDistributionTests1
                 UserDate = UnixTimeUtc.ZeroTime,
                 Tags = default
             },
-            AccessControlList = AccessControlList.Connected
+            AccessControlList = AccessControlList.Reviewed
         };
 
         // transfer a comment from Sam directly to frodo
@@ -1249,7 +1249,7 @@ public class DataSubscriptionAndDistributionTests1
                 Tags = default,
                 UniqueId = uniqueId
             },
-            AccessControlList = AccessControlList.Connected
+            AccessControlList = AccessControlList.Reviewed
         };
 
         var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata);

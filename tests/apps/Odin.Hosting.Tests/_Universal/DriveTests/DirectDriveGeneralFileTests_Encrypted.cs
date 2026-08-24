@@ -101,7 +101,7 @@ public class DirectDriveGeneralFileTests_Encrypted
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         const string originalContent = "some content here";
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AppData.Content = originalContent;
         await callerContext.Initialize(ownerApiClient);
 
@@ -121,7 +121,7 @@ public class DirectDriveGeneralFileTests_Encrypted
             var uploadedFile1 = getHeaderResponse1.Content;
 
             const string updatedContent = "updated information and content here";
-            var updatedMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+            var updatedMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
             updatedMetadata.AppData.Content = updatedContent;
             updatedMetadata.VersionTag = uploadedFile1.FileMetadata.VersionTag;
             updatedMetadata.IsEncrypted = true;
@@ -170,7 +170,7 @@ public class DirectDriveGeneralFileTests_Encrypted
 
         // upload metadata
         const string originalContent = "original content is here";
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AppData.Content = originalContent;
 
         var p = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
@@ -203,7 +203,7 @@ public class DirectDriveGeneralFileTests_Encrypted
         //
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         const string updatedContent = "updated information and content here";
-        var updatedMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var updatedMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         updatedMetadata.AppData.Content = updatedContent;
         updatedMetadata.VersionTag = uploadedFile1.FileMetadata.VersionTag;
         updatedMetadata.IsEncrypted = true;

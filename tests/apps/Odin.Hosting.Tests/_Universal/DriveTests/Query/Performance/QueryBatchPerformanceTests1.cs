@@ -234,7 +234,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                     GroupId = default,
                     Tags = [ChatMessageTag]
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var storageOptions = new StorageOptions()

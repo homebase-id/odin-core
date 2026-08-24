@@ -91,7 +91,7 @@ public class PeerCatConversionTests : V2Fixture
 
         // Sam's server calls INTO Frodo's — this is what authenticates Sam via CreateTransitPermissionContextAsync
         // on Frodo's side, converting Frodo's pending deposit about Sam.
-        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Connected,
+        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Reviewed,
             allowDistribution: true);
         metadata.AppData.Content = "written via a freshly-converted deposit grant";
 
@@ -126,7 +126,7 @@ public class PeerCatConversionTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var drive = await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Write, "sentinel");
 
-        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Reviewed);
         metadata.AllowDistribution = true;
 
         var send = await frodo.Drives.Writer.UploadNewMetadata(drive.Alias, metadata,
@@ -175,7 +175,7 @@ public class PeerCatConversionTests : V2Fixture
         Assert.That(deleteResp.IsSuccessStatusCode, Is.True, $"circle delete failed: {deleteResp.StatusCode}");
 
         // Sam's server calls into Frodo's, which attempts (and silently drops) the now-dangling deposit.
-        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Reviewed);
         metadata.AllowDistribution = true;
 
         var send = await sam.Drives.Writer.UploadNewMetadata(trigger.Alias, metadata,

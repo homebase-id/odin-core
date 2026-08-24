@@ -292,7 +292,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var storageOptions = new StorageOptions()

@@ -104,7 +104,7 @@ public class PeerNotificationTests
         // Sam sends message over transit with notifications set
         var samDriveClient = new UniversalDriveApiClient(sam.OdinId, new AppApiClientFactory(samAppToken, samAppSharedSecret));
 
-        var fileMetadata = SampleMetadataData.Create(101, acl: AccessControlList.Connected);
+        var fileMetadata = SampleMetadataData.Create(101, acl: AccessControlList.Reviewed);
         fileMetadata.AllowDistribution = true;
         fileMetadata.AppData.Content = "some app content";
 

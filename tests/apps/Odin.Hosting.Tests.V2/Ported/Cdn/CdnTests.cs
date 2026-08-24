@@ -194,7 +194,7 @@ public class CdnTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "secured encrypted drive", allowAnonymousReads: false, allowCdn: true);
 
-        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         metadata.AppData.Content = "original content is here";
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         payload.Iv = ByteArrayUtil.GetRndByteArray(16);
