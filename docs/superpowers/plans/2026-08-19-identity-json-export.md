@@ -2024,13 +2024,13 @@ default."
   - `Task<bool> FreezeIdentityAsync(string domain)` returning the identity's **previous** `Disabled` state
   - `Task UnfreezeIdentityAsync(string domain, bool restoreDisabledTo)`
 
-- [ ] **Step 1: Find every implementation of the interface**
+- [x] **Step 1: Find every implementation of the interface**
 
 Run: `cd /workspace/odin-core && grep -rn "IIdentityRegistry" src/ tests/ --include="*.cs" | grep -i "class.*:.*IIdentityRegistry"`
 
 Every type listed needs the two new methods, or the build breaks. Note them before editing.
 
-- [ ] **Step 2: Add the interface methods**
+- [x] **Step 2: Add the interface methods**
 
 In `IIdentityRegistry.cs`, immediately after `ToggleDisabled`:
 
@@ -2052,7 +2052,7 @@ In `IIdentityRegistry.cs`, immediately after `ToggleDisabled`:
         Task UnfreezeIdentityAsync(string domain, bool restoreDisabledTo);
 ```
 
-- [ ] **Step 3: Implement in `FileSystemIdentityRegistry`**
+- [x] **Step 3: Implement in `FileSystemIdentityRegistry`**
 
 Add immediately after the existing `ToggleDisabled` method:
 
@@ -2092,11 +2092,11 @@ Add immediately after the existing `ToggleDisabled` method:
     }
 ```
 
-- [ ] **Step 4: Add the methods to every other implementation found in Step 1**
+- [x] **Step 4: Add the methods to every other implementation found in Step 1**
 
 For test doubles and mocks, throw `NotImplementedException` unless the test needs real behaviour. Do not silently no-op: a no-op freeze would make the export's safety check meaningless.
 
-- [ ] **Step 5: Build**
+- [x] **Step 5: Build**
 
 Run: `cd /workspace/odin-core && dotnet build ./odin-core.sln`
 Expected: build succeeded. Any missing implementation shows up here.

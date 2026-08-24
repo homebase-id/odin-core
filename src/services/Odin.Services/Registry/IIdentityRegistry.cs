@@ -94,6 +94,22 @@ namespace Odin.Services.Registry
         Task<bool?> ToggleDisabled(string domain, bool disabled);
 
         /// <summary>
+        /// Brings an identity to a full stop: disables it AND stops its background workers.
+        /// Disabling alone only closes the HTTP front door (enforced solely in
+        /// MultiTenantContainerMiddleware); the tenant's background workers do not check
+        /// the Disabled flag and keep writing to the identity database.
+        /// Returns the identity's previous Disabled state, to hand back to UnfreezeIdentityAsync.
+        /// </summary>
+        Task<bool> FreezeIdentityAsync(string domain);
+
+        /// <summary>
+        /// Restarts an identity's background workers and restores its Disabled flag to
+        /// <paramref name="restoreDisabledTo"/>. Pass the value FreezeIdentityAsync returned:
+        /// an identity may already have been disabled for unrelated reasons.
+        /// </summary>
+        Task UnfreezeIdentityAsync(string domain, bool restoreDisabledTo);
+
+        /// <summary>
         /// Sets whether the identity is allowed a public home page
         /// </summary>
         /// <returns>Previous state or null if not found</returns>

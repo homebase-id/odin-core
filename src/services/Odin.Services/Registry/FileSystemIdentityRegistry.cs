@@ -405,6 +405,40 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return result;
     }
 
+    public async Task<bool> FreezeIdentityAsync(string domain)
+    {
+        var registration = await GetAsync(domain);
+        if (registration == null)
+        {
+            throw new OdinClientException($"No such identity: {domain}");
+        }
+
+        var wasDisabled = registration.Disabled;
+
+        // Order matters: close the front door before stopping the workers, so nothing
+        // new arrives for a worker that is no longer running.
+        await ToggleDisabled(domain, true);
+        await StopBackgroundServices(registration);
+
+        _logger.LogInformation("Froze identity {domain} (was disabled: {wasDisabled})", domain, wasDisabled);
+        return wasDisabled;
+    }
+
+    public async Task UnfreezeIdentityAsync(string domain, bool restoreDisabledTo)
+    {
+        var registration = await GetAsync(domain);
+        if (registration == null)
+        {
+            throw new OdinClientException($"No such identity: {domain}");
+        }
+
+        await StartBackgroundServices(registration);
+        await ToggleDisabled(domain, restoreDisabledTo);
+
+        _logger.LogInformation("Unfroze identity {domain} (disabled restored to: {disabled})",
+            domain, restoreDisabledTo);
+    }
+
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
     {
         bool? result = null;
