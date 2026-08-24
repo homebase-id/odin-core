@@ -321,6 +321,47 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<OutboxRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(OutboxRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
+                                            "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                importCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                importCommand.AddParameter("@recipient", DbType.String, item.recipient);
+                importCommand.AddParameter("@type", DbType.Int32, item.type);
+                importCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                importCommand.AddParameter("@dependencyFileId", DbType.Binary, item.dependencyFileId);
+                importCommand.AddParameter("@checkOutCount", DbType.Int32, item.checkOutCount);
+                importCommand.AddParameter("@nextRunTime", DbType.Int64, item.nextRunTime.milliseconds);
+                importCommand.AddParameter("@value", DbType.Binary, item.value);
+                importCommand.AddParameter("@checkOutStamp", DbType.Binary, item.checkOutStamp);
+                importCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");

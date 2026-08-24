@@ -276,6 +276,42 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<ConnectionsRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified FROM Connections " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(ConnectionsRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified) " +
+                                            "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@ReviewedAt,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
+                importCommand.AddParameter("@displayName", DbType.String, item.displayName);
+                importCommand.AddParameter("@status", DbType.Int32, item.status);
+                importCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
+                importCommand.AddParameter("@data", DbType.Binary, item.data);
+                importCommand.AddParameter("@ReviewedAt", DbType.Int64, item.ReviewedAt?.milliseconds);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId identity)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
