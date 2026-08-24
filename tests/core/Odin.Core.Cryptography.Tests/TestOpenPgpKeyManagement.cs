@@ -17,6 +17,186 @@ namespace Odin.Core.Cryptography.Tests
     {
         private const string UserId = "frodo@frodo.dotyou.cloud";
 
+        /// <summary>
+        /// The secret key's checksum must actually validate.
+        ///
+        /// This is not theoretical: shipping <c>useSha1: true</c> alongside an unencrypted
+        /// (SymmetricKeyAlgorithmTag.Null) keyring produced keys that GnuPG imported but whose
+        /// material its agent then refused ("Checksum error"), and that Thunderbird's RNP refused
+        /// outright -- i.e. keys no mail client could use, which is the entire point of generating
+        /// them. The private key VALUE was intact throughout; only the trailing checksum was wrong.
+        ///
+        /// It has to be checked independently, because BouncyCastle reads its own malformed output
+        /// back without complaint: ExtractPrivateKey succeeds on both the broken and the correct
+        /// key, so any BC-only round-trip test passes while real clients reject the result.
+        /// RFC 4880 5.5.3: with S2K usage 0, the two octets are the sum of the preceding secret
+        /// material octets, mod 65536.
+        /// </summary>
+        [Test]
+        public void SecretKeyChecksumValidatesPerRfc4880()
+        {
+            var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId);
+
+            using var input = PgpUtilities.GetDecoderStream(
+                new MemoryStream(Encoding.ASCII.GetBytes(material.SecretKeyArmored)));
+            var ring = new PgpSecretKeyRing(input);
+
+            var checkedKeys = 0;
+            foreach (PgpSecretKey key in ring.GetSecretKeys())
+            {
+                var secretBody = FirstPacketBody(key.GetEncoded());
+                var publicBody = FirstPacketBody(key.PublicKey.GetEncoded());
+
+                // The secret packet is the public packet's fields, then the usage byte, then the
+                // protected material -- so the public body's length locates the usage byte.
+                var usage = secretBody[publicBody.Length];
+                Assert.That(usage, Is.EqualTo(0),
+                    "Unencrypted keyring must declare S2K usage 0");
+
+                var material_ = secretBody[(publicBody.Length + 1)..];
+                var stored = (material_[^2] << 8) | material_[^1];
+
+                var computed = 0;
+                for (var i = 0; i < material_.Length - 2; i++)
+                {
+                    computed += material_[i];
+                }
+
+                Assert.That(computed & 0xFFFF, Is.EqualTo(stored),
+                    $"Secret key {key.KeyId:X} carries a checksum that does not validate -- " +
+                    "GnuPG's agent and Thunderbird's RNP both reject such a key");
+                checkedKeys++;
+            }
+
+            Assert.That(checkedKeys, Is.EqualTo(2), "Expected a primary key and an encryption subkey");
+        }
+
+        /// <summary>
+        /// CANARY -- pins the BouncyCastle behaviour we steer around, so we find out if it changes.
+        ///
+        /// <see cref="OpenPgpKeyManagement.GenerateP384KeyMaterial"/> passes <c>useSha1: false</c>.
+        /// That is the correct value for an unencrypted (Null-cipher) keyring rather than a hack,
+        /// but the reason it MATTERS is a BouncyCastle defect: with <c>useSha1: true</c> BC still
+        /// writes S2K usage 0 -- declaring a simple 2-octet checksum -- while storing the
+        /// SHA-1-style value there. This test asserts that defect is still present.
+        ///
+        /// If this test FAILS, BouncyCastle has changed its behaviour. Nothing is broken by that,
+        /// but go re-read the comment in GenerateP384KeyMaterial: its warning about useSha1: true
+        /// may no longer be accurate, and this canary should be updated or deleted rather than
+        /// silently "fixed". Verified against BouncyCastle 2.7 (2026-08-24).
+        /// </summary>
+        [Test]
+        public void CanaryBouncyCastleStillMisframesTheChecksumWhenUseSha1IsSet()
+        {
+            var armored = GenerateSecretRingArmored(useSha1: true);
+
+            using var input = PgpUtilities.GetDecoderStream(
+                new MemoryStream(Encoding.ASCII.GetBytes(armored)));
+            var ring = new PgpSecretKeyRing(input);
+
+            var mismatches = 0;
+            var total = 0;
+            foreach (PgpSecretKey key in ring.GetSecretKeys())
+            {
+                var secretBody = FirstPacketBody(key.GetEncoded());
+                var publicBody = FirstPacketBody(key.PublicKey.GetEncoded());
+                if (secretBody[publicBody.Length] != 0)
+                {
+                    // BC now frames it as something other than "simple checksum" -- also a change
+                    // worth noticing, and the assert below will report it.
+                    continue;
+                }
+
+                var secretMaterial = secretBody[(publicBody.Length + 1)..];
+                var stored = (secretMaterial[^2] << 8) | secretMaterial[^1];
+                var computed = 0;
+                for (var i = 0; i < secretMaterial.Length - 2; i++)
+                {
+                    computed += secretMaterial[i];
+                }
+
+                total++;
+                if ((computed & 0xFFFF) != stored)
+                {
+                    mismatches++;
+                }
+            }
+
+            Assert.That(mismatches, Is.EqualTo(total).And.GreaterThan(0),
+                "BouncyCastle no longer misframes the secret-key checksum under useSha1: true. " +
+                "Re-read the comment in GenerateP384KeyMaterial and update or delete this canary.");
+        }
+
+        /// <summary>
+        /// The keyring construction from <see cref="OpenPgpKeyManagement.GenerateP384KeyMaterial"/>,
+        /// with <c>useSha1</c> left open so the canary above can exercise the other branch. Kept
+        /// deliberately close to production; if that generator changes shape, change this too.
+        /// </summary>
+        private static string GenerateSecretRingArmored(bool useSha1)
+        {
+            var random = new Org.BouncyCastle.Security.SecureRandom();
+            var created = DateTime.UtcNow;
+
+            var generator = new Org.BouncyCastle.Crypto.Generators.ECKeyPairGenerator();
+            generator.Init(new ECKeyGenerationParameters(
+                Org.BouncyCastle.Asn1.Sec.SecObjectIdentifiers.SecP384r1, random));
+            var primary = generator.GenerateKeyPair();
+            var encryption = generator.GenerateKeyPair();
+
+            var primaryKeyPair = new PgpKeyPair(PublicKeyAlgorithmTag.ECDsa, primary, created);
+            var encryptionKeyPair = new PgpKeyPair(PublicKeyAlgorithmTag.ECDH, encryption, created);
+
+            var primarySubpackets = new PgpSignatureSubpacketGenerator();
+            primarySubpackets.SetKeyFlags(false, PgpKeyFlags.CanCertify | PgpKeyFlags.CanSign);
+            primarySubpackets.SetPreferredSymmetricAlgorithms(false, [(int)SymmetricKeyAlgorithmTag.Aes256]);
+            primarySubpackets.SetPreferredHashAlgorithms(false, [(int)HashAlgorithmTag.Sha384]);
+
+            var encryptionSubpackets = new PgpSignatureSubpacketGenerator();
+            encryptionSubpackets.SetKeyFlags(false,
+                PgpKeyFlags.CanEncryptCommunications | PgpKeyFlags.CanEncryptStorage);
+
+            var keyRingGenerator = new PgpKeyRingGenerator(
+                PgpSignature.PositiveCertification,
+                primaryKeyPair,
+                UserId,
+                SymmetricKeyAlgorithmTag.Null,
+                HashAlgorithmTag.Sha384,
+                Array.Empty<char>(),
+                useSha1,
+                primarySubpackets.Generate(),
+                null,
+                random);
+            keyRingGenerator.AddSubKey(
+                encryptionKeyPair, encryptionSubpackets.Generate(), null, HashAlgorithmTag.Sha384);
+
+            using var output = new MemoryStream();
+            using (var armoredOut = new ArmoredOutputStream(output))
+            {
+                keyRingGenerator.GenerateSecretKeyRing().Encode(armoredOut);
+            }
+
+            return Encoding.ASCII.GetString(output.ToArray());
+        }
+
+        /// <summary>Body of the first (old-format) packet in <paramref name="encoded"/>.</summary>
+        private static byte[] FirstPacketBody(byte[] encoded)
+        {
+            var lengthType = encoded[0] & 0x03;
+            var headerLength = lengthType switch
+            {
+                0 => 2,
+                1 => 3,
+                2 => 5,
+                _ => throw new InvalidOperationException("Indeterminate packet length is not expected here"),
+            };
+            var bodyLength = lengthType switch
+            {
+                0 => encoded[1],
+                1 => (encoded[1] << 8) | encoded[2],
+                _ => (encoded[1] << 24) | (encoded[2] << 16) | (encoded[3] << 8) | encoded[4],
+            };
+            return encoded[headerLength..(headerLength + bodyLength)];
+        }
         [Test]
         public void GeneratedCertificateIsMinimalP384WithEncryptionSubkey()
         {
