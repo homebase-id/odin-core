@@ -478,6 +478,62 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<DriveMainIndexRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(DriveMainIndexRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                                            "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                importCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                importCommand.AddParameter("@globalTransitId", DbType.Binary, item.globalTransitId);
+                importCommand.AddParameter("@fileState", DbType.Int32, item.fileState);
+                importCommand.AddParameter("@requiredSecurityGroup", DbType.Int32, item.requiredSecurityGroup);
+                importCommand.AddParameter("@fileSystemType", DbType.Int32, item.fileSystemType);
+                importCommand.AddParameter("@userDate", DbType.Int64, item.userDate.milliseconds);
+                importCommand.AddParameter("@fileType", DbType.Int32, item.fileType);
+                importCommand.AddParameter("@dataType", DbType.Int32, item.dataType);
+                importCommand.AddParameter("@archivalStatus", DbType.Int32, item.archivalStatus);
+                importCommand.AddParameter("@historyStatus", DbType.Int32, item.historyStatus);
+                importCommand.AddParameter("@senderId", DbType.String, item.senderId);
+                importCommand.AddParameter("@groupId", DbType.Binary, item.groupId);
+                importCommand.AddParameter("@uniqueId", DbType.Binary, item.uniqueId);
+                importCommand.AddParameter("@byteCount", DbType.Int64, item.byteCount);
+                importCommand.AddParameter("@hdrEncryptedKeyHeader", DbType.String, item.hdrEncryptedKeyHeader);
+                importCommand.AddParameter("@hdrVersionTag", DbType.Binary, item.hdrVersionTag);
+                importCommand.AddParameter("@hdrAppData", DbType.String, item.hdrAppData);
+                importCommand.AddParameter("@hdrLocalVersionTag", DbType.Binary, item.hdrLocalVersionTag);
+                importCommand.AddParameter("@hdrLocalAppData", DbType.String, item.hdrLocalAppData);
+                importCommand.AddParameter("@hdrReactionSummary", DbType.String, item.hdrReactionSummary);
+                importCommand.AddParameter("@hdrServerData", DbType.String, item.hdrServerData);
+                importCommand.AddParameter("@hdrTransferHistory", DbType.String, item.hdrTransferHistory);
+                importCommand.AddParameter("@hdrFileMetaData", DbType.String, item.hdrFileMetaData);
+                importCommand.AddParameter("@hdrTmpDriveAlias", DbType.Binary, item.hdrTmpDriveAlias);
+                importCommand.AddParameter("@hdrTmpDriveType", DbType.Binary, item.hdrTmpDriveType);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

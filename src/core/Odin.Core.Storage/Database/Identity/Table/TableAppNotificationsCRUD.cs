@@ -267,6 +267,41 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<AppNotificationsRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(AppNotificationsRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
+                                            "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@notificationId", DbType.Binary, item.notificationId);
+                importCommand.AddParameter("@unread", DbType.Int32, item.unread);
+                importCommand.AddParameter("@senderId", DbType.String, item.senderId);
+                importCommand.AddParameter("@timestamp", DbType.Int64, item.timestamp.milliseconds);
+                importCommand.AddParameter("@data", DbType.Binary, item.data);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid notificationId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
