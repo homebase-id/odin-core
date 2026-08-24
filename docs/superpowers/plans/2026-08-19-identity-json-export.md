@@ -2493,7 +2493,7 @@ Task 9 used `JsonDocument.ParseAsync`, which loads the entire file into memory. 
 - Consumes: everything from Task 9
 - Produces: no signature change. `ImportAsync` keeps its exact signature; only the read strategy changes.
 
-- [ ] **Step 1: Add a test that a large export imports without loading it all**
+- [x] **Step 1: Add a test that a large export imports without loading it all**
 
 Add to `IdentityJsonRoundTripTests`:
 
@@ -2544,12 +2544,12 @@ Add to `IdentityJsonRoundTripTests`:
     }
 ```
 
-- [ ] **Step 2: Run it against the current implementation**
+- [x] **Step 2: Run it against the current implementation**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~Import_HandlesAnExportLargerThan"`
 Expected: PASS, but slowly and with a large allocation spike. It documents the behaviour we are about to improve. Note the elapsed time from the test output to compare against after Step 3.
 
-- [ ] **Step 3: Switch to `DeserializeAsyncEnumerable`**
+- [x] **Step 3: Switch to `DeserializeAsyncEnumerable`**
 
 Replace the `JsonDocument.ParseAsync` block in `ImportAsync`. The file is a top-level array, which is exactly what `DeserializeAsyncEnumerable` streams:
 
@@ -2583,12 +2583,12 @@ Replace the `JsonDocument.ParseAsync` block in `ImportAsync`. The file is a top-
         }
 ```
 
-- [ ] **Step 4: Run the full test class**
+- [x] **Step 4: Run the full test class**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityJsonRoundTripTests"`
 Expected: all tests PASS, including the large one. Behaviour is unchanged; only memory profile improves.
 
-- [ ] **Step 5: Run every test added by this plan**
+- [x] **Step 5: Run every test added by this plan**
 
 Run:
 
@@ -2600,12 +2600,12 @@ dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj 
 
 Expected: all PASS.
 
-- [ ] **Step 6: Run the whole storage test project to check for regressions**
+- [x] **Step 6: Run the whole storage test project to check for regressions**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj`
 Expected: no new failures versus `main`. If anything in `DataImporter*Tests` fails, the regenerated CRUD files changed existing behaviour, which they should not have. Investigate before committing.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd /workspace/odin-core

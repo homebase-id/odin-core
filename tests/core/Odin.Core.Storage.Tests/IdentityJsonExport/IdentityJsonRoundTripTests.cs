@@ -225,4 +225,49 @@ public class IdentityJsonRoundTripTests
         Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.EqualTo(rowsAfterFirst),
             "A failed precondition must write zero additional rows");
     }
+
+    // DriveMainIndex carries hdrFileMetaData and hdrAppData for every file the identity
+    // owns, so whole-document parsing is the first thing to fall over on a real identity.
+    [Test]
+    public async Task Import_HandlesAnExportLargerThanIsComfortableInMemory()
+    {
+        _sourceScope = await _sourceServices.RegisterServicesAsync(
+            DatabaseType.Sqlite, _sourceTempFolder, _identityId);
+        var srcSys = _sourceScope.Resolve<SystemDatabase>();
+        var srcId = _sourceScope.Resolve<IdentityDatabase>();
+
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(srcSys, IdentityDomain, _identityId);
+        await DataImporterSeedHelper.SeedAllIdentityTablesAsync(srcId);
+
+        // 2000 KeyValue rows with 4KB payloads: roughly 8MB of base64 in the file.
+        for (var i = 0; i < 2000; i++)
+        {
+            await srcId.KeyValue.UpsertAsync(new KeyValueRecord
+            {
+                identityId = _identityId,
+                key = Guid.NewGuid().ToByteArray(),
+                data = new byte[4096],
+            });
+        }
+
+        var logger = _sourceScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
+        var path = Path.Combine(_sourceTempFolder, "big.json");
+        await using (var outFile = new FileStream(path, FileMode.CreateNew, FileAccess.Write))
+        {
+            await IdentityJsonExporter.ExportAsync(
+                logger, outFile, _identityId, IdentityDomain, srcSys, srcId,
+                identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasFrozenIdentity: true);
+        }
+
+        _targetScope = await _targetServices.RegisterServicesAsync(
+            DatabaseType.Sqlite, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var tgtId = _targetScope.Resolve<IdentityDatabase>();
+
+        await using var inFile = new FileStream(path, FileMode.Open, FileAccess.Read);
+        var result = await IdentityJsonImporter.ImportAsync(
+            logger, inFile, tgtSys, tgtId, commit: true);
+
+        Assert.That(result.RowsImported, Is.GreaterThan(2000));
+    }
 }

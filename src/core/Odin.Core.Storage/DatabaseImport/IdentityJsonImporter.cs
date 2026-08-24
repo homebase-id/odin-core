@@ -48,91 +48,103 @@ public static class IdentityJsonImporter
     {
         var skip = skipTables ?? DefaultSkippedTables;
 
-        using var document = await JsonDocument.ParseAsync(input);
-        var elements = document.RootElement.EnumerateArray();
+        // Streamed, not whole-document: DriveMainIndex carries hdrFileMetaData and
+        // hdrAppData for every file the identity owns, so a real export does not fit
+        // comfortably in memory. The file is a top-level array, which is exactly what
+        // DeserializeAsyncEnumerable consumes.
+        var enumerator = JsonSerializer
+            .DeserializeAsyncEnumerable<JsonElement>(input, OdinSystemSerializer.JsonSerializerOptions)
+            .GetAsyncEnumerator();
 
-        if (!elements.MoveNext())
+        try
         {
-            throw new InvalidOperationException("Export file is empty.");
-        }
-
-        var header = JsonSerializer.Deserialize<ExportHeader>(
-            elements.Current.GetRawText(), OdinSystemSerializer.JsonSerializerOptions)
-            ?? throw new InvalidOperationException("Export file has no readable header.");
-
-        if (header.Kind != IdentityExportFile.KindHeader)
-        {
-            throw new InvalidOperationException(
-                $"Expected the first element to be a header, found '{header.Kind}'.");
-        }
-
-        // Nothing is written until every precondition holds.
-        var violations = await IdentityImportPreconditions.CheckAsync(
-            header, targetSystemDatabase, targetIdentityDatabase);
-
-        if (violations.Count > 0)
-        {
-            throw new InvalidOperationException(
-                $"Refusing to import {header.Domain}. {violations.Count} precondition(s) failed:"
-                + Environment.NewLine + string.Join(Environment.NewLine, violations.Select(v => "  - " + v)));
-        }
-
-        var result = new ImportResult { Header = header };
-
-        await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
-        await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
-
-        while (elements.MoveNext())
-        {
-            var element = elements.Current;
-            var table = element.GetProperty("table").GetString()
-                ?? throw new InvalidOperationException("Row is missing its table name.");
-            var db = element.GetProperty("db").GetString()
-                ?? throw new InvalidOperationException($"Row for {table} is missing its db discriminator.");
-            var data = element.GetProperty("data");
-
-            if (skip.Contains(table))
+            if (!await enumerator.MoveNextAsync())
             {
-                result.SkippedRowsByTable.TryGetValue(table, out var soFar);
-                result.SkippedRowsByTable[table] = soFar + 1;
-                continue;
+                throw new InvalidOperationException("Export file is empty.");
             }
 
-            switch (db)
+            var header = JsonSerializer.Deserialize<ExportHeader>(
+                enumerator.Current.GetRawText(), OdinSystemSerializer.JsonSerializerOptions)
+                ?? throw new InvalidOperationException("Export file has no readable header.");
+
+            if (header.Kind != IdentityExportFile.KindHeader)
             {
-                case IdentityExportFile.DbIdentity:
-                    result.RowsImported += await targetIdentityDatabase.ImportRowAsync(
-                        table, Deserialize(IdentityDatabase.ExportableRecordTypes, table, data));
-                    break;
-
-                case IdentityExportFile.DbSystem:
-                    result.RowsImported += await targetSystemDatabase.ImportRowAsync(
-                        table, Deserialize(SystemDatabase.ExportableRecordTypes, table, data));
-                    break;
-
-                default:
-                    throw new InvalidOperationException($"Unknown db discriminator '{db}' for table {table}.");
+                throw new InvalidOperationException(
+                    $"Expected the first element to be a header, found '{header.Kind}'.");
             }
-        }
 
-        foreach (var (table, count) in result.SkippedRowsByTable.OrderBy(kv => kv.Key))
-        {
-            logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
-        }
+            // Nothing is written until every precondition holds.
+            var violations = await IdentityImportPreconditions.CheckAsync(
+                header, targetSystemDatabase, targetIdentityDatabase);
 
-        if (!commit)
-        {
-            logger.LogInformation("Dry run: rolling back {count} rows for {domain}",
-                result.RowsImported, header.Domain);
-        }
-        else
-        {
-            logger.LogInformation("Imported {count} rows for {domain}", result.RowsImported, header.Domain);
-            systemTransaction.Commit();
-            identityTransaction.Commit();
-        }
+            if (violations.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Refusing to import {header.Domain}. {violations.Count} precondition(s) failed:"
+                    + Environment.NewLine + string.Join(Environment.NewLine, violations.Select(v => "  - " + v)));
+            }
 
-        return result;
+            var result = new ImportResult { Header = header };
+
+            await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
+            await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
+
+            while (await enumerator.MoveNextAsync())
+            {
+                var element = enumerator.Current;
+                var table = element.GetProperty("table").GetString()
+                    ?? throw new InvalidOperationException("Row is missing its table name.");
+                var db = element.GetProperty("db").GetString()
+                    ?? throw new InvalidOperationException($"Row for {table} is missing its db discriminator.");
+                var data = element.GetProperty("data");
+
+                if (skip.Contains(table))
+                {
+                    result.SkippedRowsByTable.TryGetValue(table, out var soFar);
+                    result.SkippedRowsByTable[table] = soFar + 1;
+                    continue;
+                }
+
+                switch (db)
+                {
+                    case IdentityExportFile.DbIdentity:
+                        result.RowsImported += await targetIdentityDatabase.ImportRowAsync(
+                            table, Deserialize(IdentityDatabase.ExportableRecordTypes, table, data));
+                        break;
+
+                    case IdentityExportFile.DbSystem:
+                        result.RowsImported += await targetSystemDatabase.ImportRowAsync(
+                            table, Deserialize(SystemDatabase.ExportableRecordTypes, table, data));
+                        break;
+
+                    default:
+                        throw new InvalidOperationException($"Unknown db discriminator '{db}' for table {table}.");
+                }
+            }
+
+            foreach (var (table, count) in result.SkippedRowsByTable.OrderBy(kv => kv.Key))
+            {
+                logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
+            }
+
+            if (!commit)
+            {
+                logger.LogInformation("Dry run: rolling back {count} rows for {domain}",
+                    result.RowsImported, header.Domain);
+            }
+            else
+            {
+                logger.LogInformation("Imported {count} rows for {domain}", result.RowsImported, header.Domain);
+                systemTransaction.Commit();
+                identityTransaction.Commit();
+            }
+
+            return result;
+        }
+        finally
+        {
+            await enumerator.DisposeAsync();
+        }
     }
 
     private static object Deserialize(
