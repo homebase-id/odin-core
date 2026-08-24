@@ -45,7 +45,7 @@ Dropped as a file; no ansible change needed.
 ```
 Email:TenantMail:Enabled=true
 Email:TenantMail:MxNodes:0=<mail hostname>
-Email:TenantMail:SpfIncludeTarget=<spf host>
+Email:TenantMail:SpfIncludeTarget=<hostname holding an SPF TXT record>
 Email:TenantMail:DmarcReportEmail=<address>
 Email:TenantMail:TlsReportEmail=<address>
 Email:DkimStorageKey=<openssl rand -hex 32>
@@ -54,11 +54,27 @@ Email:Stalwart:AdminUsername=<user>
 Email:Stalwart:AdminPassword=<strong>
 ```
 
-- `BaseUrl` is the **container name**, not `localhost`.
-- `DkimStorageKey` must be exactly 64 hex chars, else the host throws at boot.
-- All four `TenantMail` values are required once `Enabled` — an incomplete file
-  fails boot loudly rather than half-working.
-- Omit `Email:Provider` unless you also want system mail.
+| Value | What it is | Phase 1 |
+|---|---|---|
+| `MxNodes:0` | The mail hostname. Autoconfig advertises it to clients at 993/465, and it becomes the MX target in Phase 2. | Must resolve (the one A record above). This is the only one clients actually use. |
+| `SpfIncludeTarget` | A hostname whose TXT record holds `v=spf1 ...`. Tenant SPF records are generated as `v=spf1 include:<this> -all`. | Not used — no records are published. Set the intended value if known, else a placeholder. |
+| `DmarcReportEmail` | Goes into generated DMARC records as `rua=mailto:`. | Not used in Phase 1. |
+| `TlsReportEmail` | Goes into generated TLS-RPT records as `rua=mailto:`. | Not used in Phase 1. |
+| `DkimStorageKey` | **Encrypts tenants' DKIM private keys at rest** (AES-CBC). Exactly 32 bytes as 64 hex chars. | Generate **once**, back it up, never change it — see below. |
+| `Stalwart:*` | Container address and admin credential. | `BaseUrl` is the container name on the shared docker network, not `localhost`. |
+
+**`DkimStorageKey` is the one that bites.** It is not a throwaway: every DKIM private
+key the server stores is encrypted under it. Change or lose it and existing keys
+cannot be decrypted — the tenants involved need new DKIM keys and new DNS records.
+Generate it once, store it wherever the other production secrets live, and treat it
+as permanent. An incomplete or wrong-length value fails boot loudly, which is the
+good case.
+
+The other three DNS values are required once `Enabled` is true, but nothing reads
+them in Phase 1: their only consumers are the generated DNS records and the
+network checks, and both are Phase 2. Fill them in with the intended production
+values if they are known — it costs nothing and means Phase 2 does not need a
+config edit.
 
 ### Two things to know before flipping it
 
@@ -68,6 +84,12 @@ Email:Stalwart:AdminPassword=<strong>
   surprised.
 - **Thunderbird will warn about the certificate.** Expected in Phase 1: it is
   self-signed. Click through.
+- **Phase 1 logs an ERR at every boot**, by design:
+  `Email:TenantMail:Enabled is true but Email:Provider is 'None'`. It fires
+  because Phase 1 deliberately leaves the system sender unset. Nothing is
+  broken, but ERR normally means "look at this" — so either expect it, or
+  set `Email:Provider` + `Email:SystemFrom:Email` to a working sender and it
+  goes away.
 
 ### Verify
 
