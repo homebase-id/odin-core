@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Util;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.X509;
+using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Certificate;
@@ -24,6 +27,7 @@ public class CertificateService : ICertificateService
     private readonly IDnsLookupService _dnsLookupService;
     private readonly AcmeAccountConfig _accountConfig;
     private readonly IServiceProvider _serviceProvider;
+    private readonly OdinConfiguration _configuration;
     private readonly string _accountKey;
 
     public CertificateService(
@@ -33,7 +37,8 @@ public class CertificateService : ICertificateService
         ICertesAcme certesAcme,
         IDnsLookupService dnsLookupService,
         AcmeAccountConfig accountConfig,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        OdinConfiguration configuration)
     {
         _logger = logger;
         _nodeLock = nodeLock;
@@ -42,6 +47,7 @@ public class CertificateService : ICertificateService
         _dnsLookupService = dnsLookupService;
         _accountConfig = accountConfig;
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
 
         _accountKey = _certesAcme.IsProduction ?
             "acme-account-prod-pem" :
@@ -101,7 +107,7 @@ public class CertificateService : ICertificateService
     {
         var x509 = await GetCertificateAsync(domain);
 
-        if (x509 != null && !AboutToExpire(x509))
+        if (x509 != null && !await NeedsRenewalAsync(domain, x509, sans, cancellationToken))
         {
             return false;
         }
@@ -110,7 +116,7 @@ public class CertificateService : ICertificateService
         {
             x509 = await GetCertificateAsync(domain);
 
-            if (x509 != null && !AboutToExpire(x509))
+            if (x509 != null && !await NeedsRenewalAsync(domain, x509, sans, cancellationToken))
             {
                 _logger.LogDebug("Background renew of certificate {domain} completed on another thread", domain);
                 return false;
@@ -146,13 +152,26 @@ public class CertificateService : ICertificateService
         {
             if (sans.Length > 0) // don't verify system domains (e.g. provisioning, admin, etc)
             {
-                var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(new AsciiDomainName(domain), cancellationToken);
+                var (areDnsRecordsOk, dnsConfigs) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(new AsciiDomainName(domain), cancellationToken);
                 if (!areDnsRecordsOk)
                 {
                     var error = $"Cannot create certificate for {domain}. One or more DNS records are incorrect.";
                     _logger.LogWarning("{error}", error);
                     await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
                     return null;
+                }
+
+                // Optional SANs (mta-sts) join the certificate only when their DNS record
+                // actually resolves: the CA fails the WHOLE order if one name cannot
+                // validate, and manual-records tenants may not have created the record
+                var optionalSans = dnsConfigs
+                    .Where(x => x.Optional && x.Type == "CNAME" && x.Status == DnsLookupRecordStatus.Success)
+                    .Select(x => x.Domain)
+                    .Where(x => !sans.Contains(x, StringComparer.OrdinalIgnoreCase))
+                    .ToArray();
+                if (optionalSans.Length > 0)
+                {
+                    sans = [..sans, ..optionalSans];
                 }
             }
 
@@ -246,6 +265,43 @@ public class CertificateService : ICertificateService
     private static bool AboutToExpire(X509Certificate2 certificate)
     {
         return DateTime.Now + TimeSpan.FromDays(7) > certificate.NotAfter;
+    }
+
+    //
+
+    /// <summary>
+    /// Expiry is the normal trigger. Additionally, a tenant certificate missing the
+    /// mta-sts SAN renews early once the record resolves, so existing certificates pick
+    /// the SAN up promptly after the email era begins instead of waiting out their 90
+    /// days. Steady-state cost is zero: once the SAN is on the certificate (or while
+    /// tenant mail is disabled) no DNS is touched, and the DNS-resolves gate prevents a
+    /// renew loop for manual-records tenants that never created the record.
+    /// </summary>
+    // internal for testing
+    internal async Task<bool> NeedsRenewalAsync(
+        string domain, X509Certificate2 certificate, string[] sans, CancellationToken cancellationToken)
+    {
+        if (AboutToExpire(certificate))
+        {
+            return true;
+        }
+
+        // sans.Length == 0 = system domain (provisioning, admin): never carries optional SANs
+        if (sans.Length == 0 || !_configuration.Email.TenantMail.Enabled)
+        {
+            return false;
+        }
+
+        var mtaStsDomain = $"{DnsConfigurationSet.PrefixMtaSts}.{domain}";
+        if (certificate.GetSubjectAlternativeNames().Contains(mtaStsDomain, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var (_, dnsConfigs) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(
+            new AsciiDomainName(domain), cancellationToken);
+        return dnsConfigs.Any(x =>
+            x.Optional && x.Name == DnsConfigurationSet.PrefixMtaSts && x.Status == DnsLookupRecordStatus.Success);
     }
 
     //

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,10 +16,13 @@ public class OdinConfigurationTest
     {
         var configMock = new OdinConfiguration
         {
-            Mailgun = new OdinConfiguration.MailgunSection
+            Email = new OdinConfiguration.EmailSection
             {
-                EmailDomain = "example.com",
-                DefaultFrom = new NameAndEmailAddress
+                Mailgun = new OdinConfiguration.MailgunProviderSection
+                {
+                    EmailDomain = "example.com",
+                },
+                SystemFrom = new NameAndEmailAddress
                 {
                     Email = "odin@middle.earth",
                     Name = "Odin Bossman"
@@ -141,6 +145,209 @@ public class OdinConfigurationTest
         Assert.That(custom.RetryInitialBackoffMs, Is.EqualTo(1000));
     }
 
+    // --- EmailSection (consolidated Email:* config; legacy top-level Mailgun:* fallback) ---
+
+    [Test]
+    public void EmailSection_DefaultsToProviderNone()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig([]));
+
+        Assert.That(section.Provider, Is.EqualTo(EmailProvider.None));
+        Assert.That(section.IsProviderConfigured, Is.False);
+        Assert.That(section.LegacyMailgunConfig, Is.False);
+        Assert.That(section.TenantMail.Enabled, Is.False);
+    }
+
+    [Test]
+    public void EmailSection_ParsesSendGridProvider()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:Provider"] = "SendGrid",
+            ["Email:SendGrid:ApiKey"] = "sg-key",
+            ["Email:SystemFrom:Email"] = "no-reply@id.pub",
+            ["Email:SystemFrom:Name"] = "Team Homebase",
+        }));
+
+        Assert.That(section.Provider, Is.EqualTo(EmailProvider.SendGrid));
+        Assert.That(section.IsProviderConfigured, Is.True);
+        Assert.That(section.SendGrid.ApiKey, Is.EqualTo("sg-key"));
+        Assert.That(section.SystemFrom.Email, Is.EqualTo("no-reply@id.pub"));
+        Assert.That(section.SystemFrom.Name, Is.EqualTo("Team Homebase"));
+    }
+
+    [Test]
+    public void EmailSection_SelectedProviderCredentialsAreRequired()
+    {
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.EmailSection(BuildConfig(
+            new Dictionary<string, string?>
+            {
+                ["Email:Provider"] = "SendGrid",
+                ["Email:SystemFrom:Email"] = "no-reply@id.pub",
+                // Email:SendGrid:ApiKey deliberately omitted
+            })));
+
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.EmailSection(BuildConfig(
+            new Dictionary<string, string?>
+            {
+                ["Email:Provider"] = "Mailgun",
+                ["Email:SystemFrom:Email"] = "no-reply@id.pub",
+                ["Email:Mailgun:ApiKey"] = "mg-key",
+                // Email:Mailgun:EmailDomain deliberately omitted
+            })));
+    }
+
+    [Test]
+    public void EmailSection_UnselectedProviderCredentialsAreNotRequired()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:Provider"] = "Mailgun",
+            ["Email:Mailgun:ApiKey"] = "mg-key",
+            ["Email:Mailgun:EmailDomain"] = "mg.example.com",
+            ["Email:SystemFrom:Email"] = "no-reply@id.pub",
+            // no SendGrid/Smtp keys
+        }));
+
+        Assert.That(section.Provider, Is.EqualTo(EmailProvider.Mailgun));
+        Assert.That(section.Mailgun.EmailDomain, Is.EqualTo("mg.example.com"));
+        Assert.That(section.SendGrid.ApiKey, Is.EqualTo(""));
+    }
+
+    [Test]
+    public void EmailSection_LegacyMailgunFallback_MapsToMailgunProvider()
+    {
+        // Old deployments carry only top-level Mailgun:* keys (no Email section)
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Mailgun:Enabled"] = "true",
+            ["Mailgun:ApiKey"] = "legacy-key",
+            ["Mailgun:EmailDomain"] = "legacy.example.com",
+            ["Mailgun:DefaultFromEmail"] = "no-reply@legacy.example.com",
+            ["Mailgun:DefaultFromName"] = "Legacy Sender",
+        }));
+
+        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.Provider, Is.EqualTo(EmailProvider.Mailgun));
+        Assert.That(section.IsProviderConfigured, Is.True);
+        Assert.That(section.Mailgun.ApiKey, Is.EqualTo("legacy-key"));
+        Assert.That(section.Mailgun.EmailDomain, Is.EqualTo("legacy.example.com"));
+        Assert.That(section.SystemFrom.Email, Is.EqualTo("no-reply@legacy.example.com"));
+        Assert.That(section.SystemFrom.Name, Is.EqualTo("Legacy Sender"));
+        Assert.That(section.TenantMail.Enabled, Is.False);
+    }
+
+    [Test]
+    public void EmailSection_LegacyMailgunDisabled_MapsToProviderNone()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Mailgun:Enabled"] = "false",
+        }));
+
+        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.Provider, Is.EqualTo(EmailProvider.None));
+        Assert.That(section.IsProviderConfigured, Is.False);
+    }
+
+    [Test]
+    public void EmailSection_EmailSectionWins_OverLegacyMailgun()
+    {
+        // During migration both may exist; the new section takes precedence
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:Provider"] = "None",
+            ["Mailgun:Enabled"] = "true",
+            ["Mailgun:ApiKey"] = "legacy-key",
+            ["Mailgun:EmailDomain"] = "legacy.example.com",
+            ["Mailgun:DefaultFromEmail"] = "no-reply@legacy.example.com",
+        }));
+
+        Assert.That(section.LegacyMailgunConfig, Is.False);
+        Assert.That(section.Provider, Is.EqualTo(EmailProvider.None));
+    }
+
+    [Test]
+    public void EmailSection_ParsesTenantMail()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:Provider"] = "SendGrid",
+            ["Email:SendGrid:ApiKey"] = "sg-key",
+            ["Email:SystemFrom:Email"] = "no-reply@id.pub",
+            ["Email:TenantMail:Enabled"] = "true",
+            ["Email:TenantMail:CanaryDomain"] = "canary.id.pub",
+            ["Email:TenantMail:MxNodes:0"] = "node-a.example.com",
+            ["Email:TenantMail:MxNodes:1"] = "node-b.example.com",
+            ["Email:TenantMail:SpfIncludeTarget"] = "_spf.id.pub",
+            ["Email:TenantMail:DmarcReportEmail"] = "dmarc-reports@id.pub",
+            ["Email:TenantMail:TlsReportEmail"] = "tls-reports@id.pub",
+        }));
+
+        Assert.That(section.TenantMail.Enabled, Is.True);
+        Assert.That(section.TenantMail.CanaryDomain, Is.EqualTo("canary.id.pub"));
+        Assert.That(section.TenantMail.MxNodes, Is.EqualTo(new List<string> { "node-a.example.com", "node-b.example.com" }));
+        Assert.That(section.TenantMail.SpfIncludeTarget, Is.EqualTo("_spf.id.pub"));
+        Assert.That(section.TenantMail.DmarcReportEmail, Is.EqualTo("dmarc-reports@id.pub"));
+        Assert.That(section.TenantMail.TlsReportEmail, Is.EqualTo("tls-reports@id.pub"));
+    }
+
+    [Test]
+    public void EmailSection_TenantMailEnabled_RequiresDnsValues()
+    {
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.EmailSection(BuildConfig(
+            new Dictionary<string, string?>
+            {
+                ["Email:Provider"] = "SendGrid",
+                ["Email:SendGrid:ApiKey"] = "sg-key",
+                ["Email:SystemFrom:Email"] = "no-reply@id.pub",
+                ["Email:TenantMail:Enabled"] = "true",
+                // MxNodes etc. deliberately omitted
+            })));
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_DefaultsToEmpty()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig([]));
+        Assert.That(section.DkimStorageKey, Is.Empty);
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_ParsesThirtyTwoByteHex()
+    {
+        var hex = new string('A', 64);
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:DkimStorageKey"] = hex,
+        }));
+
+        Assert.That(section.DkimStorageKey, Is.EqualTo(Convert.FromHexString(hex)));
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_RejectsWrongLength()
+    {
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.EmailSection(BuildConfig(
+            new Dictionary<string, string?>
+            {
+                ["Email:DkimStorageKey"] = "DECAFBAD",
+            })));
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_IsSkippedOnLegacyMailgunConfig()
+    {
+        // The legacy branch early-returns; the key must simply stay empty, not throw
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Mailgun:Enabled"] = "false",
+        }));
+
+        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.DkimStorageKey, Is.Empty);
+    }
+
     private class OdinConfigurationConsumer
     {
         private readonly OdinConfiguration _config;
@@ -152,9 +359,9 @@ public class OdinConfigurationTest
 
         public void Test()
         {
-            Assert.That(_config.Mailgun.EmailDomain, Is.EqualTo("example.com"));
-            Assert.That(_config.Mailgun.DefaultFrom.Email, Is.EqualTo("odin@middle.earth"));
-            Assert.That(_config.Mailgun.DefaultFrom.Name, Is.EqualTo("Odin Bossman"));
+            Assert.That(_config.Email.Mailgun.EmailDomain, Is.EqualTo("example.com"));
+            Assert.That(_config.Email.SystemFrom.Email, Is.EqualTo("odin@middle.earth"));
+            Assert.That(_config.Email.SystemFrom.Name, Is.EqualTo("Odin Bossman"));
         }
     }
 

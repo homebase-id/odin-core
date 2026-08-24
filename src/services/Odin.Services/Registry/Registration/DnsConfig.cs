@@ -11,6 +11,12 @@ public class DnsConfig
     public string Value { get; init; } = ""; // e.g. "example.com" or "127.0.0.1"
     public string AltValue { get; init; } = ""; // For backwards compatibility using CNAME => CNAME => A
     public string Description { get; init; } = "";
+
+    // Optional records (www-style extras, email records) are informational: they are
+    // excluded from the identity-validation success rule and the certificate DNS gate.
+    // Additive field - old frontends ignore it.
+    public bool Optional { get; init; }
+
     public DnsLookupRecordStatus Status { get; set; } = DnsLookupRecordStatus.Unknown;
 
     public Dictionary<string, DnsLookupRecordStatus> QueryResults { get; } = new (); // query results per DNS ip address

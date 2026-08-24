@@ -78,7 +78,17 @@ public sealed partial class OdinHost : IAsyncDisposable
         DataRoot = dataRoot;
     }
 
-    public static async Task<OdinHost> StartAsync(params string[] identities)
+    /// <param name="identities">Identities to preconfigure. At least one is required.</param>
+    /// <param name="extraConfig">
+    /// Per-fixture configuration, merged over the per-host defaults. Use this for settings a
+    /// fixture needs the host booted with (e.g. <c>Email:TenantMail:Enabled</c>) instead of
+    /// process-wide environment variables: env vars leak across the fixtures that run in
+    /// parallel, which is the exact isolation this framework exists to provide. Note list
+    /// settings bind by index — <c>"Email:TenantMail:MxNodes:0"</c>, not the <c>__0</c> env form.
+    /// </param>
+    public static async Task<OdinHost> StartAsync(
+        string[] identities,
+        IReadOnlyDictionary<string, string?>? extraConfig = null)
     {
         if (identities.Length == 0)
         {
@@ -95,7 +105,7 @@ public sealed partial class OdinHost : IAsyncDisposable
 
         EnsureGlobalEnvBaseline();
 
-        var overrides = BuildPerHostConfig(identities, tenantData, systemData, logs);
+        var overrides = BuildPerHostConfig(identities, tenantData, systemData, logs, extraConfig);
 
         // Holder is populated AFTER host.StartAsync (TestServer not available before that), but
         // resolved lazily by the test peer factory delegate at first request — so this works as
@@ -222,7 +232,8 @@ public sealed partial class OdinHost : IAsyncDisposable
     }
 
     private static Dictionary<string, string?> BuildPerHostConfig(
-        string[] identities, string tenantData, string systemData, string logs)
+        string[] identities, string tenantData, string systemData, string logs,
+        IReadOnlyDictionary<string, string?>? extraConfig = null)
     {
         var cfg = new Dictionary<string, string?>
         {
@@ -235,6 +246,16 @@ public sealed partial class OdinHost : IAsyncDisposable
         for (var i = 0; i < identities.Length; i++)
         {
             cfg[$"Development:PreconfiguredDomains:{i}"] = identities[i];
+        }
+
+        // Last write wins: a fixture may deliberately override a per-host default (and the
+        // in-memory provider is added last, so this also wins over the env baseline).
+        if (extraConfig != null)
+        {
+            foreach (var (key, value) in extraConfig)
+            {
+                cfg[key] = value;
+            }
         }
 
         return cfg;
@@ -366,10 +387,7 @@ public sealed partial class OdinHost : IAsyncDisposable
 
     private static void SetMailBaseline()
     {
-        Set("Mailgun__ApiKey", "dontcare");
-        Set("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
-        Set("Mailgun__EmailDomain", "odin.earth");
-        Set("Mailgun__Enabled", "false");
+        Set("Email__Provider", "None");
     }
 
     /// <summary>Admin API disabled — otherwise it would bind a Kestrel port.</summary>

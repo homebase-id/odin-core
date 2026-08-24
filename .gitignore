@@ -37,6 +37,10 @@ msbuild.err
 msbuild.wrn
 dist/
 
+# ContainerBuild directories
+bin-container/
+obj-container/
+
 # Visual Studio 2015
 .vs/
 

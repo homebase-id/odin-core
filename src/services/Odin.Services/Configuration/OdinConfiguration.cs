@@ -31,7 +31,7 @@ public class OdinConfiguration
     public BackgroundServicesSection BackgroundServices { get; init; } = new();
     public CertificateRenewalSection CertificateRenewal { get; init; } = new();
 
-    public MailgunSection Mailgun { get; init; } = new();
+    public EmailSection Email { get; init; } = new();
     public AdminSection Admin { get; init; } = new();
 
     public FeedSection Feed { get; init; } = new();
@@ -62,7 +62,7 @@ public class OdinConfiguration
         Logging = new LoggingSection(config);
         BackgroundServices = new BackgroundServicesSection(config);
         Registry = new RegistrySection(config);
-        Mailgun = new MailgunSection(config);
+        Email = new EmailSection(config);
         Admin = new AdminSection(config);
         AccountRecovery = new AccountRecoverySection(config);
         Development = new DevelopmentSection(config);
@@ -172,6 +172,15 @@ public class OdinConfiguration
 
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
+        /// <summary>
+        /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
+        /// Default true; set false where the configured hostnames are not the real ones — a dev box
+        /// resolves them through /etc/hosts, so every lookup fails and the retry loop just logs noise.
+        /// Not a domain allowlist on purpose: the infra domain is also the production one, so
+        /// skipping it by name would disable the check exactly where it is wanted.
+        /// </summary>
+        public bool DnsInfraVerificationEnabled { get; init; } = true;
+
         public DnsConfigurationSet DnsConfigurationSet { get; init; } = new("127.0.0.1", "example.com");
         public List<string> DnsResolvers { get; init; } = [];
         public long DaysUntilAccountDeletion { get; init; } = long.MaxValue;
@@ -189,6 +198,7 @@ public class OdinConfiguration
             ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", true);
             AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
             ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", ManagedDomainApexes);
+            DnsInfraVerificationEnabled = config.GetOrDefault("Registry:DnsInfraVerificationEnabled", true);
             DnsResolvers = config.GetOrDefault("Registry:DnsResolvers",
                 new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
             DnsConfigurationSet = new DnsConfigurationSet(
@@ -416,30 +426,228 @@ public class OdinConfiguration
 
     //
 
-    public class MailgunSection
+    public class EmailSection
     {
-        public string ApiKey { get; init; } = "";
-        public NameAndEmailAddress DefaultFrom { get; init; } = new();
-        public string EmailDomain { get; init; } = "";
-        public bool Enabled { get; init; }
+        public EmailProvider Provider { get; init; } = EmailProvider.None;
+        public NameAndEmailAddress SystemFrom { get; init; } = new();
+        public SendGridProviderSection SendGrid { get; init; } = new();
+        public MailgunProviderSection Mailgun { get; init; } = new();
+        public SmtpProviderSection Smtp { get; init; } = new();
+        public TenantMailSection TenantMail { get; init; } = new();
+        public StalwartSection Stalwart { get; init; } = new();
 
-        public MailgunSection()
+        /// <summary>
+        /// True when the deprecated top-level Mailgun section supplied the values.
+        /// The startup verifier logs a deprecation warning; remove the fallback next release.
+        /// </summary>
+        public bool LegacyMailgunConfig { get; init; }
+
+        /// <summary>
+        /// AES key encrypting tenant DKIM private keys at rest (DkimStore) - the
+        /// CertificateRenewal:StorageKey pattern, as a separate key by hygiene.
+        /// Optional until email activation ships to an environment: empty means
+        /// the DkimStore refuses to operate, nothing else is affected.
+        /// </summary>
+        public byte[] DkimStorageKey { get; init; } = [];
+
+        /// <summary>
+        /// Gates policy and scheduling decisions (recovery mode, email jobs) - the
+        /// replacement for the old Mailgun.Enabled flag. With Provider "None" an
+        /// IEmailSender still resolves (NullEmailSender), but nothing should rely
+        /// on reaching it.
+        /// </summary>
+        public bool IsProviderConfigured => Provider != EmailProvider.None;
+
+        public EmailSection()
         {
             // Mockable support
         }
 
-        public MailgunSection(IConfiguration config)
+        public EmailSection(IConfiguration config)
         {
-            Enabled = config.GetOrDefault("Mailgun:Enabled", false);
+            if (!config.SectionExists("Email") && config.SectionExists("Mailgun"))
+            {
+                // Deprecated top-level Mailgun section; supported for one release
+                LegacyMailgunConfig = true;
+                if (config.GetOrDefault("Mailgun:Enabled", false))
+                {
+                    Provider = EmailProvider.Mailgun;
+                    Mailgun = new MailgunProviderSection
+                    {
+                        ApiKey = config.Required<string>("Mailgun:ApiKey"),
+                        EmailDomain = config.Required<string>("Mailgun:EmailDomain"),
+                    };
+                    SystemFrom = new NameAndEmailAddress
+                    {
+                        Email = config.Required<string>("Mailgun:DefaultFromEmail"),
+                        Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
+                    };
+                }
+                return;
+            }
+
+            Provider = config.GetOrDefault("Email:Provider", EmailProvider.None);
+            if (Provider != EmailProvider.None)
+            {
+                SystemFrom = new NameAndEmailAddress
+                {
+                    Email = config.Required<string>("Email:SystemFrom:Email"),
+                    Name = config.GetOrDefault("Email:SystemFrom:Name", ""),
+                };
+            }
+
+            // Only the selected provider's credentials are required
+            switch (Provider)
+            {
+                case EmailProvider.SendGrid:
+                    SendGrid = new SendGridProviderSection
+                    {
+                        ApiKey = config.Required<string>("Email:SendGrid:ApiKey"),
+                    };
+                    break;
+                case EmailProvider.Mailgun:
+                    Mailgun = new MailgunProviderSection
+                    {
+                        ApiKey = config.Required<string>("Email:Mailgun:ApiKey"),
+                        EmailDomain = config.Required<string>("Email:Mailgun:EmailDomain"),
+                    };
+                    break;
+                case EmailProvider.Smtp:
+                    Smtp = new SmtpProviderSection
+                    {
+                        RelayHost = config.Required<string>("Email:Smtp:RelayHost"),
+                        RelayPort = config.GetOrDefault("Email:Smtp:RelayPort", 25),
+                        Username = config.GetOrDefault("Email:Smtp:Username", ""),
+                        Password = config.GetOrDefault("Email:Smtp:Password", ""),
+                        RequireTls = config.GetOrDefault("Email:Smtp:RequireTls", false),
+                        LocalDomain = config.GetOrDefault("Email:Smtp:LocalDomain", ""),
+                        RelayIps = config.GetOrDefault("Email:Smtp:RelayIps", new List<string>()),
+                    };
+                    break;
+            }
+
+            TenantMail = new TenantMailSection(config);
+
+            var dkimStorageKeyHex = config.GetOrDefault("Email:DkimStorageKey", "");
+            if (!string.IsNullOrEmpty(dkimStorageKeyHex))
+            {
+                DkimStorageKey = Convert.FromHexString(dkimStorageKeyHex);
+                if (DkimStorageKey.Length != 32)
+                {
+                    throw new OdinConfigException("Email:DkimStorageKey must be a 32-byte hex string");
+                }
+            }
+
+            Stalwart = new StalwartSection(config);
+        }
+    }
+
+    /// <summary>
+    /// The Stalwart mail-server management endpoint (docs/email-keys-plan.md "The
+    /// Stalwart wrapper"). Absent = NullMailboxProvider; present = the real provider.
+    /// One endpoint per host group.
+    /// </summary>
+    public class StalwartSection
+    {
+        /// <summary>Management base URL, e.g. "http://localhost:9080" - the /jmap endpoint lives under it.</summary>
+        public string BaseUrl { get; init; } = "";
+
+        public string AdminUsername { get; init; } = "";
+        public string AdminPassword { get; init; } = "";
+
+        public bool IsConfigured => !string.IsNullOrEmpty(BaseUrl);
+
+        public StalwartSection()
+        {
+            // Mockable support
+        }
+
+        public StalwartSection(IConfiguration config)
+        {
+            BaseUrl = config.GetOrDefault("Email:Stalwart:BaseUrl", "").TrimEnd('/');
+            if (IsConfigured)
+            {
+                AdminUsername = config.Required<string>("Email:Stalwart:AdminUsername");
+                AdminPassword = config.Required<string>("Email:Stalwart:AdminPassword");
+            }
+        }
+    }
+
+    public class SendGridProviderSection
+    {
+        public string ApiKey { get; init; } = "";
+    }
+
+    public class MailgunProviderSection
+    {
+        public string ApiKey { get; init; } = "";
+        public string EmailDomain { get; init; } = "";
+    }
+
+    /// <summary>
+    /// Submission into the host's own mail server, which DKIM-signs and relays onward
+    /// (docs/email-keys-plan.md: "Homebase send API -> submits into Stalwart -> Stalwart
+    /// DKIM-signs -> relay"). Homebase never signs or relays outbound mail itself.
+    /// </summary>
+    public class SmtpProviderSection
+    {
+        /// <summary>The mail server to submit to — locally, the Stalwart container.</summary>
+        public string RelayHost { get; init; } = "";
+
+        /// <summary>
+        /// Submission port. 25 suits a mail server that accepts loopback submission for its own
+        /// domains; 587 is the authenticated submission port and needs credentials below.
+        /// </summary>
+        public int RelayPort { get; init; } = 25;
+
+        /// <summary>Optional submission credentials. Omit for an unauthenticated local relay.</summary>
+        public string Username { get; init; } = "";
+
+        public string Password { get; init; } = "";
+
+        /// <summary>
+        /// Whether to require TLS. Off by default because the usual deployment submits over
+        /// loopback to a mail server on the same host, where STARTTLS buys nothing and a
+        /// self-signed dev certificate would just fail the connection.
+        /// </summary>
+        public bool RequireTls { get; init; }
+
+        /// <summary>
+        /// The name announced in EHLO. Mail servers commonly reject a bare, non-FQDN hostname —
+        /// Stalwart answers "5.5.0 Invalid EHLO domain" — and the OS hostname of a Homebase host
+        /// is rarely its mail name, so this is configured rather than guessed. Empty means "let
+        /// the client decide", which is only safe where the machine already has a proper FQDN.
+        /// </summary>
+        public string LocalDomain { get; init; } = "";
+
+        /// <summary>The IPs outbound leaves from; published in SPF for self-sending setups.</summary>
+        public List<string> RelayIps { get; init; } = [];
+    }
+
+    public class TenantMailSection
+    {
+        public bool Enabled { get; init; }
+        public string CanaryDomain { get; init; } = "";
+        public List<string> MxNodes { get; init; } = [];
+        public string SpfIncludeTarget { get; init; } = "";
+        public string DmarcReportEmail { get; init; } = "";
+        public string TlsReportEmail { get; init; } = "";
+
+        public TenantMailSection()
+        {
+            // Mockable support
+        }
+
+        public TenantMailSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("Email:TenantMail:Enabled", false);
             if (Enabled)
             {
-                ApiKey = config.Required<string>("Mailgun:ApiKey");
-                DefaultFrom = new NameAndEmailAddress
-                {
-                    Email = config.Required<string>("Mailgun:DefaultFromEmail"),
-                    Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
-                };
-                EmailDomain = config.Required<string>("Mailgun:EmailDomain");
+                CanaryDomain = config.GetOrDefault("Email:TenantMail:CanaryDomain", "");
+                MxNodes = config.Required<List<string>>("Email:TenantMail:MxNodes");
+                SpfIncludeTarget = config.Required<string>("Email:TenantMail:SpfIncludeTarget");
+                DmarcReportEmail = config.Required<string>("Email:TenantMail:DmarcReportEmail");
+                TlsReportEmail = config.Required<string>("Email:TenantMail:TlsReportEmail");
             }
         }
     }

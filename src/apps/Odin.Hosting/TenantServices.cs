@@ -29,6 +29,7 @@ using Odin.Services.Drives.FileSystem.Standard.Attachments;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Statistics;
+using Odin.Services.Email;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
@@ -414,6 +415,12 @@ public static class TenantServices
 
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
+        cb.RegisterType<EmailPublicKeyService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<MailActivationService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<EmailHealthVerifier>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<EmailSetupStateService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<EmailKeyMaterialWriter>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<EmailAppService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<HomebasePublicPageService>().As<HomebasePublicPageService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
 

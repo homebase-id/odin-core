@@ -15,11 +15,13 @@ public static class UnifiedApiRouteConstants
     public const string ReactionsByFileId = FilesRoot + "/{fileId:guid}/reactions";
     public const string GroupReactionsByFileId = FilesRoot + "/{fileId:guid}/group-reactions";
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
+    public const string ByGtid = FilesRoot + "/by-gtid/{gtid:guid}";
     public const string Notify = BasePath + "/notify/push";
     public const string LiveRelay = BasePath + "/live-relay";
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
     public const string Links = BasePath + "/links";
+    public const string Mail = BasePath + "/mail";
     public const string Capi = BasePath + "/capi";
 
     public const string PeerRoot = BasePath + "/peer";

@@ -219,10 +219,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganization", "YF");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganizationUnit", "Dev");
 
-            Environment.SetEnvironmentVariable("Mailgun__ApiKey", "dontcare");
-            Environment.SetEnvironmentVariable("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
-            Environment.SetEnvironmentVariable("Mailgun__EmailDomain", "odin.earth");
-            Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
+            Environment.SetEnvironmentVariable("Email__Provider", "None");
 
             Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
             Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");

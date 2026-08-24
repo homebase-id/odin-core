@@ -222,6 +222,146 @@ public class PowerDnsRestClient : IDnsRestClient
 
     //
 
+    public Task CreateMxRecords(string zoneId, string name, IEnumerable<string> exchanges)
+    {
+        var records = exchanges.Select(x =>
+            new
+            {
+                content = x,
+                disabled = false
+            }
+        );
+
+        var data = new
+        {
+            rrsets = new[]
+            {
+                new
+                {
+                    name = RecordName(zoneId, name),
+                    type = "MX",
+                    changetype = "REPLACE",
+                    ttl = DefaultTtl,
+                    records
+                }
+            }
+        };
+
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
+    }
+
+    //
+
+    public Task DeleteMxRecords(string zoneId, string name)
+    {
+        var data = new
+        {
+            rrsets = new[]
+            {
+                new
+                {
+                    name = RecordName(zoneId, name),
+                    type = "MX",
+                    changetype = "DELETE",
+                }
+            }
+        };
+
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
+    }
+
+    //
+
+    public Task CreateTxtRecords(string zoneId, string name, IEnumerable<string> values)
+    {
+        var records = values.Select(x =>
+            new
+            {
+                content = ToTxtContent(x),
+                disabled = false
+            }
+        );
+
+        var data = new
+        {
+            rrsets = new[]
+            {
+                new
+                {
+                    name = RecordName(zoneId, name),
+                    type = "TXT",
+                    changetype = "REPLACE",
+                    ttl = DefaultTtl,
+                    records
+                }
+            }
+        };
+
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
+    }
+
+    //
+
+    public Task DeleteTxtRecords(string zoneId, string name)
+    {
+        var data = new
+        {
+            rrsets = new[]
+            {
+                new
+                {
+                    name = RecordName(zoneId, name),
+                    type = "TXT",
+                    changetype = "DELETE",
+                }
+            }
+        };
+
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
+    }
+
+    //
+
+    /// <summary>
+    /// The PowerDNS API stores TXT content verbatim as zone-file syntax: the value must
+    /// arrive quoted, with inner '"' and '\' backslash-escaped, and character strings
+    /// longer than 255 bytes split into adjacent quoted chunks (bites RSA DKIM keys).
+    /// </summary>
+    // internal for testing
+    internal static string ToTxtContent(string value)
+    {
+        var escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+        const int maxChunk = 255;
+        if (escaped.Length <= maxChunk)
+        {
+            return $"\"{escaped}\"";
+        }
+
+        var chunks = new List<string>();
+        for (var i = 0; i < escaped.Length; i += maxChunk)
+        {
+            var chunk = escaped.Substring(i, Math.Min(maxChunk, escaped.Length - i));
+
+            // Never split between a backslash and the character it escapes
+            if (chunk.Length == maxChunk)
+            {
+                var trailingBackslashes = chunk.Length - chunk.TrimEnd('\\').Length;
+                if (trailingBackslashes % 2 == 1)
+                {
+                    chunk = chunk[..^1];
+                    i--;
+                }
+            }
+
+            chunks.Add($"\"{chunk}\"");
+        }
+
+        return string.Join(" ", chunks);
+    }
+
+    //
+
     public async Task<List<DsRecordData>> GetZoneDsRecords(string zoneId)
     {
         var cryptokeys = await Api.GetCryptokeys(zoneId);

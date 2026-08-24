@@ -101,6 +101,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             return reg;
         }
 
+        // Optional prefixes resolve only while their feature is on - also load-bearing for
+        // TLS: SNI certificate selection goes through this lookup (Program.cs)
+        if (_config.Email.TenantMail.Enabled && DnsConfigurationSet.OptionalPrefixes.Contains(prefix))
+        {
+            return reg;
+        }
+
         return null;
     }
 

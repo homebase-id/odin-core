@@ -84,6 +84,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         }
 
         app.UseMiddleware<ExceptionHandlingMiddleware>();
+        // Before RedirectIfNotApexMiddleware: RFC 8461 forbids redirects on the policy fetch
+        app.UseMiddleware<MtaStsMiddleware>();
         app.UseMiddleware<RedirectIfNotApexMiddleware>();
         app.UseMiddleware<CertesAcmeMiddleware>();
         app.UseMiddleware<CdnMiddleware>();
@@ -503,31 +505,8 @@ public static class HostExtensions
             payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
-        // Sanity ping CDN, disable it not successful
-        if (config.Cdn.Enabled)
-        {
-            var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
-            var client = factory.CreateClient("CdnPingClient");
-            var url = $"{config.Cdn.PayloadBaseUrl}/ping";
-            var error = "";
-            try
-            {
-                var response = client.GetAsync(url).Result;
-                if (!response.IsSuccessStatusCode)
-                {
-                    error = response.ReasonPhrase;
-                }
-            }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-            }
-            if (error != "")
-            {
-                config.Cdn.Enabled = false;
-                logger.LogError("CDN enabled, but not responding to ping at {url}. Error: {error}", url, error);
-            }
-        }
+        // The CDN sanity ping runs in StartupVerificationBackgroundService (with retries,
+        // non-blocking) - it disables config.Cdn.Enabled if the CDN does not respond.
 
         // Sanity ping PowerDNS, disable it if not successful
         // SEB:TODO only do this when we have a PowerDnsEnabled flag in config
