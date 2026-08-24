@@ -172,6 +172,15 @@ public class OdinConfiguration
 
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
+        /// <summary>
+        /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
+        /// Default true; set false where the configured hostnames are not the real ones — a dev box
+        /// resolves them through /etc/hosts, so every lookup fails and the retry loop just logs noise.
+        /// Not a domain allowlist on purpose: the infra domain is also the production one, so
+        /// skipping it by name would disable the check exactly where it is wanted.
+        /// </summary>
+        public bool DnsInfraVerificationEnabled { get; init; } = true;
+
         public DnsConfigurationSet DnsConfigurationSet { get; init; } = new("127.0.0.1", "example.com");
         public List<string> DnsResolvers { get; init; } = [];
         public long DaysUntilAccountDeletion { get; init; } = long.MaxValue;
@@ -189,6 +198,7 @@ public class OdinConfiguration
             ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", true);
             AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
             ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", ManagedDomainApexes);
+            DnsInfraVerificationEnabled = config.GetOrDefault("Registry:DnsInfraVerificationEnabled", true);
             DnsResolvers = config.GetOrDefault("Registry:DnsResolvers",
                 new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
             DnsConfigurationSet = new DnsConfigurationSet(
