@@ -527,6 +527,7 @@ Model it on the existing `GenerateAllGlobalTableLists`. Add immediately after th
             Output("using System;");
             Output("using System.Collections.Generic;");
             Output("using System.Collections.Immutable;");
+            Output("using System.Data;");        // DbType, in CountRowsForIdentityAsync
             Output("using System.Threading.Tasks;");
             Output("using Odin.Core.Identity;");
             Output("using Odin.Core.Storage;");        // SqlHelper.GetTableVersionAsync
@@ -672,10 +673,16 @@ Global constraint check. Run:
 
 ```bash
 cd /workspace/odin-core
-grep -rl "System.Text.Json\|Utf8JsonWriter\|JsonElement" src/core/Odin.Core.Storage/Database/Identity/ src/core/Odin.Core.Storage/Database/System/ | grep -v Migrations
+grep -rl "THIS FILE IS AUTO GENERATED" src/core/Odin.Core.Storage/Database/Identity/ src/core/Odin.Core.Storage/Database/System/ \
+  | xargs grep -l "System.Text.Json\|Utf8JsonWriter\|JsonElement"
 ```
 
 Expected: no output.
+
+Scope the grep to files carrying the AUTO GENERATED header. Grepping the two directories
+wholesale also picks up hand-written files that legitimately use JSON, such as
+`Database/Identity/Abstractions/QueryBatchCached.cs`, and the constraint is about
+generated code only.
 
 - [ ] **Step 6: Confirm odin-core builds**
 
