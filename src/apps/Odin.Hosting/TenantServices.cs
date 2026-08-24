@@ -81,6 +81,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
 using Odin.Services.Configuration.VersionUpgrade.Version10tov11;
 using Odin.Services.Configuration.VersionUpgrade.Version11tov12;
+using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -398,6 +399,7 @@ public static class TenantServices
         cb.RegisterType<V9ToV10VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V10ToV11VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V11ToV12VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V12ToV13VersionMigrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();

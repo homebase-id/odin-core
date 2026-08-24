@@ -43,6 +43,27 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return Ok();
         }
 
+        /// <summary>
+        /// Completes the connection review: stamps the review and enrolls the chosen circles in one call.
+        /// Send no circles for the "chat only" outcome.
+        /// </summary>
+        [HttpPost("review")]
+        public async Task<IActionResult> ReviewConnection([FromBody] ReviewConnectionRequest request)
+        {
+            await circleNetwork.ReviewConnectionAsync(new OdinId(request.OdinId), request.CircleIds, WebOdinContext);
+            return Ok();
+        }
+
+        /// <summary>
+        /// Clears the review, dropping the contact back to "New".  Rejected while they hold any circle.
+        /// </summary>
+        [HttpPost("unreview")]
+        public async Task<IActionResult> UnreviewConnection([FromBody] OdinIdRequest request)
+        {
+            await circleNetwork.UnreviewConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+            return Ok();
+        }
+
         [HttpPost("verify-connection")]
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {
