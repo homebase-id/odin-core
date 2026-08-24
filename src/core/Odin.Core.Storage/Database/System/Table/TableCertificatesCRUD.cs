@@ -276,6 +276,42 @@ namespace Odin.Core.Storage.Database.System.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(OdinId domain, Func<CertificatesRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified FROM Certificates " +
+                                            "WHERE domain = @domain ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@domain", DbType.String, domain.DomainName);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(CertificatesRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified) " +
+                                            "VALUES (@domain,@privateKey,@certificate,@expiration,@lastAttempt,@correlationId,@lastError,@created,@modified);";
+                importCommand.AddParameter("@domain", DbType.String, item.domain.DomainName);
+                importCommand.AddParameter("@privateKey", DbType.String, item.privateKey);
+                importCommand.AddParameter("@certificate", DbType.String, item.certificate);
+                importCommand.AddParameter("@expiration", DbType.Int64, item.expiration.milliseconds);
+                importCommand.AddParameter("@lastAttempt", DbType.Int64, item.lastAttempt.milliseconds);
+                importCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
+                importCommand.AddParameter("@lastError", DbType.String, item.lastError);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         public virtual async Task<int> DeleteAsync(OdinId domain)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

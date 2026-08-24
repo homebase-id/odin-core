@@ -282,6 +282,42 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<AppRegistrationsRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified FROM AppRegistrations " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(AppRegistrationsRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified) " +
+                                            "VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                importCommand.AddParameter("@AppSlug", DbType.String, item.AppSlug);
+                importCommand.AddParameter("@Name", DbType.String, item.Name);
+                importCommand.AddParameter("@CorsHostName", DbType.String, item.CorsHostName);
+                importCommand.AddParameter("@grantJson", DbType.String, item.grantJson);
+                importCommand.AddParameter("@detailsJson", DbType.String, item.detailsJson);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid AppId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
