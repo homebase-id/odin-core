@@ -25,6 +25,11 @@ services:
       - "1465:465"
       - "1143:143"
       - "1993:993"
+      # Standard ports too, so a client that follows autoconfig (which advertises
+      # 993/465 per RFC) reaches this server without hand-editing. The remapped
+      # ports above stay bound so existing manual configs keep working.
+      - "993:993"
+      - "465:465"
     volumes:
       - stalwart-etc:/etc/stalwart
       - stalwart-data:/var/lib/stalwart
