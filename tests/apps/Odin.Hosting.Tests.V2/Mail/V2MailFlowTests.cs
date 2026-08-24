@@ -122,15 +122,15 @@ public class V2MailFlowTests : V2Fixture
     }
 
     /// <summary>
-    /// No mail server here means no usage figures. The endpoint says so instead of failing, so
-    /// the status screen simply omits the storage line.
+    /// No mail server here means no figures at all. The endpoint says so instead of failing, so
+    /// the status screen simply omits those lines.
     /// </summary>
     [Test]
-    public async Task StorageDegradesWhenTheProviderCannotAnswer()
+    public async Task MailboxStatusDegradesWhenTheProviderCannotAnswer()
     {
         var mail = await EmailAppAsync();
 
-        var response = await mail.GetStorageAsync();
+        var response = await mail.GetMailboxStatusAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content!.Available, Is.False);

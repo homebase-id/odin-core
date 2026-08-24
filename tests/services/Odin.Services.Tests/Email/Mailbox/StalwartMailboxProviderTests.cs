@@ -148,10 +148,12 @@ public class StalwartMailboxProviderTests
         await _provider.RevokeAppPasswordAsync(Domain, provision.Id);
         Assert.DoesNotThrowAsync(() => _provider.RevokeAppPasswordAsync(Domain, provision.Id));
 
-        // --- usage: a live account reports its disk use ---
-        var usage = await _provider.GetUsageAsync(Domain);
-        Assert.That(usage, Is.Not.Null, "a provisioned account reports usedDiskQuota");
-        Assert.That(usage!.UsedBytes, Is.GreaterThanOrEqualTo(0));
+        // --- status: a live account reports its own state ---
+        var status = await _provider.GetMailboxStatusAsync(Domain);
+        Assert.That(status, Is.Not.Null, "a provisioned account reports its mailbox status");
+        Assert.That(status!.UsedBytes, Is.GreaterThanOrEqualTo(0));
+        Assert.That(status.InboxUnread, Is.Zero, "a fresh mailbox has nothing unread");
+        Assert.That(status.QueuedOutbound, Is.Zero);
 
         // --- deletion ride-along: account + DKIM + domain, then a clean no-op ---
         await _provider.DeleteMailboxAsync(Domain);

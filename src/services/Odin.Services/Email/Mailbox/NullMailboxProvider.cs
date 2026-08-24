@@ -64,10 +64,10 @@ public class NullMailboxProvider(ILogger<NullMailboxProvider> logger) : IMailbox
         return Task.CompletedTask;
     }
 
-    public Task<MailboxUsage?> GetUsageAsync(string domain)
+    public Task<MailboxStatus?> GetMailboxStatusAsync(string domain)
     {
-        logger.LogDebug("NullMailboxProvider: no usage to report for {domain}", domain);
-        return Task.FromResult<MailboxUsage?>(null);
+        logger.LogDebug("NullMailboxProvider: no mailbox status to report for {domain}", domain);
+        return Task.FromResult<MailboxStatus?>(null);
     }
 
     // 20 random bytes as 4 blocks of 5 base32 chars - typed into a mail client once

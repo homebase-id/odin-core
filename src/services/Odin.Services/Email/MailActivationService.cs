@@ -201,11 +201,11 @@ public class MailActivationService(
         await mailboxProvider.RevokeAppPasswordAsync(tenantContext.HostOdinId.DomainName, appPasswordId);
     }
 
-    /// <summary>Mailbox storage, or null when the provider cannot answer.</summary>
-    public async Task<MailboxUsage?> GetUsageAsync()
+    /// <summary>Mailbox state, or null when the provider cannot answer.</summary>
+    public async Task<MailboxStatus?> GetMailboxStatusAsync()
     {
         ThrowIfTenantMailDisabled();
-        return await mailboxProvider.GetUsageAsync(tenantContext.HostOdinId.DomainName);
+        return await mailboxProvider.GetMailboxStatusAsync(tenantContext.HostOdinId.DomainName);
     }
 
     /// <summary>

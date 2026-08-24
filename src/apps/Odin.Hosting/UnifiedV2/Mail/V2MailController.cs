@@ -115,15 +115,15 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     }
 
     /// <summary>
-    /// Mailbox storage for the status screen. Answers Available = false when the mail server
-    /// does not report usage.
+    /// How the mailbox is doing — unread, junk, storage, and anything stuck on the way out.
+    /// Answers Available = false when the mail server does not report, rather than failing.
     /// </summary>
     [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
-    [HttpGet("storage")]
-    [ProducesResponseType(typeof(MailStorageResult), 200)]
-    public async Task<MailStorageResult> GetStorage()
+    [HttpGet("mailbox")]
+    [ProducesResponseType(typeof(MailboxStatusResult), 200)]
+    public async Task<MailboxStatusResult> GetMailboxStatus()
     {
-        return await emailAppService.GetStorageAsync(WebOdinContext);
+        return await emailAppService.GetMailboxStatusAsync(WebOdinContext);
     }
 
     /// <summary>

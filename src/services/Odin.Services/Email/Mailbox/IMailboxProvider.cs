@@ -51,10 +51,11 @@ public interface IMailboxProvider
     Task RevokeAppPasswordAsync(string domain, string appPasswordId);
 
     /// <summary>
-    /// Mailbox storage in use. Returns null when the provider cannot answer — this feeds a
-    /// line on a status screen, so it must degrade to "not shown" rather than fail the screen.
+    /// How the mailbox is doing: what it holds, what is unread, and whether anything is stuck
+    /// on the way out. Returns null when the provider cannot answer — this feeds a status
+    /// screen, so it must degrade to "not shown" rather than fail the screen.
     /// </summary>
-    Task<MailboxUsage?> GetUsageAsync(string domain);
+    Task<MailboxStatus?> GetMailboxStatusAsync(string domain);
 }
 
 /// <summary>
@@ -63,5 +64,25 @@ public interface IMailboxProvider
 /// </summary>
 public sealed record AppPasswordProvision(string Id, string Secret);
 
-/// <summary>Mailbox storage. A null quota means unlimited, or simply not reported.</summary>
-public sealed record MailboxUsage(long UsedBytes, long? QuotaBytes);
+/// <summary>
+/// A mailbox's observable state.
+///
+/// The unread count is the one a person cares about; the queue depth is the one that means
+/// something is wrong. Storage is here because it was already available, but it reads zero for
+/// months on a normal mailbox.
+/// </summary>
+/// <param name="UsedBytes">Disk in use.</param>
+/// <param name="QuotaBytes">Null means unlimited, or simply not reported.</param>
+/// <param name="InboxTotal">Messages in the inbox.</param>
+/// <param name="InboxUnread">Unread messages in the inbox.</param>
+/// <param name="JunkTotal">Messages filed as junk — worth surfacing, because mail people expected
+/// can end up here and look lost.</param>
+/// <param name="QueuedOutbound">Messages still waiting to go out. Anything above zero for long is
+/// a delivery problem, not a normal state.</param>
+public sealed record MailboxStatus(
+    long UsedBytes,
+    long? QuotaBytes,
+    int InboxTotal,
+    int InboxUnread,
+    int JunkTotal,
+    int QueuedOutbound);

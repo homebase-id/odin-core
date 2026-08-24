@@ -200,20 +200,24 @@ public class EmailAppService(
     /// Available = false rather than an error: this is one line on a screen, not a reason to
     /// fail the screen.
     /// </summary>
-    public async Task<MailStorageResult> GetStorageAsync(IOdinContext odinContext)
+    public async Task<MailboxStatusResult> GetMailboxStatusAsync(IOdinContext odinContext)
     {
         await AssertEmailDriveAccessAsync(odinContext);
         AssertTenantMailEnabled();
 
-        var usage = await mailActivationService.GetUsageAsync();
+        var status = await mailActivationService.GetMailboxStatusAsync();
 
-        return usage == null
-            ? new MailStorageResult { Available = false }
-            : new MailStorageResult
+        return status == null
+            ? new MailboxStatusResult { Available = false }
+            : new MailboxStatusResult
             {
                 Available = true,
-                UsedBytes = usage.UsedBytes,
-                QuotaBytes = usage.QuotaBytes,
+                UsedBytes = status.UsedBytes,
+                QuotaBytes = status.QuotaBytes,
+                InboxTotal = status.InboxTotal,
+                InboxUnread = status.InboxUnread,
+                JunkTotal = status.JunkTotal,
+                QueuedOutbound = status.QueuedOutbound,
             };
     }
 
@@ -307,15 +311,26 @@ public class AppPasswordIssueResult
     public Core.Time.UnixTimeUtc CreatedAt { get; init; }
 }
 
-public class MailStorageResult
+public class MailboxStatusResult
 {
-    /// <summary>False when the mail server does not report usage; the UI then shows nothing.</summary>
+    /// <summary>False when the mail server does not report; the UI then shows nothing.</summary>
     public bool Available { get; init; }
 
     public long UsedBytes { get; init; }
 
     /// <summary>Null means unlimited, or simply not reported.</summary>
     public long? QuotaBytes { get; init; }
+
+    public int InboxTotal { get; init; }
+
+    /// <summary>The number worth putting on a screen, and behind a badge.</summary>
+    public int InboxUnread { get; init; }
+
+    /// <summary>Mail that was filed as junk — where messages people expected go to look lost.</summary>
+    public int JunkTotal { get; init; }
+
+    /// <summary>Outbound messages still waiting. Above zero for long means delivery trouble.</summary>
+    public int QueuedOutbound { get; init; }
 }
 
 /// <summary>

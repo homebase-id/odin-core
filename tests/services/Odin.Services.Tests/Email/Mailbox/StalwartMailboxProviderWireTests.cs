@@ -191,42 +191,52 @@ public class StalwartMailboxProviderWireTests
     }
 
     [Test]
-    public async Task UsageReadsTheAccountsDiskQuota()
+    public async Task MailboxStatusReadsQuotaAndCounts()
     {
         var provider = CreateProvider();
         _responses.Enqueue(GetResponse("x:Domain/get", """[{"id":"d1","name":"frodo.example.test"}]"""));
         _responses.Enqueue(GetResponse("x:Account/get",
             """[{"id":"a1","name":"frodo","domainId":"d1","@type":"User","usedDiskQuota":4096,"quotas":{"maxDiskQuota":10485760}}]"""));
+        // Mailboxes are matched on role, not on their (localised) display names.
+        _responses.Enqueue("""{"methodResponses":[["Mailbox/get",{"accountId":"a1","list":[{"id":"m1","name":"Inbox","role":"inbox","totalEmails":7,"unreadEmails":3},{"id":"m2","name":"Junk Mail","role":"junk","totalEmails":2,"unreadEmails":2}]},"0"]]}""");
+        _responses.Enqueue(GetResponse("x:QueuedMessage/get", """[{"id":"q1"},{"id":"q2"}]"""));
 
-        var usage = await provider.GetUsageAsync(Domain);
+        var status = await provider.GetMailboxStatusAsync(Domain);
 
-        Assert.That(usage, Is.Not.Null);
-        Assert.That(usage!.UsedBytes, Is.EqualTo(4096));
-        Assert.That(usage.QuotaBytes, Is.EqualTo(10485760));
+        Assert.That(status, Is.Not.Null);
+        Assert.That(status!.UsedBytes, Is.EqualTo(4096));
+        Assert.That(status.QuotaBytes, Is.EqualTo(10485760));
+        Assert.That(status.InboxTotal, Is.EqualTo(7));
+        Assert.That(status.InboxUnread, Is.EqualTo(3));
+        Assert.That(status.JunkTotal, Is.EqualTo(2));
+        Assert.That(status.QueuedOutbound, Is.EqualTo(2), "outbound backlog is what says delivery is stuck");
     }
 
     /// <summary>An unreported quota is unlimited, not an error.</summary>
     [Test]
-    public async Task UsageWithoutAQuotaReportsNullQuota()
+    public async Task MailboxStatusWithoutAQuotaReportsNullQuota()
     {
         var provider = CreateProvider();
         _responses.Enqueue(GetResponse("x:Domain/get", """[{"id":"d1","name":"frodo.example.test"}]"""));
         _responses.Enqueue(GetResponse("x:Account/get",
             """[{"id":"a1","name":"frodo","domainId":"d1","@type":"User","usedDiskQuota":0,"quotas":{}}]"""));
+        _responses.Enqueue("""{"methodResponses":[["Mailbox/get",{"accountId":"a1","list":[]},"0"]]}""");
+        _responses.Enqueue(GetResponse("x:QueuedMessage/get", "[]"));
 
-        var usage = await provider.GetUsageAsync(Domain);
+        var status = await provider.GetMailboxStatusAsync(Domain);
 
-        Assert.That(usage!.QuotaBytes, Is.Null);
+        Assert.That(status!.QuotaBytes, Is.Null);
+        Assert.That(status.InboxUnread, Is.Zero, "no mailboxes reported is zero, not a failure");
     }
 
     /// <summary>A mail server that cannot answer must not take the status screen down.</summary>
     [Test]
-    public async Task UsageDegradesWhenTheDomainIsUnknown()
+    public async Task MailboxStatusDegradesWhenTheDomainIsUnknown()
     {
         var provider = CreateProvider();
         _responses.Enqueue(GetResponse("x:Domain/get", "[]"));
 
-        Assert.That(await provider.GetUsageAsync(Domain), Is.Null);
+        Assert.That(await provider.GetMailboxStatusAsync(Domain), Is.Null);
     }
 
     [Test]

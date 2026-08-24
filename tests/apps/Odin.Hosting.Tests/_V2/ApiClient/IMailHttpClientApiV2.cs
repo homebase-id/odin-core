@@ -29,6 +29,6 @@ public interface IMailHttpClientApiV2
     [Delete(Root + "/app-passwords/{id}")]
     Task<ApiResponse<HttpContent>> RevokeAppPassword(string id);
 
-    [Get(Root + "/storage")]
-    Task<ApiResponse<MailStorageResult>> GetStorage();
+    [Get(Root + "/mailbox")]
+    Task<ApiResponse<MailboxStatusResult>> GetMailboxStatus();
 }

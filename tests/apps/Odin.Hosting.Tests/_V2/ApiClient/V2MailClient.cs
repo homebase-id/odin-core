@@ -44,6 +44,6 @@ public class V2MailClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<HttpContent>> RevokeAppPasswordAsync(string id) =>
         await Service().RevokeAppPassword(id);
 
-    public async Task<ApiResponse<MailStorageResult>> GetStorageAsync() =>
-        await Service().GetStorage();
+    public async Task<ApiResponse<MailboxStatusResult>> GetMailboxStatusAsync() =>
+        await Service().GetMailboxStatus();
 }

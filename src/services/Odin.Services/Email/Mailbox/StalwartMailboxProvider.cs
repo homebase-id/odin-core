@@ -34,6 +34,10 @@ public class StalwartMailboxProvider(
     private const string ManagementCapability = "urn:stalwart:jmap";
     private const string CoreCapability = "urn:ietf:params:jmap:core";
 
+    // Mailbox counts are standard JMAP Mail, not a Stalwart extension - so this part of the
+    // status survives a change of mail server.
+    private const string MailCapability = "urn:ietf:params:jmap:mail";
+
     private string? _adminAccountId;
 
     //
@@ -239,7 +243,7 @@ public class StalwartMailboxProvider(
     /// Never throws — this feeds one line on a status screen, so a mail server that cannot answer
     /// must degrade to "not shown" rather than take the screen down with it.
     /// </summary>
-    public async Task<MailboxUsage?> GetUsageAsync(string domain)
+    public async Task<MailboxStatus?> GetMailboxStatusAsync(string domain)
     {
         try
         {
@@ -254,24 +258,70 @@ public class StalwartMailboxProvider(
                 a?["@type"]?.GetValue<string>() == "User" &&
                 a?["domainId"]?.GetValue<string>() == domainId);
 
-            if (account?["usedDiskQuota"] is not JsonValue used)
+            if (account == null)
             {
                 return null;
             }
 
-            long? quota = null;
-            if (account["quotas"]?["maxDiskQuota"] is JsonValue max)
-            {
-                quota = max.GetValue<long>();
-            }
+            var accountId = account["id"]?.GetValue<string>();
+            var used = (account["usedDiskQuota"] as JsonValue)?.GetValue<long>() ?? 0;
+            long? quota = (account["quotas"]?["maxDiskQuota"] as JsonValue)?.GetValue<long>();
 
-            return new MailboxUsage(used.GetValue<long>(), quota);
+            var (inboxTotal, inboxUnread, junkTotal) = await ReadMailboxCountsAsync(accountId);
+            var queued = await ReadQueueDepthAsync();
+
+            return new MailboxStatus(used, quota, inboxTotal, inboxUnread, junkTotal, queued);
         }
         catch (Exception e)
         {
-            logger.LogDebug(e, "Stalwart could not report mailbox usage for {domain}", domain);
+            logger.LogDebug(e, "Stalwart could not report mailbox status for {domain}", domain);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Per-mailbox counts, read as the admin against the USER's account — no user password is
+    /// involved. Standard JMAP Mail, so this is not Stalwart-specific.
+    ///
+    /// Mailboxes are matched on their ROLE rather than their name: the display names are
+    /// localised ("Junk Mail" here, something else elsewhere), the roles are not.
+    /// </summary>
+    private async Task<(int InboxTotal, int InboxUnread, int JunkTotal)> ReadMailboxCountsAsync(string? accountId)
+    {
+        if (string.IsNullOrEmpty(accountId))
+        {
+            return (0, 0, 0);
+        }
+
+        var response = await CallAsync(
+            "Mailbox/get",
+            new JsonObject { ["accountId"] = accountId },
+            MailCapability);
+
+        var mailboxes = response["list"] as JsonArray;
+        if (mailboxes == null)
+        {
+            return (0, 0, 0);
+        }
+
+        var inbox = mailboxes.FirstOrDefault(m => m?["role"]?.GetValue<string>() == "inbox");
+        var junk = mailboxes.FirstOrDefault(m => m?["role"]?.GetValue<string>() == "junk");
+
+        return (
+            (inbox?["totalEmails"] as JsonValue)?.GetValue<int>() ?? 0,
+            (inbox?["unreadEmails"] as JsonValue)?.GetValue<int>() ?? 0,
+            (junk?["totalEmails"] as JsonValue)?.GetValue<int>() ?? 0);
+    }
+
+    /// <summary>
+    /// Outbound messages still waiting. Server-wide rather than per-tenant — the queue does not
+    /// carry a domain to filter on — so treat it as "this host is having trouble sending",
+    /// which is what it is.
+    /// </summary>
+    private async Task<int> ReadQueueDepthAsync()
+    {
+        var queued = await GetAsync("x:QueuedMessage");
+        return queued.Count;
     }
 
     //
@@ -385,11 +435,11 @@ public class StalwartMailboxProvider(
         return _adminAccountId;
     }
 
-    private async Task<JsonNode> CallAsync(string method, JsonObject args)
+    private async Task<JsonNode> CallAsync(string method, JsonObject args, string? capability = null)
     {
         var body = new JsonObject
         {
-            ["using"] = new JsonArray(CoreCapability, ManagementCapability),
+            ["using"] = new JsonArray(CoreCapability, capability ?? ManagementCapability),
             ["methodCalls"] = new JsonArray(new JsonArray(method, args, "0")),
         };
 

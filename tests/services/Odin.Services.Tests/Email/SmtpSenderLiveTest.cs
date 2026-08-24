@@ -37,10 +37,17 @@ public class SmtpSenderLiveTest
     private const string Sender = "frodo@frodo.dotyou.cloud";
     private const string Recipient = "samwise@samwise.dotyou.cloud";
 
+    /// <summary>
+    /// Delivery, proved twice over: the message is findable by subject, AND the recipient's inbox
+    /// counts moved by exactly one. The count is what the app puts on screen and behind a badge,
+    /// so "a message exists somewhere" is not the claim that matters — "the number the user sees
+    /// went up" is.
+    /// </summary>
     [Test]
     public async Task ItDeliversFromOneLocalIdentityToAnother()
     {
         var subject = $"odin smtp probe {Guid.NewGuid():N}";
+        var before = await ReadInboxCountsAsync();
 
         var sender = new SmtpSender(
             NullLogger<SmtpSender>.Instance,
@@ -62,8 +69,35 @@ public class SmtpSenderLiveTest
 
         // Delivery is asynchronous on the server's side, so poll rather than assume.
         var arrived = await WaitForMessageAsync(subject, TimeSpan.FromSeconds(20));
-
         Assert.That(arrived, Is.True, $"'{subject}' never arrived in {Recipient}'s mailbox");
+
+        var after = await ReadInboxCountsAsync();
+        Assert.That(after.Total, Is.EqualTo(before.Total + 1), "the inbox total should move by exactly one");
+        Assert.That(after.Unread, Is.EqualTo(before.Unread + 1), "a delivered message arrives unread");
+    }
+
+    /// <summary>
+    /// The same read the app makes: Mailbox/get against the recipient's account, matched on role
+    /// rather than display name.
+    /// </summary>
+    private static async Task<(int Total, int Unread)> ReadInboxCountsAsync()
+    {
+        var accountId = await RecipientAccountIdAsync();
+
+        var response = await JmapAsync(new JsonObject
+        {
+            ["using"] = new JsonArray("urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"),
+            ["methodCalls"] = new JsonArray(new JsonArray(
+                "Mailbox/get", new JsonObject { ["accountId"] = accountId }, "0")),
+        });
+
+        var mailboxes = response["methodResponses"]?[0]?[1]?["list"] as JsonArray;
+        var inbox = mailboxes?.FirstOrDefault(m => m?["role"]?.GetValue<string>() == "inbox")
+                    ?? throw new InvalidOperationException($"{Recipient} has no inbox");
+
+        return (
+            inbox["totalEmails"]!.GetValue<int>(),
+            inbox["unreadEmails"]!.GetValue<int>());
     }
 
     [Test]
