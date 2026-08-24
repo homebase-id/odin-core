@@ -164,9 +164,10 @@ public class MailActivationService(
             throw new OdinClientException("Email is not activated");
         }
 
-        // The provider generates it and returns it exactly once. The owner path keeps its
-        // string-only wire shape; the app path uses IssueAppPasswordAsync below, which keeps the
-        // id it needs to revoke with.
+        // The provider generates the secret and returns it exactly once (live-verified:
+        // Stalwart's AppPassword.secret is serverSet), and Homebase stores it nowhere. The
+        // owner path keeps its string-only wire shape; the app path uses IssueAppPasswordAsync
+        // below, which also keeps the id it needs to revoke with.
         var provision = await mailboxProvider.ProvisionAppPasswordAsync(domain, primaryEmailAddress, label);
         return provision.Secret;
     }

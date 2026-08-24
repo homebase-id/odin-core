@@ -424,6 +424,7 @@ public class OdinConfiguration
         public MailgunProviderSection Mailgun { get; init; } = new();
         public SmtpProviderSection Smtp { get; init; } = new();
         public TenantMailSection TenantMail { get; init; } = new();
+        public StalwartSection Stalwart { get; init; } = new();
 
         /// <summary>
         /// True when the deprecated top-level Mailgun section supplied the values.
@@ -520,6 +521,39 @@ public class OdinConfiguration
                 {
                     throw new OdinConfigException("Email:DkimStorageKey must be a 32-byte hex string");
                 }
+            }
+
+            Stalwart = new StalwartSection(config);
+        }
+    }
+
+    /// <summary>
+    /// The Stalwart mail-server management endpoint (docs/email-keys-plan.md "The
+    /// Stalwart wrapper"). Absent = NullMailboxProvider; present = the real provider.
+    /// One endpoint per host group.
+    /// </summary>
+    public class StalwartSection
+    {
+        /// <summary>Management base URL, e.g. "http://localhost:9080" - the /jmap endpoint lives under it.</summary>
+        public string BaseUrl { get; init; } = "";
+
+        public string AdminUsername { get; init; } = "";
+        public string AdminPassword { get; init; } = "";
+
+        public bool IsConfigured => !string.IsNullOrEmpty(BaseUrl);
+
+        public StalwartSection()
+        {
+            // Mockable support
+        }
+
+        public StalwartSection(IConfiguration config)
+        {
+            BaseUrl = config.GetOrDefault("Email:Stalwart:BaseUrl", "").TrimEnd('/');
+            if (IsConfigured)
+            {
+                AdminUsername = config.Required<string>("Email:Stalwart:AdminUsername");
+                AdminPassword = config.Required<string>("Email:Stalwart:AdminPassword");
             }
         }
     }
