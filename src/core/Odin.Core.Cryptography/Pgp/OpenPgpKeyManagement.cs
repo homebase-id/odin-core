@@ -69,7 +69,17 @@ public static class OpenPgpKeyManagement
             SymmetricKeyAlgorithmTag.Null,
             HashAlgorithmTag.Sha384,
             Array.Empty<char>(),
-            true,
+            // useSha1: MUST be false while the cipher is Null. BouncyCastle writes the S2K usage
+            // byte as 0 either way -- which per RFC 4880 5.5.3 declares "simple 2-octet checksum"
+            // -- but with useSha1: true it stores the SHA-1-style value there instead. The result
+            // is a secret key whose checksum does not validate: GnuPG imports it leniently but its
+            // agent then refuses the material ("Checksum error"), and Thunderbird's RNP rejects the
+            // import outright. BouncyCastle round-trips its own output happily, so only an
+            // independent check catches this -- see SecretKeyChecksumValidatesPerRfc4880.
+            //
+            // Unrelated to the SHA-384 signature hashes above: that is the self/binding signature
+            // digest (a policy concern), this is the secret-key-material checksum.
+            false,
             primarySubpackets.Generate(),
             null,
             random);
