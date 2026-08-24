@@ -61,13 +61,13 @@ The generator has no test suite. Its verification loop is **regenerate, then dif
 - Consumes: nothing
 - Produces: `ODIN_ROOT` environment variable overrides the developer-name switch. `MyRootDirectory` returns a path whose children are `odin-core/` and `homebase-social-sync/`.
 
-- [ ] **Step 1: Read the current property**
+- [x] **Step 1: Read the current property**
 
 Run: `sed -n '18,36p' /workspace/Odin-SQLite-Generator/Odin-SQLite-Generator/Program.cs`
 
 Confirm it matches the `switch` on `Environment.GetEnvironmentVariable("USER")` shown below before editing.
 
-- [ ] **Step 2: Add the environment variable override**
+- [x] **Step 2: Add the environment variable override**
 
 Replace the body of `MyRootDirectory` so the env var is checked first and the existing switch stays as the fallback:
 
@@ -101,7 +101,7 @@ Replace the body of `MyRootDirectory` so the env var is checked first and the ex
     }
 ```
 
-- [ ] **Step 3: Establish the regenerate-produces-no-diff baseline**
+- [x] **Step 3: Establish the regenerate-produces-no-diff baseline**
 
 This is the critical verification step for all of Phase A. Run:
 
@@ -115,12 +115,12 @@ Expected: the generator runs to completion with no exception, and `git diff --st
 
 If the diff is not empty, STOP. Do not proceed to Task 2. A non-empty diff means the committed generated files do not match what the current generator produces, so you cannot tell your changes apart from pre-existing drift. Report the diff and ask before continuing.
 
-- [ ] **Step 4: Confirm odin-core still builds**
+- [x] **Step 4: Confirm odin-core still builds**
 
 Run: `cd /workspace/odin-core && dotnet build ./odin-core.sln`
 Expected: build succeeded.
 
-- [ ] **Step 5: Commit (generator repo only)**
+- [x] **Step 5: Commit (generator repo only)**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator
@@ -147,7 +147,7 @@ Those four are excluded by namespace, not by per-table annotation, so their tabl
 - Consumes: Task 1's working generator
 - Produces: `Table.exportScopeColumn` (`string?`, default `"identityId"`). `null` means the table is excluded from identity export. Tasks 3, 4, and 5 all read it.
 
-- [ ] **Step 1: Add the field to the `Table` class**
+- [x] **Step 1: Add the field to the `Table` class**
 
 Add immediately after the `internalsVisibleTo` field:
 
@@ -159,7 +159,7 @@ Add immediately after the `internalsVisibleTo` field:
         public string? exportScopeColumn = "identityId";
 ```
 
-- [ ] **Step 2: Annotate the System tables**
+- [x] **Step 2: Annotate the System tables**
 
 In each table definition method, add the field to the object initializer. Only the
 System namespace needs this: Identity is correct by default, and the other four
@@ -190,7 +190,7 @@ identity-scoped:
 `Registrations()` needs no annotation: it is in the System namespace but scopes on
 `identityId`, which is the default.
 
-- [ ] **Step 3: Add the namespace gate and a fail-fast validation**
+- [x] **Step 3: Add the namespace gate and a fail-fast validation**
 
 Add beside the namespace constants (after `OdinCoreNotaryNamespace`):
 
@@ -227,7 +227,7 @@ The `IsIdentityHostNamespace` guard is what lets the unrelated applications keep
 default `"identityId"` without tripping the check, since none of their tables has that
 column.
 
-- [ ] **Step 4: Verify no output change**
+- [x] **Step 4: Verify no output change**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator && ODIN_ROOT=/workspace/ dotnet run --project Odin-SQLite-Generator/Odin-SQLite-Generator.csproj
@@ -242,7 +242,7 @@ present before Task 1. Any regenerate step in this plan will dirty that repo. Re
 with `git checkout -- .` after each regenerate, or
 resolve the drift separately first.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator
@@ -271,7 +271,7 @@ and excluded. Validated against the column list at generation time."
 - Consumes: `Table.exportScopeColumn` from Task 2
 - Produces: on each CRUD class, `internal virtual async Task ExportRowsAsync(<scopeType> <scopeName>, Func<XRecord, Task> onRow)`. Task 5's aggregate calls it. For Identity tables the signature is `ExportRowsAsync(Guid identityId, Func<XRecord, Task> onRow)`; for `Certificates` and `DkimKeys` it is `ExportRowsAsync(OdinId domain, Func<XRecord, Task> onRow)`.
 
-- [ ] **Step 1: Write the generator method**
+- [x] **Step 1: Write the generator method**
 
 Add near `GeneratePagingGet`:
 
@@ -306,7 +306,7 @@ Add near `GeneratePagingGet`:
     }
 ```
 
-- [ ] **Step 2: Call it from `GenerateCode`**
+- [x] **Step 2: Call it from `GenerateCode`**
 
 In `GenerateCode(Table table)`, immediately after the existing `GenerateReadRecordAll` block:
 
@@ -316,7 +316,7 @@ In `GenerateCode(Table table)`, immediately after the existing `GenerateReadReco
 
 It must come after `GenerateReadRecordAll`, because the emitted body calls `ReadRecordFromReaderAll`.
 
-- [ ] **Step 3: Regenerate and inspect the diff**
+- [x] **Step 3: Regenerate and inspect the diff**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator && ODIN_ROOT=/workspace/ dotnet run --project Odin-SQLite-Generator/Odin-SQLite-Generator.csproj
@@ -325,7 +325,7 @@ cd /workspace/odin-core && git diff --stat
 
 Expected: every `Table*CRUD.cs` in Identity, plus `TableCertificatesCRUD.cs`, `TableDkimKeysCRUD.cs` and `TableRegistrationsCRUD.cs`, gains lines. `TableJobsCRUD.cs`, `TableSettingsCRUD.cs`, and `TableLastSeenCRUD.cs` are **unchanged**, because their `exportScopeColumn` is null. Nothing under KeyChain, Attestation or Notarius changes, and `/workspace/homebase-social-sync` gains no export code, because the namespace gate excludes all four.
 
-- [ ] **Step 4: Read one generated method and check it by eye**
+- [x] **Step 4: Read one generated method and check it by eye**
 
 Run: `cd /workspace/odin-core && sed -n '/ExportRowsAsync/,/^        }$/p' src/core/Odin.Core.Storage/Database/Identity/Table/TableCircleCRUD.cs`
 
@@ -351,12 +351,12 @@ Expected output, exactly:
 
 Check specifically: `ORDER BY rowId ASC` is present, and the `SELECT` column list starts with `rowId`.
 
-- [ ] **Step 5: Confirm odin-core builds**
+- [x] **Step 5: Confirm odin-core builds**
 
 Run: `cd /workspace/odin-core && dotnet build ./odin-core.sln`
 Expected: build succeeded. A failure here most likely means a missing `using System;` for `Func<>` in the generated file header; check `GenerateFileHeader`.
 
-- [ ] **Step 6: Commit both repos**
+- [x] **Step 6: Commit both repos**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator
@@ -385,7 +385,7 @@ The one method where the timestamp bug is prevented. `GenerateInsert` calls `Get
 - Consumes: `Table.exportScopeColumn` from Task 2
 - Produces: on each CRUD class, `internal virtual async Task<int> ImportRowAsync(XRecord item)`, returning rows affected. Task 5's aggregate calls it.
 
-- [ ] **Step 1: Write the generator method**
+- [x] **Step 1: Write the generator method**
 
 Add immediately after `GenerateExportRows`:
 
@@ -429,7 +429,7 @@ Add immediately after `GenerateExportRows`:
 
 Note both `GetTuples` calls pass `sqlNowSubstitute` as its default `false`, and `includeRowId: false`.
 
-- [ ] **Step 2: Call it from `GenerateCode`**
+- [x] **Step 2: Call it from `GenerateCode`**
 
 Immediately after the `GenerateExportRows(table);` line added in Task 3:
 
@@ -437,13 +437,13 @@ Immediately after the `GenerateExportRows(table);` line added in Task 3:
         GenerateImportRow(table);
 ```
 
-- [ ] **Step 3: Regenerate**
+- [x] **Step 3: Regenerate**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator && ODIN_ROOT=/workspace/ dotnet run --project Odin-SQLite-Generator/Odin-SQLite-Generator.csproj
 ```
 
-- [ ] **Step 4: Verify no generated import path uses `{sqlNowStr}`**
+- [x] **Step 4: Verify no generated import path uses `{sqlNowStr}`**
 
 This is the guard for requirement 7. Run:
 
@@ -460,12 +460,12 @@ sed -n '/async Task<int> ImportRowAsync/,/^        }$/p' src/core/Odin.Core.Stor
 
 Expected: `0`
 
-- [ ] **Step 5: Confirm odin-core builds**
+- [x] **Step 5: Confirm odin-core builds**
 
 Run: `cd /workspace/odin-core && dotnet build ./odin-core.sln`
 Expected: build succeeded.
 
-- [ ] **Step 6: Commit both repos**
+- [x] **Step 6: Commit both repos**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator
@@ -500,7 +500,7 @@ git commit -m "Regenerate: add ImportRowAsync to CRUD tables"
   - `public async Task<Dictionary<string, long>> GetTableVersionsAsync()`
 - Produces, on `SystemDatabase`: the same, except `ExportAsync(Guid identityId, OdinId domain, Func<string, object, Task> onRow)` and no `CountRowsForIdentityAsync`.
 
-- [ ] **Step 1: Write the generator method**
+- [x] **Step 1: Write the generator method**
 
 Model it on the existing `GenerateAllGlobalTableLists`. Add immediately after that method:
 
@@ -636,7 +636,7 @@ Model it on the existing `GenerateAllGlobalTableLists`. Add immediately after th
     }
 ```
 
-- [ ] **Step 2: Call it from `Main`**
+- [x] **Step 2: Call it from `Main`**
 
 ```csharp
     private static void Main(string[] args)
@@ -652,7 +652,7 @@ The namespace check comes first and is the load-bearing one. Without it, an unre
 application whose tables happen to carry `identityId` would get its own
 `*Database.Export.Generated.cs`.
 
-- [ ] **Step 3: Regenerate and read the Identity aggregate**
+- [x] **Step 3: Regenerate and read the Identity aggregate**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator && ODIN_ROOT=/workspace/ dotnet run --project Odin-SQLite-Generator/Odin-SQLite-Generator.csproj
@@ -661,13 +661,13 @@ cd /workspace/odin-core && cat src/core/Odin.Core.Storage/Database/Identity/Iden
 
 Expected: `ExportableTables` lists 23 names. `ExportAsync` takes `(Guid identityId, Func<string, object, Task> onRow)` with a single scope parameter. `CountRowsForIdentityAsync` is present.
 
-- [ ] **Step 4: Read the System aggregate and check the two-scope case**
+- [x] **Step 4: Read the System aggregate and check the two-scope case**
 
 Run: `cd /workspace/odin-core && cat src/core/Odin.Core.Storage/Database/System/SystemDatabase.Export.Generated.cs`
 
 Expected: `ExportableTables` lists exactly `Certificates`, `DkimKeys` and `Registrations`, in the order the tables are declared in the generator. `ExportAsync` takes **two** scope parameters, `OdinId domain` and `Guid identityId`, sorted ordinally so `domain` comes first. `Certificates` and `DkimKeys` both pass `domain` at their call sites; only `Registrations` passes `identityId`. `CountRowsForIdentityAsync` is **absent**, because the namespace has more than one scope column.
 
-- [ ] **Step 5: Verify no JSON leaked into generated code**
+- [x] **Step 5: Verify no JSON leaked into generated code**
 
 Global constraint check. Run:
 
@@ -684,12 +684,12 @@ wholesale also picks up hand-written files that legitimately use JSON, such as
 `Database/Identity/Abstractions/QueryBatchCached.cs`, and the constraint is about
 generated code only.
 
-- [ ] **Step 6: Confirm odin-core builds**
+- [x] **Step 6: Confirm odin-core builds**
 
 Run: `cd /workspace/odin-core && dotnet build ./odin-core.sln`
 Expected: build succeeded.
 
-- [ ] **Step 7: Commit both repos**
+- [x] **Step 7: Commit both repos**
 
 ```bash
 cd /workspace/Odin-SQLite-Generator
@@ -719,7 +719,7 @@ This replaces the source-scanning approach `DataImporterTests` had to use. It is
 - Consumes: `IdentityDatabase.ExportableTables`, `IdentityDatabase.ExportableRecordTypes`, `IdentityDatabase.TableTypes`
 - Produces: nothing consumed by later tasks
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```csharp
 using System;
@@ -774,14 +774,14 @@ public class ExportCoverageTests
 }
 ```
 
-- [ ] **Step 2: Run the tests**
+- [x] **Step 2: Run the tests**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~ExportCoverageTests"`
 Expected: 3 tests PASS. They pass immediately because Task 5 already produced correct output; the test exists to catch future drift, not to drive new code.
 
 If `ExportableTables_CoversEveryIdentityTable` fails, the name-derivation assumption is wrong for at least one table. Print both lists and reconcile before continuing, since every later task depends on the aggregate being complete.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /workspace/odin-core
