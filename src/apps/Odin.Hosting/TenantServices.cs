@@ -410,6 +410,8 @@ public static class TenantServices
         cb.RegisterType<EmailPublicKeyService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<MailActivationService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<EmailHealthVerifier>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<EmailSetupStateService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<EmailAppService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<HomebasePublicPageService>().As<HomebasePublicPageService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
 
