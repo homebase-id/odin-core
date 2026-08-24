@@ -262,6 +262,40 @@ namespace Odin.Core.Storage.Database.System.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(OdinId domain, Func<DkimKeysRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,domain,selector,algorithm,publicKey,privateKey,created,modified FROM DkimKeys " +
+                                            "WHERE domain = @domain ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@domain", DbType.String, domain.DomainName);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(DkimKeysRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO DkimKeys (domain,selector,algorithm,publicKey,privateKey,created,modified) " +
+                                            "VALUES (@domain,@selector,@algorithm,@publicKey,@privateKey,@created,@modified);";
+                importCommand.AddParameter("@domain", DbType.String, item.domain.DomainName);
+                importCommand.AddParameter("@selector", DbType.String, item.selector);
+                importCommand.AddParameter("@algorithm", DbType.String, item.algorithm);
+                importCommand.AddParameter("@publicKey", DbType.String, item.publicKey);
+                importCommand.AddParameter("@privateKey", DbType.String, item.privateKey);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         public virtual async Task<int> DeleteAsync(OdinId domain,string selector)
         {
             if (selector == null) throw new OdinDatabaseValidationException("Cannot be null selector");

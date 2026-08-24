@@ -260,6 +260,41 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<CircleRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji FROM Circle " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(CircleRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji) " +
+                                            "VALUES (@identityId,@circleId,@circleName,@data,@AppId,@GrantOn,@Designation,@Emoji);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@circleId", DbType.Binary, item.circleId);
+                importCommand.AddParameter("@circleName", DbType.String, item.circleName);
+                importCommand.AddParameter("@data", DbType.Binary, item.data);
+                importCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                importCommand.AddParameter("@GrantOn", DbType.Int32, item.GrantOn);
+                importCommand.AddParameter("@Designation", DbType.Int32, item.Designation);
+                importCommand.AddParameter("@Emoji", DbType.String, item.Emoji);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid circleId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
