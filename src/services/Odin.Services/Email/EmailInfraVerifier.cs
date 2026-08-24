@@ -39,10 +39,36 @@ public class EmailInfraVerifier(
                 "Deprecated top-level Mailgun config section in use; move to the consolidated Email section - the fallback is removed next release");
         }
 
+        // Two different things wear the word "provider" here, and conflating them has already
+        // misled once: Email:Provider is the SYSTEM sender (notification mail out), while the
+        // tenant MAILBOX provider is Email:Stalwart:*. Tenant mail endpoints gate on
+        // Email:TenantMail:Enabled alone, so a missing system sender does not disable them - it
+        // only means this verifier cannot exercise the mail infrastructure below.
         if (email.TenantMail.Enabled && email.Provider == EmailProvider.None)
         {
+            // Still an error: on a host actually serving mail, no system sender means no
+            // identity-ready mail and no DMARC/TLS reports. Only the wording changed - the old
+            // one claimed tenant mail was disabled, which sent someone hunting for a switch that
+            // does not exist.
             logger.LogError(
-                "Email:TenantMail:Enabled is true but Email:Provider is 'None'; tenant mail stays disabled until a provider is configured");
+                "Email:TenantMail:Enabled is true but Email:Provider is 'None'; tenant mail endpoints are live, " +
+                "but system mail cannot be sent and the mail-infrastructure checks below are skipped");
+        }
+
+        // Which mailbox provider is in play is otherwise unanswerable from the logs, and both
+        // succeed identically from the caller's side - the null one simply talks to nothing.
+        if (email.TenantMail.Enabled)
+        {
+            if (email.Stalwart.IsConfigured)
+            {
+                logger.LogInformation("Tenant mailbox provider: Stalwart at {baseUrl}", email.Stalwart.BaseUrl);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Tenant mailbox provider: none (Email:Stalwart:BaseUrl unset); mailbox and app-password " +
+                    "actions will succeed without reaching a mail server");
+            }
         }
 
         switch (email.Provider)
@@ -51,12 +77,13 @@ public class EmailInfraVerifier(
                 logger.LogInformation("Email provider is 'None'; system mail is disabled");
                 break;
             case EmailProvider.Smtp:
-                logger.LogWarning(
-                    "Email provider 'Smtp' (self-sending) is not implemented yet; mail is disabled (see docs/email-keys-plan.md)");
+                logger.LogInformation(
+                    "Email provider is 'Smtp'; system mail is submitted to {host}:{port} for signing and relay",
+                    email.Smtp.RelayHost, email.Smtp.RelayPort);
                 break;
         }
 
-        var checkCredentials = email.Provider is EmailProvider.SendGrid or EmailProvider.Mailgun;
+        var checkCredentials = email.Provider is EmailProvider.SendGrid or EmailProvider.Mailgun or EmailProvider.Smtp;
         var checkTenantMailInfra = email.TenantMail.Enabled && email.Provider != EmailProvider.None;
         return checkCredentials || checkTenantMailInfra;
     }

@@ -506,6 +506,11 @@ public class OdinConfiguration
                     Smtp = new SmtpProviderSection
                     {
                         RelayHost = config.Required<string>("Email:Smtp:RelayHost"),
+                        RelayPort = config.GetOrDefault("Email:Smtp:RelayPort", 25),
+                        Username = config.GetOrDefault("Email:Smtp:Username", ""),
+                        Password = config.GetOrDefault("Email:Smtp:Password", ""),
+                        RequireTls = config.GetOrDefault("Email:Smtp:RequireTls", false),
+                        LocalDomain = config.GetOrDefault("Email:Smtp:LocalDomain", ""),
                         RelayIps = config.GetOrDefault("Email:Smtp:RelayIps", new List<string>()),
                     };
                     break;
@@ -569,9 +574,43 @@ public class OdinConfiguration
         public string EmailDomain { get; init; } = "";
     }
 
+    /// <summary>
+    /// Submission into the host's own mail server, which DKIM-signs and relays onward
+    /// (docs/email-keys-plan.md: "Homebase send API -> submits into Stalwart -> Stalwart
+    /// DKIM-signs -> relay"). Homebase never signs or relays outbound mail itself.
+    /// </summary>
     public class SmtpProviderSection
     {
+        /// <summary>The mail server to submit to — locally, the Stalwart container.</summary>
         public string RelayHost { get; init; } = "";
+
+        /// <summary>
+        /// Submission port. 25 suits a mail server that accepts loopback submission for its own
+        /// domains; 587 is the authenticated submission port and needs credentials below.
+        /// </summary>
+        public int RelayPort { get; init; } = 25;
+
+        /// <summary>Optional submission credentials. Omit for an unauthenticated local relay.</summary>
+        public string Username { get; init; } = "";
+
+        public string Password { get; init; } = "";
+
+        /// <summary>
+        /// Whether to require TLS. Off by default because the usual deployment submits over
+        /// loopback to a mail server on the same host, where STARTTLS buys nothing and a
+        /// self-signed dev certificate would just fail the connection.
+        /// </summary>
+        public bool RequireTls { get; init; }
+
+        /// <summary>
+        /// The name announced in EHLO. Mail servers commonly reject a bare, non-FQDN hostname —
+        /// Stalwart answers "5.5.0 Invalid EHLO domain" — and the OS hostname of a Homebase host
+        /// is rarely its mail name, so this is configured rather than guessed. Empty means "let
+        /// the client decide", which is only safe where the machine already has a proper FQDN.
+        /// </summary>
+        public string LocalDomain { get; init; } = "";
+
+        /// <summary>The IPs outbound leaves from; published in SPF for self-sending setups.</summary>
         public List<string> RelayIps { get; init; } = [];
     }
 

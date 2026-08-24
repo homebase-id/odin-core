@@ -94,16 +94,20 @@ public class EmailInfraVerifierTest
     }
 
     [Test]
-    public void SmtpProviderWarnsButStillVerifiesTenantMailInfra()
+    public void SmtpProviderReportsItsRelayAndVerifiesTenantMailInfra()
     {
         var verifier = CreateVerifier(new OdinConfiguration.EmailSection
         {
             Provider = EmailProvider.Smtp,
+            Smtp = new OdinConfiguration.SmtpProviderSection { RelayHost = "localhost", RelayPort = 2525 },
             TenantMail = new OdinConfiguration.TenantMailSection { Enabled = true },
         });
 
         Assert.That(verifier.LogConfigurationFindings(), Is.True);
-        VerifyLogged(LogLevel.Warning, "not implemented yet", Times.Once());
+
+        // Was a "not implemented yet" warning until SmtpSender landed; now it says where mail
+        // goes, which is the thing an operator actually needs from this line.
+        VerifyLogged(LogLevel.Information, "submitted to localhost:2525", Times.Once());
     }
 
     //

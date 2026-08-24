@@ -231,7 +231,12 @@ public static class SystemServices
                 sp.GetRequiredService<IDynamicHttpClientFactory>(),
                 config.Email.SendGrid.ApiKey,
                 config.Email.SystemFrom),
-            // Smtp self-sending arrives with the email-keys phase; None logs and discards
+            // Submission into the host's own mail server, which DKIM-signs and relays onward.
+            EmailProvider.Smtp => new SmtpSender(
+                sp.GetRequiredService<ILogger<SmtpSender>>(),
+                config.Email.Smtp,
+                config.Email.SystemFrom),
+            // None logs and discards
             _ => new NullEmailSender(sp.GetRequiredService<ILogger<NullEmailSender>>()),
         });
 
