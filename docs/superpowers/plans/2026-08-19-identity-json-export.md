@@ -2220,7 +2220,7 @@ the previous disabled state rather than blindly enabling."
 - Consumes: `IdentityJsonExporter.ExportAsync`, `IdentityJsonImporter.ImportAsync`, `IIdentityRegistry.FreezeIdentityAsync` / `UnfreezeIdentityAsync`
 - Produces: `IdentityJsonTransfer.ExportAsync(IServiceProvider, string domain, string filePath)` and `IdentityJsonTransfer.ImportAsync(IServiceProvider, string filePath, bool commit)`
 
-- [ ] **Step 1: Confirm how to resolve both databases in a running host**
+- [x] **Step 1: Confirm how to resolve both databases in a running host**
 
 Unlike `Sqlite2Pg`, which builds explicit scopes because it reads arbitrary SQLite file
 paths, these verbs run against the host's own configured databases. Two different
@@ -2243,7 +2243,7 @@ Write down the exact type used to reach a tenant scope. The code below assumes
 `IMultiTenantContainer.GetTenantScope(string domain)`. If the real name differs, use
 the real one.
 
-- [ ] **Step 2: Write the export command**
+- [x] **Step 2: Write the export command**
 
 Create `src/apps/Odin.Hosting/Cli/Commands/IdentityJsonTransfer.cs`:
 
@@ -2351,7 +2351,7 @@ case is to rotate the identity's DKIM keys and republish the DNS TXT records on 
 which `MailActivationService` already does. Out of scope for this plan; call it out in the
 runbook that goes with the CLI verbs.
 
-- [ ] **Step 3: Write the import command**
+- [x] **Step 3: Write the import command**
 
 Add to the same class. The header has to be read before the tenant scope can be built,
 because the scope needs the identityId the file carries:
@@ -2426,7 +2426,7 @@ grep -rn "headers.*identity.db\|identity\.db" src/services/Odin.Services/Drives/
 
 `Sqlite2Pg.ImportAllAsync` derives the same path; use whatever it uses.
 
-- [ ] **Step 4: Wire the verbs into `CommandLine.cs`**
+- [x] **Step 4: Wire the verbs into `CommandLine.cs`**
 
 Add beside the `sqlite2pg-*` block:
 
@@ -2463,12 +2463,12 @@ Add beside the `sqlite2pg-*` block:
         }
 ```
 
-- [ ] **Step 5: Build**
+- [x] **Step 5: Build**
 
 Run: `cd /workspace/odin-core && dotnet build ./odin-core.sln`
 Expected: build succeeded.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /workspace/odin-core

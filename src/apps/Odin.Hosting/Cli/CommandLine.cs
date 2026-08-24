@@ -289,6 +289,37 @@ public class CommandLine
         }
 
         //
+        // Command line: Export one identity's tables to a single JSON file
+        //
+        // Freezes the identity (disables it and stops its background workers), exports,
+        // then unfreezes. The file contains key material; see the warning it prints.
+        //
+        // examples:
+        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
+        //
+        if (args.Length >= 3 && args[0] == "identity-export")
+        {
+            IdentityJsonTransfer.ExportAsync(_serviceProvider, args[1], args[2]).BlockingWait();
+            return (true, 0);
+        }
+
+        //
+        // Command line: Import an identity export file
+        //
+        // Refuses unless the target is empty of this identity and every table version
+        // matches. Dry run unless "commit" is passed.
+        //
+        // examples:
+        //   dotnet run -- identity-import /path/to/frodo.json commit
+        //
+        if (args.Length >= 2 && args[0] == "identity-import")
+        {
+            var commit = args.Length >= 3 && args[2] == "commit";
+            IdentityJsonTransfer.ImportAsync(_serviceProvider, args[1], commit).BlockingWait();
+            return (true, 0);
+        }
+
+        //
         // Command line: Reset Modified
         //
         // examples:
