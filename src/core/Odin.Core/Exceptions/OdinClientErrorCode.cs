@@ -31,7 +31,8 @@ public enum OdinClientErrorCode
     NotAFollowerIdentity = 3007,
     IdentityNotFollowed = 3008,
     IdentityAlreadyFollowed = 3009,
-    CannotGrantAutoConnectedMoreCircles = 3010,
+    // 3010 was CannotGrantAutoConnectedMoreCircles: the lockout that forced a confirm before an
+    // auto-connection could gain circles.  Retired with the review; the number is not reused.
     IncomingRequestNotFound = 3011,
     CannotUnreviewCircleMember = 3012,
 
