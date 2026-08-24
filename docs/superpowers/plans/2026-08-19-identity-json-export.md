@@ -2195,7 +2195,7 @@ CLI verb. Then confirm in the host log that all six workers logged a shutdown:
 Expected: six shutdown log lines, then six startup lines after the unfreeze. Record
 what you saw in the commit message.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 cd /workspace/odin-core
