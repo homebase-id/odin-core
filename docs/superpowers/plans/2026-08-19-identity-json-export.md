@@ -1591,7 +1591,7 @@ every violation rather than the first."
   - `IdentityJsonImporter.ImportAsync(ILogger, Stream, SystemDatabase, IdentityDatabase, bool commit, IReadOnlySet<string>? skipTables = null)` returning `Task<ImportResult>`
   - `ImportResult` with `RowsImported` (`long`), `SkippedRowsByTable` (`Dictionary<string, long>`), `Header` (`ExportHeader`)
 
-- [ ] **Step 1: Write the failing round-trip tests**
+- [x] **Step 1: Write the failing round-trip tests**
 
 ```csharp
 using System;
@@ -1822,7 +1822,7 @@ public class IdentityJsonRoundTripTests
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityJsonRoundTripTests"`
 Expected: compile error, `IdentityJsonImporter` does not exist.
@@ -1831,7 +1831,7 @@ If `GetAllCirclesAsync` or `GetDrivesAsync` do not resolve, find the real read m
 `grep -n "public async Task" src/core/Odin.Core.Storage/Database/Identity/Table/TableCircle.cs src/core/Odin.Core.Storage/Database/Identity/Table/TableDrives.cs`
 and substitute, keeping each assertion's intent.
 
-- [ ] **Step 3: Write the importer**
+- [x] **Step 3: Write the importer**
 
 Create `src/core/Odin.Core.Storage/DatabaseImport/IdentityJsonImporter.cs`:
 
@@ -1990,12 +1990,12 @@ public static class IdentityJsonImporter
 
 Note this uses `JsonDocument.ParseAsync` for now, which buys correctness and simplicity; Task 12 replaces it with a streaming reader.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityJsonRoundTripTests"`
 Expected: all tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /workspace/odin-core
