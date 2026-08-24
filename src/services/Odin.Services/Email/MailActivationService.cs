@@ -34,7 +34,32 @@ public class MailActivationService(
     EmailPublicKeyService emailPublicKeyService,
     IMailboxProvider mailboxProvider)
 {
+    /// <summary>
+    /// Activation in one call, for the owner console: the mailbox, then the key. Behaviour and
+    /// wire shape are unchanged — it is now the two halves below in sequence, so the app flow
+    /// can run them separately and generate its key last.
+    /// </summary>
     public async Task<MailActivationResult> ActivateAsync(string publicCertificateArmored, string primaryEmailAddress)
+    {
+        ThrowIfTenantMailDisabled();
+
+        // Validate the certificate BEFORE any side effect (DKIM generation, DNS writes)
+        AssertPublishableCertificate(publicCertificateArmored);
+
+        var result = await EnsureMailboxAsync(primaryEmailAddress);
+        await PublishKeyAsync(publicCertificateArmored);
+        return result;
+    }
+
+    /// <summary>
+    /// Everything that does not need the encryption key: DKIM keys, their DNS records, the
+    /// mailbox itself and its DKIM signing keys. Idempotent — a re-run keeps the existing DKIM
+    /// pair, because rotation is a deliberate separate action rather than a setup side effect.
+    ///
+    /// Split out so setup can create the mailbox first and generate the key last: mail may
+    /// already arrive before a key exists, and it starts being encrypted the moment one does.
+    /// </summary>
+    public async Task<MailActivationResult> EnsureMailboxAsync(string primaryEmailAddress)
     {
         ThrowIfTenantMailDisabled();
 
@@ -44,16 +69,6 @@ public class MailActivationService(
             !primaryEmailAddress.EndsWith($"@{domain}", StringComparison.OrdinalIgnoreCase))
         {
             throw new OdinClientException($"Primary email address must be an address at {domain}");
-        }
-
-        // Validate the certificate BEFORE any side effect (DKIM generation, DNS writes)
-        try
-        {
-            Odin.Core.Cryptography.Pgp.OpenPgpKeyManagement.GetEncryptionSubkeySpkiDer(publicCertificateArmored);
-        }
-        catch (Exception e)
-        {
-            throw new OdinClientException("Not a valid OpenPGP public certificate with an encryption subkey", inner: e);
         }
 
         // 1. DKIM keys: generate once; a re-run keeps the existing pair (rotation is
@@ -72,25 +87,53 @@ public class MailActivationService(
         var recordsWritten = await identityRegistrationService.WriteOnActivationRecords(
             new AsciiDomainName(domain), dkimRecords);
 
-        // 3. Publish the E2E public certificate (validates before storing); WKD, the
-        //    DID keyAgreement entry, and autoconfig go live with this
-        await emailPublicKeyService.PublishAsync(publicCertificateArmored);
-
-        // 4. Provision the mail server (Null provider until one exists)
+        // 3. Provision the mail server (Null provider until one exists)
         await mailboxProvider.CreateMailboxAsync(domain, primaryEmailAddress);
-        await mailboxProvider.SetEncryptionKeyAsync(domain, publicCertificateArmored);
         foreach (var key in dkimKeys)
         {
             await mailboxProvider.SetDkimKeyAsync(domain, key);
         }
 
-        logger.LogInformation("Email activated for {domain} (DNS records written: {written})", domain, recordsWritten);
+        logger.LogInformation("Mailbox ready for {domain} (DNS records written: {written})", domain, recordsWritten);
 
         return new MailActivationResult
         {
             DnsRecordsWritten = recordsWritten,
             DkimRecords = dkimRecords,
         };
+    }
+
+    /// <summary>
+    /// Publishes the E2E public certificate — WKD, the DID keyAgreement entry and autoconfig go
+    /// live with this — and hands it to the mail server for encryption-at-rest.
+    ///
+    /// Call order matters and is the caller's responsibility: the secret keyring must already be
+    /// durable before this runs. Once a certificate is published, mail arriving is encrypted to
+    /// it, and a key nobody holds means mail nobody can read.
+    /// </summary>
+    public async Task PublishKeyAsync(string publicCertificateArmored)
+    {
+        ThrowIfTenantMailDisabled();
+        AssertPublishableCertificate(publicCertificateArmored);
+
+        var domain = tenantContext.HostOdinId.DomainName;
+
+        await emailPublicKeyService.PublishAsync(publicCertificateArmored);
+        await mailboxProvider.SetEncryptionKeyAsync(domain, publicCertificateArmored);
+
+        logger.LogInformation("Published the email encryption key for {domain}", domain);
+    }
+
+    private static void AssertPublishableCertificate(string publicCertificateArmored)
+    {
+        try
+        {
+            Odin.Core.Cryptography.Pgp.OpenPgpKeyManagement.GetEncryptionSubkeySpkiDer(publicCertificateArmored);
+        }
+        catch (Exception e)
+        {
+            throw new OdinClientException("Not a valid OpenPGP public certificate with an encryption subkey", inner: e);
+        }
     }
 
     public async Task<MailStatusResult> GetStatusAsync()
@@ -121,10 +164,48 @@ public class MailActivationService(
             throw new OdinClientException("Email is not activated");
         }
 
-        // Returned exactly once; the mail server is the only place it lives after this
-        var password = GenerateAppPassword();
-        await mailboxProvider.ProvisionAppPasswordAsync(domain, primaryEmailAddress, password, label);
-        return password;
+        // The provider generates the secret and returns it exactly once (live-verified:
+        // Stalwart's AppPassword.secret is serverSet), and Homebase stores it nowhere. The
+        // owner path keeps its string-only wire shape; the app path uses IssueAppPasswordAsync
+        // below, which also keeps the id it needs to revoke with.
+        var provision = await mailboxProvider.ProvisionAppPasswordAsync(domain, primaryEmailAddress, label);
+        return provision.Secret;
+    }
+
+    /// <summary>
+    /// Issue an app password and keep the provider's id for it. The app stores both on the email
+    /// drive: the secret because the mail server will never show it again, and the id because it
+    /// is the only handle a later revoke has.
+    /// </summary>
+    public async Task<AppPasswordProvision> IssueAppPasswordAsync(string primaryEmailAddress, string label)
+    {
+        ThrowIfTenantMailDisabled();
+
+        var domain = tenantContext.HostOdinId.DomainName;
+
+        if (await emailPublicKeyService.GetPublishedKeyAsync() == null)
+        {
+            throw new OdinClientException("Email is not activated");
+        }
+
+        return await mailboxProvider.ProvisionAppPasswordAsync(domain, primaryEmailAddress, label);
+    }
+
+    /// <summary>
+    /// Revoke an issued app password. Not gated on activation: revoking must keep working even
+    /// if the key was unpublished, or a credential could be stranded live on the mail server.
+    /// </summary>
+    public async Task RevokeAppPasswordAsync(string appPasswordId)
+    {
+        ThrowIfTenantMailDisabled();
+        await mailboxProvider.RevokeAppPasswordAsync(tenantContext.HostOdinId.DomainName, appPasswordId);
+    }
+
+    /// <summary>Mailbox state, or null when the provider cannot answer.</summary>
+    public async Task<MailboxStatus?> GetMailboxStatusAsync()
+    {
+        ThrowIfTenantMailDisabled();
+        return await mailboxProvider.GetMailboxStatusAsync(tenantContext.HostOdinId.DomainName);
     }
 
     /// <summary>
@@ -163,14 +244,6 @@ public class MailActivationService(
         }
     }
 
-    // 20 random bytes as 4 blocks of 5 base32 chars - typed into mail clients once
-    private static string GenerateAppPassword()
-    {
-        const string alphabet = "abcdefghijklmnopqrstuvwxyz234567";
-        var random = ByteArrayUtil.GetRndByteArray(20);
-        var chars = random.Select(b => alphabet[b % 32]).ToArray();
-        return string.Join("-", Enumerable.Range(0, 4).Select(i => new string(chars, i * 5, 5)));
-    }
 }
 
 public class MailActivationResult

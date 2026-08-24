@@ -32,6 +32,9 @@ public static class SwaggerInfo
 
     public const string Links = "Links";
 
+    // Email setup (the chat-kmp add-on; owner console keeps /api/owner/v1/mail)
+    public const string Mail = "Email Setup";
+
     // Peer notification subscriptions (live updates on drives hosted by other identities)
     public const string Notifications = "Notifications";
 }
