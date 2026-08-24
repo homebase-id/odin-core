@@ -1191,7 +1191,7 @@ Split from the importer itself because these are the checks that must hold befor
 - Consumes: `ExportHeader` (Task 7), `IdentityDatabase.GetTableVersionsAsync`, `IdentityDatabase.CountRowsForIdentityAsync`, `SystemDatabase.GetTableVersionsAsync`
 - Produces: `IdentityImportPreconditions.CheckAsync(ExportHeader, SystemDatabase, IdentityDatabase)` returning `Task<List<string>>` of violations, empty when the import may proceed.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```csharp
 using System;
@@ -1429,12 +1429,12 @@ public class IdentityImportPreconditionTests
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityImportPreconditionTests"`
 Expected: compile error, `IdentityImportPreconditions` does not exist.
 
-- [ ] **Step 3: Write the preconditions**
+- [x] **Step 3: Write the preconditions**
 
 Create `src/core/Odin.Core.Storage/DatabaseImport/IdentityImportPreconditions.cs`:
 
@@ -1553,7 +1553,7 @@ public static class IdentityImportPreconditions
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityImportPreconditionTests"`
 Expected: 11 tests PASS.
@@ -1562,7 +1562,7 @@ If `CheckAsync_FailsOnALeftoverCertificateRowWithNoRegistration` fails to compil
 `grep -n "public async Task<CertificatesRecord>" src/core/Odin.Core.Storage/Database/System/Table/TableCertificates*.cs`
 and use that, rather than changing the test's intent.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /workspace/odin-core
