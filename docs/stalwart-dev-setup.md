@@ -1,5 +1,7 @@
 # Local Stalwart dev environment — setup runbook
 
+Production/bleeding-edge setup: `docs/stalwart-production-setup.md`.
+
 Companion to `docs/stalwart-admin-api-notes.md` (the live-verified
 management-API wire contract). The README deliberately says nothing about
 Stalwart yet - this doc is the dev-facing runbook.
