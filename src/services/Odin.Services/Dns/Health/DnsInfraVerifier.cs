@@ -41,11 +41,16 @@ public class DnsInfraVerifier(
         public bool IsClean => Errors.Count == 0 && Warnings.Count == 0;
     }
 
-    /// <summary>False when configuration gives this verifier nothing to check.</summary>
+    /// <summary>
+    /// False when configuration gives this verifier nothing to check, or when the check is
+    /// switched off. Off is for hosts whose configured hostnames are not the real ones — a dev
+    /// box points them at /etc/hosts, so every lookup fails and the retry loop only logs noise.
+    /// </summary>
     public bool HasChecks =>
-        !string.IsNullOrWhiteSpace(configuration.Registry.DnsConfigurationSet.ApexAliasRecord) ||
-        configuration.Registry.ManagedDomainApexes.Count > 0 ||
-        MxNodesToCheck.Count > 0;
+        configuration.Registry.DnsInfraVerificationEnabled &&
+        (!string.IsNullOrWhiteSpace(configuration.Registry.DnsConfigurationSet.ApexAliasRecord) ||
+         configuration.Registry.ManagedDomainApexes.Count > 0 ||
+         MxNodesToCheck.Count > 0);
 
     private List<string> MxNodesToCheck =>
         configuration.Email.TenantMail.Enabled && configuration.Email.Provider != EmailProvider.None

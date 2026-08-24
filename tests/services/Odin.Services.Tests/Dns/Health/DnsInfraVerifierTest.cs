@@ -47,7 +47,35 @@ public class DnsInfraVerifierTest
         _dnssecLookup.Reset();
     }
 
+    /// <summary>
+    /// The check is skippable, so a host whose configured hostnames are not the real ones does not
+    /// spend three retry rounds logging lookups that were never going to succeed. It is a switch
+    /// rather than a domain allowlist so it covers any local-testing domain, and so no test domain
+    /// has to be named in production code.
+    /// </summary>
+    [Test]
+    public void HasChecksIsFalseWhenVerificationIsDisabled()
+    {
+        var verifier = CreateVerifier(verificationEnabled: false, email: null, managedApexes: "example.com");
+        Assert.That(verifier.HasChecks, Is.False);
+    }
+
+    [Test]
+    public void HasChecksIsTrueByDefaultWhenSomethingIsConfigured()
+    {
+        var verifier = CreateVerifier(email: null, managedApexes: "example.com");
+        Assert.That(verifier.HasChecks, Is.True);
+    }
+
     private DnsInfraVerifier CreateVerifier(
+        OdinConfiguration.EmailSection? email = null,
+        params string[] managedApexes)
+    {
+        return CreateVerifier(true, email, managedApexes);
+    }
+
+    private DnsInfraVerifier CreateVerifier(
+        bool verificationEnabled,
         OdinConfiguration.EmailSection? email = null,
         params string[] managedApexes)
     {
@@ -56,6 +84,7 @@ public class DnsInfraVerifierTest
             Registry = new OdinConfiguration.RegistrySection
             {
                 DnsConfigurationSet = new DnsConfigurationSet(ApexIp, Alias),
+                DnsInfraVerificationEnabled = verificationEnabled,
                 ManagedDomainApexes = managedApexes
                     .Select(x => new OdinConfiguration.RegistrySection.ManagedDomainApex { Apex = x })
                     .ToList(),
