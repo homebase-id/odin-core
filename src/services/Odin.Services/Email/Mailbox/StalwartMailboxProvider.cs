@@ -63,19 +63,40 @@ public class StalwartMailboxProvider(
         logger.LogInformation("Stalwart mailbox created for {domain} (account {id})", domain, created);
     }
 
+    /// <summary>
+    /// Uploads the E2E public certificate and points encryption-at-rest at it.
+    ///
+    /// Old key objects are REMOVED rather than left behind. Stalwart caps public keys per account
+    /// (maxPublicKeys, 5 by default) and every rotation would otherwise consume one, so a handful
+    /// of rotations bricks the endpoint with "overQuota" — which is exactly what happened in
+    /// testing. Removing them is safe: the public key only decides what NEW mail is encrypted to,
+    /// and already-stored mail is decrypted client-side with the private half, which never leaves
+    /// the email drive.
+    ///
+    /// Re-running with the same certificate is a no-op, so activation stays idempotent.
+    /// </summary>
     public async Task SetEncryptionKeyAsync(string domain, string publicCertificateArmored)
     {
         var (accountId, _) = await RequireUserAccountAsync(domain);
 
         // Child objects are addressed in the USER's JMAP account context
-        var keyId = await SetAsync("x:PublicKey", create: new JsonObject
-        {
-            ["key"] = publicCertificateArmored,
-            ["description"] = "Homebase E2E email certificate",
-        }, jmapAccountId: accountId);
+        var existing = await GetAsync("x:PublicKey", jmapAccountId: accountId);
+        var alreadyThere = existing.FirstOrDefault(k =>
+            k?["key"]?.GetValue<string>() == publicCertificateArmored);
 
-        // Point encryption-at-rest at the fresh key; older key objects stay behind
-        // harmlessly (mail already stored was encrypted to them)
+        var keyId = alreadyThere?["id"]?.GetValue<string>();
+        if (keyId == null)
+        {
+            // Make room first: a full quota would fail the create below.
+            await PruneEncryptionKeysAsync(accountId, existing, keepId: null);
+
+            keyId = await SetAsync("x:PublicKey", create: new JsonObject
+            {
+                ["key"] = publicCertificateArmored,
+                ["description"] = "Homebase E2E email certificate",
+            }, jmapAccountId: accountId);
+        }
+
         await SetAsync("x:Account", updateId: accountId, update: new JsonObject
         {
             ["encryptionAtRest"] = new JsonObject
@@ -86,7 +107,36 @@ public class StalwartMailboxProvider(
                 ["allowSpamTraining"] = false,
             }
         });
+
+        // Now that nothing references them, drop anything that is not the key in use.
+        await PruneEncryptionKeysAsync(accountId, await GetAsync("x:PublicKey", jmapAccountId: accountId), keepId: keyId);
+
         logger.LogInformation("Stalwart encryption-at-rest enabled for {domain} (key {keyId})", domain, keyId);
+    }
+
+    /// <summary>
+    /// Removes public key objects, optionally keeping one. Best-effort: failing to tidy up is not
+    /// a reason to fail the caller, which has already done the part that matters.
+    /// </summary>
+    private async Task PruneEncryptionKeysAsync(string accountId, List<JsonNode> keys, string? keepId)
+    {
+        foreach (var key in keys)
+        {
+            var id = key?["id"]?.GetValue<string>();
+            if (id == null || id == keepId)
+            {
+                continue;
+            }
+
+            try
+            {
+                await SetAsync("x:PublicKey", destroyId: id, jmapAccountId: accountId);
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Stalwart would not remove the old public key {id}", id);
+            }
+        }
     }
 
     public async Task SetDkimKeyAsync(string domain, DkimKey key)
