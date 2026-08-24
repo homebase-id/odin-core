@@ -57,6 +57,7 @@ The evaluator and the `BETWEEN 0 AND callerLevel` range query are untouched.
 | 3.8 | Owner-console per-app toggle + settings storage (existing per-tenant store, no schema) | L36-37 |
 | 3.9 | The toggle is seeded by the install-time registration consent | L136 |
 | 3.10 | Toggling an app off affects future connections only; already-granted identities keep their grants | L39-41 |
+| 3.10a | **Decided 2026-08-21: future connections only.** Installing or enabling an app never enrols existing connections, and no prompt is offered. See *Decisions* below | L235-237, OQ1 |
 | 3.11 | Bulk-revoke as a separate explicit action on the circle's member list | L40-41 |
 | 3.12 | The whole mechanism sits under the existing global auto-accept settings | L41-43 |
 | 3.13 | Apps may also create circle definitions at runtime (feed's per-channel AUDIENCE circle) | L225-228 |
@@ -112,14 +113,48 @@ assuming, since the two give opposite access outcomes.
 
 *(Inference from reading the three passages together — none of the docs flags it as a conflict.)*
 
-## Open questions that become work
+## Decisions
 
-1. Does enabling an app later offer enrollment of *existing* connections (prompt once, default
-   off), or future connections only? — L235-237, L338-341
-2. Do `Review` circles carry permission keys (`AllowIntroductions`, `ReadWhoIFollow`), or do those
-   leave circles and become per-connection settings? — L342-347
+**Existing connections are never back-enrolled (2026-08-21).** Closes open question 1. Installing or
+enabling an app enrols *future* connections only; no one-time prompt is built.
 
-Neither is in a category above because neither is decided.
+The doc had already settled the important half — enrolment is "offered, never automatic"
+(L235-237) — leaving only whether to offer a prompt at all. Future-only wins for the first pass
+because the manual path already exists and costs nothing to build:
+
+- **Owner console → circle detail → Add Members** takes a multi-select of identities and calls
+  `provideGrants` in one action (`odin-js` `templates/Circles/CircleDetails`, "Add Members to
+  {circle}").
+- **Owner console → contact → circle membership dialog** edits one contact's circles via
+  `CircleSelector` (`components/Circles/CircleMembershipDialog`).
+- Both land on `POST circles/add` → `CircleNetworkService.GrantCircleAsync`.
+
+So an owner who wants their existing contacts in a new app's default circle opens that circle and
+adds them. Slower than a prompt, nothing unreachable. The prompt stays easy to add later, once
+someone has actually felt its absence.
+
+One dependency: `GrantCircleAsync` currently throws `CannotGrantAutoConnectedMoreCircles` (3010)
+for an auto-connected identity, which is exactly the population an owner would want to back-enrol.
+Cat 3 deletes that lockout, so the manual path only fully works from this phase onward.
+
+**Permission keys stay on circles (2026-08-21).** Closes open question 2. Identity-wide permission
+keys are carried by `Review` circles; they do not leave circles to become per-connection settings
+toggled at review.
+
+Consequences:
+
+- No new schema, and no new settings surface — permission keys already live in circle definitions.
+- The deposit-only invariant (3.5) still forbids them on `Connect` and `OwnFlowConnect` circles.
+  Keys are only ever mintable at the review, which is where the key ceremony lives.
+- The validator therefore has two rules, not one: a grant-on-connect circle may carry neither read
+  grants nor permission keys.
+- Part 4's review dialog already surfaces these as per-app toggles, so the client shape is unchanged
+  by this decision.
+
+One refinement Cat 2 forces: part 4's proposed default-circle table puts `AllowIntroductions` *and*
+`ReadConnections` / `ReadWhoIFollow` on the Contacts app's `Review` circle. The latter two are now
+driven by the Reviewed tier instead (Cat 2, item 2.5), so putting them on a circle as well would
+give them two sources. Only `AllowIntroductions` should be circle-borne.
 
 ## Not in scope here
 

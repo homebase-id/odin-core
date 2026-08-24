@@ -7,15 +7,18 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Util;
 
@@ -28,17 +31,12 @@ namespace Odin.Services.Authorization.Apps
         IMediator mediator,
         IcrKeyService icrKeyService,
         ILogger<AppRegistrationService> logger,
-        TableKeyThreeValueCached tblKeyThreeValue,
+        IdentityDatabase db,
+        CircleDefinitionService circleDefinitionService,
         ClientRegistrationStorage clientRegistrationStorage,
         OdinContextCache cache)
         : IAppRegistrationService
     {
-        private static readonly byte[] AppRegistrationDataType = Guid.Parse("14c83583-acfd-4368-89ad-6566636ace3d").ToByteArray();
-        private const string AppRegContextKey = "661e097f-6aa5-459f-a445-a9ea65348fde";
-
-        private static readonly ThreeKeyValueStorage AppRegistrationValueStorage =
-            TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(AppRegContextKey));
-
 
         public async Task<RedactedAppRegistration> RegisterAppAsync(AppRegistrationRequest request, IOdinContext odinContext)
         {
@@ -82,15 +80,26 @@ namespace Odin.Services.Authorization.Apps
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
+                // The registration request has no slug field yet -- it grows one with the drive-addressing
+                // work, where an app declares its own address. Until then the slug is derived the same way
+                // the migration derives it, so registering an app and migrating one land on the same value.
+                AppSlug = await AssignSlugAsync(request.AppId, request.Name),
                 Name = request.Name,
                 AppKeyStore = appGrant,
 
                 CorsHostName = request.CorsHostName,
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
-                AuthorizedCircles = request.AuthorizedCircles
+                AuthorizedCircles = request.AuthorizedCircles,
+                DefaultCircles = request.DefaultCircles
             };
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appReg.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
+            await ApplyDefaultCirclesAsync(appReg, odinContext);
+
+            // The toggle is not written here. An app absent from the map counts as enabled, which is
+            // exactly the seeding the spec asks for -- the install consent screen is where the owner
+            // agreed to the app's defaults. Writing it explicitly would also make this service depend on
+            // TenantConfigService, which already depends on this one.
 
             await NotifyAppChanged(null, appReg, odinContext);
             return appReg.Redacted();
@@ -135,7 +144,7 @@ namespace Odin.Services.Authorization.Apps
             appReg.AppKeyStore = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives,
                 new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -177,16 +186,17 @@ namespace Odin.Services.Authorization.Apps
             var updatedAppReg = new AppRegistration()
             {
                 AppId = oldRegistration.AppId,
+                AppSlug = oldRegistration.AppSlug, // immutable; other identities address the app by it
                 Name = oldRegistration.Name,
                 AppKeyStore = oldRegistration.AppKeyStore,
                 CorsHostName = oldRegistration.CorsHostName,
 
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
-                AuthorizedCircles = request.AuthorizedCircles
+                AuthorizedCircles = request.AuthorizedCircles,
+                DefaultCircles = oldRegistration.DefaultCircles
             };
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType,
-                updatedAppReg);
+            await SaveAsync(updatedAppReg);
 
             //TODO: consider optimize by checking if anything actually changed before calling notify app changed
 
@@ -320,7 +330,7 @@ namespace Odin.Services.Authorization.Apps
 
             //TODO: revoke all clients? or is the one flag enough?
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -334,7 +344,7 @@ namespace Odin.Services.Authorization.Apps
                 appReg.AppKeyStore.IsRevoked = false;
             }
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -448,7 +458,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
             }
 
-            await AppRegistrationValueStorage.DeleteAsync(tblKeyThreeValue, appId);
+            await db.AppRegistrations.DeleteAsync(appId);
 
             //TODO: reenable this after youauth domain work
 
@@ -473,7 +483,7 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task<List<RedactedAppRegistration>> GetRegisteredAppsInternalAsync()
         {
-            var apps = await AppRegistrationValueStorage.GetByCategoryAsync<AppRegistration>(tblKeyThreeValue, AppRegistrationDataType);
+            var apps = (await db.AppRegistrations.GetAllAsync()).Select(FromRecord).ToList();
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return redactedList;
         }
@@ -485,7 +495,8 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task<AppRegistration?> GetAppRegistrationInternalAsync(GuidId appId)
         {
-            var appReg = await AppRegistrationValueStorage.GetAsync<AppRegistration>(tblKeyThreeValue, appId);
+            var record = await db.AppRegistrations.GetAsync(appId);
+            var appReg = record == null ? null : FromRecord(record);
             return appReg;
         }
 
@@ -503,6 +514,98 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Empties the cache and creates a new instance that can be built
         /// </summary>
+        public async Task<bool> AppExistsAsync(GuidId appId)
+        {
+            return await GetAppRegistrationInternalAsync(appId) != null;
+        }
+
+        /// <summary>
+        /// Materialises an app's declared circles as real rows.
+        /// </summary>
+        /// <remarks>
+        /// Create-or-update matched on circle id, so re-registering an app updates its circles rather
+        /// than duplicating them.  Circles the app no longer declares are deliberately left alone:
+        /// people may be in them, and silently revoking membership because a registration payload
+        /// changed is not something an install should do.
+        /// </remarks>
+        private async Task ApplyDefaultCirclesAsync(AppRegistration appReg, IOdinContext odinContext)
+        {
+            foreach (var declared in appReg.DefaultCircles ?? [])
+            {
+                await circleDefinitionService.CreateOrUpdateAppCircleAsync(
+                    appReg.AppId,
+                    declared.ToCreateCircleRequest(appReg.AppId));
+
+                logger.LogInformation(
+                    "App [{app}] default circle '{circle}' ({id}) applied with GrantOn={grantOn}",
+                    appReg.Name, declared.Name, declared.Id, declared.GrantOn);
+            }
+        }
+
+        /// <summary>
+        /// Picks a slug for a newly registered app, unique against those already registered.
+        /// </summary>
+        private async Task<string> AssignSlugAsync(Guid appId, string name)
+        {
+            var existing = await db.AppRegistrations.GetAllAsync();
+
+            // Seed with the slugs actually stored, not re-derived ones -- an app holding "acme-2" still
+            // holds it whatever its name slugifies to today.
+            var taken = new HashSet<string>(
+                existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
+                StringComparer.Ordinal);
+
+            return AppSlugGenerator.Generate(appId, name, taken);
+        }
+
+        /// <summary>
+        /// Writes a registration to its row.  AppId, AppSlug, Name and CorsHostName are columns; the rest
+        /// of the registration rides <c>grantJson</c>.
+        /// </summary>
+        private async Task SaveAsync(AppRegistration appReg)
+        {
+            await db.AppRegistrations.UpsertAsync(ToRecord(appReg));
+        }
+
+        internal static AppRegistrationsRecord ToRecord(AppRegistration appReg)
+        {
+            if (!AppSlugGenerator.IsValid(appReg.AppSlug))
+            {
+                throw new OdinSystemException(
+                    $"App {appReg.AppId} has no valid slug ('{appReg.AppSlug}'); it cannot be persisted");
+            }
+
+            return new AppRegistrationsRecord
+            {
+                AppId = appReg.AppId,
+                AppSlug = appReg.AppSlug,
+                Name = appReg.Name,
+                CorsHostName = appReg.CorsHostName,
+                grantJson = OdinSystemSerializer.Serialize(appReg),
+
+                // Consent display and repair only; never read on the hot path -- the Circle rows are the
+                // truth for what an app's defaults actually are.
+                detailsJson = appReg.DefaultCircles == null
+                    ? null
+                    : OdinSystemSerializer.Serialize(appReg.DefaultCircles)
+            };
+        }
+
+        internal static AppRegistration FromRecord(AppRegistrationsRecord record)
+        {
+            var appReg = OdinSystemSerializer.Deserialize<AppRegistration>(record.grantJson);
+
+            appReg.AppId = record.AppId;
+            appReg.AppSlug = record.AppSlug;
+            appReg.Name = record.Name;
+            appReg.CorsHostName = record.CorsHostName;
+            appReg.DefaultCircles = string.IsNullOrEmpty(record.detailsJson)
+                ? null
+                : OdinSystemSerializer.Deserialize<List<AppDefaultCircleRequest>>(record.detailsJson);
+
+            return appReg;
+        }
+
         private async Task ResetAppPermissionContextCacheAsync()
         {
             await cache.ResetAsync();

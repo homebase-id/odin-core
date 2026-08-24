@@ -56,6 +56,11 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Removes access for a given application across all devices
         /// </summary>
+        /// <summary>
+        /// Whether an app is registered.  Used to reject a toggle for an app that does not exist.
+        /// </summary>
+        Task<bool> AppExistsAsync(GuidId appId);
+
         Task RevokeAppAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>

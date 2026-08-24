@@ -365,6 +365,32 @@ public class TenantConfigService(
         shamirConfigurationService.AssertCanUseAutomatedRecovery();
     }
 
+    /// <summary>
+    /// Records whether an app's grant-on-connect circles apply to future connections.
+    /// </summary>
+    public async Task SetAppConnectEnrollmentAsync(Guid appId, bool enabled, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        if (!await appRegistrationService.AppExistsAsync(appId))
+        {
+            throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
+        }
+
+        var cfg = await ConfigStorage.GetAsync<TenantSettings>(identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ??
+                  new TenantSettings();
+
+        cfg.AppConnectEnrollment ??= new Dictionary<Guid, bool>();
+        cfg.AppConnectEnrollment[appId] = enabled;
+
+        await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantSettings.ConfigKey, cfg);
+
+        tenantContext.UpdateSystemConfig(cfg);
+
+        // Future connections only. Nothing already granted is touched; removing people enrolled while
+        // it was on is a separate, explicit action on the circle's member list.
+    }
+
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {
         return await ConfigStorage.GetAsync<TenantSettings>(identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ??

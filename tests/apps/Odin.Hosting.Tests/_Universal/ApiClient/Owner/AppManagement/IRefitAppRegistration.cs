@@ -23,6 +23,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement
         [Post(RootPath + "/register/app")]
         Task<ApiResponse<RedactedAppRegistration>> RegisterApp([Body] AppRegistrationRequest appRegistration);
 
+        [Post(RootPath + "/register/connect-enrollment")]
+        Task<ApiResponse<NoResultResponse>> SetConnectEnrollment([Body] SetConnectEnrollmentRequest request);
+
         [Post(RootPath + "/revoke")]
         Task<ApiResponse<NoResultResponse>> RevokeApp([Body] GetAppRequest request);
         

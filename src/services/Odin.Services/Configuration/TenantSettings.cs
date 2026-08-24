@@ -26,6 +26,18 @@ public class TenantSettings
         SendMonthlySecurityHealthReport = false
     };
 
+    /// <summary>
+    /// Per-app consent for ambient enrollment: whether an app's grant-on-connect circles are applied
+    /// when a connection forms.  The app declares; the owner disposes.
+    /// </summary>
+    /// <remarks>
+    /// An app missing from the map counts as enabled -- installing it was the consent, and registration
+    /// writes the entry explicitly so the owner console has something to list.  Turning an app off affects
+    /// future connections only; identities already enrolled keep their grants, and removing them is a
+    /// separate, explicit action on the circle's member list.
+    /// </remarks>
+    public Dictionary<Guid, bool> AppConnectEnrollment { get; set; } = new();
+
     /// <summary/>
     public bool AnonymousVisitorsCanViewWhoIFollow { get; set; }
 
@@ -96,6 +108,16 @@ public class TenantSettings
         return anonymousDrivePermission;
     }
     
+    /// <summary>
+    /// Whether an app's grant-on-connect circles apply.  Unknown apps count as enabled.
+    /// </summary>
+    public bool IsAppConnectEnrollmentEnabled(Guid appId)
+    {
+        return AppConnectEnrollment == null ||
+               !AppConnectEnrollment.TryGetValue(appId, out var enabled) ||
+               enabled;
+    }
+
     public List<int> GetAdditionalPermissionKeysForConnectedIdentities()
     {
         List<int> permissionKeys = new List<int>();

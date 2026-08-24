@@ -78,6 +78,14 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
+    [HttpPost("pending-enrollments/process")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Complete the review decisions waiting on the calling app")]
+    public async Task<int> ProcessPendingEnrollments()
+    {
+        return await circleNetwork.ProcessPendingEnrollmentsAsync(WebOdinContext);
+    }
+
     [HttpPost("verify-connection")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Verify connection status with an identity")]
     public async Task<IcrVerificationResult> VerifyConnection([FromBody] OdinIdRequest request)

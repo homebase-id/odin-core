@@ -273,6 +273,8 @@ public class CircleNetworkStorage
             IntroducerOdinId = introducerOdinId,
             VerificationHash = data.VerificationHash64?.FromBase64() ?? [],
 
+            PendingEnrollments = data.PendingEnrollments ?? [],
+
             // Promoted from the column, never from the blob -- see IdentityConnectionRegistration.ReviewedAt
             ReviewedAt = record.ReviewedAt
         };
@@ -316,7 +318,8 @@ public class CircleNetworkStorage
             WeakClientAccessToken = icr.TemporaryWeakClientAccessToken == null
                 ? ""
                 : OdinSystemSerializer.Serialize(icr.TemporaryWeakClientAccessToken),
-            WeakKeyStoreKey = icr.TempWeakKeyStoreKey == null ? "" : OdinSystemSerializer.Serialize(icr.TempWeakKeyStoreKey)
+            WeakKeyStoreKey = icr.TempWeakKeyStoreKey == null ? "" : OdinSystemSerializer.Serialize(icr.TempWeakKeyStoreKey),
+            PendingEnrollments = icr.PendingEnrollments ?? []
         };
         return icrAccessRecord;
     }
@@ -348,4 +351,10 @@ public class IcrAccessRecord
 
     public string VerificationHash64 { get; set; }
     public string ConnectionOrigin { get; init; }
+
+    /// <summary>
+    /// Review decisions waiting on the app that owns the circle.  Blob-resident on purpose: nothing
+    /// queries them, an app reads its own on start-up.
+    /// </summary>
+    public List<PendingCircleEnrollment> PendingEnrollments { get; set; } = [];
 }

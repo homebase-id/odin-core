@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -17,10 +19,59 @@ public static class SystemAppConstants
     public static readonly Guid PhotoAppId = Guid.Parse("32f0bdbf-017f-4fc0-8004-2d4631182d1e");
     public static readonly Guid MailAppId = Guid.Parse("6e8ecfff-7c15-40e4-94f4-d6e83bfb5857");
 
+    // Stable ids for the per-app grant-on-connect circles. These replace the chat suite's slice of the
+    // frozen system-circle bundle: the same drive grants, but owned by the app that actually wants them
+    // and computed at connect time rather than compiled into CircleConstants.
+    //
+    // Deposit-only by construction -- Write|React and nothing else -- which is what the definition-write
+    // validator enforces for anything with GrantOn = Connect.
+    public static readonly Guid ChatConnectCircleId = Guid.Parse("c17a1000-0000-4000-8000-000000000001");
+    public static readonly Guid MailConnectCircleId = Guid.Parse("c17a1000-0000-4000-8000-000000000002");
+    public static readonly Guid FeedConnectCircleId = Guid.Parse("c17a1000-0000-4000-8000-000000000003");
+
     public static readonly AppRegistrationRequest ChatAppRegistrationRequest = new()
     {
         AppId = ChatAppId,
         Name = "Homebase - Chat",
+        DefaultCircles =
+        [
+            new AppDefaultCircleRequest
+            {
+                Id = ChatConnectCircleId,
+                Name = "Chat-only",
+                Description = "People who can message you before you have reviewed them",
+                GrantOn = CircleGrantOn.Connect,
+                Designation = CircleDesignation.Personal,
+                DriveGrants =
+                [
+                        new()
+                        {
+                            PermissionedDrive = new PermissionedDrive()
+                            {
+                                Drive = SystemDriveConstants.ChatDrive,
+                                Permission = DrivePermission.Write | DrivePermission.React
+                            }
+                        },
+                        new()
+                        {
+                            PermissionedDrive = new PermissionedDrive()
+                            {
+                                Drive = SystemDriveConstants.ListsDrive,
+                                Permission = DrivePermission.Write | DrivePermission.React
+                            }
+                        },
+                        new()
+                        {
+                            PermissionedDrive = new PermissionedDrive()
+                            {
+                                Drive = SystemDriveConstants.MomentsDrive,
+                                Permission = DrivePermission.Write | DrivePermission.React
+                            }
+                        }
+                ]
+            }
+        ],
+
         AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
         {
             SystemCircleConstants.ConfirmedConnectionsCircleId,
@@ -146,6 +197,29 @@ public static class SystemAppConstants
     {
         AppId = FeedAppId,
         Name = "Homebase - Feed",
+        DefaultCircles =
+        [
+            new AppDefaultCircleRequest
+            {
+                Id = FeedConnectCircleId,
+                Name = "Feed",
+                Description = "People whose posts can reach your feed before you have reviewed them",
+                GrantOn = CircleGrantOn.Connect,
+                Designation = CircleDesignation.Personal,
+                DriveGrants =
+                [
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = SystemDriveConstants.FeedDrive,
+                            Permission = DrivePermission.Write | DrivePermission.React
+                        }
+                    }
+                ]
+            }
+        ],
+
         AuthorizedCircles = [],
         Drives =
         [new()
@@ -219,6 +293,29 @@ public static class SystemAppConstants
     {
         AppId = MailAppId,
         Name = "Homebase - Mail",
+        DefaultCircles =
+        [
+            new AppDefaultCircleRequest
+            {
+                Id = MailConnectCircleId,
+                Name = "Mail",
+                Description = "People who can mail you before you have reviewed them",
+                GrantOn = CircleGrantOn.Connect,
+                Designation = CircleDesignation.Personal,
+                DriveGrants =
+                [
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = SystemDriveConstants.MailDrive,
+                            Permission = DrivePermission.Write | DrivePermission.React
+                        }
+                    }
+                ]
+            }
+        ],
+
         AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
         {
             SystemCircleConstants.ConfirmedConnectionsCircleId,

@@ -34,6 +34,10 @@ public enum OdinClientErrorCode
     CannotGrantAutoConnectedMoreCircles = 3010,
     IncomingRequestNotFound = 3011,
     CannotUnreviewCircleMember = 3012,
+    CannotGrantKeysOnAmbientCircle = 3013,
+    CannotGrantReadOnAmbientCircle = 3014,
+    CircleNotOwnedByApp = 3015,
+    NotAnAppContext = 3016,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
