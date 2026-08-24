@@ -18,6 +18,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Apps;
@@ -245,7 +246,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         var callerCircles = odinContext.Caller.Circles?.ToList();
         var isCallerConfirmed = isCallerConnected &&
-                                (callerCircles?.Any(c => c == SystemCircleConstants.ConfirmedConnectionsCircleId) ?? false);
+                                odinContext.Caller.SecurityLevel == SecurityGroupType.Reviewed;
 
         // Needed to tell "never confirmed" from "confirmed and then revoked": both leave the caller out of
         // Confirmed Connections, but only the former is still in Auto-connected.
