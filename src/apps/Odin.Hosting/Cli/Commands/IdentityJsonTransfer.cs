@@ -33,6 +33,12 @@ public static class IdentityJsonTransfer
             return;
         }
 
+        // The CLI builds its own root container; nothing has populated the registry's trie
+        // yet, so GetAsync would return null for every domain. Every other verb that reaches
+        // for an identity does this first (CommandLine.LoadTenants). It also creates the
+        // tenant scope that GetTenantScope below depends on.
+        await registry.LoadRegistrations();
+
         var registration = await registry.GetAsync(domain);
         if (registration == null)
         {
