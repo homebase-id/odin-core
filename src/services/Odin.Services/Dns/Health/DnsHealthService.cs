@@ -97,6 +97,16 @@ public sealed class DnsHealthResult
     /// <summary>The server-side success rule over Records (delegation OR record rule)</summary>
     public bool RecordsAreValid { get; init; }
 
+    /// <summary>
+    /// Whether this HOST serves tenant mail at all (Email:TenantMail:Enabled).
+    ///
+    /// Without it an empty <see cref="MailRecords"/> is ambiguous, and the two cases call for
+    /// opposite messages: false means the server does not do email and the owner cannot act;
+    /// true with no records means the owner has not set it up yet and can. Additive field -
+    /// old frontends ignore it.
+    /// </summary>
+    public bool TenantMailEnabled { get; init; }
+
     /// <summary>Optional records (www) - informational, never errors</summary>
     public List<OptionalRecordResult> OptionalRecords { get; init; } = [];
 
@@ -141,6 +151,7 @@ public class DnsHealthService(
             // show up as failed required records in a client
             Records = records.Where(x => !x.Optional).ToList(),
             MailRecords = records.Where(x => x.Optional).ToList(),
+            TenantMailEnabled = configuration.Email.TenantMail.Enabled,
             RecordsAreValid = recordsAreValid,
             OptionalRecords = optionalRecords,
             Dnssec = dnssec,
