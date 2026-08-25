@@ -29,6 +29,58 @@ public static class SystemAppConstants
     public static readonly Guid MailConnectCircleId = Guid.Parse("c17a1000-0000-4000-8000-000000000002");
     public static readonly Guid FeedConnectCircleId = Guid.Parse("c17a1000-0000-4000-8000-000000000003");
 
+    /// <summary>
+    /// The relationship circles the chat app owns: the set the owner console's setup wizard has always
+    /// seeded on a fresh identity, now provisioned by the server alongside the app that presents them.
+    /// </summary>
+    /// <remarks>
+    /// The ids are <c>md5(name)</c>, which is what the wizard assigns (odin-js <c>toGuidId</c>).  Keeping
+    /// them is what makes an identity that already ran the wizard and one provisioned here the same
+    /// identity: the v16 -> v17 migration rebinds the wizard's circles at these very ids rather than
+    /// creating a second set beside them.
+    /// <para>
+    /// Created if missing and never overwritten -- deliberately not declared as
+    /// <see cref="AppRegistrationRequest.DefaultCircles"/>, which an app re-registration reapplies and
+    /// would use to reset a circle the owner has since renamed or regranted.  These are the owner's
+    /// circles with the owner's people in them; the app owns them only in the sense of managing them.
+    /// </para>
+    /// </remarks>
+    public static readonly IReadOnlyList<CreateCircleRequest> ChatRelationshipCircles =
+    [
+        new()
+        {
+            Id = Guid.Parse("3d594614f445f6b00014e9b77730b833"),
+            Name = "Friends",
+            Description = "Your friends",
+            AppId = ChatAppId,
+            Permissions = new PermissionSet(PermissionKeys.ReadConnections)
+        },
+        new()
+        {
+            Id = Guid.Parse("cefc4f7cbc8c34762e0f76703e7e174e"),
+            Name = "Family",
+            Description = "Your family",
+            AppId = ChatAppId,
+            Permissions = new PermissionSet(PermissionKeys.ReadConnections)
+        },
+        new()
+        {
+            Id = Guid.Parse("0f9263536b9fc61ada745644735bfd8f"),
+            Name = "Work",
+            Description = "Your professional connections",
+            AppId = ChatAppId,
+            Permissions = new PermissionSet(PermissionKeys.ReadConnections)
+        },
+        new()
+        {
+            Id = Guid.Parse("55c53cfda992192581cb4f006109df47"),
+            Name = "Acquaintances",
+            Description = "Your network",
+            AppId = ChatAppId,
+            Permissions = new PermissionSet(PermissionKeys.ReadConnections)
+        }
+    ];
+
     public static readonly AppRegistrationRequest ChatAppRegistrationRequest = new()
     {
         AppId = ChatAppId,
