@@ -548,12 +548,9 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinSecurityException($"{odinId} must have valid connection to be added to a circle");
             }
 
-            if (icr.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
-            {
-                throw new OdinClientException(
-                    $"Cannot grant additional circles to auto-connected identity.  You must first confirm the connection.",
-                    OdinClientErrorCode.CannotGrantAutoConnectedMoreCircles);
-            }
+            // No lockout on auto-connected identities any more. It existed to force a confirm before an
+            // auto-connection could gain circles; granting a circle is itself the owner's act and stamps
+            // the review below, so there is nothing left for it to protect.
 
             if (icr.PeerKeyStore.CircleGrants.TryGetValue(circleId, out _))
             {
@@ -1123,13 +1120,17 @@ namespace Odin.Services.Membership.Connections
         /// Enrollment is idempotent: circles the contact already holds are skipped rather than rejected.
         /// Nothing is revoked -- a declined circle simply never mints.
         /// <para>
-        /// Interim behavior: an auto-connected identity is confirmed first, because the 3010 lockout still
-        /// blocks granting circles to one.  That confirm step needs the master key, so reviewing an
-        /// auto-connected contact from an app context is not yet possible.  Both go away with the
-        /// enrollment model, which retires the system circles and the lockout together.
+        /// No confirm step and no lockout: the review replaces the auto-to-confirmed swap outright, so an
+        /// auto-connected identity is reviewed the same way as any other, and from an app context -- none
+        /// of it needs the master key.  Membership from auto-connect stays; nothing is revoked.
         /// </para>
         /// </remarks>
-        public async Task ReviewConnectionAsync(OdinId odinId, IEnumerable<GuidId> circleIds, IOdinContext odinContext)
+        /// <returns>
+        /// What became of each chosen circle.  The dialog closes when this returns, so the outcome has to
+        /// travel with it rather than waiting for a later status read.
+        /// </returns>
+        public async Task<ReviewConnectionResult> ReviewConnectionAsync(OdinId odinId, IEnumerable<GuidId> circleIds,
+            IOdinContext odinContext)
         {
             AssertCanManageCircleMembership(odinContext);
 
@@ -1145,13 +1146,11 @@ namespace Odin.Services.Membership.Connections
 
             await using var tx = await db.BeginStackedTransactionAsync();
 
-            // The lockout still stands between an auto-connection and any additional circle, so clear it
-            // the way the current code does before enrolling.
-            if (icr.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
-            {
-                await this.ConfirmConnectionAsync(odinId, odinContext);
-                icr = await this.GetIcrAsync(odinId, odinContext);
-            }
+            // Stamp first: the review is the owner's act, and everything below -- the security level the
+            // grants are minted under, and any check that reads reviewed-ness -- should see it as done.
+            // No confirm step: there is no auto-to-confirmed swap to perform, and none of it needed the
+            // master key in the first place.
+            await this.StampReviewedAsync(odinId);
 
             foreach (var circleId in requestedCircles)
             {
@@ -1163,11 +1162,46 @@ namespace Odin.Services.Membership.Connections
                 await this.GrantCircleAsync(circleId, odinId, odinContext);
             }
 
-            await this.StampReviewedAsync(odinId);
-
             tx.Commit();
 
             await odinContextCache.ResetAsync();
+
+            return await ClassifyReviewOutcomeAsync(odinId, requestedCircles);
+        }
+
+        /// <summary>
+        /// Reports where each chosen circle actually landed.
+        /// </summary>
+        /// <remarks>
+        /// Read back rather than inferred from which branch was taken: an app deposits even its own
+        /// circles, and that is a property of <see cref="GrantCircleAsync"/> rather than of the caller.
+        /// Reading the resulting state keeps this honest if that ever changes.
+        /// </remarks>
+        private async Task<ReviewConnectionResult> ClassifyReviewOutcomeAsync(OdinId odinId, List<GuidId> requested)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            var granted = new List<Guid>();
+            var deposited = new List<Guid>();
+
+            foreach (var circleId in requested)
+            {
+                if (icr.PeerKeyStore?.CircleGrants?.ContainsKey(circleId) ?? false)
+                {
+                    granted.Add(circleId);
+                }
+                else if (icr.PeerKeyStore?.DepositedGrants?.Exists(d => d.CircleId == circleId) ?? false)
+                {
+                    deposited.Add(circleId);
+                }
+            }
+
+            return new ReviewConnectionResult
+            {
+                Granted = granted,
+                Deposited = deposited,
+                ReviewedAt = icr.ReviewedAt
+            };
         }
 
         /// <summary>
