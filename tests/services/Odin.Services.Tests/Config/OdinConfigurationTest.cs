@@ -250,6 +250,38 @@ public class OdinConfigurationTest
         Assert.That(section.IsProviderConfigured, Is.False);
     }
 
+    /// <summary>
+    /// The system sender and tenant mail are independent settings, and enabling one must not
+    /// disable the other. They used to be coupled: the legacy branch early-returned whenever an
+    /// Email section existed, so adding Email:TenantMail:* to a host still using the deprecated
+    /// Mailgun block silently stopped all system mail - no error, no bounce, just no password
+    /// recovery. Migrating Mailgun was therefore an undocumented prerequisite for tenant mail.
+    /// </summary>
+    [Test]
+    public void EmailSection_TenantMail_DoesNotDisableLegacyMailgun()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            // Tenant mail configured in the new section...
+            ["Email:TenantMail:Enabled"] = "true",
+            ["Email:TenantMail:MxNodes:0"] = "mx1.example.com",
+            ["Email:TenantMail:SpfIncludeTarget"] = "spf.example.com",
+            ["Email:TenantMail:DmarcReportEmail"] = "dmarc@example.com",
+            ["Email:TenantMail:TlsReportEmail"] = "tls@example.com",
+            // ...while the system sender is still the deprecated top-level block
+            ["Mailgun:Enabled"] = "true",
+            ["Mailgun:ApiKey"] = "legacy-key",
+            ["Mailgun:EmailDomain"] = "legacy.example.com",
+            ["Mailgun:DefaultFromEmail"] = "no-reply@legacy.example.com",
+        }));
+
+        Assert.That(section.TenantMail.Enabled, Is.True);
+        Assert.That(section.Provider, Is.EqualTo(EmailProvider.Mailgun), "legacy system mail must survive");
+        Assert.That(section.Mailgun.ApiKey, Is.EqualTo("legacy-key"));
+        Assert.That(section.SystemFrom.Email, Is.EqualTo("no-reply@legacy.example.com"));
+        Assert.That(section.LegacyMailgunConfig, Is.True);
+    }
+
     [Test]
     public void EmailSection_EmailSectionWins_OverLegacyMailgun()
     {

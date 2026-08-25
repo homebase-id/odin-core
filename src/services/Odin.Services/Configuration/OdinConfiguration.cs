@@ -465,65 +465,78 @@ public class OdinConfiguration
 
         public EmailSection(IConfiguration config)
         {
-            if (!config.SectionExists("Email") && config.SectionExists("Mailgun"))
-            {
-                // Deprecated top-level Mailgun section; supported for one release
-                LegacyMailgunConfig = true;
-                if (config.GetOrDefault("Mailgun:Enabled", false))
-                {
-                    Provider = EmailProvider.Mailgun;
-                    Mailgun = new MailgunProviderSection
-                    {
-                        ApiKey = config.Required<string>("Mailgun:ApiKey"),
-                        EmailDomain = config.Required<string>("Mailgun:EmailDomain"),
-                    };
-                    SystemFrom = new NameAndEmailAddress
-                    {
-                        Email = config.Required<string>("Mailgun:DefaultFromEmail"),
-                        Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
-                    };
-                }
-                return;
-            }
+            // True only when the deprecated section actually supplied the values, which is what
+            // the startup deprecation warning claims ("in use"). A leftover Mailgun block that
+            // Email:Provider has superseded is simply ignored.
+            LegacyMailgunConfig = !config.SectionExists("Email:Provider") && config.SectionExists("Mailgun");
 
-            Provider = config.GetOrDefault("Email:Provider", EmailProvider.None);
-            if (Provider != EmailProvider.None)
+            // The SYSTEM SENDER (this host's own notifications) and TENANT MAIL (mailboxes it
+            // serves for identities) are independent, and this parsing keeps them that way.
+            //
+            // They used to be coupled: the legacy branch early-returned whenever an Email
+            // section existed, so the first Email:* key added for tenant mail silently switched
+            // the whole deprecated Mailgun section off - no error, no bounce, just no system
+            // mail. Enabling tenant mail must not be able to break password recovery.
+            //
+            // An EXPLICIT Email:Provider always wins, "None" included: that is a deliberate
+            // "this host sends no mail of its own". Only an ABSENT key falls back to the
+            // deprecated section, which is what lets Email:TenantMail:* be added on its own.
+            if (!config.SectionExists("Email:Provider") && config.GetOrDefault("Mailgun:Enabled", false))
             {
+                Provider = EmailProvider.Mailgun;
+                Mailgun = new MailgunProviderSection
+                {
+                    ApiKey = config.Required<string>("Mailgun:ApiKey"),
+                    EmailDomain = config.Required<string>("Mailgun:EmailDomain"),
+                };
                 SystemFrom = new NameAndEmailAddress
                 {
-                    Email = config.Required<string>("Email:SystemFrom:Email"),
-                    Name = config.GetOrDefault("Email:SystemFrom:Name", ""),
+                    Email = config.Required<string>("Mailgun:DefaultFromEmail"),
+                    Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
                 };
             }
 
-            // Only the selected provider's credentials are required
-            switch (Provider)
+            if (config.SectionExists("Email:Provider"))
             {
-                case EmailProvider.SendGrid:
-                    SendGrid = new SendGridProviderSection
+                Provider = config.GetOrDefault("Email:Provider", EmailProvider.None);
+                if (Provider != EmailProvider.None)
+                {
+                    SystemFrom = new NameAndEmailAddress
                     {
-                        ApiKey = config.Required<string>("Email:SendGrid:ApiKey"),
+                        Email = config.Required<string>("Email:SystemFrom:Email"),
+                        Name = config.GetOrDefault("Email:SystemFrom:Name", ""),
                     };
-                    break;
-                case EmailProvider.Mailgun:
-                    Mailgun = new MailgunProviderSection
-                    {
-                        ApiKey = config.Required<string>("Email:Mailgun:ApiKey"),
-                        EmailDomain = config.Required<string>("Email:Mailgun:EmailDomain"),
-                    };
-                    break;
-                case EmailProvider.Smtp:
-                    Smtp = new SmtpProviderSection
-                    {
-                        RelayHost = config.Required<string>("Email:Smtp:RelayHost"),
-                        RelayPort = config.GetOrDefault("Email:Smtp:RelayPort", 25),
-                        Username = config.GetOrDefault("Email:Smtp:Username", ""),
-                        Password = config.GetOrDefault("Email:Smtp:Password", ""),
-                        RequireTls = config.GetOrDefault("Email:Smtp:RequireTls", false),
-                        LocalDomain = config.GetOrDefault("Email:Smtp:LocalDomain", ""),
-                        RelayIps = config.GetOrDefault("Email:Smtp:RelayIps", new List<string>()),
-                    };
-                    break;
+                }
+
+                // Only the selected provider's credentials are required
+                switch (Provider)
+                {
+                    case EmailProvider.SendGrid:
+                        SendGrid = new SendGridProviderSection
+                        {
+                            ApiKey = config.Required<string>("Email:SendGrid:ApiKey"),
+                        };
+                        break;
+                    case EmailProvider.Mailgun:
+                        Mailgun = new MailgunProviderSection
+                        {
+                            ApiKey = config.Required<string>("Email:Mailgun:ApiKey"),
+                            EmailDomain = config.Required<string>("Email:Mailgun:EmailDomain"),
+                        };
+                        break;
+                    case EmailProvider.Smtp:
+                        Smtp = new SmtpProviderSection
+                        {
+                            RelayHost = config.Required<string>("Email:Smtp:RelayHost"),
+                            RelayPort = config.GetOrDefault("Email:Smtp:RelayPort", 25),
+                            Username = config.GetOrDefault("Email:Smtp:Username", ""),
+                            Password = config.GetOrDefault("Email:Smtp:Password", ""),
+                            RequireTls = config.GetOrDefault("Email:Smtp:RequireTls", false),
+                            LocalDomain = config.GetOrDefault("Email:Smtp:LocalDomain", ""),
+                            RelayIps = config.GetOrDefault("Email:Smtp:RelayIps", new List<string>()),
+                        };
+                        break;
+                }
             }
 
             TenantMail = new TenantMailSection(config);
