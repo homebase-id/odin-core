@@ -437,14 +437,17 @@ public class OdinConfiguration
         public StalwartSection Stalwart { get; init; } = new();
 
         /// <summary>
-        /// True when the system sender's credentials came from the deprecated TOP-LEVEL
-        /// <c>Mailgun:</c> section rather than from <c>Email:Provider</c> + <c>Email:Mailgun:*</c>.
+        /// True when the Mailgun credentials were read from the OLD top-level <c>Mailgun:</c>
+        /// section instead of <c>Email:Provider</c> + <c>Email:Mailgun:*</c>.
         ///
-        /// This is about WHERE the settings live, not whether the feature is wanted: sending our
-        /// own mail through Mailgun is current and expected. Only its address in the config file
-        /// moved. Hence the startup log says "move it", not "stop using it".
+        /// MAILGUN IS NOT DEPRECATED - it is how this host sends its own mail to users, and that
+        /// is current and expected. What was superseded is the LOCATION: mail settings were
+        /// consolidated under one <c>Email:</c> section. Migrating moves the same values to a new
+        /// address in the config file and changes no behaviour whatsoever.
+        ///
+        /// Drives a "move them" note at startup, never a "stop using this" one.
         /// </summary>
-        public bool UsingDeprecatedMailgunSection { get; init; }
+        public bool MailgunCredentialsInOldConfigLocation { get; init; }
 
         /// <summary>
         /// AES key encrypting tenant DKIM private keys at rest (DkimStore) - the
@@ -472,7 +475,7 @@ public class OdinConfiguration
             // True only when the deprecated section actually supplied the values, which is what
             // the startup deprecation warning claims ("in use"). A leftover Mailgun block that
             // Email:Provider has superseded is simply ignored.
-            UsingDeprecatedMailgunSection = !config.SectionExists("Email:Provider") && config.SectionExists("Mailgun");
+            MailgunCredentialsInOldConfigLocation = !config.SectionExists("Email:Provider") && config.SectionExists("Mailgun");
 
             // The SYSTEM SENDER (this host's own notifications) and TENANT MAIL (mailboxes it
             // serves for identities) are independent, and this parsing keeps them that way.

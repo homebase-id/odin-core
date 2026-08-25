@@ -34,10 +34,10 @@ public class EmailInfraVerifier(
     {
         var email = configuration.Email;
 
-        if (email.UsingDeprecatedMailgunSection)
+        if (email.MailgunCredentialsInOldConfigLocation)
         {
             logger.LogWarning(
-                "Mailgun credentials are still in the deprecated top-level Mailgun section; move them to Email:Provider + Email:Mailgun:* (same behaviour, new location) - the fallback is removed next release");
+                "Mailgun credentials are still in the old top-level Mailgun section; move them to Email:Provider + Email:Mailgun:* - same behaviour, new location, and the fallback is removed next release. Mailgun itself is unaffected");
         }
 
         // Two different things wear the word "provider" here, and conflating them has already

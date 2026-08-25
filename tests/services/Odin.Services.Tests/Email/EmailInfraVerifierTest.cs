@@ -81,16 +81,16 @@ public class EmailInfraVerifierTest
     }
 
     [Test]
-    public void DeprecatedMailgunSectionLogsMoveItWarning()
+    public void OldMailgunConfigLocationLogsMoveItNote()
     {
         var verifier = CreateVerifier(new OdinConfiguration.EmailSection
         {
             Provider = EmailProvider.Mailgun,
-            UsingDeprecatedMailgunSection = true,
+            MailgunCredentialsInOldConfigLocation = true,
         });
 
         Assert.That(verifier.LogConfigurationFindings(), Is.True);
-        VerifyLogged(LogLevel.Warning, "deprecated top-level Mailgun section", Times.Once());
+        VerifyLogged(LogLevel.Warning, "old top-level Mailgun section", Times.Once());
     }
 
     [Test]
