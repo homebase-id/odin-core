@@ -41,17 +41,18 @@ One A record: `<mail hostname>` → the VPS. Nothing else.
 ### Config
 
 Dropped as a file; no ansible change needed.
+File: /identity-host/host-env-override.env
 
 ```
-Email:TenantMail:Enabled=true
-Email:TenantMail:MxNodes:0=<mail hostname>
-Email:TenantMail:SpfIncludeTarget=<hostname holding an SPF TXT record>
-Email:TenantMail:DmarcReportEmail=<address>
-Email:TenantMail:TlsReportEmail=<address>
-Email:DkimStorageKey=<openssl rand -hex 32>
-Email:Stalwart:BaseUrl=http://stalwart:8080
-Email:Stalwart:AdminUsername=<user>
-Email:Stalwart:AdminPassword=<strong>
+Email__TenantMail__Enabled=true
+Email__TenantMail__MxNodes__0=<mail hostname>
+Email__TenantMail__SpfIncludeTarget=<hostname holding an SPF TXT record>
+Email__TenantMail__DmarcReportEmail=<address>
+Email__TenantMail__TlsReportEmail=<address>
+Email__DkimStorageKey=<openssl rand -hex 32>
+Email__Stalwart__BaseUrl=http://stalwart:8080
+Email__Stalwart__AdminUsername=<user>
+Email__Stalwart__AdminPassword=<strong>
 ```
 
 | Value | What it is | Phase 1 |
