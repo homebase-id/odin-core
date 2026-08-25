@@ -84,12 +84,16 @@ config edit.
   surprised.
 - **Thunderbird will warn about the certificate.** Expected in Phase 1: it is
   self-signed. Click through.
-- **Phase 1 logs an ERR at every boot**, by design:
-  `Email:TenantMail:Enabled is true but Email:Provider is 'None'`. It fires
-  because Phase 1 deliberately leaves the system sender unset. Nothing is
-  broken, but ERR normally means "look at this" — so either expect it, or
-  set `Email:Provider` + `Email:SystemFrom:Email` to a working sender and it
-  goes away.
+- **Mailgun is a separate concern, and stays where it is.** `Mailgun:*` at the
+  top level is how the host sends its OWN mail to users — password recovery,
+  security health reports. It has nothing to do with tenant mail, and nothing
+  here touches it. Leave it alone; enabling tenant mail does not affect it, and
+  its absence does not hold tenant mail back.
+- **Expect no email-related errors at boot.** Tenant mail on with Mailgun off
+  logs two INF lines and nothing else:
+  `Tenant mailbox provider: Stalwart at ...` and
+  `Mailgun is not enabled; this host sends no mail of its own`. Anything at ERR
+  is a real finding.
 
 ### Verify
 
