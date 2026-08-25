@@ -53,7 +53,7 @@ public class DnsInfraVerifier(
          MxNodesToCheck.Count > 0);
 
     private List<string> MxNodesToCheck =>
-        configuration.Email.TenantMail.Enabled && configuration.Email.Provider != EmailProvider.None
+        configuration.Email.TenantMail.Enabled
             ? configuration.Email.TenantMail.MxNodes
             : [];
 

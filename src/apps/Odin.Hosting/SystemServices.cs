@@ -218,27 +218,12 @@ public static class SystemServices
         services.AddSingleton<ICertificateStore, CertificateStore>();
         services.AddSingleton<ICertificateService, CertificateService>();
 
-        services.AddSingleton<IEmailSender>(sp => config.Email.Provider switch
-        {
-            EmailProvider.Mailgun => new MailgunSender(
-                sp.GetRequiredService<ILogger<MailgunSender>>(),
-                sp.GetRequiredService<IDynamicHttpClientFactory>(),
-                config.Email.Mailgun.ApiKey,
-                config.Email.Mailgun.EmailDomain,
-                config.Email.SystemFrom),
-            EmailProvider.SendGrid => new SendGridSender(
-                sp.GetRequiredService<ILogger<SendGridSender>>(),
-                sp.GetRequiredService<IDynamicHttpClientFactory>(),
-                config.Email.SendGrid.ApiKey,
-                config.Email.SystemFrom),
-            // Submission into the host's own mail server, which DKIM-signs and relays onward.
-            EmailProvider.Smtp => new SmtpSender(
-                sp.GetRequiredService<ILogger<SmtpSender>>(),
-                config.Email.Smtp,
-                config.Email.SystemFrom),
-            // None logs and discards
-            _ => new NullEmailSender(sp.GetRequiredService<ILogger<NullEmailSender>>()),
-        });
+        services.AddSingleton<IEmailSender>(sp => new MailgunSender(
+            sp.GetRequiredService<ILogger<MailgunSender>>(),
+            sp.GetRequiredService<IDynamicHttpClientFactory>(),
+            config.Mailgun.ApiKey,
+            config.Mailgun.EmailDomain,
+            config.Mailgun.DefaultFrom));
 
         services.AddSingleton(new DkimStorageKey(config.Email.DkimStorageKey));
         services.AddSingleton<IDkimStore, DkimStore>();

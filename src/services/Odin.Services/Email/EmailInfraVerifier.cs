@@ -33,31 +33,11 @@ public class EmailInfraVerifier(
     public bool LogConfigurationFindings()
     {
         var email = configuration.Email;
+        var mailgun = configuration.Mailgun;
 
-        if (email.MailgunCredentialsInOldConfigLocation)
-        {
-            logger.LogWarning(
-                "Mailgun credentials are still in the old top-level Mailgun section; move them to Email:Provider + Email:Mailgun:* - same behaviour, new location, and the fallback is removed next release. Mailgun itself is unaffected");
-        }
-
-        // Two different things wear the word "provider" here, and conflating them has already
-        // misled once: Email:Provider is the SYSTEM sender (notification mail out), while the
-        // tenant MAILBOX provider is Email:Stalwart:*. Tenant mail endpoints gate on
-        // Email:TenantMail:Enabled alone, so a missing system sender does not disable them - it
-        // only means this verifier cannot exercise the mail infrastructure below.
-        if (email.TenantMail.Enabled && email.Provider == EmailProvider.None)
-        {
-            // Still an error: on a host actually serving mail, no system sender means no
-            // identity-ready mail and no DMARC/TLS reports. Only the wording changed - the old
-            // one claimed tenant mail was disabled, which sent someone hunting for a switch that
-            // does not exist.
-            logger.LogError(
-                "Email:TenantMail:Enabled is true but Email:Provider is 'None'; tenant mail endpoints are live, " +
-                "but system mail cannot be sent and the mail-infrastructure checks below are skipped");
-        }
-
-        // Which mailbox provider is in play is otherwise unanswerable from the logs, and both
-        // succeed identically from the caller's side - the null one simply talks to nothing.
+        // Tenant mail (mailboxes we serve for identities) and Mailgun (how this host sends its
+        // own mail to users) are unrelated, so neither gates the other. Only their own state is
+        // reported here.
         if (email.TenantMail.Enabled)
         {
             if (email.Stalwart.IsConfigured)
@@ -72,21 +52,12 @@ public class EmailInfraVerifier(
             }
         }
 
-        switch (email.Provider)
+        if (!mailgun.Enabled)
         {
-            case EmailProvider.None:
-                logger.LogInformation("Email provider is 'None'; system mail is disabled");
-                break;
-            case EmailProvider.Smtp:
-                logger.LogInformation(
-                    "Email provider is 'Smtp'; system mail is submitted to {host}:{port} for signing and relay",
-                    email.Smtp.RelayHost, email.Smtp.RelayPort);
-                break;
+            logger.LogInformation("Mailgun is not enabled; this host sends no mail of its own");
         }
 
-        var checkCredentials = email.Provider is EmailProvider.SendGrid or EmailProvider.Mailgun or EmailProvider.Smtp;
-        var checkTenantMailInfra = email.TenantMail.Enabled && email.Provider != EmailProvider.None;
-        return checkCredentials || checkTenantMailInfra;
+        return mailgun.Enabled || email.TenantMail.Enabled;
     }
 
     /// <summary>
@@ -99,22 +70,22 @@ public class EmailInfraVerifier(
         var errors = new List<string>();
         var email = configuration.Email;
 
-        if (email.Provider is EmailProvider.SendGrid or EmailProvider.Mailgun)
+        if (configuration.Mailgun.Enabled)
         {
             try
             {
                 if (!await emailSender.VerifyCredentialsAsync(cancellationToken))
                 {
-                    errors.Add($"'{email.Provider}' provider credential check failed");
+                    errors.Add("Mailgun credential check failed");
                 }
             }
             catch (Exception e)
             {
-                errors.Add($"'{email.Provider}' provider credential check failed: {e.Message}");
+                errors.Add($"Mailgun credential check failed: {e.Message}");
             }
         }
 
-        if (email.TenantMail.Enabled && email.Provider != EmailProvider.None)
+        if (email.TenantMail.Enabled)
         {
             await VerifyTenantMailInfraAsync(email.TenantMail, errors, cancellationToken);
         }

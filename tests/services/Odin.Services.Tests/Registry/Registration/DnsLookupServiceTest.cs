@@ -50,7 +50,6 @@ public class DnsLookupServiceTest
     {
         return new OdinConfiguration.EmailSection
         {
-            Provider = EmailProvider.SendGrid,
             TenantMail = new OdinConfiguration.TenantMailSection
             {
                 Enabled = true,
