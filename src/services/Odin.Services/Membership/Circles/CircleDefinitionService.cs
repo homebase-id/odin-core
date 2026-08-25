@@ -129,6 +129,30 @@ namespace Odin.Services.Membership.Circles
                 }
             }
 
+            var reviewedCircleDef = await GetCircleAsync(SystemCircleConstants.ReviewedConnectionsCircleId);
+            if (null == reviewedCircleDef)
+            {
+                var def = SystemCircleConstants.ReviewedConnectionsDefinition;
+                await CreateCircleInternalAsync(new CreateCircleRequest
+                {
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions,
+                    // Unlike its siblings this one carries a GrantOn, and the request is what the column is
+                    // written from -- dropping it here would create the circle inert.
+                    GrantOn = def.GrantOn
+                }, skipValidation: true);
+            }
+            else
+            {
+                if (SystemCircleConstants.ReviewedConnectionsDefinition != reviewedCircleDef)
+                {
+                    await this.UpdateAsync(SystemCircleConstants.ReviewedConnectionsDefinition, skipValidation: true);
+                }
+            }
+
             await EnsureBuiltInCirclesExistAsync();
         }
 

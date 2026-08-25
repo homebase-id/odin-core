@@ -88,15 +88,70 @@ public class ReviewConnectionTests
 
         var grantCountBefore = asNew.Content.AccessGrant.CircleGrants.Count;
 
-        // No circles == the "chat only" outcome: it records the decision and grants nothing.
+        // No circles == the "chat only" outcome: it records the decision and grants nothing the owner
+        // did not choose. Membership of the Reviewed Connections circle is not a choice -- it is what
+        // reviewing means -- so the contact joins that one, and only that one.
         var review = await frodo.Network.ReviewConnection(sam.OdinId);
         ClassicAssert.IsTrue(review.IsSuccessStatusCode, $"review failed: {review.Error?.Content}");
 
         var reviewed = await frodo.Network.GetConnectionInfo(sam.OdinId);
         ClassicAssert.IsNotNull(reviewed.Content.ReviewedAt);
         ClassicAssert.IsTrue(reviewed.Content.Vetted);
-        ClassicAssert.AreEqual(grantCountBefore, reviewed.Content.AccessGrant.CircleGrants.Count,
-            "a chat-only review must not mint any circle grant");
+        ClassicAssert.AreEqual(grantCountBefore + 1, reviewed.Content.AccessGrant.CircleGrants.Count,
+            "a chat-only review must add them to the Reviewed circle and nothing else");
+        ClassicAssert.IsTrue(reviewed.Content.AccessGrant.CircleGrants.Exists(
+            g => g.CircleId == SystemCircleConstants.ReviewedConnectionsCircleId));
+
+        await Cleanup();
+    }
+
+    [Test]
+    public async Task ReviewEnrollsTheReviewedCircle_WithTheShardDriveGrant()
+    {
+        var (frodo, sam) = await Connect();
+
+        await frodo.Network.UnreviewConnection(sam.OdinId);
+
+        var review = await frodo.Network.ReviewConnection(sam.OdinId);
+        ClassicAssert.IsTrue(review.IsSuccessStatusCode, $"review failed: {review.Error?.Content}");
+
+        var info = await frodo.Network.GetConnectionInfo(sam.OdinId);
+        var grant = info.Content.AccessGrant.CircleGrants.Find(
+            g => g.CircleId == SystemCircleConstants.ReviewedConnectionsCircleId);
+
+        ClassicAssert.IsNotNull(grant, "reviewing must add them to the Reviewed circle");
+
+        // The point of the circle: a reviewed contact may write their recovery shards to us.
+        var shardGrant = grant.DriveGrants.Find(dg =>
+            dg.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive &&
+            dg.PermissionedDrive.Permission == DrivePermission.Write);
+        ClassicAssert.IsNotNull(shardGrant, "the Reviewed circle must carry write on the shard drive");
+
+        await Cleanup();
+    }
+
+    [Test]
+    public async Task UnreviewRevokesTheReviewedCircle()
+    {
+        var (frodo, sam) = await Connect();
+
+        var review = await frodo.Network.ReviewConnection(sam.OdinId);
+        ClassicAssert.IsTrue(review.IsSuccessStatusCode);
+
+        var reviewed = await frodo.Network.GetConnectionInfo(sam.OdinId);
+        ClassicAssert.IsTrue(reviewed.Content.AccessGrant.CircleGrants.Exists(
+            g => g.CircleId == SystemCircleConstants.ReviewedConnectionsCircleId), "precondition");
+
+        var unreview = await frodo.Network.UnreviewConnection(sam.OdinId);
+        ClassicAssert.IsTrue(unreview.IsSuccessStatusCode, $"un-review failed: {unreview.Error?.Content}");
+
+        // What the review granted, the un-review takes back -- otherwise the stamp is gone while the
+        // keys that membership carries are still held.
+        var after = await frodo.Network.GetConnectionInfo(sam.OdinId);
+        ClassicAssert.IsNull(after.Content.ReviewedAt);
+        ClassicAssert.IsFalse(after.Content.AccessGrant.CircleGrants.Exists(
+            g => g.CircleId == SystemCircleConstants.ReviewedConnectionsCircleId),
+            "un-review must revoke the Reviewed circle grant");
 
         await Cleanup();
     }

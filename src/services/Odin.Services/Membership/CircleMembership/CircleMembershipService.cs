@@ -361,6 +361,14 @@ public class CircleMembershipService(
         return circles;
     }
 
+    /// <summary>
+    /// The circles whose owning app wants members enrolled at the given moment.
+    /// </summary>
+    public async Task<List<CircleDefinition>> GetCirclesByGrantOnAsync(CircleGrantOn grantOn)
+    {
+        return await circleDefinitionService.GetCirclesByGrantOnAsync(grantOn);
+    }
+
     public async Task<CircleDefinition> GetCircleAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);

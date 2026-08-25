@@ -520,12 +520,18 @@ namespace Odin.Services.Membership.Connections
                 VerificationHash = verificationHash
             };
 
-            if (StampsReviewedOnConnect(connectionRequestOrigin))
+            var stampedOnConnect = StampsReviewedOnConnect(connectionRequestOrigin);
+            if (stampedOnConnect)
             {
                 newConnection.MarkReviewed();
             }
 
             await this.SaveIcrAsync(newConnection, odinContext);
+
+            if (stampedOnConnect)
+            {
+                await this.EnrollReviewTierCirclesAsync(odinId, odinContext);
+            }
 
             await mediator.Publish(new ConnectionFinalizedNotification()
             {
@@ -625,6 +631,9 @@ namespace Odin.Services.Membership.Connections
 
             if (wasUnreviewed)
             {
+                // This grant is what reviewed them, so it owes them the rest of what reviewing grants.
+                await this.EnrollReviewTierCirclesAsync(odinId, odinContext, skipCircleId: circleId);
+
                 // The stamp just promoted their caller tier. Peer contexts are cached for an hour keyed
                 // on the presented token, and only the finalized/blocked/deleted notifications reset that
                 // cache -- so without this the owner grants a circle and the contact keeps reading at the
@@ -1152,6 +1161,11 @@ namespace Odin.Services.Membership.Connections
             // master key in the first place.
             await this.StampReviewedAsync(odinId);
 
+            // The Review-tier circles are the review's own doing: the owner does not pick them, and they
+            // are not in the result, because they are a consequence of reviewing rather than a decision
+            // made during it.
+            await this.EnrollReviewTierCirclesAsync(odinId, odinContext);
+
             foreach (var circleId in requestedCircles)
             {
                 if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
@@ -1260,7 +1274,7 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.CannotUnreviewCircleMember);
             }
 
-            await this.ClearReviewAsync(icr);
+            await this.ClearReviewAsync(icr, odinContext);
 
             await odinContextCache.ResetAsync();
         }
@@ -1401,6 +1415,41 @@ namespace Odin.Services.Membership.Connections
         /// Callers that are also mutating the registration should use
         /// <see cref="IdentityConnectionRegistration.MarkReviewed"/> instead and save once.
         /// </summary>
+        /// <summary>
+        /// Enrols the contact in the Review-tier circles.  Every path that stamps
+        /// <see cref="IdentityConnectionRegistration.ReviewedAt"/> calls this, so being reviewed and
+        /// holding what reviewing grants are the same event rather than two that usually coincide.
+        /// </summary>
+        /// <param name="skipCircleId">
+        /// The circle whose own grant triggered the stamp, if any.  The caller is adding them to it
+        /// already, and re-entering <see cref="GrantCircleAsync"/> for it would recurse.
+        /// </param>
+        private async Task EnrollReviewTierCirclesAsync(OdinId odinId, IOdinContext odinContext, GuidId skipCircleId = null)
+        {
+            var reviewTier = (await circleMembershipService.GetCirclesByGrantOnAsync(CircleGrantOn.Review))
+                .Where(c => !c.Disabled)
+                .Where(c => skipCircleId == null || c.Id != skipCircleId.Value)
+                .ToList();
+
+            if (reviewTier.Count == 0)
+            {
+                return;
+            }
+
+            // Read fresh: callers reach here after saving, and their copy predates the save.
+            var current = await circleNetworkStorage.GetAsync(odinId);
+
+            foreach (var circle in reviewTier)
+            {
+                if (current?.PeerKeyStore?.CircleGrants?.ContainsKey(circle.Id) ?? false)
+                {
+                    continue;
+                }
+
+                await this.GrantCircleAsync(circle.Id, odinId, odinContext);
+            }
+        }
+
         private async Task StampReviewedAsync(OdinId odinId)
         {
             // Read fresh rather than trusting the caller's copy: GrantCircleAsync stamps as it enrols, so
@@ -1420,8 +1469,19 @@ namespace Odin.Services.Membership.Connections
         /// Clears the review stamp.  Callers own the membership invariant - see
         /// <see cref="UnreviewConnectionAsync"/>.
         /// </summary>
-        private async Task ClearReviewAsync(IdentityConnectionRegistration icr)
+        private async Task ClearReviewAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
+            // Whatever membership the review granted, the un-review takes back. Without this the stamp clears
+            // while the grants it caused stayed live, and "un-reviewed" would be true of the ladder and
+            // false of the keys the contact actually holds.
+            foreach (var circle in await circleMembershipService.GetCirclesByGrantOnAsync(CircleGrantOn.Review))
+            {
+                if (icr.PeerKeyStore?.CircleGrants?.ContainsKey(circle.Id) ?? false)
+                {
+                    await this.RevokeCircleAccessAsync(circle.Id, icr.OdinId, odinContext);
+                }
+            }
+
             await circleNetworkStorage.UpdateReviewedAtAsync(icr.OdinId, icr.Status, null);
         }
 
