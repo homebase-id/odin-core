@@ -257,7 +257,7 @@ public class DnsLookupService : IDnsLookupService
 
     public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(
         AsciiDomainName domain,
-        IReadOnlyCollection<DnsConfig> extraRecords = null,
+        IReadOnlyCollection<DnsConfig>? extraRecords = null,
         CancellationToken cancellationToken = default)
     {
         var dnsConfigs = GetDnsConfiguration(domain);

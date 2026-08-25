@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -136,7 +137,7 @@ public class DnsHealthServiceTest
     [Test]
     public async Task ItShouldCheckTheTenantsDkimRecords()
     {
-        IReadOnlyCollection<DnsConfig> passedExtras = null;
+        IReadOnlyCollection<DnsConfig>? passedExtras = null;
         SetupLookupCapturing(extras => passedExtras = extras);
 
         _dkimStore.Setup(x => x.IsConfigured).Returns(true);
@@ -153,8 +154,8 @@ public class DnsHealthServiceTest
         await CreateService(tenantMailEnabled: true).GetDnsHealthAsync(Domain, CancellationToken.None);
 
         Assert.That(passedExtras, Is.Not.Null);
-        Assert.That(passedExtras.Count, Is.EqualTo(1));
-        var record = passedExtras.Single();
+        Assert.That(passedExtras!.Count, Is.EqualTo(1));
+        var record = passedExtras!.Single();
         Assert.That(record.Name, Does.Contain("_domainkey"));
         Assert.That(record.Type, Is.EqualTo("TXT"));
         // Load-bearing: IsDomainDnsReady drops Optional records before deciding, and
@@ -167,7 +168,7 @@ public class DnsHealthServiceTest
     public async Task ItShouldCheckNoDkimWhenThereIsNothingToCheck()
     {
         // Tenant mail off — the overwhelmingly common case, and the store is never touched
-        IReadOnlyCollection<DnsConfig> passedExtras = null;
+        IReadOnlyCollection<DnsConfig>? passedExtras = null;
         SetupLookupCapturing(extras => passedExtras = extras);
 
         await CreateService().GetDnsHealthAsync(Domain, CancellationToken.None);
