@@ -154,7 +154,7 @@ public class OdinConfigurationTest
 
         Assert.That(section.Provider, Is.EqualTo(EmailProvider.None));
         Assert.That(section.IsProviderConfigured, Is.False);
-        Assert.That(section.LegacyMailgunConfig, Is.False);
+        Assert.That(section.UsingDeprecatedMailgunSection, Is.False);
         Assert.That(section.TenantMail.Enabled, Is.False);
     }
 
@@ -215,7 +215,7 @@ public class OdinConfigurationTest
     }
 
     [Test]
-    public void EmailSection_LegacyMailgunFallback_MapsToMailgunProvider()
+    public void EmailSection_DeprecatedMailgunSection_MapsToMailgunProvider()
     {
         // Old deployments carry only top-level Mailgun:* keys (no Email section)
         var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
@@ -227,7 +227,7 @@ public class OdinConfigurationTest
             ["Mailgun:DefaultFromName"] = "Legacy Sender",
         }));
 
-        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.UsingDeprecatedMailgunSection, Is.True);
         Assert.That(section.Provider, Is.EqualTo(EmailProvider.Mailgun));
         Assert.That(section.IsProviderConfigured, Is.True);
         Assert.That(section.Mailgun.ApiKey, Is.EqualTo("legacy-key"));
@@ -245,7 +245,7 @@ public class OdinConfigurationTest
             ["Mailgun:Enabled"] = "false",
         }));
 
-        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.UsingDeprecatedMailgunSection, Is.True);
         Assert.That(section.Provider, Is.EqualTo(EmailProvider.None));
         Assert.That(section.IsProviderConfigured, Is.False);
     }
@@ -279,7 +279,7 @@ public class OdinConfigurationTest
         Assert.That(section.Provider, Is.EqualTo(EmailProvider.Mailgun), "legacy system mail must survive");
         Assert.That(section.Mailgun.ApiKey, Is.EqualTo("legacy-key"));
         Assert.That(section.SystemFrom.Email, Is.EqualTo("no-reply@legacy.example.com"));
-        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.UsingDeprecatedMailgunSection, Is.True);
     }
 
     [Test]
@@ -295,7 +295,7 @@ public class OdinConfigurationTest
             ["Mailgun:DefaultFromEmail"] = "no-reply@legacy.example.com",
         }));
 
-        Assert.That(section.LegacyMailgunConfig, Is.False);
+        Assert.That(section.UsingDeprecatedMailgunSection, Is.False);
         Assert.That(section.Provider, Is.EqualTo(EmailProvider.None));
     }
 
@@ -368,7 +368,7 @@ public class OdinConfigurationTest
     }
 
     [Test]
-    public void EmailSection_DkimStorageKey_IsSkippedOnLegacyMailgunConfig()
+    public void EmailSection_DkimStorageKey_IsEmptyWhenUsingDeprecatedMailgunSection()
     {
         // The legacy branch early-returns; the key must simply stay empty, not throw
         var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
@@ -376,7 +376,7 @@ public class OdinConfigurationTest
             ["Mailgun:Enabled"] = "false",
         }));
 
-        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.UsingDeprecatedMailgunSection, Is.True);
         Assert.That(section.DkimStorageKey, Is.Empty);
     }
 
