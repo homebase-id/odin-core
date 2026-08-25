@@ -51,51 +51,32 @@ public static class IdentityJsonTransfer
             + "certificate private key and DKIM signing keys. Anyone holding it can become "
             + "this identity. Store it encrypted and delete it when the migration is done.");
 
-        // Freeze before reading. Disabling alone only closes the HTTP front door; the
-        // tenant's background workers do not check the flag and would keep writing.
-        var wasDisabled = await registry.FreezeIdentityAsync(domain);
-        try
+        var systemDatabase = services.GetRequiredService<SystemDatabase>();
+        var systemMigrator = services.GetRequiredService<SystemMigrator>();
+
+        var tenantScope = services.GetRequiredService<IMultiTenantContainer>().GetTenantScope(domain);
+        var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
+        var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
+
+        await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
         {
-            var systemDatabase = services.GetRequiredService<SystemDatabase>();
-            var systemMigrator = services.GetRequiredService<SystemMigrator>();
+            // The operator asserted the host is stopped; see the caller. This process holds
+            // no background workers of its own (CommandLine disables them), and it cannot
+            // stop workers belonging to any other host, so there is nothing to freeze here.
+            var rows = await IdentityJsonExporter.ExportAsync(
+                logger, stream, registration.Id, domain,
+                systemDatabase, identityDatabase,
+                await identityMigrator.GetCurrentVersionAsync(),
+                await systemMigrator.GetCurrentVersionAsync(),
+                callerHasQuiescedIdentity: true);
 
-            var tenantScope = services.GetRequiredService<IMultiTenantContainer>().GetTenantScope(domain);
-            var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
-            var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
-
-            await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
-            {
-                var rows = await IdentityJsonExporter.ExportAsync(
-                    logger, stream, registration.Id, domain,
-                    systemDatabase, identityDatabase,
-                    await identityMigrator.GetCurrentVersionAsync(),
-                    await systemMigrator.GetCurrentVersionAsync(),
-                    callerHasFrozenIdentity: true);
-
-                logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
-            }
-
-            // Owner-only. The file is the identity.
-            if (!OperatingSystem.IsWindows())
-            {
-                File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            }
+            logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
-        finally
+
+        // Owner-only. The file is the identity.
+        if (!OperatingSystem.IsWindows())
         {
-            // Always restore, even on failure: a frozen identity stays offline until
-            // someone notices.
-            try
-            {
-                await registry.UnfreezeIdentityAsync(domain, wasDisabled);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e,
-                    "FAILED TO UNFREEZE {domain}. The identity is disabled and its background "
-                    + "workers are stopped. Restart the host or unfreeze it manually.", domain);
-                throw;
-            }
+            File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
     }
 

@@ -24,8 +24,10 @@ namespace Odin.Core.Storage.DatabaseImport;
 // IsolationLevel.Unspecified, which on Postgres means READ COMMITTED and a fresh
 // snapshot per statement.
 //
-// This class cannot verify the identity is frozen: that needs IIdentityRegistry from
-// Odin.Services, which this layer must not reference. The caller asserts it.
+// This class cannot verify that nothing is writing to the identity: it has no view of
+// the hosts that might be. The caller asserts it, and today the only way to make that
+// assertion true is to stop the host before exporting. See the spec's open follow-ups
+// for why a live export needs a tenant lifecycle model first.
 public static class IdentityJsonExporter
 {
     public static async Task<long> ExportAsync(
@@ -37,13 +39,14 @@ public static class IdentityJsonExporter
         IdentityDatabase identityDatabase,
         long identitySchemaVersion,
         long systemSchemaVersion,
-        bool callerHasFrozenIdentity)
+        bool callerHasQuiescedIdentity)
     {
-        if (!callerHasFrozenIdentity)
+        if (!callerHasQuiescedIdentity)
         {
             throw new InvalidOperationException(
-                "Refusing to export: the identity must be frozen first. Disabling an identity "
-                + "only closes the HTTP front door; its background workers keep writing.");
+                "Refusing to export: nothing may be writing to this identity. Stop the host "
+                + "before exporting. Disabling an identity is not sufficient: it only closes "
+                + "the HTTP front door, and the tenant's background workers keep writing.");
         }
 
         await using var systemTx = await systemDatabase.BeginStackedTransactionAsync(IsolationLevel.RepeatableRead);

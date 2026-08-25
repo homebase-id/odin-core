@@ -291,14 +291,28 @@ public class CommandLine
         //
         // Command line: Export one identity's tables to a single JSON file
         //
-        // Freezes the identity (disables it and stops its background workers), exports,
-        // then unfreezes. The file contains key material; see the warning it prints.
+        // THE HOST MUST BE STOPPED FIRST. Nothing here can stop a running host's tenant
+        // background workers: they live in that host's container, and on more than one
+        // host they are out of reach entirely. Exporting underneath them silently loses
+        // whatever they commit after the snapshot. The operator asserts the host is down
+        // by passing --host-is-stopped; there is no way to verify it from here.
+        //
+        // The file contains key material; see the warning it prints.
         //
         // examples:
-        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
+        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json --host-is-stopped
         //
         if (args.Length >= 3 && args[0] == "identity-export")
         {
+            if (!args.Contains("--host-is-stopped"))
+            {
+                _logger.LogError(
+                    "Refusing to export. Stop the host first, then re-run with --host-is-stopped. "
+                    + "A running host's background workers keep writing to the identity database, "
+                    + "and this command cannot stop them.");
+                return (true, 1);
+            }
+
             IdentityJsonTransfer.ExportAsync(_serviceProvider, args[1], args[2]).BlockingWait();
             return (true, 0);
         }

@@ -4,7 +4,7 @@
 
 **Goal:** Export one identity's database tables to a single JSON file and import that file into another system, with the per-table read/write code generated so `odin-core` needs no per-table maintenance.
 
-**Architecture:** `Odin-SQLite-Generator` emits an `ExportRowsAsync` and an `ImportRowAsync` into every `Table*CRUD.cs`, plus a per-namespace aggregate (`IdentityDatabase.Export.Generated.cs`) that unrolls calls across all tables and exposes a table-name-to-record-type map. `odin-core` adds exactly two files that know the file format, a freeze/unfreeze pair on `IIdentityRegistry`, and two CLI verbs. Generated code deals in `object` and `Type` only; all JSON lives in `odin-core`.
+**Architecture:** `Odin-SQLite-Generator` emits an `ExportRowsAsync` and an `ImportRowAsync` into every `Table*CRUD.cs`, plus a per-namespace aggregate (`IdentityDatabase.Export.Generated.cs`) that unrolls calls across all tables and exposes a table-name-to-record-type map. `odin-core` adds exactly two files that know the file format and two CLI verbs. Export requires a stopped host; see the withdrawn Task 10. Generated code deals in `object` and `Type` only; all JSON lives in `odin-core`.
 
 **Tech Stack:** .NET 9, NUnit, Autofac, raw SQL (no ORM), `System.Text.Json`, SQLite + PostgreSQL.
 
@@ -1026,8 +1026,8 @@ public class IdentityJsonExporterTests
         Assert.That(systemTables, Does.Contain("DkimKeys"));
     }
 
-    // Requirement 9: the exporter cannot check the freeze itself without referencing
-    // upward, so it takes the caller's assertion and refuses a false one.
+    // Requirement 9: the exporter has no way to see whether a host is still writing,
+    // so it takes the caller's assertion and refuses a false one.
     [Test]
     public void ExportAsync_ThrowsWhenCallerHasNotFrozenTheIdentity()
     {
@@ -2011,204 +2011,39 @@ default."
 
 ---
 
-### Task 10: Freeze and unfreeze an identity
+### Task 10: Freeze and unfreeze an identity — WITHDRAWN
 
-**Files:**
-- Modify: `src/services/Odin.Services/Registry/IIdentityRegistry.cs` (after `ToggleDisabled`, around line 94)
-- Modify: `src/services/Odin.Services/Registry/FileSystemIdentityRegistry.cs` (add public methods; `StartBackgroundServices` / `StopBackgroundServices` are at lines 663 and 671)
-- Modify: any other `IIdentityRegistry` implementation the build reveals
+Implemented as `FreezeIdentityAsync` / `UnfreezeIdentityAsync` on `IIdentityRegistry`
+(commit 51e25cf87), then removed. It could not do what it claimed.
 
-**Interfaces:**
-- Consumes: existing `ToggleDisabled`, `StartBackgroundServices`, `StopBackgroundServices`
-- Produces:
-  - `Task<bool> FreezeIdentityAsync(string domain)` returning the identity's **previous** `Disabled` state
-  - `Task UnfreezeIdentityAsync(string domain, bool restoreDisabledTo)`
+`StopBackgroundServices` resolves `IBackgroundServiceManager` from the caller's own
+container and shuts down that container's workers. That is only the right container when
+the caller IS the host process. From the CLI it is a throwaway container in which
+`CommandLine` has already set `TenantBackgroundServicesEnabled = false`, so nothing ever
+started and the shutdown was a no-op. Once there is more than one host, even running
+inside one of them reaches only that host's workers.
 
-- [x] **Step 1: Find every implementation of the interface**
+`ToggleDisabled` does persist and is visible everywhere, but disabling only closes the
+HTTP front door: no tenant background worker checks the flag.
 
-Run: `cd /workspace/odin-core && grep -rn "IIdentityRegistry" src/ tests/ --include="*.cs" | grep -i "class.*:.*IIdentityRegistry"`
+The replacement is not a better freeze. It is a tenant lifecycle model:
 
-Every type listed needs the two new methods, or the build breaks. Note them before editing.
+- An explicit lifecycle state, distinct from `Disabled`. One bit cannot mean both
+  "an admin suspended this tenant" and "this tenant is being migrated". That conflation
+  is the only reason the withdrawn `UnfreezeIdentityAsync` needed a `restoreDisabledTo`
+  argument.
+- One source of truth for that state, propagated across hosts. It currently lives in the
+  `Registrations` table, `_trie`, `_cache`, and files on disk at once. The Redis pub/sub
+  already used for `OdinContextCache` invalidation is the obvious carrier.
+- Workers that observe the state at every write boundary and abandon the current unit of
+  work, rather than being told to stop from outside.
+- A quiescence acknowledgement, so a freeze can block until every host confirms it is
+  idle for that tenant, with a timeout. Checking a flag alone gives eventual quiescence,
+  not confirmed quiescence: a worker that reads the flag and then writes for thirty
+  seconds is still writing when the export begins.
 
-- [x] **Step 2: Add the interface methods**
+Until that exists, export requires a stopped host. See Task 11.
 
-In `IIdentityRegistry.cs`, immediately after `ToggleDisabled`:
-
-```csharp
-        /// <summary>
-        /// Brings an identity to a full stop: disables it AND stops its background workers.
-        /// Disabling alone only closes the HTTP front door (enforced solely in
-        /// MultiTenantContainerMiddleware); the tenant's background workers do not check
-        /// the Disabled flag and keep writing to the identity database.
-        /// Returns the identity's previous Disabled state, to hand back to UnfreezeIdentityAsync.
-        /// </summary>
-        Task<bool> FreezeIdentityAsync(string domain);
-
-        /// <summary>
-        /// Restarts an identity's background workers and restores its Disabled flag to
-        /// <paramref name="restoreDisabledTo"/>. Pass the value FreezeIdentityAsync returned:
-        /// an identity may already have been disabled for unrelated reasons.
-        /// </summary>
-        Task UnfreezeIdentityAsync(string domain, bool restoreDisabledTo);
-```
-
-- [x] **Step 3: Implement in `FileSystemIdentityRegistry`**
-
-Add immediately after the existing `ToggleDisabled` method:
-
-```csharp
-    public async Task<bool> FreezeIdentityAsync(string domain)
-    {
-        var registration = await GetAsync(domain);
-        if (registration == null)
-        {
-            throw new OdinClientException($"No such identity: {domain}");
-        }
-
-        var wasDisabled = registration.Disabled;
-
-        // Order matters: close the front door before stopping the workers, so nothing
-        // new arrives for a worker that is no longer running.
-        await ToggleDisabled(domain, true);
-        await StopBackgroundServices(registration);
-
-        _logger.LogInformation("Froze identity {domain} (was disabled: {wasDisabled})", domain, wasDisabled);
-        return wasDisabled;
-    }
-
-    public async Task UnfreezeIdentityAsync(string domain, bool restoreDisabledTo)
-    {
-        var registration = await GetAsync(domain);
-        if (registration == null)
-        {
-            throw new OdinClientException($"No such identity: {domain}");
-        }
-
-        await StartBackgroundServices(registration);
-        await ToggleDisabled(domain, restoreDisabledTo);
-
-        _logger.LogInformation("Unfroze identity {domain} (disabled restored to: {disabled})",
-            domain, restoreDisabledTo);
-    }
-```
-
-- [x] **Step 4: Add the methods to every other implementation found in Step 1**
-
-For test doubles and mocks, throw `NotImplementedException` unless the test needs real behaviour. Do not silently no-op: a no-op freeze would make the export's safety check meaningless.
-
-- [x] **Step 5: Build**
-
-Run: `cd /workspace/odin-core && dotnet build ./odin-core.sln`
-Expected: build succeeded. Any missing implementation shows up here.
-
-- [ ] **Step 6: Write the disabled-state test**
-
-There is no existing test harness for `FileSystemIdentityRegistry`. The only registry
-test is `tests/services/Odin.Services.Tests/Registry/Registration/IdentityRegistrationServiceTest.cs`,
-which does not construct the registry. Building a harness that can observe
-`IBackgroundServiceManager` would mean standing up a multi-tenant container, which is
-a bigger lift than the code under test.
-
-So this step covers the half that is cheaply testable, and Step 7 covers the other
-half by hand. Do not skip Step 7 on the grounds that Step 6 passes: they test
-different things.
-
-Add to `tests/services/Odin.Services.Tests/Registry/FreezeIdentityTests.cs`:
-
-```csharp
-using System.Threading.Tasks;
-using NUnit.Framework;
-using Odin.Services.Registry;
-
-namespace Odin.Services.Tests.Registry;
-
-// Covers the Disabled bookkeeping only. That freeze actually stops the six tenant
-// background workers is verified by hand; see the plan's Task 10 Step 7.
-public class FreezeIdentityTests
-{
-    // Unfreeze must restore the PREVIOUS state, not blindly enable. An identity may
-    // already have been disabled for reasons unrelated to the export, and re-enabling
-    // it would silently undo an operator's decision.
-    [Test]
-    public async Task Unfreeze_RestoresAPreviouslyDisabledIdentityToDisabled()
-    {
-        var registry = await TestRegistry.CreateWithIdentityAsync("frodo.dotyou.cloud", disabled: true);
-
-        var wasDisabled = await registry.FreezeIdentityAsync("frodo.dotyou.cloud");
-        Assert.That(wasDisabled, Is.True, "Freeze must report the prior state");
-
-        await registry.UnfreezeIdentityAsync("frodo.dotyou.cloud", wasDisabled);
-
-        var registration = await registry.GetAsync("frodo.dotyou.cloud");
-        Assert.That(registration.Disabled, Is.True,
-            "Unfreeze re-enabled an identity that was disabled before the freeze");
-    }
-
-    [Test]
-    public async Task Unfreeze_RestoresAPreviouslyEnabledIdentityToEnabled()
-    {
-        var registry = await TestRegistry.CreateWithIdentityAsync("frodo.dotyou.cloud", disabled: false);
-
-        var wasDisabled = await registry.FreezeIdentityAsync("frodo.dotyou.cloud");
-        Assert.That(wasDisabled, Is.False);
-
-        var duringFreeze = await registry.GetAsync("frodo.dotyou.cloud");
-        Assert.That(duringFreeze.Disabled, Is.True, "Freeze must disable the identity");
-
-        await registry.UnfreezeIdentityAsync("frodo.dotyou.cloud", wasDisabled);
-
-        var afterUnfreeze = await registry.GetAsync("frodo.dotyou.cloud");
-        Assert.That(afterUnfreeze.Disabled, Is.False);
-    }
-}
-```
-
-`TestRegistry.CreateWithIdentityAsync` does not exist yet. Before writing it, run:
-
-```bash
-cd /workspace/odin-core
-grep -rn "new FileSystemIdentityRegistry" src/ tests/ --include="*.cs"
-```
-
-Use the constructor arguments that call site supplies. If standing the registry up needs
-more than roughly 30 lines of setup, do not force it: delete this step's test file,
-record in the commit message that freeze is covered only by the manual check in Step 7,
-and raise it for review. A test harness larger than the feature is not worth it here,
-but that trade-off is a reviewer's call, not one to make silently.
-
-- [ ] **Step 7: Verify by hand that the workers actually stop**
-
-The behaviour that matters, and the reason this task exists.
-
-```bash
-cd /workspace/odin-core
-dotnet run --project src/apps/Odin.Hosting
-```
-
-With the dev hobbits running, in another shell trigger `identity-export` for
-`frodo.dotyou.cloud` once Task 11 is done, or call `FreezeIdentityAsync` from a scratch
-CLI verb. Then confirm in the host log that all six workers logged a shutdown:
-`PeerOutboxProcessorBackgroundService`, `PeerInboxProcessorBackgroundService`,
-`InboxOutboxReconciliationBackgroundService`, `TempFolderCleanUpBackgroundService`,
-`InboxOrphanScanBackgroundService`, `SecurityHealthCheckBackgroundScheduler`.
-
-Expected: six shutdown log lines, then six startup lines after the unfreeze. Record
-what you saw in the commit message.
-
-- [x] **Step 8: Commit**
-
-```bash
-cd /workspace/odin-core
-git add src/services/Odin.Services/Registry/ tests/services/Odin.Services.Tests/Registry/
-git commit -m "Add FreezeIdentityAsync and UnfreezeIdentityAsync
-
-Disabling an identity only gates inbound HTTP (enforced solely in
-MultiTenantContainerMiddleware); none of the six tenant background workers
-checks the flag. Freeze disables and stops the workers. Unfreeze restores
-the previous disabled state rather than blindly enabling."
-```
-
----
 
 ### Task 11: CLI verbs
 
@@ -2217,7 +2052,7 @@ the previous disabled state rather than blindly enabling."
 - Modify: `src/apps/Odin.Hosting/Cli/CommandLine.cs` (beside the `sqlite2pg-*` verbs, around line 320-390)
 
 **Interfaces:**
-- Consumes: `IdentityJsonExporter.ExportAsync`, `IdentityJsonImporter.ImportAsync`, `IIdentityRegistry.FreezeIdentityAsync` / `UnfreezeIdentityAsync`
+- Consumes: `IdentityJsonExporter.ExportAsync`, `IdentityJsonImporter.ImportAsync`, `IIdentityRegistry.LoadRegistrations` / `GetAsync`
 - Produces: `IdentityJsonTransfer.ExportAsync(IServiceProvider, string domain, string filePath)` and `IdentityJsonTransfer.ImportAsync(IServiceProvider, string filePath, bool commit)`
 
 - [x] **Step 1: Confirm how to resolve both databases in a running host**
@@ -2289,67 +2124,49 @@ public static class IdentityJsonTransfer
             + "certificate private key and DKIM signing keys. Anyone holding it can become "
             + "this identity. Store it encrypted and delete it when the migration is done.");
 
-        // Freeze before reading. Disabling alone only closes the HTTP front door; the
-        // tenant's background workers do not check the flag and would keep writing.
-        var wasDisabled = await registry.FreezeIdentityAsync(domain);
-        try
+        var systemDatabase = services.GetRequiredService<SystemDatabase>();
+        var systemMigrator = services.GetRequiredService<SystemMigrator>();
+
+        var tenantScope = services.GetRequiredService<IMultiTenantContainer>().GetTenantScope(domain);
+        var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
+        var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
+
+        await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
         {
-            var systemDatabase = services.GetRequiredService<SystemDatabase>();
-            var systemMigrator = services.GetRequiredService<SystemMigrator>();
+            // The operator asserted the host is stopped via --host-is-stopped. There is
+            // nothing to freeze here: this process has no tenant workers of its own, and
+            // it cannot reach another host's.
+            var rows = await IdentityJsonExporter.ExportAsync(
+                logger, stream, registration.Id, domain,
+                systemDatabase, identityDatabase,
+                await identityMigrator.GetCurrentVersionAsync(),
+                await systemMigrator.GetCurrentVersionAsync(),
+                callerHasQuiescedIdentity: true);
 
-            var tenantScope = services.GetRequiredService<IMultiTenantContainer>().GetTenantScope(domain);
-            var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
-            var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
-
-            await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
-            {
-                var rows = await IdentityJsonExporter.ExportAsync(
-                    logger, stream, registration.Id, domain,
-                    systemDatabase, identityDatabase,
-                    await identityMigrator.GetCurrentVersionAsync(),
-                    await systemMigrator.GetCurrentVersionAsync(),
-                    callerHasFrozenIdentity: true);
-
-                logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
-            }
-
-            // Owner-only. The file is the identity.
-            if (!OperatingSystem.IsWindows())
-            {
-                File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            }
+            logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
-        finally
+
+        // Owner-only. The file is the identity.
+        if (!OperatingSystem.IsWindows())
         {
-            // Always restore, even on failure: a frozen identity stays offline until
-            // someone notices.
-            try
-            {
-                await registry.UnfreezeIdentityAsync(domain, wasDisabled);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e,
-                    "FAILED TO UNFREEZE {domain}. The identity is disabled and its background "
-                    + "workers are stopped. Restart the host or unfreeze it manually.", domain);
-                throw;
-            }
+            File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
     }
 }
 ```
+
+Note `LoadRegistrations()` before `GetAsync`: the CLI builds its own root container, so the
+registry trie is empty until it runs and every domain looks unregistered. It also creates the
+tenant scope `GetTenantScope` then depends on.
 
 **Operator note on `DkimKeys`.** The exported `DkimKeys.privateKey` values are AES-CBC
 ciphertext under the server-wide `Email:DkimStorageKey` config value, not under anything
 derived from the identity (`DkimStore.cs`). The import replays that ciphertext verbatim,
 which is correct and faithful, but the target can only decrypt it if it is configured with
 the **same** `Email:DkimStorageKey`. If the two hosts differ, the imported rows land intact
-and unreadable, and `DkimStore` throws when the identity next signs mail. There is no way
-for the importer to detect this: it never holds the storage key, and that key lives in
-`Odin.Services` configuration which `Odin.Core.Storage` must not reference. The fix in that
+and unreadable, and `DkimStore` throws when the identity next signs mail. The fix in that
 case is to rotate the identity's DKIM keys and republish the DNS TXT records on the target,
-which `MailActivationService` already does. Out of scope for this plan; call it out in the
-runbook that goes with the CLI verbs.
+which `MailActivationService` already does.
 
 - [x] **Step 3: Write the import command**
 
@@ -2434,8 +2251,8 @@ Add beside the `sqlite2pg-*` block:
         //
         // Command line: Export one identity's tables to a single JSON file
         //
-        // Freezes the identity (disables it and stops its background workers), exports,
-        // then unfreezes. The file contains key material; see the warning it prints.
+        // THE HOST MUST BE STOPPED FIRST, asserted by --host-is-stopped. Nothing here can
+        // stop a running host's tenant workers. The file contains key material.
         //
         // examples:
         //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
@@ -2475,8 +2292,8 @@ cd /workspace/odin-core
 git add src/apps/Odin.Hosting/Cli/
 git commit -m "Add identity-export and identity-import CLI verbs
 
-Export freezes the identity, writes the file 0600, and unfreezes in a
-finally so a failure does not leave the identity offline silently."
+Export requires --host-is-stopped: nothing in the CLI can stop a running
+host's tenant background workers. Writes the file 0600."
 ```
 
 ---
@@ -2624,8 +2441,8 @@ DriveMainIndex rows make whole-document parsing the first thing to fail."
 Recorded in the spec's Open follow-ups and deliberately not in this plan:
 
 - **Payload and thumbnail transfer.** The file covers tables only. An imported identity has file headers whose bytes are absent until payloads are copied by other means.
-- **Stopping server-wide workers per identity.** `UpdateCertificatesBackgroundService` and `JobRunnerBackgroundService` are not tenant-scoped, so the freeze does not stop them. A lost certificate renewal self-heals on the target.
-- **Switching `CopyRegistration` to use the new freeze.** It has the same gap, but changing it here would alter the behaviour of the existing export path.
+- **Exporting without stopping the host.** Needs the tenant lifecycle model described in the withdrawn Task 10: an explicit state distinct from `Disabled`, propagated across hosts, observed by workers at every write boundary, plus a quiescence acknowledgement so freeze can block until all hosts confirm idle. This is the prerequisite for zero-downtime migration and is deliberately not in this plan.
+- **`CopyRegistration` has the same gap** and needs the same lifecycle model. It also runs while the host is live.
 - **Retiring `DataImportPatcher`** once the generated import path has proven its timestamp handling in practice.
 - **Migrating `DataImporter` onto `ExportRowsAsync` / `ImportRowAsync`**, which would delete its 25-table enumeration, both source-scanning tests, and its `PageSize = 100` paging.
 - **Fixing identity deletion.** `DeleteRegistration` leaving identity rows behind on Postgres is a known shortcoming; import precondition 3 guards against it rather than fixing it.

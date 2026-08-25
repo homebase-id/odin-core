@@ -52,8 +52,8 @@ Decided up front, not open:
    any row is written. See **Import preconditions**.
 9. **Export refuses unless the identity is frozen.** Disabling an identity only
    closes the HTTP front door; its background workers keep writing. Export requires
-   them stopped, which needs a freeze mechanism that does not exist today. See
-   **Freezing the identity**.
+   them stopped. No mechanism can do that across hosts today, so export requires a
+   stopped host. See **Freezing the identity, and export consistency**.
 10. **Every table's schema version must match between source and target, and the
     rule is all-or-nothing.** Not the database as a whole: each table individually.
     No row from any table is imported unless every table matches, including tables
@@ -289,8 +289,7 @@ the existing importer:
 **`Odin.Services`**, in `Registry/`:
 
 - **`IIdentityRegistry` / `FileSystemIdentityRegistry`** gain
-  `FreezeIdentityAsync` / `UnfreezeIdentityAsync`. Thin, since `ToggleDisabled` and
-  the private `Start`/`StopBackgroundServices` already exist. See **Freezing the
+  nothing. The freeze pair was attempted and withdrawn. See **Freezing the
   identity**.
 
 **`Odin.Hosting`**, CLI verbs in `Cli/CommandLine.cs` following the existing
@@ -298,12 +297,12 @@ the existing importer:
 so it owns the sequencing:
 
 ```
-dotnet run -- identity-export <domain> <file.json>   # freeze, export, unfreeze
+dotnet run -- identity-export <domain> <file.json> --host-is-stopped
 dotnet run -- identity-import <file.json> [commit]
 ```
 
-The export verb unfreezes in a `finally`, so a failed export does not leave the
-identity frozen. It logs loudly if the unfreeze itself fails, since that state
+The export verb refuses without `--host-is-stopped`, since nothing in the CLI can
+stop a running host's tenant workers. It logs loudly about key material, since that
 needs an operator.
 
 ### 3. File format
@@ -462,28 +461,48 @@ So a disabled identity is not a still identity. The outbox keeps sending and
 updating `DriveTransferHistory`; the inbox keeps draining already-staged items.
 Anything they write after the snapshot is lost at cutover.
 
-**Freeze / unfreeze.** A new pair on `IIdentityRegistry`, alongside the existing
-`ToggleDisabled`:
+**Attempted and withdrawn: a freeze/unfreeze pair on `IIdentityRegistry`.** Built
+as `FreezeIdentityAsync` / `UnfreezeIdentityAsync` (commit 51e25cf87), then removed.
+It could not deliver the guarantee it claimed.
 
-```csharp
-Task FreezeIdentityAsync(string domain);    // disable + stop the tenant's workers
-Task UnfreezeIdentityAsync(string domain);  // restart workers + restore prior disabled state
-```
+`StopBackgroundServices` resolves `IBackgroundServiceManager` from the caller's own
+container. That is the right container only when the caller IS the host process.
+Invoked from the CLI it reaches a throwaway container in which `CommandLine` has
+already set `TenantBackgroundServicesEnabled = false` (`CommandLine.cs:41`, gated at
+`FileSystemIdentityRegistry.cs:553`), so no worker ever started and the shutdown was
+a no-op against a host that was still running. Once there is more than one host,
+even calling it from inside one of them reaches only that host's workers.
 
-The implementation is thin because the parts exist: `ToggleDisabled` plus the two
-private `Start`/`StopBackgroundServices` methods promoted to be reachable from a
-public entry point. `UnfreezeIdentityAsync` restores the identity's **previous**
-disabled state rather than blindly enabling, since an identity may have been
-disabled for unrelated reasons before the export.
+Moving the call into an admin endpoint fixes the single-host case and not the
+multi-host one, so it is not the answer either.
 
-**The export refuses to run against an identity that is not frozen.** This is a
-precondition check, not something the exporter does implicitly, so the operator's
-cutover window is explicit rather than accidental.
+**What the guarantee actually needs.** A tenant lifecycle model, not a better stop
+command:
 
-Layering note: freezing needs `IIdentityRegistry` from `Odin.Services`, which
-`Odin.Core.Storage` must not reference. So the freeze/unfreeze calls live in the
-`Odin.Hosting` CLI command; `IdentityJsonExporter` only receives a flag asserting
-the caller has done it.
+- An explicit lifecycle state, distinct from `Disabled`. One bit cannot mean both
+  "an admin suspended this tenant" and "this tenant is being migrated"; that
+  conflation is the only reason the withdrawn `UnfreezeIdentityAsync` needed a
+  `restoreDisabledTo` argument.
+- One source of truth for it, propagated across hosts. Registration state currently
+  lives in the `Registrations` table, `_trie`, `_cache`, and files on disk at once,
+  with nothing arbitrating between hosts. The Redis pub/sub already used for
+  `OdinContextCache` invalidation (`FileSystemIdentityRegistry.cs:693-698`) is the
+  obvious carrier.
+- Workers that observe the state at every write boundary and abandon the current
+  unit of work, rather than being stopped from outside.
+- A quiescence acknowledgement, so a freeze blocks until every host confirms it is
+  idle for that tenant, with a timeout. A flag check alone gives eventual
+  quiescence, not confirmed quiescence: a worker that reads the flag and then writes
+  for thirty seconds is still writing when the export begins.
+
+That work is a prerequisite for zero-downtime migration and is out of scope here.
+
+**What ships instead: export requires a stopped host.** With the host down there are
+no writers, so the property holds trivially and problem two disappears. The operator
+asserts it by passing `--host-is-stopped` to `identity-export`; the CLI refuses
+without it. `IdentityJsonExporter.ExportAsync` still takes a
+`callerHasQuiescedIdentity` flag and refuses a false one, so the assertion is
+explicit at both layers. Neither layer can verify it, and both say so.
 
 **Accepted residual risk: server-wide workers.** `StartSystemBackgroundServices`
 runs six more workers that are not tenant-scoped, so a tenant freeze does not stop
@@ -670,8 +689,8 @@ scope, so the CLI warns rather than the importer refusing.
   That a version mismatch on a table the skip list would drop still blocks the
   import. That the error lists **all** differences rather than the first. That `-1`
   matches `-1`. And that a `formatVersion` newer than the binary is refused.
-- **Freeze tests.** That `FreezeIdentityAsync` stops the six tenant background
-  workers and `UnfreezeIdentityAsync` restarts them; that unfreeze restores a
+- **Freeze tests.** Withdrawn along with the freeze pair. Were to cover that
+  `FreezeIdentityAsync` stops the six tenant workers, and that unfreeze restores a
   previously-disabled identity to disabled rather than enabling it; and that export
   refuses against an identity that is not frozen.
 - **Precondition tests.** Five cases, each asserting the import aborts before

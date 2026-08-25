@@ -69,7 +69,7 @@ public class IdentityJsonRoundTripTests
         var stream = new MemoryStream();
         await IdentityJsonExporter.ExportAsync(
             logger, stream, _identityId, IdentityDomain, sys, id,
-            identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasFrozenIdentity: true);
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasQuiescedIdentity: true);
         stream.Position = 0;
         return stream;
     }
@@ -189,7 +189,7 @@ public class IdentityJsonRoundTripTests
         var stream = new MemoryStream();
         await IdentityJsonExporter.ExportAsync(
             logger, stream, _identityId, IdentityDomain, srcSys, srcId,
-            identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasFrozenIdentity: true);
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasQuiescedIdentity: true);
         stream.Position = 0;
 
         _targetScope = await _targetServices.RegisterServicesAsync(
@@ -256,7 +256,7 @@ public class IdentityJsonRoundTripTests
         {
             await IdentityJsonExporter.ExportAsync(
                 logger, outFile, _identityId, IdentityDomain, srcSys, srcId,
-                identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasFrozenIdentity: true);
+                identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasQuiescedIdentity: true);
         }
 
         _targetScope = await _targetServices.RegisterServicesAsync(
