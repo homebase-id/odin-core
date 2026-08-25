@@ -12,9 +12,25 @@ public class DnsConfig
     public string AltValue { get; init; } = ""; // For backwards compatibility using CNAME => CNAME => A
     public string Description { get; init; } = "";
 
-    // Optional records (www-style extras, email records) are informational: they are
-    // excluded from the identity-validation success rule and the certificate DNS gate.
-    // Additive field - old frontends ignore it.
+    /// <summary>
+    /// True for records that are NOT part of <see cref="DnsLookupService.IsDomainDnsReady"/> -
+    /// the "is this domain wired to this server" verdict that gates certificate issuance,
+    /// zone creation and provisioning readiness.
+    ///
+    /// Set on www-style extras and on the whole email set (MX, SPF, DKIM, DMARC, MTA-STS,
+    /// TLS-RPT). Those records say nothing about whether the domain points here, so a
+    /// failing one must never block a certificate - a DKIM typo would otherwise take the
+    /// identity's HTTPS down. It does NOT mean the record is unimportant: email records are
+    /// enforced in the owner console's Email tab and the monthly security health report.
+    ///
+    /// NAMING: "Optional" reads as "does not matter", which has already misled readers -
+    /// it means "not a prerequisite for certificates". A better name would be
+    /// ExcludedFromDnsReadiness. NOT renamed because this field is serialized to clients
+    /// (owner console, provisioning app), so the wire name cannot change without a
+    /// coordinated frontend release. Rename both sides together if you touch this.
+    ///
+    /// Additive field - old frontends ignore it.
+    /// </summary>
     public bool Optional { get; init; }
 
     public DnsLookupRecordStatus Status { get; set; } = DnsLookupRecordStatus.Unknown;

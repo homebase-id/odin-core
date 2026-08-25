@@ -400,11 +400,12 @@ public static class RecoveryEmails
     }
 
     public static string FormatRecoveryRiskStatusText(OdinId odinId, RecoveryInfo info,
-        DnssecHealthResult dnssecAttention = null)
+        DnssecHealthResult dnssecAttention = null,
+        IReadOnlyCollection<string> mailAttention = null)
     {
         var risk = info.RecoveryRisk;
         var tenant = odinId;
-        var dnssecSection = DnssecAttentionText(tenant, dnssecAttention);
+        var dnssecSection = DnssecAttentionText(tenant, dnssecAttention) + MailAttentionText(tenant, mailAttention);
 
         if (!info.IsConfigured)
         {
@@ -464,6 +465,57 @@ Team Homebase
 
     // Rendered only when the DNSSEC state is user-actionable (the caller passes null
     // otherwise): a stale DS that breaks resolution, or a signed parent one DS away
+    /// <summary>
+    /// Broken email DNS, appended to the same report. Silent failure is the whole problem
+    /// here: mail keeps being refused or spam-foldered and nothing tells the owner.
+    /// Empty string when there is nothing wrong, so the report is unchanged for everyone
+    /// who does not run mail.
+    /// </summary>
+    private static string MailAttentionText(OdinId tenant, IReadOnlyCollection<string> mailAttention)
+    {
+        if (mailAttention == null || mailAttention.Count == 0)
+        {
+            return "";
+        }
+
+        var items = string.Join("\n", mailAttention.Select(x => $"  - {x}"));
+        return @$"
+
+📧 Email problem detected
+
+Email for {tenant} is not fully working:
+
+{items}
+
+Until this is fixed, messages sent to you may not arrive, and messages you send may be
+treated as spam. Review it here: https://{tenant}/owner/security/email
+";
+    }
+
+    private static string MailAttentionHtml(OdinId tenant, IReadOnlyCollection<string> mailAttention)
+    {
+        if (mailAttention == null || mailAttention.Count == 0)
+        {
+            return "";
+        }
+
+        var items = string.Join("", mailAttention.Select(x => $"<li>{System.Net.WebUtility.HtmlEncode(x)}</li>"));
+        return @$"
+    <h2 style='margin-bottom: 15px;'>📧 Email problem detected</h2>
+
+    <p style='margin-bottom: 15px;'>Email for {tenant} is not fully working:</p>
+
+    <ul style='margin-bottom: 15px;'>{items}</ul>
+
+    <p style='margin-bottom: 15px;'>Until this is fixed, messages sent to you may not arrive,
+    and messages you send may be treated as spam.</p>
+
+    <p style='margin-bottom: 15px;'>
+      <a href='https://{tenant}/owner/security/email'>Review your email settings</a>
+    </p>
+";
+    }
+
     private static string DnssecAttentionText(OdinId tenant, DnssecHealthResult dnssec)
     {
         if (dnssec == null)
@@ -507,11 +559,12 @@ Review it here: https://{tenant}/owner/security/dns
     }
 
     public static string FormatRecoveryRiskStatusHtml(OdinId odinId, RecoveryInfo info,
-        DnssecHealthResult dnssecAttention = null)
+        DnssecHealthResult dnssecAttention = null,
+        IReadOnlyCollection<string> mailAttention = null)
     {
         var risk = info.RecoveryRisk;
         var tenant = odinId;
-        var dnssecSection = DnssecAttentionHtml(tenant, dnssecAttention);
+        var dnssecSection = DnssecAttentionHtml(tenant, dnssecAttention) + MailAttentionHtml(tenant, mailAttention);
 
         if (!info.IsConfigured)
         {

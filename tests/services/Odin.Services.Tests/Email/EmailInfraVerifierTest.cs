@@ -137,13 +137,80 @@ public class EmailInfraVerifierTest
         _dnsClient
             .Setup(x => x.QueryAsync(node, QueryType.A, It.IsAny<QueryClass>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response(ips.Select(ip => (DnsResourceRecord)A(node, ip)).ToArray()));
+
+        // Reverse DNS resolves and forward-confirms by default, so tests about SPF, MTA-STS
+        // and the like are not all rewritten as reverse-DNS tests. The rDNS cases below
+        // override this per address.
+        foreach (var ip in ips)
+        {
+            SetupReverseDns(ip, node);
+            SetupForwardConfirm(node, ip);
+        }
     }
+
+    /// <summary>PTR for <paramref name="ip"/>. Pass no names for "this IP has no PTR".</summary>
+    private void SetupReverseDns(string ip, params string[] ptrNames)
+    {
+        _dnsClient
+            .Setup(x => x.QueryReverseAsync(IPAddress.Parse(ip), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response(ptrNames
+                .Select(name => (DnsResourceRecord)Ptr(ip, name))
+                .ToArray()));
+    }
+
+    /// <summary>The forward half of forward-confirmed reverse DNS: PTR name -> address.</summary>
+    private void SetupForwardConfirm(string ptrName, params string[] ips)
+    {
+        _dnsClient
+            .Setup(x => x.QueryAsync(ptrName, QueryType.A, It.IsAny<QueryClass>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response(ips.Select(ip => (DnsResourceRecord)A(ptrName, ip)).ToArray()));
+    }
+
+    private static PtrRecord Ptr(string ip, string ptrName) =>
+        new(new ResourceRecordInfo(
+                $"{string.Join('.', ip.Split('.').Reverse())}.in-addr.arpa.",
+                ResourceRecordType.PTR, QueryClass.IN, 60, 0),
+            DnsString.Parse(ptrName));
 
     private void SetupTxtRecords(string owner, params string[][] txtChunks)
     {
         _dnsClient
             .Setup(x => x.QueryAsync(owner, QueryType.TXT, It.IsAny<QueryClass>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response(txtChunks.Select(chunks => (DnsResourceRecord)Txt(owner, chunks)).ToArray()));
+    }
+
+    /// <summary>
+    /// Receiving servers test forward-confirmed reverse DNS, so we do too. An MX address
+    /// with no PTR gets its mail spam-foldered or refused, and every forward record can be
+    /// perfect while this fails: the reverse zone belongs to the hosting provider, not us.
+    /// </summary>
+    [Test]
+    public async Task ItShouldErrorWhenAnMxAddressHasNoReverseDns()
+    {
+        SetupARecords("node-a.example.com", "10.0.0.1");
+        SetupARecords("node-b.example.com", "10.0.0.2");
+        SetupTxtRecords("_spf.example.com", ["v=spf1 include:sendgrid.net -all"]);
+        SetupReverseDns("10.0.0.1"); // no PTR at all
+
+        var errors = await CreateVerifier(TenantMailSection()).VerifyNetworkAsync();
+
+        Assert.That(errors, Has.Exactly(1).Contains("has no PTR record"));
+    }
+
+    [Test]
+    public async Task ItShouldErrorWhenTheReverseRecordDoesNotConfirmForward()
+    {
+        SetupARecords("node-a.example.com", "10.0.0.1");
+        SetupARecords("node-b.example.com", "10.0.0.2");
+        SetupTxtRecords("_spf.example.com", ["v=spf1 include:sendgrid.net -all"]);
+
+        // PTR points at a name that resolves somewhere else - the classic stale-rDNS case
+        SetupReverseDns("10.0.0.1", "old-host.example.com");
+        SetupForwardConfirm("old-host.example.com", "10.9.9.9");
+
+        var errors = await CreateVerifier(TenantMailSection()).VerifyNetworkAsync();
+
+        Assert.That(errors, Has.Exactly(1).Contains("does not resolve back"));
     }
 
     [Test]

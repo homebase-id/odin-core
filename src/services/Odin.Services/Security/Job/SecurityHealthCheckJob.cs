@@ -81,6 +81,9 @@ public class SecurityHealthCheckJob(
             // Email health ride-along (docs/email-keys-plan.md "Verification hooks"):
             // DKIM pair proof against live DNS + public-key drift across WKD/DID.
             // Self-gates on activation; best-effort - never blocks the security check.
+            // Collected here rather than only logged: a failing DKIM pair proof used to reach
+            // nobody but the log, which meant mail could be silently unverifiable for a month.
+            var mailAttention = new List<string>();
             try
             {
                 var emailHealthVerifier = scope.Resolve<Odin.Services.Email.EmailHealthVerifier>();
@@ -93,6 +96,11 @@ public class SecurityHealthCheckJob(
                 {
                     logger.LogWarning("{tenant} email health: {warning}", Data.Tenant, warning);
                 }
+
+                // Errors only. Warnings are for the log: they describe things we could not
+                // check, not things the owner must fix, and a report that cries wolf monthly
+                // stops being read.
+                mailAttention.AddRange(emailHealth.Errors);
             }
             catch (Exception e)
             {
@@ -114,13 +122,19 @@ public class SecurityHealthCheckJob(
                     var dnsHealthService = scope.Resolve<DnsHealthService>();
                     var dnssecAttention = await dnsHealthService.GetDnssecAttentionAsync(
                         Data.Tenant.AsciiDomain, cancellationToken);
+                    // Broken mail DNS joins the same gate. Same best-effort contract.
+                    mailAttention.AddRange(
+                        await dnsHealthService.GetMailRecordAttentionAsync(Data.Tenant.AsciiDomain, cancellationToken));
                     var needsAttention =
-                        await service.GetSecurityNeedsAttentionStatus(odinContext) || dnssecAttention != null;
+                        await service.GetSecurityNeedsAttentionStatus(odinContext)
+                        || dnssecAttention != null
+                        || mailAttention.Count > 0;
                     if (needsAttention)
                     {
                         // notify the user of health check
                         var recoveryNotifier = scope.Resolve<RecoveryNotifier>();
-                        await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext, dnssecAttention);
+                        await recoveryNotifier.NotifyUser(
+                            Data.Tenant, recoveryInfo, odinContext, dnssecAttention, mailAttention);
                     }
                     else
                     {

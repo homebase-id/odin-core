@@ -375,7 +375,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        return _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
+        return _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken: cancellationToken);
     }
 
     //
@@ -444,7 +444,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             if (!delegatedToUs)
             {
                 var (manualRecordsValid, _) =
-                    await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
+                    await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken: cancellationToken);
                 if (!manualRecordsValid)
                 {
                     _logger.LogInformation(

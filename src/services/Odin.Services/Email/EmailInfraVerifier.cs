@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
@@ -121,6 +122,65 @@ public class EmailInfraVerifier(
         return errors;
     }
 
+    /// <summary>
+    /// Forward-confirmed reverse DNS (FCrDNS) for every MX address: the IP must have a PTR,
+    /// and that PTR name must resolve back to the same IP.
+    ///
+    /// This is what receiving mail servers actually test. An IP with no PTR, or one whose
+    /// PTR does not confirm, gets its mail spam-foldered or refused outright - and nothing
+    /// else here would notice, because the forward records can all be perfect while the
+    /// reverse zone (owned by the hosting provider, not by us) is empty.
+    ///
+    /// Errors, not warnings: on a host actually serving mail this is the difference between
+    /// mail arriving and mail disappearing.
+    /// </summary>
+    private async Task VerifyReverseDnsAsync(
+        string node,
+        List<IPAddress> addresses,
+        List<string> errors,
+        CancellationToken cancellationToken)
+    {
+        foreach (var address in addresses)
+        {
+            try
+            {
+                var reverse = await dnsClient.QueryReverseAsync(address, cancellationToken);
+                var ptrNames = reverse.Answers.PtrRecords()
+                    .Select(x => x.PtrDomainName.Value.TrimEnd('.'))
+                    .ToList();
+
+                if (ptrNames.Count == 0)
+                {
+                    errors.Add(
+                        $"MX node '{node}' address {address} has no PTR record; receiving servers will treat its mail as spam");
+                    continue;
+                }
+
+                var confirmed = false;
+                foreach (var ptrName in ptrNames)
+                {
+                    var forward = await dnsClient.QueryAsync(ptrName, QueryType.A, cancellationToken: cancellationToken);
+                    if (forward.Answers.ARecords().Any(x => x.Address.Equals(address)))
+                    {
+                        confirmed = true;
+                        break;
+                    }
+                }
+
+                if (!confirmed)
+                {
+                    errors.Add(
+                        $"MX node '{node}' address {address} has PTR '{ptrNames[0]}' but it does not resolve back to {address}; " +
+                        "forward-confirmed reverse DNS fails");
+                }
+            }
+            catch (Exception e)
+            {
+                errors.Add($"MX node '{node}' reverse DNS lookup for {address} failed: {e.Message}");
+            }
+        }
+    }
+
     private async Task VerifyTenantMailInfraAsync(
         OdinConfiguration.TenantMailSection tenantMail,
         List<string> errors,
@@ -138,11 +198,17 @@ public class EmailInfraVerifier(
                     // The A query follows the chain and returns addresses anyway, so
                     // without this inspection a CNAME'd node would silently pass
                     errors.Add($"MX node '{node}' is a CNAME; RFC 2181 requires MX targets to be address records");
+                    continue;
                 }
-                else if (!response.Answers.ARecords().Any())
+
+                var addresses = response.Answers.ARecords().Select(x => x.Address).ToList();
+                if (addresses.Count == 0)
                 {
                     errors.Add($"MX node '{node}' does not resolve to an A record");
+                    continue;
                 }
+
+                await VerifyReverseDnsAsync(node, addresses, errors, cancellationToken);
             }
             catch (Exception e)
             {

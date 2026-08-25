@@ -156,7 +156,7 @@ public class DnsLookupServiceTest
             Record("NS", DnsLookupRecordStatus.Success),
             Record("NS", DnsLookupRecordStatus.Success),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(delegatedNoZoneYet), Is.True);
+        Assert.That(DnsLookupService.IsDomainDnsReady(delegatedNoZoneYet), Is.True);
     }
 
     [Test]
@@ -171,7 +171,7 @@ public class DnsLookupServiceTest
             Record("NS", DnsLookupRecordStatus.DomainOrRecordNotFound),
             Record("NS", DnsLookupRecordStatus.DomainOrRecordNotFound),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(manualUser), Is.True);
+        Assert.That(DnsLookupService.IsDomainDnsReady(manualUser), Is.True);
 
         // Partial delegation (one NS ours, one stale/missing) must NOT count as delegated;
         // the record rule decides
@@ -182,7 +182,7 @@ public class DnsLookupServiceTest
             Record("NS", DnsLookupRecordStatus.Success),
             Record("NS", DnsLookupRecordStatus.IncorrectValue),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(partialDelegationBrokenRecords), Is.False);
+        Assert.That(DnsLookupService.IsDomainDnsReady(partialDelegationBrokenRecords), Is.False);
 
         var nothingWorks = new List<DnsConfig>
         {
@@ -191,7 +191,7 @@ public class DnsLookupServiceTest
             Record("NS", DnsLookupRecordStatus.DomainOrRecordNotFound),
             Record("NS", DnsLookupRecordStatus.DomainOrRecordNotFound),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(nothingWorks), Is.False);
+        Assert.That(DnsLookupService.IsDomainDnsReady(nothingWorks), Is.False);
     }
 
     [Test]
@@ -204,14 +204,14 @@ public class DnsLookupServiceTest
             Record("CNAME", DnsLookupRecordStatus.Success),
             Record("CNAME", DnsLookupRecordStatus.Success),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(aliasOnly), Is.True);
+        Assert.That(DnsLookupService.IsDomainDnsReady(aliasOnly), Is.True);
 
         var brokenCname = new List<DnsConfig>
         {
             Record("A", DnsLookupRecordStatus.Success),
             Record("CNAME", DnsLookupRecordStatus.IncorrectValue),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(brokenCname), Is.False);
+        Assert.That(DnsLookupService.IsDomainDnsReady(brokenCname), Is.False);
     }
 
     //
@@ -279,7 +279,7 @@ public class DnsLookupServiceTest
             new() { Type = "MX", Optional = true, Status = DnsLookupRecordStatus.IncorrectValue },
             new() { Type = "TXT", Optional = true, Status = DnsLookupRecordStatus.DomainOrRecordNotFound },
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(withFailingOptionals), Is.True);
+        Assert.That(DnsLookupService.IsDomainDnsReady(withFailingOptionals), Is.True);
     }
 
     //
@@ -439,5 +439,54 @@ public class DnsLookupServiceTest
         // ...but apex MX/TXT legitimately coexist with AAAA and verify normally
         Assert.That(dnsConfigs.Where(x => x.Type is "MX" or "TXT")
             .All(x => x.Status == DnsLookupRecordStatus.Success), Is.True);
+    }
+
+    //
+    // DKIM records are compared by meaning: a published record can be cryptographically
+    // correct without being byte-identical to what we generated
+    //
+
+    private const string DkimKeyBase64 = "MCowBQYDK2VwAyEAqRk4kJ0hCPPvfaLLpTGoJRJ8W1FZ0m8/4bZMzGRJZ2c=";
+
+    [Test]
+    public void ItShouldAcceptADkimRecordThatDiffersOnlyInFormatting()
+    {
+        var expected = $"v=DKIM1; k=ed25519; p={DkimKeyBase64}";
+
+        // Same algorithm, same key - reordered tags and different spacing, which is what DNS
+        // hosts do to a pasted value. Receiving mail servers accept all of these.
+        string[] published =
+        [
+            $"v=DKIM1;k=ed25519;p={DkimKeyBase64}",
+        ];
+
+        Assert.That(DnsLookupService.VerifyDnsValueContained(published, expected),
+            Is.EqualTo(DnsLookupRecordStatus.Success));
+    }
+
+    [Test]
+    public void ItShouldRejectADkimRecordPublishingADifferentKey()
+    {
+        var expected = $"v=DKIM1; k=ed25519; p={DkimKeyBase64}";
+        var otherKey = "MCowBQYDK2VwAyEAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=";
+
+        Assert.That(
+            DnsLookupService.VerifyDnsValueContained([$"v=DKIM1; k=ed25519; p={otherKey}"], expected),
+            Is.EqualTo(DnsLookupRecordStatus.IncorrectValue));
+    }
+
+    [Test]
+    public void ItShouldStillCompareNonDkimTxtRecordsExactly()
+    {
+        // SPF and friends carry no key to compare, so exactness remains the right rule
+        Assert.That(
+            DnsLookupService.VerifyDnsValueContained(["v=spf1 include:other.example -all"],
+                "v=spf1 include:spf.example -all"),
+            Is.EqualTo(DnsLookupRecordStatus.IncorrectValue));
+
+        Assert.That(
+            DnsLookupService.VerifyDnsValueContained(["v=spf1 include:spf.example -all"],
+                "v=spf1 include:spf.example -all"),
+            Is.EqualTo(DnsLookupRecordStatus.Success));
     }
 }
