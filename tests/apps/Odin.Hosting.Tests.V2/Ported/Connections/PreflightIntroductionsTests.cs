@@ -11,6 +11,8 @@ using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -234,7 +236,7 @@ public class PreflightIntroductionsTests : V2Fixture
     }
 
     [Test]
-    public async Task Preflight_WhenRecipientRevokedAllowIntroductions_ReturnsIntroductionsNotPermitted()
+    public async Task Preflight_WhenRecipientRevokedTheCircleButKeptTheReview_StaysReady()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -243,10 +245,55 @@ public class PreflightIntroductionsTests : V2Fixture
         await ConnectAsync(frodo, sam);
         await ConnectAsync(frodo, merry);
 
-        // Sam revokes the system circle that grants AllowIntroductions to Frodo. Frodo's ICR with
-        // Sam stays in place, but introductions from Frodo would be rejected at Sam's side.
+        // Sam revokes the system circle that used to be the only carrier of AllowIntroductions. It no
+        // longer decides this: a reviewed caller may introduce, and revoking a circle does not un-review
+        // anyone. Withdrawing introductions is un-reviewing them -- the test below.
         var revoke = await sam.Connections.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
         Assert.That(revoke.IsSuccessStatusCode, Is.True, $"revoke failed: {revoke.StatusCode}");
+
+        var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
+        {
+            Message = "preflight",
+            Recipients = [sam.Identity, merry.Identity]
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.Ready);
+        AssertStatus(response.Content!, merry.Identity, IntroductionPreflightStatus.Ready);
+
+        var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
+        Assert.That(samStatus.IsConfigured, Is.True);
+        Assert.That(samStatus.AllowsIntroductions, Is.True, "the review, not the circle, is what permits");
+        Assert.That(samStatus.IsCallerConnected, Is.True);
+        Assert.That(samStatus.CallerConnectionState, Is.EqualTo(PeerCallerConnectionState.Connected));
+    }
+
+    /// <summary>
+    /// Withdrawing introductions is un-reviewing the caller: it drops them off
+    /// <see cref="SecurityGroupType.Reviewed"/>, which is what CallerMayIntroduce reads first.
+    /// </summary>
+    /// <remarks>
+    /// Two steps today, one step later. The Confirmed Connections circle still carries an actual
+    /// <see cref="PermissionKeys.AllowIntroductions"/> key, and CallerMayIntroduce still honours a held
+    /// key, so un-reviewing alone leaves that key doing the permitting. When that circle retires -- it is
+    /// the only thing granting the key, and an ambient circle cannot inherit it -- the revoke goes away
+    /// and the un-review is the whole of it.
+    /// </remarks>
+    [Test]
+    public async Task Preflight_WhenRecipientUnreviewsCaller_ReturnsIntroductionsNotPermitted()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var merry = await LoginAsOwner(Identities.Merry);
+
+        await ConnectAsync(frodo, sam);
+        await ConnectAsync(frodo, merry);
+
+        var revoke = await sam.Connections.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
+        Assert.That(revoke.IsSuccessStatusCode, Is.True, $"revoke failed: {revoke.StatusCode}");
+
+        var unreview = await sam.Connections.UnreviewConnection(frodo.Identity);
+        Assert.That(unreview.IsSuccessStatusCode, Is.True, $"unreview failed: {unreview.StatusCode}");
 
         var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
         {
@@ -262,8 +309,7 @@ public class PreflightIntroductionsTests : V2Fixture
         Assert.That(samStatus.IsConfigured, Is.True);
         Assert.That(samStatus.AllowsIntroductions, Is.False);
 
-        // The control case for RecipientConnectionNotConfirmed: Sam confirmed Frodo and then took the
-        // permission away, so IntroductionsNotPermitted is describing an actual decision here.
+        // Still connected -- this is a withdrawn decision, not a lost connection.
         Assert.That(samStatus.IsCallerConnected, Is.True);
         Assert.That(samStatus.CallerConnectionState, Is.EqualTo(PeerCallerConnectionState.Connected));
     }
