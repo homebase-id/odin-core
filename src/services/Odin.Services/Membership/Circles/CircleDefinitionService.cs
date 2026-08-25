@@ -193,6 +193,44 @@ namespace Odin.Services.Membership.Circles
             await db.CircleCached.UpsertAsync(ToRecord(existingCircle));
         }
 
+        /// <summary>
+        /// Reassigns which app owns a circle; null hands it back to the owner.
+        /// </summary>
+        /// <remarks>
+        /// Separate from <see cref="UpdateAsync"/> on purpose.  That method deliberately ignores
+        /// <c>AppId</c> so no one who can PUT a definition can reassign ownership; this is the narrow
+        /// door for the cases that genuinely mean to -- version upgrades handing existing circles to the
+        /// app that now manages them.  Internal, so it stays out of reach of the controllers.
+        /// <para>
+        /// Ownership only.  Name, description, grants, <c>GrantOn</c> and designation are left exactly
+        /// as they are, because the owner's own edits to these circles are not the migration's to
+        /// overwrite.
+        /// </para>
+        /// </remarks>
+        internal async Task SetOwningAppAsync(GuidId circleId, Guid? appId)
+        {
+            var existingCircle = await GetCircleAsync(circleId);
+
+            if (null == existingCircle)
+            {
+                throw new OdinClientException($"Invalid circle {circleId}", OdinClientErrorCode.UnknownId);
+            }
+
+            if (existingCircle.AppId == appId)
+            {
+                return;
+            }
+
+            existingCircle.AppId = appId;
+            existingCircle.LastUpdated = UnixTimeUtc.Now().milliseconds;
+
+            // Ownership does not add grants, so this cannot start failing on a circle that was already
+            // valid -- but the invariant is re-checked on every write, and this is a write.
+            await AssertDepositOnlyIfAmbientAsync(existingCircle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(existingCircle));
+        }
+
         public async Task<bool> IsEnabledAsync(GuidId circleId)
         {
             var circle = await GetCircleAsync(circleId);

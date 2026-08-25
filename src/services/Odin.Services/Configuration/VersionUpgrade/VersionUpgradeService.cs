@@ -23,6 +23,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Configuration.VersionUpgrade.Version13tov14;
 using Odin.Services.Configuration.VersionUpgrade.Version14tov15;
 using Odin.Services.Configuration.VersionUpgrade.Version15tov16;
+using Odin.Services.Configuration.VersionUpgrade.Version16tov17;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -46,6 +47,7 @@ public class VersionUpgradeService(
     V13ToV14VersionMigrationService v14,
     V14ToV15VersionMigrationService v15,
     V15ToV16VersionMigrationService v16,
+    V16ToV17VersionMigrationService v17,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -473,6 +475,29 @@ public class VersionUpgradeService(
                 await v16.UpgradeAsync(odinContext, cancellationToken);
 
                 await v16.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 16)
+            {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                _isRunning = true;
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await v17.UpgradeAsync(odinContext, cancellationToken);
+
+                await v17.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
