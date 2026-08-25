@@ -83,7 +83,7 @@ public class CertificateRenewalPredicateTest
             },
         };
         _dnsLookupService
-            .Setup(x => x.GetAuthoritativeDomainDnsStatusAsync(It.IsAny<AsciiDomainName>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetAuthoritativeDomainDnsStatusAsync(It.IsAny<AsciiDomainName>(), It.IsAny<IReadOnlyCollection<DnsConfig>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((true, dnsConfigs));
     }
 

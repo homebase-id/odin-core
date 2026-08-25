@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Dns;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
+using Odin.Services.Email.Dkim;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Dns.Health;
@@ -115,7 +116,8 @@ public class DnsHealthService(
     ILookupClient dnsClient,
     IAuthoritativeDnsLookup authoritativeDnsLookup,
     IDnssecLookup dnssecLookup,
-    IDnsLookupService dnsLookupService)
+    IDnsLookupService dnsLookupService,
+    IDkimStore dkimStore)
 {
     private static readonly DnsQueryOptions AuthoritativeQueryOptions = new()
     {
@@ -127,7 +129,9 @@ public class DnsHealthService(
 
     public async Task<DnsHealthResult> GetDnsHealthAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var (recordsAreValid, records) = await dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
+        var dkimRecords = await GetDkimRecordsAsync(domain);
+        var (recordsAreValid, records) = await dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(
+            domain, dkimRecords, cancellationToken);
         var optionalRecords = await CheckOptionalWwwAsync(domain, cancellationToken);
         var dnssec = await GetDnssecHealthAsync(domain, cancellationToken);
 
@@ -146,6 +150,38 @@ public class DnsHealthService(
     //
 
     /// <summary>
+    /// <summary>
+    /// The tenant's DKIM records, so the owner console can check them like any other.
+    ///
+    /// They cannot come from GetDnsConfiguration: that list is built from configuration,
+    /// while DKIM values are per-tenant key material that exists only after email
+    /// activation. Returns empty whenever there is nothing to check - tenant mail off,
+    /// no storage key configured, or the tenant never activated email - so the caller
+    /// never has to distinguish "no DKIM" from "DKIM broken".
+    ///
+    /// A read failure is logged and swallowed: DKIM is one block of a health panel, and
+    /// a store hiccup should not take the whole panel down with it.
+    /// </summary>
+    private async Task<List<DnsConfig>> GetDkimRecordsAsync(AsciiDomainName domain)
+    {
+        if (!configuration.Email.TenantMail.Enabled || !dkimStore.IsConfigured)
+        {
+            return [];
+        }
+
+        try
+        {
+            var keys = await dkimStore.GetKeysAsync(domain.DomainName);
+            return keys.Count == 0 ? [] : DkimDnsRecords.ToDnsConfigs(domain.DomainName, keys);
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not read DKIM keys for {domain}; DKIM records omitted from the health check",
+                domain.DomainName);
+            return [];
+        }
+    }
+
     /// The optional www record. Deliberately NOT part of GetDnsConfiguration: that list
     /// feeds the signup success rule and certificate checks, and a missing optional
     /// record must never fail either. None of the states here is an error.
@@ -262,6 +298,46 @@ public class DnsHealthService(
             logger.LogWarning("DNSSEC attention check for {domain} failed: {error}", domain, e.Message);
             return null;
         }
+    }
+
+    /// <summary>
+    /// The tenant's broken mail DNS records, described for a human, or an empty list when
+    /// there is nothing to report. Feeds the monthly security health report - a broken SPF
+    /// or DKIM record is silent otherwise: mail is refused or spam-foldered and the owner
+    /// finds out from the people who stopped receiving it.
+    ///
+    /// Best-effort like the DNSSEC equivalent: a DNS hiccup must not block the report or
+    /// count as attention.
+    /// </summary>
+    public async Task<List<string>> GetMailRecordAttentionAsync(
+        AsciiDomainName domain,
+        CancellationToken cancellationToken = default)
+    {
+        if (!configuration.Email.TenantMail.Enabled)
+        {
+            return [];
+        }
+
+        try
+        {
+            var health = await GetDnsHealthAsync(domain, cancellationToken);
+            return health.MailRecords
+                .Where(x => x.Status != DnsLookupRecordStatus.Success)
+                .Select(DescribeBrokenRecord)
+                .ToList();
+        }
+        catch (System.Exception e)
+        {
+            logger.LogWarning("Mail record attention check for {domain} failed: {error}", domain, e.Message);
+            return [];
+        }
+    }
+
+    // internal for testing
+    internal static string DescribeBrokenRecord(DnsConfig record)
+    {
+        var what = record.Status == DnsLookupRecordStatus.IncorrectValue ? "has the wrong value" : "is missing";
+        return $"{record.Description} ({record.Type} record on {record.Domain}) {what}";
     }
 
     // Pure trigger rule, data-level testable

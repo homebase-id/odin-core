@@ -152,7 +152,7 @@ public class CertificateService : ICertificateService
         {
             if (sans.Length > 0) // don't verify system domains (e.g. provisioning, admin, etc)
             {
-                var (areDnsRecordsOk, dnsConfigs) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(new AsciiDomainName(domain), cancellationToken);
+                var (areDnsRecordsOk, dnsConfigs) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(new AsciiDomainName(domain), cancellationToken: cancellationToken);
                 if (!areDnsRecordsOk)
                 {
                     var error = $"Cannot create certificate for {domain}. One or more DNS records are incorrect.";
@@ -299,7 +299,7 @@ public class CertificateService : ICertificateService
         }
 
         var (_, dnsConfigs) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(
-            new AsciiDomainName(domain), cancellationToken);
+            new AsciiDomainName(domain), cancellationToken: cancellationToken);
         return dnsConfigs.Any(x =>
             x.Optional && x.Name == DnsConfigurationSet.PrefixMtaSts && x.Status == DnsLookupRecordStatus.Success);
     }
