@@ -42,14 +42,11 @@ public class MailActivationTests
         _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests(envOverrides: EnvOverrides, testIdentities: [TestIdentities.Frodo]);
 
-        // TenantMail enabled with Provider=None makes the startup verifier log its
-        // deliberate config ERR; that exact one is expected here, anything else is not
-        _scaffold.SetAssertLogEventsAction(logEvents =>
-        {
-            var errors = logEvents[Serilog.Events.LogEventLevel.Error];
-            Assert.That(errors.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-            Assert.That(errors[0].MessageTemplate.Text, Does.StartWith("Email:TenantMail:Enabled is true but Email:Provider is 'None'"));
-        });
+        // No log-event override: tenant mail on is no longer a config error. It used to be,
+        // while tenant mail and the system sender were coupled, and this fixture had to
+        // tolerate exactly one deliberate ERR. With Mailgun moved back out of the Email
+        // section there is nothing to tolerate, so the default "zero errors" assertion
+        // applies - which is a stronger check than the one it replaces.
     }
 
     [TearDown]

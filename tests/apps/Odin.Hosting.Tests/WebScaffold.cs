@@ -219,7 +219,9 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganization", "YF");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganizationUnit", "Dev");
 
-            Environment.SetEnvironmentVariable("Email__Provider", "None");
+            // Tests must never send mail. Explicit rather than relying on the default:
+            // these are process-wide, so one fixture enabling it would leak into the rest.
+            Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
 
             Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
             Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");

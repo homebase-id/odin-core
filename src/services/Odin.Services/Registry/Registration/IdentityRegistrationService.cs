@@ -684,7 +684,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             }
 
             // Queue background job to send email
-            if (_configuration.Email.IsProviderConfigured)
+            if (_configuration.Mailgun.Enabled)
             {
                 var job = _jobManager.NewJob<SendProvisioningCompleteEmailJob>();
                 job.Data = new SendProvisioningCompleteEmailJobData

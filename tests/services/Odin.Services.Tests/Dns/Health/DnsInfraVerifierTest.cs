@@ -312,7 +312,6 @@ public class DnsInfraVerifierTest
     {
         return new OdinConfiguration.EmailSection
         {
-            Provider = EmailProvider.SendGrid,
             TenantMail = new OdinConfiguration.TenantMailSection
             {
                 Enabled = true,
@@ -356,7 +355,6 @@ public class DnsInfraVerifierTest
 
         var email = new OdinConfiguration.EmailSection
         {
-            Provider = EmailProvider.SendGrid,
             TenantMail = new OdinConfiguration.TenantMailSection
             {
                 Enabled = false,

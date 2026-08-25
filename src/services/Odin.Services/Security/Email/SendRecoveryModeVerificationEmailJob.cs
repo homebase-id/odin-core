@@ -51,7 +51,7 @@ public class SendRecoveryModeVerificationEmailJob(
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        if (!configuration.Email.IsProviderConfigured)
+        if (!configuration.Mailgun.Enabled)
         {
             return JobExecutionResult.Abort();
         }
