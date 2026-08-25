@@ -184,6 +184,28 @@ public class EmailInfraVerifierTest
     /// with no PTR gets its mail spam-foldered or refused, and every forward record can be
     /// perfect while this fails: the reverse zone belongs to the hosting provider, not us.
     /// </summary>
+    /// <summary>
+    /// Forward-confirmation is necessary but not sufficient. A hosting provider's default PTR
+    /// confirms perfectly while matching nothing we send, and receivers that compare reverse
+    /// DNS against the EHLO name penalise that - so it is reported, but as a warning, because
+    /// mail still flows and the fix belongs to the hosting provider.
+    /// </summary>
+    [Test]
+    public async Task ItShouldNotErrorWhenThePtrConfirmsButDoesNotMatchTheHostname()
+    {
+        SetupARecords("node-a.example.com", "10.0.0.1");
+        SetupARecords("node-b.example.com", "10.0.0.2");
+        SetupTxtRecords("_spf.example.com", ["v=spf1 include:sendgrid.net -all"]);
+
+        // The Hetzner-style case: a generic PTR that forward-confirms to the same address
+        SetupReverseDns("10.0.0.1", "static.1.0.0.10.clients.example-host.de");
+        SetupForwardConfirm("static.1.0.0.10.clients.example-host.de", "10.0.0.1");
+
+        var errors = await CreateVerifier(TenantMailSection()).VerifyNetworkAsync();
+
+        Assert.That(errors, Is.Empty, "a confirming PTR must not fail the host's boot check");
+    }
+
     [Test]
     public async Task ItShouldErrorWhenAnMxAddressHasNoReverseDns()
     {

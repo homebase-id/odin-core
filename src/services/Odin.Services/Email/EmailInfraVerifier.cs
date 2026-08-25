@@ -172,6 +172,23 @@ public class EmailInfraVerifier(
                     errors.Add(
                         $"MX node '{node}' address {address} has PTR '{ptrNames[0]}' but it does not resolve back to {address}; " +
                         "forward-confirmed reverse DNS fails");
+                    continue;
+                }
+
+                // Forward-confirmation is necessary but not sufficient. A hosting provider's
+                // default PTR (e.g. static.<ip>.clients.your-server.de) confirms perfectly while
+                // matching nothing we send: receivers - Gmail notably - compare the PTR against
+                // the name the server greets with, and a mismatch costs reputation even though
+                // every check above passes. Seen live on the bleeding-edge host.
+                //
+                // A warning rather than an error: mail still flows, and the fix is a support
+                // ticket with the hosting provider rather than anything we control.
+                if (!ptrNames.Any(x => string.Equals(x, node, StringComparison.OrdinalIgnoreCase)))
+                {
+                    logger.LogWarning(
+                        "MX node '{node}' address {address} has PTR '{ptr}', which does not match the node's hostname; " +
+                        "receivers that compare reverse DNS against the EHLO name will treat its mail as less trustworthy",
+                        node, address, ptrNames[0]);
                 }
             }
             catch (Exception e)
