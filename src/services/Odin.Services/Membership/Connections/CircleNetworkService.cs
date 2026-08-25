@@ -1109,7 +1109,12 @@ namespace Odin.Services.Membership.Connections
         /// of it needs the master key.  Membership from auto-connect stays; nothing is revoked.
         /// </para>
         /// </remarks>
-        public async Task ReviewConnectionAsync(OdinId odinId, IEnumerable<GuidId> circleIds, IOdinContext odinContext)
+        /// <returns>
+        /// What became of each chosen circle.  The dialog closes when this returns, so the outcome has to
+        /// travel with it rather than waiting for a later status read.
+        /// </returns>
+        public async Task<ReviewConnectionResult> ReviewConnectionAsync(OdinId odinId, IEnumerable<GuidId> circleIds,
+            IOdinContext odinContext)
         {
             AssertCanManageCircleMembership(odinContext);
 
@@ -1144,6 +1149,43 @@ namespace Odin.Services.Membership.Connections
             tx.Commit();
 
             await odinContextCache.ResetAsync();
+
+            return await ClassifyReviewOutcomeAsync(odinId, requestedCircles);
+        }
+
+        /// <summary>
+        /// Reports where each chosen circle actually landed.
+        /// </summary>
+        /// <remarks>
+        /// Read back rather than inferred from which branch was taken: an app deposits even its own
+        /// circles, and that is a property of <see cref="GrantCircleAsync"/> rather than of the caller.
+        /// Reading the resulting state keeps this honest if that ever changes.
+        /// </remarks>
+        private async Task<ReviewConnectionResult> ClassifyReviewOutcomeAsync(OdinId odinId, List<GuidId> requested)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            var granted = new List<Guid>();
+            var deposited = new List<Guid>();
+
+            foreach (var circleId in requested)
+            {
+                if (icr.PeerKeyStore?.CircleGrants?.ContainsKey(circleId) ?? false)
+                {
+                    granted.Add(circleId);
+                }
+                else if (icr.PeerKeyStore?.DepositedGrants?.Exists(d => d.CircleId == circleId) ?? false)
+                {
+                    deposited.Add(circleId);
+                }
+            }
+
+            return new ReviewConnectionResult
+            {
+                Granted = granted,
+                Deposited = deposited,
+                ReviewedAt = icr.ReviewedAt
+            };
         }
 
         /// <summary>

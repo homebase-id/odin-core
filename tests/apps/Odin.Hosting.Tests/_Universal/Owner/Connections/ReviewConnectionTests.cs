@@ -294,6 +294,49 @@ public class ReviewConnectionTests
         await Cleanup();
     }
 
+    [Test]
+    public async Task TheReviewReportsWhatBecameOfEachChosenCircle()
+    {
+        // The dialog closes when this returns, so the outcome has to travel with the response -- a client
+        // that has to re-read status afterwards has already lost the screen it needed to render.
+        var (frodo, sam) = await Connect();
+
+        var circleId = Guid.NewGuid();
+        await frodo.Network.CreateCircle(circleId, "Friends", new PermissionSetGrantRequest
+        {
+            PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
+        });
+
+        var review = await frodo.Network.ReviewConnection(sam.OdinId, [circleId]);
+
+        ClassicAssert.IsTrue(review.IsSuccessStatusCode, $"review failed: {review.Error?.Content}");
+        ClassicAssert.IsNotNull(review.Content, "the review must report its outcome, not an empty body");
+
+        ClassicAssert.Contains(circleId, review.Content.Granted,
+            "the owner holds the master key, so the circle is minted rather than deposited");
+        ClassicAssert.IsEmpty(review.Content.Deposited);
+        ClassicAssert.IsEmpty(review.Content.Pending);
+        ClassicAssert.IsNotNull(review.Content.ReviewedAt);
+
+        await Cleanup();
+    }
+
+    [Test]
+    public async Task AChatOnlyReviewReportsNothingGranted()
+    {
+        var (frodo, sam) = await Connect();
+
+        var review = await frodo.Network.ReviewConnection(sam.OdinId);
+
+        ClassicAssert.IsTrue(review.IsSuccessStatusCode);
+        ClassicAssert.IsEmpty(review.Content.Granted);
+        ClassicAssert.IsEmpty(review.Content.Deposited);
+        ClassicAssert.IsEmpty(review.Content.Pending);
+        ClassicAssert.IsNotNull(review.Content.ReviewedAt, "but the review itself still happened");
+
+        await Cleanup();
+    }
+
     private async Task<(OwnerApiClientRedux frodo, OwnerApiClientRedux sam)> Connect()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);

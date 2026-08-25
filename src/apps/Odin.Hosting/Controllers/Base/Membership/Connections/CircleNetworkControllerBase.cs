@@ -48,10 +48,9 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// Send no circles for the "chat only" outcome.
         /// </summary>
         [HttpPost("review")]
-        public async Task<IActionResult> ReviewConnection([FromBody] ReviewConnectionRequest request)
+        public async Task<ReviewConnectionResult> ReviewConnection([FromBody] ReviewConnectionRequest request)
         {
-            await circleNetwork.ReviewConnectionAsync(new OdinId(request.OdinId), request.CircleIds, WebOdinContext);
-            return Ok();
+            return await circleNetwork.ReviewConnectionAsync(new OdinId(request.OdinId), request.CircleIds, WebOdinContext);
         }
 
         /// <summary>
