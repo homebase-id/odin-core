@@ -239,9 +239,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             _logger.LogWarning(ex, "Preflight incoming: RequiresUpgradeAsync threw; reporting no upgrade signal");
         }
 
-        // The Confirmed Connections circle is what carries AllowIntroductions, so a false there conflates
-        // "I revoked you", "I never confirmed you", and "I don't know you at all". Report the connection
-        // and confirmation state alongside it so the caller can tell those apart.
+        // A false here conflates "I un-reviewed you", "I never reviewed you", and "I don't know you at
+        // all". Report the connection and review state alongside it so the caller can tell those apart.
         var isCallerConnected = odinContext.Caller.IsConnected;
 
         var callerCircles = odinContext.Caller.Circles?.ToList();
@@ -311,8 +310,18 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// Whether the calling identity is allowed to introduce others to us.
     ///
     /// <para>
-    /// The <see cref="PermissionKeys.AllowIntroductions"/> grant itself comes from the Confirmed
-    /// Connections circle. On top of that, an identity that auto-accepts connection requests
+    /// A reviewed caller may introduce, full stop.  The owner looking at a connection and keeping it is
+    /// the act this was ever standing in for, and <see cref="SecurityGroupType.Reviewed"/> is where that
+    /// act is now recorded.  Asking the level directly is also what lets the Confirmed Connections circle
+    /// retire: it is the only thing granting <see cref="PermissionKeys.AllowIntroductions"/>, and an
+    /// ambient circle cannot carry a permission key to inherit it.  The two sets coincide on existing
+    /// data -- v12->v13 stamped every confirmed connection -- so nobody who could introduce yesterday
+    /// stops today.
+    /// </para>
+    ///
+    /// <para>
+    /// The <see cref="PermissionKeys.AllowIntroductions"/> grant is still honoured, for the owner who put
+    /// it on a circle of their own making.  On top of that, an identity that auto-accepts connection requests
     /// (<see cref="TenantSettings.DisableAutoAcceptConnectionRequests"/> is false) has already decided it
     /// will connect to whoever asks, so there is nothing left for it to withhold from the identities it
     /// auto-connected -- treating them as unable to introduce made every auto-connection a dead end until
@@ -335,6 +344,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </param>
     private bool CallerMayIntroduce(IOdinContext odinContext, bool isCallerAutoConnected)
     {
+        if (odinContext.Caller.IsConnected && odinContext.Caller.SecurityLevel == SecurityGroupType.Reviewed)
+        {
+            return true;
+        }
+
         if (odinContext.PermissionsContext?.HasPermission(PermissionKeys.AllowIntroductions) ?? false)
         {
             return true;
