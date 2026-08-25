@@ -42,7 +42,7 @@ public class WriteOverPeerTests : V2Fixture
         var drive = await PeerFlow.CreatePeerDriveAsync(member, owner, DrivePermission.Write, "community",
             allowAnonymousReads: false);
 
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected,
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed,
             allowDistribution: true);
         metadata.AppData.Content = "hello from the member over peer";
 
@@ -73,7 +73,7 @@ public class WriteOverPeerTests : V2Fixture
         var drive = await PeerFlow.CreatePeerDriveAsync(member, owner, DrivePermission.Write, "community",
             allowAnonymousReads: false);
 
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected,
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed,
             allowDistribution: true);
         metadata.AppData.Content = "message with attachment";
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
@@ -106,7 +106,7 @@ public class WriteOverPeerTests : V2Fixture
         var drive = await PeerFlow.CreatePeerDriveAsync(member, owner, DrivePermission.Read, "community",
             allowAnonymousReads: false);
 
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected,
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed,
             allowDistribution: true);
         metadata.AppData.Content = "i should not be allowed to write this";
 

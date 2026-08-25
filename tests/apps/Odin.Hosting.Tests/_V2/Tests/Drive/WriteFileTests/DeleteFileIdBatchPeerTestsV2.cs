@@ -331,7 +331,7 @@ public class DeleteFileIdBatchPeerTestsV2
         var targetDrive = callerContext.TargetDrive;
         await PrepareScenario(senderOwner, [recipientOwner], targetDrive);
 
-        var metadata = SampleMetadataData.Create(fileType: 450, acl: AccessControlList.Connected, allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: 450, acl: AccessControlList.Reviewed, allowDistribution: true);
         var payloads = new List<TestPayloadDefinition>
         {
             SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
@@ -819,7 +819,7 @@ public class DeleteFileIdBatchPeerTestsV2
     {
         var metadata = SampleMetadataData.Create(
             fileType: fileType,
-            acl: AccessControlList.Connected,
+            acl: AccessControlList.Reviewed,
             allowDistribution: true);
 
         var transitOptions = new TransitOptions

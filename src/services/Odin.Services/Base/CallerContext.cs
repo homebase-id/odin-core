@@ -39,7 +39,8 @@ namespace Odin.Services.Base
             SecurityGroupType securityLevel,
             OdinClientContext odinClientContext = null,
             List<GuidId> circleIds = null,
-            ClientTokenType tokenType = ClientTokenType.Other)
+            ClientTokenType tokenType = ClientTokenType.Other,
+            bool isConnected = false)
         {
             this.OdinId = odinId;
             this._masterKey = masterKey;
@@ -47,6 +48,7 @@ namespace Odin.Services.Base
             this.Circles = circleIds ?? new List<GuidId>();
             this.ClientTokenType = tokenType;
             this.OdinClientContext = odinClientContext;
+            this.IsConnected = isConnected;
         }
 
         public CallerContext(CallerContext other)
@@ -57,6 +59,7 @@ namespace Odin.Services.Base
             this.Circles = other.Circles?.ToList();
             this.ClientTokenType = other.ClientTokenType;
             this.OdinClientContext = other.OdinClientContext?.Clone();
+            this.IsConnected = other.IsConnected;
         }
 
         public CallerContext Clone()
@@ -74,7 +77,19 @@ namespace Odin.Services.Base
 
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
 
-        public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
+        /// <summary>
+        /// Whether the caller holds a live connection with this identity -- the wire, not a read audience.
+        /// </summary>
+        /// <remarks>
+        /// No longer derived from <see cref="SecurityLevel"/>.  An unreviewed connection is connected but
+        /// ranks as <see cref="SecurityGroupType.Authenticated"/>, so deriving this from the level would
+        /// close the perimeter on exactly the caller the deposit path exists for: a stranger introduced at
+        /// 3 a.m. must still be able to send.  Perimeter checks
+        /// (<c>PeerIncomingDriveUploadController</c>, <c>PeerIncomingDriveUpdateController</c>) test this;
+        /// ACLs test the level.
+        /// </remarks>
+        public bool IsConnected { get; private set; }
+
         public bool IsAuthenticated => this.SecurityLevel == SecurityGroupType.Authenticated;
 
         public void AssertHasMasterKey()

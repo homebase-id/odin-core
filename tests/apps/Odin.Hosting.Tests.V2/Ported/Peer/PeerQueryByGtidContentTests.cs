@@ -123,7 +123,7 @@ public class PeerQueryByGtidContentTests : V2Fixture
     private static async Task<(Guid fileId, Guid gtid)> OwnerUploadsFileAsync(
         OwnerSession owner, TargetDrive drive, TestPayloadDefinition payload)
     {
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed);
         var manifest = new UploadManifest
         {
             PayloadDescriptors = new List<TestPayloadDefinition> { payload }.ToPayloadDescriptorList().ToList()

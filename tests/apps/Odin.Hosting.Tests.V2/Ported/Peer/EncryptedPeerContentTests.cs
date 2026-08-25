@@ -46,7 +46,7 @@ public class EncryptedPeerContentTests : V2Fixture
 
         var keyHeader = KeyHeader.NewRandom16();
         const string plaintext = "secret community message";
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed);
         metadata.AppData.Content = plaintext;
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         payload.Iv = ByteArrayUtil.GetRndByteArray(16); // encrypted payloads require a per-file IV
@@ -95,7 +95,7 @@ public class EncryptedPeerContentTests : V2Fixture
 
         var keyHeader = KeyHeader.NewRandom16();
         const string plaintext = "encrypted message written over peer";
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected,
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed,
             allowDistribution: true);
         metadata.AppData.Content = plaintext;
 

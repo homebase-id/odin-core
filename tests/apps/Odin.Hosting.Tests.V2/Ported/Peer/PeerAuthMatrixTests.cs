@@ -34,7 +34,7 @@ public class PeerAuthMatrixTests : V2Fixture
         var drive = await PeerFlow.CreatePeerDriveAsync(member, owner, DrivePermission.Read, "community",
             allowAnonymousReads: false);
 
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed);
         metadata.AppData.Content = "hi from owner";
         var upload = await owner.Drives.Writer.UploadNewMetadata(drive.Alias, metadata);
         Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner upload failed: {upload.StatusCode}");

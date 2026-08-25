@@ -365,7 +365,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         // upload one post to friends target drive
         //
         const string friendsOnlyContent = "some secured friends only content";
-        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
+        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Reviewed);
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
@@ -377,7 +377,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         // upload one post to public target drive
         //
         const string publicContent = "some public content";
-        var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
+        var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Reviewed);
         publicFile.AllowDistribution = true;
         var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
@@ -418,7 +418,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         // upload one post to friends target drive
         //
         const string friendsOnlyContent = "some secured friends only content from frodo";
-        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
+        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Reviewed);
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await frodoOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
@@ -430,7 +430,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         // upload one post to public target drive
         //
         const string publicContent = "some public content from frodo";
-        var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
+        var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Reviewed);
         publicFile.AllowDistribution = true;
         var publicFileUploadResult = await frodoOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 

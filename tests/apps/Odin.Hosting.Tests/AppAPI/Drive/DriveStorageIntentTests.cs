@@ -66,7 +66,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     Content = content1
                 },
                 IsEncrypted = false,
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             //upload normal
@@ -105,7 +105,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     Content = content1
                 },
                 IsEncrypted = false,
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             //upload normal

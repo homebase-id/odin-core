@@ -293,7 +293,7 @@ TaskPerformanceTest_Transit
                                 Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
                             }
                         },
-                        AccessControlList = AccessControlList.Connected
+                        AccessControlList = AccessControlList.Reviewed
                     },
                 };
 

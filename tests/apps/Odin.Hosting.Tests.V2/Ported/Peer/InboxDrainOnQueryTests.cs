@@ -206,7 +206,7 @@ public class InboxDrainOnQueryTests : V2Fixture
 
     private static async Task<Guid> SendFileAsync(OwnerSession sender, OwnerSession recipient, TargetDrive drive, int fileType)
     {
-        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Connected, allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Reviewed, allowDistribution: true);
         var transit = new TransitOptions
         {
             Recipients = new List<string> { recipient.Identity }

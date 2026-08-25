@@ -63,8 +63,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         }
 
         [Test]
-        public async Task SystemCircleUpdatedWhenConnectedFlagChanges()
+        public async Task TheConnectionsFlagNoLongerWritesAKeyOntoTheSystemCircle()
         {
+            // This used to assert the opposite: enabling the flag put ReadConnections on the Confirmed
+            // circle. That was the system treating *reviewed* as the operative tier without having a name
+            // for it -- and it handed the key to every member of that circle, reviewed or not.
+            //
+            // The key is granted from the reviewed tier now. A copy on the circle is not redundant, it is
+            // a second source that defeats the gate, so the flag strips it instead of writing it. Whether
+            // the setting actually works is covered by ReviewedTierDistributionTests.
             var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
             var frodoInitResponse = await frodoOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest()
@@ -76,31 +83,33 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
             ClassicAssert.IsTrue(frodoInitResponse.Content);
 
+            await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(
+                TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.TrueString);
 
-            await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.TrueString);
+            var enabled = await frodoOwnerClient.Membership.GetCircleDefinition(
+                SystemCircleConstants.ConfirmedConnectionsCircleId);
 
-            var getSystemCircleResponse1 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
-            ClassicAssert.IsTrue(getSystemCircleResponse1.IsSuccessStatusCode);
-            ClassicAssert.IsNotNull(getSystemCircleResponse1.Content);
+            ClassicAssert.IsTrue(enabled.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(enabled.Content);
+            ClassicAssert.IsFalse(enabled.Content.Permissions.Keys.Contains(PermissionKeys.ReadConnections),
+                "enabling the setting must not put the key on the circle -- it comes from the tier");
+            ClassicAssert.IsFalse(enabled.Content.Permissions.Keys.Contains(PermissionKeys.ReadWhoIFollow));
 
-            var systemCircle1 = getSystemCircleResponse1.Content;
-            ClassicAssert.IsTrue(systemCircle1.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+            await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(
+                TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.FalseString);
 
-            //
-            // Disable ability to read connections
-            //
-            await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.FalseString);
+            var disabled = await frodoOwnerClient.Membership.GetCircleDefinition(
+                SystemCircleConstants.ConfirmedConnectionsCircleId);
 
-            //
-            // system circle should not have permissions
-            //
-            var getSystemCircleResponse2 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
-            ClassicAssert.IsTrue(getSystemCircleResponse2.IsSuccessStatusCode);
-            ClassicAssert.IsNotNull(getSystemCircleResponse2.Content);
-            var systemCircle = getSystemCircleResponse2.Content;
-            ClassicAssert.IsFalse(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+            ClassicAssert.IsTrue(disabled.IsSuccessStatusCode);
+            ClassicAssert.IsFalse(disabled.Content.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+
+            // ...and the setting itself still round-trips.
+            var settings = await frodoOwnerClient.Configuration.GetTenantSettings();
+            ClassicAssert.IsTrue(settings.IsSuccessStatusCode);
+            ClassicAssert.IsFalse(settings.Content.AllConnectedIdentitiesCanViewConnections);
         }
-        
+
         [Test]
         public async Task SystemDefault_TenantSettings_ConnectedIdentitiesCanReactOnAnonymousDrives_IsTrue()
         {

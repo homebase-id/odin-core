@@ -445,7 +445,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     Content = $"some json content {Guid.NewGuid()}",
                     UniqueId = Guid.NewGuid(),
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata,

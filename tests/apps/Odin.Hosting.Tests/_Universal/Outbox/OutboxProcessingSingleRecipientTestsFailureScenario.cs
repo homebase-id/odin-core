@@ -261,7 +261,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var storageOptions = new StorageOptions()

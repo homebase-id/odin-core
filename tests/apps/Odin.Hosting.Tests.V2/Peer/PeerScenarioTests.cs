@@ -36,7 +36,7 @@ public class PeerScenarioTests : V2Fixture
         var drive = await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Write, "encrypted");
 
         var plaintext = "the precious is heavy today";
-        var metadata = SampleMetadataData.Create(fileType: 200, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: 200, acl: AccessControlList.Reviewed);
         metadata.AppData.Content = plaintext;
         metadata.AllowDistribution = true;
 
@@ -154,7 +154,7 @@ public class PeerScenarioTests : V2Fixture
         await PeerFlow.ConnectAsync(frodo, sam, drive, DrivePermission.Write);
         await PeerFlow.ConnectAsync(frodo, pippin, drive, DrivePermission.Write);
 
-        var metadata = SampleMetadataData.Create(fileType: 500, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: 500, acl: AccessControlList.Reviewed);
         metadata.AllowDistribution = true;
         metadata.AppData.Content = "fellowship-broadcast";
 
@@ -182,7 +182,7 @@ public class PeerScenarioTests : V2Fixture
     private static async Task<(Guid senderFileId, Guid gtid)> UploadAndDeliverAsync(
         OwnerSession sender, OwnerSession recipient, TargetDrive drive, int fileType)
     {
-        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Reviewed);
         metadata.AllowDistribution = true;
 
         var send = await sender.Drives.Writer.UploadNewMetadata(

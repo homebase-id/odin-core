@@ -403,7 +403,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var storageOptions = new StorageOptions()

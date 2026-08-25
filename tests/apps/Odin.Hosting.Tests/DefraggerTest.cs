@@ -283,7 +283,7 @@ public class DefraggerTest
                 GroupId = default,
                 Tags = default
             },
-            AccessControlList = AccessControlList.Connected
+            AccessControlList = AccessControlList.Reviewed
         };
 
         var storageOptions = new StorageOptions()

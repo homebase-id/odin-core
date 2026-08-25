@@ -185,7 +185,7 @@ public class GroupChannelFeedDistributionTests
         //
         const int fileType = 1039;
         const string content = "some secured friends only content";
-        var file = SampleMetadataData.CreateWithContent(fileType, content, AccessControlList.Connected);
+        var file = SampleMetadataData.CreateWithContent(fileType, content, AccessControlList.Reviewed);
         file.AllowDistribution = true;
 
         var uploadResponse = await guestDriveClient.UploadNewEncryptedMetadata(
