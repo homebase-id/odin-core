@@ -387,7 +387,9 @@ public sealed partial class OdinHost : IAsyncDisposable
 
     private static void SetMailBaseline()
     {
-        Set("Email__Provider", "None");
+        // Tests must never send mail. Explicit rather than relying on the default:
+        // these are process-wide, so one fixture enabling it would leak into the rest.
+        Set("Mailgun__Enabled", "false");
     }
 
     /// <summary>Admin API disabled — otherwise it would bind a Kestrel port.</summary>
