@@ -12,6 +12,7 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
     AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private static readonly List<string> PagingByCircleIdTags = ["PagingByCircleId"];
+    private const string CacheKeyAll = "GetAll";
 
     //
 
@@ -40,6 +41,7 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
     {
         return Cache.InvalidateAsync([
             Cache.CreateRemoveByKeyAction(GetCacheKey(circleId)),
+            Cache.CreateRemoveByKeyAction(CacheKeyAll),
             Cache.CreateRemoveByTagsAction(PagingByCircleIdTags)
         ]);
     }
@@ -65,6 +67,28 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
 
         return result;
 
+    }
+
+    //
+
+    public async Task<int> UpsertAsync(CircleRecord item)
+    {
+        var result = await table.UpsertAsync(item);
+
+        await InvalidateAsync(item);
+
+        return result;
+    }
+
+    //
+
+    public async Task<List<CircleRecord>> GetAllAsync(TimeSpan? ttl = null)
+    {
+        var result = await Cache.GetOrSetListAsync(
+            CacheKeyAll,
+            _ => table.GetAllAsync(),
+            ttl ?? DefaultTtl);
+        return result;
     }
 
     //
