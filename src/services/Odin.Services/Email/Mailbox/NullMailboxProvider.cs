@@ -78,4 +78,7 @@ public class NullMailboxProvider(ILogger<NullMailboxProvider> logger) : IMailbox
         var chars = random.Select(b => alphabet[b % 32]).ToArray();
         return string.Join("-", Enumerable.Range(0, 4).Select(i => new string(chars, i * 5, 5)));
     }
+
+    public Task RemoveForeignDkimSignaturesAsync(string domain, IReadOnlyCollection<string> ourSelectors)
+        => Task.CompletedTask;
 }

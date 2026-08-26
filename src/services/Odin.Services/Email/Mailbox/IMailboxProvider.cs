@@ -29,6 +29,13 @@ public interface IMailboxProvider
     /// <summary>Install the domain's DKIM signing key (per selector).</summary>
     Task SetDkimKeyAsync(string domain, DkimKey key);
 
+    /// <summary>
+    /// Removes DKIM signatures the mail server generated for itself, keeping only
+    /// <paramref name="ourSelectors"/>. Those self-generated keys have no DNS record, so every
+    /// message they sign carries a signature no verifier can resolve.
+    /// </summary>
+    Task RemoveForeignDkimSignaturesAsync(string domain, IReadOnlyCollection<string> ourSelectors);
+
     /// <summary>The local parts the one mailbox answers to (chat-kmp EMAIL_APP.md).</summary>
     Task SetAliasesAsync(string domain, IReadOnlyCollection<string> localParts);
 

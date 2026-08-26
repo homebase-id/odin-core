@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 #if RUN_STALWART_TESTS
 using System;
 using System.Linq;
@@ -165,6 +166,56 @@ public class StalwartMailboxProviderTests
         // --- and life goes on: re-activation after deletion works ---
         await _provider.CreateMailboxAsync(Domain, PrimaryAddress);
         Assert.That((await RegistryGetAsync("x:Domain")).Count, Is.EqualTo(1));
+    }
+
+    /// <summary>
+    /// Stalwart mints DKIM keys of its own when a domain is created - selectors like
+    /// "v1-rsa-20260826" - and we publish DNS only for our s1/s2. Left in place, every outbound
+    /// message carried FOUR signatures, two of which no verifier could resolve; Gmail reported
+    /// them as `dkim=permerror (no key for signature)` on real mail from a live tenant.
+    ///
+    /// The foreign key here is INSTALLED BY THE TEST rather than waited for, because this
+    /// container runs with STALWART_RECOVERY_MODE=1 - management API only - which suppresses
+    /// the background task that generates them. Verified: the real dev and bleeding instances
+    /// on the same v0.16 image do generate them, and polling this container for ten seconds
+    /// never produced any.
+    ///
+    /// So what is under test is OUR reconciliation - "remove every signature for this domain
+    /// that is not one of ours" - which is the part we control. Reproducing Stalwart's own
+    /// generation is neither possible here nor our behaviour to assert.
+    /// </summary>
+    [Test]
+    public async Task ItShouldRemoveDkimKeysWeDidNotInstallAndKeepOurs()
+    {
+        await _provider.CreateMailboxAsync(Domain, PrimaryAddress);
+
+        var ours = DkimKeyGenerator.GenerateKeys();
+        foreach (var key in ours)
+        {
+            await _provider.SetDkimKeyAsync(Domain, key);
+        }
+        var ourSelectors = ours.Select(k => k.Selector).ToList();
+
+        // Stand in for what Stalwart generates for itself, using its real selector shape.
+        var foreign = DkimKeyGenerator.GenerateEd25519Key("v1-ed25519-20260826");
+        await _provider.SetDkimKeyAsync(Domain, foreign);
+
+        var before = (await RegistryGetAsync("x:DkimSignature"))
+            .Select(x => x["selector"]!.GetValue<string>()).ToList();
+        Assert.That(before, Does.Contain(foreign.Selector), "precondition: the foreign key is installed");
+
+        await _provider.RemoveForeignDkimSignaturesAsync(Domain, ourSelectors);
+
+        var after = (await RegistryGetAsync("x:DkimSignature"))
+            .Select(x => x["selector"]!.GetValue<string>()).ToList();
+        Assert.That(after, Is.EquivalentTo(ourSelectors),
+            "only the selectors we publish DNS for may remain");
+
+        // Activation is re-runnable, so a second pass must neither throw nor remove ours.
+        await _provider.RemoveForeignDkimSignaturesAsync(Domain, ourSelectors);
+        var again = (await RegistryGetAsync("x:DkimSignature"))
+            .Select(x => x["selector"]!.GetValue<string>()).ToList();
+        Assert.That(again, Is.EquivalentTo(ourSelectors));
     }
 
     [Test]
