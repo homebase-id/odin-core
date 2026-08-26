@@ -184,6 +184,24 @@ public class StalwartMailboxProviderTests
     /// that is not one of ours" - which is the part we control. Reproducing Stalwart's own
     /// generation is neither possible here nor our behaviour to assert.
     /// </summary>
+    /// <summary>
+    /// The domain must be created with MANUAL DKIM management. Stalwart's default is
+    /// Automatic, which mints its own keypair immediately and rotates it every 90 days -
+    /// signing tenant mail with keys we publish no DNS for. Deleting them is not enough,
+    /// because rotation mints replacements on a schedule nobody is watching.
+    /// </summary>
+    [Test]
+    public async Task ItShouldCreateDomainsWithManualDkimManagement()
+    {
+        await _provider.CreateMailboxAsync(Domain, PrimaryAddress);
+
+        var domain = (await RegistryGetAsync("x:Domain"))
+            .Single(d => d["name"]!.GetValue<string>() == Domain);
+
+        Assert.That(domain["dkimManagement"]!["@type"]!.GetValue<string>(), Is.EqualTo("Manual"),
+            "Automatic management would regenerate keys we publish no DNS for");
+    }
+
     [Test]
     public async Task ItShouldRemoveDkimKeysWeDidNotInstallAndKeepOurs()
     {
