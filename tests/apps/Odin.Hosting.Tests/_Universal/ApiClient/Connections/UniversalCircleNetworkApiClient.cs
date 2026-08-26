@@ -202,7 +202,7 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> ReviewConnection(OdinId recipient, IEnumerable<GuidId> circleIds = null)
+    public async Task<ApiResponse<ReviewConnectionResult>> ReviewConnection(OdinId recipient, IEnumerable<GuidId> circleIds = null)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
