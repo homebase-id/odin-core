@@ -311,11 +311,15 @@ namespace Odin.Services.Authorization.Apps
         public async Task RevokeAppAsync(GuidId appId, IOdinContext odinContext)
         {
             var appReg = await this.GetAppRegistrationInternalAsync(appId);
-            if (null != appReg)
+            if (null == appReg)
             {
-                //TODO: do we do anything with storage DEK here?
-                appReg.AppKeyStore.IsRevoked = true;
+                // Nothing to revoke. The old blob store accepted a null here and wrote a row whose
+                // payload was the literal "null"; the table cannot express that, and should not.
+                return;
             }
+
+            //TODO: do we do anything with storage DEK here?
+            appReg.AppKeyStore.IsRevoked = true;
 
             //TODO: revoke all clients? or is the one flag enough?
 
@@ -327,11 +331,15 @@ namespace Odin.Services.Authorization.Apps
         public async Task RemoveAppRevocationAsync(GuidId appId, IOdinContext odinContext)
         {
             var appReg = await this.GetAppRegistrationInternalAsync(appId);
-            if (null != appReg)
+            if (null == appReg)
             {
-                //TODO: do we do anything with storage DEK here?
-                appReg.AppKeyStore.IsRevoked = false;
+                // Nothing to revoke. The old blob store accepted a null here and wrote a row whose
+                // payload was the literal "null"; the table cannot express that, and should not.
+                return;
             }
+
+            //TODO: do we do anything with storage DEK here?
+            appReg.AppKeyStore.IsRevoked = false;
 
             await SaveAsync(appReg);
 
@@ -549,7 +557,8 @@ namespace Odin.Services.Authorization.Apps
 
         internal static AppRegistration FromRecord(AppRegistrationsRecord record)
         {
-            var appReg = OdinSystemSerializer.Deserialize<AppRegistration>(record.grantJson);
+            var appReg = OdinSystemSerializer.Deserialize<AppRegistration>(record.grantJson)
+                         ?? throw new OdinSystemException($"App registration {record.AppId} has unreadable grantJson");
 
             appReg.AppId = record.AppId;
             appReg.AppSlug = record.AppSlug;

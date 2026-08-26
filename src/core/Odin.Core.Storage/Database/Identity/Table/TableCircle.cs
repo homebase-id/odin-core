@@ -12,6 +12,8 @@ public class TableCircle(
     OdinIdentity odinIdentity)
     : TableCircleCRUD(scopedConnectionFactory)
 {
+    private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
+
     internal async Task<CircleRecord> GetAsync(Guid circleId)
     {
         return await base.GetAsync(odinIdentity, circleId);
@@ -40,7 +42,7 @@ public class TableCircle(
     /// </summary>
     internal async Task<List<CircleRecord>> GetByGrantOnAsync(int grantOn)
     {
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =

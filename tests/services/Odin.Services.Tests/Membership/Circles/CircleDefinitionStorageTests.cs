@@ -29,7 +29,7 @@ public class CircleDefinitionStorageTests
         // wire shape. What must not survive is any *value*: a stale copy in the blob is what would let a
         // query on the column disagree with the hydrated object. Deserializing the blob alone yields
         // defaults, so there is nothing to drift from.
-        var fromBlobAlone = OdinSystemSerializer.Deserialize<CircleDefinition>(blob);
+        var fromBlobAlone = OdinSystemSerializer.Deserialize<CircleDefinition>(blob)!;
 
         Assert.That(fromBlobAlone.AppId, Is.Null, "AppId belongs to the column, not the blob");
         Assert.That(fromBlobAlone.GrantOn, Is.EqualTo(CircleGrantOn.None), "GrantOn belongs to the column");
@@ -94,7 +94,7 @@ public class CircleDefinitionStorageTests
         // The regression this guards: serialize a circle, send it back as an update, and it must still
         // say what it said.
         var sent = OdinSystemSerializer.Serialize(Sample());
-        var received = OdinSystemSerializer.Deserialize<CircleDefinition>(sent);
+        var received = OdinSystemSerializer.Deserialize<CircleDefinition>(sent)!;
 
         Assert.That(received.GrantOn, Is.EqualTo(CircleGrantOn.Connect),
             "a client echoing a definition back must not silently reset GrantOn");
