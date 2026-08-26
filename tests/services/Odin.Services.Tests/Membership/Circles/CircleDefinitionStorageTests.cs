@@ -1,7 +1,9 @@
 using System;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Membership.Circles;
 
 namespace Odin.Services.Tests.Membership.Circles;
@@ -98,6 +100,44 @@ public class CircleDefinitionStorageTests
             "a client echoing a definition back must not silently reset GrantOn");
         Assert.That(received.Designation, Is.EqualTo(CircleDesignation.Vendor));
         Assert.That(received.Emoji, Is.EqualTo("🍻"));
+    }
+
+
+    /// <summary>
+    /// The deposit-only invariant is what makes "a circle that enrols without the owner present hands
+    /// out no keys" enforced rather than conventional.  Nothing sets <see cref="CircleGrantOn"/> yet, so
+    /// these pin the guard before there is a caller that can trip it.
+    /// </summary>
+    [Test]
+    public void AmbientCircleCannotCarryPermissionKeys()
+    {
+        var circle = Sample();
+        circle.GrantOn = CircleGrantOn.Connect;
+        circle.Permissions = new Services.Authorization.Permissions.PermissionSet(
+            PermissionKeys.ReadConnections);
+
+        // No drive grants, so the guard never reaches the drive manager.
+        var service = new CircleDefinitionService(null, null);
+
+        var ex = Assert.ThrowsAsync<OdinClientException>(
+            async () => await service.AssertDepositOnlyIfAmbientAsync(circle));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(OdinClientErrorCode.CannotGrantKeysOnAmbientCircle));
+    }
+
+    [Test]
+    public void NonAmbientCircleIsUnaffectedByTheInvariant()
+    {
+        var circle = Sample();
+        circle.GrantOn = CircleGrantOn.None;
+        circle.Permissions = new Services.Authorization.Permissions.PermissionSet(
+            PermissionKeys.ReadConnections);
+
+        var service = new CircleDefinitionService(null, null);
+
+        // Manual-membership circles are the owner's own act, so they may carry whatever they carry
+        // today. This is the case every existing circle is in.
+        Assert.DoesNotThrowAsync(async () => await service.AssertDepositOnlyIfAmbientAsync(circle));
     }
 
     private static CircleDefinition Sample()

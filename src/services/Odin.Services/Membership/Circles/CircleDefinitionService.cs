@@ -143,6 +143,10 @@ namespace Odin.Services.Membership.Circles
             existingCircle.Designation = newCircleDefinition.Designation;
             existingCircle.Emoji = newCircleDefinition.Emoji;
 
+            // Re-checked on every write, not just the first: the invariant has to hold whenever GrantOn
+            // changes, and an update is the way a circle becomes ambient.
+            await AssertDepositOnlyIfAmbientAsync(existingCircle);
+
             await db.CircleCached.UpsertAsync(ToRecord(existingCircle));
         }
 
@@ -156,6 +160,16 @@ namespace Odin.Services.Membership.Circles
         {
             var record = await db.CircleCached.GetAsync(circleId);
             return record == null ? null : FromRecord(record);
+        }
+
+        /// <summary>
+        /// Circles whose owning app wants members enrolled at the given moment.  Served straight from
+        /// the indexed column -- this is the auto-connect hot path.
+        /// </summary>
+        public async Task<List<CircleDefinition>> GetCirclesByGrantOnAsync(CircleGrantOn grantOn)
+        {
+            var records = await db.CircleCached.GetByGrantOnAsync((int)grantOn);
+            return records.Select(FromRecord).ToList();
         }
 
         public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
@@ -242,6 +256,60 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
+        /// <summary>
+        /// A circle that enrols without the owner present may hand out deposit capability and nothing
+        /// else: write/react drive permissions, no read beyond drives that are already public, and no
+        /// permission keys.
+        /// </summary>
+        /// <remarks>
+        /// This is what makes "an unreviewed connection holds zero read keys" an enforced property rather
+        /// than a convention.  It is checked when the definition is written -- not when the grant is
+        /// minted -- for the same confused-deputy reason the drives-it-can-already-read rule is: an app
+        /// can plant a definition, and the next owner-driven grant would mint it with the master key in
+        /// scope.
+        /// <para>
+        /// Read is permitted on drives with <c>AllowAnonymousReads</c>, since a member gains nothing a
+        /// stranger did not already have.  That carve-out is how connections keep decrypting public-drive
+        /// content.
+        /// </para>
+        /// </remarks>
+        public async Task AssertDepositOnlyIfAmbientAsync(CircleDefinition circle)
+        {
+            if (circle.GrantOn is not (CircleGrantOn.Connect or CircleGrantOn.OwnFlowConnect))
+            {
+                return;
+            }
+
+            if (circle.Permissions?.Keys?.Any() ?? false)
+            {
+                throw new OdinClientException(
+                    $"Circle '{circle.Name}' enrols on connect and cannot carry permission keys; " +
+                    "identity-wide keys are only mintable at the review.",
+                    OdinClientErrorCode.CannotGrantKeysOnAmbientCircle);
+            }
+
+            foreach (var grant in circle.DriveGrants ?? [])
+            {
+                var permission = grant.PermissionedDrive.Permission;
+
+                if (!permission.HasFlag(DrivePermission.Read))
+                {
+                    continue;
+                }
+
+                var drive = await driveManager.GetDriveAsync(grant.PermissionedDrive.Drive.Alias);
+
+                if (drive is not { AllowAnonymousReads: true })
+                {
+                    throw new OdinClientException(
+                        $"Circle '{circle.Name}' enrols on connect and cannot grant read on " +
+                        $"{grant.PermissionedDrive.Drive}; read grants carry a storage key and are only " +
+                        "mintable at the review.",
+                        OdinClientErrorCode.CannotGrantReadOnAmbientCircle);
+                }
+            }
+        }
+
         private void AssertValidPermissionSet(PermissionSet permissionSet)
         {
             if (permissionSet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
@@ -271,8 +339,14 @@ namespace Odin.Services.Membership.Circles
                 Name = request.Name,
                 Description = request.Description,
                 DriveGrants = request.DriveGrants,
-                Permissions = request.Permissions
+                Permissions = request.Permissions,
+                AppId = request.AppId,
+                GrantOn = request.GrantOn,
+                Designation = request.Designation,
+                Emoji = request.Emoji
             };
+
+            await AssertDepositOnlyIfAmbientAsync(circle);
 
             await db.CircleCached.UpsertAsync(ToRecord(circle));
 
