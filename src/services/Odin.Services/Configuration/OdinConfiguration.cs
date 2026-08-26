@@ -443,6 +443,7 @@ public class OdinConfiguration
     {
         public TenantMailSection TenantMail { get; init; } = new();
         public StalwartSection Stalwart { get; init; } = new();
+        public RelaySection Relay { get; init; } = new();
 
         /// <summary>
         /// AES key encrypting tenant DKIM private keys at rest (DkimStore) - the
@@ -472,7 +473,83 @@ public class OdinConfiguration
             }
 
             Stalwart = new StalwartSection(config);
+            Relay = new RelaySection(config);
         }
+    }
+
+    /// <summary>
+    /// Outbound relay for TENANT mail. Stalwart receives; this is only how it sends, and it
+    /// exists because a host that cannot open port 25 outbound has no other route.
+    ///
+    /// Not to be confused with the top-level Mailgun section, which sends the HOST's own mail
+    /// (password recovery, security reports) and is unrelated.
+    ///
+    /// Ships as <see cref="RelayProvider.None"/>: no onboarding, no extra DNS, no status rows.
+    /// </summary>
+    public class RelaySection
+    {
+        public RelayProvider Provider { get; init; } = RelayProvider.None;
+
+        /// <summary>Management API key. Needs only the four /domain/* permissions.</summary>
+        public string ApiKey { get; init; } = "";
+
+        /// <summary>Regional endpoints exist (us-api, eu-api); one key works against all of them.</summary>
+        public string ApiBaseUrl { get; init; } = "https://api.smtp2go.com/v3";
+
+        /// <summary>What Stalwart smarthosts to. ACCOUNT-level credentials, deliberately:
+        /// per-domain credentials are exactly why Mailgun could not relay for many tenants.</summary>
+        public string SmtpHost { get; init; } = "";
+        public int SmtpPort { get; init; } = 587;
+        public string SmtpUsername { get; init; } = "";
+        public string SmtpPassword { get; init; } = "";
+
+        /// <summary>
+        /// Link/open tracking. Off by default: it adds a third per-tenant CNAME and rewrites
+        /// recipients' links, which sits badly with an end-to-end encrypted mail product.
+        /// </summary>
+        public bool EnableTracking { get; init; }
+
+        public bool IsConfigured => Provider != RelayProvider.None;
+
+        public RelaySection()
+        {
+            // Mockable support
+        }
+
+        public RelaySection(IConfiguration config)
+        {
+            Provider = Enum.TryParse<RelayProvider>(
+                config.GetOrDefault("Email:Relay:Provider", nameof(RelayProvider.None)),
+                ignoreCase: true,
+                out var provider)
+                ? provider
+                : throw new OdinConfigException(
+                    "Email:Relay:Provider must be one of: " +
+                    string.Join(", ", Enum.GetNames<RelayProvider>()));
+
+            if (!IsConfigured)
+            {
+                return;
+            }
+
+            // Required once a provider is named, so a half-configured host fails at boot rather
+            // than at the first tenant activation - by which point a mailbox exists that cannot
+            // send, which is worse than not starting.
+            ApiKey = config.Required<string>("Email:Relay:ApiKey");
+            ApiBaseUrl = config.GetOrDefault("Email:Relay:ApiBaseUrl", "https://api.smtp2go.com/v3").TrimEnd('/');
+            SmtpHost = config.Required<string>("Email:Relay:SmtpHost");
+            SmtpPort = config.GetOrDefault("Email:Relay:SmtpPort", 587);
+            SmtpUsername = config.Required<string>("Email:Relay:SmtpUsername");
+            SmtpPassword = config.Required<string>("Email:Relay:SmtpPassword");
+            EnableTracking = config.GetOrDefault("Email:Relay:EnableTracking", false);
+        }
+    }
+
+    public enum RelayProvider
+    {
+        /// <summary>No outbound relay. Tenant mail is delivered by Stalwart directly, if it can.</summary>
+        None,
+        Smtp2Go,
     }
 
 

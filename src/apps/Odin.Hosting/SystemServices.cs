@@ -46,6 +46,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Email;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Email.Mailbox;
+using Odin.Services.Email.Relay;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
 using Odin.Services.Registry;
@@ -234,6 +235,18 @@ public static class SystemServices
         else
         {
             services.AddSingleton<IMailboxProvider, NullMailboxProvider>();
+        }
+
+        // Outbound relay for tenant mail. Same null-object seam as the mailbox provider: the
+        // rest of the code never branches on whether a relay exists, it just gets one that
+        // does nothing. Default config has no relay, so this is the shipped behaviour.
+        if (config.Email.Relay.Provider == OdinConfiguration.RelayProvider.Smtp2Go)
+        {
+            services.AddSingleton<IMailRelayProvider, Smtp2GoRelayProvider>();
+        }
+        else
+        {
+            services.AddSingleton<IMailRelayProvider, NullMailRelayProvider>();
         }
 
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(

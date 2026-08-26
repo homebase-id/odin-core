@@ -11,6 +11,8 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Email.Mailbox;
+using Odin.Services.Email.Relay;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Email;
@@ -32,6 +34,8 @@ public class MailActivationService(
     IDkimStore dkimStore,
     IIdentityRegistrationService identityRegistrationService,
     IDnsLookupService dnsLookupService,
+    IMailRelayProvider relayProvider,
+    IJobManager jobManager,
     EmailPublicKeyService emailPublicKeyService,
     IMailboxProvider mailboxProvider)
 {
@@ -95,6 +99,18 @@ public class MailActivationService(
             await mailboxProvider.SetDkimKeyAsync(domain, key);
         }
 
+        // 4. Outbound relay: register the domain and publish the CNAMEs it needs, in a job.
+        //
+        // Deliberately fire-and-forget. Every step is a call to someone else's API followed by
+        // a wait for DNS to propagate - minutes to hours - and blocking activation on that would
+        // trade a working mailbox now for a fully-working one later. A tenant who can receive
+        // and read encrypted mail immediately, and send once DNS catches up, is the better
+        // failure mode. The job retries; the Email tab reports the records as pending meanwhile.
+        if (relayProvider.IsConfigured)
+        {
+            await ScheduleRelayOnboardingAsync(domain);
+        }
+
         logger.LogInformation("Mailbox ready for {domain} (DNS records written: {written})", domain, recordsWritten);
 
         return new MailActivationResult
@@ -102,6 +118,26 @@ public class MailActivationService(
             DnsRecordsWritten = recordsWritten,
             DkimRecords = dkimRecords,
         };
+    }
+
+    private async Task ScheduleRelayOnboardingAsync(string domain)
+    {
+        var job = jobManager.NewJob<MailRelayOnboardingJob>();
+        job.Data = new MailRelayOnboardingJobData { Domain = domain };
+
+        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now.AddSeconds(1),
+            // Transient-flake retries only. Waiting for DNS is handled inside the job by
+            // deferring, which does not consume these attempts - the two are different
+            // failures and spending one budget on the other would exhaust it on a non-error.
+            MaxAttempts = 10,
+            RetryDelay = TimeSpan.FromMinutes(1),
+            OnSuccessDeleteAfter = TimeSpan.FromMinutes(5),
+            OnFailureDeleteAfter = TimeSpan.FromDays(1),
+        });
+
+        logger.LogInformation("Relay onboarding scheduled for {domain}", domain);
     }
 
     /// <summary>
@@ -132,6 +168,27 @@ public class MailActivationService(
         // this way - it is probed separately (DnsHealthService.CheckOptionalWwwAsync) - and
         // DnsHealthService relies on this same equivalence to build its MailRecords list.
         var records = dnsLookupService.GetDnsConfiguration(domain).Where(x => x.Optional).ToList();
+
+        // The outbound relay's CNAMEs, when one is configured. Unlike everything above these
+        // are NOT config - the relay allocates their names per domain - so they are fetched,
+        // and onboarding the domain is what allocates them in the first place. Doing that here
+        // means the owner's one button really does mean "make my email DNS right", rather than
+        // "make the half of it that happens to come from config right".
+        if (relayProvider.IsConfigured)
+        {
+            try
+            {
+                var relay = await relayProvider.EnsureDomainAsync(domain);
+                records.AddRange(relay.Records);
+            }
+            catch (Exception e)
+            {
+                // Publishing what we do have beats failing the whole button on someone else's
+                // outage. The relay rows simply stay missing and the status page keeps saying so.
+                logger.LogWarning(e, "Could not reach the mail relay for {domain}; its records are not published",
+                    domain);
+            }
+        }
 
         if (records.Count == 0)
         {
