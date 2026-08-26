@@ -47,7 +47,15 @@ public class Smtp2GoDomain
     /// <summary>e.g. "s934313" - the label before "._domainkey".</summary>
     [JsonPropertyName("dkim_selector")] public string DkimSelector { get; init; } = "";
 
-    /// <summary>Always "dkim.smtp2go.net" in practice; read rather than hard-coded.</summary>
+    /// <summary>
+    /// What must be published. NOT the same as <see cref="DkimValue"/>: /domain/add echoes the
+    /// target into both, but /domain/view leaves *_value EMPTY until the record is verified -
+    /// it reports what they can currently see, not what they want. Reading the wrong one
+    /// publishes a CNAME with an empty target.
+    /// </summary>
+    [JsonPropertyName("dkim_expected")] public string DkimExpected { get; init; } = "";
+
+    /// <summary>What the relay currently observes. Empty until verified — see <see cref="DkimExpected"/>.</summary>
     [JsonPropertyName("dkim_value")] public string DkimValue { get; init; } = "";
 
     [JsonPropertyName("dkim_verified")] public bool DkimVerified { get; init; }
@@ -58,6 +66,9 @@ public class Smtp2GoDomain
     /// <summary>e.g. "em934313" - a bare label on the tenant domain, NOT under _domainkey.</summary>
     [JsonPropertyName("rpath_selector")] public string RpathSelector { get; init; } = "";
 
+    /// <summary>What must be published. See <see cref="DkimExpected"/> for why this is not *_value.</summary>
+    [JsonPropertyName("rpath_expected")] public string RpathExpected { get; init; } = "";
+
     [JsonPropertyName("rpath_value")] public string RpathValue { get; init; } = "";
     [JsonPropertyName("rpath_verified")] public bool RpathVerified { get; init; }
     [JsonPropertyName("rpath_status")] public string RpathStatus { get; init; } = "";
@@ -66,6 +77,7 @@ public class Smtp2GoDomain
 public class Smtp2GoTracker
 {
     [JsonPropertyName("fulldomain")] public string FullDomain { get; init; } = "";
+    [JsonPropertyName("cname_expected")] public string CnameExpected { get; init; } = "";
     [JsonPropertyName("cname_value")] public string CnameValue { get; init; } = "";
     [JsonPropertyName("cname_verified")] public bool CnameVerified { get; init; }
     [JsonPropertyName("cname_status")] public string CnameStatus { get; init; } = "";

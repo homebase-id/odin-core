@@ -168,4 +168,54 @@ public class Smtp2GoModelsTest
         // prose. If they ever make it specific, this assertion fails and we can simplify.
         Assert.That(parsed.Data.ErrorCode, Is.EqualTo("E_ApiResponseCodes.API_EXCEPTION"));
     }
+
+    // Verbatim from POST /domain/view for an UNVERIFIED domain, 2026-08-26. Note *_value is
+    // empty here while /domain/add populated it — the difference that caused a live bug.
+    private const string ViewUnverifiedResponse = """
+    {
+      "request_id": "b1",
+      "data": {
+        "domains": [
+          {
+            "domain": {
+              "fulldomain": "biggus.dickus.demo.rocks",
+              "dkim_selector": "s934313",
+              "dkim_value": "",
+              "dkim_expected": "dkim.smtp2go.net",
+              "dkim_verified": false,
+              "rpath_selector": "em934313",
+              "rpath_value": "",
+              "rpath_expected": "return.smtp2go.net",
+              "rpath_verified": false
+            },
+            "trackers": []
+          }
+        ]
+      }
+    }
+    """;
+
+    /// <summary>
+    /// The regression that reached production DNS.
+    ///
+    /// /domain/add echoes the target into both *_value and *_expected, so reading *_value
+    /// looked correct. /domain/view does NOT: it reports what the relay can currently SEE,
+    /// which is nothing until the record is verified. Building records from *_value therefore
+    /// published two CNAMEs pointing at the DNS root - and because the health check compared an
+    /// empty expectation against an empty published value, the owner console showed them green.
+    /// </summary>
+    [Test]
+    public void ItShouldReadTheTargetFromExpectedNotValue()
+    {
+        var parsed = OdinSystemSerializer.Deserialize<Smtp2GoDomainResponse>(ViewUnverifiedResponse);
+        var domain = parsed!.Data.Domains.Single().Domain;
+
+        // The trap: these are empty on an unverified domain.
+        Assert.That(domain.DkimValue, Is.Empty);
+        Assert.That(domain.RpathValue, Is.Empty);
+
+        // The targets that must actually be published.
+        Assert.That(domain.DkimExpected, Is.EqualTo("dkim.smtp2go.net"));
+        Assert.That(domain.RpathExpected, Is.EqualTo("return.smtp2go.net"));
+    }
 }

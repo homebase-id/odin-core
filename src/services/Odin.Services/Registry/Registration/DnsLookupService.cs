@@ -644,6 +644,16 @@ public class DnsLookupService : IDnsLookupService
             return DnsLookupRecordStatus.DomainOrRecordNotFound;
         }
 
+        // An empty expectation can never be satisfied, and must never report Success. It did:
+        // a relay record built from the wrong API field carried an empty value, was published
+        // as a CNAME pointing at the DNS root, and then matched its own empty expectation here
+        // - so the owner console showed a green tick over a record that could not work. Whatever
+        // produced the empty value is the bug; this makes sure it can never be a SILENT one.
+        if (string.IsNullOrWhiteSpace(expectedValue))
+        {
+            return DnsLookupRecordStatus.IncorrectValue;
+        }
+
         if (records.Any(x => string.Equals(x, expectedValue, System.StringComparison.OrdinalIgnoreCase)))
         {
             return DnsLookupRecordStatus.Success;
