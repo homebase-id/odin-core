@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 
+#nullable enable
+
 namespace Odin.Services.Email.Relay;
 
 /// <summary>

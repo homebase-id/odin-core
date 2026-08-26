@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
+#nullable enable
+
 namespace Odin.Services.Email.Relay;
 
 /// <summary>

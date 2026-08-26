@@ -8,6 +8,8 @@ using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry.Registration;
 
+#nullable enable
+
 namespace Odin.Services.Email.Relay;
 
 public class MailRelayOnboardingJobData

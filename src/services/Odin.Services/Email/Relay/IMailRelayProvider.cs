@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Odin.Core.Util;
 using Odin.Services.Registry.Registration;
 
+#nullable enable
+
 namespace Odin.Services.Email.Relay;
 
 /// <summary>
