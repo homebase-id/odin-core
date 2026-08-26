@@ -41,9 +41,9 @@ public class VersionUpgradeService(
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
-    ILogger<VersionUpgradeService> logger)
+    ILogger<VersionUpgradeService> logger,
+    VersionUpgradeRunState runState)
 {
-    private bool _isRunning;
 
     // Prefix on every log line emitted by the upgrade flow so it can be traced through the log.
     private const string LogTag = nameof(VersionUpgradeService) + ":";
@@ -89,7 +89,7 @@ public class VersionUpgradeService(
 
             await using (var encTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
             {
-                _isRunning = true;
+                runState.SetRunning(true);
                 var (upgraded, skipped, keyPairsProvisioned) =
                     await circleNetworkService.UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(odinContext, cancellationToken);
                 encTx.Commit();
@@ -109,7 +109,7 @@ public class VersionUpgradeService(
 
             await using (var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
             {
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogDebug(LogTag + " Ensuring system drives exist on identity: [{identity}]", odinContext.Tenant);
                 await tenantConfigService.EnsureSystemDrivesExist(odinContext);
                 drivesTx.Commit();
@@ -119,7 +119,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v1.UpgradeAsync(odinContext, cancellationToken);
@@ -142,7 +142,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v2.UpgradeAsync(odinContext, cancellationToken);
@@ -165,7 +165,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v3.UpgradeAsync(odinContext, cancellationToken);
@@ -188,7 +188,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v4.UpgradeAsync(odinContext, cancellationToken);
@@ -212,7 +212,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v5.UpgradeAsync(odinContext, cancellationToken);
@@ -229,7 +229,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v6.UpgradeAsync(odinContext, cancellationToken);
@@ -252,7 +252,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v7.UpgradeAsync(odinContext, cancellationToken);
@@ -275,7 +275,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v8.UpgradeAsync(odinContext, cancellationToken);
@@ -298,7 +298,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v9.UpgradeAsync(odinContext, cancellationToken);
@@ -321,7 +321,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v10.UpgradeAsync(odinContext, cancellationToken);
@@ -344,7 +344,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v11.UpgradeAsync(odinContext, cancellationToken);
@@ -367,7 +367,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v12.UpgradeAsync(odinContext, cancellationToken);
@@ -398,12 +398,12 @@ public class VersionUpgradeService(
         }
         finally
         {
-            _isRunning = false;
+            runState.SetRunning(false);
         }
     }
 
     public bool IsRunning()
     {
-        return _isRunning;
+        return runState.IsRunning;
     }
 }
