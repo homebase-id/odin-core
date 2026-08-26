@@ -1,0 +1,65 @@
+# Flaky and environment-sensitive tests
+
+A register of tests that fail intermittently, or fail only in certain environments, so the
+same investigation is not repeated every time one goes red.
+
+**Record every intermittent failure here, always** — including ones that "probably just need a
+re-run". A test nobody has written down is a test everyone re-investigates.
+
+Before assuming a red test is your change: check this file, then confirm by running the test on
+a clean tree (`git stash`), and by checking whether recent runs on `main` pass.
+
+## How to add an entry
+
+Name the test by its fully-qualified name, say **where** it fails (CI OS/db matrix, or local
+only), what the failure looks like, and — critically — the evidence that it is *not* caused by
+whatever change was in flight. If the cause is known, say it; if not, say that plainly rather
+than guessing.
+
+---
+
+## `Odin.Services.Tests.Dns.Health.DnsHealthServiceTest`
+
+- `ItShouldReportBrokenMailRecordsAsNeedingAttention`
+- `ItShouldSplitOptionalRecordsIntoMailRecords`
+
+**Where:** local only. Both pass on CI (verified on the windows/sqlite/debug job of run
+32957912470).
+
+**Symptom:** fail when run under a broad filter (`dotnet test --filter "FullyQualifiedName~Mail"`),
+pass when run under `--filter "FullyQualifiedName~DnsHealthServiceTest"`. One asserts an
+attention count of 1 and gets 0; the other throws inside `CheckOptionalWwwAsync`.
+
+**Not caused by the change in flight:** reproduced on a clean tree by stashing (2026-08-26),
+and unaffected by whether the local dev server is running.
+
+**Likely cause (unconfirmed):** these do live DNS lookups, and a local
+`docker/stalwart-dev` setup adds `/etc/hosts` entries for `*.dotyou.cloud`. A developer without
+those entries would likely not see it. Not yet proven — if you confirm it, replace this
+paragraph with what you found.
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.Peer.TemporalReadTests`
+
+- `TemporalRead_ClampsToWindow_VerifyReportsAccess_AndNormalReadIsRejected`
+
+**Where:** CI, `windows/sqlite/debug` (seen on run 32957912470, 2026-08-26).
+
+**Symptom:** `expected fresh file readable; got NotFound` — a peer file transfer that has not
+landed by the time the assertion runs.
+
+**Not caused by the change in flight:** the change was a mail-DNS endpoint, which this test does
+not touch; the same job passes on recent `main` runs.
+
+---
+
+## `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryTests`
+
+- `CanEnterAndExitRecoveryMode`
+
+**Where:** CI, `windows/sqlite/debug` (seen on run 32957912470, 2026-08-26).
+
+**Symptom:** expects a `Redirect`, gets `Forbidden`.
+
+**Not caused by the change in flight:** same run and reasoning as the entry above.

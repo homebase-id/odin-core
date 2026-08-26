@@ -39,6 +39,25 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     }
 
     /// <summary>
+    /// Whether this identity's email actually WORKS, as opposed to whether it has been set up.
+    ///
+    /// `status` answers "how far did setup get" and nothing more, so an identity whose domain
+    /// has no MX reports as fully configured while nothing can deliver mail to it. This runs the
+    /// same DNS-record and key checks the owner console's Email tab runs, from the same
+    /// services, so the two surfaces cannot disagree.
+    ///
+    /// On demand rather than part of `status`: it does DNS lookups plus outbound HTTPS, and
+    /// status is fetched on every login and identity switch.
+    /// </summary>
+    [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
+    [HttpGet("health")]
+    [ProducesResponseType(typeof(MailAppHealthResult), 200)]
+    public async Task<MailAppHealthResult> GetHealth()
+    {
+        return await emailAppService.GetHealthAsync(HttpContext.RequestAborted);
+    }
+
+    /// <summary>
     /// Creates the mailbox. Idempotent, so a client killed mid-setup calls it again rather than
     /// tracking where it got to.
     /// </summary>

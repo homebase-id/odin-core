@@ -19,6 +19,9 @@ public class V2MailClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<MailAppStatusResult>> GetStatusAsync() =>
         await Service().GetStatus();
 
+    public async Task<ApiResponse<MailAppHealthResult>> GetHealthAsync() =>
+        await Service().GetHealth();
+
     public async Task<ApiResponse<MailRoundTripChallenge>> CreateChallengeAsync() =>
         await Service().CreateChallenge();
 

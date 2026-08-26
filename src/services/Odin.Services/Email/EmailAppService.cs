@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Pgp;
+using Odin.Core.Util;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Dns.Health;
 using Odin.Services.Drives.Management;
 using Odin.Core.Time;
 using Odin.Services.Email.Dkim;
@@ -36,7 +40,9 @@ public class EmailAppService(
     EmailPublicKeyService emailPublicKeyService,
     EmailSetupStateService setupStateService,
     EmailKeyMaterialWriter keyMaterialWriter,
-    MailActivationService mailActivationService)
+    MailActivationService mailActivationService,
+    DnsHealthService dnsHealthService,
+    EmailHealthVerifier emailHealthVerifier)
 {
     /// <summary>
     /// The status the client renders its whole entry flow from. Deliberately ungated: the app
@@ -272,6 +278,41 @@ public class EmailAppService(
         return odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read) &&
                odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);
     }
+
+    /// <summary>
+    /// The health of this identity's email, for the app's "check my email" button.
+    ///
+    /// Runs the SAME checks the owner console's Email tab runs, from the same services -
+    /// <see cref="DnsHealthService"/> for the record rows, <see cref="EmailHealthVerifier"/> for
+    /// the DKIM pair proof and public-key drift - so the two surfaces cannot disagree and the
+    /// client reimplements none of it.
+    ///
+    /// On demand, deliberately NOT folded into <see cref="GetStatusAsync"/>: this does DNS
+    /// lookups plus outbound HTTPS, and status is fetched on every login and identity switch.
+    /// </summary>
+    public async Task<MailAppHealthResult> GetHealthAsync(CancellationToken cancellationToken = default)
+    {
+        if (!configuration.Email.TenantMail.Enabled)
+        {
+            return new MailAppHealthResult { TenantMailEnabled = false, Activated = false };
+        }
+
+        var domain = new AsciiDomainName(tenantContext.HostOdinId.DomainName);
+
+        var dns = await dnsHealthService.GetDnsHealthAsync(domain, cancellationToken);
+        var verification = await emailHealthVerifier.VerifyAsync(cancellationToken);
+
+        return new MailAppHealthResult
+        {
+            TenantMailEnabled = true,
+            Activated = verification.Activated,
+            Records = dns.MailRecords,
+            BrokenRecords = dns.MailRecords.Where(x => x.Status != DnsLookupRecordStatus.Success).ToList(),
+            Errors = verification.Errors,
+            Warnings = verification.Warnings,
+        };
+    }
+
 }
 
 public class EmailKeyGenerationResult
@@ -331,6 +372,36 @@ public class MailboxStatusResult
 
     /// <summary>Outbound messages still waiting. Above zero for long means delivery trouble.</summary>
     public int QueuedOutbound { get; init; }
+}
+
+/// <summary>
+/// Whether this identity's email actually WORKS, as opposed to whether it has been set up.
+/// <see cref="MailAppStatusResult"/> answers the second question only, so an identity whose
+/// domain has no MX reports as fully configured while nothing can deliver mail to it.
+/// </summary>
+public class MailAppHealthResult
+{
+    public bool TenantMailEnabled { get; init; }
+
+    /// <summary>False when email was never activated: nothing to report, rather than everything broken.</summary>
+    public bool Activated { get; init; }
+
+    /// <summary>The mail DNS rows, exactly as the owner console's Email tab shows them.</summary>
+    public List<DnsConfig> Records { get; init; } = [];
+
+    /// <summary>Rows that are missing or wrong, so the client filters nothing itself.</summary>
+    public List<DnsConfig> BrokenRecords { get; init; } = [];
+
+    /// <summary>Checks a record comparison cannot make: DKIM pair proof, public-key drift.</summary>
+    public List<string> Errors { get; init; } = [];
+
+    public List<string> Warnings { get; init; } = [];
+
+    /// <summary>
+    /// The one verdict a client should branch on, so "is my email healthy" is decided here
+    /// rather than re-derived - differently - in each client.
+    /// </summary>
+    public bool NeedsAttention => BrokenRecords.Count > 0 || Errors.Count > 0;
 }
 
 /// <summary>

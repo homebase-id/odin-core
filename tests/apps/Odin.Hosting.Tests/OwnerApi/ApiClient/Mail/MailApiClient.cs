@@ -23,6 +23,9 @@ public interface IMailTestHttpClientForOwner
     [Get(Endpoint + "/verify")]
     Task<ApiResponse<EmailHealthVerifier.Result>> Verify();
 
+    [Post(Endpoint + "/publish-dns-records")]
+    Task<ApiResponse<MailDnsPublishResult>> PublishDnsRecords();
+
     [Post(Endpoint + "/challenge")]
     Task<ApiResponse<MailRoundTripChallenge>> CreateChallenge();
 }
@@ -56,6 +59,13 @@ public class MailApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
             PrimaryEmailAddress = primaryEmailAddress,
             Label = label,
         });
+    }
+
+    public async Task<ApiResponse<MailDnsPublishResult>> PublishDnsRecords()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IMailTestHttpClientForOwner>(client, sharedSecret);
+        return await svc.PublishDnsRecords();
     }
 
     public async Task<ApiResponse<EmailHealthVerifier.Result>> Verify()

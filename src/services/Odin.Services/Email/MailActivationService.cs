@@ -31,6 +31,7 @@ public class MailActivationService(
     TenantContext tenantContext,
     IDkimStore dkimStore,
     IIdentityRegistrationService identityRegistrationService,
+    IDnsLookupService dnsLookupService,
     EmailPublicKeyService emailPublicKeyService,
     IMailboxProvider mailboxProvider)
 {
@@ -101,6 +102,52 @@ public class MailActivationService(
             DnsRecordsWritten = recordsWritten,
             DkimRecords = dkimRecords,
         };
+    }
+
+    /// <summary>
+    /// (Re)publishes this tenant's static mail DNS records - MX, SPF, DMARC, MTA-STS,
+    /// TLS-RPT and the mta-sts CNAME.
+    ///
+    /// Those records are config-derived and identical for every tenant, so they are normally
+    /// written at PROVISIONING time (<see cref="IIdentityRegistrationService.CreateManagedDomain"/>
+    /// -> EnsureManagedDomainRecords). A tenant provisioned before Email:TenantMail was enabled
+    /// never got them: activating email afterwards writes the per-tenant DKIM records and
+    /// nothing else, which leaves a mailbox that works outbound but has no MX to receive on.
+    /// The CLI backfill fixes that fleet-wide; this is the owner's own button for one identity.
+    ///
+    /// Idempotent - rrset writes are REPLACE - so the whole set is published rather than
+    /// diffing which records are currently broken.
+    ///
+    /// Returns <see cref="MailDnsPublishResult.DnsRecordsWritten"/> false when the tenant's DNS
+    /// is not ours to write (manual-records/BYOD tenants, or a host without PowerDNS access).
+    /// The records are still returned so the caller can show them as instructions.
+    /// </summary>
+    public async Task<MailDnsPublishResult> PublishMailDnsRecordsAsync()
+    {
+        ThrowIfTenantMailDisabled();
+
+        var domain = new AsciiDomainName(tenantContext.HostOdinId.DomainName);
+
+        // Optional == the mail record set. The other optional-ish record, www, is not flagged
+        // this way - it is probed separately (DnsHealthService.CheckOptionalWwwAsync) - and
+        // DnsHealthService relies on this same equivalence to build its MailRecords list.
+        var records = dnsLookupService.GetDnsConfiguration(domain).Where(x => x.Optional).ToList();
+
+        if (records.Count == 0)
+        {
+            // Tenant mail is on but the config names no mail infrastructure. Nothing to write,
+            // and writing an empty set would be indistinguishable from success to the caller.
+            logger.LogWarning("No mail DNS records to publish for {domain}; check Email:TenantMail config", domain);
+            return new MailDnsPublishResult { DnsRecordsWritten = false, Records = records };
+        }
+
+        var written = await identityRegistrationService.WriteOnActivationRecords(domain, records);
+
+        logger.LogInformation(
+            "Mail DNS records published for {domain}: {count} record(s), written={written}",
+            domain, records.Count, written);
+
+        return new MailDnsPublishResult { DnsRecordsWritten = written, Records = records };
     }
 
     /// <summary>
@@ -259,6 +306,17 @@ public class MailRoundTripChallenge
 
     /// <summary>SHA-256 of the nonce - what a successful client-side decryption must hash to.</summary>
     public string NonceSha256Base64 { get; init; } = "";
+}
+
+/// <summary>
+/// Outcome of <see cref="MailActivationService.PublishMailDnsRecordsAsync"/>.
+/// <see cref="Records"/> is populated either way: when <see cref="DnsRecordsWritten"/> is
+/// false the caller shows them as manual instructions instead.
+/// </summary>
+public class MailDnsPublishResult
+{
+    public bool DnsRecordsWritten { get; init; }
+    public List<DnsConfig> Records { get; init; } = [];
 }
 
 public class MailStatusResult

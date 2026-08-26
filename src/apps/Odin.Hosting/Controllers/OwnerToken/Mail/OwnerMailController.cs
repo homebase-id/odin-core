@@ -36,6 +36,25 @@ namespace Odin.Hosting.Controllers.OwnerToken.Mail
         }
 
         /// <summary>
+        /// Publishes this identity's static mail DNS records (MX, SPF, DMARC, MTA-STS,
+        /// TLS-RPT, mta-sts CNAME) - the Email tab's fix for a tenant provisioned before
+        /// Email:TenantMail was enabled, which therefore never received them.
+        ///
+        /// Deliberately here and not on OwnerDnsHealthController: that controller is
+        /// documented read-only and must never touch the PowerDNS API, because it also runs
+        /// on self-hosted identity hosts. Writing tenant DNS from a tenant host is already
+        /// what activation does for the DKIM records, through the same service.
+        ///
+        /// Idempotent. Returns DnsRecordsWritten=false, with the records still populated, when
+        /// the tenant's DNS is not ours to write - the caller then shows them as instructions.
+        /// </summary>
+        [HttpPost("publish-dns-records")]
+        public async Task<MailDnsPublishResult> PublishDnsRecords()
+        {
+            return await mailActivationService.PublishMailDnsRecordsAsync();
+        }
+
+        /// <summary>
         /// On-demand live verification for the Email tab: DKIM pair proof against the
         /// live DNS TXT + public-key drift across the publication surfaces.
         /// </summary>

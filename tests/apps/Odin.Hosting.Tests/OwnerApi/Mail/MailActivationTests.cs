@@ -196,6 +196,46 @@ public class MailActivationTests
         var status = await client.GetStatus();
         Assert.That(status.Content!.Activated, Is.False, "nothing may be activated after refusals");
     }
+
+    /// <summary>
+    /// The owner console's "publish my mail DNS" button, on the path it will most often take
+    /// here and on any self-hosted identity: PowerDNS is not configured, so the records cannot
+    /// be written and must come back as instructions instead.
+    ///
+    /// That false-with-records branch is what drives the manual-records UI, and it is the one
+    /// that can regress silently - a caller that only checks the HTTP status would see success
+    /// either way.
+    /// </summary>
+    [Test]
+    public async Task ItShouldReturnMailRecordsAsInstructionsWhenDnsIsNotOursToWrite()
+    {
+        var client = new MailApiClient(_scaffold.OldOwnerApi, TestIdentities.Frodo);
+
+        var response = await client.PublishDnsRecords();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var result = response.Content!;
+        Assert.That(result.DnsRecordsWritten, Is.False, "WebScaffold configures no PowerDNS");
+        Assert.That(result.Records, Is.Not.Empty, "records must still be returned, as instructions");
+
+        // The set is the configured mail infrastructure, derived from EnvOverrides above.
+        var types = result.Records.Select(x => x.Type).Distinct().ToList();
+        Assert.That(types, Does.Contain("MX"));
+        Assert.That(types, Does.Contain("TXT"));
+
+        var mx = result.Records.Where(x => x.Type == "MX").Select(x => x.Value).ToList();
+        Assert.That(mx.Any(v => v.Contains("mx1.dotyou.cloud")), Is.True, "MxNodes[0] must be published");
+        Assert.That(mx.Any(v => v.Contains("mx2.dotyou.cloud")), Is.True, "MxNodes[1] must be published");
+
+        // Every record published here must be Optional-flagged. That flag is the ONLY thing
+        // separating the mail set from the identity's required records, and publishing a
+        // required record from this button would put the certificate/validation gate at risk.
+        Assert.That(result.Records.All(x => x.Optional), Is.True, "only optional (mail) records");
+
+        // www is optional-in-spirit but is NOT Optional-flagged - it is probed separately by
+        // DnsHealthService. If it ever gains the flag it would silently join this write.
+        Assert.That(result.Records.Any(x => x.Name == "www"), Is.False, "www is not a mail record");
+    }
 }
 
 // The production default: Email:TenantMail:Enabled=false. Activation and app
