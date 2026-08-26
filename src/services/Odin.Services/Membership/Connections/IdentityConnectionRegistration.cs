@@ -50,11 +50,6 @@ namespace Odin.Services.Membership.Connections
             return this._status == ConnectionStatus.Connected;
         }
 
-        public bool IsConfirmedConnection()
-        {
-            return PeerKeyStore?.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out _) ?? false;
-        }
-
         /// <summary>
         /// True when the owner has completed the connection review.  This is the owner's own recorded
         /// act - it is never sent to the peer and never derived from grants.

@@ -408,8 +408,10 @@ namespace Odin.Services.DataSubscription
             }
 
             // find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId,
-                odinContext);
+            // Asked of the connections themselves rather than of a circle's membership: the circle was only
+            // ever a proxy for "connected", and it no longer holds every connection.
+            var connections = await _circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
+            var connectedIdentities = connections.Results.Select(icr => icr.OdinId).ToList();
 
             // NOTE!
             // 

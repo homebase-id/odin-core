@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,15 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
         CircleNetworkService circleNetworkService,
         CircleNetworkStorage circleNetworkStorage)
     {
+        // Frozen: this migration is about the Confirmed Connections circle as it existed at the time, so
+        // it holds its own id rather than following a constant that is on its way out.
+        private static readonly Guid LegacyConfirmedConnectionsCircleId = Guid.Parse("bb2683fa402aff866e771a6495765a15");
+
+        private static bool WasConfirmed(IdentityConnectionRegistration icr)
+        {
+            return icr.PeerKeyStore?.CircleGrants?.ContainsKey(LegacyConfirmedConnectionsCircleId) ?? false;
+        }
+
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
@@ -49,7 +59,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
                     continue;
                 }
 
-                if (!icr.IsConfirmedConnection())
+                if (!WasConfirmed(icr))
                 {
                     continue;
                 }
@@ -72,7 +82,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (icr.IsConfirmedConnection() && !icr.IsReviewed())
+                if (WasConfirmed(icr) && !icr.IsReviewed())
                 {
                     throw new OdinSystemException(
                         $"Validation failed: confirmed connection [{icr.OdinId}] has no ReviewedAt stamp");

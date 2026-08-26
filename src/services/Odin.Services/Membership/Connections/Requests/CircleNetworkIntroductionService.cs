@@ -247,12 +247,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         var isCallerConfirmed = isCallerConnected &&
                                 odinContext.Caller.SecurityLevel == SecurityGroupType.Reviewed;
 
-        // Needed to tell "never confirmed" from "confirmed and then revoked": both leave the caller out of
-        // Confirmed Connections, but only the former is still in Auto-connected.
-        var isCallerAutoConnected = isCallerConnected &&
-                                    (callerCircles?.Any(c => c == SystemCircleConstants.AutoConnectionsCircleId) ?? false);
+        // Connected but not reviewed. Read from the stamp rather than from Auto-connected membership --
+        // the circle was the old way of saying this, and it cannot distinguish "never reviewed" from
+        // "reviewed and then un-reviewed" any better than the stamp does.
+        var isCallerUnreviewed = isCallerConnected && !isCallerConfirmed;
 
-        var allowsIntroductions = CallerMayIntroduce(odinContext, isCallerAutoConnected);
+        var allowsIntroductions = CallerMayIntroduce(odinContext, isCallerUnreviewed);
 
         var connectionState = isCallerConnected
             ? PeerCallerConnectionState.Connected
@@ -265,11 +265,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // Information, not Debug: a preflight that succeeds is the only evidence that the
             // auto-accept path in CallerMayIntroduce fired, and at production log levels a Debug line
             // would make "now permitted" indistinguishable from "never asked". The circle flags say
-            // which branch permitted it -- confirmed carries the grant, auto-connected does not.
+            // which branch permitted it -- a reviewed caller is permitted outright, an unreviewed one only
+            // by this identity's auto-accept setting.
             _logger.LogInformation(
                 "Preflight incoming: permitting introductions from {caller}. isCallerConnected={isCallerConnected} " +
-                "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected}",
-                caller, isCallerConnected, isCallerConfirmed, isCallerAutoConnected);
+                "isCallerConfirmed={isCallerConfirmed} isCallerUnreviewed={isCallerUnreviewed}",
+                caller, isCallerConnected, isCallerConfirmed, isCallerUnreviewed);
         }
         else
         {
@@ -277,19 +278,19 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // distribution is visible in production rather than collapsing into one message.
             //
             // disableAutoAcceptConnectionRequests is this identity's own setting, not the caller's, and
-            // it is the other half of the auto-connected branch in CallerMayIntroduce. Without it,
-            // isCallerAutoConnected=true on a refusal is unexplainable from the log alone: it is only
+            // it is the other half of the unreviewed branch in CallerMayIntroduce. Without it,
+            // isCallerUnreviewed=true on a refusal is unexplainable from the log alone: it is only
             // possible when this flag is true, and reading it here beats inferring it from the reason.
             _logger.LogInformation(
                 "Preflight incoming: not permitting introductions from {caller}. reason={reason} " +
                 "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} isCallerConnected={isCallerConnected} " +
-                "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected} " +
+                "isCallerConfirmed={isCallerConfirmed} isCallerUnreviewed={isCallerUnreviewed} " +
                 "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests} " +
                 "connectionState={connectionState}",
                 caller,
                 DescribeIncomingRefusal(isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed,
-                    isCallerAutoConnected, connectionState),
-                isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed, isCallerAutoConnected,
+                    isCallerUnreviewed, connectionState),
+                isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed, isCallerUnreviewed,
                 _tenantContext.Settings.DisableAutoAcceptConnectionRequests,
                 connectionState);
         }
@@ -301,7 +302,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             AllowsIntroductions = allowsIntroductions,
             IsCallerConnected = isCallerConnected,
             IsCallerConfirmed = isCallerConfirmed,
-            IsCallerAutoConnected = isCallerAutoConnected,
+            IsCallerAutoConnected = isCallerUnreviewed,
             CallerConnectionState = connectionState,
         };
     }
@@ -330,7 +331,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     ///
     /// <para>
     /// This is deliberately a policy check rather than a grant added to
-    /// <see cref="SystemCircleConstants.AutoConnectionsSystemCircleDefinition"/>: the condition is a
+    /// a circle: the condition is a
     /// per-tenant setting, and evaluating it here takes effect immediately for every existing
     /// auto-connection instead of requiring each member's stored circle grant to be re-issued (which
     /// needs the owner's master key). The trade-off is that it does not surface in the circle definition
@@ -338,11 +339,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// <see cref="CircleGrant.PermissionSet"/>.
     /// </para>
     /// </summary>
-    /// <param name="isCallerAutoConnected">
-    /// Whether the caller is a member of the Auto-connected circle. Passed in because callers have
-    /// usually already computed it.
+    /// <param name="isCallerUnreviewed">
+    /// Whether the caller is connected but not reviewed. Passed in because callers have usually already
+    /// computed it.
     /// </param>
-    private bool CallerMayIntroduce(IOdinContext odinContext, bool isCallerAutoConnected)
+    private bool CallerMayIntroduce(IOdinContext odinContext, bool isCallerUnreviewed)
     {
         if (odinContext.Caller.IsConnected && odinContext.Caller.SecurityLevel == SecurityGroupType.Reviewed)
         {
@@ -354,16 +355,16 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return true;
         }
 
-        return isCallerAutoConnected && !_tenantContext.Settings.DisableAutoAcceptConnectionRequests;
+        return isCallerUnreviewed && !_tenantContext.Settings.DisableAutoAcceptConnectionRequests;
     }
 
     /// <summary>
     /// Whether the caller holds a connected context that sits in the Auto-connected circle.
     /// </summary>
-    private static bool IsCallerAutoConnected(IOdinContext odinContext)
+    private static bool IsCallerUnreviewed(IOdinContext odinContext)
     {
         return odinContext.Caller.IsConnected &&
-               (odinContext.Caller.Circles?.Any(c => c == SystemCircleConstants.AutoConnectionsCircleId) ?? false);
+               odinContext.Caller.SecurityLevel != SecurityGroupType.Reviewed;
     }
 
     /// <summary>
@@ -371,7 +372,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// introduction. Mirrors the classification the caller will apply to the same fields.
     /// </summary>
     private static string DescribeIncomingRefusal(bool isConfigured, bool requiresUpgrade, bool isCallerConnected,
-        bool isCallerConfirmed, bool isCallerAutoConnected, PeerCallerConnectionState connectionState)
+        bool isCallerConfirmed, bool isCallerUnreviewed, PeerCallerConnectionState connectionState)
     {
         if (!isConfigured)
         {
@@ -395,7 +396,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         // Only reachable when this identity does NOT auto-accept connection requests -- otherwise
         // CallerMayIntroduce would have let an auto-connected caller through and we would not be here.
-        if (isCallerAutoConnected && !isCallerConfirmed)
+        if (isCallerUnreviewed && !isCallerConfirmed)
         {
             return "auto-connection-not-confirmed";
         }
@@ -507,7 +508,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // shows which side of the auto-connected/confirmed split let the introduction through.
             _logger.LogInformation(
                 "Preflight: {recipient} is ready. isCallerConfirmed={isCallerConfirmed} " +
-                "isCallerAutoConnected={isCallerAutoConnected}",
+                "isCallerUnreviewed={isCallerUnreviewed}",
                 recipient, status.IsCallerConfirmed, status.IsCallerAutoConnected);
             return status;
         }
@@ -516,7 +517,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             "Preflight: {recipient} is not ready. status={status} remedyActor={remedyActor} transient={transient} " +
             "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} allowsIntroductions={allowsIntroductions} " +
             "isCallerConnected={isCallerConnected} isCallerConfirmed={isCallerConfirmed} " +
-            "isCallerAutoConnected={isCallerAutoConnected} connectionState={connectionState} detail={detail}",
+            "isCallerUnreviewed={isCallerUnreviewed} connectionState={connectionState} detail={detail}",
             recipient,
             status.Status,
             status.RemedyActor,
@@ -811,24 +812,24 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         // should report the caller it refused rather than throw a different exception on the way. The
         // call further down still fails hard if there is no caller.
         var caller = odinContext.Caller.OdinId;
-        var isCallerAutoConnected = IsCallerAutoConnected(odinContext);
+        var isCallerUnreviewed = IsCallerUnreviewed(odinContext);
 
         // Same predicate the preflight endpoint reports on, so a Ready preflight is not followed by a
         // rejected send. Note this must stay a check rather than the plain AssertHasPermission it replaced:
-        // an auto-connected caller on an auto-accepting identity is permitted without the permission ever
+        // an unreviewed caller on an auto-accepting identity is permitted without the permission ever
         // being in their stored grant.
-        if (!CallerMayIntroduce(odinContext, isCallerAutoConnected))
+        if (!CallerMayIntroduce(odinContext, isCallerUnreviewed))
         {
             // The refusal that the preflight endpoint predicts, logged where it actually happens. Without
             // it this side is silent: the sender gets a security exception and we record nothing, so a
             // rejected introduction was only visible from the other identity's logs.
             _logger.LogInformation(
                 "Rejecting introductions from {caller}. isCallerConnected={isCallerConnected} " +
-                "isCallerAutoConnected={isCallerAutoConnected} " +
+                "isCallerUnreviewed={isCallerUnreviewed} " +
                 "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests}",
                 caller,
                 odinContext.Caller.IsConnected,
-                isCallerAutoConnected,
+                isCallerUnreviewed,
                 _tenantContext.Settings.DisableAutoAcceptConnectionRequests);
 
             throw new OdinSecurityException("Does not have permission");

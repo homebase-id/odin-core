@@ -1,3 +1,4 @@
+using System;
 ﻿using System.Data;
 using System.Linq;
 using System.Threading;
@@ -26,6 +27,15 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
         IdentityDatabase db,
         IDriveManager driveManager)
     {
+        // Frozen: this migration is about the Confirmed Connections circle as it existed at the time, so
+        // it holds its own id rather than following a constant that is on its way out.
+        private static readonly Guid LegacyConfirmedConnectionsCircleId = Guid.Parse("bb2683fa402aff866e771a6495765a15");
+
+        private static bool WasConfirmed(IdentityConnectionRegistration icr)
+        {
+            return icr.PeerKeyStore?.CircleGrants?.ContainsKey(LegacyConfirmedConnectionsCircleId) ?? false;
+        }
+
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             logger.LogDebug("Preparing Shamira release 1 on identity: [{identity}]", odinContext.Tenant);
@@ -87,7 +97,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             await using var tx = await db.BeginStackedTransactionAsync(IsolationLevel.Unspecified, cancellationToken);
 
             var circleId = SystemCircleConstants.ConfirmedConnectionsCircleId;
-            foreach (var identity in allIdentities.Results.Where(ident => ident.IsConfirmedConnection()))
+            foreach (var identity in allIdentities.Results.Where(ident => WasConfirmed(ident)))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 

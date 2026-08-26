@@ -528,11 +528,6 @@ namespace Odin.Services.Membership.Connections
 
             await this.SaveIcrAsync(newConnection, odinContext);
 
-            if (stampedOnConnect)
-            {
-                await this.AddToReviewedCircleAsync(odinId, odinContext);
-            }
-
             await mediator.Publish(new ConnectionFinalizedNotification()
             {
                 OdinId = odinId,
@@ -594,8 +589,8 @@ namespace Odin.Services.Membership.Connections
 
                 if (!icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
                 {
-                    var circleGrant =
-                        await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, storageKeySource, odinContext);
+                    var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, storageKeySource,
+                        odinContext);
                     icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
                 }
 
@@ -769,7 +764,7 @@ namespace Odin.Services.Membership.Connections
                     {
                         // refetch the record since the above method just writes to db
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                        
+
                         if (icr.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
                         {
                             logger.LogError("After Refetch ICR for {identity} STILL Requires MasterKey Encryption Upgrade; " +
@@ -785,9 +780,8 @@ namespace Odin.Services.Membership.Connections
 
                     // Re-create the circle grant so
                     var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
-                    icr.PeerKeyStore.CircleGrants[circleKey] =
-                        await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDef,
-                            new MasterKeyStorageKeySource(masterKey), odinContext);
+                    icr.PeerKeyStore.CircleGrants[circleKey] = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDef,
+                        new MasterKeyStorageKeySource(masterKey), odinContext);
                     keyStoreKey.Wipe();
                 }
                 else
@@ -943,8 +937,8 @@ namespace Odin.Services.Membership.Connections
                         var driveId = expectedDriveGrant.PermissionedDrive.Drive.Alias;
                         var driveInfo = await driveManager.GetDriveAsync(driveId);
 
-                        var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg =>
-                            dg.PermissionedDrive == expectedDriveGrant.PermissionedDrive);
+                        var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg => dg.PermissionedDrive ==
+                            expectedDriveGrant.PermissionedDrive);
 
                         //you must have drive-read permission to get the Key Store Key
                         // you can have write permission w/o having the storage key
@@ -1565,8 +1559,8 @@ namespace Odin.Services.Membership.Connections
                 // Sealed keys cover the drives that were in the definition at deposit time;
                 // drives added since mint keyless and are healed by the owner's next touch.
                 var storageKeySource = new DepositedGrantStorageKeySource(deposit, store.WriteOnlyKeyPair, keyStoreKey);
-                var circleGrant =
-                    await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, storageKeySource, odinContext);
+                var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, storageKeySource,
+                    odinContext);
 
                 store.CircleGrants.Add(deposit.CircleId, circleGrant);
                 store.DepositedGrants.Remove(deposit);
@@ -2002,8 +1996,9 @@ namespace Odin.Services.Membership.Connections
         /// since it also needs the key store key. Returns the number of identities upgraded, skipped, and
         /// keypair-provisioned so the caller can log a summary in its own trace.
         /// </summary>
-        public async Task<(int upgraded, int skipped, int keyPairsProvisioned)> UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(
-            IOdinContext odinContext, CancellationToken cancellationToken)
+        public async Task<(int upgraded, int skipped, int keyPairsProvisioned)>
+            UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(
+                IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
             var masterKey = odinContext.Caller.GetMasterKey();

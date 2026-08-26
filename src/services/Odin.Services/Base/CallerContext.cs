@@ -157,8 +157,6 @@ namespace Odin.Services.Base
             return new RedactedCallerContext()
             {
                 OdinId = this.OdinId,
-                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == SystemCircleConstants.ConfirmedConnectionsCircleId),
-                SecurityLevel = this.SecurityLevel,
             };
         }
     }
@@ -167,6 +165,5 @@ namespace Odin.Services.Base
     {
         public OdinId? OdinId { get; init; }
         public SecurityGroupType SecurityLevel { get; init; }
-        public bool IsGrantedConnectedIdentitiesSystemCircle { get; set; }
     }
 }

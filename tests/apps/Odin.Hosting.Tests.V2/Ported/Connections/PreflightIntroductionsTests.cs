@@ -273,14 +273,65 @@ public class PreflightIntroductionsTests : V2Fixture
     /// <see cref="SecurityGroupType.Reviewed"/>, which is what CallerMayIntroduce reads first.
     /// </summary>
     /// <remarks>
+    /// Only on an identity that does not auto-accept. Auto-accept means "I will connect with anyone", so
+    /// there is nothing left to withhold from an unreviewed contact and CallerMayIntroduce permits them
+    /// regardless -- see <see cref="Preflight_WhenAutoAcceptingIdentityUnreviewsCaller_StaysReady"/>.
+    /// <para>
     /// Two steps today, one step later. The Confirmed Connections circle still carries an actual
     /// <see cref="PermissionKeys.AllowIntroductions"/> key, and CallerMayIntroduce still honours a held
     /// key, so un-reviewing alone leaves that key doing the permitting. When that circle retires -- it is
     /// the only thing granting the key, and an ambient circle cannot inherit it -- the revoke goes away
     /// and the un-review is the whole of it.
+    /// </para>
     /// </remarks>
     [Test]
-    public async Task Preflight_WhenRecipientUnreviewsCaller_ReturnsIntroductionsNotPermitted()
+    public async Task Preflight_WhenRecipientUnreviewsCaller_ReturnsRecipientConnectionNotConfirmed()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var merry = await LoginAsOwner(Identities.Merry);
+
+        await ConnectAsync(frodo, sam);
+        await ConnectAsync(frodo, merry);
+
+        await DisableAutoAcceptAsync(sam);
+
+        var revoke = await sam.Connections.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
+        Assert.That(revoke.IsSuccessStatusCode, Is.True, $"revoke failed: {revoke.StatusCode}");
+
+        var unreview = await sam.Connections.UnreviewConnection(frodo.Identity);
+        Assert.That(unreview.IsSuccessStatusCode, Is.True, $"unreview failed: {unreview.StatusCode}");
+
+        var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
+        {
+            Message = "preflight",
+            Recipients = [sam.Identity, merry.Identity]
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // Un-reviewed reads as not-yet-reviewed: once the stamp is the only record of the decision, there
+        // is nothing left to tell "never reviewed" from "reviewed and then un-reviewed", and the refusal
+        // reports the state rather than its history.
+        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.RecipientConnectionNotConfirmed);
+        AssertStatus(response.Content!, merry.Identity, IntroductionPreflightStatus.Ready);
+
+        var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
+        Assert.That(samStatus.IsConfigured, Is.True);
+        Assert.That(samStatus.AllowsIntroductions, Is.False);
+
+        // Still connected -- this is a withdrawn decision, not a lost connection.
+        Assert.That(samStatus.IsCallerConnected, Is.True);
+        Assert.That(samStatus.CallerConnectionState, Is.EqualTo(PeerCallerConnectionState.Connected));
+    }
+
+    /// <summary>
+    /// Auto-accept means "I will connect with anyone", so an unreviewed contact is permitted anyway and
+    /// un-reviewing withdraws nothing. Membership of a circle used to draw this line; the review stamp
+    /// draws it now, and the auto-accept setting overrides it exactly as it always did.
+    /// </summary>
+    [Test]
+    public async Task Preflight_WhenAutoAcceptingIdentityUnreviewsCaller_StaysReady()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -302,16 +353,10 @@ public class PreflightIntroductionsTests : V2Fixture
         });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.IntroductionsNotPermitted);
-        AssertStatus(response.Content!, merry.Identity, IntroductionPreflightStatus.Ready);
+        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.Ready);
 
         var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
-        Assert.That(samStatus.IsConfigured, Is.True);
-        Assert.That(samStatus.AllowsIntroductions, Is.False);
-
-        // Still connected -- this is a withdrawn decision, not a lost connection.
-        Assert.That(samStatus.IsCallerConnected, Is.True);
-        Assert.That(samStatus.CallerConnectionState, Is.EqualTo(PeerCallerConnectionState.Connected));
+        Assert.That(samStatus.AllowsIntroductions, Is.True, "auto-accept has nothing left to withhold");
     }
 
     [Test]

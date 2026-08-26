@@ -124,10 +124,10 @@ public static class SystemAppConstants
             }
         ],
 
-        AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
+        AuthorizedCircles = new List<Guid>()
         {
-            SystemCircleConstants.ConfirmedConnectionsCircleId,
-            SystemCircleConstants.AutoConnectionsCircleId
+            // The app's own grant-on-connect circle, which carries the same drives the system circles did.
+            ChatConnectCircleId
         },
         CircleMemberPermissionGrant = new PermissionSetGrantRequest()
         {
@@ -368,10 +368,9 @@ public static class SystemAppConstants
             }
         ],
 
-        AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
+        AuthorizedCircles = new List<Guid>()
         {
-            SystemCircleConstants.ConfirmedConnectionsCircleId,
-            SystemCircleConstants.AutoConnectionsCircleId
+            MailConnectCircleId
         },
         CircleMemberPermissionGrant = new PermissionSetGrantRequest()
         {
