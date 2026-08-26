@@ -46,6 +46,25 @@ public class V2MailStatusTests : V2Fixture
     /// simply off. Reporting attention there would put a warning on every one of them, which is
     /// the fastest way to teach people to ignore the warning that matters.
     /// </summary>
+    /// <summary>
+    /// A host with no email publishes no mail hosts, so there are no client settings to show.
+    /// Null rather than an object with blank fields: the setup screen must render nothing, not
+    /// a form telling someone to connect to "".
+    /// </summary>
+    [Test]
+    public async Task StatusOmitsClientSettingsWhenTheServerHasNoEmail()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var someDrive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(someDrive, "Some Drive", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(owner, someDrive, DrivePermission.ReadWrite);
+
+        var response = await new V2MailClient(app.Identity, app.Factory).GetStatusAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content!.ClientSettings, Is.Null);
+    }
+
     [Test]
     public async Task HealthReportsNothingToSeeWhenTheServerHasNoEmail()
     {
