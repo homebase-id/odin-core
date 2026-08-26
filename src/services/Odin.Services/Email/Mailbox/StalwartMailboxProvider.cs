@@ -170,42 +170,6 @@ public class StalwartMailboxProvider(
         logger.LogInformation("Stalwart DKIM key installed for {domain} selector {selector} ({kTag})", domain, key.Selector, key.KTag);
     }
 
-    /// <summary>
-    /// Removes DKIM signatures Stalwart generated for itself, leaving only the ones we manage.
-    ///
-    /// Stalwart mints its own keypair (selectors like "v1-rsa-20260826") when a domain is
-    /// created. We never publish DNS for those - our records are the s1/s2 pair from
-    /// <see cref="DkimKeyGenerator"/> - so every outbound message carried FOUR signatures, two
-    /// of which no verifier could resolve. Gmail reported them as `dkim=permerror (no key for
-    /// signature)`. Mail still delivers on the strength of a passing signature, but a broken
-    /// one is a real deliverability drag and reads as misconfiguration to anyone inspecting
-    /// headers.
-    ///
-    /// Deliberately keyed on "not one of ours" rather than a name pattern: a future Stalwart
-    /// version that names its auto-keys differently would slip straight through a
-    /// "starts-with-v1-" check, and we would not notice until a header dump years later.
-    ///
-    /// Scoped to this domain. Other domains on the same host - including the host's own - are
-    /// not ours to tidy.
-    /// </summary>
-    public async Task RemoveForeignDkimSignaturesAsync(string domain, IReadOnlyCollection<string> ourSelectors)
-    {
-        var domainId = await EnsureDomainAsync(domain);
-
-        var foreign = (await GetAsync("x:DkimSignature"))
-            .Where(x => x["domainId"]?.GetValue<string>() == domainId)
-            .Where(x => !ourSelectors.Contains(x["selector"]?.GetValue<string>() ?? "", StringComparer.OrdinalIgnoreCase))
-            .ToList();
-
-        foreach (var signature in foreign)
-        {
-            await SetAsync("x:DkimSignature", destroyId: signature["id"]!.GetValue<string>());
-            logger.LogInformation(
-                "Stalwart removed self-generated DKIM signature {selector} for {domain} - no DNS record exists for it",
-                signature["selector"]?.GetValue<string>(), domain);
-        }
-    }
-
     public async Task SetAliasesAsync(string domain, IReadOnlyCollection<string> localParts)
     {
         var domainId = await EnsureDomainAsync(domain);
@@ -423,11 +387,13 @@ public class StalwartMailboxProvider(
     /// mail nothing can verify: Gmail reported `dkim=permerror (no key for signature)` on real
     /// tenant mail.
     ///
-    /// Set here rather than cleaned up afterwards because rotation makes cleanup a losing
-    /// game - delete the keys today and Automatic management mints replacements in ninety
-    /// days, on a schedule nobody is watching. The cleanup in
-    /// <see cref="RemoveForeignDkimSignaturesAsync"/> remains for domains that already have
-    /// them; this stops new ones acquiring them at all.
+    /// Prevented here rather than cleaned up afterwards, because rotation makes cleanup a
+    /// losing game: delete the keys today and Automatic management mints replacements in
+    /// ninety days, on a schedule nobody is watching.
+    ///
+    /// Only applied at CREATE. A domain that already exists keeps whatever it was created
+    /// with - relevant only for domains predating this, which is a one-off fix rather than
+    /// something worth carrying reconciliation code for.
     /// </summary>
     private async Task<string> EnsureDomainAsync(string domain)
     {

@@ -99,13 +99,6 @@ public class MailActivationService(
             await mailboxProvider.SetDkimKeyAsync(domain, key);
         }
 
-        // Stalwart mints its own DKIM keypair when a domain is created, and we publish DNS only
-        // for ours. Left alone, every message carries extra signatures no verifier can resolve -
-        // Gmail reports them as `dkim=permerror (no key for signature)`. Removed AFTER ours are
-        // installed, so the domain is never left with nothing to sign with.
-        await mailboxProvider.RemoveForeignDkimSignaturesAsync(
-            domain, dkimKeys.Select(k => k.Selector).ToList());
-
         // 4. Outbound relay: register the domain and publish the CNAMEs it needs, in a job.
         //
         // Deliberately fire-and-forget. Every step is a call to someone else's API followed by
