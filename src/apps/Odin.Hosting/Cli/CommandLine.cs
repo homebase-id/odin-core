@@ -302,9 +302,26 @@ public class CommandLine
         // examples:
         //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json --host-is-stopped
         //
-        if (args.Length >= 3 && args[0] == "identity-export")
+        if (args.Length >= 1 && args[0] == "identity-export")
         {
-            if (!args.Contains("--host-is-stopped"))
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            var unknown = flags.Where(f => f != "--host-is-stopped").ToList();
+            if (unknown.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", unknown));
+                return (true, 1);
+            }
+
+            if (operands.Count != 2)
+            {
+                _logger.LogError(
+                    "Usage: identity-export <domain> <file.json> --host-is-stopped");
+                return (true, 1);
+            }
+
+            if (!flags.Contains("--host-is-stopped"))
             {
                 _logger.LogError(
                     "Refusing to export. Stop the host first, then re-run with --host-is-stopped. "
@@ -313,7 +330,7 @@ public class CommandLine
                 return (true, 1);
             }
 
-            IdentityJsonTransfer.ExportAsync(_serviceProvider, args[1], args[2]).BlockingWait();
+            IdentityJsonTransfer.ExportAsync(_serviceProvider, operands[0], operands[1]).BlockingWait();
             return (true, 0);
         }
 
@@ -326,10 +343,28 @@ public class CommandLine
         // examples:
         //   dotnet run -- identity-import /path/to/frodo.json commit
         //
-        if (args.Length >= 2 && args[0] == "identity-import")
+        if (args.Length >= 1 && args[0] == "identity-import")
         {
-            var commit = args.Length >= 3 && args[2] == "commit";
-            IdentityJsonTransfer.ImportAsync(_serviceProvider, args[1], commit).BlockingWait();
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            // "commit" is a positional keyword, not a flag: anything else after the path
+            // is a typo, and treating a typo as a dry run would be the wrong way to fail.
+            if (operands.Count < 1 || operands.Count > 2 ||
+                (operands.Count == 2 && operands[1] != "commit"))
+            {
+                _logger.LogError("Usage: identity-import <file.json> [commit]");
+                return (true, 1);
+            }
+
+            var commit = operands.Count == 2;
+            IdentityJsonTransfer.ImportAsync(_serviceProvider, operands[0], commit).BlockingWait();
             return (true, 0);
         }
 
