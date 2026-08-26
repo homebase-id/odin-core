@@ -113,17 +113,25 @@ public class Smtp2GoRelayProvider(
         var records = new List<DnsConfig>();
         var problems = new List<string>();
 
+        // *_expected, not *_value: /domain/view leaves *_value empty until verified, so reading
+        // it published a CNAME pointing at the root. Worse, the health check then compared an
+        // empty expectation against an empty published value, matched, and reported the record
+        // healthy - so the failure was invisible. Hence the empty guard below.
+        var dkimTarget = Coalesce(d.DkimExpected, d.DkimValue);
+        var rpathTarget = Coalesce(d.RpathExpected, d.RpathValue);
+
         if (!string.IsNullOrEmpty(d.DkimSelector))
         {
             var name = $"{d.DkimSelector}.{DkimSuffix}";
+            AssertTarget(domain, name, dkimTarget);
             AssertNotOurDkimSelector(domain, d.DkimSelector);
             records.Add(new DnsConfig
             {
                 Type = "CNAME",
                 Name = name,
                 Domain = $"{name}.{domain.DomainName}",
-                Value = d.DkimValue,
-                AltValue = d.DkimValue,
+                Value = dkimTarget,
+                AltValue = dkimTarget,
                 Description = "Relay DKIM CNAME",
                 Optional = true,
             });
@@ -135,13 +143,14 @@ public class Smtp2GoRelayProvider(
 
         if (!string.IsNullOrEmpty(d.RpathSelector))
         {
+            AssertTarget(domain, d.RpathSelector, rpathTarget);
             records.Add(new DnsConfig
             {
                 Type = "CNAME",
                 Name = d.RpathSelector,
                 Domain = $"{d.RpathSelector}.{domain.DomainName}",
-                Value = d.RpathValue,
-                AltValue = d.RpathValue,
+                Value = rpathTarget,
+                AltValue = rpathTarget,
                 Description = "Relay Return-Path CNAME (SPF)",
                 Optional = true,
             });
@@ -161,8 +170,8 @@ public class Smtp2GoRelayProvider(
                 Type = "CNAME",
                 Name = tracker.FullDomain.Replace($".{domain.DomainName}", ""),
                 Domain = tracker.FullDomain,
-                Value = tracker.CnameValue,
-                AltValue = tracker.CnameValue,
+                Value = Coalesce(tracker.CnameExpected, tracker.CnameValue),
+                AltValue = Coalesce(tracker.CnameExpected, tracker.CnameValue),
                 Description = "Relay tracking CNAME",
                 Optional = true,
             });
@@ -183,6 +192,23 @@ public class Smtp2GoRelayProvider(
             Verified = verified,
             Problems = problems,
         };
+    }
+
+    private static string Coalesce(string preferred, string fallback)
+        => string.IsNullOrWhiteSpace(preferred) ? fallback : preferred;
+
+    /// <summary>
+    /// A record with no target is worse than no record: it publishes without complaint, points
+    /// at the DNS root, and - because the health check compares expected against published -
+    /// reports itself healthy. Refuse to build one.
+    /// </summary>
+    private static void AssertTarget(AsciiDomainName domain, string name, string target)
+    {
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            throw new OdinSystemException(
+                $"Relay returned no target for '{name}.{domain}'. Refusing to publish an empty record.");
+        }
     }
 
     /// <summary>
