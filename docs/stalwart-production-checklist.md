@@ -96,6 +96,15 @@ It generates a self-signed `CN=rcgen self signed cert` (valid 1975→4096) and l
 
 - Every mail client needs a manual security exception — untenable for real users, and it
   trains people to click through certificate warnings on a mail app.
+- **It loses Sent copies, silently.** Thunderbird saves a copy by IMAP `APPEND`, separate
+  from SMTP submission. With an untrusted certificate it refuses the IMAP connection and
+  says nothing: the message sends fine, and simply never appears in Sent. The user has no
+  record of mail they sent, and nothing anywhere reports an error. This cost us an evening
+  of suspecting the relay, which has nothing to do with Sent copies.
+  The give-away in the logs is an `auth.success` on `submissions` with **no matching
+  `imaps` authentication** around it.
+- It also presents as a **hang on send** if the client has no exception for the submission
+  port — no error, just a progress bar until TCP times out.
 - Fine only while MTA-STS is `mode: testing`. **Before switching to `enforce`, this must be
   fixed**, or enforcing senders stop delivering.
 
