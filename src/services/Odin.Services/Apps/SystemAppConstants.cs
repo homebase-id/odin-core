@@ -27,9 +27,9 @@ public static class SystemAppConstants
     /// identity: the v13 -> v14 migration rebinds the wizard's circles at these very ids rather than
     /// creating a second set beside them.
     /// <para>
-    /// Created if missing and never overwritten -- deliberately not declared as
-    /// <see cref="AppRegistrationRequest.DefaultCircles"/>, which an app re-registration reapplies and
-    /// would use to reset a circle the owner has since renamed or regranted.  These are the owner's
+    /// Created if missing and never overwritten.  When apps can declare their default circles at
+    /// registration, these should stay out of that list: a re-registration reapplies a declaration, and
+    /// would use it to reset a circle the owner has since renamed or regranted.  These are the owner's
     /// circles with the owner's people in them; the app owns them only in the sense of managing them.
     /// </para>
     /// </remarks>

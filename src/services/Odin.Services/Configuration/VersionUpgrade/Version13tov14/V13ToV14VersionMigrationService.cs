@@ -22,9 +22,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
     ///
     /// <para>
     /// Nothing else can move them: <see cref="CircleDefinitionService.UpdateAsync"/> refuses to reassign
-    /// <c>AppId</c> at all, and <see cref="CircleDefinitionService.CreateOrUpdateAppCircleAsync"/> refuses
-    /// to take over a circle the app does not already own. Hence a migration, using
-    /// <see cref="CircleDefinitionService.SetOwningAppAsync"/>.
+    /// <c>AppId</c> at all, deliberately, so that nobody who can PUT a definition can hand a circle to an
+    /// app. Hence a migration, using <see cref="CircleDefinitionService.SetOwningAppAsync"/> -- internal,
+    /// and ownership only.
     /// </para>
     ///
     /// <para>
@@ -37,8 +37,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
     /// Ownership only. Membership, grants, name, description and <see cref="CircleGrantOn"/> are left
     /// untouched -- these are the owner's circles with the owner's people in them, and the migration is
     /// about which app manages them from here, not about what they grant. It runs whether or not chat is
-    /// installed: an identity that installs chat later would otherwise hit
-    /// <see cref="OdinClientErrorCode.CircleNotOwnedByApp"/> the first time the app tried to manage one.
+    /// installed, so that an identity installing chat later already has its circles bound: once app
+    /// declarations arrive, an app may only redefine circles it already owns, and an unstamped circle
+    /// would be out of chat's reach at exactly the moment it first tried to manage one.
     /// </para>
     /// </summary>
     public class V13ToV14VersionMigrationService(
