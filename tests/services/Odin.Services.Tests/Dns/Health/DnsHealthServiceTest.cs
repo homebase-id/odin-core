@@ -14,6 +14,7 @@ using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns.Health;
 using Odin.Services.Email.Dkim;
+using Odin.Services.Email.Relay;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Tests.Dns.Health;
@@ -64,7 +65,10 @@ public class DnsHealthServiceTest
             _authoritativeDnsLookup.Object,
             _dnssecLookup.Object,
             _dnsLookupService.Object,
-            _dkimStore.Object);
+            _dkimStore.Object,
+            // No relay: these tests are about the config-derived records. A relay would add
+            // per-tenant rows fetched over the network, which is a separate concern.
+            new NullMailRelayProvider());
     }
 
     //

@@ -221,6 +221,58 @@ public class OdinConfigurationTest
     }
 
 
+    // --- RelaySection (Email:Relay — outbound relay for tenant mail) ---
+
+    [Test]
+    public void RelaySection_DefaultsToNoRelay()
+    {
+        // The shipped default. Every host that has not opted in must behave exactly as before:
+        // no onboarding, no extra DNS, no outbound API calls.
+        var section = new OdinConfiguration.RelaySection(BuildConfig([]));
+
+        Assert.That(section.Provider, Is.EqualTo(OdinConfiguration.RelayProvider.None));
+        Assert.That(section.IsConfigured, Is.False);
+        Assert.That(section.ApiKey, Is.Empty);
+    }
+
+    [Test]
+    public void RelaySection_UnknownProvider_Throws()
+    {
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.RelaySection(BuildConfig(
+            new Dictionary<string, string?> { ["Email:Relay:Provider"] = "Mailchimp" })));
+    }
+
+    [Test]
+    public void RelaySection_Smtp2Go_RequiresApiKeyAndSmtpSettings()
+    {
+        // Fail at boot rather than at the first activation. A half-configured host would
+        // otherwise hand a tenant a mailbox that cannot send, which is worse than not starting.
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.RelaySection(BuildConfig(
+            new Dictionary<string, string?> { ["Email:Relay:Provider"] = "Smtp2Go" })));
+    }
+
+    [Test]
+    public void RelaySection_Smtp2Go_ParsesAndDefaults()
+    {
+        var section = new OdinConfiguration.RelaySection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:Relay:Provider"] = "smtp2go", // case-insensitive on purpose
+            ["Email:Relay:ApiKey"] = "api-xyz",
+            ["Email:Relay:SmtpHost"] = "mail.smtp2go.com",
+            ["Email:Relay:SmtpUsername"] = "homebase",
+            ["Email:Relay:SmtpPassword"] = "secret",
+        }));
+
+        Assert.That(section.Provider, Is.EqualTo(OdinConfiguration.RelayProvider.Smtp2Go));
+        Assert.That(section.IsConfigured, Is.True);
+        Assert.That(section.ApiBaseUrl, Is.EqualTo("https://api.smtp2go.com/v3"));
+        Assert.That(section.SmtpPort, Is.EqualTo(587));
+
+        // Tracking rewrites recipients' links and adds a third per-tenant CNAME; it must never
+        // switch itself on for an end-to-end encrypted mail product.
+        Assert.That(section.EnableTracking, Is.False);
+    }
+
     private class OdinConfigurationConsumer
     {
         private readonly OdinConfiguration _config;

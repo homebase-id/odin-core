@@ -10,6 +10,7 @@ using Odin.Core.Dns;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Email.Dkim;
+using Odin.Services.Email.Relay;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Dns.Health;
@@ -127,7 +128,8 @@ public class DnsHealthService(
     IAuthoritativeDnsLookup authoritativeDnsLookup,
     IDnssecLookup dnssecLookup,
     IDnsLookupService dnsLookupService,
-    IDkimStore dkimStore)
+    IDkimStore dkimStore,
+    IMailRelayProvider relayProvider)
 {
     private static readonly DnsQueryOptions AuthoritativeQueryOptions = new()
     {
@@ -139,9 +141,15 @@ public class DnsHealthService(
 
     public async Task<DnsHealthResult> GetDnsHealthAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var dkimRecords = await GetDkimRecordsAsync(domain);
+        // Per-tenant records - values that exist only after activation, so they cannot come
+        // from the config-only GetDnsConfiguration. Both sets ride the same extraRecords seam,
+        // which means the status lookups, the Optional/mail split and every client's notion of
+        // "broken" pick them up without knowing they are different in origin.
+        var extraRecords = await GetDkimRecordsAsync(domain);
+        extraRecords.AddRange(await GetRelayRecordsAsync(domain));
+
         var (recordsAreValid, records) = await dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(
-            domain, dkimRecords, cancellationToken);
+            domain, extraRecords, cancellationToken);
         var optionalRecords = await CheckOptionalWwwAsync(domain, cancellationToken);
         var dnssec = await GetDnssecHealthAsync(domain, cancellationToken);
 
@@ -173,6 +181,33 @@ public class DnsHealthService(
     /// A read failure is logged and swallowed: DKIM is one block of a health panel, and
     /// a store hiccup should not take the whole panel down with it.
     /// </summary>
+    /// <summary>
+    /// The outbound relay's per-tenant CNAMEs, when a relay is configured. Their names are
+    /// allocated by the relay, so they are read from it rather than derived - and an
+    /// unreachable relay omits them rather than reporting them missing, because "we could not
+    /// ask" and "they are not published" are different answers and only one is the owner's
+    /// problem.
+    /// </summary>
+    private async Task<List<DnsConfig>> GetRelayRecordsAsync(AsciiDomainName domain)
+    {
+        if (!configuration.Email.TenantMail.Enabled || !relayProvider.IsConfigured)
+        {
+            return [];
+        }
+
+        try
+        {
+            var state = await relayProvider.GetDomainAsync(domain);
+            return state?.Records ?? [];
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not read relay records for {domain}; omitted from the health check",
+                domain.DomainName);
+            return [];
+        }
+    }
+
     private async Task<List<DnsConfig>> GetDkimRecordsAsync(AsciiDomainName domain)
     {
         if (!configuration.Email.TenantMail.Enabled || !dkimStore.IsConfigured)
