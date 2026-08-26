@@ -530,7 +530,7 @@ namespace Odin.Services.Membership.Connections
 
             if (stampedOnConnect)
             {
-                await this.EnrollReviewTierCirclesAsync(odinId, odinContext);
+                await this.AddToReviewedCircleAsync(odinId, odinContext);
             }
 
             await mediator.Publish(new ConnectionFinalizedNotification()
@@ -631,8 +631,12 @@ namespace Odin.Services.Membership.Connections
 
             if (wasUnreviewed)
             {
-                // This grant is what reviewed them, so it owes them the rest of what reviewing grants.
-                await this.EnrollReviewTierCirclesAsync(odinId, odinContext, skipCircleId: circleId);
+                // This grant is what reviewed them, so it owes them membership of the reviewed circle --
+                // unless that is the very circle being granted, which would recurse.
+                if (circleId != SystemCircleConstants.ReviewedConnectionsCircleId)
+                {
+                    await this.AddToReviewedCircleAsync(odinId, odinContext);
+                }
 
                 // The stamp just promoted their caller tier. Peer contexts are cached for an hour keyed
                 // on the presented token, and only the finalized/blocked/deleted notifications reset that
@@ -1164,7 +1168,7 @@ namespace Odin.Services.Membership.Connections
             // The Review-tier circles are the review's own doing: the owner does not pick them, and they
             // are not in the result, because they are a consequence of reviewing rather than a decision
             // made during it.
-            await this.EnrollReviewTierCirclesAsync(odinId, odinContext);
+            await this.AddToReviewedCircleAsync(odinId, odinContext);
 
             foreach (var circleId in requestedCircles)
             {
@@ -1250,8 +1254,11 @@ namespace Odin.Services.Membership.Connections
 
             foreach (var circleId in held)
             {
+                // The reviewed circle is membership the review itself gave, so it can never be the reason
+                // an un-review is refused -- it is exactly what the un-review is about to take back.
                 if (circleId == SystemCircleConstants.AutoConnectionsCircleId.Value ||
-                    circleId == SystemCircleConstants.ConfirmedConnectionsCircleId.Value)
+                    circleId == SystemCircleConstants.ConfirmedConnectionsCircleId.Value ||
+                    circleId == SystemCircleConstants.ReviewedConnectionsCircleId.Value)
                 {
                     continue;
                 }
@@ -1416,38 +1423,21 @@ namespace Odin.Services.Membership.Connections
         /// <see cref="IdentityConnectionRegistration.MarkReviewed"/> instead and save once.
         /// </summary>
         /// <summary>
-        /// Enrols the contact in the Review-tier circles.  Every path that stamps
-        /// <see cref="IdentityConnectionRegistration.ReviewedAt"/> calls this, so being reviewed and
-        /// holding what reviewing grants are the same event rather than two that usually coincide.
+        /// Adds the contact to <see cref="SystemCircleConstants.ReviewedConnectionsCircleId"/>.  Every path
+        /// that stamps <see cref="IdentityConnectionRegistration.ReviewedAt"/> calls this, so being reviewed
+        /// and being in the circle are the same event rather than two that usually coincide.
         /// </summary>
-        /// <param name="skipCircleId">
-        /// The circle whose own grant triggered the stamp, if any.  The caller is adding them to it
-        /// already, and re-entering <see cref="GrantCircleAsync"/> for it would recurse.
-        /// </param>
-        private async Task EnrollReviewTierCirclesAsync(OdinId odinId, IOdinContext odinContext, GuidId skipCircleId = null)
+        private async Task AddToReviewedCircleAsync(OdinId odinId, IOdinContext odinContext)
         {
-            var reviewTier = (await circleMembershipService.GetCirclesByGrantOnAsync(CircleGrantOn.Review))
-                .Where(c => !c.Disabled)
-                .Where(c => skipCircleId == null || c.Id != skipCircleId.Value)
-                .ToList();
+            // Read fresh: callers reach here after saving, and their copy predates the save.
+            var current = await circleNetworkStorage.GetAsync(odinId);
 
-            if (reviewTier.Count == 0)
+            if (current?.PeerKeyStore?.CircleGrants?.ContainsKey(SystemCircleConstants.ReviewedConnectionsCircleId.Value) ?? false)
             {
                 return;
             }
 
-            // Read fresh: callers reach here after saving, and their copy predates the save.
-            var current = await circleNetworkStorage.GetAsync(odinId);
-
-            foreach (var circle in reviewTier)
-            {
-                if (current?.PeerKeyStore?.CircleGrants?.ContainsKey(circle.Id) ?? false)
-                {
-                    continue;
-                }
-
-                await this.GrantCircleAsync(circle.Id, odinId, odinContext);
-            }
+            await this.GrantCircleAsync(SystemCircleConstants.ReviewedConnectionsCircleId, odinId, odinContext);
         }
 
         private async Task StampReviewedAsync(OdinId odinId)
@@ -1471,15 +1461,12 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         private async Task ClearReviewAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
-            // Whatever membership the review granted, the un-review takes back. Without this the stamp clears
-            // while the grants it caused stayed live, and "un-reviewed" would be true of the ladder and
+            // Un-reviewing takes back the membership that reviewing gave. Without this the stamp clears
+            // while the grants it carried stay live, and "un-reviewed" would be true of the ladder and
             // false of the keys the contact actually holds.
-            foreach (var circle in await circleMembershipService.GetCirclesByGrantOnAsync(CircleGrantOn.Review))
+            if (icr.PeerKeyStore?.CircleGrants?.ContainsKey(SystemCircleConstants.ReviewedConnectionsCircleId.Value) ?? false)
             {
-                if (icr.PeerKeyStore?.CircleGrants?.ContainsKey(circle.Id) ?? false)
-                {
-                    await this.RevokeCircleAccessAsync(circle.Id, icr.OdinId, odinContext);
-                }
+                await this.RevokeCircleAccessAsync(SystemCircleConstants.ReviewedConnectionsCircleId, icr.OdinId, odinContext);
             }
 
             await circleNetworkStorage.UpdateReviewedAtAsync(icr.OdinId, icr.Status, null);

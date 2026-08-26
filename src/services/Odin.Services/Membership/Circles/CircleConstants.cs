@@ -50,9 +50,10 @@ public static class SystemCircleConstants
     /// write-only, so the deposit-only rule permits it -- but it would reach every connection, which is
     /// broader than the rule being expressed.
     /// <para>
-    /// <see cref="CircleGrantOn.Review"/> is what makes the timing right, and this is the first circle to
-    /// use it.  Read grants and permission keys are legal here and nowhere else, so this is where later
-    /// "you get this once I know who you are" grants belong.
+    /// <see cref="CircleGrantOn.None"/>, like the other system circles: membership is not resolved through
+    /// an enrollment tier but written directly, by the same code that writes the review stamp.  Read grants
+    /// and permission keys are legal here and not on an ambient circle, so this is where later "you get
+    /// this once I know who you are" grants belong.
     /// </para>
     /// </remarks>
     public static readonly CircleDefinition ReviewedConnectionsDefinition = new()
@@ -60,7 +61,7 @@ public static class SystemCircleConstants
         Id = ReviewedConnectionsCircleId.Value,
         Name = "Reviewed Connections",
         Description = "Contains identities you have reviewed, and carries the grants that only a reviewed connection should hold",
-        GrantOn = CircleGrantOn.Review,
+        GrantOn = CircleGrantOn.None,
         DriveGrants =
         [
             new DriveGrantRequest()
