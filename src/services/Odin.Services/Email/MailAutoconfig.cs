@@ -24,8 +24,8 @@ public static class MailAutoconfig
             emailProvider.Add(new XElement("incomingServer",
                 new XAttribute("type", "imap"),
                 new XElement("hostname", host),
-                new XElement("port", 993),
-                new XElement("socketType", "SSL"),
+                new XElement("port", MailClientSettings.ImapPort),
+                new XElement("socketType", MailClientSettings.SocketTypeSsl),
                 new XElement("authentication", "password-cleartext"),
                 new XElement("username", "%EMAILADDRESS%")));
         }
@@ -35,8 +35,8 @@ public static class MailAutoconfig
             emailProvider.Add(new XElement("outgoingServer",
                 new XAttribute("type", "smtp"),
                 new XElement("hostname", host),
-                new XElement("port", 465),
-                new XElement("socketType", "SSL"),
+                new XElement("port", MailClientSettings.SubmissionPort),
+                new XElement("socketType", MailClientSettings.SocketTypeSsl),
                 new XElement("authentication", "password-cleartext"),
                 new XElement("username", "%EMAILADDRESS%")));
         }
