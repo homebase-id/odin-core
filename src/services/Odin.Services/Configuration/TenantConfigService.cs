@@ -224,13 +224,16 @@ public class TenantConfigService(
             await CreateDriveIfNotExistsAsync(rd, odinContext);
         }
 
+        // Before the request's own circles, not after: the setup wizard posts Friends/Family/Work/
+        // Acquaintances at the same ids the chat app now provisions them under, and whichever runs first
+        // wins (both create-if-missing). Registering the apps first is what makes them arrive chat-owned.
+        await this.EnsureBuiltInApps(odinContext);
+
         //Create additional circles last in case they rely on any of the drives above
         foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
             await CreateCircleIfNotExistsAsync(rc, odinContext);
         }
-
-        await this.EnsureBuiltInApps(odinContext);
 
         await using var tx = await identityDatabase.BeginStackedTransactionAsync();
 
@@ -414,6 +417,15 @@ public class TenantConfigService(
         if (null == existingApp)
         {
             await appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+        }
+
+        // Friends, Family, Work, Acquaintances. The setup wizard used to be the only thing that created
+        // these, which left them owner circles on every identity and left an identity set up any other
+        // way without them at all. Created here, chat-owned, at the ids the wizard has always used --
+        // create-if-missing, so an owner who has since renamed or regranted one keeps their version.
+        foreach (var circle in SystemAppConstants.ChatRelationshipCircles)
+        {
+            await CreateCircleIfNotExistsAsync(circle, odinContext);
         }
     }
 
