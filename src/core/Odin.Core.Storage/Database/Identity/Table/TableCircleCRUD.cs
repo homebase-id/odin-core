@@ -70,16 +70,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Circle IS '{ \"Version\": 202608040942 }';";
+               commentSql = "COMMENT ON TABLE Circle IS '{ \"Version\": 202608261644 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Circle( -- { \"Version\": 202608040942 }\n"
+                "CREATE TABLE IF NOT EXISTS Circle( -- { \"Version\": 202608261644 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"circleId BYTEA NOT NULL UNIQUE, "
+                   +"circleId BYTEA NOT NULL, "
                    +"circleName TEXT NOT NULL, "
                    +"data BYTEA , "
                    +"AppId BYTEA , "
