@@ -2,6 +2,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Odin.Hosting.Controllers.OwnerToken.Configuration;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
@@ -11,7 +12,10 @@ namespace Odin.Hosting.Middleware
 {
     public class VersionUpgradeMiddleware(RequestDelegate next)
     {
-        public Task InvokeAsync(HttpContext context, VersionUpgradeScheduler scheduler, VersionUpgradeService upgradeService)
+        // Note: the run state is resolved from the request scope rather than injected as a method
+        // parameter. Method-injected parameters are resolved on every request, before the path checks
+        // below get a chance to short-circuit. (VersionUpgradeScheduler was injected but never used.)
+        public Task InvokeAsync(HttpContext context)
         {
             var path = context.Request.Path.Value;
             
@@ -35,7 +39,8 @@ namespace Odin.Hosting.Middleware
                 return next(context);
             }
 
-            if (upgradeService.IsRunning())
+            var runState = context.RequestServices.GetRequiredService<VersionUpgradeRunState>();
+            if (runState.IsRunning)
             {
                 context.Response.Headers.Append(OdinHeaderNames.UpgradeIsRunning, bool.TrueString);
                 context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;

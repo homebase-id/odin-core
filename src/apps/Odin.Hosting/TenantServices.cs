@@ -196,6 +196,7 @@ public static class TenantServices
             .AsSelf()
             .InstancePerLifetimeScope();
 
+        cb.RegisterType<IdentityReadyStateService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
@@ -399,6 +400,7 @@ public static class TenantServices
         cb.RegisterType<V10ToV11VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V11ToV12VersionMigrationService>().InstancePerLifetimeScope();
 
+        cb.RegisterType<VersionUpgradeRunState>().AsSelf().SingleInstance();
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 

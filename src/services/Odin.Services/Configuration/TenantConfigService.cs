@@ -40,9 +40,10 @@ public class TenantConfigService(
     IAppRegistrationService appRegistrationService,
     ICorrelationContext correlationContext,
     IdentityDatabase identityDatabase,
-    ShamirConfigurationService shamirConfigurationService)
+    ShamirConfigurationService shamirConfigurationService,
+    IdentityReadyStateService identityReadyState)
 {
-    private const string ConfigContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
+    internal const string ConfigContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
 
     private static readonly SingleKeyValueStorage ConfigStorage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ConfigContextKey));
@@ -121,18 +122,14 @@ public class TenantConfigService(
         };
     }
 
-    public async Task<bool> IsIdentityServerConfiguredAsync()
+    public Task<bool> IsIdentityServerConfiguredAsync()
     {
-        //ok for anonymous to query this as long as we're only returning a bool
-        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(identityDatabase.KeyValueCached, FirstRunInfo.Key);
-        return firstRunInfo != null;
+        return identityReadyState.IsIdentityServerConfiguredAsync();
     }
 
-    public async Task<UnixTimeUtc?> GetFirstRunDateAsync()
+    public Task<UnixTimeUtc?> GetFirstRunDateAsync()
     {
-        //ok for anonymous to query this as long as we're only returning a bool
-        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(identityDatabase.KeyValueCached, FirstRunInfo.Key);
-        return firstRunInfo?.FirstRunDate;
+        return identityReadyState.GetFirstRunDateAsync();
     }
 
     public async Task<bool> IsEulaSignatureRequiredAsync(IOdinContext odinContext)
