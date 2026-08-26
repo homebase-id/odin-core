@@ -14,6 +14,9 @@ public interface IMailHttpClientApiV2
     [Get(Root + "/status")]
     Task<ApiResponse<MailAppStatusResult>> GetStatus();
 
+    [Get(Root + "/health")]
+    Task<ApiResponse<MailAppHealthResult>> GetHealth();
+
     [Post(Root + "/challenge")]
     Task<ApiResponse<MailRoundTripChallenge>> CreateChallenge();
 

@@ -38,6 +38,36 @@ public class V2MailStatusTests : V2Fixture
         Assert.That(status.CurrentKeyFileUniqueId, Is.Null);
     }
 
+    /// <summary>
+    /// A server that does not offer email must report "nothing to see", never "needs attention".
+    ///
+    /// The health endpoint exists so the app stops claiming email works when the domain cannot
+    /// receive mail - but the same endpoint answers for the majority of hosts, where email is
+    /// simply off. Reporting attention there would put a warning on every one of them, which is
+    /// the fastest way to teach people to ignore the warning that matters.
+    /// </summary>
+    [Test]
+    public async Task HealthReportsNothingToSeeWhenTheServerHasNoEmail()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var someDrive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(someDrive, "Some Drive", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(owner, someDrive, DrivePermission.ReadWrite);
+
+        var response = await new V2MailClient(app.Identity, app.Factory).GetHealthAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var health = response.Content;
+        Assert.That(health, Is.Not.Null);
+
+        Assert.That(health!.TenantMailEnabled, Is.False);
+        Assert.That(health.Activated, Is.False);
+        Assert.That(health.Records, Is.Empty);
+        Assert.That(health.BrokenRecords, Is.Empty);
+        Assert.That(health.Errors, Is.Empty);
+        Assert.That(health.NeedsAttention, Is.False, "a server without email must not raise a warning");
+    }
+
     [Test]
     public async Task StatusReportsTheDriveOnceTheAppCanUseIt()
     {
