@@ -378,10 +378,36 @@ public class StalwartMailboxProvider(
     // Registry lookups (idempotency primitives)
     //
 
+    /// <summary>
+    /// Domains are created with MANUAL DKIM management.
+    ///
+    /// Stalwart's default is Automatic, which mints its own keypair the moment a domain
+    /// exists - selectors from a "v{version}-{algorithm}-{date}" template - and ROTATES it on
+    /// a 90-day timer. We publish DNS only for the s1/s2 pair we generate, so those keys sign
+    /// mail nothing can verify: Gmail reported `dkim=permerror (no key for signature)` on real
+    /// tenant mail.
+    ///
+    /// Prevented here rather than cleaned up afterwards, because rotation makes cleanup a
+    /// losing game: delete the keys today and Automatic management mints replacements in
+    /// ninety days, on a schedule nobody is watching.
+    ///
+    /// Only applied at CREATE. A domain that already exists keeps whatever it was created
+    /// with - relevant only for domains predating this, which is a one-off fix rather than
+    /// something worth carrying reconciliation code for.
+    /// </summary>
     private async Task<string> EnsureDomainAsync(string domain)
     {
-        return await FindDomainIdAsync(domain)
-               ?? await SetAsync("x:Domain", create: new JsonObject { ["name"] = domain });
+        var existing = await FindDomainIdAsync(domain);
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        return await SetAsync("x:Domain", create: new JsonObject
+        {
+            ["name"] = domain,
+            ["dkimManagement"] = new JsonObject { ["@type"] = "Manual" },
+        });
     }
 
     private async Task<string?> FindDomainIdAsync(string domain)
