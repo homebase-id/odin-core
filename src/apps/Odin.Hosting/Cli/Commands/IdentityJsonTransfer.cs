@@ -58,11 +58,24 @@ public static class IdentityJsonTransfer
         var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
         var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
 
-        await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
+        // Owner-only from the moment the file exists. The file is the identity, and setting
+        // the mode after the export would leave it umask-readable (typically 0644) for the
+        // whole write, which on a real identity is minutes.
+        var streamOptions = new FileStreamOptions
         {
-            // The operator asserted the host is stopped; see the caller. This process holds
-            // no background workers of its own (CommandLine disables them), and it cannot
-            // stop workers belonging to any other host, so there is nothing to freeze here.
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            streamOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        await using (var stream = new FileStream(filePath, streamOptions))
+        {
+            // CommandLine already aborted if a host was listening. This process holds no
+            // background workers of its own (CommandLine disables them) and cannot stop
+            // another host's, so there is nothing to freeze here.
             var rows = await IdentityJsonExporter.ExportAsync(
                 logger, stream, registration.Id, domain,
                 systemDatabase, identityDatabase,
@@ -71,12 +84,6 @@ public static class IdentityJsonTransfer
                 callerHasQuiescedIdentity: true);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
-        }
-
-        // Owner-only. The file is the identity.
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
     }
 

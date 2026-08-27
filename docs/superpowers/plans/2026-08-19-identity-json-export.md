@@ -2131,7 +2131,19 @@ public static class IdentityJsonTransfer
         var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
         var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
 
-        await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
+        // Owner-only from the moment the file exists. Setting the mode after the export
+        // would leave key material umask-readable for the whole write.
+        var streamOptions = new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            streamOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        await using (var stream = new FileStream(filePath, streamOptions))
         {
             // CommandLine already aborted if a host was listening. There is nothing to
             // freeze here: this process has no tenant workers of its own, and it cannot
@@ -2144,12 +2156,6 @@ public static class IdentityJsonTransfer
                 callerHasQuiescedIdentity: true);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
-        }
-
-        // Owner-only. The file is the identity.
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
     }
 }
