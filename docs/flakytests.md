@@ -54,6 +54,26 @@ not touch; the same job passes on recent `main` runs.
 
 ---
 
+## `Odin.Hosting.Tests.V2.Ported.Drive.DriveReaderTests.InboxDrainOnQueryTests`
+
+- `QuerySmartBatch_DrainsInbox_OnRecipient`
+
+**Where:** CI, `ubuntu/sqlite/release` (seen on run 33010865390, 2026-08-26).
+
+**Symptom:** the test fails outright; a peer transfer has presumably not drained by the time
+the assertion runs.
+
+**Not caused by the change in flight:** the strongest evidence available — **the identical
+commit failed and then passed on re-run with no code change** (`62c66902a`). Both parents of
+the merge were green independently: the feature commit at 19:20 and `main` at 19:21. The
+change under test touched only `Email/*`, which this test does not reach.
+
+**Pattern worth noting:** this is the third entry from the same family — peer transfers and
+timing-sensitive delivery assertions (`TemporalReadTests`, and this). If a fourth appears,
+the shared cause is probably worth chasing rather than re-running.
+
+---
+
 ## `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryTests`
 
 - `CanEnterAndExitRecoveryMode`

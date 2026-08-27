@@ -68,6 +68,12 @@ public class EmailAppService(
             PublishedAt = publishedKey?.PublishedAt,
             DkimRecords = DkimDnsRecords.ToDnsConfigs(domain, dkimKeys),
             CurrentKeyFileUniqueId = setup?.CurrentKeyFileUniqueId,
+            // Same values the autoconfig XML publishes, from the same definition. The app
+            // shows them so someone can set up a mail client that has no autoconfig support,
+            // or check what a client filled in for itself.
+            ClientSettings = MailClientSettings.For(
+                configuration.Email.TenantMail.MxNodes,
+                setup?.PrimaryEmailAddress ?? ""),
         };
     }
 
@@ -411,6 +417,12 @@ public class MailAppHealthResult
 /// </summary>
 public class MailAppStatusResult
 {
+    /// <summary>
+    /// Hostnames, ports and username for a mail client. Null when this host publishes no mail
+    /// hosts, so a client renders nothing rather than a half-filled form.
+    /// </summary>
+    public MailClientSettings? ClientSettings { get; init; }
+
     /// <summary>Whether this host runs tenant mail at all. False everywhere today.</summary>
     public bool TenantMailEnabled { get; init; }
 

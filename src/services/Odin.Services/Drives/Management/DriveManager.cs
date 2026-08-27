@@ -463,7 +463,9 @@ public class DriveManager : IDriveManager
         async Task<IEnumerable<StorageDriveData>> AllDrivesDataReader(CancellationToken _)
         {
             var (drives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-            return drives.Select(ToStorageDriveData);
+            // Materialize: this result is handed to the cache, and a deferred Select would re-run the
+            // (JSON-deserializing) projection on every enumeration, i.e. on every cache hit.
+            return drives.Select(ToStorageDriveData).ToList();
         }
 
         var allDrivesData = _tableDrives.InDatabaseTransaction
