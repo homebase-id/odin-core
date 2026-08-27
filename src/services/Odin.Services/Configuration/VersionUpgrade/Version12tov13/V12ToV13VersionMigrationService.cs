@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -9,6 +11,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 
@@ -137,12 +140,61 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
                 copied, skipped);
         }
 
-        private async Task MoveAppRegistrationsAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// The blob shape of an app registration, frozen as it was before the columns were promoted.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="AppRegistration"/> cannot be used to read these rows.  It <c>[JsonIgnore]</c>s
+        /// AppId, AppSlug, Name and CorsHostName, because those are columns now and a second copy in
+        /// <c>grantJson</c> could drift from them -- correct for writing, and fatal for reading the
+        /// blob, where those very fields are the only place the values exist.  Deserializing a legacy
+        /// row into the current type yields an AppId of null for every app, which is silent: the
+        /// migration reports nothing to move and commits, leaving the identity with no apps.
+        /// <para>
+        /// A migration reads history, so it holds its own copy of the shape that history was written
+        /// in, the same way this file freezes the legacy context and category keys.
+        /// </para>
+        /// </remarks>
+        private class LegacyAppRegistration
         {
-            var legacy = (await LegacyAppRegStorage
-                    .GetByCategoryAsync<AppRegistration>(tblKeyThreeValue, LegacyAppRegDataType) ?? [])
+            public GuidId AppId { get; set; }
+
+            public string Name { get; set; }
+
+            public List<Guid> AuthorizedCircles { get; set; }
+
+            public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
+
+            [JsonPropertyName("grant")]
+            public KeyStore AppKeyStore { get; set; }
+
+            public string CorsHostName { get; set; }
+
+            public AppRegistration ToAppRegistration()
+            {
+                return new AppRegistration
+                {
+                    AppId = AppId,
+                    Name = Name,
+                    AuthorizedCircles = AuthorizedCircles,
+                    CircleMemberPermissionGrant = CircleMemberPermissionGrant,
+                    AppKeyStore = AppKeyStore,
+                    CorsHostName = CorsHostName
+                };
+            }
+        }
+
+        private async Task<List<LegacyAppRegistration>> ReadLegacyAppRegistrationsAsync()
+        {
+            return (await LegacyAppRegStorage
+                    .GetByCategoryAsync<LegacyAppRegistration>(tblKeyThreeValue, LegacyAppRegDataType) ?? [])
                 .Where(a => a?.AppId != null)
                 .ToList();
+        }
+
+        private async Task MoveAppRegistrationsAsync(CancellationToken cancellationToken)
+        {
+            var legacy = await ReadLegacyAppRegistrationsAsync();
 
             if (legacy.Count == 0)
             {
@@ -165,11 +217,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
             var moved = 0;
             var skipped = 0;
 
-            foreach (var appReg in legacy)
+            foreach (var legacyApp in legacy)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (await db.AppRegistrations.GetAsync(appReg.AppId) != null)
+                if (await db.AppRegistrations.GetAsync(legacyApp.AppId) != null)
                 {
                     // Already migrated. Leave its slug alone -- reassigning one would change an address
                     // other identities may already hold.
@@ -177,6 +229,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
                     continue;
                 }
 
+                var appReg = legacyApp.ToAppRegistration();
                 appReg.AppSlug = slugs[appReg.AppId];
 
                 await db.AppRegistrations.UpsertAsync(AppRegistrationService.ToRecord(appReg));
@@ -214,10 +267,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
 
         private async Task ValidateAppRegistrationsAsync(CancellationToken cancellationToken)
         {
-            var legacy = (await LegacyAppRegStorage
-                    .GetByCategoryAsync<AppRegistration>(tblKeyThreeValue, LegacyAppRegDataType) ?? [])
-                .Where(a => a?.AppId != null)
-                .ToList();
+            var legacy = await ReadLegacyAppRegistrationsAsync();
 
             foreach (var appReg in legacy)
             {
