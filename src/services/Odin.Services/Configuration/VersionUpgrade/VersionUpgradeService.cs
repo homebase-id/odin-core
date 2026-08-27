@@ -392,7 +392,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v13.UpgradeAsync(odinContext, cancellationToken);
