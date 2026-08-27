@@ -69,7 +69,7 @@ public static class IdentityJsonExporter
 
         await using var writer = new Utf8JsonWriter(output);
         writer.WriteStartArray();
-        JsonSerializer.Serialize(writer, header, OdinSystemSerializer.JsonSerializerOptions);
+        OdinSystemSerializer.Serialize(writer, header);
 
         var rowCount = 0L;
 
@@ -80,7 +80,7 @@ public static class IdentityJsonExporter
             writer.WriteString("db", db);
             writer.WriteString("table", table);
             writer.WritePropertyName("data");
-            JsonSerializer.Serialize(writer, record, record.GetType(), OdinSystemSerializer.JsonSerializerOptions);
+            OdinSystemSerializer.Serialize(writer, record, record.GetType());
             writer.WriteEndObject();
             rowCount++;
             return Task.CompletedTask;

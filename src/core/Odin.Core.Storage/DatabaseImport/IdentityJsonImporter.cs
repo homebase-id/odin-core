@@ -63,8 +63,7 @@ public static class IdentityJsonImporter
                 throw new InvalidOperationException("Export file is empty.");
             }
 
-            var header = JsonSerializer.Deserialize<ExportHeader>(
-                enumerator.Current.GetRawText(), OdinSystemSerializer.JsonSerializerOptions)
+            var header = OdinSystemSerializer.Deserialize<ExportHeader>(enumerator.Current.GetRawText())
                 ?? throw new InvalidOperationException("Export file has no readable header.");
 
             if (header.Kind != IdentityExportFile.KindHeader)
@@ -156,7 +155,7 @@ public static class IdentityJsonImporter
                 $"Export file contains table '{table}', which this binary does not know about.");
         }
 
-        return JsonSerializer.Deserialize(data.GetRawText(), type, OdinSystemSerializer.JsonSerializerOptions)
+        return OdinSystemSerializer.Deserialize(data.GetRawText(), type)
             ?? throw new InvalidOperationException($"Row for table '{table}' deserialized to null.");
     }
 }

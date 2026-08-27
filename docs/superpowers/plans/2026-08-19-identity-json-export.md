@@ -1122,7 +1122,7 @@ public static class IdentityJsonExporter
 
         await using var writer = new Utf8JsonWriter(output);
         writer.WriteStartArray();
-        JsonSerializer.Serialize(writer, header, OdinSystemSerializer.JsonSerializerOptions);
+        OdinSystemSerializer.Serialize(writer, header);
 
         var rowCount = 0L;
 
@@ -1133,7 +1133,7 @@ public static class IdentityJsonExporter
             writer.WriteString("db", db);
             writer.WriteString("table", table);
             writer.WritePropertyName("data");
-            JsonSerializer.Serialize(writer, record, record.GetType(), OdinSystemSerializer.JsonSerializerOptions);
+            OdinSystemSerializer.Serialize(writer, record, record.GetType());
             writer.WriteEndObject();
             rowCount++;
             return Task.CompletedTask;
@@ -1982,7 +1982,7 @@ public static class IdentityJsonImporter
                 $"Export file contains table '{table}', which this binary does not know about.");
         }
 
-        return JsonSerializer.Deserialize(data.GetRawText(), type, OdinSystemSerializer.JsonSerializerOptions)
+        return OdinSystemSerializer.Deserialize(data.GetRawText(), type)
             ?? throw new InvalidOperationException($"Row for table '{table}' deserialized to null.");
     }
 }

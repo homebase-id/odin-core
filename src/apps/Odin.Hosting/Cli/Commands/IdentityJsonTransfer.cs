@@ -104,8 +104,7 @@ public static class IdentityJsonTransfer
         {
             using var document = await JsonDocument.ParseAsync(peek);
             var first = document.RootElement[0].GetRawText();
-            header = JsonSerializer.Deserialize<ExportHeader>(
-                first, OdinSystemSerializer.JsonSerializerOptions)
+            header = OdinSystemSerializer.Deserialize<ExportHeader>(first)
                 ?? throw new InvalidOperationException("Export file has no readable header.");
         }
 
