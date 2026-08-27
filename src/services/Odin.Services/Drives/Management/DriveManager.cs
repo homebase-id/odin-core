@@ -107,6 +107,12 @@ public class DriveManager : IDriveManager
             throw new OdinClientException("Drive by alias and type already exists", OdinClientErrorCode.InvalidDrive);
         }
 
+        // Format only, and only when supplied. A slug is a URL segment and a wire address other
+        // identities resolve against, so a malformed one is rejected rather than coerced -- silently
+        // lowercasing or stripping produces an address the caller did not ask for.
+        OdinSlug.AssertValidOrNull(request.DriveSlug, nameof(request.DriveSlug));
+        OdinSlug.AssertValidOrNull(request.DriveTypeSlug, nameof(request.DriveTypeSlug));
+
         var mk = odinContext.Caller.GetMasterKey();
 
         var driveKey = new SymmetricKeyEncryptedAes(mk);
@@ -136,7 +142,13 @@ public class DriveManager : IDriveManager
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
-            StorageKeyCheckValue = id
+            StorageKeyCheckValue = id,
+
+            // Columns, not details -- see ToRecord. Null unless the caller supplied them; nothing
+            // derives a slug yet.
+            AppId = request.AppId,
+            DriveSlug = request.DriveSlug,
+            DriveTypeSlug = request.DriveTypeSlug
         };
 
         try
@@ -449,7 +461,13 @@ public class DriveManager : IDriveManager
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(details),
-            StorageKeyCheckValue = storageDrive.TempOriginalDriveId
+            StorageKeyCheckValue = storageDrive.TempOriginalDriveId,
+
+            // Columns, not details: UNIQUE(identityId, AppId, DriveSlug) constrains these, and a copy
+            // inside detailsJson could drift from what the constraint is enforcing.
+            AppId = storageDrive.AppId,
+            DriveSlug = storageDrive.DriveSlug,
+            DriveTypeSlug = storageDrive.DriveTypeSlug
         };
 
         return record;
@@ -539,7 +557,11 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = driveDetails.AllowSubscriptions,
             AllowCdn = driveDetails.AllowCdn,
             Attributes = driveDetails.Attributes,
-            IsArchived = driveDetails.IsArchived
+            IsArchived = driveDetails.IsArchived,
+
+            AppId = record.AppId,
+            DriveSlug = record.DriveSlug,
+            DriveTypeSlug = record.DriveTypeSlug
         };
 
         return sdd;

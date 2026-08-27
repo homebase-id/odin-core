@@ -42,7 +42,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
-                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id),
+                    AppId = drive.AppId,
+                    DriveSlug = drive.DriveSlug,
+                    DriveTypeSlug = drive.DriveTypeSlug
 
                 }).ToList();
 
@@ -122,7 +125,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
-                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id),
+                    AppId = drive.AppId,
+                    DriveSlug = drive.DriveSlug,
+                    DriveTypeSlug = drive.DriveTypeSlug
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
