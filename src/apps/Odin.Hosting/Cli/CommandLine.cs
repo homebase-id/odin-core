@@ -75,6 +75,26 @@ public class CommandLine
 
     //
 
+    // False unless the host looks stopped. Local probe only: it cannot see a host on
+    // another machine sharing the same database. See HostLivenessCheck.
+    private static bool AbortIfHostIsRunning(string verb)
+    {
+        var listening = HostLivenessCheck.FindListeningPorts(_config);
+        if (listening.Count == 0)
+        {
+            return true;
+        }
+
+        _logger.LogError(
+            "Refusing to {verb}: something is listening on port(s) {ports}, so a host is "
+            + "still running. Stop it first. A running host's tenant background workers keep "
+            + "writing to the identity database and this command cannot stop them.",
+            verb, string.Join(", ", listening));
+        return false;
+    }
+
+    //
+
     private static ILifetimeScope GetTenantScope(string tenantId)
     {
         var tenantContainer = _multiTenantContainer.Resolve<IMultiTenantContainer>();
@@ -291,42 +311,37 @@ public class CommandLine
         //
         // Command line: Export one identity's tables to a single JSON file
         //
-        // THE HOST MUST BE STOPPED FIRST. Nothing here can stop a running host's tenant
+        // THE HOST MUST BE STOPPED. Nothing here can stop a running host's tenant
         // background workers: they live in that host's container, and on more than one
         // host they are out of reach entirely. Exporting underneath them silently loses
-        // whatever they commit after the snapshot. The operator asserts the host is down
-        // by passing --host-is-stopped; there is no way to verify it from here.
+        // whatever they commit after the snapshot, so the export aborts if it can see a
+        // host listening on the configured ports. That probe is local-only; see
+        // HostLivenessCheck for what it cannot catch.
         //
         // The file contains key material; see the warning it prints.
         //
         // examples:
-        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json --host-is-stopped
+        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
         //
         if (args.Length >= 1 && args[0] == "identity-export")
         {
             var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
             var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
 
-            var unknown = flags.Where(f => f != "--host-is-stopped").ToList();
-            if (unknown.Count > 0)
+            if (flags.Count > 0)
             {
-                _logger.LogError("Unknown option(s): {options}", string.Join(", ", unknown));
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
                 return (true, 1);
             }
 
             if (operands.Count != 2)
             {
-                _logger.LogError(
-                    "Usage: identity-export <domain> <file.json> --host-is-stopped");
+                _logger.LogError("Usage: identity-export <domain> <file.json>");
                 return (true, 1);
             }
 
-            if (!flags.Contains("--host-is-stopped"))
+            if (!AbortIfHostIsRunning("export"))
             {
-                _logger.LogError(
-                    "Refusing to export. Stop the host first, then re-run with --host-is-stopped. "
-                    + "A running host's background workers keep writing to the identity database, "
-                    + "and this command cannot stop them.");
                 return (true, 1);
             }
 
@@ -338,7 +353,9 @@ public class CommandLine
         // Command line: Import an identity export file
         //
         // Refuses unless the target is empty of this identity and every table version
-        // matches. Dry run unless "commit" is passed.
+        // matches. Dry run unless "commit" is passed. Like export, this aborts if a host
+        // is listening: the import writes the shared system tables, and a running host
+        // would neither see the new identity nor expect its registration to appear.
         //
         // examples:
         //   dotnet run -- identity-import /path/to/frodo.json commit
@@ -360,6 +377,11 @@ public class CommandLine
                 (operands.Count == 2 && operands[1] != "commit"))
             {
                 _logger.LogError("Usage: identity-import <file.json> [commit]");
+                return (true, 1);
+            }
+
+            if (!AbortIfHostIsRunning("import"))
+            {
                 return (true, 1);
             }
 

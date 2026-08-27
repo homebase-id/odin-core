@@ -2133,9 +2133,9 @@ public static class IdentityJsonTransfer
 
         await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
         {
-            // The operator asserted the host is stopped via --host-is-stopped. There is
-            // nothing to freeze here: this process has no tenant workers of its own, and
-            // it cannot reach another host's.
+            // CommandLine already aborted if a host was listening. There is nothing to
+            // freeze here: this process has no tenant workers of its own, and it cannot
+            // reach another host's.
             var rows = await IdentityJsonExporter.ExportAsync(
                 logger, stream, registration.Id, domain,
                 systemDatabase, identityDatabase,
@@ -2251,8 +2251,8 @@ Add beside the `sqlite2pg-*` block:
         //
         // Command line: Export one identity's tables to a single JSON file
         //
-        // THE HOST MUST BE STOPPED FIRST, asserted by --host-is-stopped. Nothing here can
-        // stop a running host's tenant workers. The file contains key material.
+        // THE HOST MUST BE STOPPED. Aborts if anything is listening on the configured
+        // http/https ports. Nothing here can stop a running host's tenant workers.
         //
         // examples:
         //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
@@ -2292,8 +2292,9 @@ cd /workspace/odin-core
 git add src/apps/Odin.Hosting/Cli/
 git commit -m "Add identity-export and identity-import CLI verbs
 
-Export requires --host-is-stopped: nothing in the CLI can stop a running
-host's tenant background workers. Writes the file 0600."
+Export and import abort if a host is listening on the configured ports:
+nothing in the CLI can stop a running host's tenant background workers.
+Writes the file 0600."
 ```
 
 ---

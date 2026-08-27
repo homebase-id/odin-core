@@ -297,12 +297,13 @@ the existing importer:
 so it owns the sequencing:
 
 ```
-dotnet run -- identity-export <domain> <file.json> --host-is-stopped
+dotnet run -- identity-export <domain> <file.json>   # aborts if a host is listening
 dotnet run -- identity-import <file.json> [commit]
 ```
 
-The export verb refuses without `--host-is-stopped`, since nothing in the CLI can
-stop a running host's tenant workers. It logs loudly about key material, since that
+Both verbs abort if anything is listening on the configured http/https ports, since
+nothing in the CLI can stop a running host's tenant workers. They log loudly about
+key material, since that
 needs an operator.
 
 ### 3. File format
@@ -497,12 +498,18 @@ command:
 
 That work is a prerequisite for zero-downtime migration and is out of scope here.
 
-**What ships instead: export requires a stopped host.** With the host down there are
-no writers, so the property holds trivially and problem two disappears. The operator
-asserts it by passing `--host-is-stopped` to `identity-export`; the CLI refuses
-without it. `IdentityJsonExporter.ExportAsync` still takes a
-`callerHasQuiescedIdentity` flag and refuses a false one, so the assertion is
-explicit at both layers. Neither layer can verify it, and both say so.
+**What ships instead: export requires a stopped host, checked.** With the host down
+there are no writers, so the property holds trivially and problem two disappears.
+`HostLivenessCheck` reads the OS listener table and aborts both verbs if anything is
+listening on the configured http/https ports. Reading the table rather than trying to
+bind means the probe cannot steal a port from a host that is starting up.
+
+This is a step-1 guard, not a safety property. It sees only this machine's listeners,
+so a second host elsewhere sharing the same Postgres is invisible to it and keeps
+writing throughout. A crashed host with workers still draining, or one starting
+between the probe and the export, also slip through. `IdentityJsonExporter.ExportAsync`
+still takes a `callerHasQuiescedIdentity` flag and refuses a false one, so the
+assertion stays explicit at the storage layer too.
 
 **Accepted residual risk: server-wide workers.** `StartSystemBackgroundServices`
 runs six more workers that are not tenant-scoped, so a tenant freeze does not stop
