@@ -2037,10 +2037,10 @@ The replacement is not a better freeze. It is a tenant lifecycle model:
   already used for `OdinContextCache` invalidation is the obvious carrier.
 - Workers that observe the state at every write boundary and abandon the current unit of
   work, rather than being told to stop from outside.
-- A quiescence acknowledgement, so a freeze can block until every host confirms it is
-  idle for that tenant, with a timeout. Checking a flag alone gives eventual quiescence,
-  not confirmed quiescence: a worker that reads the flag and then writes for thirty
-  seconds is still writing when the export begins.
+- A freeze acknowledgement, so a freeze can block until every host confirms it is idle
+  for that tenant, with a timeout. Checking a flag alone gives an eventual freeze, not a
+  confirmed one: a worker that reads the flag and then writes for thirty seconds is
+  still writing when the export begins.
 
 Until that exists, export requires a stopped host. See Task 11.
 
@@ -2153,7 +2153,7 @@ public static class IdentityJsonTransfer
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
-                callerHasQuiescedIdentity: true);
+                callerHasFrozenIdentity: true);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
@@ -2448,7 +2448,7 @@ DriveMainIndex rows make whole-document parsing the first thing to fail."
 Recorded in the spec's Open follow-ups and deliberately not in this plan:
 
 - **Payload and thumbnail transfer.** The file covers tables only. An imported identity has file headers whose bytes are absent until payloads are copied by other means.
-- **Exporting without stopping the host.** Needs the tenant lifecycle model described in the withdrawn Task 10: an explicit state distinct from `Disabled`, propagated across hosts, observed by workers at every write boundary, plus a quiescence acknowledgement so freeze can block until all hosts confirm idle. This is the prerequisite for zero-downtime migration and is deliberately not in this plan.
+- **Exporting without stopping the host.** Needs the tenant lifecycle model described in the withdrawn Task 10: an explicit state distinct from `Disabled`, propagated across hosts, observed by workers at every write boundary, plus a freeze acknowledgement so freeze can block until all hosts confirm idle. This is the prerequisite for zero-downtime migration and is deliberately not in this plan.
 - **`CopyRegistration` has the same gap** and needs the same lifecycle model. It also runs while the host is live.
 - **Retiring `DataImportPatcher`** once the generated import path has proven its timestamp handling in practice.
 - **Migrating `DataImporter` onto `ExportRowsAsync` / `ImportRowAsync`**, which would delete its 25-table enumeration, both source-scanning tests, and its `PageSize = 100` paging.

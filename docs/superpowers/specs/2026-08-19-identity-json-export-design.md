@@ -491,10 +491,10 @@ command:
   obvious carrier.
 - Workers that observe the state at every write boundary and abandon the current
   unit of work, rather than being stopped from outside.
-- A quiescence acknowledgement, so a freeze blocks until every host confirms it is
-  idle for that tenant, with a timeout. A flag check alone gives eventual
-  quiescence, not confirmed quiescence: a worker that reads the flag and then writes
-  for thirty seconds is still writing when the export begins.
+- A freeze acknowledgement, so a freeze blocks until every host confirms it is idle
+  for that tenant, with a timeout. A flag check alone gives an eventual freeze, not a
+  confirmed one: a worker that reads the flag and then writes for thirty seconds is
+  still writing when the export begins.
 
 That work is a prerequisite for zero-downtime migration and is out of scope here.
 
@@ -508,7 +508,7 @@ This is a step-1 guard, not a safety property. It sees only this machine's liste
 so a second host elsewhere sharing the same Postgres is invisible to it and keeps
 writing throughout. A crashed host with workers still draining, or one starting
 between the probe and the export, also slip through. `IdentityJsonExporter.ExportAsync`
-still takes a `callerHasQuiescedIdentity` flag and refuses a false one, so the
+still takes a `callerHasFrozenIdentity` flag and refuses a false one, so the
 assertion stays explicit at the storage layer too.
 
 **Accepted residual risk: server-wide workers.** `StartSystemBackgroundServices`

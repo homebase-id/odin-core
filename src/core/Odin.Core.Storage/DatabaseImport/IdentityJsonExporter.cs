@@ -39,9 +39,9 @@ public static class IdentityJsonExporter
         IdentityDatabase identityDatabase,
         long identitySchemaVersion,
         long systemSchemaVersion,
-        bool callerHasQuiescedIdentity)
+        bool callerHasFrozenIdentity)
     {
-        if (!callerHasQuiescedIdentity)
+        if (!callerHasFrozenIdentity)
         {
             throw new InvalidOperationException(
                 "Refusing to export: nothing may be writing to this identity. Stop the host "

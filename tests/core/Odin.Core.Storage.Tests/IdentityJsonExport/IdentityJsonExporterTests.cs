@@ -61,7 +61,7 @@ public class IdentityJsonExporterTests
         var stream = new MemoryStream();
         await IdentityJsonExporter.ExportAsync(
             logger, stream, _identityId, IdentityDomain, sys, id,
-            identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasQuiescedIdentity: true);
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasFrozenIdentity: true);
         stream.Position = 0;
         return stream;
     }
@@ -152,7 +152,7 @@ public class IdentityJsonExporterTests
     // Requirement 9: the exporter has no way to see whether a host is still writing,
     // so it takes the caller's assertion and refuses a false one.
     [Test]
-    public void ExportAsync_ThrowsWhenCallerHasNotQuiescedTheIdentity()
+    public void ExportAsync_ThrowsWhenCallerHasNotFrozenTheIdentity()
     {
         Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
@@ -161,7 +161,7 @@ public class IdentityJsonExporterTests
             await IdentityJsonExporter.ExportAsync(
                 logger, new MemoryStream(), _identityId, IdentityDomain,
                 _scope.Resolve<SystemDatabase>(), _scope.Resolve<IdentityDatabase>(),
-                identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasQuiescedIdentity: false);
+                identitySchemaVersion: 1, systemSchemaVersion: 1, callerHasFrozenIdentity: false);
         });
     }
 }

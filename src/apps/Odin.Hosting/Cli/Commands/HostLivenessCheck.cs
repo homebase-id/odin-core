@@ -18,7 +18,7 @@ namespace Odin.Hosting.Cli.Commands;
 //   - A host that has crashed but left workers draining, or one starting up between the
 //     probe and the export, both slip through.
 //
-// The real fix is a tenant lifecycle state that workers observe, plus a quiescence
+// The real fix is a tenant lifecycle state that workers observe, plus a freeze
 // acknowledgement across hosts, which then allows export while the hosts are running.
 // See the withdrawn Task 10 in the plan and the spec's freeze section.
 public static class HostLivenessCheck

@@ -81,7 +81,7 @@ public static class IdentityJsonTransfer
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
-                callerHasQuiescedIdentity: true);
+                callerHasFrozenIdentity: true);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
