@@ -77,10 +77,7 @@ namespace Odin.Services.Authorization.Apps
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
-                // The registration request has no slug field yet -- it grows one with the drive-addressing
-                // work, where an app declares its own address. Until then the slug is derived the same way
-                // the migration derives it, so registering an app and migrating one land on the same value.
-                AppSlug = await AssignSlugAsync(request.AppId, request.Name),
+                AppSlug = await AssignSlugAsync(request.AppId, request.Name, request.AppSlug),
                 Name = request.Name,
                 AppKeyStore = appGrant,
 
@@ -514,7 +511,21 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Picks a slug for a newly registered app, unique against those already registered.
         /// </summary>
-        private async Task<string> AssignSlugAsync(Guid appId, string name)
+        /// <summary>
+        /// The slug the app will hold: the one it asked for, or one derived from its name.
+        /// </summary>
+        /// <remarks>
+        /// Not required yet.  An app that omits it gets a derived slug, which is what every registration
+        /// that predates the field got, so nothing that works today starts failing.
+        /// <para>
+        /// A requested slug is taken verbatim or refused -- never quietly replaced with a derived one.
+        /// It is an address other identities resolve against, so handing back a different one would be
+        /// worse than saying no.  Registration is first-come (<c>docs/drive-addressing.md</c>), and
+        /// <c>UNIQUE(identityId, AppSlug)</c> would refuse it at the database anyway; this only makes the
+        /// refusal a clear client error rather than a constraint violation.
+        /// </para>
+        /// </remarks>
+        private async Task<string> AssignSlugAsync(Guid appId, string name, string requestedSlug)
         {
             var existing = await db.AppRegistrations.GetAllAsync();
 
@@ -524,7 +535,21 @@ namespace Odin.Services.Authorization.Apps
                 existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
                 StringComparer.Ordinal);
 
-            return AppSlugGenerator.Generate(appId, name, taken);
+            if (string.IsNullOrEmpty(requestedSlug))
+            {
+                return AppSlugGenerator.Generate(appId, name, taken);
+            }
+
+            OdinSlug.AssertValidOrNull(requestedSlug, nameof(AppRegistrationRequest.AppSlug));
+
+            if (taken.Contains(requestedSlug))
+            {
+                throw new OdinClientException(
+                    $"The app slug '{requestedSlug}' is already registered on this identity.",
+                    OdinClientErrorCode.IdAlreadyExists);
+            }
+
+            return requestedSlug;
         }
 
         /// <summary>
