@@ -19,6 +19,8 @@ Status as of 2026-08-27.
 | 0.7 | Legacy blob read with a frozen DTO -- the `[JsonIgnore]` bug that migrated zero apps | #1688 |
 | 0.8 | Chat app owns Friends/Family/Work/Acquaintances; v13 -> v14 rebinds ownership only | #1691 |
 | 0.9 | `AppId` / `DriveSlug` / `DriveTypeSlug` plumbed through `StorageDrive`, `DriveManager`, `CreateDriveRequest`, `OwnerClientDriveData`; `OdinSlug` format validator | #1688 |
+| 0.10 | The same three on `ClientDriveData` (app and V2 routes), redacted for third parties as `Name` already is | #1688 |
+| 0.11 | `AppRegistrationRequest.AppSlug`: optional, format-validated, taken verbatim or refused, never silently replaced. Omitted still derives from `Name` | #1688 |
 
 ## Blocked on decisions
 
@@ -49,15 +51,17 @@ to tighten, because each one can reject a call that works today.
 
 | # | Item | Today |
 |---|---|---|
-| 3.1 | **App slug supplied by the caller** at registration, rather than server-coined | `AppRegistrationRequest` has no slug field; `AppSlugGenerator` derives one. Adding the field means validating it and rejecting duplicates |
-| 3.2 | **App slug immutability** across updates | Enforced: updates carry the stored slug forward |
-| 3.3 | **App slug uniqueness** | Enforced by `UNIQUE(identityId, AppSlug)` |
+| 3.1 | **App slug supplied by the caller** at registration | **Done** (0.11). Optional: supplied is validated and taken verbatim, omitted derives from `Name`. Requiring it is a separate decision -- it would break every client that registers an app today |
+| 3.2 | **App slug immutability** across updates | Enforced: updates carry the stored slug forward, and no update request carries a slug field |
+| 3.3 | **App slug uniqueness** | Enforced by `UNIQUE(identityId, AppSlug)`, and a supplied duplicate is refused with a client error before it reaches the constraint |
+| 3.3a | **App slug is derived in two places** | `AppRegistrationService.AssignSlugAsync` and the v12 -> v13 migration, both through `AppSlugGenerator`, so a migrated app and a freshly registered one land on the same value. Decided 2026-08-27 to keep it that way rather than make the column nullable |
+| 3.3b | **Derived slugs truncate at 12 characters** | `Acme Receipts` becomes `acme-receipt`. Fine for a derived fallback; worth saying out loud before any client relies on round-tripping a name |
 | 3.4 | **Drive slug required when `AppId` is set** | Not enforced. An app-owned drive can be created with no slug |
 | 3.5 | **Drive slug forbidden when `AppId` is null** | Not enforced. The doc's invariant; without it, ownerless drives can carry slugs the unique index cannot constrain (NULL `AppId` rows do not collide in either dialect) |
 | 3.6 | **Drive slug uniqueness for ownerless drives** | Impossible at the constraint level while `AppId` is null; needs a code check, or 3.5 |
 | 3.7 | **Drive slug immutability** | No update path writes it yet. Once slugs are addresses, renaming breaks other identities' links |
 | 3.8 | **Reserved-segment denylist** | `OdinSlug.Reserved` is empty and must grow whenever a literal route segment is added at `{appSlug}` or `{driveSlug}` position |
-| 3.9 | **System app slugs protected** | `AppSlugGenerator` orders known apps first so a user app cannot take `chat`, but nothing stops a caller-supplied slug from doing so once 3.1 lands |
+| 3.9 | **System app slugs protected** | **Open, and now reachable.** `AppSlugGenerator` orders known apps first when *deriving*, but a caller may now supply `chat` on an identity where the chat app is not yet registered, and take it first-come. `drive-addressing.md` OQ2 (no global registry) is the same question |
 | 3.10 | **`Type` becomes app-scoped** | Four call sites still read it as a global vocabulary: `FollowerService`, `FollowerPerimeterService`, `FeedDriveDistributionRouter`, `FeedNotificationMapper` |
 
 ## Routes
@@ -98,3 +102,4 @@ to tighten, because each one can reject a call that works today.
 | 7.2 | What does the setup wizard actually post for Friends/Family/Work/Acquaintances? The server now wins the create race, so anything extra the wizard sends is silently dropped for new identities |
 | 7.3 | Clients must round-trip the full circle definition on update, or `grantOn` / `designation` / `emoji` are cleared |
 | 7.4 | Owner console: surface `appId` / `driveSlug` / `driveTypeSlug` where useful |
+| 7.5 | Apps may now send `appSlug` at registration. Clients that want a specific address should send one and handle a refusal -- registration is first-come, and a taken slug is an error, not a silent rename |
