@@ -1,6 +1,14 @@
 # WebDrop, and a generic file TTL
 
-*Status: proposal, for discussion.*
+## Status
+
+| Piece | State |
+|---|---|
+| **Part 1 — generic file TTL** (`FileMetadata.Ttl`, expiry/reap jobs, peer transit, cache clamp) | **Implemented** — PR #1692 |
+| Part 2 — `BlockAnonymousEnumeration` (non-enumerable drives) | **Not implemented** |
+| Part 2 — `WebDropDrive` system drive + migration | **Not implemented** |
+| Viewer web app | UX prototype only, in odin-js (`packages/apps/web-drop-app`) — no decryption, no drive; see *Viewer UX* |
+| Writer (owner console / chat-kmp), client-side encryption | **Not implemented** — sketch in the appendix |
 
 Two things, in this order: a **generic per-file TTL** that must serve chat retention and
 Snapchat-style messages as well as web drops, and **WebDrop** as its first consumer.
@@ -195,7 +203,7 @@ hardcodes, exactly as every app hardcodes its `TargetDrive`.
 **No client write either** — the `< 0` TTL resolves server-side. The reader is strictly read-only,
 which is what keeps it on existing endpoints.
 
-## Capability needed: drives that are readable but not enumerable
+## Capability needed: drives that are readable but not enumerable *(not yet implemented)*
 
 Today `AllowAnonymousReads = true` means three things at once: a stranger may **list** the drive,
 **query** its files, and **read** a file. Capability-URL sharing wants only the third.
@@ -278,7 +286,7 @@ Constraints, all verified:
   passport scan. Set none.
 - `appData.content` is cleartext but reader-untamperable — strangers have no write access.
 
-## Drive definition
+## Drive definition *(not yet implemented)*
 
 `SystemDriveConstants.WebDropDrive` — `AllowAnonymousReads = true`,
 `BlockAnonymousEnumeration = true`, `OwnerOnly = false`, `AllowCdn = false`.
@@ -295,6 +303,37 @@ would guard against — and granting a publicly-extractable token *Write* on the
 than anonymous read-only, since anyone could then write files to it. The only thing a token was
 needed for was a client-side write, and the `< 0` TTL encoding removes that. Keep the viewer
 anonymous and read-only.
+
+## Viewer UX
+
+The page a stranger lands on when they click a WebDrop URL. Tone: Mission Impossible — dark ground,
+signal red, monospace, scanlines. It is a cool feature and should feel like one.
+
+1. **Intro.** Homebase logo, "WEBDROP" header, and the sender (the URL host):
+
+   > *biggus.dickus has sent you a WebDrop. It will self-destruct when you open it.*
+
+   Below it, a required consent checkbox — *"This drop is for me alone. I agree to respect the
+   confidentiality and privacy of the sender and will not share its contents."* — and a large
+   **OPEN DROP** button, disabled until checked. The intro fetches only the **header**: a header
+   read deliberately does not start the TTL clock, so the page can show payload count and sizes
+   without burning anything. Prefetching mail scanners land here and cost nothing.
+
+2. **Open.** The click fetches the payloads — the first payload fetch is what starts the
+   server-side clock — then re-reads the header for the resolved absolute `Ttl` and starts the
+   countdown against it: big mono digits, a burning-fuse bar, green→amber→red,
+   *"This drop will self-destruct in 19:42"*. Each payload gets a download icon, name, type and
+   size; downloads are object URLs from the bytes already fetched, no second round trip.
+
+3. **Destructed.** At zero — or on a 404 at any point (expired, burned, never existed; the server
+   deliberately does not say which) — a glitch screen: **THIS DROP HAS SELF-DESTRUCTED.** Object
+   URLs revoked, nothing left clickable.
+
+The prototype in odin-js implements exactly this against the V2 by-uid endpoints with a
+`/d/{driveId}/{dropId}` URL (drive id in the URL until the system drive exists) and a `/d/demo`
+mode that runs on mocked data. Decryption is not in the prototype; when it lands, only the
+data-source layer changes — the fragment key decrypts `wdr_meta`/`wdr_data` after fetch, and the
+screens stay as they are.
 
 ## The viewer app
 
