@@ -8,7 +8,7 @@
 | Part 2 — `BlockAnonymousEnumeration` (non-enumerable drives) | **Not implemented** |
 | Part 2 — `WebDropDrive` system drive + migration | **Not implemented** |
 | Viewer web app | UX prototype only, in odin-js (`packages/apps/web-drop-app`) — no decryption, no drive; see *Viewer UX* |
-| Writer (owner console / chat-kmp), client-side encryption | **Not implemented** — sketch in the appendix |
+| Writer — chat-kmp WebDrop add-on (Home-tile app, no toolbar icon) | **Implemented** on chat-kmp branch `webdrop-app`: multi-file drops, owner-encrypted receipts, Waiting/Opened/Removed list, revoke. Drive bootstraps via extend-permissions `allowAnonymousRead` |
 
 Two things, in this order: a **generic per-file TTL** that must serve chat retention and
 Snapchat-style messages as well as web drops, and **WebDrop** as its first consumer.
@@ -271,8 +271,8 @@ One file per drop, on the web-drop drive.
 | `ACL` | `SecurityGroupType.Anonymous` |
 | `IsEncrypted` | `false` |
 | `FileMetadata.Ttl` | absolute, ≤ 30 days out — or `-1_200_000` (20 min after first read) to burn |
-| payload `wdr_meta` | `E_k({fileName, contentType, size, note})` |
-| payload `wdr_data` | `E_k(bytes)` |
+| payload `wdr_meta` | `E_k(JSON [{key,name,contentType,size},…])` — a manifest **array**: drops are multi-file |
+| payloads `wdr_dat1..N` | `E_k(bytes)` each, own IV; N ≤ 24 (manifest takes the 25th slot of the server's per-file payload cap) |
 | thumbnails, preview thumbnail | **none** |
 
 The countdown UI reads `Ttl` straight off the client header — one value, one truth.
@@ -286,15 +286,27 @@ Constraints, all verified:
   passport scan. Set none.
 - `appData.content` is cleartext but reader-untamperable — strangers have no write access.
 
-## Drive definition *(not yet implemented)*
+## Drive definition
 
-`SystemDriveConstants.WebDropDrive` — `AllowAnonymousReads = true`,
-`BlockAnonymousEnumeration = true`, `OwnerOnly = false`, `AllowCdn = false`.
+**Decided: not a system drive.** The chat-kmp app requests the drive through the extend-permissions
+flow with `allowAnonymousRead = true` (the YouAuth drive-request `r` param — WebDrop is its first
+user), and the owner console creates it on consent, exactly as `WellKnownAppDrives.cs` documents for
+the Email drive. Alias `6d1711af-8b93-43ef-b798-b84d51f25828`, type
+`edee430a-73d4-49ae-a9ae-2d3091957702` (chat-kmp `AppConfig.webDropLabeledDrive`); mirror them in
+`WellKnownAppDrives.cs` when server-side authorization needs to name the drive.
 
-No owner API sets `BlockAnonymousEnumeration`, and `DriveManager.SetDriveReadModeAsync:179` already
-refuses to change `AllowAnonymousReads` on a drive in `SystemDrives` — so neither flag is reachable
-at runtime. Flipping this drive to enumerable would make every live drop world-listable in one
-request, so a test asserts both values.
+Still owed here *(not yet implemented)*: `BlockAnonymousEnumeration = true` on this drive — until
+that capability exists, drops are enumerable by anyone ("boring bit last"). When it lands, the
+extend-permissions drive request needs to carry it too.
+
+**The owner's own list is free.** The owner has full read on the drive, so drive sync returns the
+drop file with its resolved `Ttl` and — because expiry soft-deletes — its tombstone. The writer
+derives per-drop status from that alone: pending negative `Ttl` → *Waiting*; positive on a drop the
+receipt says started as burn → *Opened, dies at Ttl*; positive on a fixed-lifetime drop →
+*Expiring*; tombstone or gone → *Removed*. An owner-only **encrypted receipt** file (same drive,
+`groupId` = dropId) carries what the anonymous drop must not: filenames and the full link,
+fragment key included, so the owner can re-copy it. Revoke deletes the drop file only — the receipt
+stays to show *Removed* until the user clears it.
 
 ## On giving the viewer an app token
 
