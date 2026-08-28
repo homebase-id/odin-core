@@ -154,7 +154,7 @@ public class OwnerSecurityHealthService(
     /// </summary>
     public async Task<PeriodicSecurityHealthCheckStatus> RunHealthCheck(IOdinContext odinContext)
     {
-        var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+        var shardDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
         if (null == shardDrive)
         {
             logger.LogDebug("Shard recovery drive is not configured, skipping health check");

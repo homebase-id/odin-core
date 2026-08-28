@@ -101,8 +101,8 @@ public class V12ToV13AppRegistrationMigrationTests : V2Fixture
         Assert.That(AppSlugGenerator.IsValid(record.AppSlug), Is.True, $"'{record.AppSlug}' is not a valid slug");
 
         // Derived from the display name, not the fallback: a null Name would have produced the app id.
-        // Truncated at the 12-character cap, so "acme-receipts" lands as "acme-receipt".
-        Assert.That(record.AppSlug, Is.EqualTo("acme-receipt"));
+        // Fits under the 14-character cap, so "acme-receipts" survives whole.
+        Assert.That(record.AppSlug, Is.EqualTo("acme-receipts"));
     }
 
     [Test]

@@ -26,7 +26,7 @@ namespace Odin.Services.Authorization.Apps
     /// </remarks>
     public static class AppSlugGenerator
     {
-        public const int MaxLength = 12;
+        public const int MaxLength = 14;
 
         private static readonly Regex ValidSlug = new("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", RegexOptions.Compiled);
         private static readonly Regex NonSlugRun = new("[^a-z0-9]+", RegexOptions.Compiled);

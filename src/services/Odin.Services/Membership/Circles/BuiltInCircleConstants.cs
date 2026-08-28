@@ -37,7 +37,7 @@ public static class BuiltInCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.LocationDrive,
+                    Drive = WellKnownAppDrives.LocationDrive,
                     Permission = DrivePermission.Read
                 }
             },

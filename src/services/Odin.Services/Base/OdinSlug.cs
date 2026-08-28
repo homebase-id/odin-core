@@ -21,7 +21,7 @@ namespace Odin.Services.Base;
 /// </remarks>
 public static class OdinSlug
 {
-    public const int MaxLength = 12;
+    public const int MaxLength = 14;
 
     private static readonly Regex Pattern = new("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", RegexOptions.Compiled);
 

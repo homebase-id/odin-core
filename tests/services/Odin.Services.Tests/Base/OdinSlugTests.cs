@@ -35,7 +35,7 @@ public class OdinSlugTests
     [TestCase("my@chat")]
     [TestCase("-chat", Description = "a leading hyphen")]
     [TestCase("chat-", Description = "a trailing hyphen")]
-    [TestCase("abcdefghijklm", Description = "one over MaxLength")]
+    [TestCase("abcdefghijklmno", Description = "one over MaxLength")]
     [TestCase("")]
     [TestCase(null)]
     public void RejectsAMalformedSlug(string slug)

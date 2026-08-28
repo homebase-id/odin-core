@@ -125,7 +125,7 @@ namespace Odin.Services.DataSubscription
             }
 
             return drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType ||
-                   drive.TargetDriveInfo == SystemDriveConstants.FeedDrive;
+                   drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive;
         }
     }
 }

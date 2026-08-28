@@ -25,7 +25,7 @@ namespace Odin.Services.Profile;
 
 /// <summary>
 /// Server-side authority for <b>writing</b> built-in profile attributes to the
-/// <see cref="SystemDriveConstants.ProfileDrive"/>. It is the profile-side analogue of
+/// <see cref="WellKnownAppDrives.ProfileDrive"/>. It is the profile-side analogue of
 /// <see cref="ContactService"/>: every app write funnels through here and is performed on the caller's
 /// behalf via <see cref="OdinContextUpgrades.UpgradeToByPassAclCheck"/>, gated on
 /// <see cref="PermissionKeys.ManageProfile"/>. This lets apps eventually be locked to <b>Read</b> (or no
@@ -82,7 +82,7 @@ public class ProfileAttributeService(
     /// </summary>
     private const int MaxHeaderContentBytes = 7000;
 
-    private static readonly TargetDrive Drive = SystemDriveConstants.ProfileDrive;
+    private static readonly TargetDrive Drive = WellKnownAppDrives.ProfileDrive;
     private static Guid DriveId => Drive.Alias;
 
     /// <summary>

@@ -107,11 +107,52 @@ public class DriveManager : IDriveManager
             throw new OdinClientException("Drive by alias and type already exists", OdinClientErrorCode.InvalidDrive);
         }
 
+        // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
+        // unset field as "" or " " routinely, and without this the three spellings diverge: null and
+        // "" derive a slug while "   " fails validation and throws. Note this is not coercion of a
+        // real slug -- there is no address inside "   " to preserve. Anything with actual content is
+        // still validated and rejected on failure, so " chat " is an error, never trimmed to "chat".
+        var requestedSlug = string.IsNullOrWhiteSpace(request.DriveSlug) ? null : request.DriveSlug;
+        var requestedTypeSlug = string.IsNullOrWhiteSpace(request.DriveTypeSlug) ? null : request.DriveTypeSlug;
+
         // Format only, and only when supplied. A slug is a URL segment and a wire address other
         // identities resolve against, so a malformed one is rejected rather than coerced -- silently
         // lowercasing or stripping produces an address the caller did not ask for.
-        OdinSlug.AssertValidOrNull(request.DriveSlug, nameof(request.DriveSlug));
-        OdinSlug.AssertValidOrNull(request.DriveTypeSlug, nameof(request.DriveTypeSlug));
+        OdinSlug.AssertValidOrNull(requestedSlug, nameof(request.DriveSlug));
+        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(request.DriveTypeSlug));
+
+        // The caller's values win; only a missing one is derived. A supplied slug is never replaced --
+        // it is an address, so handing back a different one would be worse than refusing.
+        //
+        // Nothing is derived for a drive with no owning app. The invariant is that AppId and DriveSlug
+        // are set together or both NULL (docs/drive-addressing.md, Schema): NULLs are distinct in a
+        // unique index in both dialects, so a slug on an AppId-less row is unconstrained and two drives
+        // could claim the same one. Every drive is expected to carry an AppId -- system drives included,
+        // under the system app -- so in practice this guard does not fire; it is what keeps the
+        // invariant true for anything that slips through without one.
+        var driveSlug = requestedSlug;
+        var driveTypeSlug = requestedTypeSlug;
+
+        if (request.AppId != null)
+        {
+            if (driveSlug == null)
+            {
+                // Only read the table when there is actually something to derive, and scope the taken
+                // set to this app: the constraint is per app, so feed/news and chat/news may coexist.
+                // Deduping across the whole identity would hand the second one "news-2" -- a permanent
+                // address nobody asked for, for a collision the schema permits.
+                var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+                var taken = new HashSet<string>(
+                    existingDrives
+                        .Where(d => d.AppId == request.AppId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                        .Select(d => d.DriveSlug),
+                    StringComparer.Ordinal);
+
+                driveSlug = DriveSlugGenerator.Generate(request.TargetDrive.Alias.Value, request.Name, taken);
+            }
+
+            driveTypeSlug ??= DriveSlugGenerator.TypeSlugFor(request.TargetDrive.Alias.Value, request.TargetDrive.Type.Value);
+        }
 
         var mk = odinContext.Caller.GetMasterKey();
 
@@ -144,11 +185,11 @@ public class DriveManager : IDriveManager
             detailsJson = OdinSystemSerializer.Serialize(driveData),
             StorageKeyCheckValue = id,
 
-            // Columns, not details -- see ToRecord. Null unless the caller supplied them; nothing
-            // derives a slug yet.
+            // Columns, not details -- see ToRecord. The slugs are the caller's or derived above; AppId is
+            // still the caller's alone, since nothing decides drive ownership yet.
             AppId = request.AppId,
-            DriveSlug = request.DriveSlug,
-            DriveTypeSlug = request.DriveTypeSlug
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug
         };
 
         try

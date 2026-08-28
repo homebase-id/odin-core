@@ -65,8 +65,8 @@ public class AppSlugRegistrationTests : V2Fixture
         var reg = await apps.GetAppRegistration(appId, ctx);
 
         // The field is optional; every registration written before it existed took this path.
-        // Truncated at OdinSlug.MaxLength: "acme-receipts" is 13 characters.
-        Assert.That(reg!.AppSlug, Is.EqualTo("acme-receipt"));
+        // Fits under OdinSlug.MaxLength: "acme-receipts" is 13 characters.
+        Assert.That(reg!.AppSlug, Is.EqualTo("acme-receipts"));
     }
 
     [Test]

@@ -161,7 +161,7 @@ public class ShamirReadinessCheckerService(
         _logger.LogDebug("Verifying dealer shard {shardId}", shardId);
         try
         {
-            var shardDrive = await _driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+            var shardDrive = await _driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
 
             if (null == shardDrive)
             {

@@ -107,7 +107,7 @@ public class DataSubscriptionAndDistributionTests2
         // Sam can get the payload via transit query
         // 
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDriveHasHeader(samOwnerClient, firstUploadResult, encryptedJsonContent64);
         await AssertCanGetPayload(samOwnerClient, TestIdentities.Frodo, firstUploadResult, encryptedPayloadContent64);
 
@@ -115,11 +115,11 @@ public class DataSubscriptionAndDistributionTests2
         // The header is NOT distributed to the feed drive of Merry and Pippin
         // Merry and Pippin Cannot get the payload via transit query
         //
-        await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await pippinOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDrive_Does_Not_HaveHeader(pippinOwnerClient, firstUploadResult, encryptedJsonContent64);
         await AssertCan_Not_GetPayload(pippinOwnerClient, TestIdentities.Frodo, firstUploadResult);
 
-        await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await merryOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDrive_Does_Not_HaveHeader(merryOwnerClient, firstUploadResult, encryptedJsonContent64);
         await AssertCan_Not_GetPayload(merryOwnerClient, TestIdentities.Frodo, firstUploadResult);
 
@@ -184,7 +184,7 @@ public class DataSubscriptionAndDistributionTests2
         // The header is distributed to the feed drive of Sam
         // Sam can get the payload via transit query
         // 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDriveHasHeader(samOwnerClient, uploadResult, encryptedJsonContent64);
         await AssertCanGetPayload(samOwnerClient, TestIdentities.Frodo, uploadResult, encryptedPayloadContent64);
 
@@ -194,13 +194,13 @@ public class DataSubscriptionAndDistributionTests2
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive); // just in case
-        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive); // just in case
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(WellKnownAppDrives.FeedDrive); // just in case
 
         //
         // Sam's feed drive no longer has the header
         // Sam can not get the payload via transit query
         // 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(samOwnerClient, uploadResult);
         await AssertPayloadIs404(samOwnerClient, TestIdentities.Frodo, uploadResult);
 
@@ -230,7 +230,7 @@ public class DataSubscriptionAndDistributionTests2
     {
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -262,7 +262,7 @@ public class DataSubscriptionAndDistributionTests2
     {
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -286,7 +286,7 @@ public class DataSubscriptionAndDistributionTests2
     {
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 

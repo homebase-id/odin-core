@@ -262,19 +262,19 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
         private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
         {
-            var senderWaitTime = await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            var senderWaitTime = await sender.DriveRedux.WaitForEmptyOutbox(WellKnownAppDrives.ChatDrive, timeout);
             Console.WriteLine($"Sender Outbox Wait time: {senderWaitTime.TotalSeconds}sec");
 
-            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyOutbox(WellKnownAppDrives.ChatDrive, timeout);
             Console.WriteLine($"Sender Outbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
         private async Task WaitForEmptyInboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
         {
-            var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.ChatDrive, timeout);
             Console.WriteLine($"Sender Inbox Wait time: {senderWaitTime.TotalSeconds}sec");
 
-            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.ChatDrive, timeout);
             Console.WriteLine($"Sender Inbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
@@ -297,7 +297,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             var storageOptions = new StorageOptions()
             {
-                Drive = SystemDriveConstants.ChatDrive
+                Drive = WellKnownAppDrives.ChatDrive
             };
 
             var transitOptions = new TransitOptions()

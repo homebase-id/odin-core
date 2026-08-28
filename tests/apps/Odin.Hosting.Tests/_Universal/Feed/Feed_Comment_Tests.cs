@@ -56,7 +56,7 @@ public class Feed_Comment_Tests
     {
         // yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
         // yield return new object[] { new AppReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
-        yield return new object[] { new OwnerClientContext(SystemDriveConstants.FeedDrive), HttpStatusCode.OK };
+        yield return new object[] { new OwnerClientContext(WellKnownAppDrives.FeedDrive), HttpStatusCode.OK };
     }
 
     [Test]
@@ -114,7 +114,7 @@ public class Feed_Comment_Tests
         {
             QueryParams = new FileQueryParamsV1()
             {
-                TargetDrive = SystemDriveConstants.FeedDrive,
+                TargetDrive = WellKnownAppDrives.FeedDrive,
                 FileType = new List<int>() { fileType }
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -146,7 +146,7 @@ public class Feed_Comment_Tests
             {
                 QueryParams = new FileQueryParamsV1()
                 {
-                    TargetDrive = SystemDriveConstants.FeedDrive,
+                    TargetDrive = WellKnownAppDrives.FeedDrive,
                     FileType = new List<int>() { }
                 },
                 ResultOptionsRequest = new QueryBatchResultOptionsRequest()

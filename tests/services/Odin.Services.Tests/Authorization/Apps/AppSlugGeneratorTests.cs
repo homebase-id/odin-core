@@ -39,7 +39,7 @@ public class AppSlugGeneratorTests
         var acme = Guid.NewGuid();
         var slugs = AppSlugGenerator.GenerateAll([(acme, "Acme Receipts")]);
 
-        Assert.That(slugs[acme], Is.EqualTo("acme-receipt"));
+        Assert.That(slugs[acme], Is.EqualTo("acme-receipts"));
         Assert.That(AppSlugGenerator.IsValid(slugs[acme]), Is.True);
     }
 
@@ -108,11 +108,11 @@ public class AppSlugGeneratorTests
     {
         // The stored slug wins, even where the name would slugify to something else today.
         var appId = Guid.NewGuid();
-        var taken = new HashSet<string> { "acme-receipt" };
+        var taken = new HashSet<string> { "acme-receipts" };
 
         var slug = AppSlugGenerator.Generate(appId, "Acme Receipts", taken);
 
-        Assert.That(slug, Is.Not.EqualTo("acme-receipt"));
+        Assert.That(slug, Is.Not.EqualTo("acme-receipts"));
         Assert.That(AppSlugGenerator.IsValid(slug), Is.True);
     }
 
@@ -126,10 +126,10 @@ public class AppSlugGeneratorTests
     }
 
     [Test]
-    [TestCase("Homebase - Chat", "homebase-cha")]
+    [TestCase("Homebase - Chat", "homebase-chat")]
     [TestCase("UPPER case", "upper-case")]
-    [TestCase("  leading and trailing  ", "leading-and")]
-    [TestCase("multiple---hyphens", "multiple-hyp")]
+    [TestCase("  leading and trailing  ", "leading-and-tr")]
+    [TestCase("multiple---hyphens", "multiple-hyphe")]
     [TestCase("café", "caf")]
     [TestCase("123", "123")]
     [TestCase("!!!", null)]

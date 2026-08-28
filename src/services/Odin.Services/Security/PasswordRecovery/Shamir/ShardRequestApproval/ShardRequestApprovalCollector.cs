@@ -30,7 +30,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     /// <param name="odinContext"></param>
     public async Task SaveRequest(ShardApprovalRequest request, IOdinContext odinContext)
     {
-        var targetDrive = SystemDriveConstants.ShardRecoveryDrive;
+        var targetDrive = WellKnownAppDrives.ShardRecoveryDrive;
         var driveId = targetDrive.Alias;
         var shardId = request.ShardId;
 
@@ -67,7 +67,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     public async Task<ShardApprovalRequest> GetRequest(Guid shardId, IOdinContext odinContext)
     {
         var fileByClientUniqueId = await fileSystem.Query.GetSingleFileByTag(
-            SystemDriveConstants.ShardRecoveryDrive.Alias,
+            WellKnownAppDrives.ShardRecoveryDrive.Alias,
             shardId,
             odinContext);
 
@@ -77,17 +77,17 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     public async Task DeleteRequest(Guid shardId, IOdinContext odinContext)
     {
         var fileByClientUniqueId = await fileSystem.Query.GetSingleFileByTag(
-            SystemDriveConstants.ShardRecoveryDrive.Alias,
+            WellKnownAppDrives.ShardRecoveryDrive.Alias,
             shardId,
             odinContext);
 
-        var file = new InternalDriveFileId(SystemDriveConstants.ShardRecoveryDrive.Alias, fileByClientUniqueId.FileId);
+        var file = new InternalDriveFileId(WellKnownAppDrives.ShardRecoveryDrive.Alias, fileByClientUniqueId.FileId);
         await fileSystem.Storage.HardDeleteLongTermFile(file, odinContext);
     }
 
     private async Task<List<SharedSecretEncryptedFileHeader>> GetShardRequestFiles(IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
 
         var qp = new FileQueryParamsV1()
         {
@@ -109,7 +109,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
 
     private async Task WriteNewFile(ShardApprovalRequest request, IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
@@ -146,7 +146,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
 
     private async Task OverwriteFile(ShardApprovalRequest shardApproval, Guid existingFileId, IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var file = new InternalDriveFileId()
         {
             FileId = existingFileId,

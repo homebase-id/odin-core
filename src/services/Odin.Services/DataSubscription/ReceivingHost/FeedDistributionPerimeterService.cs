@@ -216,7 +216,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             try
             {
                 logger.LogDebug("RouteFeedRequestToInbox for gtid: {gtid}", request.FileId.GlobalTransitId);
-                var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+                var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
                 logger.LogDebug("Found feed drive id {id}", feedDriveId);
 
                 // The feed metadata rides on the inbox row (TransferInboxItem.FileMetadata) instead of a .metadata
@@ -258,7 +258,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
                 await mediator.Publish(new InboxItemReceivedNotification()
                 {
-                    TargetDrive = SystemDriveConstants.FeedDrive,
+                    TargetDrive = WellKnownAppDrives.FeedDrive,
                     TransferFileType = item.TransferInstructionSet.TransferFileType,
                     FileSystemType = item.TransferInstructionSet.FileSystemType,
                 });

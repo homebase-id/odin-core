@@ -23,7 +23,7 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
 
     public async Task SavePlayerShard(PlayerEncryptedShard shard, IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var uid = shard.Id;
         
         var existingFile = await fileSystem.Query.GetFileByClientUniqueIdForWriting(driveId, uid, odinContext);
@@ -40,7 +40,7 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
 
     public async Task<List<PlayerEncryptedShard>> GetCollectShards(IOdinContext odinContext)
     {
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
+        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Read, odinContext);
         var files = await GetShardFiles(byPassAclCheckContext);
         return files.Select(ToPlayerCollectedShard).ToList();
@@ -52,12 +52,12 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
     public async Task DeleteCollectedShards(IOdinContext odinContext)
     {
         var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            SystemDriveConstants.ShardRecoveryDrive,
+            WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.ReadWrite,
             odinContext);
 
         var files = await GetShardFiles(byPassAclCheckContext);
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         foreach (var f in files)
         {
             var file = new InternalDriveFileId(driveId, f.FileId);
@@ -68,12 +68,12 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
     private async Task<List<SharedSecretEncryptedFileHeader>> GetShardFiles(IOdinContext odinContext)
     {
         var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            SystemDriveConstants.ShardRecoveryDrive,
+            WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Read,
             odinContext);
 
 
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
 
         var qp = new FileQueryParamsV1()
         {
@@ -95,10 +95,10 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
 
     private async Task WriteNewFile(PlayerEncryptedShard shard, IOdinContext odinContext)
     {
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
+        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Write, odinContext);
 
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
@@ -131,10 +131,10 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
     private async Task OverwriteFile(PlayerEncryptedShard shard, Guid existingFileId,
         IOdinContext odinContext)
     {
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
+        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Write, odinContext);
 
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var file = new InternalDriveFileId()
         {
             FileId = existingFileId,

@@ -31,4 +31,89 @@ public static class WellKnownAppDrives
         Alias = Guid.Parse("92bbcad8-3558-417b-9376-9976c086a674"),
         Type = Guid.Parse("37e3480a-4cd7-4a41-a421-ed49866bf07e")
     };
+    public static readonly TargetDrive ChatDrive = new()
+    {
+        Alias = Guid.Parse("9ff813aff2d61e2f9b9db189e72d1a11"),
+        Type = Guid.Parse("66ea8355ae4155c39b5a719166b510e3")
+    };
+
+    public static readonly TargetDrive StickerDrive = new()
+    {
+        Alias = Guid.Parse("3b9c5f2e-7a41-4d6b-9e0c-8f1a2b3c4d5e"),
+        Type = Guid.Parse("a8c64b10-7434-494b-8b8c-a2284bd643c8")
+    };
+
+    public static readonly TargetDrive ContactDrive = new()
+    {
+        Alias = Guid.Parse("2612429d1c3f037282b8d42fb2cc0499"),
+        Type = Guid.Parse("70e92f0f94d05f5c7dcd36466094f3a5")
+    };
+
+    public static readonly TargetDrive ProfileDrive = new()
+    {
+        Alias = Guid.Parse("8f12d8c4933813d378488d91ed23b64c"),
+        Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
+    };
+
+    public static readonly TargetDrive FeedDrive = new()
+    {
+        Alias = Guid.Parse("4db49422ebad02e99ab96e9c477d1e08"),
+        Type = Guid.Parse("a3227ffba87608beeb24fee9b70d92a6")
+    };
+
+    public static readonly TargetDrive PublicPostsChannelDrive = new()
+    {
+        Alias = Guid.Parse("e8475dc46cb4b6651c2d0dbd0f3aad5f"),
+        Type = SystemDriveConstants.ChannelDriveType
+    };
+
+    public static readonly TargetDrive HomePageConfigDrive = new()
+    {
+        Alias = Guid.Parse("ec83345af6a747d4404ef8b0f8844caa"),
+        Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
+    };
+
+    public static readonly TargetDrive ListsDrive = new()
+    {
+        Alias = Guid.Parse("a44e7a2651f44a26ad125d7627b35d0e"),
+        Type = Guid.Parse("4338d7d2f217486a8790a4982644c15f")
+    };
+
+    public static readonly TargetDrive LocationDrive = new()
+    {
+        Alias = Guid.Parse("2e191a14-8640-4ebc-b0c8-aaac913f6fa8"),
+        Type = Guid.Parse("9dbc3bf5-ca24-4d7d-98ca-6933af0ad491")
+    };
+
+    public static readonly TargetDrive MailDrive = new()
+    {
+        Alias = Guid.Parse("e69b5a48a663482fbfd846f3b0b143b0"),
+        Type = Guid.Parse("2dfecc40311e41e5a12455e925144202")
+    };
+
+    public static readonly TargetDrive MomentsDrive = new()
+    {
+        Alias = Guid.Parse("a85f8562-6c74-4947-896b-619812cafccc"),
+        Type = Guid.Parse("4338d7d2-f217-486a-8790-a4982644c15f")
+    };
+
+    public static readonly TargetDrive ShardRecoveryDrive = new()
+    {
+        Alias = Guid.Parse("46242d0d67604b2aa683f05cd48d4aef"),
+        Type = Guid.Parse("43138ae90206480b9ff493580ca147ee")
+    };
+
+    public static readonly TargetDrive WalletDrive = new()
+    {
+        Alias = Guid.Parse("a6f991e214b11c8c9796f664e1ec0cac"),
+        Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
+    };
+
+    /// <summary>The Community app's drive.</summary>
+    public static readonly TargetDrive CommunityDrive = new()
+    {
+        Alias = Guid.Parse("3e5de26f8fa343c1975ad0dd2aa8564c"),
+        Type = Guid.Parse("93a6e08d14d9479e8d99bae4e5348a16")
+    };
+
 }

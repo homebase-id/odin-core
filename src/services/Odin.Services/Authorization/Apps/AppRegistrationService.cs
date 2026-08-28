@@ -535,7 +535,12 @@ namespace Odin.Services.Authorization.Apps
                 existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
                 StringComparer.Ordinal);
 
-            if (string.IsNullOrEmpty(requestedSlug))
+            // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
+            // unset field as "" or " " routinely, and without this the three spellings diverge: null and
+            // "" derive a slug while "   " fails validation and throws. Not coercion of a real slug --
+            // there is no address inside "   " to preserve. Anything with actual content is still
+            // validated and rejected on failure, so " chat " is an error, never trimmed to "chat".
+            if (string.IsNullOrWhiteSpace(requestedSlug))
             {
                 return AppSlugGenerator.Generate(appId, name, taken);
             }

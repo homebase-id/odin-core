@@ -1108,7 +1108,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 if (originalRequest.TempEncryptedFeedDriveStorageKey != null)
                 {
-                    var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+                    var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
                     var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext,
                         feedDriveId,
                         tempKey,
@@ -1259,7 +1259,7 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             try
             {
-                if (!odinContext.PermissionsContext.TryGetDriveStorageKey(SystemDriveConstants.ContactDrive.Alias, out _))
+                if (!odinContext.PermissionsContext.TryGetDriveStorageKey(WellKnownAppDrives.ContactDrive.Alias, out _))
                 {
                     // No ContactDrive storage key here (peer/introduction context). The peer's card is
                     // preserved on the ICR; an owner-keyed /sync can materialize the contact later.
@@ -1551,7 +1551,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 outgoingRequest.TempEncryptedIcrKey = new SymmetricKeyEncryptedAes(tempRawKey, rawIcrKey);
 
-                var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(SystemDriveConstants.FeedDrive.Alias);
+                var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(WellKnownAppDrives.FeedDrive.Alias);
                 outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
             }
 
