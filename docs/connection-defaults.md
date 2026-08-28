@@ -107,6 +107,66 @@ The review is one atomic act: it confirms, enrolls the checked `Review` circles,
 grants any selected personal circles — no revoke/grant swap, no lockout, and a declined toggle
 simply never mints.
 
+**Second worked example — Moments, a deposit that should still sit behind the review.** The
+frodo case above is read-shaped: the feed's `Review` circle exists because secured-feed
+distribution *is* a read, and reads need the key ceremony. Moments is the mirror case — a grant
+that is deposit-only, and therefore *eligible* for `Connect`, that we nevertheless want gated.
+`Connect` marks a circle eligible to be granted without a review; it does not oblige us to use it.
+(The auto-connect example and the frodo table above list moments among the `Connect` circles —
+that is today's row. Under the refinement below it drops out of both.)
+
+Today's decomposition table (chat-kmp `CIRCLES_VISIBILITY_PROPOSAL.md`) gives moments
+`MomentsDrive Write|React` at `Connect`, annotated "(reactions/comments deposit)". Two problems
+with that row:
+
+- **`Write` is write.** Under `Connect`, an identity the owner has never looked at — an
+  introduction auto-accepted at 3 a.m. — can post a moment *into* the owner's Moments drive. That
+  is a spam surface, and it is not what the annotation describes.
+- **`Comment` is missing.** `Comment = 8` is its own bit (`DrivePermission.cs`), implied by
+  neither `Write = 2` nor `React = 4`. The annotation says "reactions/comments"; the grant says
+  reactions.
+
+**One circle, moved.** Not two — everyone who can post a moment is the same set of people who can
+react and comment on one. Nobody holds read on a private Moments drive, so a wider react-only
+population would have nothing to react to: distribution targets personal circles, whose members
+are reviewed by construction.
+
+```
+Circle       Moments
+AppId        <moments app>
+Grants       MomentsDrive  Write | React | Comment
+GrantOn      Review
+```
+
+What bishwa holds at each stage:
+
+| Stage | Membership | Can | Cannot |
+|---|---|---|---|
+| auto-connection | chat/mail/lists/feed `Connect` circles | message me, mail me, react to my feed | read anything non-public; **post a moment to me** |
+| review: "Add to circles" (Friends ✓, moments toggle left on) | + Friends (personal), + Moments `Review` | see Friends-visible profile fields, **post a moment to me** | anything not granted to those circles |
+| review: "Chat only" (all toggles off) | unchanged from row 1 | message me, mail me, react | still holds zero read keys; still cannot post a moment |
+
+Nothing about the moments app has to run for this, and nothing is configured per contact: the app
+declared the circle at install, and the review enrolled the contact in it.
+
+**Three consequences worth writing down:**
+
+1. **The `Connect`-column sanity check gains one deliberate exception.** Today's Auto Connections
+   bundle grants `Write|React` on the moments drive, so summing the `Connect` column no longer
+   reproduces it exactly. That check is what makes the decomposition auditable — this is the one
+   row that is a *reduction*, and it should be named as such here rather than discovered during
+   migration.
+2. **Existing connections keep the grant.** Enrollment is additive and nothing is removed, so
+   identities auto-connected before the change can still post. The tightening binds new
+   connections only, unless the owner bulk-revokes on the circle's member list — open question 1's
+   existing-connections detail, now with a concrete case attached.
+3. **A deposit-only `Review` circle needs no pending queue.** *Cross-app verified enrollment*
+   below queues a toggle whose grants the reviewing client cannot mint, because read grants need
+   keys. Moments' grants are deposit-only, so the server can complete them from any context —
+   exactly as it does for `Connect`. The fast path should key off the **grant shape**, not off
+   `GrantOn`.
+
+
 **What this replaces.**
 
 | Today | Becomes |
@@ -345,3 +405,9 @@ endpoint's one designation consultation is **invariant enforcement**: un-review 
    circles entirely and become per-connection settings toggled at review. Either way, **no new
    schema**: permission keys already live in circle definitions, and per-connection settings
    would ride the existing connection-registration record.
+3. **Does un-review revoke?** Clearing `ReviewedAt` drops the contact back to New for display
+   and demotes the caller tier — but enrollment is additive and nothing is removed, so a Moments
+   or feed grant minted at review survives the un-review: the contact keeps posting while
+   rendering as New 👋. Either un-review is display-only and says so, or it revokes the `Review`
+   circles that review granted — which means recording *which* memberships the review created,
+   the one part of this that is not free.
