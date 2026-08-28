@@ -2067,7 +2067,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (clamped != incoming.Ttl)
             {
                 _logger.LogInformation(
-                    "Update to file {file} tried to extend Ttl from {existing} to {incoming}; keeping {existing}",
+                    "Update to file {file} tried to extend Ttl from {existingTtl} to {incomingTtl}; keeping the existing",
                     existing.File.FileId, existing.Ttl, incoming.Ttl);
             }
 
