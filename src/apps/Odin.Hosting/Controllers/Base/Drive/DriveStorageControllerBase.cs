@@ -121,7 +121,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Cannot get payloads when marked as remote");
             }
 
-            var payloadStream = await fs.Storage.GetPayloadStreamAsync(file, key, chunk, WebOdinContext);
+            // This is the reader actually opening the file, so it is the one read that starts an
+            // expire-after-first-read clock.
+            var payloadStream = await fs.Storage.GetPayloadStreamAsync(file, key, chunk, WebOdinContext, startExpiryClock: true);
             if (payloadStream == null)
             {
                 return NotFound();
@@ -174,7 +176,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 );
             }
 
-            AddGuestApiCacheHeader();
+            AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
 
             var result = new FileStreamResult(payloadStream.Stream, payloadStream.ContentType);
 
@@ -233,7 +235,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     encryptedKeyHeaderForPayload?.ToBase64());
             }
             
-            AddGuestApiCacheHeader();
+            AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
 
             var result = new FileStreamResult(thumbPayload, header.FileMetadata.IsEncrypted
                 ? "application/octet-stream"

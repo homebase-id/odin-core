@@ -10,6 +10,7 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
@@ -37,7 +38,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         InboxStorageManager inboxStorageManager,
         IdentityDatabase db,
         InboxFileStore inboxFileStore,
-        UploadFileStore uploadFileStore) : RequirePermissionsBase
+        UploadFileStore uploadFileStore,
+        FileExpiryScheduler fileExpiryScheduler) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
@@ -332,6 +334,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
+            ApplyShortenOnlyTtl(existingHeader.FileMetadata, metadata);
 
             // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
             await AssertPayloadsExistOnFileSystemAsync(header);
@@ -645,8 +648,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header.ServerMetadata.FileSystemType;
         }
 
+        /// <param name="startExpiryClock">
+        /// Whether this read counts as "someone opened it" for an expire-after-first-read Ttl. Opt-in,
+        /// and only the caller-facing payload endpoint passes true. Plenty of internal callers stream a
+        /// payload for their own reasons - packaging it for a peer transfer, publishing static content,
+        /// reading a contact photo - and none of those are a reader opening the file. Defaulting this
+        /// to false means a new internal caller cannot silently start burning files.
+        /// </param>
         public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk,
-            IOdinContext odinContext)
+            IOdinContext odinContext, bool startExpiryClock = false)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
@@ -665,6 +675,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (descriptor == null)
             {
                 return null;
+            }
+
+            if (startExpiryClock)
+            {
+                await TryResolveTtlOnFirstReadAsync(header, odinContext);
             }
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
@@ -698,7 +713,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext);
+            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
 
             return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
         }
@@ -709,7 +724,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var fileHeader = await GetServerFileHeaderInternal(file, odinContext);
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
 
             if (fileHeader == null)
             {
@@ -783,6 +798,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     success = true;
                 }
 
+                await TryScheduleExpiryAsync(serverHeader, odinContext);
+
                 if (serverHeader != null && await TryShouldRaiseDriveEventAsync(targetFile))
                 {
                     await TryPublishAsync(new DriveFileAddedNotification
@@ -843,6 +860,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
+            ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 
             newMetadata.File = existingServerHeader.FileMetadata.File;
             //Note: our call to GetServerFileHeader earlier validates the existing
@@ -890,6 +908,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                     tx.Commit();
                     success = true;
                 }
+
+                // The TTL may have been shortened by this write; queue a delete for the new time. The
+                // job already queued for the old time re-reads the header and no-ops if it lost the race.
+                await TryScheduleExpiryAsync(serverHeader, odinContext);
 
                 if (serverHeader != null && await TryShouldRaiseDriveEventAsync(targetFile))
                 {
@@ -1918,7 +1940,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext)
+        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext,
+            bool includeExpired = false)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
@@ -1928,9 +1951,136 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            // Belt and braces for the window between a TTL coming due and its job actually running.
+            // Jobs lag; a file must never outlive its stated life just because the runner is busy.
+            // The delete paths pass includeExpired so the expiry job can still see what it must remove.
+            if (!includeExpired && IsExpired(header))
+            {
+                return null;
+            }
+
             await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
 
             return header;
+        }
+
+        /// <summary>
+        /// True when this file's <see cref="FileMetadata.Ttl"/> has come due. A pending
+        /// (expire-after-first-read) TTL counts as expired once its unread backstop has passed.
+        /// </summary>
+        public static bool IsExpired(ServerFileHeader header)
+        {
+            var metadata = header.FileMetadata;
+            var dueAt = FileTtl.ExpiresAt(metadata.Ttl, metadata.Created);
+            return dueAt != null && dueAt.Value <= UnixTimeUtc.Now().milliseconds;
+        }
+
+        /// <summary>
+        /// Queues the delete for a newly committed file that carries a TTL. Never allowed to fail the
+        /// write: a file that got stored but whose job did not queue is recoverable, a write that
+        /// rolled back because the scheduler hiccuped is not.
+        /// </summary>
+        private async Task TryScheduleExpiryAsync(ServerFileHeader header, IOdinContext odinContext)
+        {
+            if (header == null || FileTtl.IsNever(header.FileMetadata.Ttl))
+            {
+                return;
+            }
+
+            try
+            {
+                await fileExpiryScheduler.ScheduleExpiryAsync(header, odinContext);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to schedule expiry for file {file} on drive {drive}",
+                    header.FileMetadata.File.FileId, header.FileMetadata.File.DriveId);
+            }
+        }
+
+        /// <summary>
+        /// Turns a pending (negative) TTL into a real point in time on this copy's first payload read,
+        /// then queues the delete. This is the whole mechanism behind expire-after-reading, and it is
+        /// deliberately hung off the payload read rather than the header read: mail clients and
+        /// security scanners prefetch links, and the payload URL is not in the message.
+        ///
+        /// The write advances the version tag, because it must: <c>TableDriveMainIndex.cs:71</c>
+        /// refuses an upsert that reuses the existing tag outright. That is arguably the honest
+        /// outcome anyway - the file really did change state, and a client watching a burn countdown
+        /// wants to see it. The cost is that a client holding the pre-read version tag will lose an
+        /// optimistic-concurrency update it attempts afterwards.
+        ///
+        /// The re-read inside the transaction means a second concurrent reader finds the TTL already
+        /// resolved and leaves it alone. Two readers racing at exactly the same instant could still
+        /// both write; the values would differ by at most a few milliseconds, which is harmless.
+        /// </summary>
+        private async Task TryResolveTtlOnFirstReadAsync(ServerFileHeader header, IOdinContext odinContext)
+        {
+            if (!FileTtl.IsPendingFirstRead(header.FileMetadata.Ttl))
+            {
+                return;
+            }
+
+            var file = header.FileMetadata.File;
+
+            try
+            {
+                var drive = await DriveManager.GetDriveAsync(file.DriveId);
+                var resolved = FileTtl.ResolveFirstRead(header.FileMetadata.Ttl, UnixTimeUtc.Now());
+
+                await using (var tx = await db.BeginStackedTransactionAsync())
+                {
+                    var fresh = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+                    if (fresh == null || !FileTtl.IsPendingFirstRead(fresh.FileMetadata.Ttl))
+                    {
+                        return; // already read, already resolved by someone else
+                    }
+
+                    fresh.FileMetadata.Ttl = resolved;
+                    await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: null);
+                    tx.Commit();
+                }
+
+                header.FileMetadata.Ttl = resolved;
+
+                await fileExpiryScheduler.ScheduleExpiryAtAsync(
+                    file, header.ServerMetadata.FileSystemType, resolved, odinContext.Tenant);
+
+                _logger.LogDebug("Resolved expire-after-read TTL for file {file} on drive {drive} to {resolved}",
+                    file.FileId, file.DriveId, resolved);
+            }
+            catch (Exception e)
+            {
+                // A read must not fail because the clock could not be started.
+                _logger.LogError(e, "Failed to resolve TTL on first read for file {file} on drive {drive}",
+                    file.FileId, file.DriveId);
+            }
+        }
+
+        /// <summary>
+        /// Applies the shorten-only rule: an update may bring a file's death forward but never push it
+        /// out. See <see cref="FileTtl.Shortest"/> for why this clamps instead of throwing.
+        /// </summary>
+        private void ApplyShortenOnlyTtl(FileMetadata existing, FileMetadata incoming)
+        {
+            var clamped = FileTtl.Shortest(incoming.Ttl, existing.Ttl, existing.Created);
+            if (clamped != incoming.Ttl)
+            {
+                _logger.LogInformation(
+                    "Update to file {file} tried to extend Ttl from {existing} to {incoming}; keeping {existing}",
+                    existing.File.FileId, existing.Ttl, incoming.Ttl);
+            }
+
+            incoming.Ttl = clamped;
+        }
+
+        /// <summary>
+        /// Loads a header for the TTL jobs, which must be able to see a file precisely because it has
+        /// expired. Every other read path hides expired files.
+        /// </summary>
+        public async Task<ServerFileHeader> GetServerFileHeaderForExpiry(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            return await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
         }
 
         private async Task OverwriteMetadataInternal(byte[] keyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
@@ -1968,6 +2118,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
+            ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 
             //fields we keep
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
@@ -1992,6 +2143,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
             await WriteFileHeaderInternal(existingServerHeader, odinContext, useThisVersionTag); // Sets header.FileMetadata.Created/Updated
+            await TryScheduleExpiryAsync(existingServerHeader, odinContext);
         }
 
         /// <summary>

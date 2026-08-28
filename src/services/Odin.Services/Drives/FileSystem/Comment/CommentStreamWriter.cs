@@ -152,6 +152,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
             DataSource = dataSource,
+            Ttl = uploadDescriptor.FileMetadata.Ttl,
             Payloads = package.GetFinalPayloadDescriptors(fromManifest: dataSource?.PayloadsAreRemote ?? false)
         };
 

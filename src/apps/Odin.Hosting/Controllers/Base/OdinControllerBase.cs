@@ -11,6 +11,8 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Time;
+using Odin.Services.Apps;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -75,19 +77,62 @@ public abstract class OdinControllerBase : ControllerBase
 
     protected void AddGuestApiCacheHeader(int? minutes = null)
     {
+        var seconds = minutes == null
+            ? (long)TimeSpan.FromDays(365).TotalSeconds
+            : (long)TimeSpan.FromMinutes(minutes.GetValueOrDefault()).TotalSeconds;
+
+        AddGuestApiCacheHeaderSeconds(seconds);
+    }
+
+    /// <summary>
+    /// Caches a file's bytes for no longer than the file itself will live.
+    ///
+    /// The default here is a year, which is wrong for anything that expires: the file would be deleted
+    /// on schedule and go on being served from browser and edge caches long afterwards. Clamping to the
+    /// remaining lifetime keeps the cache useful without letting it outlive its subject.
+    /// </summary>
+    protected void AddGuestApiCacheHeaderForFile(long ttl, UnixTimeUtc created)
+    {
+        // A pending (expire-after-first-read) Ttl is still negative on the header the controller
+        // fetched, because that read happened before the payload read resolved it. By the time this
+        // response goes out the clock has started, so the real remaining life is |Ttl| - not the
+        // unread backstop that ExpiresAt would report. Cache for exactly that window: the cache then
+        // expires when the file does, which is what makes a CDN read equivalent to a direct one.
+        if (FileTtl.IsPendingFirstRead(ttl))
+        {
+            AddGuestApiCacheHeaderSeconds(Math.Abs(ttl) / 1000);
+            return;
+        }
+
+        var dueAt = FileTtl.ExpiresAt(ttl, created);
+        if (dueAt == null)
+        {
+            AddGuestApiCacheHeader();
+            return;
+        }
+
+        var remainingSeconds = (dueAt.Value - UnixTimeUtc.Now().milliseconds) / 1000;
+        AddGuestApiCacheHeaderSeconds(Math.Max(remainingSeconds, 0));
+    }
+
+    private void AddGuestApiCacheHeaderSeconds(long seconds)
+    {
         var isYouAuthV2 = WebOdinContext.Caller.ClientTokenType == ClientTokenType.YouAuth;
         var isYouAuthV1 = WebOdinContext.AuthContext == YouAuthConstants.YouAuthScheme;
         var isYouAuth = isYouAuthV1 || isYouAuthV2;
-        
+
         var isAppAuthV2 = WebOdinContext.Caller.ClientTokenType == ClientTokenType.App;
         var isAppAuthV1 = WebOdinContext.AuthContext == YouAuthConstants.AppSchemeName;
         var isAppAuth = isAppAuthV2 || isAppAuthV1;
-        
-        if (isYouAuth || isAppAuth)
+
+        // The CDN edge needs this more than anyone: it caches on behalf of every downstream reader, so
+        // without an explicit max-age it decides for itself how long to keep a payload that the origin
+        // knows is expiring. Reading via the CDN should mean the same as reading directly, and that
+        // includes the edge copy not outliving the file.
+        var isCdn = WebOdinContext.Caller.ClientTokenType == ClientTokenType.Cdn;
+
+        if (isYouAuth || isAppAuth || isCdn)
         {
-            var seconds = minutes == null
-                ? TimeSpan.FromDays(365).TotalSeconds
-                : TimeSpan.FromMinutes(minutes.GetValueOrDefault()).TotalSeconds;
             Response.Headers.TryAdd("Cache-Control", $"max-age={seconds}");
         }
     }
