@@ -3,17 +3,22 @@ using System;
 namespace Odin.Services.Drives;
 
 /// <summary>
-/// Drives with a fixed, well-known alias/type that are deliberately NOT system drives: the server
-/// never creates them, they are absent from <see cref="SystemDriveConstants.SystemDrives"/>, and
-/// they come into existence only when the owner approves an app's drive request in the owner
-/// console (the extend-permissions flow).
+/// Drives with a fixed, well-known alias and type, each owned by an app.
 ///
 /// The constants exist so server-side authorization can name the same drive the client declares.
 /// A drive created from an app's request keeps the requested alias verbatim
 /// (<c>DriveManager.CreateDriveAsync</c> sets <c>DriveId = request.TargetDrive.Alias</c>), and a
 /// grant cannot be issued for a drive that does not exist yet
 /// (<c>ExchangeGrantService.CreateExchangeGrantAsync</c> resolves with <c>failIfInvalid: true</c>) —
-/// so matching on the alias here is exact by construction.
+/// so matching on the alias here is exact by construction. That second point is why a drive granted
+/// by a built-in app's registration has to be seeded: the registration would otherwise throw.
+///
+/// Being listed here says nothing about when the drive is created. That is decided by whether its
+/// owning app is built-in (<see cref="Odin.Services.Apps.SystemAppConstants.BuiltInAppIds"/>), and
+/// the seeded set is <c>TenantConfigService.EnsureSystemDrivesExist</c> — which is kept equal to
+/// <see cref="SystemDriveConstants.SystemDrives"/>, the list that also makes a drive immutable
+/// (<c>DriveManager</c> refuses to rename, re-mode or archive anything in it). Seeded and protected
+/// are deliberately the same set; a seeded drive the owner could archive is a trap.
 ///
 /// Mirrored by chat-kmp <c>homebase-common/.../config/AppConfig.kt</c>. Change one, change both.
 /// DO NOT CHANGE ANY VALUE: the drive already exists on identities that have set the app up, and
@@ -21,6 +26,16 @@ namespace Odin.Services.Drives;
 /// </summary>
 public static class WellKnownAppDrives
 {
+    /// <summary>
+    /// The type shared by PublicPostsChannelDrive and every user-created channel drive.
+    /// </summary>
+    /// <remarks>
+    /// Declared here, not in <c>SystemDriveConstants</c>, so that this type never reads that one. The two
+    /// reference each other otherwise -- <c>SystemDrives</c> lists drives declared here -- and a static
+    /// initializer cycle resolves by declaration order, silently leaving later fields null.
+    /// </remarks>
+    public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
+
     /// <summary>
     /// The Email setup app's drive (chat-kmp <c>emailLabeledDrive</c>). Holds the OpenPGP secret
     /// keyrings, the current-key pointer, and the issued app-password credential files.
@@ -64,7 +79,7 @@ public static class WellKnownAppDrives
     public static readonly TargetDrive PublicPostsChannelDrive = new()
     {
         Alias = Guid.Parse("e8475dc46cb4b6651c2d0dbd0f3aad5f"),
-        Type = SystemDriveConstants.ChannelDriveType
+        Type = ChannelDriveType
     };
 
     public static readonly TargetDrive HomePageConfigDrive = new()
@@ -116,4 +131,18 @@ public static class WellKnownAppDrives
         Type = Guid.Parse("93a6e08d14d9479e8d99bae4e5348a16")
     };
 
+
+    /// <summary>The Photo app's library drive.</summary>
+    public static readonly TargetDrive PhotoLibraryDrive = new()
+    {
+        Alias = Guid.Parse("6483b7b1f71bd43eb6896c86148668cc"),
+        Type = Guid.Parse("2af68fe72fb84896f39f97c59d60813a")
+    };
+
+    /// <summary>The Vault app's drive.</summary>
+    public static readonly TargetDrive VaultDrive = new()
+    {
+        Alias = Guid.Parse("1f513d675ef9499f82edd194691e427d"),
+        Type = Guid.Parse("4a1414dae1604d1982a092162599fd7f")
+    };
 }

@@ -23,14 +23,14 @@ public class AppSlugGeneratorTests
             (SystemAppConstants.FeedAppId, "Homebase - Feed"),
             (SystemAppConstants.MailAppId, "Homebase - Mail"),
             (SystemAppConstants.PhotoAppId, "Homebase - Photos"),
-            (SystemAppConstants.OwnerAppId, "Owner")
+            (SystemAppConstants.SystemAppId, "Owner")
         ]);
 
         Assert.That(slugs[SystemAppConstants.ChatAppId], Is.EqualTo("chat"));
         Assert.That(slugs[SystemAppConstants.FeedAppId], Is.EqualTo("feed"));
         Assert.That(slugs[SystemAppConstants.MailAppId], Is.EqualTo("mail"));
         Assert.That(slugs[SystemAppConstants.PhotoAppId], Is.EqualTo("photo"));
-        Assert.That(slugs[SystemAppConstants.OwnerAppId], Is.EqualTo("owner"));
+        Assert.That(slugs[SystemAppConstants.SystemAppId], Is.EqualTo("owner"));
     }
 
     [Test]

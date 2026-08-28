@@ -489,7 +489,7 @@ public class ShamirConfigurationService(
                 UseAppNotification = true,
                 AppNotificationOptions = new AppNotificationOptions
                 {
-                    AppId = SystemAppConstants.OwnerAppId,
+                    AppId = SystemAppConstants.SystemAppId,
                     TypeId = OwnerAppConstants.PasswordRecoveryRecruitedTypeId,
                     TagId = default,
                     Silent = false,

@@ -96,7 +96,7 @@ public class SendPushNotificationOutboxWorker(
 
     private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext)
     {
-        if (appId == SystemAppConstants.OwnerAppId)
+        if (appId == SystemAppConstants.SystemAppId)
         {
             return (true, "Homebase Owner");
         }

@@ -67,6 +67,8 @@ namespace Odin.Services.Drives.Management
             [WellKnownAppDrives.MomentsDrive.Alias.Value] = "moments",
             [WellKnownAppDrives.ShardRecoveryDrive.Alias.Value] = "shard-recovery",
             [WellKnownAppDrives.WalletDrive.Alias.Value] = "wallet",
+            [WellKnownAppDrives.PhotoLibraryDrive.Alias.Value] = "photos",
+            [WellKnownAppDrives.VaultDrive.Alias.Value] = "vault",
             [SystemDriveConstants.TransientTempDrive.Alias.Value] = "transient"
         };
 
@@ -99,7 +101,9 @@ namespace Odin.Services.Drives.Management
             [WellKnownAppDrives.MailDrive.Alias.Value] = "mail",
             [WellKnownAppDrives.MomentsDrive.Alias.Value] = "list",
             [WellKnownAppDrives.ShardRecoveryDrive.Alias.Value] = "shard-recovery",
-            [WellKnownAppDrives.WalletDrive.Alias.Value] = "wallet",
+            [WellKnownAppDrives.WalletDrive.Alias.Value] = "profile",
+            [WellKnownAppDrives.PhotoLibraryDrive.Alias.Value] = "photos",
+            [WellKnownAppDrives.VaultDrive.Alias.Value] = "vault",
             [SystemDriveConstants.TransientTempDrive.Alias.Value] = "transient"
         };
 

@@ -261,8 +261,8 @@ public class TenantConfigService(
 
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateEmailAppDriveRequest, odinContext);
     }
 
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)
@@ -387,41 +387,35 @@ public class TenantConfigService(
     }
     //
 
+    /// <summary>
+    /// Registers the built-in apps -- the ones configured when an identity is initialized.  Apps that are
+    /// not built-in own drives and circles but are never registered here; they arrive only if the owner
+    /// installs them.
+    /// </summary>
     public async Task EnsureBuiltInApps(IOdinContext odinContext)
     {
-        await RegisterChatAppAsync(odinContext);
-        await RegisterMailAppAsync(odinContext);
-        await RegisterFeedApp(odinContext);
-        // await RegisterPhotosApp();
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.FeedAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.ContactsAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.EmailAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.HomePageAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.LocationAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.RecoveryAppRegistrationRequest, odinContext);
+        await RegisterAppIfNotExistsAsync(SystemAppConstants.SystemAppRegistrationRequest, odinContext);
     }
 
-    private async Task RegisterFeedApp(IOdinContext odinContext)
+    private async Task RegisterAppIfNotExistsAsync(AppRegistrationRequest request, IOdinContext odinContext)
     {
-        var request = SystemAppConstants.FeedAppRegistrationRequest;
         var existingApp = await appRegistrationService.GetAppRegistration(request.AppId, odinContext);
-        if (existingApp == null)
+        if (null == existingApp)
         {
             await appRegistrationService.RegisterAppAsync(request, odinContext);
         }
     }
 
-    private async Task RegisterChatAppAsync(IOdinContext odinContext)
-    {
-        var existingApp = await appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
-        if (null == existingApp)
-        {
-            await appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
-        }
-    }
 
-    private async Task RegisterMailAppAsync(IOdinContext odinContext)
-    {
-        var existingApp = await appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
-        if (null == existingApp)
-        {
-            await appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
-        }
-    }
+
 
     private async Task<bool> CreateCircleIfNotExistsAsync(CreateCircleRequest request, IOdinContext odinContext)
     {

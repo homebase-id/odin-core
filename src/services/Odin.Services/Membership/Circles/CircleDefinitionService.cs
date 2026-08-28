@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -114,6 +115,46 @@ namespace Odin.Services.Membership.Circles
                 {
                     await this.UpdateAsync(BuiltInCircleConstants.EmergencyLocationAccessDefinition, skipValidation: true);
                 }
+            }
+
+            await EnsureBuiltInAppCirclesExistAsync();
+        }
+
+        /// <summary>
+        /// Provisions the circles owned by the built-in apps.  A circle whose app is not built-in is not
+        /// created here -- it arrives with the app.
+        /// </summary>
+        /// <remarks>
+        /// Created with <c>skipValidation</c> for the same reason the circles above are: this runs before
+        /// the drives exist (see <c>TenantConfigService.EnsureInitialOwnerSetupAsync</c>, where circles
+        /// precede drives), so the drive-exists check would fail on a definition that is perfectly valid
+        /// once setup finishes.
+        /// </remarks>
+        private async Task EnsureBuiltInAppCirclesExistAsync()
+        {
+            foreach (var def in WellKnownAppCircles.All)
+            {
+                if (def.AppId == null || !SystemAppConstants.IsBuiltInApp(def.AppId.Value))
+                {
+                    continue;
+                }
+
+                if (await GetCircleAsync(def.Id) != null)
+                {
+                    continue;
+                }
+
+                await CreateCircleInternalAsync(new CreateCircleRequest
+                {
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions,
+                    AppId = def.AppId,
+                    GrantOn = def.GrantOn,
+                    Designation = def.Designation
+                }, skipValidation: true);
             }
         }
 

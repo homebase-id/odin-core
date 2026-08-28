@@ -107,7 +107,7 @@ namespace Odin.Services.DataSubscription
             await pushNotificationService.EnqueueNotification(notification.Sender,
                 new AppNotificationOptions()
                 {
-                    AppId = SystemAppConstants.OwnerAppId,
+                    AppId = SystemAppConstants.SystemAppId,
                     TypeId = notification.NotificationTypeId,
                     TagId = notification.Sender.ToHashId(),
                     Silent = false

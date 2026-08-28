@@ -16,7 +16,7 @@ public static class SystemDriveConstants
     // DO NOT CHANGE ANY VALUES
     //
 
-    public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
+    public static readonly Guid ChannelDriveType = WellKnownAppDrives.ChannelDriveType;
     
     
     
@@ -26,24 +26,11 @@ public static class SystemDriveConstants
         Type = Guid.Parse("90f5e74ab7f9efda0ac298373a32ad8c"),
     };
 
-
-
-
-
-
-
-
-
-
-
-
-
     public static readonly List<TargetDrive> SystemDrives =
     [
         TransientTempDrive,
         WellKnownAppDrives.ContactDrive,
         WellKnownAppDrives.ProfileDrive,
-        WellKnownAppDrives.WalletDrive,
         WellKnownAppDrives.ChatDrive,
         WellKnownAppDrives.FeedDrive,
         WellKnownAppDrives.HomePageConfigDrive,
@@ -53,7 +40,8 @@ public static class SystemDriveConstants
         WellKnownAppDrives.MomentsDrive,
         WellKnownAppDrives.StickerDrive,
         WellKnownAppDrives.ListsDrive,
-        WellKnownAppDrives.LocationDrive
+        WellKnownAppDrives.LocationDrive,
+        WellKnownAppDrives.EmailAppDrive
     ];
     
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
@@ -211,4 +199,20 @@ public static class SystemDriveConstants
     {
         return SystemDrives.Any(d => d.Alias == driveId);
     }
+
+    /// <summary>
+    /// The Email app's drive.  Seeded because Email is a built-in app and its registration is granted
+    /// ReadWrite on it -- a grant cannot be issued for a drive that does not exist
+    /// (<c>ExchangeGrantService</c> resolves with <c>failIfInvalid: true</c>).  Owner-only: it holds the
+    /// OpenPGP secret keyrings and the issued app-password credentials.
+    /// </summary>
+    public static readonly CreateDriveRequest CreateEmailAppDriveRequest = new()
+    {
+        Name = "Email",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = WellKnownAppDrives.EmailAppDrive,
+        AppId = SystemAppConstants.EmailAppId,
+        OwnerOnly = true
+    };
 }

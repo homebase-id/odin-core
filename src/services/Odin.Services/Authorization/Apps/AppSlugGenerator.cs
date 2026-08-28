@@ -37,7 +37,7 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         private static readonly Dictionary<Guid, string> KnownAppSlugs = new()
         {
-            [SystemAppConstants.OwnerAppId] = "owner",
+            [SystemAppConstants.SystemAppId] = "owner",
             [SystemAppConstants.ChatAppId] = "chat",
             [SystemAppConstants.FeedAppId] = "feed",
             [SystemAppConstants.PhotoAppId] = "photo",

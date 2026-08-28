@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -31,9 +32,7 @@ public static class SystemAppConstants
     /// A holding position: ownership moves to the real owning app as each is built, one drive at a time.
     /// </para>
     /// </remarks>
-    public static readonly Guid SystemAppId = Guid.Parse("fec027a8-2b6d-42d7-adb3-8b7a7a48212a");
-
-    public static readonly Guid OwnerAppId = Guid.Parse("ac126e09-54cb-4878-a690-856be692da16");
+    public static readonly Guid SystemAppId = Guid.Parse("ac126e09-54cb-4878-a690-856be692da16");
     public static readonly Guid ChatAppId = Guid.Parse("2d781401-3804-4b57-b4aa-d8e4e2ef39f4");
     public static readonly Guid FeedAppId = Guid.Parse("5f887d80-0132-4294-ba40-bda79155551d");
     public static readonly Guid PhotoAppId = Guid.Parse("32f0bdbf-017f-4fc0-8004-2d4631182d1e");
@@ -53,6 +52,20 @@ public static class SystemAppConstants
     public static readonly Guid MomentsAppId = Guid.Parse("c61f5410-93d4-48dd-984a-965f0498e95e");
     public static readonly Guid RecoveryAppId = Guid.Parse("bc2fbb10-7574-4792-8db6-23c9b725a1d8");
     public static readonly Guid VaultAppId = Guid.Parse("6d38d41a-99f5-4f45-a591-9862d83e1fc8");
+    public static readonly Guid SocialSyncAppId = Guid.Parse("99bbae1f-4c99-4944-aecd-0356bfe8974e");
+
+    /// <summary>
+    /// The apps configured when an identity is initialized: registered, their drives created, and their
+    /// circles provisioned.  Every other app owns drives and circles but arrives only if the owner
+    /// installs it -- for identities that predate this, a migration stamps what is already there.
+    /// </summary>
+    public static readonly IReadOnlyList<Guid> BuiltInAppIds =
+    [
+        ChatAppId, ContactsAppId, EmailAppId, FeedAppId, HomePageAppId,
+        LocationAppId, MailAppId, RecoveryAppId, SystemAppId
+    ];
+
+    public static bool IsBuiltInApp(Guid appId) => BuiltInAppIds.Contains(appId);
 
     public static readonly AppRegistrationRequest ChatAppRegistrationRequest = new()
     {
@@ -320,5 +333,181 @@ public static class SystemAppConstants
             // Writes to the ContactDrive funnel through the Contact API (/api/v2/contacts), which
             // requires ManageContacts. Granted by default so the Mail app can manage contacts.
             PermissionKeys.ManageContacts)
+    };
+
+    /// <summary>
+    /// Built-in.  Granted ReadWrite on the drives it owns; no permission keys and no authorized circles
+    /// were specified for it, so it holds neither.
+    /// </summary>
+    public static readonly AppRegistrationRequest ContactsAppRegistrationRequest = new()
+    {
+        AppId = ContactsAppId,
+        Name = "Homebase - Contacts",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.ContactDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.ProfileDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet()
+    };
+
+    /// <summary>
+    /// Built-in.  Granted ReadWrite on the drives it owns; no permission keys and no authorized circles
+    /// were specified for it, so it holds neither.
+    /// </summary>
+    public static readonly AppRegistrationRequest EmailAppRegistrationRequest = new()
+    {
+        AppId = EmailAppId,
+        Name = "Homebase - Email",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.EmailAppDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet()
+    };
+
+    /// <summary>
+    /// Built-in.  Granted ReadWrite on the drives it owns; no permission keys and no authorized circles
+    /// were specified for it, so it holds neither.
+    /// </summary>
+    public static readonly AppRegistrationRequest HomePageAppRegistrationRequest = new()
+    {
+        AppId = HomePageAppId,
+        Name = "Homebase - HomePage",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.HomePageConfigDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet()
+    };
+
+    /// <summary>
+    /// Built-in.  Granted ReadWrite on the drives it owns; no permission keys and no authorized circles
+    /// were specified for it, so it holds neither.
+    /// </summary>
+    public static readonly AppRegistrationRequest LocationAppRegistrationRequest = new()
+    {
+        AppId = LocationAppId,
+        Name = "Homebase - Location",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.LocationDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet()
+    };
+
+    /// <summary>
+    /// Built-in.  Granted ReadWrite on the drives it owns; no permission keys and no authorized circles
+    /// were specified for it, so it holds neither.
+    /// </summary>
+    public static readonly AppRegistrationRequest RecoveryAppRegistrationRequest = new()
+    {
+        AppId = RecoveryAppId,
+        Name = "Homebase - Recovery",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.ShardRecoveryDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet()
+    };
+
+    /// <summary>
+    /// Built-in.  Granted ReadWrite on the drives it owns; no permission keys and no authorized circles
+    /// were specified for it, so it holds neither.
+    /// </summary>
+    public static readonly AppRegistrationRequest SystemAppRegistrationRequest = new()
+    {
+        AppId = SystemAppId,
+        Name = "Homebase - System",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.TransientTempDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet()
     };
 }

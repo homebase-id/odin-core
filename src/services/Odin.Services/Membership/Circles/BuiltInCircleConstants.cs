@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -29,6 +30,7 @@ public static class BuiltInCircleConstants
     public static readonly CircleDefinition EmergencyLocationAccessDefinition = new()
     {
         Id = EmergencyLocationAccessCircleId.Value,
+        AppId = SystemAppConstants.LocationAppId,
         Name = "Emergency Location Access",
         Description = "Contains identities granted read access to your location in an emergency",
         DriveGrants =
