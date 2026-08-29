@@ -14,7 +14,7 @@ namespace Odin.Services.Drives;
 /// by a built-in app's registration has to be seeded: the registration would otherwise throw.
 ///
 /// Being listed here says nothing about when the drive is created. That is decided by whether its
-/// owning app is built-in (<see cref="Odin.Services.Apps.SystemAppConstants.BuiltInAppIds"/>), and
+/// owning app is built-in (<c>BuiltinApps.Builtin</c>), and
 /// the seeded set is <c>TenantConfigService.EnsureSystemDrivesExist</c> — which is kept equal to
 /// <see cref="SystemDriveConstants.SystemDrives"/>, the list that also makes a drive immutable
 /// (<c>DriveManager</c> refuses to rename, re-mode or archive anything in it). Seeded and protected

@@ -89,6 +89,7 @@ using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Tenant.Container;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting;
 
@@ -198,6 +199,7 @@ public static class TenantServices
             .InstancePerLifetimeScope();
 
         cb.RegisterType<IdentityReadyStateService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 

@@ -117,7 +117,6 @@ namespace Odin.Services.Membership.Circles
                 }
             }
 
-            await EnsureBuiltInAppCirclesExistAsync();
         }
 
         /// <summary>
@@ -130,32 +129,32 @@ namespace Odin.Services.Membership.Circles
         /// precede drives), so the drive-exists check would fail on a definition that is perfectly valid
         /// once setup finishes.
         /// </remarks>
-        private async Task EnsureBuiltInAppCirclesExistAsync()
+        /// <summary>
+        /// Creates a circle that ships with an identity, if it is not already there.
+        /// </summary>
+        /// <remarks>
+        /// <c>skipValidation</c> because provisioning creates circles before the drives they grant --
+        /// see the ordering in <c>BuiltinProvisioner</c>. The definition is valid once setup finishes;
+        /// it just is not yet when it is written.
+        /// </remarks>
+        public async Task EnsureCircleExistsAsync(CircleDefinition def)
         {
-            foreach (var def in WellKnownAppCircles.All)
+            if (await GetCircleAsync(def.Id) != null)
             {
-                if (def.AppId == null || !SystemAppConstants.IsBuiltInApp(def.AppId.Value))
-                {
-                    continue;
-                }
-
-                if (await GetCircleAsync(def.Id) != null)
-                {
-                    continue;
-                }
-
-                await CreateCircleInternalAsync(new CreateCircleRequest
-                {
-                    Id = def.Id,
-                    Name = def.Name,
-                    Description = def.Description,
-                    DriveGrants = def.DriveGrants,
-                    Permissions = def.Permissions,
-                    AppId = def.AppId,
-                    GrantOn = def.GrantOn,
-                    Designation = def.Designation
-                }, skipValidation: true);
+                return;
             }
+
+            await CreateCircleInternalAsync(new CreateCircleRequest
+            {
+                Id = def.Id,
+                Name = def.Name,
+                Description = def.Description,
+                DriveGrants = def.DriveGrants,
+                Permissions = def.Permissions,
+                AppId = def.AppId,
+                GrantOn = def.GrantOn,
+                Designation = def.Designation
+            }, skipValidation: true);
         }
 
         public async Task UpdateAsync(CircleDefinition newCircleDefinition, bool skipValidation = false)

@@ -54,18 +54,6 @@ public static class SystemAppConstants
     public static readonly Guid VaultAppId = Guid.Parse("6d38d41a-99f5-4f45-a591-9862d83e1fc8");
     public static readonly Guid SocialSyncAppId = Guid.Parse("99bbae1f-4c99-4944-aecd-0356bfe8974e");
 
-    /// <summary>
-    /// The apps configured when an identity is initialized: registered, their drives created, and their
-    /// circles provisioned.  Every other app owns drives and circles but arrives only if the owner
-    /// installs it -- for identities that predate this, a migration stamps what is already there.
-    /// </summary>
-    public static readonly IReadOnlyList<Guid> BuiltInAppIds =
-    [
-        ChatAppId, ContactsAppId, EmailAppId, FeedAppId, HomePageAppId,
-        LocationAppId, MailAppId, RecoveryAppId, SystemAppId
-    ];
-
-    public static bool IsBuiltInApp(Guid appId) => BuiltInAppIds.Contains(appId);
 
     public static readonly AppRegistrationRequest ChatAppRegistrationRequest = new()
     {

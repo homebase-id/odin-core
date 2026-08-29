@@ -12,11 +12,6 @@ namespace Odin.Services.Apps.Builtin;
 /// <summary>
 /// One app, with what it owns.
 /// </summary>
-/// <param name="BuiltIn">
-/// True when a new identity is configured with this app: registered, its drives created, its circles
-/// provisioned.  False means it owns these things but arrives only if the owner installs it -- and a
-/// migration stamps what identities predating this already hold.
-/// </param>
 /// <param name="AppSlug">
 /// The app half of <c>/apps/{appSlug}/drives/{driveSlug}</c>.  Immutable once an identity has
 /// registered the app, since other identities resolve against it.
@@ -24,11 +19,10 @@ namespace Odin.Services.Apps.Builtin;
 /// <param name="Drives">The drives this app owns.  Not the drives it is granted -- see <see cref="DriveGrants"/>.</param>
 /// <param name="Circles">The circles this app owns, drive grants included.</param>
 /// <param name="Permissions">Identity-wide permission keys the app itself holds.</param>
-public sealed record SystemApp(
+public sealed record WellknownAppDefinition(
     Guid AppId,
     string Name,
     string AppSlug,
-    bool BuiltIn,
     IReadOnlyList<CreateDriveRequest> Drives,
     IReadOnlyList<CircleDefinition> Circles,
     PermissionSet Permissions);

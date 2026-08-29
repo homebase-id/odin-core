@@ -121,6 +121,12 @@ public class DriveManager : IDriveManager
         OdinSlug.AssertValidOrNull(requestedSlug, nameof(request.DriveSlug));
         OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(request.DriveTypeSlug));
 
+        // AppId is taken on trust: it is never resolved, and the owning app is NOT required to exist.
+        // Provisioning creates drives before it registers apps (BuiltinProvisioner.EnsureAllAsync),
+        // because a registration is granted drives and a grant cannot be issued for a drive that is not
+        // there. Validating the app here would invert that and break identity setup. The reverse
+        // dependency is the real one; this direction must stay unchecked.
+        //
         // The caller's values win; only a missing one is derived. A supplied slug is never replaced --
         // it is an address, so handing back a different one would be worse than refusing.
         //
