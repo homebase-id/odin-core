@@ -388,6 +388,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                     continue;
                 }
 
+                // The index has no expiry column (deliberately - see FileTtl), so a file whose TTL has
+                // come due can still be sitting in query results until its job runs. Drop it here for the
+                // same reason the by-id read path does: jobs lag, and an expired file must not be served.
+                if (DriveStorageServiceBase.IsExpired(serverFileHeader))
+                {
+                    continue;
+                }
+
                 // TODD - this function ALSO loads the header from disk. It needs to use 'record' instead.
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(serverFileHeader, odinContext);
                 if (!hasPermissionToFile)

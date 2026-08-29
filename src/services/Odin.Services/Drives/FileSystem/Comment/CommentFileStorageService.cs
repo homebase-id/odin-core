@@ -9,6 +9,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Comment;
@@ -24,7 +25,8 @@ public class CommentFileStorageService(
     // OrphanTestUtil orphanTestUtil,
     IdentityDatabase db,
     InboxFileStore inboxFileStore,
-    UploadFileStore uploadFileStore
+    UploadFileStore uploadFileStore,
+    FileExpiryScheduler fileExpiryScheduler
 )
     : DriveStorageServiceBase(
         loggerFactory,
@@ -37,7 +39,8 @@ public class CommentFileStorageService(
         // orphanTestUtil,
         db,
         inboxFileStore,
-        uploadFileStore)
+        uploadFileStore,
+        fileExpiryScheduler)
 {
     public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
     {

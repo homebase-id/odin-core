@@ -269,6 +269,10 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
         return headers.Where(r =>
             r.FileState == FileState.Active &&
             r.FileMetadata.IsEncrypted == false &&
+            // A file with a Ttl must never be baked into a static blob: the blob is permanent, so
+            // publishing one would copy the content somewhere the expiry cannot reach and quietly
+            // outlive the file it came from.
+            FileTtl.IsNever(r.FileMetadata.Ttl) &&
             r.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous);
     }
 }

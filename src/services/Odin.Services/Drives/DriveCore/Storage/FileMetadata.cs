@@ -108,6 +108,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public DataSource DataSource { get; set; }
 
+        /// <summary>
+        /// When this file expires, in milliseconds. <c>0</c> never, <c>&gt; 0</c> an absolute
+        /// <see cref="UnixTimeUtc"/>, <c>&lt; 0</c> a duration measured from the first payload read.
+        /// See <see cref="FileTtl"/>.
+        ///
+        /// It lives here rather than on ServerMetadata because it must cross peer: PeerFileWriter
+        /// deserializes this whole object from the transfer, while it builds a fresh ServerMetadata on
+        /// receipt. That is what lets every member of a group expire their own copy of a message.
+        /// </summary>
+        public long Ttl { get; set; }
+
         public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
         {
             _created = databaseCreated;
@@ -142,10 +153,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // VersionTag = VersionTag,
 
             DataSource = fileMetadataDto.DataSource;
+            Ttl = fileMetadataDto.Ttl;
 
             // SANITY CHECK:
-            // There are SEVEN fields in the DTO.
-            // There are SEVENTEEN properties in the FileMetaData
+            // There are EIGHT fields in the DTO.
+            // There are EIGHTEEN properties in the FileMetaData
             // There must be TEN assignments below
 
             // Now fill in FileMetadata with column specific values from the record

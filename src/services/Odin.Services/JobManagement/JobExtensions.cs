@@ -8,6 +8,7 @@ using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Job;
+using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Email.Relay;
 
 namespace Odin.Services.JobManagement;
@@ -38,6 +39,8 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<SecurityHealthCheckJob>(cb, SecurityHealthCheckJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ScheduledNotificationJob>(cb, ScheduledNotificationJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<MailRelayOnboardingJob>(cb, MailRelayOnboardingJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<ExpireFileJob>(cb, ExpireFileJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<ReapFileJob>(cb, ReapFileJob.JobTypeId);
 
 
         //
