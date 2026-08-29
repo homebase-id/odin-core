@@ -138,26 +138,31 @@ namespace Odin.Services.Membership.Circles
         /// it just is not yet when it is written.
         /// </remarks>
         /// <summary>
-        /// Stamps ownership and enrolment onto a circle that predates those columns.  Migration only.
+        /// Makes a circle match what the app tree says it should be.  Migration only.
         /// </summary>
         /// <remarks>
         /// <see cref="UpdateAsync"/> deliberately will not set <c>AppId</c> -- ownership must not be
-        /// reassignable by anyone who can PUT a definition.  This is the exception, for circles the
-        /// owner console's setup wizard created before ownership existed.  It refuses a circle that
-        /// already has an owner.
+        /// reassignable by anyone who can PUT a definition.  This is the exception, and it exists because
+        /// the tree is the source of truth for the circles it declares.
+        /// <para>
+        /// It corrects rather than fills: a circle that already carries a different owner is moved to the
+        /// one the tree names.  Filling only when empty would leave behind whatever an earlier build
+        /// wrote -- the relationship circles were briefly stamped to chat before the mapping put them
+        /// under Contacts, and a fill-only stamp would silently keep them there forever.
+        /// </para>
         /// </remarks>
-        internal async Task StampOwningAppAsync(Guid circleId, Guid appId, CircleGrantOn grantOn,
+        internal async Task<bool> ApplyTreeDefinitionAsync(Guid circleId, Guid appId, CircleGrantOn grantOn,
             CircleDesignation designation)
         {
             var circle = await GetCircleAsync(circleId);
             if (circle == null)
             {
-                return;
+                return false;
             }
 
-            if (circle.AppId != null)
+            if (circle.AppId == appId && circle.GrantOn == grantOn && circle.Designation == designation)
             {
-                return;
+                return false;
             }
 
             circle.AppId = appId;
@@ -168,6 +173,7 @@ namespace Odin.Services.Membership.Circles
             await AssertDepositOnlyIfAmbientAsync(circle);
 
             await db.CircleCached.UpsertAsync(ToRecord(circle));
+            return true;
         }
 
         public async Task EnsureCircleExistsAsync(CircleDefinition def)

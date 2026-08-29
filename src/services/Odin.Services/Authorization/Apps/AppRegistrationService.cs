@@ -561,6 +561,44 @@ namespace Odin.Services.Authorization.Apps
         /// Writes a registration to its row.  AppId, AppSlug, Name and CorsHostName are columns; the rest
         /// of the registration rides <c>grantJson</c>.
         /// </summary>
+        /// <summary>
+        /// Gives an app the slug the tree names, if it has a different one.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// A slug is immutable through every normal path -- an update carries the stored value forward,
+        /// precisely because other identities resolve against it.  This exists because the tree is the
+        /// source of truth for the apps it declares, and a registration created before that derived its
+        /// slug from the display name instead: "Homebase - Location" became <c>homebase-locat</c>.
+        /// </remarks>
+        public async Task<bool> ApplyTreeSlugAsync(Guid appId, string appSlug, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            if (!OdinSlug.IsValid(appSlug))
+            {
+                throw new OdinSystemException($"'{appSlug}' is not a valid app slug");
+            }
+
+            var record = await db.AppRegistrations.GetAsync(appId);
+            if (record == null || record.AppSlug == appSlug)
+            {
+                return false;
+            }
+
+            var taken = (await db.AppRegistrations.GetAllAsync())
+                .Any(r => r.AppId != appId && r.AppSlug == appSlug);
+
+            if (taken)
+            {
+                throw new OdinSystemException(
+                    $"Cannot give app {appId} the slug '{appSlug}': another app already holds it");
+            }
+
+            record.AppSlug = appSlug;
+            await db.AppRegistrations.UpsertAsync(record);
+            return true;
+        }
+
         private async Task SaveAsync(AppRegistration appReg)
         {
             await db.AppRegistrations.UpsertAsync(ToRecord(appReg));

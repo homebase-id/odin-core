@@ -375,21 +375,20 @@ public class DriveManager : IDriveManager
     }
 
     /// <summary>
-    /// Stamps ownership and address onto a drive that predates those columns.  Migration only.
+    /// Makes a drive match what the app tree says its address should be.  Migration only.
     /// </summary>
     /// <remarks>
-    /// There is no other way in: <see cref="CreateDriveAsync"/> sets these once, and nothing updates
-    /// them, because a slug is a wire address other identities resolve against and renaming one breaks
-    /// their links.  This exists so a drive created before the columns existed can be given the values
-    /// it would have been created with, and it refuses a drive that already has an owner rather than
-    /// reassigning it.
+    /// There is no other way in: <see cref="CreateDriveAsync"/> sets these once and nothing updates them,
+    /// because a slug is a wire address other identities resolve against.  This exists because the tree
+    /// is the source of truth for the drives it declares, and it corrects rather than fills -- a drive
+    /// carrying a value an earlier build wrote is moved to what the tree now says.
     /// <para>
-    /// Note it does <b>not</b> refuse system drives, unlike every other setter here.  All fourteen are
-    /// system drives, so guarding on that would make it useless for the one job it has.
+    /// Note it does <b>not</b> refuse protected drives, unlike every other setter here.  All fourteen are
+    /// protected, so guarding on that would make it useless for the one job it has.
     /// </para>
     /// </remarks>
-    internal async Task StampDriveAddressAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
-        IOdinContext odinContext)
+    internal async Task<bool> ApplyTreeAddressAsync(Guid driveId, Guid appId, string driveSlug,
+        string driveTypeSlug, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -402,10 +401,10 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (storageDrive.AppId != null)
+        if (storageDrive.AppId == appId && storageDrive.DriveSlug == driveSlug &&
+            storageDrive.DriveTypeSlug == driveTypeSlug)
         {
-            throw new OdinSystemException(
-                $"Drive {driveId} is already owned by {storageDrive.AppId}; ownership is not reassignable");
+            return false;
         }
 
         storageDrive.AppId = appId;
@@ -413,6 +412,7 @@ public class DriveManager : IDriveManager
         storageDrive.DriveTypeSlug = driveTypeSlug;
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+        return true;
     }
 
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)

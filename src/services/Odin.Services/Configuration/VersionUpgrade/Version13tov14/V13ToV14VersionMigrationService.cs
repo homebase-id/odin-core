@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Apps.Builtin;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
@@ -39,6 +40,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
     public class V13ToV14VersionMigrationService(
         ILogger<V13ToV14VersionMigrationService> logger,
         DriveManager driveManager,
+        IAppRegistrationService appRegistrationService,
         CircleDefinitionService circleDefinitionService,
         BuiltinProvisioner builtinProvisioner)
     {
@@ -48,6 +50,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
 
             await StampDrivesAsync(odinContext, cancellationToken);
             await StampCirclesAsync(cancellationToken);
+            await StampAppSlugsAsync(odinContext, cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -79,22 +82,20 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                     continue;
                 }
 
-                if (drive.AppId != null)
-                {
-                    continue;
-                }
-
                 if (request.AppId == null)
                 {
                     throw new OdinSystemException(
                         $"Drive {request.Name} is in the tree with no owning app; every drive must have one");
                 }
 
-                logger.LogDebug("v13->v14: stamping {drive} as {slug} owned by {appId}",
-                    request.Name, request.DriveSlug, request.AppId);
-
-                await driveManager.StampDriveAddressAsync(drive.Id, request.AppId.Value,
+                var changed = await driveManager.ApplyTreeAddressAsync(drive.Id, request.AppId.Value,
                     request.DriveSlug, request.DriveTypeSlug, odinContext);
+
+                if (changed)
+                {
+                    logger.LogDebug("v13->v14: {drive} is now {slug}, owned by {appId}",
+                        request.Name, request.DriveSlug, request.AppId);
+                }
             }
         }
 
@@ -119,13 +120,42 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                         $"Circle {def.Name} is in the tree with no owning app; every circle must have one");
                 }
 
-                await circleDefinitionService.StampOwningAppAsync(
+                var changed = await circleDefinitionService.ApplyTreeDefinitionAsync(
                     def.Id, def.AppId.Value, def.GrantOn, def.Designation);
+
+                if (changed)
+                {
+                    logger.LogDebug("v13->v14: circle {circle} is now owned by {appId}, GrantOn {grantOn}",
+                        def.Name, def.AppId, def.GrantOn);
+                }
             }
         }
 
         /// <summary>
-        /// Every drive and circle the tree names that exists on this identity has an owner.
+        /// Gives every registered app the slug the tree names.
+        /// </summary>
+        /// <remarks>
+        /// A registration built before the tree was authoritative derived its slug from the display
+        /// name, so "Homebase - Location" was registered as <c>homebase-locat</c>.  A slug is immutable
+        /// through the normal paths and other identities resolve against it, so nothing else corrects
+        /// one.
+        /// </remarks>
+        private async Task StampAppSlugsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            foreach (var app in BuiltinApps.All)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var changed = await appRegistrationService.ApplyTreeSlugAsync(app.AppId, app.AppSlug, odinContext);
+                if (changed)
+                {
+                    logger.LogDebug("v13->v14: app {app} is now {slug}", app.Name, app.AppSlug);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Every drive, circle and app the tree names that exists on this identity matches it.
         /// </summary>
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -141,10 +171,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                     continue;
                 }
 
-                if (drive.AppId == null || string.IsNullOrEmpty(drive.DriveSlug))
+                if (drive.AppId != request.AppId || drive.DriveSlug != request.DriveSlug ||
+                    drive.DriveTypeSlug != request.DriveTypeSlug)
                 {
                     throw new OdinSystemException(
-                        $"v13->v14 left drive {request.Name} without an owning app or slug");
+                        $"v13->v14 left drive {request.Name} disagreeing with the tree: " +
+                        $"app {drive.AppId} slug '{drive.DriveSlug}' type '{drive.DriveTypeSlug}'");
                 }
             }
 
@@ -153,15 +185,31 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var circle = await circleDefinitionService.GetCircleAsync(def.Id);
-                if (circle != null && circle.AppId == null)
+                if (circle == null)
+                {
+                    continue;
+                }
+
+                if (circle.AppId != def.AppId || circle.GrantOn != def.GrantOn ||
+                    circle.Designation != def.Designation)
                 {
                     throw new OdinSystemException(
-                        $"v13->v14 left circle {def.Name} without an owning app");
+                        $"v13->v14 left circle {def.Name} disagreeing with the tree: " +
+                        $"app {circle.AppId} grantOn {circle.GrantOn}");
                 }
             }
 
-            var builtin = BuiltinApps.Builtin.Select(a => a.Name).ToList();
-            logger.LogDebug("v13->v14 validated; built-in apps: {apps}", string.Join(", ", builtin));
+            foreach (var app in BuiltinApps.All)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var reg = await appRegistrationService.GetAppRegistration(app.AppId, odinContext);
+                if (reg != null && reg.AppSlug != app.AppSlug)
+                {
+                    throw new OdinSystemException(
+                        $"v13->v14 left app {app.Name} as '{reg.AppSlug}', not '{app.AppSlug}'");
+                }
+            }
         }
     }
 }

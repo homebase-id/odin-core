@@ -37,6 +37,11 @@ namespace Odin.Services.Authorization.Apps
         /// <returns></returns>
         Task UpdateAuthorizedCirclesAsync(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext);
 
+        /// <summary>
+        /// Gives an app the slug the app tree names, if it has a different one.  Migration only.
+        /// </summary>
+        Task<bool> ApplyTreeSlugAsync(Guid appId, string appSlug, IOdinContext odinContext);
+
         Task<(bool isValid, ServerHalfOfClientKey? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
             ClientAuthenticationToken authToken,
             IOdinContext odinContext);
