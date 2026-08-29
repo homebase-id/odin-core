@@ -137,6 +137,39 @@ namespace Odin.Services.Membership.Circles
         /// see the ordering in <c>BuiltinProvisioner</c>. The definition is valid once setup finishes;
         /// it just is not yet when it is written.
         /// </remarks>
+        /// <summary>
+        /// Stamps ownership and enrolment onto a circle that predates those columns.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="UpdateAsync"/> deliberately will not set <c>AppId</c> -- ownership must not be
+        /// reassignable by anyone who can PUT a definition.  This is the exception, for circles the
+        /// owner console's setup wizard created before ownership existed.  It refuses a circle that
+        /// already has an owner.
+        /// </remarks>
+        internal async Task StampOwningAppAsync(Guid circleId, Guid appId, CircleGrantOn grantOn,
+            CircleDesignation designation)
+        {
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                return;
+            }
+
+            if (circle.AppId != null)
+            {
+                return;
+            }
+
+            circle.AppId = appId;
+            circle.GrantOn = grantOn;
+            circle.Designation = designation;
+
+            // The deposit-only rule has to hold whenever GrantOn changes, and this is one such change.
+            await AssertDepositOnlyIfAmbientAsync(circle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+        }
+
         public async Task EnsureCircleExistsAsync(CircleDefinition def)
         {
             if (await GetCircleAsync(def.Id) != null)

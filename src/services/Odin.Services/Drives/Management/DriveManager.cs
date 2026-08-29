@@ -373,6 +373,47 @@ public class DriveManager : IDriveManager
         }
     }
 
+    /// <summary>
+    /// Stamps ownership and address onto a drive that predates those columns.  Migration only.
+    /// </summary>
+    /// <remarks>
+    /// There is no other way in: <see cref="CreateDriveAsync"/> sets these once, and nothing updates
+    /// them, because a slug is a wire address other identities resolve against and renaming one breaks
+    /// their links.  This exists so a drive created before the columns existed can be given the values
+    /// it would have been created with, and it refuses a drive that already has an owner rather than
+    /// reassigning it.
+    /// <para>
+    /// Note it does <b>not</b> refuse system drives, unlike every other setter here.  All fourteen are
+    /// system drives, so guarding on that would make it useless for the one job it has.
+    /// </para>
+    /// </remarks>
+    internal async Task StampDriveAddressAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+        IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        OdinSlug.AssertValidOrNull(driveSlug, nameof(driveSlug));
+        OdinSlug.AssertValidOrNull(driveTypeSlug, nameof(driveTypeSlug));
+
+        var storageDrive = await GetDriveInternal(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (storageDrive.AppId != null)
+        {
+            throw new OdinSystemException(
+                $"Drive {driveId} is already owned by {storageDrive.AppId}; ownership is not reassignable");
+        }
+
+        storageDrive.AppId = appId;
+        storageDrive.DriveSlug = driveSlug;
+        storageDrive.DriveTypeSlug = driveTypeSlug;
+
+        await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+    }
+
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
