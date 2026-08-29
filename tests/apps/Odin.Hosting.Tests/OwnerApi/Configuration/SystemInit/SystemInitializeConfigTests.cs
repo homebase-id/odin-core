@@ -13,6 +13,7 @@ using Odin.Services.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -127,7 +128,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsNotNull(createdDrivesResponse.Content);
 
             var createdDrives = createdDrivesResponse.Content;
-            ClassicAssert.IsTrue(createdDrives.Results.Count == SystemDriveConstants.SystemDrives.Count);
+            ClassicAssert.IsTrue(createdDrives.Results.Count == BuiltinDrives.Protected.Count);
 
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.ContactDrive),
                 $"expected drive [{WellKnownAppDrives.ContactDrive}] not found");
@@ -303,7 +304,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
             //check if system drives exist
-            var expectedDrives = SystemDriveConstants.SystemDrives.Concat([newDrive.TargetDrive]);
+            var expectedDrives = BuiltinDrives.Protected.Concat([newDrive.TargetDrive]);
 
             var createdDrivesResponse = await ownerClient.Drive.GetDrives(1, 100);
             ClassicAssert.IsNotNull(createdDrivesResponse.Content);

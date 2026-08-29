@@ -182,4 +182,42 @@ public static class BuiltinDrives
     };
 
     //
+
+    /// <summary>
+    /// Drives the owner may not rename, re-mode or archive.  <c>DriveManager</c> refuses those
+    /// operations for anything in here, and it is what the owner console shows as a system drive.
+    /// </summary>
+    /// <remarks>
+    /// This is "we provisioned it", not "it is systemic".  ListsDrive and MomentsDrive are in the list
+    /// and belong to apps that are not even built-in -- they are provisioned only because the system
+    /// circles grant them, and issuing a grant for an absent drive throws.  They leave this list when
+    /// those circles retire.
+    /// <para>
+    /// Protected is deliberately the same set as provisioned: a drive the system creates and the owner
+    /// can archive is a trap.  Keep the two in step -- they drifted once already, when WalletDrive
+    /// stopped being provisioned and EmailAppDrive started, and neither was reflected here.
+    /// </para>
+    /// </remarks>
+    public static readonly IReadOnlyList<TargetDrive> Protected =
+    [
+        SystemDriveConstants.TransientTempDrive,
+        WellKnownAppDrives.ContactDrive,
+        WellKnownAppDrives.ProfileDrive,
+        WellKnownAppDrives.ChatDrive,
+        WellKnownAppDrives.FeedDrive,
+        WellKnownAppDrives.HomePageConfigDrive,
+        WellKnownAppDrives.MailDrive,
+        WellKnownAppDrives.PublicPostsChannelDrive,
+        WellKnownAppDrives.ShardRecoveryDrive,
+        WellKnownAppDrives.MomentsDrive,
+        WellKnownAppDrives.StickerDrive,
+        WellKnownAppDrives.ListsDrive,
+        WellKnownAppDrives.LocationDrive,
+        WellKnownAppDrives.EmailAppDrive
+    ];
+
+    /// <summary>
+    /// True when the owner may not modify this drive.  See <see cref="Protected"/>.
+    /// </summary>
+    public static bool IsProtected(Guid driveId) => Protected.Any(d => d.Alias == driveId);
 }

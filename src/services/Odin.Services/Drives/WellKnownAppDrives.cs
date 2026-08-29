@@ -16,7 +16,7 @@ namespace Odin.Services.Drives;
 /// Being listed here says nothing about when the drive is created. That is decided by whether its
 /// owning app is built-in (<c>BuiltinApps.Builtin</c>), and
 /// the seeded set is <c>TenantConfigService.EnsureSystemDrivesExist</c> — which is kept equal to
-/// <see cref="SystemDriveConstants.SystemDrives"/>, the list that also makes a drive immutable
+/// <see cref="BuiltinDrives.Protected"/>, the list that also makes a drive immutable
 /// (<c>DriveManager</c> refuses to rename, re-mode or archive anything in it). Seeded and protected
 /// are deliberately the same set; a seeded drive the owner could archive is a trap.
 ///

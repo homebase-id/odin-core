@@ -105,6 +105,8 @@ public class BuiltinProvisioner(
 
         foreach (var request in drives)
         {
+            AssertAddressed(request);
+
             if (await driveManager.GetDriveAsync(request.TargetDrive.Alias) != null)
             {
                 continue;
@@ -130,6 +132,46 @@ public class BuiltinProvisioner(
     }
 
     /// <summary>
+    /// Nothing is provisioned without an address.  A drive that reaches creation with no slug gets one
+    /// derived from its display name, which is how the Location app came to be registered as
+    /// <c>homebase-locat</c> -- a permanent address nobody chose, because a slug is immutable once
+    /// written.  Failing here is the cheaper outcome.
+    /// </summary>
+    private static void AssertAddressed(CreateDriveRequest request)
+    {
+        if (request.AppId == null)
+        {
+            throw new OdinSystemException($"Drive '{request.Name}' has no owning app");
+        }
+
+        if (!OdinSlug.IsValid(request.DriveSlug) || !OdinSlug.IsValid(request.DriveTypeSlug))
+        {
+            throw new OdinSystemException(
+                $"Drive '{request.Name}' has no valid slug ('{request.DriveSlug}' / " +
+                $"'{request.DriveTypeSlug}'); it cannot be provisioned");
+        }
+    }
+
+    /// <summary>
+    /// The registration constants carry no slug, so registering one as-is derives the slug from the
+    /// display name.  The tree is the authority, so it is applied here.
+    /// </summary>
+    /// <remarks>
+    /// Copied rather than assigned: the constants are shared statics, and provisioning runs per tenant.
+    /// </remarks>
+    private static AppRegistrationRequest WithSlug(AppRegistrationRequest request, string appSlug) => new()
+    {
+        AppId = request.AppId,
+        Name = request.Name,
+        AppSlug = appSlug,
+        CorsHostName = request.CorsHostName,
+        PermissionSet = request.PermissionSet,
+        Drives = request.Drives,
+        AuthorizedCircles = request.AuthorizedCircles,
+        CircleMemberPermissionGrant = request.CircleMemberPermissionGrant
+    };
+
+    /// <summary>
     /// Registers every built-in app.  Idempotent.
     /// </summary>
     public async Task EnsureAppsAsync(IOdinContext odinContext)
@@ -147,8 +189,14 @@ public class BuiltinProvisioner(
                 continue;
             }
 
-            logger.LogDebug("Registering built-in app {app}", app.Name);
-            await appRegistrationService.RegisterAppAsync(request, odinContext);
+            if (!OdinSlug.IsValid(app.AppSlug))
+            {
+                throw new OdinSystemException(
+                    $"App '{app.Name}' has no valid slug ('{app.AppSlug}'); it cannot be registered");
+            }
+
+            logger.LogDebug("Registering built-in app {app} as {slug}", app.Name, app.AppSlug);
+            await appRegistrationService.RegisterAppAsync(WithSlug(request, app.AppSlug), odinContext);
         }
     }
 }

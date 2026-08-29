@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
@@ -235,7 +236,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinSecurityException("Cannot change system drive");
         }
@@ -271,7 +272,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinSecurityException("Cannot change system drive");
         }
@@ -339,7 +340,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinClientException("Cannot archive system drive");
         }

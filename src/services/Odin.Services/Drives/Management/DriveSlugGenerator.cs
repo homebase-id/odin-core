@@ -46,7 +46,7 @@ namespace Odin.Services.Drives.Management
         /// derived.
         /// </summary>
         /// <remarks>
-        /// Covers every entry in <see cref="SystemDriveConstants.SystemDrives"/>.  A drive added there
+        /// Covers every entry in <see cref="BuiltinDrives.Protected"/>.  A drive added there
         /// without a line here still works -- it just falls through to derivation and gets whatever its
         /// name slugifies to, which is very likely not the address anyone intended.
         /// </remarks>

@@ -1,6 +1,7 @@
 using System.Linq;
 using NUnit.Framework;
 using Odin.Services.Drives;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting.Tests.V2.Mail;
 
@@ -11,7 +12,7 @@ namespace Odin.Hosting.Tests.V2.Mail;
 /// drive that does not exist, so the drive is now seeded.
 ///
 /// What is worth guarding is what replaced it: seeded and immutable are the same set. Anything
-/// <c>EnsureSystemDrivesExist</c> creates must be in <see cref="SystemDriveConstants.SystemDrives"/>, or
+/// <c>EnsureSystemDrivesExist</c> creates must be in <see cref="BuiltinDrives.Protected"/>, or
 /// the owner can archive a drive the system depends on -- in this case one holding the OpenPGP secret
 /// keyrings.
 /// </summary>
@@ -21,7 +22,7 @@ public class WellKnownAppDrivesTests
     public void EmailAppDriveIsProtectedFromOwnerModification()
     {
         Assert.That(
-            SystemDriveConstants.SystemDrives.Contains(WellKnownAppDrives.EmailAppDrive),
+            BuiltinDrives.Protected.Contains(WellKnownAppDrives.EmailAppDrive),
             Is.True,
             "EmailAppDrive is seeded, so it must also be immutable — DriveManager guards on this list");
     }
@@ -32,7 +33,7 @@ public class WellKnownAppDrivesTests
         // The alias IS the drive id (DriveManager.CreateDriveAsync), so a collision would not be a
         // naming clash — it would be the same storage.
         Assert.That(
-            SystemDriveConstants.SystemDrives.Count(d => d.Alias == WellKnownAppDrives.EmailAppDrive.Alias),
+            BuiltinDrives.Protected.Count(d => d.Alias == WellKnownAppDrives.EmailAppDrive.Alias),
             Is.EqualTo(1));
     }
 

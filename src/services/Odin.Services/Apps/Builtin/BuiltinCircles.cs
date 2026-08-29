@@ -13,8 +13,8 @@ namespace Odin.Services.Apps.Builtin;
 /// Every circle an app owns.
 /// </summary>
 /// <remarks>
-/// Copied from <c>WellKnownAppCircles</c> and <c>BuiltInCircleConstants</c>, which still hold their own
-/// copies and are what still runs.
+/// The single declaration of these.  <c>BuiltInCircleConstants</c> still holds its own copy of Emergency
+/// Location Access and is what provisions it.
 /// </remarks>
 public static class BuiltinCircles
 {
@@ -25,8 +25,7 @@ public static class BuiltinCircles
     // nest in the tree while cross-app drive grants do not. The two system circles are owned by no
     // app and grant across six drives, so they stay in SystemCircleConstants until they retire.
     //
-    // Copied from WellKnownAppCircles and BuiltInCircleConstants, which still hold their own copies
-    // and are what still runs.
+    // BuiltInCircleConstants still holds its own copy of Emergency Location Access.
     // ============================================================================================
     //
 
