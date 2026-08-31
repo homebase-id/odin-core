@@ -253,4 +253,17 @@ public static class BuiltinCircles
 
 
     //
+
+    // --- Webdrop ---
+    public static readonly CircleDefinition WebdropCircle = new()
+    {
+        Id = Guid.Parse("a510f814c6054a5c8bddcc0fbd2f627a"),
+        Name = "Webdrop",
+        Description = "Members can drop files to you",
+        AppId = SystemAppConstants.WebdropAppId,
+        GrantOn = CircleGrantOn.None,
+        Designation = CircleDesignation.Personal,
+        DriveGrants = [Grant(WellKnownAppDrives.WebDropDrive, WriteReact)],
+        Permissions = new PermissionSet { Keys = [] }
+    };
 }

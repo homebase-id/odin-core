@@ -55,6 +55,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
 
             await StampDrivesAsync(odinContext, cancellationToken);
             await StampChannelDrivesAsync(odinContext, cancellationToken);
+            await StampRemainingDrivesAsync(odinContext, cancellationToken);
             await StampCirclesAsync(cancellationToken);
             await StampAppSlugsAsync(odinContext, cancellationToken);
 
@@ -94,7 +95,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                         $"Drive {request.Name} is in the tree with no owning app; every drive must have one");
                 }
 
-                var changed = await driveManager.ApplyTreeAddressAsync(drive.Id, request.AppId.Value,
+                var changed = await driveManager.ApplyAddressAsync(drive.Id, request.AppId.Value,
                     request.DriveSlug, request.DriveTypeSlug, odinContext);
 
                 if (changed)
@@ -152,10 +153,58 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                 // "channel" stated, not looked up: these came from a query on ChannelDriveType, so the
                 // type is already known, and TypeSlugFor can return null -- which AssertValidOrNull
                 // permits, so a miss would be stored silently.
-                await driveManager.ApplyTreeAddressAsync(drive.Id, SystemAppConstants.FeedAppId, slug,
+                await driveManager.ApplyAddressAsync(drive.Id, SystemAppConstants.FeedAppId, slug,
                     BuiltinDrives.ChannelDriveTypeSlug, odinContext);
 
                 logger.LogDebug("v13->v14: channel drive {name} is now feed/{slug}", drive.Name, slug);
+            }
+        }
+
+        /// <summary>
+        /// Gives a slug to every drive the earlier passes did not reach.
+        /// </summary>
+        /// <remarks>
+        /// Drives nobody declares: created through the owner console, or by the setup wizard's own
+        /// <c>request.Drives</c>, neither of which sets an owning app.  They are not in the tree and are
+        /// not channel-typed, so nothing above touches them, and they would come out of the upgrade with
+        /// no address at all.
+        /// <para>
+        /// <b>Slug only.</b>  The owning app is left as it was -- usually null -- and the type slug too,
+        /// since an unknown drive type has no readable form and the drive name describes the drive rather
+        /// than its category.  That departs from the set-together rule in
+        /// <c>docs/drive-addressing.md</c>, which means <c>UNIQUE(identityId, AppId, DriveSlug)</c> does
+        /// not constrain these rows: NULL app ids do not collide in either dialect.  So uniqueness among
+        /// them is enforced here instead, by deduping against every other slug held with no owning app.
+        /// </para>
+        /// </remarks>
+        private async Task StampRemainingDrivesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            var everyDrive = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
+
+            // The database cannot police these, so the taken set has to: every slug already held by a
+            // drive with no owning app is one this pass must avoid.
+            var taken = new HashSet<string>(
+                everyDrive.Results
+                    .Where(d => d.AppId == null && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                    .Select(d => d.DriveSlug),
+                StringComparer.Ordinal);
+
+            foreach (var drive in everyDrive.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!string.IsNullOrWhiteSpace(drive.DriveSlug))
+                {
+                    continue;
+                }
+
+                var slug = DriveSlugGenerator.Generate(drive.Id, drive.Name, taken);
+                taken.Add(slug);
+
+                await driveManager.ApplyAddressAsync(drive.Id, drive.AppId, slug, drive.DriveTypeSlug,
+                    odinContext);
+
+                logger.LogDebug("v13->v14: undeclared drive {name} is now {slug}", drive.Name, slug);
             }
         }
 
@@ -273,6 +322,25 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                         $"v13->v14 left channel drive {drive.Name} without an owning app, or with slug " +
                         $"'{drive.DriveSlug}' / type '{drive.DriveTypeSlug}'");
                 }
+            }
+
+            var everyDrive = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
+            var noSlug = everyDrive.Results.Where(d => string.IsNullOrWhiteSpace(d.DriveSlug)).ToList();
+            if (noSlug.Count != 0)
+            {
+                throw new OdinSystemException(
+                    $"v13->v14 left {noSlug.Count} drive(s) with no slug: " +
+                    string.Join(", ", noSlug.Select(d => d.Name)));
+            }
+
+            var unownedDupes = everyDrive.Results
+                .Where(d => d.AppId == null && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                .GroupBy(d => d.DriveSlug).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            if (unownedDupes.Count != 0)
+            {
+                throw new OdinSystemException(
+                    "v13->v14 produced duplicate slugs among drives with no owning app, which the unique " +
+                    "index cannot catch: " + string.Join(", ", unownedDupes));
             }
 
             foreach (var app in BuiltinApps.All)

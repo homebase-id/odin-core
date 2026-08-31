@@ -42,6 +42,7 @@ public static class BuiltinApps
     /// </summary>
     public static readonly IReadOnlyList<WellknownAppDefinition> Builtin =
     [
+        
         new(SystemAppConstants.ChatAppId, "Chat", "chat",
             Drives:
             [
@@ -133,9 +134,19 @@ public static class BuiltinApps
             Circles: [],
             Permissions: new PermissionSet()),
 
-        //
-        // Not built-in: owned, but only arrive when the owner installs the app.
-        //
+        new(SystemAppConstants.WebdropAppId, "Webdrop", "webdrop",
+            Drives: [BuiltinDrives.WebDropDrive],
+            Circles: [BuiltinCircles.WebdropCircle],
+            Permissions: new PermissionSet(
+                PermissionKeys.ReadConnections,
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.SendIntroductions,
+                PermissionKeys.UseTransitRead,
+                PermissionKeys.UseTransitWrite,
+                PermissionKeys.ManageContacts,
+                PermissionKeys.ManageProfile,
+                PermissionKeys.ManageCircleMembership))
     ];
 
     /// <summary>

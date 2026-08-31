@@ -145,4 +145,11 @@ public static class WellKnownAppDrives
         Alias = Guid.Parse("1f513d675ef9499f82edd194691e427d"),
         Type = Guid.Parse("4a1414dae1604d1982a092162599fd7f")
     };
+
+    /// <summary>The Webdrop app's drive (chat-kmp <c>webDropLabeledDrive</c>).</summary>
+    public static readonly TargetDrive WebDropDrive = new()
+    {
+        Alias = Guid.Parse("6d1711af-8b93-43ef-b798-b84d51f25828"),
+        Type = Guid.Parse("edee430a-73d4-49ae-a9ae-2d3091957702")
+    };
 }

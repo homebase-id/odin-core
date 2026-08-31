@@ -61,7 +61,8 @@ public class BuiltinProvisioner(
             [SystemAppConstants.HomePageAppId] = SystemAppConstants.HomePageAppRegistrationRequest,
             [SystemAppConstants.LocationAppId] = SystemAppConstants.LocationAppRegistrationRequest,
             [SystemAppConstants.RecoveryAppId] = SystemAppConstants.RecoveryAppRegistrationRequest,
-            [SystemAppConstants.SystemAppId] = SystemAppConstants.SystemAppRegistrationRequest
+            [SystemAppConstants.SystemAppId] = SystemAppConstants.SystemAppRegistrationRequest,
+            [SystemAppConstants.WebdropAppId] = SystemAppConstants.WebdropAppRegistrationRequest
         };
 
     /// <summary>

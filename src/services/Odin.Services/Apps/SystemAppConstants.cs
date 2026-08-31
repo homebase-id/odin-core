@@ -53,6 +53,7 @@ public static class SystemAppConstants
     public static readonly Guid RecoveryAppId = Guid.Parse("bc2fbb10-7574-4792-8db6-23c9b725a1d8");
     public static readonly Guid VaultAppId = Guid.Parse("6d38d41a-99f5-4f45-a591-9862d83e1fc8");
     public static readonly Guid SocialSyncAppId = Guid.Parse("99bbae1f-4c99-4944-aecd-0356bfe8974e");
+    public static readonly Guid WebdropAppId = Guid.Parse("17bbd664-eed2-44d9-a66c-ddd310762b32");
 
 
     public static readonly AppRegistrationRequest ChatAppRegistrationRequest = new()
@@ -497,5 +498,41 @@ public static class SystemAppConstants
             }
         ],
         PermissionSet = new PermissionSet()
+    };
+
+    /// <summary>
+    /// Built-in.  Granted ReadWrite on the drive it owns; its permission keys mirror chat's.
+    /// </summary>
+    public static readonly AppRegistrationRequest WebdropAppRegistrationRequest = new()
+    {
+        AppId = WebdropAppId,
+        Name = "Homebase - Webdrop",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.WebDropDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet(
+            PermissionKeys.ReadConnections,
+            PermissionKeys.SendPushNotifications,
+            PermissionKeys.ReadConnectionRequests,
+            PermissionKeys.SendIntroductions,
+            PermissionKeys.UseTransitRead,
+            PermissionKeys.UseTransitWrite,
+            PermissionKeys.ManageContacts,
+            PermissionKeys.ManageProfile,
+            PermissionKeys.ManageCircleMembership)
     };
 }

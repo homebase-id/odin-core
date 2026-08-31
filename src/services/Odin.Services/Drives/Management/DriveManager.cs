@@ -375,7 +375,7 @@ public class DriveManager : IDriveManager
     }
 
     /// <summary>
-    /// Makes a drive match what the app tree says its address should be.  Migration only.
+    /// Sets a drive's owning app and address.  Migration only.
     /// </summary>
     /// <remarks>
     /// There is no other way in: <see cref="CreateDriveAsync"/> sets these once and nothing updates them,
@@ -386,9 +386,14 @@ public class DriveManager : IDriveManager
     /// Note it does <b>not</b> refuse protected drives, unlike every other setter here.  All fourteen are
     /// protected, so guarding on that would make it useless for the one job it has.
     /// </para>
+    /// <para>
+    /// <paramref name="appId"/> and <paramref name="driveTypeSlug"/> are nullable because a drive nobody
+    /// declares still gets a slug: it keeps whatever owner it had, and an unknown drive type has no
+    /// readable form to derive.
+    /// </para>
     /// </remarks>
-    internal async Task<bool> ApplyTreeAddressAsync(Guid driveId, Guid appId, string driveSlug,
-        string driveTypeSlug, IOdinContext odinContext)
+    internal async Task<bool> ApplyAddressAsync(Guid driveId, Guid? appId, string driveSlug,
+        string? driveTypeSlug, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 

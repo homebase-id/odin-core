@@ -185,6 +185,14 @@ public static class BuiltinDrives
 
     //
 
+    // --- Webdrop ---
+    public static readonly CreateDriveRequest WebDropDrive = new()
+    {
+        Name = "WebDrop", TargetDrive = WellKnownAppDrives.WebDropDrive, Metadata = "",
+        AppId = SystemAppConstants.WebdropAppId, DriveSlug = "webdrop", DriveTypeSlug = "webdrop",
+        AllowAnonymousReads = true, OwnerOnly = false
+    };
+
     /// <summary>
     /// Drives the owner may not rename, re-mode or archive.  <c>DriveManager</c> refuses those
     /// operations for anything in here, and it is what the owner console shows as a system drive.
@@ -215,7 +223,8 @@ public static class BuiltinDrives
         WellKnownAppDrives.StickerDrive,
         WellKnownAppDrives.ListsDrive,
         WellKnownAppDrives.LocationDrive,
-        WellKnownAppDrives.EmailAppDrive
+        WellKnownAppDrives.EmailAppDrive,
+        WellKnownAppDrives.WebDropDrive
     ];
 
     /// <summary>
