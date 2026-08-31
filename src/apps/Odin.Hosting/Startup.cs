@@ -258,6 +258,9 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/web-drop"),
+                homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3007/"); }); });
+
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
@@ -372,6 +375,22 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         await context.Response.SendFileAsync(Path.Combine(communityPath, "index.html"));
                         return;
                     });
+                });
+
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/web-drop"),
+                webDropApp =>
+                {
+                    var webDropPath = Path.Combine(env.ContentRootPath, "client", "apps", "web-drop");
+                    var webDropIndexPath = Path.Combine(webDropPath, "index.html");
+                    webDropApp.UseStaticFiles(new StaticFileOptions()
+                    {
+                        FileProvider = new PhysicalFileProvider(webDropPath),
+                        RequestPath = "/apps/web-drop"
+                    });
+
+                    // The viewer is opened by strangers from emailed links; a missing asset must 404
+                    // rather than masquerade as the shell (see SpaFallback's class comment).
+                    webDropApp.Run(context => SpaFallback.ServeShellOrNotFound(context, webDropIndexPath));
                 });
 
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
