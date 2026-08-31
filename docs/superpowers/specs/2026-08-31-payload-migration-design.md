@@ -20,7 +20,7 @@ reason.
 
 The bytes therefore have to travel over HTTP between the two hosts. That collides
 with the existing cutover model: `identity-export` requires the source host to be
-stopped (`IdentityJsonTransfer.HostIsStopped`, committed in c214e9142), so a host
+stopped (`IdentityJsonTransfer.HostIsStopped`, committed in 1fc6d4587), so a host
 that is stopped cannot serve payloads. Resolving that collision is most of this
 design.
 
