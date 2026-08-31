@@ -1,88 +1,114 @@
-#nullable enable
+using System;
 using System.IO;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using NUnit.Framework;
 using Odin.Hosting;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
 /// <summary>
-/// Unit tests for <see cref="SpaFallback"/> — the deep-link fallback guard used by the
-/// statically-served Kotlin/WASM chat app. These assert
-/// the rule: a navigation gets the SPA shell, but an
-/// asset request gets a clean 404 instead of being masked as <c>200 index.html</c> (the masking
-/// that hid the chat-wasm blank-text bug, where Compose received index.html for its
-/// <c>strings.commonMain.cvr</c> string table). No host boot — pure logic, microseconds.
+/// The SPA shell contract: navigations get the shell WITH a revalidate-always cache policy
+/// (a heuristically-cached shell outlives deploys and then 404s its content-hashed assets -
+/// the blank-app-after-release bug of 2026-08-31); asset requests get a clean 404.
 /// </summary>
 [TestFixture]
 public class SpaFallbackTests
 {
-    // Browser navigation Accept headers — these must resolve to the SPA shell.
-    [TestCase("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")]
-    [TestCase("text/html")]
-    [TestCase("TEXT/HTML")] // case-insensitive
-    public void WantsHtmlDocument_TrueForNavigationAccept(string accept)
+    private string _indexPath = null!;
+
+    [OneTimeSetUp]
+    public void SetUp()
     {
-        Assert.That(SpaFallback.WantsHtmlDocument(RequestWithAccept(accept)), Is.True);
+        _indexPath = Path.Combine(Path.GetTempPath(), $"spa-fallback-test-{Guid.NewGuid():N}.html");
+        File.WriteAllText(_indexPath, "<!doctype html><title>shell</title>");
     }
 
-    // Asset loads (fetch/XHR/script/style/img) and absent Accept — these must NOT get the shell.
-    [TestCase("*/*")]                       // fetch() / XHR default
-    [TestCase("image/avif,image/webp,*/*")] // <img>
-    [TestCase("text/css,*/*;q=0.1")]        // <link rel=stylesheet>
-    [TestCase("application/octet-stream")]  // a Compose .cvr fetch lands here
-    [TestCase("")]                          // no Accept header at all
-    public void WantsHtmlDocument_FalseForAssetAccept(string accept)
+    [OneTimeTearDown]
+    public void TearDown()
     {
-        Assert.That(SpaFallback.WantsHtmlDocument(RequestWithAccept(accept)), Is.False);
+        File.Delete(_indexPath);
     }
 
-    [Test]
-    public async Task ServeShellOrNotFound_AssetRequest_Returns404AndDoesNotTouchFile()
+    private static DefaultHttpContext BrowserContext(string accept)
     {
-        var ctx = new DefaultHttpContext();
-        ctx.Request.Headers.Accept = "*/*";
-
-        // A path that does not exist — the guard must short-circuit to 404 BEFORE any file access,
-        // so a missing/misconfigured asset surfaces as a missing asset rather than the SPA shell.
-        await SpaFallback.ServeShellOrNotFound(ctx, "/does/not/exist/index.html");
-
-        Assert.That(ctx.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
-        Assert.That(ctx.Response.Headers.ContentType.ToString(), Does.Not.Contain("text/html"));
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Accept = accept;
+        context.Response.Body = new MemoryStream();
+        return context;
     }
 
     [Test]
-    public async Task ServeShellOrNotFound_Navigation_ServesTheShell()
+    public async Task ANavigationGetsTheShellAndMustRevalidateIt()
     {
-        var indexPath = Path.Combine(Path.GetTempPath(), $"spa-fallback-test-{System.Guid.NewGuid():N}.html");
-        await File.WriteAllTextAsync(indexPath, "<!doctype html><title>shell</title>");
-        try
-        {
-            var ctx = new DefaultHttpContext();
-            ctx.Request.Headers.Accept = "text/html";
-            ctx.Response.Body = new MemoryStream();
+        var context = BrowserContext("text/html,application/xhtml+xml");
 
-            await SpaFallback.ServeShellOrNotFound(ctx, indexPath);
+        await SpaFallback.ServeShellOrNotFound(context, _indexPath);
 
-            Assert.That(ctx.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
-            Assert.That(ctx.Response.Headers.ContentType.ToString(), Does.Contain("text/html"));
-        }
-        finally
-        {
-            File.Delete(indexPath);
-        }
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache"),
+            "a shell cached on heuristic freshness outlives deploys and 404s its hashed assets");
+        context.Response.Body.Position = 0;
+        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        Assert.That(body, Does.Contain("shell"));
     }
 
-    private static HttpRequest RequestWithAccept(string accept)
+    [Test]
+    public async Task ARevalidationWithACurrentShellGetsA304()
     {
-        var ctx = new DefaultHttpContext();
-        if (accept.Length > 0)
-        {
-            ctx.Request.Headers.Accept = accept;
-        }
+        var first = BrowserContext("text/html");
+        await SpaFallback.ServeShellOrNotFound(first, _indexPath);
+        var lastModified = first.Response.Headers.LastModified.ToString();
+        Assert.That(lastModified, Is.Not.Empty, "the shell must carry a validator or no-cache means re-download");
 
-        return ctx.Request;
+        var second = BrowserContext("text/html");
+        second.Request.Headers.IfModifiedSince = lastModified;
+        await SpaFallback.ServeShellOrNotFound(second, _indexPath);
+
+        Assert.That(second.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified),
+            "an unchanged shell must revalidate as a 304, not a byte-for-byte refetch");
+        Assert.That(second.Response.Body.Length, Is.Zero);
+    }
+
+    [Test]
+    public async Task AnAssetRequestGetsACleanNotFound()
+    {
+        var context = BrowserContext("*/*");
+
+        await SpaFallback.ServeShellOrNotFound(context, _indexPath);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound),
+            "a missing asset must surface as missing, never masquerade as the shell");
+    }
+
+    [Test]
+    public void AnExplicitIndexHtmlRequestMustRevalidateToo()
+    {
+        var context = new DefaultHttpContext();
+        // The static middleware serves it under its real name; only the name matters here.
+        SpaFallback.NoCacheIndexHtml(new StaticFileResponseContext(context, new NamedFile("index.html")));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-cache"));
+    }
+
+    [Test]
+    public void AHashedAssetKeepsItsCachePolicyUntouched()
+    {
+        var context = new DefaultHttpContext();
+        SpaFallback.NoCacheIndexHtml(new StaticFileResponseContext(context, new NamedFile("homebase-app.41cd37d4.js")));
+        Assert.That(context.Response.Headers.CacheControl.ToString(), Is.Empty,
+            "content-hashed assets are immutable per name and may cache freely");
+    }
+
+    private sealed class NamedFile(string name) : IFileInfo
+    {
+        public bool Exists => true;
+        public long Length => 0;
+        public string PhysicalPath => null;
+        public string Name => name;
+        public DateTimeOffset LastModified => DateTimeOffset.UnixEpoch;
+        public bool IsDirectory => false;
+        public Stream CreateReadStream() => new MemoryStream();
     }
 }

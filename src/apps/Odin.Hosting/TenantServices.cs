@@ -68,6 +68,7 @@ using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.PublicPage.Posts;
 using Odin.Services.PublicPage.Profile;
 using Odin.Core.Storage.Database.Identity;
@@ -279,6 +280,7 @@ public static class TenantServices
 
         cb.RegisterType<StandardFileStreamWriter>().InstancePerDependency();
         cb.RegisterType<StandardFilePayloadStreamWriter>().InstancePerDependency();
+        cb.RegisterType<FileExpiryScheduler>().InstancePerDependency();
         cb.RegisterType<StandardFileDriveStorageService>().InstancePerDependency();
         cb.RegisterType<StandardFileDriveQueryService>().InstancePerDependency();
         cb.RegisterType<StandardFileUpdateWriter>().InstancePerDependency();
