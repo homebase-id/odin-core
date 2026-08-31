@@ -96,6 +96,43 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetThumbnailInternal(file, width, height, payloadKey, directMatchOnly);
         }
 
+        /// <summary>
+        /// Brings the file's death forward to now. Anonymous on purpose - the caller demonstrably
+        /// holds the link, so all they can surrender is remaining lifetime; the service refuses files
+        /// with no Ttl, so permanent data cannot be destroyed this way. (A POST on a controller named
+        /// Readonly is a wart; it lives here because it shares the by-uid resolution.)
+        /// </summary>
+        //
+        // ██████████████████████████████████████████████████████████████████████████████████████
+        // ██ SECURITY DEBT - MUST BE FIXED BEFORE THIS SHIPS TO REAL USERS                    ██
+        // ██                                                                                  ██
+        // ██ This endpoint must ALSO require drive.BlockAnonymousEnumeration == true (the     ██
+        // ██ flag does not exist yet). Until then, on an ENUMERABLE anonymous drive a scraper ██
+        // ██ can walk the file list and expire-now every TTL'd file on it - mass destruction  ██
+        // ██ of public-but-expiring content. The capability argument ("the caller already     ██
+        // ██ holds the link") only holds on non-enumerable drives, where you can only address ██
+        // ██ what you were given. When BlockAnonymousEnumeration lands, add the gate here     ██
+        // ██ (or in HastenExpiryAsync) and delete this banner.                                ██
+        // ██████████████████████████████████████████████████████████████████████████████████████
+        //
+        [HttpPost("expire-now")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [NoSharedSecretOnRequest]
+        [NoSharedSecretOnResponse]
+        public async Task<IActionResult> ExpireNow([FromRoute] Guid driveId, [FromRoute] Guid uid)
+        {
+            var header = await GetFileHeaderByUniqueIdInternal(uid, driveId);
+            if (header == null)
+            {
+                return NotFound();
+            }
+
+            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
+            var file = new InternalDriveFileId(driveId, header.FileId);
+            var hastened = await fs.Storage.HastenExpiryAsync(file, WebOdinContext);
+            return hastened ? Ok() : NotFound();
+        }
+
         private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid driveId)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;

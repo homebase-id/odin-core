@@ -6,6 +6,7 @@
 |---|---|
 | **Part 1 — generic file TTL** (`FileMetadata.Ttl`, expiry/reap jobs, peer transit, cache clamp) | **Implemented** — PR #1692 |
 | Part 2 — `BlockAnonymousEnumeration` (non-enumerable drives) | **Not implemented** |
+| `expire-now` (anonymous destroy button, server side) | **Implemented** on PR #1692 — see *Expire-now* below; carries a security-debt banner until `BlockAnonymousEnumeration` exists |
 | Part 2 — `WebDropDrive` system drive + migration | **Not implemented** |
 | Viewer web app | UX prototype only, in odin-js (`packages/apps/web-drop-app`) — no decryption, no drive; see *Viewer UX* |
 | Writer — chat-kmp WebDrop add-on (Home-tile app, no toolbar icon) | **Implemented** on chat-kmp branch `webdrop-app`: multi-file drops, owner-encrypted receipts, Waiting/Opened/Removed list, revoke. Drive bootstraps via extend-permissions `allowAnonymousRead` |
@@ -298,6 +299,51 @@ the Email drive. Alias `6d1711af-8b93-43ef-b798-b84d51f25828`, type
 Still owed here *(not yet implemented)*: `BlockAnonymousEnumeration = true` on this drive — until
 that capability exists, drops are enumerable by anyone ("boring bit last"). When it lands, the
 extend-permissions drive request needs to carry it too.
+
+**Expire-now.** The viewer's *"I'm done — destroy it now"* button calls
+`POST /api/v2/drives/{driveId}/files/by-uid/{uid}/expire-now` (anonymous, no shared secret), which
+runs `DriveStorageServiceBase.HastenExpiryAsync`: normal read authorization, then a transactional
+re-read that sets `Ttl = now` and queues eager tombstoning. Gates, in order:
+
+1. **Read authorization** — the same 403/404 the by-uid read path gives; you cannot kill what you
+   cannot read, and an unknown uid is indistinguishable from a forbidden one only as far as the
+   read path already makes it so.
+2. **`Ttl != 0`** — a file with no Ttl is refused with 400. Hastening is not killing: an anonymous
+   visitor must never destroy permanent public data.
+3. **`drive.BlockAnonymousEnumeration == true` — NOT YET ENFORCED.** This is the agreed rule and
+   the endpoint carries a fat security-debt banner for it: on an enumerable anonymous drive a
+   scraper can walk the file list and expire-now everything TTL'd on it. The capability argument
+   ("the caller already holds the link, so all they can surrender is remaining lifetime") only
+   holds on non-enumerable drives. Ship-blocker for real users, same as enumeration itself.
+
+Shorten-only by construction: `now` is earlier than any live absolute Ttl, and a pending negative
+Ttl resolves to at-least-now — the call can never extend or resurrect. An unopened burn file can be
+destroyed without opening it (no payload read required). Pinned by
+`Odin.Hosting.Tests.V2/Ported/Ttl/ExpireNowTests` (five tests, including the two refusals).
+
+**Addressed consent rides encrypted in the header.** `appData.content` carries two optional
+fields. `theme` is a cleartext id (`mission` / `clean` / `choplifter`) — deliberately readable, the
+page must paint before decryption, and a theme name leaks nothing worth protecting; the sender
+picks it in the app today, the viewer still renders only mission. `intro` is
+`{iv, data}` — `E_k` of `{recipientName?, conditions[], note?}` under the link key with **its own
+random IV, never a payload's** (one key + repeated IV breaks CBC). It lives in the header rather
+than a payload so a future viewer can greet *"This drop is for Thomas Kragh-Muller"* and build the
+consent checkbox from the sender's conditions using only a header read — which never starts the
+burn clock, so prefetching mail scanners cost nothing, and the server never sees a name. Condition
+ids v1, fixed: `recipient_only`, `no_retention`, `personal_data` — statements of intent the
+recipient affirms, not enforcement.
+
+**Future work:** a server-side sweep of the WebDrop drive that kills anything older than 30 days,
+opened or not — belt and braces over the per-file TTLs.
+
+**The viewer must fetch with `credentials: 'omit'` — a rule, not hygiene.** A drop link is a
+capability URL and must read identically for every holder. If the owner opens their own link while
+logged in on the host — which every sender does before sending — the browser's ambient cookie
+authenticates the fetch and the shared-secret middleware wraps the response in the `{iv, data}`
+envelope: valid JSON, no `fileMetadata`, and the viewer misreads it as an expiry-less, payload-less
+drop. Found in live testing precisely because every automated test is cookieless by construction.
+(Server-side belt-and-braces, if ever wanted: `[NoSharedSecretOnResponse]` on the by-uid header
+endpoint, as the payload endpoints already have.)
 
 **The owner's own list is free.** The owner has full read on the drive, so drive sync returns the
 drop file with its resolved `Ttl` and — because expiry soft-deletes — its tombstone. The writer
