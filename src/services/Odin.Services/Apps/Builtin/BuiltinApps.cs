@@ -134,19 +134,7 @@ public static class BuiltinApps
             Circles: [],
             Permissions: new PermissionSet()),
 
-        new(SystemAppConstants.WebdropAppId, "Webdrop", "webdrop",
-            Drives: [BuiltinDrives.WebDropDrive],
-            Circles: [BuiltinCircles.WebdropCircle],
-            Permissions: new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.SendIntroductions,
-                PermissionKeys.UseTransitRead,
-                PermissionKeys.UseTransitWrite,
-                PermissionKeys.ManageContacts,
-                PermissionKeys.ManageProfile,
-                PermissionKeys.ManageCircleMembership))
+     
     ];
 
     /// <summary>
@@ -165,6 +153,19 @@ public static class BuiltinApps
             Circles: [BuiltinCircles.CommunityCircle],
             Permissions: new PermissionSet()),
 
+        new(SystemAppConstants.WebdropAppId, "Webdrop", "webdrop",
+            Drives: [BuiltinDrives.WebDropDrive],
+            Circles: [BuiltinCircles.WebdropCircle],
+            Permissions: new PermissionSet(
+                PermissionKeys.ReadConnections,
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.SendIntroductions,
+                PermissionKeys.UseTransitRead,
+                PermissionKeys.UseTransitWrite,
+                PermissionKeys.ManageContacts,
+                PermissionKeys.ManageProfile,
+                PermissionKeys.ManageCircleMembership)),
         // BuiltinDrives.ListsDrive and BuiltinDrives.MomentsDrive are seeded today despite their apps not being built-in, because
         // the system circles grant them and issuing a grant for an absent drive throws. That ends with
         // those circles.
