@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Autofac;
@@ -22,15 +23,81 @@ namespace Odin.Hosting.Cli.Commands;
 
 public static class IdentityJsonTransfer
 {
-    internal static async Task ExportAsync(IServiceProvider services, string domain, string filePath)
+    // False unless this host keeps payloads on S3.
+    //
+    // Identity transfer moves database rows only. The payload bytes those rows point at
+    // have to move by other means, and the only mechanism planned for that is a copy
+    // between S3 buckets. A host on local disk has no way to complete the move, so both
+    // verbs refuse rather than land an identity whose file headers point at bytes that
+    // were never carried across.
+    //
+    // This reads configuration, not storage. The flag says where this host reads and
+    // writes payloads today. It does not prove that every payload of this identity is in
+    // the bucket: a host that ran on disk before the flag was turned on still has its
+    // older payloads on disk, and nothing here sees that.
+    private static bool PayloadsAreOnS3(ILogger logger, OdinConfiguration config, string verb)
+    {
+        if (config.S3Payload.Enabled)
+        {
+            return true;
+        }
+
+        logger.LogError(
+            "Refusing to {verb}: this host stores payloads on local disk (S3Payload:Enabled "
+            + "is false). Identity transfer covers database tables only; payloads move "
+            + "separately, and only between S3 buckets. A disk-based host cannot complete "
+            + "the move, so the identity would arrive with file headers whose bytes are "
+            + "missing.",
+            verb);
+        return false;
+    }
+
+    // False unless the host looks stopped. Local probe only: it cannot see a host on
+    // another machine sharing the same database. See HostLivenessCheck.
+    //
+    // Export needs this because a running host's tenant background workers keep writing
+    // to the identity database and nothing here can stop them, so the snapshot would lose
+    // whatever they commit after it. Import needs it because it writes the shared system
+    // tables, and a running host would neither see the new identity nor expect its
+    // registration to appear.
+    private static bool HostIsStopped(ILogger logger, OdinConfiguration config, string verb)
+    {
+        var listening = HostLivenessCheck.FindListeningPorts(config);
+        if (listening.Count == 0)
+        {
+            return true;
+        }
+
+        logger.LogError(
+            "Refusing to {verb}: something is listening on port(s) {ports}, so a host is "
+            + "still running. Stop it first. A running host's tenant background workers keep "
+            + "writing to the identity database and this command cannot stop them.",
+            verb, string.Join(", ", listening));
+        return false;
+    }
+
+    // True when the export file was written. False means it was refused, and the caller
+    // turns that into a non-zero exit code.
+    internal static async Task<bool> ExportAsync(IServiceProvider services, string domain, string filePath)
     {
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
         var registry = services.GetRequiredService<IIdentityRegistry>();
+        var config = services.GetRequiredService<OdinConfiguration>();
+
+        if (!PayloadsAreOnS3(logger, config, "export"))
+        {
+            return false;
+        }
+
+        if (!HostIsStopped(logger, config, "export"))
+        {
+            return false;
+        }
 
         if (File.Exists(filePath))
         {
             logger.LogError("Refusing to overwrite existing file: {path}", filePath);
-            return;
+            return false;
         }
 
         // The CLI builds its own root container; nothing has populated the registry's trie
@@ -43,7 +110,7 @@ public static class IdentityJsonTransfer
         if (registration == null)
         {
             logger.LogError("No such identity: {domain}", domain);
-            return;
+            return false;
         }
 
         logger.LogWarning(
@@ -85,16 +152,31 @@ public static class IdentityJsonTransfer
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
+
+        return true;
     }
 
-    internal static async Task ImportAsync(IServiceProvider services, string filePath, bool commit)
+    // True when the import ran, dry or committed. False means it was refused, and the
+    // caller turns that into a non-zero exit code.
+    internal static async Task<bool> ImportAsync(IServiceProvider services, string filePath, bool commit)
     {
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
+        var config = services.GetRequiredService<OdinConfiguration>();
+
+        if (!PayloadsAreOnS3(logger, config, "import"))
+        {
+            return false;
+        }
+
+        if (!HostIsStopped(logger, config, "import"))
+        {
+            return false;
+        }
 
         if (!File.Exists(filePath))
         {
             logger.LogError("Export file not found: {path}", filePath);
-            return;
+            return false;
         }
 
         // Peek at the header to learn which identity this file is for. The importer
@@ -108,7 +190,6 @@ public static class IdentityJsonTransfer
                 ?? throw new InvalidOperationException("Export file has no readable header.");
         }
 
-        var config = services.GetRequiredService<OdinConfiguration>();
         var workContainer = services.GetRequiredService<IMultiTenantContainer>();
 
         await using var targetScope = workContainer.BeginLifetimeScope(cb =>
@@ -140,5 +221,7 @@ public static class IdentityJsonTransfer
 
         logger.LogInformation("Imported {rows} rows for {domain} (commit: {commit})",
             result.RowsImported, result.Header.Domain, commit);
+
+        return true;
     }
 }

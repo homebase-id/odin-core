@@ -75,26 +75,6 @@ public class CommandLine
 
     //
 
-    // False unless the host looks stopped. Local probe only: it cannot see a host on
-    // another machine sharing the same database. See HostLivenessCheck.
-    private static bool AbortIfHostIsRunning(string verb)
-    {
-        var listening = HostLivenessCheck.FindListeningPorts(_config);
-        if (listening.Count == 0)
-        {
-            return true;
-        }
-
-        _logger.LogError(
-            "Refusing to {verb}: something is listening on port(s) {ports}, so a host is "
-            + "still running. Stop it first. A running host's tenant background workers keep "
-            + "writing to the identity database and this command cannot stop them.",
-            verb, string.Join(", ", listening));
-        return false;
-    }
-
-    //
-
     private static ILifetimeScope GetTenantScope(string tenantId)
     {
         var tenantContainer = _multiTenantContainer.Resolve<IMultiTenantContainer>();
@@ -316,7 +296,11 @@ public class CommandLine
         // host they are out of reach entirely. Exporting underneath them silently loses
         // whatever they commit after the snapshot, so the export aborts if it can see a
         // host listening on the configured ports. That probe is local-only; see
-        // HostLivenessCheck for what it cannot catch.
+        // IdentityJsonTransfer.HostIsStopped and HostLivenessCheck for what it cannot catch.
+        //
+        // S3 PAYLOADS ONLY. Payloads are not in the file and move separately, which today
+        // means a copy between S3 buckets, so a disk-based host is refused outright. See
+        // IdentityJsonTransfer.PayloadsAreOnS3.
         //
         // The file contains key material; see the warning it prints.
         //
@@ -340,13 +324,9 @@ public class CommandLine
                 return (true, 1);
             }
 
-            if (!AbortIfHostIsRunning("export"))
-            {
-                return (true, 1);
-            }
-
-            IdentityJsonTransfer.ExportAsync(_serviceProvider, operands[0], operands[1]).BlockingWait();
-            return (true, 0);
+            var exported = IdentityJsonTransfer.ExportAsync(
+                _serviceProvider, operands[0], operands[1]).BlockingWait();
+            return (true, exported ? 0 : 1);
         }
 
         //
@@ -355,7 +335,9 @@ public class CommandLine
         // Refuses unless the target is empty of this identity and every table version
         // matches. Dry run unless "commit" is passed. Like export, this aborts if a host
         // is listening: the import writes the shared system tables, and a running host
-        // would neither see the new identity nor expect its registration to appear.
+        // would neither see the new identity nor expect its registration to appear. Also
+        // like export, the target host must keep payloads on S3, since that is the only
+        // place the payloads can be copied to. See IdentityJsonTransfer.PayloadsAreOnS3.
         //
         // examples:
         //   dotnet run -- identity-import /path/to/frodo.json commit
@@ -380,14 +362,9 @@ public class CommandLine
                 return (true, 1);
             }
 
-            if (!AbortIfHostIsRunning("import"))
-            {
-                return (true, 1);
-            }
-
             var commit = operands.Count == 2;
-            IdentityJsonTransfer.ImportAsync(_serviceProvider, operands[0], commit).BlockingWait();
-            return (true, 0);
+            var imported = IdentityJsonTransfer.ImportAsync(_serviceProvider, operands[0], commit).BlockingWait();
+            return (true, imported ? 0 : 1);
         }
 
         //

@@ -12,4 +12,12 @@ public static class TaskExtensions
     {
         task.GetAwaiter().GetResult();
     }
+
+    /// <summary>
+    /// Call Task.BlockingWait() instead of Task.Result if you don't want to deal with AggregateExceptions
+    /// </summary>
+    public static T BlockingWait<T>(this Task<T> task)
+    {
+        return task.GetAwaiter().GetResult();
+    }
 }
