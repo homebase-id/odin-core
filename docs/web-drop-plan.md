@@ -299,6 +299,21 @@ Still owed here *(not yet implemented)*: `BlockAnonymousEnumeration = true` on t
 that capability exists, drops are enumerable by anyone ("boring bit last"). When it lands, the
 extend-permissions drive request needs to carry it too.
 
+**Addressed consent rides encrypted in the header.** `appData.content` carries two optional
+fields. `theme` is a cleartext id (`mission` / `clean` / `choplifter`) — deliberately readable, the
+page must paint before decryption, and a theme name leaks nothing worth protecting; the sender
+picks it in the app today, the viewer still renders only mission. `intro` is
+`{iv, data}` — `E_k` of `{recipientName?, conditions[], note?}` under the link key with **its own
+random IV, never a payload's** (one key + repeated IV breaks CBC). It lives in the header rather
+than a payload so a future viewer can greet *"This drop is for Thomas Kragh-Muller"* and build the
+consent checkbox from the sender's conditions using only a header read — which never starts the
+burn clock, so prefetching mail scanners cost nothing, and the server never sees a name. Condition
+ids v1, fixed: `recipient_only`, `no_retention`, `personal_data` — statements of intent the
+recipient affirms, not enforcement.
+
+**Future work:** a server-side sweep of the WebDrop drive that kills anything older than 30 days,
+opened or not — belt and braces over the per-file TTLs.
+
 **The owner's own list is free.** The owner has full read on the drive, so drive sync returns the
 drop file with its resolved `Ttl` and — because expiry soft-deletes — its tombstone. The writer
 derives per-drop status from that alone: pending negative `Ttl` → *Waiting*; positive on a drop the
