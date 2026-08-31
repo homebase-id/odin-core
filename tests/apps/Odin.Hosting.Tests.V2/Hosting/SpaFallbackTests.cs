@@ -88,7 +88,7 @@ public class SpaFallbackTests
     {
         public bool Exists => true;
         public long Length => 0;
-        public string? PhysicalPath => null;
+        public string PhysicalPath => null;
         public string Name => name;
         public DateTimeOffset LastModified => DateTimeOffset.UnixEpoch;
         public bool IsDirectory => false;
