@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.IO;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -62,6 +64,25 @@ public static class SpaFallback
         }
 
         ApplyShellNoCache(context.Response);
+
+        // no-cache makes the browser revalidate the shell on every navigation; a validator makes
+        // that revalidation a 304 instead of a re-download. SendFileAsync emits none by itself,
+        // so do the Last-Modified/If-Modified-Since dance here (second granularity, per RFC 9110).
+        var lastModified = File.GetLastWriteTimeUtc(indexHtmlPath);
+        lastModified = lastModified.AddTicks(-(lastModified.Ticks % TimeSpan.TicksPerSecond));
+        context.Response.Headers.LastModified = lastModified.ToString("R", CultureInfo.InvariantCulture);
+
+        if (DateTimeOffset.TryParse(
+                context.Request.Headers.IfModifiedSince,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var since) &&
+            lastModified <= since.UtcDateTime)
+        {
+            context.Response.StatusCode = StatusCodes.Status304NotModified;
+            return;
+        }
+
         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
         await context.Response.SendFileAsync(indexHtmlPath);
     }

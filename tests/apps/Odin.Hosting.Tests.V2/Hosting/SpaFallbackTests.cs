@@ -56,6 +56,23 @@ public class SpaFallbackTests
     }
 
     [Test]
+    public async Task ARevalidationWithACurrentShellGetsA304()
+    {
+        var first = BrowserContext("text/html");
+        await SpaFallback.ServeShellOrNotFound(first, _indexPath);
+        var lastModified = first.Response.Headers.LastModified.ToString();
+        Assert.That(lastModified, Is.Not.Empty, "the shell must carry a validator or no-cache means re-download");
+
+        var second = BrowserContext("text/html");
+        second.Request.Headers.IfModifiedSince = lastModified;
+        await SpaFallback.ServeShellOrNotFound(second, _indexPath);
+
+        Assert.That(second.Response.StatusCode, Is.EqualTo(StatusCodes.Status304NotModified),
+            "an unchanged shell must revalidate as a 304, not a byte-for-byte refetch");
+        Assert.That(second.Response.Body.Length, Is.Zero);
+    }
+
+    [Test]
     public async Task AnAssetRequestGetsACleanNotFound()
     {
         var context = BrowserContext("*/*");
