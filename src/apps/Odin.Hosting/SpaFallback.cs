@@ -2,6 +2,7 @@ using System;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace Odin.Hosting;
 
@@ -60,7 +61,34 @@ public static class SpaFallback
             return;
         }
 
+        ApplyShellNoCache(context.Response);
         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
         await context.Response.SendFileAsync(indexHtmlPath);
+    }
+
+    /// <summary>
+    /// The SPA shell must revalidate on every navigation. It is served without a content hash
+    /// while everything it references IS content-hashed, so a shell a browser keeps on heuristic
+    /// freshness (no <c>Cache-Control</c> plus an old <c>Last-Modified</c> from the docker image)
+    /// outlives a deploy and then requests hashed assets that no longer exist - the app boots to
+    /// a blank screen until a hard refresh. Seen in production the first time a deploy changed
+    /// the chat bundle (2026-08-31). <c>no-cache</c> means "revalidate, then reuse", not
+    /// "don't store" - with the static middleware's ETag it costs a 304 per navigation.
+    /// </summary>
+    public static void ApplyShellNoCache(HttpResponse response)
+    {
+        response.Headers.CacheControl = "no-cache";
+    }
+
+    /// <summary>
+    /// <c>OnPrepareResponse</c> hook for the SPA static mounts: an explicit request for
+    /// <c>index.html</c> is the shell by another name and must revalidate the same way.
+    /// </summary>
+    public static void NoCacheIndexHtml(StaticFileResponseContext staticContext)
+    {
+        if (string.Equals(staticContext.File.Name, "index.html", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyShellNoCache(staticContext.Context.Response);
+        }
     }
 }
