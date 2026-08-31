@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 
 namespace Odin.Services.Drives.Management
@@ -94,7 +95,7 @@ namespace Odin.Services.Drives.Management
             [WellKnownAppDrives.ProfileDrive.Alias.Value] = "profile",
             [WellKnownAppDrives.EmailAppDrive.Alias.Value] = "email",
             [WellKnownAppDrives.FeedDrive.Alias.Value] = "feed",
-            [WellKnownAppDrives.PublicPostsChannelDrive.Alias.Value] = "channel",
+            [WellKnownAppDrives.PublicPostsChannelDrive.Alias.Value] = BuiltinDrives.ChannelDriveTypeSlug,
             [WellKnownAppDrives.HomePageConfigDrive.Alias.Value] = "profile",
             [WellKnownAppDrives.ListsDrive.Alias.Value] = "list",
             [WellKnownAppDrives.LocationDrive.Alias.Value] = "location",
@@ -119,7 +120,7 @@ namespace Odin.Services.Drives.Management
             }
 
             // User-created channel drives: arbitrary alias, shared type.
-            return driveType == SystemDriveConstants.ChannelDriveType ? "channel" : null;
+            return driveType == SystemDriveConstants.ChannelDriveType ? BuiltinDrives.ChannelDriveTypeSlug : null;
         }
 
         /// <summary>

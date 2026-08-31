@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using Odin.Core;
+using Odin.Services.Apps;
+using Odin.Services.Drives;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +54,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
             odinContext.Caller.AssertHasMasterKey();
 
             await StampDrivesAsync(odinContext, cancellationToken);
+            await StampChannelDrivesAsync(odinContext, cancellationToken);
             await StampCirclesAsync(cancellationToken);
             await StampAppSlugsAsync(odinContext, cancellationToken);
 
@@ -96,6 +102,60 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                     logger.LogDebug("v13->v14: {drive} is now {slug}, owned by {appId}",
                         request.Name, request.DriveSlug, request.AppId);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Gives every user-created channel drive to the feed app, with a slug derived from its name.
+        /// </summary>
+        /// <remarks>
+        /// These are the one kind of drive the tree cannot list: a user creates channel drives at will,
+        /// so there are arbitrarily many and none has a fixed alias.  What they share is a type, which is
+        /// why <c>DriveSlugGenerator</c> keeps its derivation for exactly this case.
+        /// <para>
+        /// <b>Fills rather than corrects</b>, unlike the tree-declared drives.  The tree is authoritative
+        /// for what it declares, and it does not declare these -- their slug is derived from a name the
+        /// owner chose and may have since changed, so re-deriving on every upgrade would move an address
+        /// that other identities resolve against.  A channel drive that already has one is left alone.
+        /// </para>
+        /// <para>
+        /// Runs after <see cref="StampDrivesAsync"/> so the feed app's own drives already hold their
+        /// slugs, and the taken set read back from storage is complete.  Uniqueness is per owning app --
+        /// <c>UNIQUE(identityId, AppId, DriveSlug)</c> -- so only feed's slugs can collide.
+        /// </para>
+        /// </remarks>
+        private async Task StampChannelDrivesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            var channels = await driveManager.GetDrivesAsync(
+                SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
+
+            var everyDrive = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
+
+            var taken = new HashSet<string>(
+                everyDrive.Results
+                    .Where(d => d.AppId == SystemAppConstants.FeedAppId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                    .Select(d => d.DriveSlug),
+                StringComparer.Ordinal);
+
+            foreach (var drive in channels.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (drive.AppId != null && !string.IsNullOrWhiteSpace(drive.DriveSlug))
+                {
+                    continue;
+                }
+
+                var slug = DriveSlugGenerator.Generate(drive.Id, drive.Name, taken);
+                taken.Add(slug);
+
+                // "channel" stated, not looked up: these came from a query on ChannelDriveType, so the
+                // type is already known, and TypeSlugFor can return null -- which AssertValidOrNull
+                // permits, so a miss would be stored silently.
+                await driveManager.ApplyTreeAddressAsync(drive.Id, SystemAppConstants.FeedAppId, slug,
+                    BuiltinDrives.ChannelDriveTypeSlug, odinContext);
+
+                logger.LogDebug("v13->v14: channel drive {name} is now feed/{slug}", drive.Name, slug);
             }
         }
 
@@ -196,6 +256,22 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                     throw new OdinSystemException(
                         $"v13->v14 left circle {def.Name} disagreeing with the tree: " +
                         $"app {circle.AppId} grantOn {circle.GrantOn}");
+                }
+            }
+
+            var channels = await driveManager.GetDrivesAsync(
+                SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
+
+            foreach (var drive in channels.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (drive.AppId == null || string.IsNullOrWhiteSpace(drive.DriveSlug) ||
+                    drive.DriveTypeSlug != BuiltinDrives.ChannelDriveTypeSlug)
+                {
+                    throw new OdinSystemException(
+                        $"v13->v14 left channel drive {drive.Name} without an owning app, or with slug " +
+                        $"'{drive.DriveSlug}' / type '{drive.DriveTypeSlug}'");
                 }
             }
 
