@@ -54,7 +54,9 @@ Decided up front, not open:
 ## Non-goals
 
 - **Zero downtime.** Phase 1 still stops both hosts. This spec shortens the window
-  by taking payloads out of it, not by removing it.
+  by taking payloads out of it, not by removing it. Removing it is a stated goal for
+  later, and section 12 constrains this design so that work is additive rather than a
+  rewrite.
 - **Parallel transfer.** One object at a time, accepted deliberately. See
   **Open follow-ups** for what a per-drive cursor would buy.
 - **Moving orphaned objects.** Objects in the source bucket that no imported row
@@ -116,9 +118,14 @@ Read from the code, not assumed:
 
 ### 1. Source lifecycle state
 
-A new registration state, distinct from `Disabled`, recording that this identity has
-been exported away and its payloads have not finished draining. Working name
-`MigratedAway`.
+A tenant lifecycle state on the registration, distinct from `Disabled`. This work
+needs one value, `MigratedAway`, recording that the identity has been exported away
+and its payloads have not finished draining.
+
+Build it as a state machine with one inhabited value, not as a boolean. Section 12
+explains why: live export needs more values on this same machine, and a boolean here
+means rewriting rather than extending. The cost of the general shape now is small and
+the states it will need are already known.
 
 While it is set:
 
@@ -339,6 +346,57 @@ unrecoverable if the purge fired on its own.
 - Rate limiting belongs on the endpoint. It serves whole identities one object at a
   time to a caller that is by definition automated.
 
+### 12. Path to live export
+
+Running export and import without stopping the hosts is a stated goal. It is not in
+this spec, but this spec must not make it harder, because it is already building part
+of the machinery.
+
+The withdrawn Task 10 of the export plan listed four things live export needs. This
+design delivers the first two as a side effect of what it needs for itself:
+
+1. **An explicit lifecycle state, distinct from `Disabled`.** Built here, section 1.
+   One bit cannot mean both "an admin suspended this tenant" and "this tenant is
+   being migrated", which is the conflation that made the withdrawn
+   `UnfreezeIdentityAsync` need a `restoreDisabledTo` argument.
+2. **One source of truth for that state, propagated across hosts.** Needed here the
+   moment a source runs more than one host, and carried by the Redis pub/sub already
+   used for `OdinContextCache` invalidation.
+
+Two remain, and both are additions to the machine rather than changes to it:
+
+3. **Workers observing the state at every write boundary** and abandoning the current
+   unit of work, rather than being told to stop from outside. `StopBackgroundServices`
+   cannot do this: it shuts down the caller's own container, which from the CLI is a
+   throwaway container whose workers never started.
+4. **A freeze acknowledgement**, so a freeze blocks until every host confirms it is
+   idle for that tenant, with a timeout.
+
+Why 4 is not optional: the export already takes `RepeatableRead` snapshots of both
+databases, so a live export would not produce an *inconsistent* file. The failure is
+lost writes. Anything a worker commits after the snapshot is absent from the file, and
+the source is then abandoned, so those writes are gone. Checking a flag alone gives an
+eventual freeze, not a confirmed one, and a worker that reads the flag and then writes
+for thirty seconds is still writing when the export begins.
+
+Three constraints this design accepts so that work stays additive:
+
+- **The lifecycle state is a state machine from the start**, with `Frozen` and
+  `Freezing` named in the type even though nothing sets them yet. Adding a value must
+  not mean changing every call site.
+- **The host-stopped check stays a single decision point.**
+  `IdentityJsonTransfer.HostIsStopped` is one function called from two places, and
+  live export replaces it with a freeze-confirmed check at the same seam. It must not
+  spread into the exporter or the importer.
+- **`IdentityJsonExporter.ExportAsync` keeps `callerHasFrozenIdentity` as a caller
+  assertion.** It is already the right shape: today the CLI justifies it with a
+  stopped host, later it justifies it with a confirmed freeze, and the exporter does
+  not change either way.
+
+The implementation plan should carry these as explicit constraints on the tasks that
+touch the lifecycle state, the guards and the exporter signature, so that a later live
+export plan starts from a machine with two values rather than from a boolean.
+
 ## To verify before implementing
 
 Each of these is an assumption this design rests on that has not been confirmed in
@@ -379,3 +437,7 @@ changes if any is false.
   percentage complete and failures. No surface exposes it.
 - **Automatic purge on completion.** Deliberately manual. Revisit once the drain has
   proven its completion signal in practice.
+- **Live export and import.** Its own spec, building on section 12. It needs worker
+  observation at write boundaries and a freeze acknowledgement across hosts, and it is
+  the prerequisite for zero-downtime migration and for fixing `CopyRegistration`,
+  which also runs while the host is live.
