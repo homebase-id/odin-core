@@ -314,6 +314,15 @@ recipient affirms, not enforcement.
 **Future work:** a server-side sweep of the WebDrop drive that kills anything older than 30 days,
 opened or not — belt and braces over the per-file TTLs.
 
+**The viewer must fetch with `credentials: 'omit'` — a rule, not hygiene.** A drop link is a
+capability URL and must read identically for every holder. If the owner opens their own link while
+logged in on the host — which every sender does before sending — the browser's ambient cookie
+authenticates the fetch and the shared-secret middleware wraps the response in the `{iv, data}`
+envelope: valid JSON, no `fileMetadata`, and the viewer misreads it as an expiry-less, payload-less
+drop. Found in live testing precisely because every automated test is cookieless by construction.
+(Server-side belt-and-braces, if ever wanted: `[NoSharedSecretOnResponse]` on the by-uid header
+endpoint, as the payload endpoints already have.)
+
 **The owner's own list is free.** The owner has full read on the drive, so drive sync returns the
 drop file with its resolved `Ttl` and — because expiry soft-deletes — its tombstone. The writer
 derives per-drop status from that alone: pending negative `Ttl` → *Waiting*; positive on a drop the
