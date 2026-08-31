@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
 
 namespace Odin.Services.Tests.Authorization.Apps;
@@ -30,7 +31,41 @@ public class AppSlugGeneratorTests
         Assert.That(slugs[SystemAppConstants.FeedAppId], Is.EqualTo("feed"));
         Assert.That(slugs[SystemAppConstants.MailAppId], Is.EqualTo("mail"));
         Assert.That(slugs[SystemAppConstants.PhotoAppId], Is.EqualTo("photo"));
-        Assert.That(slugs[SystemAppConstants.SystemAppId], Is.EqualTo("owner"));
+        Assert.That(slugs[SystemAppConstants.SystemAppId], Is.EqualTo("system"));
+    }
+
+    /// <summary>
+    /// Every app the tree names is known, not just the handful that used to be listed by hand.
+    /// </summary>
+    /// <remarks>
+    /// Recovery is the case that caught this: it is in the tree as <c>recovery</c>, was not in the
+    /// generator's own list, and so was slugged off its display name as <c>homebase-recov</c> -- an
+    /// address the v13-&gt;v14 stamp then had to correct.
+    /// </remarks>
+    [Test]
+    public void EveryAppInTheTreeGetsTheSlugTheTreeNames()
+    {
+        var slugs = AppSlugGenerator.GenerateAll(
+            BuiltinApps.All.Select(app => (app.AppId, (string?)app.Name)));
+
+        foreach (var app in BuiltinApps.All)
+        {
+            Assert.That(slugs[app.AppId], Is.EqualTo(app.AppSlug),
+                $"{app.Name} should be addressed as '{app.AppSlug}'");
+        }
+    }
+
+    /// <summary>
+    /// The display name is what a registration actually carries, and it is not the tree's name.
+    /// </summary>
+    [Test]
+    public void ARecoveryAppRegisteredByItsDisplayNameIsStillRecovery()
+    {
+        var slugs = AppSlugGenerator.GenerateAll([
+            (SystemAppConstants.RecoveryAppId, "Homebase - Recovery")
+        ]);
+
+        Assert.That(slugs[SystemAppConstants.RecoveryAppId], Is.EqualTo("recovery"));
     }
 
     [Test]

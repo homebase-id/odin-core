@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
-using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Services.Authorization.Apps
 {
@@ -32,17 +32,49 @@ namespace Odin.Services.Authorization.Apps
         private static readonly Regex NonSlugRun = new("[^a-z0-9]+", RegexOptions.Compiled);
 
         /// <summary>
-        /// Slugs for the apps that ship with every identity.  These are the addresses the drive-addressing
-        /// work assumes (<c>/apps/chat/drives/messages</c>), so they are assigned rather than derived.
+        /// Slugs for the apps the tree names.  These are the addresses the drive-addressing work assumes
+        /// (<c>/apps/chat/drives/messages</c>), so they are assigned rather than derived.
         /// </summary>
-        private static readonly Dictionary<Guid, string> KnownAppSlugs = new()
+        /// <remarks>
+        /// Read from <see cref="BuiltinApps.All"/> rather than restated here.  The tree is what
+        /// provisioning registers and what the v13-&gt;v14 stamp enforces, so a second list could only
+        /// ever disagree with it -- and disagreeing means coining an address that a later upgrade
+        /// rewrites, after other identities may already resolve against it.  An app the tree names but
+        /// this did not was the whole bug: "Homebase - Recovery" was slugged <c>homebase-recov</c> off
+        /// its display name while the tree said <c>recovery</c>.
+        /// </remarks>
+        private static readonly IReadOnlyDictionary<Guid, string> KnownAppSlugs = BuildKnownAppSlugs();
+
+        /// <summary>
+        /// The tree indexed by app id, rejected up front if it cannot serve as an address book.
+        /// </summary>
+        /// <remarks>
+        /// A duplicate id or a malformed slug is a mistake in the tree itself, and it is worth naming
+        /// here rather than letting it reach a registration: past this point the slug is written to a
+        /// row that other identities resolve against.  Declared after <see cref="ValidSlug"/> because
+        /// static initialisers run in textual order and this reads it.
+        /// </remarks>
+        private static Dictionary<Guid, string> BuildKnownAppSlugs()
         {
-            [SystemAppConstants.SystemAppId] = "owner",
-            [SystemAppConstants.ChatAppId] = "chat",
-            [SystemAppConstants.FeedAppId] = "feed",
-            [SystemAppConstants.PhotoAppId] = "photo",
-            [SystemAppConstants.MailAppId] = "mail"
-        };
+            var result = new Dictionary<Guid, string>();
+
+            foreach (var app in BuiltinApps.All)
+            {
+                if (!IsValid(app.AppSlug))
+                {
+                    throw new OdinSystemException(
+                        $"App tree entry '{app.Name}' has '{app.AppSlug}', which is not a valid slug");
+                }
+
+                if (!result.TryAdd(app.AppId, app.AppSlug))
+                {
+                    throw new OdinSystemException(
+                        $"App tree names {app.AppId} twice: '{result[app.AppId]}' and '{app.AppSlug}'");
+                }
+            }
+
+            return result;
+        }
 
         /// <summary>
         /// Resolves a slug for every app in one pass, so a collision is found before anything is written.
