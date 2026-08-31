@@ -86,38 +86,13 @@ namespace Odin.Services.Membership.Circles
                     await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition, skipValidation: true);
                 }
             }
-
-            await EnsureBuiltInCirclesExistAsync();
         }
 
-        /// <summary>
-        /// Provisions the built-in circles that ship with every identity. Unlike system circles, these
-        /// behave as normal owner-managed circles once created (see <see cref="BuiltInCircleConstants"/>).
-        /// </summary>
-        public async Task EnsureBuiltInCirclesExistAsync()
-        {
-            var emergencyLocationAccessDef = await GetCircleAsync(BuiltInCircleConstants.EmergencyLocationAccessCircleId);
-            if (null == emergencyLocationAccessDef)
-            {
-                var def = BuiltInCircleConstants.EmergencyLocationAccessDefinition;
-                await CreateCircleInternalAsync(new CreateCircleRequest
-                {
-                    Id = def.Id,
-                    Name = def.Name,
-                    Description = def.Description,
-                    DriveGrants = def.DriveGrants,
-                    Permissions = def.Permissions
-                }, skipValidation: true);
-            }
-            else
-            {
-                if (BuiltInCircleConstants.EmergencyLocationAccessDefinition != emergencyLocationAccessDef)
-                {
-                    await this.UpdateAsync(BuiltInCircleConstants.EmergencyLocationAccessDefinition, skipValidation: true);
-                }
-            }
-
-        }
+        // The app-owned circles are not created here.  They have one declaration -- the tree -- and one
+        // creator, EnsureCircleExistsAsync, which is the only path that carries AppId, GrantOn and
+        // Designation onto the row.  Emergency Location Access used to be created here too, from a second
+        // copy of its definition that omitted all three, and because this runs before provisioning that
+        // unowned row is the one every identity ended up with.
 
         /// <summary>
         /// Provisions the circles owned by the built-in apps.  A circle whose app is not built-in is not

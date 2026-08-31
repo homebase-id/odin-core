@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -79,6 +80,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             logger.LogDebug("Updating system circle definitions");
             await circleDefinitionService.EnsureSystemCirclesExistAsync();
 
+            // v9 is where Emergency Location Access arrives.  EnsureSystemCirclesExistAsync used to
+            // create it as a side effect from a second copy of its definition; it is created here from
+            // the tree instead, which is what a v13 identity gets and carries the owning app with it.
+            await circleDefinitionService.EnsureCircleExistsAsync(BuiltinCircles.EmergencyLocationAccessCircle);
+
             cancellationToken.ThrowIfCancellationRequested();
 
             // 3. Re-grant connected identities so the ListsDrive circle grant is actually issued.
@@ -90,8 +96,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             cancellationToken.ThrowIfCancellationRequested();
 
             // The new v9 Emergency Location Access built-in circle definition must have been provisioned
-            // by EnsureSystemCirclesExistAsync. It ships empty (no members), so there's nothing to
-            // backfill onto connected identities — only the definition itself needs to exist.
+            // by the upgrade above. It ships empty (no members), so there's nothing to backfill onto
+            // connected identities — only the definition itself needs to exist.
             var emergencyLocationCircle =
                 await circleDefinitionService.GetCircleAsync(BuiltInCircleConstants.EmergencyLocationAccessCircleId);
             if (emergencyLocationCircle == null)

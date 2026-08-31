@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core;
-using Odin.Services.Apps;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
-using Odin.Services.Drives;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Services.Membership.Circles;
 
@@ -13,9 +10,14 @@ namespace Odin.Services.Membership.Circles;
 /// circles they are not hidden or master-key-gated — the owner manages their membership as they
 /// would any normal circle. They simply already exist with the identity out of the box.
 /// </summary>
+/// <remarks>
+/// Identity only.  What these circles <i>are</i> is declared once, in <see cref="BuiltinCircles"/>, and
+/// created once, by <c>CircleDefinitionService.EnsureCircleExistsAsync</c>.  This file used to carry a
+/// second definition of Emergency Location Access whose creation dropped the owning app.
+/// </remarks>
 public static class BuiltInCircleConstants
 {
-    public static readonly GuidId EmergencyLocationAccessCircleId = Guid.Parse("8b5383a5927246f8a666f4f3fcb7392b");
+    public static readonly GuidId EmergencyLocationAccessCircleId = BuiltinCircles.EmergencyLocationAccessCircle.Id;
 
     public static bool IsBuiltInCircle(Guid circleId)
     {
@@ -26,27 +28,4 @@ public static class BuiltInCircleConstants
     [
         EmergencyLocationAccessCircleId
     ];
-
-    public static readonly CircleDefinition EmergencyLocationAccessDefinition = new()
-    {
-        Id = EmergencyLocationAccessCircleId.Value,
-        AppId = SystemAppConstants.LocationAppId,
-        Name = "Emergency Location Access",
-        Description = "Contains identities granted read access to your location in an emergency",
-        DriveGrants =
-        [
-            new DriveGrantRequest()
-            {
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = WellKnownAppDrives.LocationDrive,
-                    Permission = DrivePermission.Read
-                }
-            },
-        ],
-        Permissions = new PermissionSet()
-        {
-            Keys = []
-        }
-    };
 }
