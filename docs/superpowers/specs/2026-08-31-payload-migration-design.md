@@ -55,7 +55,7 @@ Decided up front, not open:
 
 - **Zero downtime.** Phase 1 still stops both hosts. This spec shortens the window
   by taking payloads out of it, not by removing it. Removing it is a stated goal for
-  later, and section 12 constrains this design so that work is additive rather than a
+  later, and section 13 constrains this design so that work is additive rather than a
   rewrite.
 - **Parallel transfer.** One object at a time, accepted deliberately. See
   **Open follow-ups** for what a per-drive cursor would buy.
@@ -162,7 +162,7 @@ Four routes:
 - `HEAD /api/migration/v1/payloads/{identityId}/{*key}` returns size and existence.
 - `GET  /api/migration/v1/payloads/{identityId}/{*key}` streams the object.
 - `POST /api/migration/v1/complete/{identityId}` reports the drain finished, which
-  clears `MigratedAway` and revokes the drain credential. See section 7.
+  clears `MigratedAway` and revokes the drain credential. See section 8.
 
 The two payload routes address a single object by store-relative key.
 
@@ -259,7 +259,48 @@ and step 4 makes that re-transfer nearly free.
 
 Completion is `CursorRowId` exhausted and the failure list empty.
 
-### 6. Reads during the drain
+### 6. Throttling and backpressure
+
+The drain reads every object an identity owns, one after another, for as long as it
+takes. That is exactly the traffic shape an S3 provider throttles. Assume it will
+happen and treat it as an expected operating condition rather than an error.
+
+**Throttle is a third outcome, not a failure.** Each object attempt ends as
+transferred, throttled, or failed. Only failed goes on the failure list. A throttled
+object is retried and the cursor does not advance past it. Conflating the two would
+mean a single throttling episode marks thousands of objects failed, the cursor races
+to the end, and the drain reports `Failed` having transferred almost nothing.
+
+**The source translates its own throttling honestly.** When the source host's S3 read
+is throttled, the migration endpoint returns 429 with `Retry-After` rather than a
+500. The target then knows to slow down instead of concluding the source is broken.
+The source's own rate limiting on the endpoint uses the same response, so the target
+cannot tell the two apart and does not need to.
+
+**The target paces itself with AIMD.** The worker holds a delay between objects. A
+429, a 503, or any `Retry-After` multiplies it; a run of successes decrements it. The
+delay has a ceiling, and `Retry-After` when present overrides the computed value.
+Because the drain is a background task with days available, the correct posture is
+generous backoff and unlimited patience rather than a bounded attempt count.
+
+**Sustained throttling is visible, not silent.** When the delay sits at its ceiling
+beyond a threshold, the drain record moves to a `Throttled` status. It keeps working.
+The point is that an operator watching a drain that will now take a week can see why,
+rather than inferring it from throughput.
+
+**The existing per-operation retry stays underneath** and is unchanged in kind, but
+`S3FileStore.CreateRetry` needs to learn 429. Today its predicate returns false for
+all 4xx, so a provider that signals throttling as 429 rather than 503 gets no retry
+at all. That fix benefits every S3 caller, not just the drain. It does add latency to
+user-facing reads that hit a throttle, which is the right trade but is a change to
+live serving behaviour and should be called out as such rather than slipped in.
+
+Both ends throttle independently. The target's writes go through `S3FileStore` and
+inherit whatever that policy becomes; the source's reads surface to the target as
+429s. The worker's pacing responds to both because it responds to the outcome of the
+whole object, not to which side produced it.
+
+### 7. Reads during the drain
 
 A payload read that misses in the target bucket, while a drain is active for that
 identity, returns 404 with `Cache-Control: no-store` and a `Retry-After`.
@@ -273,7 +314,7 @@ back off from the identity entirely rather than from the one object.
 
 When no drain is active, the existing missing-object behaviour is unchanged.
 
-### 7. Completion and purge
+### 8. Completion and purge
 
 On completion the target calls the source once to report it. The source clears
 `MigratedAway`, revokes the drain credential, and the registration becomes
@@ -284,7 +325,7 @@ automatically. `DeleteRegistration` wipes the whole prefix and cannot be undone,
 a migration that reported complete against a subtly wrong cursor would be
 unrecoverable if the purge fired on its own.
 
-### 8. Operator flow
+### 9. Operator flow
 
 1. Stop the source host. Run `identity-export`. It writes the file, sets
    `MigratedAway`, and embeds a handoff token.
@@ -295,7 +336,7 @@ unrecoverable if the purge fired on its own.
 5. On completion the operator deletes the source registration, which purges the
    prefix.
 
-### 9. Error handling
+### 10. Error handling
 
 - **Source unreachable.** The worker backs off and retries. The drain record
   persists, so this survives restarts on either side.
@@ -303,6 +344,8 @@ unrecoverable if the purge fired on its own.
   One bad object must not block the thousands of older ones behind it. A drain that
   reaches the end with a non-empty list is `Failed`, not `Complete`, and does not
   release the source.
+- **A single object is throttled.** Not a failure. It is retried, the cursor does not
+  advance, and the worker's pacing widens. See section 6.
 - **An object is missing on the source.** Treated as a failure, not as success.
   Silently completing a drain that skipped objects would release the source
   registration and destroy the only remaining copy of whatever was actually there.
@@ -311,7 +354,7 @@ unrecoverable if the purge fired on its own.
   should be loud.
 - **Target restarted mid-drain.** Resumes from the committed cursor.
 
-### 10. Testing
+### 11. Testing
 
 - Key derivation: a payload descriptor plus its file and drive ids produce exactly
   the key the S3 store reads today. Pin payload and thumbnail forms both.
@@ -327,12 +370,17 @@ unrecoverable if the purge fired on its own.
 - Handoff token: redeems once, refuses the second time.
 - Failure handling: a failing object does not stall the cursor, and a drain ending
   with a non-empty failure list does not release the source.
+- Throttle handling: a 429 does not put the object on the failure list, does not
+  advance the cursor, and widens the pacing. A drain that is throttled throughout and
+  then recovers still completes with an empty failure list.
+- `Retry-After` on a 429 is honoured in preference to the computed backoff.
+- `S3FileStore.CreateRetry` retries a 429 rather than failing it outright.
 - Missing-payload read returns 404 with `no-store` while draining, and normal
   behaviour when not.
 - End to end: two hosts, export, import, drain, verify every referenced object
   arrives and the target reads them back.
 
-### 11. Security
+### 12. Security
 
 - The endpoint is internet facing, so the three independent checks in section 2 are
   the security boundary, not the obscurity of the route.
@@ -346,7 +394,7 @@ unrecoverable if the purge fired on its own.
 - Rate limiting belongs on the endpoint. It serves whole identities one object at a
   time to a caller that is by definition automated.
 
-### 12. Path to live export
+### 13. Path to live export
 
 Running export and import without stopping the hosts is a stated goal. It is not in
 this spec, but this spec must not make it harder, because it is already building part
@@ -410,9 +458,14 @@ changes if any is false.
    the `Uid` comment. Not verified: that no writer reuses a uid.
 2. **The CDN honours `Cache-Control: no-store` on a 404.** If it does not, section 6
    needs a different answer for public payloads specifically.
-3. **What the current read path does on a missing S3 object.** Section 6 assumes
+3. **What the current read path does on a missing S3 object.** Section 7 assumes
    there is a single place to intercept. Not yet located.
-4. **How peers over transit treat a 404 for a payload.** If a peer records the file
+4. **Whether the deployed S3 provider signals throttling as 429 or 503, and whether
+   it sends `Retry-After`.** Section 6 handles both, but the retry predicate fix is
+   only needed for 429, and the pacing falls back to a computed backoff without a
+   `Retry-After` header. Worth knowing which case is the real one before tuning
+   anything.
+5. **How peers over transit treat a 404 for a payload.** If a peer records the file
    as permanently gone rather than retrying, the drain silently degrades peer copies
    and this needs handling on the peer path too.
 
