@@ -104,13 +104,34 @@ runs:
         ref: ${{ inputs.git_ref }}
         path: client/chat-kmp
 
+    # wasm-opt peaks over 10 GB RSS on this app (measured 10.3 GB, 2026-08-31); together with
+    # the Gradle and Kotlin daemons that brushes the 16 GB the runner has, and the kernel then
+    # OOM-kills the optimizer - surfacing as "The operation was canceled". Swap turns that hard
+    # kill into slower paging at the peak.
+    - name: Add swap headroom for wasm-opt
+      shell: bash
+      run: |
+        free -h
+        df -h /
+        sudo fallocate -l 8G /swapfile-wasm
+        sudo chmod 600 /swapfile-wasm
+        sudo mkswap /swapfile-wasm
+        sudo swapon /swapfile-wasm
+        free -h
+
     - name: Build chat app
       shell: bash
       working-directory: ./client/chat-kmp
       run: |
         # publicPath is baked into index.html and the Compose resource loader, so it has to
         # match the route Odin.Hosting serves the bundle from (/apps/chat in Startup.cs).
+        # Stop the compile-phase daemons before the memory-hungry optimize would otherwise
+        # share the box with them; the build below restarts what it needs.
+        ./gradlew webApp:compileProductionExecutableKotlinWasmJs --no-configuration-cache -PpublicPath=/apps/chat/
+        ./gradlew --stop
+        free -h
         ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache -PpublicPath=/apps/chat/
+        free -h
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
         mkdir -p ../../odin-core/src/apps/Odin.Hosting/client/apps
         mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat

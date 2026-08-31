@@ -34,6 +34,14 @@ on:
         options:
         - 'true'
         - 'false'
+      skip_wasm:
+        type: choice
+        required: false
+        default: 'false'
+        description: "Skip the chat-kmp WASM build (image ships without /apps/chat)"
+        options:
+        - 'false'
+        - 'true'
 
 env:
   REGISTRY: ghcr.io
@@ -81,7 +89,11 @@ jobs:
       # Build Kotlin WASM (chat-kmp)
       #
 
+      # skip_wasm exists because wasm-opt (compileProductionExecutableKotlinWasmJsOptimize)
+      # can die on the 7GB runner as the app grows; the csproj includes client/** by glob,
+      # so an absent chat bundle just means /apps/chat is not served by this image.
       - name: Build chat-wasm
+        if: ${{ github.event.inputs.skip_wasm != 'true' }}
         uses: ./odin-core/.github/actions/host/build-kotlin-wasm
         with:
           odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
