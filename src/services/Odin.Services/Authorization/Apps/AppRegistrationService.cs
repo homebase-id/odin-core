@@ -15,6 +15,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
@@ -31,6 +32,7 @@ namespace Odin.Services.Authorization.Apps
         ILogger<AppRegistrationService> logger,
         IdentityDatabase db,
         ClientRegistrationStorage clientRegistrationStorage,
+        LegacyDefinitionStore legacyStore,
         OdinContextCache cache)
         : IAppRegistrationService
     {
@@ -478,6 +480,18 @@ namespace Odin.Services.Authorization.Apps
         private async Task<List<RedactedAppRegistration>> GetRegisteredAppsInternalAsync()
         {
             var apps = (await db.AppRegistrations.GetAllAsync()).Select(FromRecord).ToList();
+
+            // Pre-v13 the registrations are still blob rows -- see LegacyDefinitionStore.  A union
+            // rather than a replacement: an app registered during the window is already in the table,
+            // and it is the newer of the two.  The move skips ids the table already holds, so the pair
+            // resolves the same way afterwards.
+            if (await legacyStore.IsPreMoveAsync())
+            {
+                var known = apps.Select(a => (Guid)a.AppId).ToHashSet();
+                apps.AddRange((await legacyStore.ReadAppRegistrationsAsync())
+                    .Where(a => !known.Contains((Guid)a.AppId)));
+            }
+
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return redactedList;
         }
@@ -490,8 +504,21 @@ namespace Odin.Services.Authorization.Apps
         private async Task<AppRegistration?> GetAppRegistrationInternalAsync(GuidId appId)
         {
             var record = await db.AppRegistrations.GetAsync(appId);
-            var appReg = record == null ? null : FromRecord(record);
-            return appReg;
+            if (record != null)
+            {
+                return FromRecord(record);
+            }
+
+            // Pre-v13 only.  After the move a missing row means the app was deleted, and the blob copy
+            // it left behind must not answer for it -- LegacyDefinitionStore says why the gate is the
+            // version and not the miss.
+            if (!await legacyStore.IsPreMoveAsync())
+            {
+                return null;
+            }
+
+            return (await legacyStore.ReadAppRegistrationsAsync())
+                .SingleOrDefault(a => (Guid)a.AppId == (Guid)appId);
         }
 
         private async Task NotifyAppChanged(AppRegistration? oldAppRegistration, AppRegistration newAppRegistration,
@@ -534,6 +561,22 @@ namespace Odin.Services.Authorization.Apps
             var taken = new HashSet<string>(
                 existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
                 StringComparer.Ordinal);
+
+            // Pre-v13 the table holds only what was registered during the window, so it is not the whole
+            // picture: a slug free here could still be one the move is about to coin for a blob app, and
+            // the move would then fail on UNIQUE(identityId, AppSlug). The legacy slugs are resolved by
+            // the same generator the move uses, so reserving them here is reserving exactly what it
+            // will want.
+            if (await legacyStore.IsPreMoveAsync())
+            {
+                foreach (var reg in await legacyStore.ReadAppRegistrationsAsync())
+                {
+                    if ((Guid)reg.AppId != (Guid)appId)
+                    {
+                        taken.Add(reg.AppSlug);
+                    }
+                }
+            }
 
             // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
             // unset field as "" or " " routinely, and without this the three spellings diverge: null and

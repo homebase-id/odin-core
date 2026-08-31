@@ -13,6 +13,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Apps;
 using Odin.Services.Base;
+using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
@@ -32,7 +33,10 @@ namespace Odin.Services.Membership.Circles
     /// column can never disagree with the hydrated object.
     /// </para>
     /// </remarks>
-    public class CircleDefinitionService(IDriveManager driveManager, IdentityDatabase db)
+    public class CircleDefinitionService(
+        IDriveManager driveManager,
+        IdentityDatabase db,
+        LegacyDefinitionStore legacyStore)
     {
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
@@ -213,7 +217,21 @@ namespace Odin.Services.Membership.Circles
         public async Task<CircleDefinition> GetCircleAsync(GuidId circleId)
         {
             var record = await db.CircleCached.GetAsync(circleId);
-            return record == null ? null : FromRecord(record);
+            if (record != null)
+            {
+                return FromRecord(record);
+            }
+
+            // Pre-v13 only.  After the move a missing row means the circle was deleted, and the blob
+            // copy it left behind must not answer for it -- LegacyDefinitionStore says why the gate is
+            // the version and not the miss.
+            if (!await legacyStore.IsPreMoveAsync())
+            {
+                return null;
+            }
+
+            return (await legacyStore.ReadCircleDefinitionsAsync())
+                .SingleOrDefault(c => (Guid)c.Id == (Guid)circleId);
         }
 
         /// <summary>
@@ -229,6 +247,18 @@ namespace Odin.Services.Membership.Circles
         public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
         {
             var circles = (await db.CircleCached.GetAllAsync()).Select(FromRecord).ToList();
+
+            // Pre-v13 the definitions are still blob rows.  A union, for the same reason as the app
+            // list: a circle written during the window is in the table and is the newer of the two.
+            // GetCirclesByGrantOnAsync deliberately has no fallback -- a blob circle predates GrantOn,
+            // so it is None, and None is never what that query asks for.
+            if (await legacyStore.IsPreMoveAsync())
+            {
+                var known = circles.Select(c => (Guid)c.Id).ToHashSet();
+                circles.AddRange((await legacyStore.ReadCircleDefinitionsAsync())
+                    .Where(c => !known.Contains((Guid)c.Id)));
+            }
+
             if (!includeSystemCircle)
             {
                 circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));

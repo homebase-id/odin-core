@@ -56,25 +56,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
     public class V12ToV13VersionMigrationService(
         ILogger<V12ToV13VersionMigrationService> logger,
         IdentityDatabase db,
-        TableKeyThreeValueCached tblKeyThreeValue)
+        LegacyDefinitionStore legacyStore)
     {
-        // The context and category keys CircleDefinitionService used while definitions lived in the blob.
-        private const string LegacyCircleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
-
-        private static readonly ThreeKeyValueStorage LegacyCircleStorage =
-            TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(LegacyCircleValueContextKey));
-
-        private static readonly byte[] LegacyCircleDataType =
-            Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
-
-        // The context and category keys AppRegistrationService used while registrations lived in the blob.
-        private const string LegacyAppRegContextKey = "661e097f-6aa5-459f-a445-a9ea65348fde";
-
-        private static readonly ThreeKeyValueStorage LegacyAppRegStorage =
-            TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(LegacyAppRegContextKey));
-
-        private static readonly byte[] LegacyAppRegDataType =
-            Guid.Parse("14c83583-acfd-4368-89ad-6566636ace3d").ToByteArray();
 
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -97,8 +80,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
 
         private async Task MoveCircleDefinitionsAsync(CancellationToken cancellationToken)
         {
-            var legacy = (await LegacyCircleStorage
-                .GetByCategoryAsync<CircleDefinition>(tblKeyThreeValue, LegacyCircleDataType) ?? []).ToList();
+            var legacy = await legacyStore.ReadCircleDefinitionsAsync();
 
             if (legacy.Count == 0)
             {
@@ -140,61 +122,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
                 copied, skipped);
         }
 
-        /// <summary>
-        /// The blob shape of an app registration, frozen as it was before the columns were promoted.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="AppRegistration"/> cannot be used to read these rows.  It <c>[JsonIgnore]</c>s
-        /// AppId, AppSlug, Name and CorsHostName, because those are columns now and a second copy in
-        /// <c>grantJson</c> could drift from them -- correct for writing, and fatal for reading the
-        /// blob, where those very fields are the only place the values exist.  Deserializing a legacy
-        /// row into the current type yields an AppId of null for every app, which is silent: the
-        /// migration reports nothing to move and commits, leaving the identity with no apps.
-        /// <para>
-        /// A migration reads history, so it holds its own copy of the shape that history was written
-        /// in, the same way this file freezes the legacy context and category keys.
-        /// </para>
-        /// </remarks>
-        private class LegacyAppRegistration
-        {
-            public GuidId AppId { get; set; }
-
-            public string Name { get; set; }
-
-            public List<Guid> AuthorizedCircles { get; set; }
-
-            public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
-
-            [JsonPropertyName("grant")]
-            public KeyStore AppKeyStore { get; set; }
-
-            public string CorsHostName { get; set; }
-
-            public AppRegistration ToAppRegistration()
-            {
-                return new AppRegistration
-                {
-                    AppId = AppId,
-                    Name = Name,
-                    AuthorizedCircles = AuthorizedCircles,
-                    CircleMemberPermissionGrant = CircleMemberPermissionGrant,
-                    AppKeyStore = AppKeyStore,
-                    CorsHostName = CorsHostName
-                };
-            }
-        }
-
-        private async Task<List<LegacyAppRegistration>> ReadLegacyAppRegistrationsAsync()
-        {
-            return (await LegacyAppRegStorage
-                    .GetByCategoryAsync<LegacyAppRegistration>(tblKeyThreeValue, LegacyAppRegDataType) ?? [])
-                .Where(a => a?.AppId != null)
-                .ToList();
-        }
-
         private async Task MoveAppRegistrationsAsync(CancellationToken cancellationToken)
         {
-            var legacy = await ReadLegacyAppRegistrationsAsync();
+            var legacy = await legacyStore.ReadLegacyAsync();
 
             if (legacy.Count == 0)
             {
@@ -245,8 +175,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
 
         private async Task ValidateCircleDefinitionsAsync(CancellationToken cancellationToken)
         {
-            var legacy = (await LegacyCircleStorage
-                .GetByCategoryAsync<CircleDefinition>(tblKeyThreeValue, LegacyCircleDataType) ?? []).ToList();
+            var legacy = await legacyStore.ReadCircleDefinitionsAsync();
 
             foreach (var definition in legacy)
             {
@@ -267,7 +196,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
 
         private async Task ValidateAppRegistrationsAsync(CancellationToken cancellationToken)
         {
-            var legacy = await ReadLegacyAppRegistrationsAsync();
+            var legacy = await legacyStore.ReadLegacyAsync();
 
             foreach (var appReg in legacy)
             {

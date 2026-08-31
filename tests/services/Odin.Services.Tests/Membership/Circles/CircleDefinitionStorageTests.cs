@@ -117,7 +117,7 @@ public class CircleDefinitionStorageTests
             PermissionKeys.ReadConnections);
 
         // No drive grants, so the guard never reaches the drive manager.
-        var service = new CircleDefinitionService(null, null);
+        var service = new CircleDefinitionService(null, null, null);
 
         var ex = Assert.ThrowsAsync<OdinClientException>(
             async () => await service.AssertDepositOnlyIfAmbientAsync(circle));
@@ -133,7 +133,7 @@ public class CircleDefinitionStorageTests
         circle.Permissions = new Services.Authorization.Permissions.PermissionSet(
             PermissionKeys.ReadConnections);
 
-        var service = new CircleDefinitionService(null, null);
+        var service = new CircleDefinitionService(null, null, null);
 
         // Manual-membership circles are the owner's own act, so they may carry whatever they carry
         // today. This is the case every existing circle is in.

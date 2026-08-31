@@ -405,6 +405,7 @@ public static class TenantServices
         cb.RegisterType<V9ToV10VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V10ToV11VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V11ToV12VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<LegacyDefinitionStore>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<V12ToV13VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V13ToV14VersionMigrationService>().InstancePerLifetimeScope();
 
