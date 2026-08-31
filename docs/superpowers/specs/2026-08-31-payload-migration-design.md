@@ -114,6 +114,79 @@ Read from the code, not assumed:
 - **`IS3Storage` exposes no enumeration.** `ListObjectsV2Async` is used internally
   by `S3AwsStorage` but is not on the interface. This design needs none.
 
+## Schema changes
+
+One column and one table. Everything else in this design is `odin-core` code.
+
+### `Registrations` gains `lifecycleState`
+
+An `Int32` on the existing System table (`Program.cs:3357`), `notNull`, with
+`defaultValue = "0"` meaning Active so the migration lands on existing rows without a
+backfill. `Registrations.migrationVersion` bumps from `202607101000`.
+
+The state belongs here rather than in a side table because the serving path has to
+know an identity has migrated away, and `IdentityRegistration` is already held in
+`_trie` and `_cache` loaded from this table. A side table would mean either a second
+lookup on a hot path or a parallel cache to keep coherent.
+
+`Registrations` sets no `exportScopeColumn`, so it inherits the `"identityId"` default
+and stays exportable, and the new column therefore travels in export files. That is
+made harmless by one rule rather than by a schema trick: **export refuses when the
+state is not Active.** An identity that has already migrated away cannot be exported,
+which is true regardless. The state is set after the export snapshot, so the file
+always carries Active and the target always imports Active. No import-time transform
+is needed.
+
+The enum values live in `odin-core`, not the generator, which stores only the int.
+Per section 13 the enum names `Freezing` and `Frozen` from the start even though
+nothing sets them, so live export adds values rather than changing signatures.
+
+### New table `PayloadMigration`
+
+Non-exportable (`exportScopeColumn = null`, as `Settings()` already does in this
+namespace), keyed by `identityId`. Source hosts populate one half, target hosts the
+other, and each leaves the rest null:
+
+- Source side: handoff token hash, expiry, consumed flag, drain credential hash.
+- Target side: source base URL, credential, `startRowId`, `cursorRowId`, status,
+  failures as JSON.
+
+This half does not belong on `Registrations`. A cursor, a failure list and a bearer
+credential are job state, not registration data, and putting them there would drag all
+of it into every future export file permanently.
+
+Because the table is non-exportable it gets no `ExportRowsAsync` or `ImportRowAsync`
+emitted (`Program.cs:5894`), stays out of `ExportableTables` (`Program.cs:6445`), and
+is absent from `GetTableVersionsAsync`, which iterates only `ExportableTables`. The
+export header's version map is unaffected by it.
+
+The Task 6 coverage test should gain a case asserting this table is excluded from the
+aggregate, since "non-exportable" is now load bearing rather than incidental.
+
+Nothing is needed in the Identity database. The drain reads `DriveMainIndex`, which
+already has `rowId` for the cursor and `hdrFileMetaData` for the payload descriptors.
+
+## Sequencing
+
+The generator change and its generated output land on `main` in both repos before any
+feature work starts. Nothing in this design may be built against an unmerged schema.
+
+1. `Odin-SQLite-Generator`: the column and the table, to that repo's `main`.
+2. `odin-core`: regenerate, to that repo's `main`.
+3. Only then, the feature work in the Design sections.
+
+The `Registrations` version bump is free only until `identity-json-export` ships.
+That branch is currently unmerged and 26 commits ahead of `odin-core` main, so no
+export file exists anywhere whose version map this invalidates. After it ships, the
+same bump breaks compatibility between hosts on either side of it.
+
+That gives a prerequisite ordering: **merge `identity-json-export` to `odin-core`
+main first, then do the generator round trip onto a main that already contains it.**
+The alternative, landing generated files on main while the branch is outstanding,
+forces a rebase of 26 commits onto new generated code including a version-map change,
+for no benefit. This ordering is an assumption, not a decision that has been
+confirmed.
+
 ## Design
 
 ### 1. Source lifecycle state
