@@ -83,3 +83,13 @@ the shared cause is probably worth chasing rather than re-running.
 **Symptom:** expects a `Redirect`, gets `Forbidden`.
 
 **Not caused by the change in flight:** same run and reasoning as the entry above.
+
+## `Odin.Hosting.Tests.V2` `DeleteFileIdBatch_*` (whole suite)
+
+**Where:** CI, `windows/sqlite/debug` (seen on run 33402810684, PR #1696, 2026-08-31).
+**Shape:** every `DeleteFileIdBatch_*` test fails at a uniform ~12 s - a fixture-wide
+peer-setup timeout, not individual assertions.
+**Pre-existing evidence:** the same job passed on main at the identical base commit
+(run 33381342370, the #1694 merge, ~4 h earlier), both Linux legs passed with the same
+change, and the PR touched only SPA static-mount cache headers (no API paths).
+A `--failed` rerun of the job passed with no code change.
