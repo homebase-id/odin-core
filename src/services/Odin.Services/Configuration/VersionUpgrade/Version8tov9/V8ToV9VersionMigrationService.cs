@@ -98,12 +98,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             // The new v9 Emergency Location Access built-in circle definition must have been provisioned
             // by the upgrade above. It ships empty (no members), so there's nothing to backfill onto
             // connected identities — only the definition itself needs to exist.
-            var emergencyLocationCircle =
-                await circleDefinitionService.GetCircleAsync(BuiltInCircleConstants.EmergencyLocationAccessCircleId);
+            var emergencyLocationCircleId = BuiltinCircles.EmergencyLocationAccessCircle.Id;
+            var emergencyLocationCircle = await circleDefinitionService.GetCircleAsync(emergencyLocationCircleId);
             if (emergencyLocationCircle == null)
             {
                 throw new OdinSystemException(
-                    $"Built-in circle {BuiltInCircleConstants.EmergencyLocationAccessCircleId} (Emergency Location Access) was not created");
+                    $"Built-in circle {emergencyLocationCircleId} (Emergency Location Access) was not created");
             }
 
             var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
