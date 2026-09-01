@@ -223,8 +223,7 @@ public static class BuiltinDrives
         WellKnownAppDrives.StickerDrive,
         WellKnownAppDrives.ListsDrive,
         WellKnownAppDrives.LocationDrive,
-        WellKnownAppDrives.EmailAppDrive,
-        WellKnownAppDrives.WebDropDrive
+        WellKnownAppDrives.EmailAppDrive
     ];
 
     /// <summary>

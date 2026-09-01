@@ -18,12 +18,6 @@ namespace Odin.Services.Membership.Circles;
 public static class BuiltInCircleConstants
 {
     public static readonly GuidId EmergencyLocationAccessCircleId = BuiltinCircles.EmergencyLocationAccessCircle.Id;
-
-    public static bool IsBuiltInCircle(Guid circleId)
-    {
-        return AllBuiltInCircles.Exists(c => c == circleId);
-    }
-
     public static readonly List<GuidId> AllBuiltInCircles =
     [
         EmergencyLocationAccessCircleId

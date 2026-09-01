@@ -94,6 +94,32 @@ public sealed partial class OwnerAdmin
     }
 
     /// <summary>
+    /// Creates a drive unless the identity already has it.
+    /// </summary>
+    /// <remarks>
+    /// A test that names a drive in its <see cref="DriveSpec"/> is stating a precondition -- "this
+    /// drive exists" -- not claiming to be the one that made it.  Drives the app tree provisions are
+    /// already there before the test runs, and <see cref="CreateDrive"/> answers that with
+    /// <c>400 Drive by alias and type already exists</c>.  Use this for setup; use
+    /// <see cref="CreateDrive"/> where creating is the thing under test.
+    /// </remarks>
+    public async Task EnsureDrive(
+        TargetDrive drive,
+        string name,
+        bool allowAnonymousReads = true,
+        bool ownerOnly = false,
+        bool allowSubscriptions = false)
+    {
+        var existing = await GetDrives();
+        if (existing.Any(d => d.TargetDriveInfo == drive))
+        {
+            return;
+        }
+
+        await CreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions);
+    }
+
+    /// <summary>
     /// Every drive on the identity, system drives included.
     /// </summary>
     public async Task<System.Collections.Generic.List<OwnerClientDriveData>> GetDrives()

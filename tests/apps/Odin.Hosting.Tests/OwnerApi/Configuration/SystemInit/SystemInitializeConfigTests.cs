@@ -134,8 +134,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 $"expected drive [{WellKnownAppDrives.ContactDrive}] not found");
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.ProfileDrive),
                 $"expected drive [{WellKnownAppDrives.ProfileDrive}] not found");
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.WalletDrive),
-                $"expected drive [{WellKnownAppDrives.WalletDrive}] not found");
+            // WalletDrive is deliberately absent: it is no longer seeded for new identities, and only
+            // the ones that already had it keep it.
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.ChatDrive),
                 $"expected drive [{WellKnownAppDrives.ChatDrive}] not found");
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.MomentsDrive),
@@ -158,9 +158,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var circleDefs = getCircleDefinitionsResponse.Content?.ToList();
             ClassicAssert.IsNotNull(circleDefs);
 
+            var seededCircles = BuiltinApps.SeededCircles.Select(c => (Guid)c.Id).Distinct().Count();
             ClassicAssert.IsTrue(
-                circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count + BuiltInCircleConstants.AllBuiltInCircles.Count,
-                "not all system and built-in circles were created");
+                circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count + seededCircles,
+                $"expected {SystemCircleConstants.AllSystemCircles.Count + seededCircles} circles, " +
+                $"found {circleDefs.Count()}");
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
