@@ -43,7 +43,12 @@ public static class SystemAppConstants
     // expressed; an app id is permanent, because it is what Drives.AppId and Circle.AppId point at and
     // what a drive slug is unique within.
     //
-    public static readonly Guid CommunityAppId = Guid.Parse("7802a474-5235-4581-af81-dd1a96d81edf");
+    // The id the community client registers with (odin-js, common-app/src/constants.ts
+    // COMMUNITY_APP_ID). It held a different guid here, which nothing in odin-js has ever used, so the
+    // registered app matched no tree entry: its slug was derived from the display name as
+    // "homebase-commu" rather than the "community" the tree names, and the drive and circle keyed to
+    // this constant pointed at an app that does not exist.
+    public static readonly Guid CommunityAppId = Guid.Parse("77ed6136-6b33-4654-8088-3d89c91e6065");
     public static readonly Guid ContactsAppId = Guid.Parse("a1a7bd26-7f52-461f-98cf-1f0ec969d97a");
     public static readonly Guid EmailAppId = Guid.Parse("4027937f-8a90-4f60-a5c3-18b850398482");
     public static readonly Guid HomePageAppId = Guid.Parse("135b6399-2d05-42d3-b1b6-124c2de6bd3f");
