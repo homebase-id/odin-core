@@ -140,10 +140,22 @@ public static class WellKnownAppDrives
     };
 
     /// <summary>The Vault app's drive.</summary>
+    /// <summary>The Vault app's drive (chat-kmp <c>vaultLabeledDrive</c>).</summary>
+    /// <remarks>
+    /// These are chat-kmp's values, and they are what identities actually have -- odin-core named a
+    /// different drive entirely, so the v13 -&gt; v14 stamp would have looked for one nobody has.
+    /// <para>
+    /// Two things about them are deliberate rather than overlooked.  The alias is the RFC 4122 example
+    /// uuid, and the type is <see cref="ContactDrive"/>'s: chat-kmp calls the pair a placeholder until
+    /// the server feature ships.  So this is the only drive whose type is shared -- a query by that type
+    /// returns Contacts and Vault both, and the type slug is one name for two drives.  Replace both here
+    /// and in chat-kmp together when the real guids land.
+    /// </para>
+    /// </remarks>
     public static readonly TargetDrive VaultDrive = new()
     {
-        Alias = Guid.Parse("1f513d675ef9499f82edd194691e427d"),
-        Type = Guid.Parse("4a1414dae1604d1982a092162599fd7f")
+        Alias = Guid.Parse("f47ac10b58cc4372a5670e02b2c3d479"),
+        Type = Guid.Parse("70e92f0f94d05f5c7dcd36466094f3a5")
     };
 
     /// <summary>The Webdrop app's drive (chat-kmp <c>webDropLabeledDrive</c>).</summary>
