@@ -48,7 +48,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
             return BadRequest();
         }
 
-        [HttpGet("data-version-info")]
+        /// <summary>
+        /// Read-only, and exempt from <c>VersionUpgradeMiddleware</c>'s 503: this is how a client
+        /// finds out what an upgrade is doing, so it has to answer while one is running.
+        /// </summary>
+        public const string VersionInfoEndpoint = "data-version-info";
+
+        [HttpGet(VersionInfoEndpoint)]
         public async Task<ActionResult<VersionInfoResult>> GetVersionInfo()
         {
             var tenantVersionInfo = await configService.GetVersionInfoAsync();
