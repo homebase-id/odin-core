@@ -38,12 +38,23 @@ public class V2AppDriveController(
     : OdinControllerBase
 {
     /// <summary>
-    /// Every drive the app owns.  <paramref name="type"/> filters by drive type slug, e.g.
-    /// <c>?type=channel</c> -- which is what replaces <c>GET /drives/metadata/channel-drives</c>:
-    /// that endpoint exists only because channel drives had no other way to be named as a group.
+    /// Lists the drives an app owns on <b>your own</b> identity.
     /// </summary>
+    /// <remarks>
+    /// Use this to discover a drive's guid when all you know is its name.  Every entry carries both the
+    /// address (<c>driveSlug</c>, <c>driveTypeSlug</c>) and the <c>targetDrive</c> guid pair the rest of
+    /// the API takes, so one call here is enough to start using the guid routes.
+    /// <para><b>Example</b> — <c>GET /api/v2/apps/feed/drives?type=channel</c> returns the Feed app's
+    /// channel drives.  This replaces <c>GET /api/v2/drives/metadata/channel-drives</c>, which exists only
+    /// because channel drives previously had no other way to be named as a group.</para>
+    /// <para>Returns an empty list for an app that owns no drives, and 400 if no app holds
+    /// <c>appSlug</c>.  Drives you may not see are omitted rather than reported.</para>
+    /// </remarks>
+    /// <param name="appSlug">The app's slug, e.g. <c>feed</c> or <c>chat</c>. Case-sensitive.</param>
+    /// <param name="type">Optional drive type slug to filter on, e.g. <c>channel</c> or <c>profile</c>.
+    /// Matched exactly against <c>driveTypeSlug</c>; an unknown value simply returns nothing.</param>
     [HttpGet]
-    [SwaggerOperation(Tags = [SwaggerInfo.DriveMetadata])]
+    [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
     public async Task<List<ClientDriveData>> GetAppDrives(
         [FromRoute] string appSlug,
         [FromQuery] string type = null)
@@ -61,9 +72,21 @@ public class V2AppDriveController(
         return drives.Select(ToClientDriveData).ToList();
     }
 
-    /// <summary>One drive, addressed as <c>/apps/{appSlug}/drives/{driveSlug}</c>.</summary>
+    /// <summary>
+    /// Resolves one drive on <b>your own</b> identity, addressed by app and drive slug.
+    /// </summary>
+    /// <remarks>
+    /// The single-drive form of the listing above.  Returns the drive's <c>targetDrive</c> guid pair
+    /// along with its name and attributes.
+    /// <para><b>Example</b> — <c>GET /api/v2/apps/feed/drives/news</c>.</para>
+    /// <para>400 when nothing answers to the address.  Unknown app, unknown drive, and a drive you may not
+    /// see are deliberately indistinguishable.</para>
+    /// </remarks>
+    /// <param name="appSlug">The app's slug, e.g. <c>feed</c>. Case-sensitive.</param>
+    /// <param name="driveSlug">The drive's slug within that app, e.g. <c>news</c>.  Unique per app, so
+    /// <c>feed/news</c> and <c>chat/news</c> are different drives.</param>
     [HttpGet("{driveSlug}")]
-    [SwaggerOperation(Tags = [SwaggerInfo.DriveMetadata])]
+    [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
     public async Task<ClientDriveData> GetAppDrive([FromRoute] string appSlug, [FromRoute] string driveSlug)
     {
         var appId = await ResolveAppIdAsync(appSlug);

@@ -74,7 +74,10 @@ public sealed partial class OwnerAdmin
         bool ownerOnly = false,
         bool allowSubscriptions = false,
         System.Collections.Generic.Dictionary<string, string>? attributes = null,
-        bool allowCdn = false)
+        bool allowCdn = false,
+        Guid? appId = null,
+        string? driveSlug = null,
+        string? driveTypeSlug = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
@@ -88,6 +91,13 @@ public sealed partial class OwnerAdmin
             AllowCdn = allowCdn,
             OwnerOnly = ownerOnly,
             Attributes = attributes,
+
+            // Addressing: set together or both null. A drive with an AppId gets a slug either way --
+            // the server derives one from Name when none is given -- so passing appId alone is a
+            // legitimate case worth being able to express here.
+            AppId = appId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug,
         });
         EnsureSuccess(response, nameof(CreateDrive));
         return response;

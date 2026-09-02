@@ -26,8 +26,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2PeerAppDriveTemporalController(PeerDriveQueryService peerDriveQueryService)
         : V2PeerAppDriveControllerBase(peerDriveQueryService)
     {
+        /// <summary>Checks whether you currently hold temporal access to a peer drive named by slug.</summary>
+        /// <remarks>
+        /// A preflight that reads no data, so an app can show a live "you have access" indicator without
+        /// tripping the owner's notification for an actual read.
+        /// <para><b>Temporal reads are not ordinary reads.</b>  Your access comes from
+        /// <c>DrivePermission.ConditionalTemporalRead</c> granted through a circle; the remote clamps every
+        /// result to a recent window and notifies its owner that you read.  Do not use these as a substitute
+        /// for the normal read routes.</para>
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need no
+        /// guid constants shared with them.  400 when nothing there answers to the address.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>.</param>
+        /// <param name="driveSlug">The drive's slug within that app.</param>
         [HttpPost("verify")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<TemporalAccessStatus> VerifyTemporalAccess(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -38,8 +52,23 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await peerDriveQueryService.VerifyTemporalAccessAsync(id, targetDrive, fst, WebOdinContext);
         }
 
+        /// <summary>Runs a time-clamped query against a peer drive named by slug.</summary>
+        /// <remarks>
+        /// Same request body as the ordinary peer query-batch, but the remote clamps results to a recent
+        /// window regardless of what you ask for.
+        /// <para><b>Temporal reads are not ordinary reads.</b>  Your access comes from
+        /// <c>DrivePermission.ConditionalTemporalRead</c> granted through a circle; the remote clamps every
+        /// result to a recent window and notifies its owner that you read.  Do not use these as a substitute
+        /// for the normal read routes.</para>
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need no
+        /// guid constants shared with them.  400 when nothing there answers to the address.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>.</param>
+        /// <param name="driveSlug">The drive's slug within that app.</param>
+        /// <param name="request">Query params and result options, same body as the ordinary query-batch.</param>
         [HttpPost("query-batch")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<QueryBatchResponse> TemporalQueryBatch(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -76,8 +105,21 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2PeerAppDriveTemporalFileController(PeerDriveQueryService peerDriveQueryService)
         : V2PeerAppDriveControllerBase(peerDriveQueryService)
     {
+        /// <summary>Temporal read of a file header from a peer drive named by slug.</summary>
+        /// <remarks>
+        /// <para><b>Temporal reads are not ordinary reads.</b>  Your access comes from
+        /// <c>DrivePermission.ConditionalTemporalRead</c> granted through a circle; the remote clamps every
+        /// result to a recent window and notifies its owner that you read.  Do not use these as a substitute
+        /// for the normal read routes.</para>
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need no
+        /// guid constants shared with them.  400 when nothing there answers to the address.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>.</param>
+        /// <param name="driveSlug">The drive's slug within that app.</param>
+        /// <param name="fileId">The file's id <b>on the remote identity</b>.</param>
         [HttpGet("header")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<IActionResult> TemporalGetFileHeader(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -92,8 +134,23 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return result == null ? NotFound() : new JsonResult(result);
         }
 
+        /// <summary>Temporal read of a whole payload from a peer drive named by slug.</summary>
+        /// <remarks>
+        /// Honors the HTTP <c>Range</c> header.  Response is not shared-secret encrypted.
+        /// <para><b>Temporal reads are not ordinary reads.</b>  Your access comes from
+        /// <c>DrivePermission.ConditionalTemporalRead</c> granted through a circle; the remote clamps every
+        /// result to a recent window and notifies its owner that you read.  Do not use these as a substitute
+        /// for the normal read routes.</para>
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need no
+        /// guid constants shared with them.  400 when nothing there answers to the address.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>.</param>
+        /// <param name="driveSlug">The drive's slug within that app.</param>
+        /// <param name="fileId">The file's id on the remote identity.</param>
+        /// <param name="payloadKey">Which payload to read, from the file's manifest.</param>
         [HttpGet("payload/{payloadKey}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public Task<IActionResult> TemporalGetPayload(
@@ -106,8 +163,25 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return TemporalGetPayloadInternal(odinId, appSlug, driveSlug, fileId, payloadKey, GetChunk(null, null));
         }
 
+        /// <summary>Temporal read of a byte range of a payload from a peer drive named by slug.</summary>
+        /// <remarks>
+        /// The route-based alternative to a <c>Range</c> header.
+        /// <para><b>Temporal reads are not ordinary reads.</b>  Your access comes from
+        /// <c>DrivePermission.ConditionalTemporalRead</c> granted through a circle; the remote clamps every
+        /// result to a recent window and notifies its owner that you read.  Do not use these as a substitute
+        /// for the normal read routes.</para>
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need no
+        /// guid constants shared with them.  400 when nothing there answers to the address.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>.</param>
+        /// <param name="driveSlug">The drive's slug within that app.</param>
+        /// <param name="fileId">The file's id on the remote identity.</param>
+        /// <param name="payloadKey">Which payload to read.</param>
+        /// <param name="start">First byte to return, zero-based.</param>
+        /// <param name="length">How many bytes to return.</param>
         [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public Task<IActionResult> TemporalGetPayload(
@@ -122,8 +196,25 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return TemporalGetPayloadInternal(odinId, appSlug, driveSlug, fileId, payloadKey, GetChunk(start, length));
         }
 
+        /// <summary>Temporal read of a payload thumbnail from a peer drive named by slug.</summary>
+        /// <remarks>
+        /// Returns the closest thumbnail at or above the requested size.
+        /// <para><b>Temporal reads are not ordinary reads.</b>  Your access comes from
+        /// <c>DrivePermission.ConditionalTemporalRead</c> granted through a circle; the remote clamps every
+        /// result to a recent window and notifies its owner that you read.  Do not use these as a substitute
+        /// for the normal read routes.</para>
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need no
+        /// guid constants shared with them.  400 when nothing there answers to the address.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>.</param>
+        /// <param name="driveSlug">The drive's slug within that app.</param>
+        /// <param name="fileId">The file's id on the remote identity.</param>
+        /// <param name="payloadKey">Which payload the thumbnail belongs to.</param>
+        /// <param name="width">Requested width in pixels.</param>
+        /// <param name="height">Requested height in pixels.</param>
         [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public async Task<IActionResult> TemporalGetThumbnail(

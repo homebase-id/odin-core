@@ -540,4 +540,81 @@ public static class SystemAppConstants
             PermissionKeys.ManageProfile,
             PermissionKeys.ManageCircleMembership)
     };
+
+    /// <summary>
+    /// Moments moved into <c>BuiltinApps.Builtin</c>, and a built-in app is registered at identity
+    /// setup, which needs a registration request.
+    /// </summary>
+    /// <remarks>
+    /// MomentsDrive is also in <c>BuiltinProvisioner.SystemCircleCarryOverDrives</c>: it was seeded
+    /// before its app was built-in, because the system circles grant it.  Now that the app owns it on
+    /// the tree, the carry-over is redundant for Moments -- harmless, since seeding is idempotent, and
+    /// left alone so the carry-over list retires as one piece.
+    /// </remarks>
+    public static readonly AppRegistrationRequest MomentsAppRegistrationRequest = new()
+    {
+        AppId = MomentsAppId,
+        Name = "Homebase - Moments",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.MomentsDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet(
+            PermissionKeys.ReadConnections,
+            PermissionKeys.SendPushNotifications,
+            PermissionKeys.ReadConnectionRequests,
+            PermissionKeys.UseTransitRead,
+            PermissionKeys.UseTransitWrite)
+    };
+
+    /// <summary>
+    /// Vault moved into <c>BuiltinApps.Builtin</c>.  It owns two drives -- the wallet and the vault --
+    /// so its registration is granted both, matching what the tree says it owns.
+    /// </summary>
+    public static readonly AppRegistrationRequest VaultAppRegistrationRequest = new()
+    {
+        AppId = VaultAppId,
+        Name = "Homebase - Vault",
+        AuthorizedCircles = [],
+        CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet()
+        },
+        Drives =
+        [
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.WalletDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.VaultDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        ],
+        PermissionSet = new PermissionSet(
+            PermissionKeys.ReadConnections,
+            PermissionKeys.SendPushNotifications)
+    };
 }

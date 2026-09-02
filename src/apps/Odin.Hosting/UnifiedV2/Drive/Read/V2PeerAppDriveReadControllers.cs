@@ -23,8 +23,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2PeerAppDriveQueryBatchController(PeerDriveQueryService peerDriveQueryService)
         : V2PeerAppDriveControllerBase(peerDriveQueryService)
     {
+        /// <summary>Queries files on a peer drive named by slug.</summary>
+        /// <remarks>
+        /// The slug-addressed twin of <c>POST /peer/{odinId}/drives/{driveId}/query-batch</c>.  Use it to
+        /// catch up on a drive owned by another identity — a collaborative community drive, say.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="request">Query params and result options, same body as the guid route.</param>
         [HttpPost("query-batch")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<QueryBatchResponse> QueryBatch(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -61,8 +75,23 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2PeerAppDriveFileReadonlyController(PeerDriveQueryService peerDriveQueryService)
         : V2PeerAppDriveControllerBase(peerDriveQueryService)
     {
+        /// <summary>Reads a file header from a peer drive named by slug, by FileId.</summary>
+        /// <remarks>
+        /// FileId is assigned by the host that stores the file, so it is only meaningful on
+        /// <paramref name="odinId"/>'s identity.  If you are working from a file you sent, you want the
+        /// by-gtid routes instead — your copy and theirs have different FileIds.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="fileId">The file's id <b>on the remote identity</b>.</param>
         [HttpGet("header")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<IActionResult> GetFileHeader(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -77,8 +106,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return result == null ? NotFound() : new JsonResult(result);
         }
 
+        /// <summary>Reads a whole payload from a peer drive named by slug, by FileId.</summary>
+        /// <remarks>
+        /// Honors the HTTP <c>Range</c> header.  Response is not shared-secret encrypted.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="fileId">The file's id on the remote identity.</param>
+        /// <param name="payloadKey">Which payload to read, from the file's manifest.</param>
         [HttpGet("payload/{payloadKey}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
@@ -91,8 +134,24 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return GetPayloadInternal(odinId, appSlug, driveSlug, fileId, payloadKey, GetChunk(null, null));
         }
 
+        /// <summary>Reads a byte range of a payload from a peer drive named by slug, by FileId.</summary>
+        /// <remarks>
+        /// The route-based alternative to a <c>Range</c> header, for clients that cannot set one.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="fileId">The file's id on the remote identity.</param>
+        /// <param name="payloadKey">Which payload to read.</param>
+        /// <param name="start">First byte to return, zero-based.</param>
+        /// <param name="length">How many bytes to return.</param>
         [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
@@ -107,8 +166,24 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return GetPayloadInternal(odinId, appSlug, driveSlug, fileId, payloadKey, GetChunk(start, length));
         }
 
+        /// <summary>Reads a payload thumbnail from a peer drive named by slug, by FileId.</summary>
+        /// <remarks>
+        /// Returns the closest thumbnail at or above the requested size.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="fileId">The file's id on the remote identity.</param>
+        /// <param name="payloadKey">Which payload the thumbnail belongs to.</param>
+        /// <param name="width">Requested width in pixels.</param>
+        /// <param name="height">Requested height in pixels.</param>
         [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public async Task<IActionResult> GetThumbnail(
@@ -153,8 +228,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2PeerAppDriveQueryByUidController(PeerDriveQueryService peerDriveQueryService)
         : V2PeerAppDriveControllerBase(peerDriveQueryService)
     {
+        /// <summary>Checks whether a file with the given UniqueId exists on a peer drive named by slug.</summary>
+        /// <remarks>
+        /// UniqueId is client-assigned and travels with the file, so unlike FileId it means the same thing on
+        /// both identities.  Useful for "have they got this yet" without transferring the file.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="uid">The client-assigned unique id to look for.</param>
         [HttpGet("exists")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<FileExistsOnPeerResponse> GetExists(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -177,8 +266,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2PeerAppDriveQueryByGtidController(PeerDriveQueryService peerDriveQueryService)
         : V2PeerAppDriveControllerBase(peerDriveQueryService)
     {
+        /// <summary>Checks whether a file with the given GlobalTransitId exists on a peer drive named by slug.</summary>
+        /// <remarks>
+        /// GlobalTransitId is assigned at send time and is the same on sender and recipient, which makes it the
+        /// right handle for "did my file arrive".
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="gtid">The GlobalTransitId to look for.</param>
         [HttpGet("exists")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<FileExistsOnPeerResponse> GetExists(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -190,8 +293,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 WebOdinContext);
         }
 
+        /// <summary>Reads a file header from a peer drive named by slug, by GlobalTransitId.</summary>
+        /// <remarks>
+        /// Prefer this over the by-FileId form when you sent the file: the recipient stores it under a different
+        /// FileId, but the same GlobalTransitId.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="gtid">The file's GlobalTransitId.</param>
         [HttpGet("header")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         public async Task<IActionResult> GetFileHeader(
             [FromRoute] string odinId,
             [FromRoute] string appSlug,
@@ -206,8 +323,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return result == null ? NotFound() : new JsonResult(result);
         }
 
+        /// <summary>Reads a whole payload from a peer drive named by slug, by GlobalTransitId.</summary>
+        /// <remarks>
+        /// Honors the HTTP <c>Range</c> header.  Response is not shared-secret encrypted.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="gtid">The file's GlobalTransitId.</param>
+        /// <param name="payloadKey">Which payload to read, from the file's manifest.</param>
         [HttpGet("payload/{payloadKey}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
@@ -220,8 +351,24 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return GetPayloadInternal(odinId, appSlug, driveSlug, gtid, payloadKey, GetChunk(null, null));
         }
 
+        /// <summary>Reads a byte range of a payload from a peer drive named by slug, by GlobalTransitId.</summary>
+        /// <remarks>
+        /// The route-based alternative to a <c>Range</c> header.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="gtid">The file's GlobalTransitId.</param>
+        /// <param name="payloadKey">Which payload to read.</param>
+        /// <param name="start">First byte to return, zero-based.</param>
+        /// <param name="length">How many bytes to return.</param>
         [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
@@ -236,8 +383,26 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return GetPayloadInternal(odinId, appSlug, driveSlug, gtid, payloadKey, GetChunk(start, length));
         }
 
+        /// <summary>Reads a payload thumbnail from a peer drive named by slug, by GlobalTransitId.</summary>
+        /// <remarks>
+        /// Returns the closest thumbnail at or above the requested size, unless
+        /// <paramref name="directMatchOnly"/> is set.
+        /// <para>The drive lives on <paramref name="odinId"/>'s identity and is named by slug, so you need
+        /// no guid constants shared with them.  They resolve the address; you need a grant on whatever it
+        /// resolves to, exactly as with the guid routes.</para>
+        /// <para>400 when nothing there answers to the address — unknown app, unknown drive, and a drive you
+        /// may not access are deliberately indistinguishable.</para>
+        /// </remarks>
+        /// <param name="odinId">The identity hosting the drive, e.g. <c>frodo.dotyou.cloud</c>.</param>
+        /// <param name="appSlug">The app's slug <b>as registered on that identity</b>, e.g. <c>chat</c>.</param>
+        /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
+        /// <param name="gtid">The file's GlobalTransitId.</param>
+        /// <param name="payloadKey">Which payload the thumbnail belongs to.</param>
+        /// <param name="width">Requested width in pixels.</param>
+        /// <param name="height">Requested height in pixels.</param>
+        /// <param name="directMatchOnly">When true, return only an exact size match rather than the nearest.</param>
         [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
         public async Task<IActionResult> GetThumbnail(

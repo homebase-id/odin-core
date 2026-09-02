@@ -42,7 +42,13 @@ public class BuiltinProvisioner(
     private static readonly IReadOnlyList<CreateDriveRequest> SystemCircleCarryOverDrives =
     [
         BuiltinDrives.ListsDrive,
-        BuiltinDrives.MomentsDrive
+        BuiltinDrives.MomentsDrive,
+
+        // Mail joined this list when its app left BuiltinApps.Builtin.  CircleConstants grants
+        // MailDrive from both system circles, so without the drive here identity setup throws
+        // invalidGrantNonExistingDrive before it finishes -- the same reason Lists and Moments are
+        // here.  Remove it with the other two when the system circles retire.
+        BuiltinDrives.MailDrive
     ];
 
     /// <summary>
@@ -62,7 +68,9 @@ public class BuiltinProvisioner(
             [SystemAppConstants.LocationAppId] = SystemAppConstants.LocationAppRegistrationRequest,
             [SystemAppConstants.RecoveryAppId] = SystemAppConstants.RecoveryAppRegistrationRequest,
             [SystemAppConstants.SystemAppId] = SystemAppConstants.SystemAppRegistrationRequest,
-            [SystemAppConstants.WebdropAppId] = SystemAppConstants.WebdropAppRegistrationRequest
+            [SystemAppConstants.WebdropAppId] = SystemAppConstants.WebdropAppRegistrationRequest,
+            [SystemAppConstants.MomentsAppId] = SystemAppConstants.MomentsAppRegistrationRequest,
+            [SystemAppConstants.VaultAppId] = SystemAppConstants.VaultAppRegistrationRequest
         };
 
     /// <summary>

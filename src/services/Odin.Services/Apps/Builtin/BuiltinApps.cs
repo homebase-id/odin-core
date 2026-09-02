@@ -19,7 +19,7 @@ namespace Odin.Services.Apps.Builtin;
 /// <see cref="All"/>.
 ///
 /// <para>
-/// Not every app here is built-in: <see cref="BWellknownAppDefinitionBuiltIn"/> says which are
+/// Not every app here is built-in: <see cref="WellknownAppDefinitionBuiltIn"/> says which are
 /// configured when an identity is initialized.  The rest own drives and circles but arrive only when
 /// the owner installs them.
 /// </para>
@@ -42,7 +42,6 @@ public static class BuiltinApps
     /// </summary>
     public static readonly IReadOnlyList<WellknownAppDefinition> Builtin =
     [
-        
         new(SystemAppConstants.ChatAppId, "Chat", "chat",
             Drives:
             [
@@ -80,6 +79,11 @@ public static class BuiltinApps
             Drives: [BuiltinDrives.EmailDrive],
             Circles: [BuiltinCircles.EmailCircle],
             Permissions: new PermissionSet()),
+        
+        new(SystemAppConstants.LocationAppId, "Location", "location",
+            Drives: [BuiltinDrives.LocationDrive],
+            Circles: [BuiltinCircles.EmergencyLocationAccessCircle],
+            Permissions: new PermissionSet()),
 
         new(SystemAppConstants.FeedAppId, "Feed", "feed",
             Drives:
@@ -105,21 +109,6 @@ public static class BuiltinApps
             Circles: [BuiltinCircles.HomePageCircle],
             Permissions: new PermissionSet()),
 
-        new(SystemAppConstants.LocationAppId, "Location", "location",
-            Drives: [BuiltinDrives.LocationDrive],
-            Circles: [BuiltinCircles.EmergencyLocationAccessCircle],
-            Permissions: new PermissionSet()),
-
-        new(SystemAppConstants.MailAppId, "Mail", "mail",
-            Drives: [BuiltinDrives.MailDrive],
-            Circles: [BuiltinCircles.MailCircle],
-            Permissions: new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.SendIntroductions,
-                PermissionKeys.UseTransitWrite,
-                PermissionKeys.ManageContacts)),
 
         new(SystemAppConstants.RecoveryAppId, "Recovery", "recovery",
             Drives: [BuiltinDrives.ShardRecoveryDrive],
@@ -134,7 +123,29 @@ public static class BuiltinApps
             Circles: [],
             Permissions: new PermissionSet()),
 
-     
+        new(SystemAppConstants.MomentsAppId, "Moments", "moments",
+            Drives: [BuiltinDrives.MomentsDrive],
+            Circles: [BuiltinCircles.MomentsCircle],
+            Permissions: new PermissionSet()),
+        
+        new(SystemAppConstants.WebdropAppId, "Webdrop", "webdrop",
+            Drives: [BuiltinDrives.WebDropDrive],
+            Circles: [BuiltinCircles.WebdropCircle],
+            Permissions: new PermissionSet(
+                PermissionKeys.ReadConnections,
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.SendIntroductions,
+                PermissionKeys.UseTransitRead,
+                PermissionKeys.UseTransitWrite,
+                PermissionKeys.ManageContacts,
+                PermissionKeys.ManageProfile,
+                PermissionKeys.ManageCircleMembership)),
+        
+        new(SystemAppConstants.VaultAppId, "Vault", "vault",
+            Drives: [BuiltinDrives.WalletDrive, BuiltinDrives.VaultDrive],
+            Circles: [BuiltinCircles.VaultCircle],
+            Permissions: new PermissionSet()),
     ];
 
     /// <summary>
@@ -152,34 +163,7 @@ public static class BuiltinApps
             Drives: [BuiltinDrives.CommunityDrive],
             Circles: [BuiltinCircles.CommunityCircle],
             Permissions: new PermissionSet()),
-
-        new(SystemAppConstants.WebdropAppId, "Webdrop", "webdrop",
-            Drives: [BuiltinDrives.WebDropDrive],
-            Circles: [BuiltinCircles.WebdropCircle],
-            Permissions: new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.SendIntroductions,
-                PermissionKeys.UseTransitRead,
-                PermissionKeys.UseTransitWrite,
-                PermissionKeys.ManageContacts,
-                PermissionKeys.ManageProfile,
-                PermissionKeys.ManageCircleMembership)),
-        // BuiltinDrives.ListsDrive and BuiltinDrives.MomentsDrive are seeded today despite their apps not being built-in, because
-        // the system circles grant them and issuing a grant for an absent drive throws. That ends with
-        // those circles.
-
-        new(SystemAppConstants.ListsAppId, "Lists", "lists",
-            Drives: [BuiltinDrives.ListsDrive],
-            Circles: [BuiltinCircles.ListsCircle],
-            Permissions: new PermissionSet()),
-
-        new(SystemAppConstants.MomentsAppId, "Moments", "moments",
-            Drives: [BuiltinDrives.MomentsDrive],
-            Circles: [BuiltinCircles.MomentsCircle],
-            Permissions: new PermissionSet()),
-
+        
         new(SystemAppConstants.PhotoAppId, "Photo", "photo",
             Drives: [BuiltinDrives.PhotoLibraryDrive],
             Circles: [BuiltinCircles.PhotosCircle],
@@ -189,11 +173,15 @@ public static class BuiltinApps
             Drives: [],
             Circles: [BuiltinCircles.SocialSyncCircle],
             Permissions: new PermissionSet()),
-
-        new(SystemAppConstants.VaultAppId, "Vault", "vault",
-            Drives: [BuiltinDrives.WalletDrive, BuiltinDrives.VaultDrive],
-            Circles: [BuiltinCircles.VaultCircle],
-            Permissions: new PermissionSet())
+        
+        // BuiltinDrives.ListsDrive and BuiltinDrives.MomentsDrive are seeded today despite their apps not being built-in, because
+        // the system circles grant them and issuing a grant for an absent drive throws. That ends with
+        // those circles.
+        //
+        // new(SystemAppConstants.ListsAppId, "Lists", "lists",
+        //     Drives: [BuiltinDrives.ListsDrive],
+        //     Circles: [BuiltinCircles.ListsCircle],
+        //     Permissions: new PermissionSet()),
     ];
 
     /// <summary>Every app we know about, built-in or not.</summary>

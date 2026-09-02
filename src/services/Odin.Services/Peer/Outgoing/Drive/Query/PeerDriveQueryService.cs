@@ -55,7 +55,15 @@ public class PeerDriveQueryService(
     public async Task<TargetDrive> ResolveRemoteDriveAsync(OdinId odinId, string appSlug, string driveSlug,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        // Either transit permission, not Read alone: resolution serves the write routes too, and a
+        // caller that may send to a remote drive but not read from it must still be able to name it.
+        var perms = odinContext.PermissionsContext;
+        if (!perms.HasPermission(PermissionKeys.UseTransitRead) && !perms.HasPermission(PermissionKeys.UseTransitWrite))
+        {
+            throw new OdinSecurityException(
+                $"Resolving a peer drive address requires {nameof(PermissionKeys.UseTransitRead)} or " +
+                $"{nameof(PermissionKeys.UseTransitWrite)}");
+        }
 
         OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
         OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));

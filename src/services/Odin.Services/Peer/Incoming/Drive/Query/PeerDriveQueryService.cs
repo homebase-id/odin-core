@@ -130,10 +130,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         /// that address, and equally when the caller may not read it.
         /// </summary>
         /// <remarks>
-        /// Guarded exactly as <see cref="GetDrivesAsync"/> is -- the caller must hold Read on the
-        /// drive -- so a slug reveals nothing a drive-type query would not.  Not-found and
-        /// not-permitted return the same null on purpose: distinguishing them would let a caller
-        /// enumerate an identity's apps and drives by name.
+        /// Any grant on the drive is enough -- read, write, or conditional-temporal-read.  Guarding on
+        /// Read alone would lock out the two callers this address most exists for: the deposit-only
+        /// writer, whose GrantOn=Connect circle grants Write and no read
+        /// (docs/connection-defaults.md), and the temporal reader, whose grant is neither.  Both could
+        /// act on the drive but never learn its address.  Holding any grant already proves the caller
+        /// legitimately knows of the drive, so this reveals nothing a drive-type query does not.
+        ///
+        /// Not-found and not-permitted return the same null on purpose: distinguishing them would let a
+        /// caller enumerate an identity's apps and drives by name.
         /// </remarks>
         public async Task<PerimeterDriveData> ResolveDriveAddressAsync(string appSlug, string driveSlug,
             IOdinContext odinContext)
@@ -145,7 +150,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             }
 
             var drive = await driveManager.GetDriveBySlugAsync(app.AppId, driveSlug, odinContext);
-            if (drive == null || !odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read))
+            if (drive == null)
+            {
+                return null;
+            }
+
+            var perms = odinContext.PermissionsContext;
+            var canSee = perms.HasDrivePermission(drive.Id, DrivePermission.Read) ||
+                         perms.HasDrivePermission(drive.Id, DrivePermission.Write) ||
+                         perms.HasDrivePermission(drive.Id, DrivePermission.ConditionalTemporalRead);
+
+            if (!canSee)
             {
                 return null;
             }
