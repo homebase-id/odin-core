@@ -517,6 +517,54 @@ public class DriveManager : IDriveManager
         return results;
     }
 
+    /// <summary>
+    /// The drive an app addresses as <c>{driveSlug}</c> -- the second half of
+    /// <c>/apps/{appSlug}/drives/{driveSlug}</c>, once the app slug has been resolved to an id.
+    /// Returns null when the app owns no drive by that slug, or when the caller may not see it.
+    /// </summary>
+    /// <remarks>
+    /// Filters the cached all-drives list rather than querying by slug. Drives number in the tens, the
+    /// list is already loaded for every other read on this class, and going through it means this
+    /// lookup inherits the same archived/owner-only/anonymous filtering as its siblings -- a slug must
+    /// not reveal a drive that <see cref="GetDrivesAsync(PageOptions, IOdinContext)"/> would hide.
+    ///
+    /// The result is single because UNIQUE(identityId, AppId, DriveSlug) makes it so: slugs are unique
+    /// per app, not per identity, so feed/news and chat/news are different drives and neither is
+    /// ambiguous. A drive with no AppId is unreachable here -- correctly, since an unowned row's slug
+    /// is unconstrained (NULLs are distinct in a unique index) and could be claimed twice.
+    /// </remarks>
+    public async Task<StorageDrive?> GetDriveBySlugAsync(
+        Guid appId,
+        string driveSlug,
+        IOdinContext odinContext,
+        bool failIfInvalid = false)
+    {
+        var drive = string.IsNullOrWhiteSpace(driveSlug)
+            ? null
+            : (await GetDrivesByAppIdAsync(appId, odinContext))
+                .SingleOrDefault(d => string.Equals(d.DriveSlug, driveSlug, StringComparison.Ordinal));
+
+        if (drive == null && failIfInvalid)
+        {
+            throw new OdinClientException($"No drive '{driveSlug}' on app {appId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        return drive;
+    }
+
+    /// <summary>
+    /// Every drive owned by an app that the caller may see, for <c>GET /apps/{appSlug}/drives</c>.
+    /// </summary>
+    /// <remarks>
+    /// No type-slug filter: an app owns a handful of drives, so <c>?type=</c> belongs on this result
+    /// rather than in a second lookup.
+    /// </remarks>
+    public async Task<List<StorageDrive>> GetDrivesByAppIdAsync(Guid appId, IOdinContext odinContext)
+    {
+        var page = await GetDrivesInternalAsync(false, PageOptions.All, odinContext);
+        return page.Results.Where(d => d.AppId == appId).ToList();
+    }
+
     public async Task<PagedResult<StorageDrive>> GetAnonymousDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
     {
         var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);

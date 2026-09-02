@@ -218,6 +218,29 @@ namespace Odin.Services.Authorization.Apps
             return result?.Redacted();
         }
 
+        /// <summary>
+        /// The app addressed as <c>{appSlug}</c> -- the first half of
+        /// <c>/apps/{appSlug}/drives/{driveSlug}</c>.  Null when no app holds that slug.
+        /// </summary>
+        /// <remarks>
+        /// Served by UNIQUE(identityId, AppSlug), so the result is single by construction.
+        ///
+        /// No pre-v13 fallback, unlike <see cref="GetAppRegistrationInternalAsync"/>: slugs are a
+        /// column and only exist on rows, so a legacy blob registration has nothing to match on.  An
+        /// identity that has not run the v13 migration simply has no slug-addressable apps, which is
+        /// the truth rather than a gap.
+        /// </remarks>
+        public async Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(string appSlug, IOdinContext odinContext)
+        {
+            if (string.IsNullOrWhiteSpace(appSlug))
+            {
+                return null;
+            }
+
+            var record = await db.AppRegistrations.GetByAppSlugAsync(appSlug);
+            return record == null ? null : FromRecord(record).Redacted();
+        }
+
         public async Task<IOdinContext?> GetAppPermissionContextAsync(ClientAuthenticationToken token, IOdinContext odinContext)
         {
             async Task<IOdinContext?> Creator()

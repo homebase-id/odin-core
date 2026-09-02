@@ -40,6 +40,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query
         [Post(DriveRoot + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayloadStream([Body] GetPayloadRequest request, CancellationToken cancellationToken = default);
 
+        [Post(DriveRoot + "/metadata/by-slug")]
+        Task<ApiResponse<PerimeterDriveData>> ResolveDriveAddress([Body] ResolveDriveAddressRequest request,
+            CancellationToken cancellationToken = default);
+
         [Post(DriveRoot + "/metadata/type")]
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request,
             CancellationToken cancellationToken = default);

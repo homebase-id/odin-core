@@ -24,6 +24,14 @@ public static class UnifiedApiRouteConstants
     public const string Mail = BasePath + "/mail";
     public const string Capi = BasePath + "/capi";
 
+    // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/drive-addressing.md). Rooted at
+    // /apps rather than nested under /drives, because /drives/feed would read as "the drive named
+    // feed" rather than "the feed app's drives".
+    public const string AppsRoot = BasePath + "/apps";
+    public const string ByAppSlug = AppsRoot + "/{appSlug}";
+    public const string AppDrivesRoot = ByAppSlug + "/drives";
+    public const string AppDriveBySlug = AppDrivesRoot + "/{driveSlug}";
+
     public const string PeerRoot = BasePath + "/peer";
     public const string PeerByOdinId = PeerRoot + "/{odinId}";
     public const string PeerByDriveId = PeerByOdinId + "/drives/{driveId:guid}";
@@ -37,6 +45,20 @@ public static class UnifiedApiRouteConstants
     public const string PeerTemporalRoot = PeerByDriveId + "/temporal";
     public const string PeerTemporalFilesRoot = PeerTemporalRoot + "/files";
     public const string PeerTemporalByFileId = PeerTemporalFilesRoot + "/{fileId:guid}";
+
+    // Slug addressing over peer: /peer/{odinId}/apps/{appSlug}/drives/{driveSlug} -- the portable
+    // name, and the reason the slug columns exist.  Resolved by the recipient, exactly as a drive id
+    // is: the sender asks the remote what the address names there, then uses the ordinary peer path.
+    public const string PeerByAppSlug = PeerByOdinId + "/apps/{appSlug}";
+    public const string PeerAppDriveBySlug = PeerByAppSlug + "/drives/{driveSlug}";
+    public const string PeerAppFilesRoot = PeerAppDriveBySlug + "/files";
+    public const string PeerAppByFileId = PeerAppFilesRoot + "/{fileId:guid}";
+    public const string PeerAppByUniqueId = PeerAppFilesRoot + "/by-uid/{uid:guid}";
+    public const string PeerAppByGtid = PeerAppFilesRoot + "/by-gtid/{gtid:guid}";
+
+    public const string PeerAppTemporalRoot = PeerAppDriveBySlug + "/temporal";
+    public const string PeerAppTemporalFilesRoot = PeerAppTemporalRoot + "/files";
+    public const string PeerAppTemporalByFileId = PeerAppTemporalFilesRoot + "/{fileId:guid}";
 
     // Peer notifications (subscribe to live updates on a drive hosted by another identity)
     public const string PeerNotifyRoot = PeerRoot + "/notify";

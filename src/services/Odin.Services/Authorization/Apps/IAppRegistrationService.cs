@@ -19,6 +19,12 @@ namespace Odin.Services.Authorization.Apps
         Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
+        /// The app addressed as <c>{appSlug}</c>; see
+        /// <see cref="AppRegistrationService.GetAppRegistrationBySlugAsync"/>.
+        /// </summary>
+        Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(string appSlug, IOdinContext odinContext);
+
+        /// <summary>
         /// Resolves the appId of the app client making the current call (via its access-registration id),
         /// or null when the caller is not an app client (e.g. the owner console, or a guest).
         /// </summary>

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Time;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -16,7 +17,10 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Peer.Incoming.Drive.Query
 {
-    public class PeerDriveQueryService(IDriveManager driveManager, IDriveFileSystem fileSystem)
+    public class PeerDriveQueryService(
+        IDriveManager driveManager,
+        IDriveFileSystem fileSystem,
+        IAppRegistrationService appRegistrationService)
     {
         public async Task<QueryModifiedResult> QueryModified(FileQueryParamsV1 qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
@@ -118,6 +122,39 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType,
                 payloadDescriptor.LastModified, thumb);
+        }
+
+        /// <summary>
+        /// What <c>/apps/{appSlug}/drives/{driveSlug}</c> names here, so a remote caller can address a
+        /// drive without both sides sharing hardcoded guid constants.  Null when nothing answers to
+        /// that address, and equally when the caller may not read it.
+        /// </summary>
+        /// <remarks>
+        /// Guarded exactly as <see cref="GetDrivesAsync"/> is -- the caller must hold Read on the
+        /// drive -- so a slug reveals nothing a drive-type query would not.  Not-found and
+        /// not-permitted return the same null on purpose: distinguishing them would let a caller
+        /// enumerate an identity's apps and drives by name.
+        /// </remarks>
+        public async Task<PerimeterDriveData> ResolveDriveAddressAsync(string appSlug, string driveSlug,
+            IOdinContext odinContext)
+        {
+            var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);
+            if (app == null)
+            {
+                return null;
+            }
+
+            var drive = await driveManager.GetDriveBySlugAsync(app.AppId, driveSlug, odinContext);
+            if (drive == null || !odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read))
+            {
+                return null;
+            }
+
+            return new PerimeterDriveData
+            {
+                TargetDrive = drive.TargetDriveInfo,
+                Attributes = drive.Attributes
+            };
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrivesAsync(Guid driveType, IOdinContext odinContext)
