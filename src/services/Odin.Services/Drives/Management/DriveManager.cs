@@ -142,20 +142,35 @@ public class DriveManager : IDriveManager
 
         if (request.AppId != null)
         {
+            // Scope the taken set to this app: the constraint is per app, so feed/news and chat/news
+            // may coexist. Deduping across the whole identity would hand the second one "news-2" -- a
+            // permanent address nobody asked for, for a collision the schema permits.
+            //
+            // Read unconditionally, not only when deriving. The set answers both questions -- what a
+            // derived slug must avoid, and whether a supplied one is already claimed -- and without
+            // the second, a caller-supplied duplicate would reach the insert and surface as a raw
+            // UNIQUE(identityId, AppId, DriveSlug) violation instead of a client error.
+            var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+            var taken = new HashSet<string>(
+                existingDrives
+                    .Where(d => d.AppId == request.AppId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                    .Select(d => d.DriveSlug),
+                StringComparer.Ordinal);
+
             if (driveSlug == null)
             {
-                // Only read the table when there is actually something to derive, and scope the taken
-                // set to this app: the constraint is per app, so feed/news and chat/news may coexist.
-                // Deduping across the whole identity would hand the second one "news-2" -- a permanent
-                // address nobody asked for, for a collision the schema permits.
-                var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-                var taken = new HashSet<string>(
-                    existingDrives
-                        .Where(d => d.AppId == request.AppId && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                        .Select(d => d.DriveSlug),
-                    StringComparer.Ordinal);
-
                 driveSlug = DriveSlugGenerator.Generate(request.TargetDrive.Alias.Value, request.Name, taken);
+            }
+            else if (taken.Contains(driveSlug))
+            {
+                // Refuse rather than suffix. A supplied slug is an address the caller intends to
+                // resolve against; handing back "news-2" would look like success and silently give
+                // them a different one. Re-creating the same drive is not this case -- an existing
+                // alias+type is already rejected above -- so this is always a different drive
+                // claiming a name the app holds.
+                throw new OdinClientException(
+                    $"Drive slug '{driveSlug}' is already used by another drive on this app",
+                    OdinClientErrorCode.IdAlreadyExists);
             }
 
             driveTypeSlug ??= DriveSlugGenerator.TypeSlugFor(request.TargetDrive.Alias.Value, request.TargetDrive.Type.Value);
