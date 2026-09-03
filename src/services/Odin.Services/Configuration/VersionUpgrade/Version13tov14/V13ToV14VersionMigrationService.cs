@@ -38,8 +38,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
     /// <para>
     /// Additive throughout.  A drive or circle that already has an owner is left alone rather than
     /// reassigned, so a partial run can be repeated and a value someone set by hand is never overwritten.
-    /// Nothing is deleted: <c>WalletDrive</c> stops being seeded for new identities, but the ones that
-    /// already have it keep it, stamped like the rest.
+    /// Nothing is deleted: <c>WalletDrive</c> stops being seeded for new identities, and the ones that
+    /// already have it keep it.  It is no longer stamped like the rest, though -- no app owns it now
+    /// that Vault seeds only <c>VaultDrive</c>, so it falls to <see cref="StampRemainingDrivesAsync"/>
+    /// and comes out with a derived slug and no owning app.  It stays reachable by guid, not by an
+    /// <c>/apps/{appSlug}/drives/{driveSlug}</c> address.
     /// </para>
     /// </remarks>
     public class V13ToV14VersionMigrationService(
@@ -70,10 +73,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
         /// Gives every drive the tree names the ownership and address it would have been created with.
         /// </summary>
         /// <remarks>
-        /// Walks the whole tree, not just the built-in apps: ListsDrive, MomentsDrive and WalletDrive
-        /// belong to apps that are not built-in, yet exist on every identity because they were seeded
-        /// before ownership existed.  Those three are the reason this cannot use
-        /// <see cref="BuiltinApps.Builtin"/> alone.
+        /// Walks the whole tree, not just the built-in apps: ListsDrive belongs to an app that is not
+        /// built-in, yet exists on every identity because it was seeded before ownership existed.  That
+        /// is the reason this cannot use <see cref="BuiltinApps.Builtin"/> alone.  WalletDrive was in
+        /// the same position until Vault stopped owning it; it is now stamped by
+        /// <see cref="StampRemainingDrivesAsync"/> instead, with a slug but no owning app.
         /// </remarks>
         private async Task StampDrivesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {

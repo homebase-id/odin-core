@@ -600,14 +600,6 @@ public static class SystemAppConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = WellKnownAppDrives.WalletDrive,
-                    Permission = DrivePermission.ReadWrite
-                }
-            },
-            new()
-            {
-                PermissionedDrive = new PermissionedDrive()
-                {
                     Drive = WellKnownAppDrives.VaultDrive,
                     Permission = DrivePermission.ReadWrite
                 }
