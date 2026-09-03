@@ -40,6 +40,24 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public string DriveSlug { get; set; }
 
         public string DriveTypeSlug { get; set; }
+
+        /// <summary>
+        /// The drive's write-only public key, in JWK form -- the half a remote caller seals a deposit
+        /// to.  Null on a drive that has no keypair.
+        /// </summary>
+        /// <remarks>
+        /// The <b>public</b> half only.  The private half is escrowed under the drive's storage key and
+        /// never leaves the server; serving the public half is the whole point of the key, and the peer
+        /// endpoint hands the same value to any caller with write access.
+        /// </remarks>
+        public string WriteOnlyPublicKeyJwk { get; set; }
+
+        /// <summary>
+        /// CRC32C of the public key -- a short fingerprint, so the console can show which key a drive
+        /// holds without printing the whole JWK.
+        /// </summary>
+        public uint? WriteOnlyPublicKeyCrc32 { get; set; }
+
         public bool IsSystemDrive { get; set; }
 
         public Dictionary<string, string> Attributes { get; set; }

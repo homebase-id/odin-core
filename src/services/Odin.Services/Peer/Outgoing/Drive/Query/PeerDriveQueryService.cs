@@ -118,6 +118,71 @@ public class PeerDriveQueryService(
         return targetDrive;
     }
 
+    /// <summary>
+    /// Fetches the write-only public key of <paramref name="odinId"/>'s
+    /// <c>/apps/{appSlug}/drives/{driveSlug}</c>, so this identity can seal a deposit to a drive it
+    /// may write but never read.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not cached, unlike the address.  A slug is immutable, but a keypair is not: it can
+    /// be rotated, and a cached public half would keep this identity sealing to a key the remote has
+    /// stopped holding -- deposits nobody could open, with nothing to say so.
+    /// </remarks>
+    public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, string appSlug,
+        string driveSlug, IOdinContext odinContext)
+    {
+        // Write, not read: this key exists to put data on someone else's drive.
+        if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.UseTransitWrite))
+        {
+            throw new OdinSecurityException(
+                $"Fetching a peer drive public key requires {nameof(PermissionKeys.UseTransitWrite)}");
+        }
+
+        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
+        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+
+        var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
+
+        var request = new ResolveDriveAddressRequest
+        {
+            AppSlug = appSlug,
+            DriveSlug = driveSlug
+        };
+
+        ApiResponse<DrivePublicKeyResponse> response = null;
+        try
+        {
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.GetDriveWriteOnlyPublicKey(request); });
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+
+        if (response?.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new OdinClientException($"{odinId} has no drive at /apps/{appSlug}/drives/{driveSlug}",
+                OdinClientErrorCode.InvalidDrive);
+        }
+
+        // A 403 is the remote saying this identity may not write there. Surfaced as-is rather than
+        // folded into "no such drive": the caller resolved the address, so the drive exists.
+        await HandleInvalidResponseAsync(odinId, response, odinContext);
+
+        var key = response.Content;
+        if (key == null || string.IsNullOrWhiteSpace(key.PublicKeyJwk))
+        {
+            throw new OdinSystemException(
+                $"{odinId} returned no public key for /apps/{appSlug}/drives/{driveSlug}");
+        }
+
+        return key;
+    }
+
     public async Task<QueryModifiedResult> GetModifiedAsync(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {

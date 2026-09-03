@@ -46,7 +46,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     IsSystemDrive = BuiltinDrives.IsProtected(drive.Id),
                     AppId = drive.AppId,
                     DriveSlug = drive.DriveSlug,
-                    DriveTypeSlug = drive.DriveTypeSlug
+                    DriveTypeSlug = drive.DriveTypeSlug,
+                    WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
+                    WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c
 
                 }).ToList();
 
@@ -129,7 +131,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     IsSystemDrive = BuiltinDrives.IsProtected(drive.Id),
                     AppId = drive.AppId,
                     DriveSlug = drive.DriveSlug,
-                    DriveTypeSlug = drive.DriveTypeSlug
+                    DriveTypeSlug = drive.DriveTypeSlug,
+                    WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
+                    WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

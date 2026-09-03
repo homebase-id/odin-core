@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Time;
 using Odin.Services.Apps;
+using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -169,6 +170,61 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             {
                 TargetDrive = drive.TargetDriveInfo,
                 Attributes = drive.Attributes
+            };
+        }
+
+        /// <summary>
+        /// Serves a drive's write-only public key, so a caller can seal a deposit to a drive it may
+        /// write but never read.
+        /// </summary>
+        /// <remarks>
+        /// <b>Write is required, and only Write.</b>  Unlike
+        /// <see cref="ResolveDriveAddressAsync"/>, which accepts any grant because naming a drive
+        /// reveals nothing a caller cannot already learn, this hands out the means to put data on the
+        /// drive.  A reader has no business with it.
+        /// <para>
+        /// A missing drive is a 404 and a missing grant is a security exception -- deliberately
+        /// different, unlike resolution, which conflates them.  By the time a caller reaches here it
+        /// has already resolved the address, which means it already holds a grant; refusing with a
+        /// 404 would send it looking for a drive that is there.
+        /// </para>
+        /// <para>
+        /// Every drive is minted a keypair at creation and the migration backfills the rest, so a
+        /// null here is a drive that predates both and escaped the upgrade -- a server-side fault,
+        /// not something the caller can act on.
+        /// </para>
+        /// </remarks>
+        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKeyAsync(string appSlug, string driveSlug,
+            IOdinContext odinContext)
+        {
+            var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);
+            if (app == null)
+            {
+                return null;
+            }
+
+            var drive = await driveManager.GetDriveBySlugAsync(app.AppId, driveSlug, odinContext);
+            if (drive == null)
+            {
+                return null;
+            }
+
+            if (!odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Write))
+            {
+                throw new OdinSecurityException(
+                    $"Write access is required to retrieve the public key for /apps/{appSlug}/drives/{driveSlug}");
+            }
+
+            if (drive.WriteOnlyKeyPair == null)
+            {
+                throw new OdinSystemException(
+                    $"Drive {drive.Id} has no write-only keypair; it cannot collect deposits");
+            }
+
+            return new DrivePublicKeyResponse
+            {
+                PublicKeyJwk = drive.WriteOnlyKeyPair.PublicKeyJwk(),
+                PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c
             };
         }
 

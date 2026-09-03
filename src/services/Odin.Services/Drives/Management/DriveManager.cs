@@ -448,8 +448,10 @@ public class DriveManager : IDriveManager
     /// </summary>
     /// <remarks>
     /// Migration-only, for the same reason <see cref="ApplyAddressAsync"/> is: minting needs the drive's
-    /// storage key, which is reached here by decrypting <c>MasterKeyEncryptedStorageKey</c> with the
-    /// master key -- something no ordinary write path has cause to do.
+    /// storage key, which no ordinary write path has cause to reach.  It is taken from the caller's own
+    /// grant rather than by decrypting <c>MasterKeyEncryptedStorageKey</c> with the master key: the two
+    /// yield the same key, but sourcing it from the grant is what the escrow actually means -- the
+    /// private half is sealed under the key that grants access to this drive.
     /// <para>
     /// Never overwrites.  Replacing a live keypair would strand every deposit already sealed to the old
     /// public half, so a drive that has one is skipped and the run stays repeatable.  Key rotation is a
@@ -471,8 +473,9 @@ public class DriveManager : IDriveManager
             return false;
         }
 
-        var mk = odinContext.Caller.GetMasterKey();
-        var storageKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKeyClone(mk);
+        // Throws OdinSecurityException when the caller holds no grant on this drive.  Not wiped: the
+        // key belongs to the caller's permission group, which goes on using it after this returns.
+        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
 
         storageDrive.WriteOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
 
