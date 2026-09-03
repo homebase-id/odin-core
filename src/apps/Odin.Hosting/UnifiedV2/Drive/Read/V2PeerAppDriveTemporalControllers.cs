@@ -49,7 +49,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
             var fst = GetHttpFileSystemResolver().GetFileSystemType();
-            return await peerDriveQueryService.VerifyTemporalAccessAsync(id, targetDrive, fst, WebOdinContext);
+            return await PeerQuery.VerifyTemporalAccessAsync(id, targetDrive, fst, WebOdinContext);
         }
 
         /// <summary>Runs a time-clamped query against a peer drive named by slug.</summary>
@@ -89,7 +89,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 FileSystemType = fst
             };
 
-            var batch = await peerDriveQueryService.GetTemporalBatchAsync(id, v1Request, fst, WebOdinContext);
+            var batch = await PeerQuery.GetTemporalBatchAsync(id, v1Request, fst, WebOdinContext);
             return QueryBatchResponse.FromResult(batch);
         }
     }
@@ -128,7 +128,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         {
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
 
-            var result = await peerDriveQueryService.GetTemporalFileHeaderAsync(
+            var result = await PeerQuery.GetTemporalFileHeaderAsync(
                 id, ToExternalFile(targetDrive, fileId), GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
             return result == null ? NotFound() : new JsonResult(result);
@@ -229,7 +229,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
 
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
-                await peerDriveQueryService.GetTemporalThumbnailAsync(id, ToExternalFile(targetDrive, fileId), width,
+                await PeerQuery.GetTemporalThumbnailAsync(id, ToExternalFile(targetDrive, fileId), width,
                     height, payloadKey, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
             return HandlePeerThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
@@ -241,7 +241,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             var (id, targetDrive) = await ResolveAsync(odinId, appSlug, driveSlug);
 
             var (encryptedKeyHeader, isEncrypted, payloadStream) =
-                await peerDriveQueryService.GetTemporalPayloadStreamAsync(id, ToExternalFile(targetDrive, fileId),
+                await PeerQuery.GetTemporalPayloadStreamAsync(id, ToExternalFile(targetDrive, fileId),
                     payloadKey, chunk, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
             return HandlePeerPayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
