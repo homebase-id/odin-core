@@ -10,6 +10,7 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -74,8 +75,28 @@ public class DriveManager : IDriveManager
     {
         if (_scopedConnectionFactory.HasTransaction)
         {
-            _scopedConnectionFactory.AddPostCommitAction(() => _mediator.Publish(notification));
-            return Task.CompletedTask;
+            try
+            {
+                _scopedConnectionFactory.AddPostCommitAction(() => _mediator.Publish(notification));
+                return Task.CompletedTask;
+            }
+            catch (OdinDatabaseException)
+            {
+                // The transaction is unwinding.  HasTransaction is still true -- the transaction object
+                // is not nulled until disposal finishes -- but the ref count has already reached zero,
+                // and AddPostCommitAction refuses any further action once it has.  The two disagree
+                // about what "in a transaction" means, and this is the window where they differ.
+                //
+                // Falling through is not a compromise: post-commit actions run only after CommitAsync,
+                // so a zero ref count means the commit has already happened.  Deferring has nothing
+                // left to wait for, and publishing now still hands observers committed state, which is
+                // the whole point of the deferral above.
+                //
+                // This came from a version upgrade that stopped dead with no error: creating the last
+                // drive of the EnsureSystemDrivesExist pass landed in exactly this window, the throw
+                // escaped where nothing logged it, and the tenant sat below the release version
+                // answering 503 to every owner request until it was retried.
+            }
         }
 
         return _mediator.Publish(notification);
