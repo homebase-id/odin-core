@@ -27,6 +27,11 @@ on:
         description: "chat-kmp branch/commit to include"
         required: true
         default: "main"
+      rebuild_wasm:
+        type: boolean
+        required: false
+        default: false
+        description: "Rebuild the chat WASM app (slow; otherwise the cached build for that chat-kmp commit is reused)"
       start_choice:
         type: choice
         required: true
@@ -46,6 +51,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # actions: write lets build-kotlin-wasm delete a stale chat-wasm cache
+      # entry when rebuild_wasm is ticked. Actions caches are immutable per key,
+      # so without the delete the checkbox would fix only the run it was ticked
+      # on and the next run would restore the same bad bundle.
+      actions: write
 
     outputs:
       image_tag: ${{ steps.image.outputs.image_tag }}
@@ -81,11 +91,16 @@ jobs:
       # Build Kotlin WASM (chat-kmp)
       #
 
+      # Cached on the chat-kmp commit the ref resolves to, so a run that changes
+      # nothing in chat-kmp skips the Gradle build entirely. rebuild_wasm forces
+      # a fresh one and discards the cached entry.
       - name: Build chat-wasm
         uses: ./odin-core/.github/actions/host/build-kotlin-wasm
         with:
           odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           git_ref: ${{ github.event.inputs.kotlin_ref }}
+          force_rebuild: ${{ github.event.inputs.rebuild_wasm }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       #
       # Build docker image
