@@ -121,7 +121,13 @@ public class BuiltinProvisioner(
                 continue;
             }
 
+            // Named before and after, not just after: creating a drive publishes
+            // DriveDefinitionAddedNotification, and its handlers re-grant circles to every existing
+            // member.  That is the slow part, and when it stalls the only clue is which drive was
+            // being created -- so the drive has to be in the log before the work starts.
+            logger.LogDebug("Creating drive '{drive}' ({alias})", request.Name, request.TargetDrive.Alias);
             await driveManager.CreateDriveAsync(request, odinContext);
+            logger.LogDebug("Created drive '{drive}'", request.Name);
         }
     }
 

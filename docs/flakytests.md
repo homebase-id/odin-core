@@ -83,3 +83,25 @@ the shared cause is probably worth chasing rather than re-running.
 **Symptom:** expects a `Redirect`, gets `Forbidden`.
 
 **Not caused by the change in flight:** same run and reasoning as the entry above.
+
+---
+
+## `Odin.Services.Tests.JobManagement.JobManagerTests`
+
+- `ItShouldDeleteExpiredUnsuccessfulJobsInTheBackground(Sqlite,0)`
+
+**Where:** local, macOS, `Odin.Services.Tests` full run (2026-09-03).
+
+**Symptom:** `Assert.That(completedJob1, Is.Null)` fails with the job still present —
+`Expected: null, But was: <FailingJobTest>`. The background cleanup had not deleted the
+expired job by the time the assertion ran. Only the `deleteAfterMilliseconds = 0` case fails;
+the sibling case in the same theory passes.
+
+**Not caused by the change in flight:** the change touched `VersionUpgradeService`,
+`BuiltinProvisioner` and `CircleNetworkService` — logging and a phase timeout — none of which
+the job manager reaches. Re-running the test alone passed (2/2), and it also passed 2/2 on a
+stashed clean tree, so the failure reproduces on neither the change nor its absence.
+
+**Pattern worth noting:** a background service racing an assertion, with a zero-length delay
+as the parameter. Same family as the timing-sensitive entries above: the test asserts on work
+it does not wait for.

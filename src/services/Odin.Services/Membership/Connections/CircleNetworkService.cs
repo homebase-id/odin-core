@@ -713,9 +713,23 @@ namespace Odin.Services.Membership.Connections
             var members = await GetCircleMembersAsync(circleDef.Id, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
 
+            // Per-member, and named: saving an ICR publishes notifications, and on an identity whose
+            // peers are unreachable those can block.  Without a line per member a stall here looks like
+            // the whole call hanging, when what matters is whether it is stuck on one member or slowly
+            // grinding through many.
+            logger.LogDebug("UpdateCircleDefinition '{circle}': re-granting {count} member(s)",
+                circleDef.Name, members.Count());
+
+            var swCircle = System.Diagnostics.Stopwatch.StartNew();
+            var memberIndex = 0;
+
             // List<OdinId> invalidMembers = new List<OdinId>();
             foreach (var odinId in members)
             {
+                memberIndex++;
+                logger.LogDebug("UpdateCircleDefinition '{circle}': member {index}/{count} {odinId}",
+                    circleDef.Name, memberIndex, members.Count(), odinId);
+
                 var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
                 var circleKey = circleDef.Id;
@@ -764,6 +778,9 @@ namespace Odin.Services.Membership.Connections
 
                 await this.SaveIcrAsync(icr, odinContext);
             }
+
+            logger.LogDebug("UpdateCircleDefinition '{circle}': {count} member(s) re-granted in {elapsed}ms",
+                circleDef.Name, memberIndex, swCircle.ElapsedMilliseconds);
 
             await circleMembershipService.UpdateAsync(circleDef, odinContext);
 
@@ -1450,6 +1467,7 @@ namespace Odin.Services.Membership.Connections
             async Task GrantAnonymousRead(CircleDefinition def)
             {
                 logger.LogDebug("GrantAnonymousRead called for circle {def}", def.Name);
+                var swGrant = System.Diagnostics.Stopwatch.StartNew();
 
                 var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
                 grants.Add(new DriveGrantRequest()
@@ -1462,7 +1480,11 @@ namespace Odin.Services.Membership.Connections
                 });
 
                 def.DriveGrants = grants;
+// Re-grants the circle to every existing member, so this is where a large identity spends its
+                // time -- and where the drive-added handler was seen to stop with no matching log line.
                 await this.UpdateCircleDefinitionAsync(def, odinContext);
+                logger.LogDebug("GrantAnonymousRead finished for circle {def} in {elapsed}ms", def.Name,
+                    swGrant.ElapsedMilliseconds);
             }
 
             // System circles may not exist yet — e.g. a tenant that creates a drive before
