@@ -143,7 +143,7 @@ public static class BuiltinApps
                 PermissionKeys.ManageCircleMembership)),
         
         new(SystemAppConstants.VaultAppId, "Vault", "vault",
-            Drives: [BuiltinDrives.WalletDrive, BuiltinDrives.VaultDrive],
+            Drives: [BuiltinDrives.VaultDrive],
             Circles: [BuiltinCircles.VaultCircle],
             Permissions: new PermissionSet()),
     ];

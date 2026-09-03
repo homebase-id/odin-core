@@ -166,7 +166,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
-            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 9);
+            // 10, not 9: WebDropDrive is anonymous-read, and HandleDriveAdded grants the system
+            // circles read on every anonymous-read drive as it is created.  Seeding it followed
+            // Webdrop joining BuiltinApps.Builtin.
+            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 10);
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
                 dg.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
