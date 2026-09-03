@@ -8,15 +8,33 @@ inputs:
     description: "Branch or commit to build chat-kmp from"
     required: false
     default: "main"
+  force_rebuild:
+    description: >-
+      "true" to ignore the cached bundle and compile chat-kmp from scratch.
+      Requires github_token to also delete the stale entry; see the comment on
+      the restore step below.
+    required: false
+    default: "false"
+  github_token:
+    description: >-
+      GITHUB_TOKEN, used only to delete a stale cache entry when force_rebuild
+      is "true". The calling job needs `actions: write` for that to work.
+      Omit it and force_rebuild still rebuilds, but only for that one run.
+    required: false
+    default: ""
 
 runs:
   using: "composite"
   steps:
+    # Resolves git_ref to the commit sha it points at, which is both the ref
+    # existence check and the cache key.
+    #
     # Runs before the JDK and Gradle setup so a mistyped ref costs seconds, not
     # the whole toolchain setup. See the long comment in
     # ../build-frontend/action.yml for why checkout's own failure is unreadable
     # and why this is duplicated rather than shared.
-    - name: Check that the chat-kmp ref exists
+    - name: Resolve the chat-kmp ref
+      id: ref
       shell: bash
       env:
         # Read back as shell variables, never interpolated into the script
@@ -25,20 +43,28 @@ runs:
         GIT_REF: ${{ inputs.git_ref }}
         ODIN_LIB_TOKEN: ${{ inputs.odin_lib_token }}
         REPO: homebase-id/chat-kmp
+        # Bump this when anything about HOW the bundle is produced changes --
+        # the gradle invocation, publicPath, the JDK version, the destination
+        # path. The commit sha in the key only covers changes to chat-kmp
+        # itself, so without a bump those runs would restore a bundle built the
+        # old way.
+        CACHE_VERSION: v1
       run: |
         set -euo pipefail
 
-        # Empty means checkout takes the repo's default branch; nothing to check.
-        if [ -z "$GIT_REF" ]; then
-          echo "No ref given; checkout will use the default branch of ${REPO}."
-          exit 0
-        fi
+        emit() {
+          local sha="$1"
+          echo "Resolved ${REPO}@${GIT_REF:-<default branch>} to ${sha}."
+          echo "sha=${sha}" >>"$GITHUB_OUTPUT"
+          echo "cache_key=chat-kmp-wasm-${CACHE_VERSION}-${RUNNER_OS}-${sha}" >>"$GITHUB_OUTPUT"
+        }
 
         # checkout treats a 40-char hex ref as a commit and fetches it directly,
         # so there is no ref name for ls-remote to match. Anything shorter is
-        # not a commit to checkout either, so it still has to match a ref here.
+        # not a commit to checkout either, so it still has to match a ref below.
         if [[ "$GIT_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
           echo "${GIT_REF} is a commit sha; leaving it to checkout."
+          emit "$(printf '%s' "$GIT_REF" | tr '[:upper:]' '[:lower:]')"
           exit 0
         fi
 
@@ -56,19 +82,49 @@ runs:
         ASKPASS
         chmod 700 "$askpass"
 
-        if ! refs="$(GIT_ASKPASS="$askpass" GIT_TOKEN="$ODIN_LIB_TOKEN" GIT_TERMINAL_PROMPT=0 \
-            git ls-remote --heads --tags "https://github.com/${REPO}" 2>"$err")"; then
+        ls_remote() {
+          GIT_ASKPASS="$askpass" GIT_TOKEN="$ODIN_LIB_TOKEN" GIT_TERMINAL_PROMPT=0 \
+            git ls-remote "$@" "https://github.com/${REPO}"
+        }
+
+        # Empty means checkout takes the repo's default branch; there is no name
+        # to check, but we still need the sha it resolves to for the cache key.
+        if [ -z "$GIT_REF" ]; then
+          echo "No ref given; checkout will use the default branch of ${REPO}."
+          if ! head="$(ls_remote --symref 2>"$err" | awk '$2=="HEAD"{print $1; exit}')" || [ -z "$head" ]; then
+            echo "::error::Cannot resolve the default branch of ${REPO}. Check that DOTYOUCORE_LIB_TOKEN has not expired and still has read access."
+            cat "$err" >&2
+            exit 1
+          fi
+          emit "$head"
+          exit 0
+        fi
+
+        if ! refs="$(ls_remote --heads --tags 2>"$err")"; then
           echo "::error::Cannot list the refs of ${REPO}. Check that DOTYOUCORE_LIB_TOKEN has not expired and still has read access."
           cat "$err" >&2
           exit 1
         fi
 
-        names="$(printf '%s\n' "$refs" | sed -n 's#^[0-9a-f]*[[:space:]]*refs/\(heads\|tags\)/##p' | sed 's/\^{}$//' | sort -u)"
+        # An annotated tag appears twice: the tag object as refs/tags/x and the
+        # commit it points at as refs/tags/x^{}. The peeled commit is what
+        # actually gets built, so it is the honest cache key.
+        sha="$(printf '%s\n' "$refs" | awk \
+          -v head="refs/heads/${GIT_REF}" \
+          -v tag="refs/tags/${GIT_REF}" \
+          -v peeled="refs/tags/${GIT_REF}^{}" '
+            $2 == head   { h = $1 }
+            $2 == peeled { p = $1 }
+            $2 == tag    { t = $1 }
+            END { if (h != "") print h; else if (p != "") print p; else if (t != "") print t }')"
 
-        if printf '%s\n' "$names" | grep -qxF -- "$GIT_REF"; then
+        if [ -n "$sha" ]; then
           echo "${REPO}: ${GIT_REF} found."
+          emit "$sha"
           exit 0
         fi
+
+        names="$(printf '%s\n' "$refs" | sed -n 's#^[0-9a-f]*[[:space:]]*refs/\(heads\|tags\)/##p' | sed 's/\^{}$//' | sort -u)"
 
         echo "::error::${REPO} has no branch or tag named '${GIT_REF}'."
         # Underscores typed for hyphens is the mistake this step exists to
@@ -87,30 +143,96 @@ runs:
         fi
         exit 1
 
+    # Actions caches are immutable per key: `cache/save` onto an existing key
+    # warns and leaves the old entry in place. So bypassing the cache is not
+    # enough to repair a bad entry -- the next run without the checkbox would
+    # restore the same bad bundle. Delete it here instead, so ticking the box
+    # actually fixes the entry for every later run.
+    - name: Delete the cached chat-wasm bundle
+      if: inputs.force_rebuild == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        KEY: ${{ steps.ref.outputs.cache_key }}
+      run: |
+        set -uo pipefail
+        if [ -z "$GH_TOKEN" ]; then
+          echo "::warning::force_rebuild is set but no github_token was passed, so the cache entry ${KEY} cannot be deleted. This run builds from scratch; later runs will restore the existing entry."
+          exit 0
+        fi
+        # Nothing cached yet is the normal case on a first build, not an error.
+        gh cache delete "$KEY" --repo "$GITHUB_REPOSITORY" \
+          || echo "No cache entry named ${KEY} to delete."
+
+    # Exact key only, no restore-keys: a near-miss here would mean shipping a
+    # bundle built from a different chat-kmp commit than the one requested.
+    - name: Restore the chat-wasm bundle
+      id: cache
+      if: inputs.force_rebuild != 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: odin-core/src/apps/Odin.Hosting/client/apps/chat
+        key: ${{ steps.ref.outputs.cache_key }}
+
+    # A truncated or half-written entry would otherwise be deployed as a broken
+    # chat app, and the failure would surface in the browser rather than here.
+    - name: Check the restored bundle
+      if: steps.cache.outputs.cache-hit == 'true'
+      shell: bash
+      env:
+        DEST: odin-core/src/apps/Odin.Hosting/client/apps/chat
+        KEY: ${{ steps.ref.outputs.cache_key }}
+      run: |
+        set -euo pipefail
+        # The tracked placeholder survives a cache restore but not a real build,
+        # so drop it to keep the two paths byte-identical.
+        rm -f "${DEST}/.gitkeep"
+        if [ ! -s "${DEST}/index.html" ]; then
+          echo "::error::The cached chat-wasm bundle (${KEY}) has no index.html. Re-run this workflow with the 'Rebuild the chat WASM app' box ticked to discard it and build a fresh one."
+          exit 1
+        fi
+        echo "Reusing the cached chat-wasm build for ${KEY}; skipping the Gradle build."
+        du -sh "$DEST"
+
     - name: Setup JDK
+      if: steps.cache.outputs.cache-hit != 'true'
       uses: actions/setup-java@v4
       with:
         distribution: "temurin"
         java-version: "17"
 
     - name: Setup Gradle
+      if: steps.cache.outputs.cache-hit != 'true'
       uses: gradle/actions/setup-gradle@v3
 
     - name: Checkout chat-kmp
+      if: steps.cache.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
       with:
         repository: homebase-id/chat-kmp
         token: ${{ inputs.odin_lib_token }}
-        ref: ${{ inputs.git_ref }}
+        # The resolved sha, not the ref: the branch could move between the
+        # resolve step above and here, which would build something other than
+        # what the cache key claims.
+        ref: ${{ steps.ref.outputs.sha }}
         path: client/chat-kmp
 
     - name: Build chat app
+      if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ./client/chat-kmp
       run: |
         # publicPath is baked into index.html and the Compose resource loader, so it has to
         # match the route Odin.Hosting serves the bundle from (/apps/chat in Startup.cs).
+        # Changing anything here means bumping CACHE_VERSION in the resolve step.
         ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache -PpublicPath=/apps/chat/
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
         mkdir -p ../../odin-core/src/apps/Odin.Hosting/client/apps
         mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
+
+    - name: Cache the chat-wasm bundle
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: odin-core/src/apps/Odin.Hosting/client/apps/chat
+        key: ${{ steps.ref.outputs.cache_key }}
