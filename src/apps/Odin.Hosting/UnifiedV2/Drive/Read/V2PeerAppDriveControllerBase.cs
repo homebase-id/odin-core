@@ -27,6 +27,13 @@ public abstract class V2PeerAppDriveControllerBase(PeerDriveQueryService peerDri
     : OdinControllerBase
 {
     /// <summary>
+    /// The peer query service, exposed once here rather than captured again by each derived
+    /// controller: a primary-constructor parameter that is both passed to the base and used in the
+    /// derived body is captured twice (CS9107), which CI treats as an error under --warnaserror.
+    /// </summary>
+    protected PeerDriveQueryService PeerQuery { get; } = peerDriveQueryService;
+
+    /// <summary>
     /// Validates the recipient and asks it what <c>/apps/{appSlug}/drives/{driveSlug}</c> names there.
     /// Throws when nothing answers to that address, which includes a drive this identity may not read
     /// — the remote does not distinguish the two, so neither can this.
@@ -35,7 +42,7 @@ public abstract class V2PeerAppDriveControllerBase(PeerDriveQueryService peerDri
         string odinId, string appSlug, string driveSlug)
     {
         AssertIsValidOdinId(odinId, out var id);
-        var targetDrive = await peerDriveQueryService.ResolveRemoteDriveAsync(id, appSlug, driveSlug, WebOdinContext);
+        var targetDrive = await PeerQuery.ResolveRemoteDriveAsync(id, appSlug, driveSlug, WebOdinContext);
         return (id, targetDrive);
     }
 
