@@ -57,7 +57,7 @@ public class FeedBackPopulationTests_PublicFollowers
     {
         // yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
         // yield return new object[] { new AppReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
-        yield return new object[] { new OwnerClientContext(SystemDriveConstants.FeedDrive), HttpStatusCode.OK };
+        yield return new object[] { new OwnerClientContext(WellKnownAppDrives.FeedDrive), HttpStatusCode.OK };
     }
 
     [Test]
@@ -101,7 +101,7 @@ public class FeedBackPopulationTests_PublicFollowers
         {
             QueryParams = new FileQueryParamsV1()
             {
-                TargetDrive = SystemDriveConstants.FeedDrive,
+                TargetDrive = WellKnownAppDrives.FeedDrive,
                 FileType = new List<int>() { fileType }
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest()

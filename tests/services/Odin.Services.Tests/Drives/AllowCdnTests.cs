@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Tests.Drives;
@@ -112,18 +113,18 @@ public class AllowCdnTests
         // Public Posts is seeded on purpose: it is the content the CDN exists to serve, and one
         // enabled drive is what lets the CDN authenticate at all (CdnAuthPathHandler fails when
         // the enabled set is empty, which would take the health ping down too).
-        Assert.That(SystemDriveConstants.CreatePublicPostsChannelDriveRequest.AllowCdn, Is.True);
+        Assert.That(BuiltinDrives.PublicPostsChannelDrive.AllowCdn, Is.True);
 
         // Everything else stays off - the seed must not quietly widen.
         Assert.Multiple(() =>
         {
-            Assert.That(SystemDriveConstants.CreateProfileDriveRequest.AllowCdn, Is.False);
-            Assert.That(SystemDriveConstants.CreateHomePageConfigDriveRequest.AllowCdn, Is.False);
-            Assert.That(SystemDriveConstants.CreateFeedDriveRequest.AllowCdn, Is.False);
-            Assert.That(SystemDriveConstants.CreateContactDriveRequest.AllowCdn, Is.False);
-            Assert.That(SystemDriveConstants.CreateWalletDriveRequest.AllowCdn, Is.False);
-            Assert.That(SystemDriveConstants.CreateChatDriveRequest.AllowCdn, Is.False);
-            Assert.That(SystemDriveConstants.CreateMailDriveRequest.AllowCdn, Is.False);
+            Assert.That(BuiltinDrives.ProfileDrive.AllowCdn, Is.False);
+            Assert.That(BuiltinDrives.HomePageConfigDrive.AllowCdn, Is.False);
+            Assert.That(BuiltinDrives.FeedDrive.AllowCdn, Is.False);
+            Assert.That(BuiltinDrives.ContactDrive.AllowCdn, Is.False);
+            Assert.That(BuiltinDrives.WalletDrive.AllowCdn, Is.False);
+            Assert.That(BuiltinDrives.ChatDrive.AllowCdn, Is.False);
+            Assert.That(BuiltinDrives.MailDrive.AllowCdn, Is.False);
         });
     }
 

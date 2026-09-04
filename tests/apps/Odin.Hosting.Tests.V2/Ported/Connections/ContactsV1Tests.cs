@@ -27,7 +27,7 @@ public class ContactsV1Tests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    private static readonly Guid ContactDriveId = SystemDriveConstants.ContactDrive.Alias;
+    private static readonly Guid ContactDriveId = WellKnownAppDrives.ContactDrive.Alias;
 
     [Test]
     public async Task V1_OwnerCoreUpdate_PreservesAppBlob()
@@ -36,7 +36,7 @@ public class ContactsV1Tests : V2Fixture
         // (carrying no appData — exactly what odin-js sends) must NOT wipe it. Every write here goes
         // through a V1 route.
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
 
         var ownerContacts = new V1ContactsClient(owner.Identity, owner.Factory);
@@ -79,7 +79,7 @@ public class ContactsV1Tests : V2Fixture
     {
         // Proves the app shell + app-token auth are wired on the V1 route.
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var appContacts = new V1ContactsClient(app.Identity, app.Factory);
 

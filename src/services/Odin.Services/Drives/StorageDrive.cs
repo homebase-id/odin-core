@@ -67,6 +67,24 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
     public bool OwnerOnly => Data.OwnerOnly;
 
+    public Guid? AppId
+    {
+        get => Data.AppId;
+        set => Data.AppId = value;
+    }
+
+    public string DriveSlug
+    {
+        get => Data.DriveSlug;
+        set => Data.DriveSlug = value;
+    }
+
+    public string DriveTypeSlug
+    {
+        get => Data.DriveTypeSlug;
+        set => Data.DriveTypeSlug = value;
+    }
+
     public string GetDrivePayloadPath()
     {
         return tenantPathManager.GetDrivePayloadPath(Id);
@@ -216,6 +234,32 @@ public sealed class StorageDriveData
     /// Specifies if the CDN may read this drive's payloads. Opt-in; see <see cref="StorageDriveDetails"/>.
     /// </summary>
     public bool AllowCdn { get; set; }
+
+    /// <summary>
+    /// The app that owns this drive; null means an owner drive.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AppId"/>, <see cref="DriveSlug"/> and <see cref="DriveTypeSlug"/> are columns on the
+    /// Drives table, not part of <see cref="StorageDriveDetails"/>.  They are deliberately kept out of
+    /// detailsJson: <c>UNIQUE(identityId, AppId, DriveSlug)</c> constrains the columns, and a second copy
+    /// in the blob could disagree with what the constraint is enforcing.
+    /// <para>
+    /// All three ship dormant.  Nothing derives them yet, so every drive carries null until the
+    /// addressing work assigns them; see <c>docs/drive-addressing.md</c>.
+    /// </para>
+    /// </remarks>
+    public Guid? AppId { get; set; }
+
+    /// <summary>
+    /// The drive's portable name -- the segment a remote caller uses to address it
+    /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).  Null when <see cref="AppId"/> is null.
+    /// </summary>
+    public string DriveSlug { get; set; }
+
+    /// <summary>
+    /// Readable form of the drive's type, e.g. <c>channel</c>.  A category to filter on, not an address.
+    /// </summary>
+    public string DriveTypeSlug { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
 

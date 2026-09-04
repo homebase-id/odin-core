@@ -8,6 +8,7 @@ using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Drives;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
@@ -161,7 +162,7 @@ public class DriveManagementArchivalTests
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
         // Act - set archive on drive 1
-        foreach(var drive in SystemDriveConstants.SystemDrives)
+        foreach(var drive in BuiltinDrives.Protected)
         {
             var setFlagResponse = await ownerApiClient.DriveManager.SetArchiveFlag(drive, true);
             ClassicAssert.IsTrue(setFlagResponse.StatusCode == HttpStatusCode.BadRequest);

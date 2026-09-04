@@ -202,7 +202,7 @@ public class RecoveryNotifier(
 
         await pushNotificationService.EnqueueNotification(odinId, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = ShamirConfigurationService.SecurityRiskReportNotificationTypeId,
                 TagId = odinId,
                 Silent = false,

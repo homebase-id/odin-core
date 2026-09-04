@@ -18,6 +18,16 @@ public interface IDriveManager
     Task<StorageDrive> GetDriveAsync(Guid driveId, bool failIfInvalid = false);
     Task<PagedResult<StorageDrive>> GetDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
     Task<PagedResult<StorageDrive>> GetDrivesAsync(GuidId type, PageOptions pageOptions, IOdinContext odinContext);
+
+    /// <summary>
+    /// The drive an app addresses as <c>{driveSlug}</c>; see
+    /// <see cref="DriveManager.GetDriveBySlugAsync"/>.
+    /// </summary>
+    Task<StorageDrive> GetDriveBySlugAsync(Guid appId, string driveSlug, IOdinContext odinContext,
+        bool failIfInvalid = false);
+
+    /// <summary>Every drive owned by an app that the caller may see.</summary>
+    Task<List<StorageDrive>> GetDrivesByAppIdAsync(Guid appId, IOdinContext odinContext);
     Task<PagedResult<StorageDrive>> GetAnonymousDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
     Task<PagedResult<StorageDrive>> GetCdnEnabledDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
 }

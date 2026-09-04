@@ -901,7 +901,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         await _pushNotificationService.EnqueueNotification(introducer, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = introducer,
                 Silent = false,

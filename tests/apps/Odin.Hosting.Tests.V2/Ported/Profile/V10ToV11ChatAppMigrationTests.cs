@@ -19,7 +19,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Profile;
 
 /// <summary>
 /// Verifies the v10 → v11 migration: the Chat app (<see cref="SystemAppConstants.ChatAppId"/>) is
-/// granted <see cref="DrivePermission.Write"/> on the <see cref="SystemDriveConstants.ProfileDrive"/> and
+/// granted <see cref="DrivePermission.Write"/> on the <see cref="WellKnownAppDrives.ProfileDrive"/> and
 /// the <see cref="PermissionKeys.ManageProfile"/> permission key, so writes can funnel through
 /// <c>ProfileAttributeService</c>. Runs the migration service directly out of the tenant scope under a
 /// real owner (master-key) context, mirroring how <c>VersionUpgradeService</c> drives it in production.
@@ -44,7 +44,7 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ChatDrive,
+                        Drive = WellKnownAppDrives.ChatDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 },
@@ -52,7 +52,7 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ProfileDrive,
+                        Drive = WellKnownAppDrives.ProfileDrive,
                         Permission = DrivePermission.Read
                     }
                 }
@@ -80,12 +80,12 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
         Assert.That(HasManageProfile(after!), Is.True,
             "migration should grant ManageProfile to the chat app");
 
-        var profileGrant = after!.Grant.DriveGrants.Single(g => g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive);
+        var profileGrant = after!.Grant.DriveGrants.Single(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive);
         Assert.That(profileGrant.PermissionedDrive.Permission, Is.EqualTo(DrivePermission.ReadWrite),
             "the ProfileDrive grant should end up exactly ReadWrite, not merely carrying the Write flag");
 
         // Pre-existing drive grant and permission key are preserved.
-        Assert.That(after.Grant.DriveGrants.Any(g => g.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive), Is.True,
+        Assert.That(after.Grant.DriveGrants.Any(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive), Is.True,
             "the existing ChatDrive grant must be preserved");
         Assert.That(after.Grant.PermissionSet.HasKey(PermissionKeys.ReadConnections), Is.True,
             "the existing ReadConnections key must be preserved");
@@ -104,7 +104,7 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ProfileDrive,
+                        Drive = WellKnownAppDrives.ProfileDrive,
                         Permission = DrivePermission.Read
                     }
                 }
@@ -147,7 +147,7 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ProfileDrive,
+                        Drive = WellKnownAppDrives.ProfileDrive,
                         Permission = DrivePermission.Read
                     }
                 }
@@ -170,14 +170,14 @@ public class V10ToV11ChatAppMigrationTests : V2Fixture
         Assert.That(HasManageProfile(after!), Is.True);
 
         // The grant must not be duplicated by a repeated run.
-        Assert.That(after!.Grant.DriveGrants.Count(g => g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive), Is.EqualTo(1),
+        Assert.That(after!.Grant.DriveGrants.Count(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive), Is.EqualTo(1),
             "ProfileDrive grant should appear exactly once after repeated migration runs");
     }
 
     private static bool HasProfileDriveWrite(RedactedAppRegistration app)
     {
         return app.Grant?.DriveGrants?.Any(g =>
-            g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+            g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
             g.PermissionedDrive.Permission.HasFlag(DrivePermission.Write)) ?? false;
     }
 

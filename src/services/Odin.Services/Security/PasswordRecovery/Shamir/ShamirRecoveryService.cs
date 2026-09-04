@@ -105,7 +105,7 @@ public class ShamirRecoveryService
         }
 
         odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            SystemDriveConstants.ShardRecoveryDrive,
+            WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Read,
             odinContext);
 
@@ -176,7 +176,7 @@ public class ShamirRecoveryService
         //TODO: move this to an outbox call
 
         // notify all players this identity needs their password shards
-        var nc = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive, DrivePermission.Read, odinContext);
+        var nc = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
         var package = await _configurationService.GetDealerShardPackage(nc);
         foreach (var envelope in package.Envelopes)
         {
@@ -287,7 +287,7 @@ public class ShamirRecoveryService
         }
 
         odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            SystemDriveConstants.ShardRecoveryDrive,
+            WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Read,
             odinContext);
 
@@ -497,7 +497,7 @@ public class ShamirRecoveryService
     {
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
 
-        var drive = await _driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias, false);
+        var drive = await _driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias, false);
         if (null != drive)
         {
             await _playerShardCollector.DeleteCollectedShards(odinContext);

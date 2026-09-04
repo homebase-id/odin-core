@@ -229,8 +229,8 @@ public class CollaborationChannelTests
         // Update the file via pippin's identity
         //
 
-        await member1_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
-        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await member1_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, Int32.MaxValue);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, Int32.MaxValue);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(member1_OwnerClient);
@@ -308,12 +308,12 @@ public class CollaborationChannelTests
             var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
+                TargetDrive = WellKnownAppDrives.FeedDrive
             };
 
             await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
-            await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, int.MaxValue);
-            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+            await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, int.MaxValue);
+            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive);
 
             var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
             ClassicAssert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);
@@ -400,12 +400,12 @@ public class CollaborationChannelTests
     private static async Task AssertHasFileInFeed(OwnerApiClientRedux recipient, Guid globalTransitId,
         UploadFileMetadata expectedFileMetadata)
     {
-        await recipient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
-        await recipient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+        await recipient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, Int32.MaxValue);
+        await recipient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive);
         var fileOnFeed = new FileIdentifier()
         {
             GlobalTransitId = globalTransitId,
-            TargetDrive = SystemDriveConstants.FeedDrive
+            TargetDrive = WellKnownAppDrives.FeedDrive
         };
 
         var getFileByGtidResponse = await recipient.DriveRedux.QueryByGlobalTransitId(fileOnFeed.ToGlobalTransitIdFileIdentifier());

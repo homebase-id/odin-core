@@ -86,7 +86,7 @@ public class PeerContactContent
 
 /// <summary>
 /// The full contact <b>data</b> record stored as <c>AppData.Content</c> on a file in the
-/// <see cref="Odin.Services.Drives.SystemDriveConstants.ContactDrive"/>. It is the peer-sourceable
+/// <see cref="Odin.Services.Drives.WellKnownAppDrives.ContactDrive"/>. It is the peer-sourceable
 /// <see cref="PeerContactContent"/> plus the <b>owner-owned</b> fields below, which are set only by the
 /// owner via the contacts API and are <b>never</b> sourced from a peer. Because the enrichment /
 /// connection-flow paths operate on <see cref="PeerContactContent"/>, they cannot carry these fields,

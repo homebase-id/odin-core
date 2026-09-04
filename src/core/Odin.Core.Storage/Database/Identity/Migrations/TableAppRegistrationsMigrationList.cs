@@ -10,6 +10,7 @@ public class TableAppRegistrationsMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableAppRegistrationsMigrationV0(-1),
+            new TableAppRegistrationsMigrationV202608271000(0),
             // AUTO-INSERT-MARKER
         };
     }

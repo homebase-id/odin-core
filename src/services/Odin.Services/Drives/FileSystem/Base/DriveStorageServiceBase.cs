@@ -204,7 +204,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
@@ -238,7 +238,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 catch (Exception)
                 {
-                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
@@ -261,7 +261,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
@@ -506,7 +506,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 catch (Exception)
                 {
-                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
@@ -534,7 +534,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
@@ -690,7 +690,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
@@ -2311,7 +2311,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
 
             // special exception *eye roll*.  really need to root this feed thing out of the core
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
             {
                 return missingPayloads;
             }

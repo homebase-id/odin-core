@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
@@ -60,6 +61,11 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
         var identity = TestIdentities.Pippin;
         _ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         _targetDrive = TargetDrive.NewTargetDrive();
+
+        // Create the drive once, up front. All threads share this drive, so creating it from inside
+        // each thread is a race: only one create wins, and a loser's first upload can land before the
+        // winner's drive is visible - which surfaces as a non-success upload in PrepareEncryptedFile.
+        await _ownerApiClient.DriveManager.CreateDrive(_targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         await PerformanceFramework.ThreadedTestAsync(maxThreads: 20, iterations: 50, OverwriteFile);
         Console.WriteLine($"Success Count: {_successCount}");
@@ -146,7 +152,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
 
         if (uploadPayloadResponse.IsSuccessStatusCode)
         {
-            _successCount++;
+            Interlocked.Increment(ref _successCount);
             // if it 
             ClassicAssert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
             return uploadPayloadResponse.Content!.NewVersionTag;
@@ -154,7 +160,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
 
         if (uploadPayloadResponse.StatusCode == HttpStatusCode.InternalServerError)
         {
-            _serverErrorCount++;
+            Interlocked.Increment(ref _serverErrorCount);
         }
 
         return null;
@@ -163,8 +169,6 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
     private async Task<(UploadResult, KeyHeader keyHeader)> PrepareEncryptedFile(TestIdentity identity, TargetDrive targetDrive)
     {
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);

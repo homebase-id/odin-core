@@ -127,11 +127,11 @@ public class OwnerConfigurationController : OdinControllerBase
     {
         var d = new Dictionary<string, TargetDrive>()
         {
-            { "contact", SystemDriveConstants.ContactDrive },
-            { "profile", SystemDriveConstants.ProfileDrive },
-            { "wallet", SystemDriveConstants.WalletDrive },
-            { "chat", SystemDriveConstants.ChatDrive },
-            { "moments", SystemDriveConstants.MomentsDrive }
+            { "contact", WellKnownAppDrives.ContactDrive },
+            { "profile", WellKnownAppDrives.ProfileDrive },
+            { "wallet", WellKnownAppDrives.WalletDrive },
+            { "chat", WellKnownAppDrives.ChatDrive },
+            { "moments", WellKnownAppDrives.MomentsDrive }
         };
 
         return Task.FromResult(d);

@@ -1576,7 +1576,7 @@ namespace Odin.Services.Membership.Connections
                     {
                         PermissionedDrive = new()
                         {
-                            Drive = SystemDriveConstants.FeedDrive,
+                            Drive = WellKnownAppDrives.FeedDrive,
                             Permission = DrivePermission.Write
                         }
                     }

@@ -82,11 +82,11 @@ public class DataSubscriptionAndDistributionTests1
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         // Sam should have the same content on his feed drive since it was distributed by the backend
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { fileType }
         };
 
@@ -109,7 +109,7 @@ public class DataSubscriptionAndDistributionTests1
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         //Sam should have changes; note - we're using the same query params intentionally
         var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
@@ -157,11 +157,11 @@ public class DataSubscriptionAndDistributionTests1
         var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { fileType }
         };
 
@@ -176,11 +176,11 @@ public class DataSubscriptionAndDistributionTests1
         await frodoOwnerClient.Drive.DeleteFile(standardFileUploadResult.File);
 
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp2 = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -224,11 +224,11 @@ public class DataSubscriptionAndDistributionTests1
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
         
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { standardFileType }
         };
 
@@ -260,11 +260,11 @@ public class DataSubscriptionAndDistributionTests1
 
         var commentFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { commentFileType }
         };
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         // Sam should not have the comment since they are not distributed
         var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
@@ -323,11 +323,11 @@ public class DataSubscriptionAndDistributionTests1
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -360,11 +360,11 @@ public class DataSubscriptionAndDistributionTests1
 
         var commentFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { commentFileType }
         };
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         //
         // Sam should not have the comment since they are not distributed
@@ -421,11 +421,11 @@ public class DataSubscriptionAndDistributionTests1
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
         
         //TODO: should sam have to process transit instructions for feed items?
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -458,11 +458,11 @@ public class DataSubscriptionAndDistributionTests1
 
         var commentFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { commentFileType }
         };
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
 
         //
@@ -540,11 +540,11 @@ public class DataSubscriptionAndDistributionTests1
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -595,7 +595,7 @@ public class DataSubscriptionAndDistributionTests1
 
         var commentFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { commentFileType }
         };
 
@@ -683,11 +683,11 @@ public class DataSubscriptionAndDistributionTests1
 
         //TODO: should sam have to process transit instructions for feed items?
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -736,7 +736,7 @@ public class DataSubscriptionAndDistributionTests1
 
         var commentFileQueryParams = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             FileType = new List<int>() { commentFileType }
         };
 
@@ -804,7 +804,7 @@ public class DataSubscriptionAndDistributionTests1
         
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
@@ -853,11 +853,11 @@ public class DataSubscriptionAndDistributionTests1
 
         //It should be direct write
         // Sam should have the same content on his feed drive
-        // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        // await samOwnerClient.Transit.ProcessIncomingInstructionSet(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
@@ -904,11 +904,11 @@ public class DataSubscriptionAndDistributionTests1
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
         
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
@@ -956,11 +956,11 @@ public class DataSubscriptionAndDistributionTests1
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
@@ -1011,13 +1011,13 @@ public class DataSubscriptionAndDistributionTests1
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await pippinOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await merryOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
@@ -1075,13 +1075,13 @@ public class DataSubscriptionAndDistributionTests1
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await pippinOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await merryOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
@@ -1107,19 +1107,19 @@ public class DataSubscriptionAndDistributionTests1
         //
         // Sam's feed drive no longer has the header
         // 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(samOwnerClient, uploadResult);
 
         //
         // Pippin's feed drive no longer has the header
         // 
-        await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await pippinOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(pippinOwnerClient, uploadResult);
 
         //
         // Merry's feed drive no longer has the header
         // 
-        await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await merryOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(merryOwnerClient, uploadResult);
 
 
@@ -1163,11 +1163,11 @@ public class DataSubscriptionAndDistributionTests1
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
-        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
@@ -1190,7 +1190,7 @@ public class DataSubscriptionAndDistributionTests1
     {
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 

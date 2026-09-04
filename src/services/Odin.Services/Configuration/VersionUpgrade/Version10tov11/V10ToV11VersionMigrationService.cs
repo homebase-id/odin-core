@@ -15,7 +15,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
 {
     /// <summary>
     /// v10 → v11: grants the Chat app (<see cref="SystemAppConstants.ChatAppId"/>)
-    /// <see cref="DrivePermission.Write"/> on the <see cref="SystemDriveConstants.ProfileDrive"/> and the
+    /// <see cref="DrivePermission.Write"/> on the <see cref="WellKnownAppDrives.ProfileDrive"/> and the
     /// <see cref="PermissionKeys.ManageProfile"/> permission key.
     ///
     /// <para>
@@ -72,12 +72,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
 
                 // Drop the pre-existing (read-only) ProfileDrive grant so we don't emit a duplicate, then
                 // re-add it with ReadWrite.
-                drives.RemoveAll(d => d.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive);
+                drives.RemoveAll(d => d.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive);
                 drives.Add(new DriveGrantRequest
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ProfileDrive,
+                        Drive = WellKnownAppDrives.ProfileDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 });
@@ -127,7 +127,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
         private static bool HasProfileDriveWrite(RedactedAppRegistration app)
         {
             return app.Grant?.DriveGrants?.Any(g =>
-                g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+                g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
                 g.PermissionedDrive.Permission.HasFlag(DrivePermission.Write)) ?? false;
         }
 

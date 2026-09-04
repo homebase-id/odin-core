@@ -28,7 +28,8 @@ public sealed partial class OwnerAdmin
         Guid appId,
         PermissionSetGrantRequest appPermissions,
         List<Guid>? authorizedCircles = null,
-        PermissionSetGrantRequest? circleMemberGrantRequest = null)
+        PermissionSetGrantRequest? circleMemberGrantRequest = null,
+        string? appSlug = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);
@@ -37,6 +38,10 @@ public sealed partial class OwnerAdmin
         {
             Name = $"Test_{appId}",
             AppId = appId,
+
+            // Left null the server derives one from Name; tests that address the app by slug pass
+            // an explicit value so they are not asserting against a derivation rule.
+            AppSlug = appSlug,
             PermissionSet = appPermissions.PermissionSet,
             Drives = appPermissions.Drives?.ToList(),
             AuthorizedCircles = authorizedCircles ?? new List<Guid>(),

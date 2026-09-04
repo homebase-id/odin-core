@@ -60,11 +60,11 @@ public class Feed_Post_Tests
         // yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
         yield return new object[]
         {
-            new AppSpecifyDriveAccess(SystemDriveConstants.PublicPostsChannelDrive, DrivePermission.ReadWrite, new TestPermissionKeyList(
+            new AppSpecifyDriveAccess(WellKnownAppDrives.PublicPostsChannelDrive, DrivePermission.ReadWrite, new TestPermissionKeyList(
                 PermissionKeys.All.ToArray())),
             HttpStatusCode.OK
         };
-        // yield return new object[] { new OwnerClientContext(SystemDriveConstants.FeedDrive), HttpStatusCode.OK };
+        // yield return new object[] { new OwnerClientContext(WellKnownAppDrives.FeedDrive), HttpStatusCode.OK };
     }
 
     [Test]
@@ -125,14 +125,14 @@ public class Feed_Post_Tests
         friendsFile.AllowDistribution = true;
 
         var (friendsFileUploadResponse, encryptedJsonContent64) = await driveApiAsFeedApp.UploadNewEncryptedMetadata(
-            SystemDriveConstants.PublicPostsChannelDrive,
+            WellKnownAppDrives.PublicPostsChannelDrive,
             friendsFile);
 
         ClassicAssert.IsTrue(friendsFileUploadResponse.StatusCode == expectedStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
         
-        await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
+        await ownerSam.DriveRedux.WaitForEmptyOutbox(WellKnownAppDrives.PublicPostsChannelDrive);
 
-        await _scaffold.CreateOwnerApiClient(ownerFrodo.Identity).Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await _scaffold.CreateOwnerApiClient(ownerFrodo.Identity).Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         //
         // Validation - check that frodo has 1 file in feed; from sam and he can decrypt it
@@ -141,7 +141,7 @@ public class Feed_Post_Tests
         {
             QueryParams = new FileQueryParamsV1()
             {
-                TargetDrive = SystemDriveConstants.FeedDrive,
+                TargetDrive = WellKnownAppDrives.FeedDrive,
                 FileType = new List<int>() { fileType }
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -209,7 +209,7 @@ public class Feed_Post_Tests
                 {
                     PermissionedDrive = new()
                     {
-                        Drive = SystemDriveConstants.PublicPostsChannelDrive,
+                        Drive = WellKnownAppDrives.PublicPostsChannelDrive,
                         Permission = DrivePermission.Read
                     }
                 }
@@ -227,7 +227,7 @@ public class Feed_Post_Tests
         // Using the feed app, Sam posts to public channel with encrypted file having ACL of friends circle
         //
 
-        var feedAppCallerContext = new AppSpecifyDriveAccess(SystemDriveConstants.PublicPostsChannelDrive, DrivePermission.ReadWrite,
+        var feedAppCallerContext = new AppSpecifyDriveAccess(WellKnownAppDrives.PublicPostsChannelDrive, DrivePermission.ReadWrite,
             new TestPermissionKeyList(PermissionKeys.All.ToArray()));
 
         await feedAppCallerContext.Initialize(ownerSam);
@@ -243,11 +243,11 @@ public class Feed_Post_Tests
         friendsFile.AllowDistribution = true;
 
         var (friendsFileUploadResponse, encryptedJsonContent64) = await driveApiAsFeedApp.UploadNewEncryptedMetadata(
-            SystemDriveConstants.PublicPostsChannelDrive,
+            WellKnownAppDrives.PublicPostsChannelDrive,
             friendsFile);
         ClassicAssert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
 
-        await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
+        await ownerSam.DriveRedux.WaitForEmptyOutbox(WellKnownAppDrives.PublicPostsChannelDrive);
 
         //validate sam can see his file
 
@@ -255,7 +255,7 @@ public class Feed_Post_Tests
         {
             QueryParams = new FileQueryParamsV1()
             {
-                TargetDrive = SystemDriveConstants.PublicPostsChannelDrive,
+                TargetDrive = WellKnownAppDrives.PublicPostsChannelDrive,
                 FileType = new List<int>() { fileType }
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -273,7 +273,7 @@ public class Feed_Post_Tests
         ClassicAssert.IsNotNull(samFile, "sam cannot see his own file");
         ClassicAssert.IsTrue(samFile.FileMetadata.AppData.FileType == fileType);
 
-        await _scaffold.CreateOwnerApiClient(ownerFrodo.Identity).Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await _scaffold.CreateOwnerApiClient(ownerFrodo.Identity).Transit.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var driveGrants = new List<DriveGrantRequest>()
         {
@@ -281,7 +281,7 @@ public class Feed_Post_Tests
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.PublicPostsChannelDrive,
+                    Drive = WellKnownAppDrives.PublicPostsChannelDrive,
                     Permission = DrivePermission.Read | DrivePermission.React | DrivePermission.Comment
                 }
             }

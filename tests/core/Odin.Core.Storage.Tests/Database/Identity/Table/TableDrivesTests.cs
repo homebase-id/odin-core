@@ -61,5 +61,47 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Assert.That(all.Count, Is.EqualTo(3));
             Assert.That(allCursor, Is.Null);
         }
+        /// <summary>
+        /// The three addressing columns are dormant -- nothing derives them yet -- but they are columns
+        /// rather than detailsJson fields, so what goes in must come back out without a round trip
+        /// through the blob.
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task AddressingColumnsRoundTrip(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tbl = scope.Resolve<TableDrives>();
+
+            var appId = Guid.NewGuid();
+
+            var record = CreateDrivesRecord();
+            record.AppId = appId;
+            record.DriveSlug = "messages";
+            record.DriveTypeSlug = "channel";
+            await tbl.InsertAsync(record);
+
+            var loaded = await tbl.GetAsync(record.DriveId);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.AppId, Is.EqualTo(appId));
+            Assert.That(loaded.DriveSlug, Is.EqualTo("messages"));
+            Assert.That(loaded.DriveTypeSlug, Is.EqualTo("channel"));
+
+            // Unset is the state every drive is in today, and null must survive as null rather than
+            // arriving as an empty string.
+            var unslugged = CreateDrivesRecord();
+            await tbl.InsertAsync(unslugged);
+
+            var loadedUnslugged = await tbl.GetAsync(unslugged.DriveId);
+
+            Assert.That(loadedUnslugged.AppId, Is.Null);
+            Assert.That(loadedUnslugged.DriveSlug, Is.Null);
+            Assert.That(loadedUnslugged.DriveTypeSlug, Is.Null);
+        }
     }
 }

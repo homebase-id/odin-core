@@ -308,7 +308,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinSecurityException($"Not following {odinId}");
             }
 
-            var feedDrive = SystemDriveConstants.FeedDrive;
+            var feedDrive = WellKnownAppDrives.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
 
@@ -491,7 +491,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(
-                SystemDriveConstants.FeedDrive.Alias,
+                WellKnownAppDrives.FeedDrive.Alias,
                 dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
             try
             {

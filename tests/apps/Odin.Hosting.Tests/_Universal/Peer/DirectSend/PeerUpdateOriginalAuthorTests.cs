@@ -180,16 +180,16 @@ public class PeerUpdateOriginalAuthorTests
         // Update the file via pippin's identity
         //
 
-        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var remoteTargetFile = originalFileUpload.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         var globalTransitIdFileIdentifierOnFeed = new GlobalTransitIdFileIdentifier()
         {
             GlobalTransitId = remoteTargetFile.GlobalTransitId.GetValueOrDefault(),
-            TargetDrive = SystemDriveConstants.FeedDrive
+            TargetDrive = WellKnownAppDrives.FeedDrive
         };
 
         //
@@ -197,12 +197,12 @@ public class PeerUpdateOriginalAuthorTests
         //
 
         await Task.Delay(500);
-        await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
+        await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(WellKnownAppDrives.FeedDrive, debugTimeSpan);
         await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeSpan);
 
-        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
         await Task.Delay(500);
-        await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+        await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive);
 
         var member2FileOnFeedBeforeUpdateResponse =
             await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifierOnFeed);
@@ -264,7 +264,7 @@ public class PeerUpdateOriginalAuthorTests
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
         await Task.Delay(500);
         await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeSpan);
-        await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
+        await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(WellKnownAppDrives.FeedDrive, debugTimeSpan);
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
@@ -272,24 +272,24 @@ public class PeerUpdateOriginalAuthorTests
             var uploadResult = updateFileResponse.Content;
             ClassicAssert.IsNotNull(uploadResult);
 
-            await collabChannelOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+            await collabChannelOwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
             await Task.Delay(500);
-            await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive, debugTimeSpan);
             //waiting for distribution to occur
             await Task.Delay(500);
-            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(WellKnownAppDrives.FeedDrive, debugTimeSpan);
             await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeSpan);
 
-            await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+            await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
             await Task.Delay(500);
-            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive);
 
             var tempTempDriveStatus = await member2_OwnerClient.DriveRedux.GetDriveStatus(SystemDriveConstants.TransientTempDrive);
             ClassicAssert.IsNotNull(tempTempDriveStatus.Content);
             ClassicAssert.IsTrue(tempTempDriveStatus.Content.Outbox.TotalItems == 0);
             ClassicAssert.IsTrue(tempTempDriveStatus.Content.Inbox.TotalItems == 0);
 
-            var feedDriveStatus = await member2_OwnerClient.DriveRedux.GetDriveStatus(SystemDriveConstants.FeedDrive);
+            var feedDriveStatus = await member2_OwnerClient.DriveRedux.GetDriveStatus(WellKnownAppDrives.FeedDrive);
             ClassicAssert.IsNotNull(feedDriveStatus.Content);
             ClassicAssert.IsTrue(feedDriveStatus.Content.Outbox.TotalItems == 0);
             ClassicAssert.IsTrue(feedDriveStatus.Content.Inbox.TotalItems == 0);
@@ -298,7 +298,7 @@ public class PeerUpdateOriginalAuthorTests
             // {
             //     QueryParams = new()
             //     {
-            //         TargetDrive = SystemDriveConstants.FeedDrive,
+            //         TargetDrive = WellKnownAppDrives.FeedDrive,
             //     },
             //     ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             // });
@@ -410,9 +410,9 @@ public class PeerUpdateOriginalAuthorTests
         // Update the file via pippin's identity
         //
 
-        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
-        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
-        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, Int32.MaxValue);
+        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, Int32.MaxValue);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, Int32.MaxValue);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(originalAuthor_OwnerClient);
@@ -489,14 +489,14 @@ public class PeerUpdateOriginalAuthorTests
             var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
+                TargetDrive = WellKnownAppDrives.FeedDrive
             };
 
             await Task.Delay(500);
             await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
-            await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, int.MaxValue);
+            await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, int.MaxValue);
             await Task.Delay(500);
-            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive);
 
             var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
             ClassicAssert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);

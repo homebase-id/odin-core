@@ -4,23 +4,40 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Apps;
 using Odin.Services.Base;
+using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Membership.Circles
 {
-    public class CircleDefinitionService(IDriveManager driveManager, TableKeyThreeValueCached tblKeyThreeValue)
+    /// <summary>
+    /// Circle definitions live in the <c>Circle</c> table, one row per circle.
+    /// </summary>
+    /// <remarks>
+    /// They used to live in the shared key-three-value blob, where <c>AppId</c> and <c>GrantOn</c> could
+    /// not be queried or constrained at all.  The enrollment pipeline has to ask "which circles enrol on
+    /// connect?" on the hot path, which is a <c>WHERE GrantOn = ?</c> against an indexed column, not a
+    /// load-all-and-deserialize.  <see cref="CircleDefinitionMigrationService"/> copies existing rows
+    /// across.
+    /// <para>
+    /// Those four fields are columns and are excluded from the row's <c>data</c> blob, so a query on the
+    /// column can never disagree with the hydrated object.
+    /// </para>
+    /// </remarks>
+    public class CircleDefinitionService(
+        IDriveManager driveManager,
+        IdentityDatabase db,
+        LegacyDefinitionStore legacyStore)
     {
-        private const string CircleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
-        private static readonly ThreeKeyValueStorage CircleValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(CircleValueContextKey));
-        private static readonly byte[] CircleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
         {
@@ -73,36 +90,89 @@ namespace Odin.Services.Membership.Circles
                     await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition, skipValidation: true);
                 }
             }
-
-            await EnsureBuiltInCirclesExistAsync();
         }
 
+        // The app-owned circles are not created here.  They have one declaration -- the tree -- and one
+        // creator, EnsureCircleExistsAsync, which is the only path that carries AppId, GrantOn and
+        // Designation onto the row.  Emergency Location Access used to be created here too, from a second
+        // copy of its definition that omitted all three, and because this runs before provisioning that
+        // unowned row is the one every identity ended up with.
+
         /// <summary>
-        /// Provisions the built-in circles that ship with every identity. Unlike system circles, these
-        /// behave as normal owner-managed circles once created (see <see cref="BuiltInCircleConstants"/>).
+        /// Provisions the circles owned by the built-in apps.  A circle whose app is not built-in is not
+        /// created here -- it arrives with the app.
         /// </summary>
-        public async Task EnsureBuiltInCirclesExistAsync()
+        /// <remarks>
+        /// Created with <c>skipValidation</c> for the same reason the circles above are: this runs before
+        /// the drives exist (see <c>TenantConfigService.EnsureInitialOwnerSetupAsync</c>, where circles
+        /// precede drives), so the drive-exists check would fail on a definition that is perfectly valid
+        /// once setup finishes.
+        /// </remarks>
+        /// <summary>
+        /// Creates a circle that ships with an identity, if it is not already there.
+        /// </summary>
+        /// <remarks>
+        /// <c>skipValidation</c> because provisioning creates circles before the drives they grant --
+        /// see the ordering in <c>BuiltinProvisioner</c>. The definition is valid once setup finishes;
+        /// it just is not yet when it is written.
+        /// </remarks>
+        /// <summary>
+        /// Makes a circle match what the app tree says it should be.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="UpdateAsync"/> deliberately will not set <c>AppId</c> -- ownership must not be
+        /// reassignable by anyone who can PUT a definition.  This is the exception, and it exists because
+        /// the tree is the source of truth for the circles it declares.
+        /// <para>
+        /// It corrects rather than fills: a circle that already carries a different owner is moved to the
+        /// one the tree names.  Filling only when empty would leave behind whatever an earlier build
+        /// wrote -- the relationship circles were briefly stamped to chat before the mapping put them
+        /// under Contacts, and a fill-only stamp would silently keep them there forever.
+        /// </para>
+        /// </remarks>
+        internal async Task<bool> ApplyTreeDefinitionAsync(Guid circleId, Guid appId, CircleGrantOn grantOn,
+            CircleDesignation designation)
         {
-            var emergencyLocationAccessDef = await GetCircleAsync(BuiltInCircleConstants.EmergencyLocationAccessCircleId);
-            if (null == emergencyLocationAccessDef)
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null)
             {
-                var def = BuiltInCircleConstants.EmergencyLocationAccessDefinition;
-                await CreateCircleInternalAsync(new CreateCircleRequest
-                {
-                    Id = def.Id,
-                    Name = def.Name,
-                    Description = def.Description,
-                    DriveGrants = def.DriveGrants,
-                    Permissions = def.Permissions
-                }, skipValidation: true);
+                return false;
             }
-            else
+
+            if (circle.AppId == appId && circle.GrantOn == grantOn && circle.Designation == designation)
             {
-                if (BuiltInCircleConstants.EmergencyLocationAccessDefinition != emergencyLocationAccessDef)
-                {
-                    await this.UpdateAsync(BuiltInCircleConstants.EmergencyLocationAccessDefinition, skipValidation: true);
-                }
+                return false;
             }
+
+            circle.AppId = appId;
+            circle.GrantOn = grantOn;
+            circle.Designation = designation;
+
+            // The deposit-only rule has to hold whenever GrantOn changes, and this is one such change.
+            await AssertDepositOnlyIfAmbientAsync(circle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+            return true;
+        }
+
+        public async Task EnsureCircleExistsAsync(CircleDefinition def)
+        {
+            if (await GetCircleAsync(def.Id) != null)
+            {
+                return;
+            }
+
+            await CreateCircleInternalAsync(new CreateCircleRequest
+            {
+                Id = def.Id,
+                Name = def.Name,
+                Description = def.Description,
+                DriveGrants = def.DriveGrants,
+                Permissions = def.Permissions,
+                AppId = def.AppId,
+                GrantOn = def.GrantOn,
+                Designation = def.Designation
+            }, skipValidation: true);
         }
 
         public async Task UpdateAsync(CircleDefinition newCircleDefinition, bool skipValidation = false)
@@ -125,7 +195,17 @@ namespace Odin.Services.Membership.Circles
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            await CircleValueStorage.UpsertAsync(tblKeyThreeValue, existingCircle.Id, GuidId.Empty, CircleDataType, newCircleDefinition);
+            // AppId deliberately not taken from the request: ownership is set when the circle is
+            // created and must not be reassignable by anyone who can PUT a definition.
+            existingCircle.GrantOn = newCircleDefinition.GrantOn;
+            existingCircle.Designation = newCircleDefinition.Designation;
+            existingCircle.Emoji = newCircleDefinition.Emoji;
+
+            // Re-checked on every write, not just the first: the invariant has to hold whenever GrantOn
+            // changes, and an update is the way a circle becomes ambient.
+            await AssertDepositOnlyIfAmbientAsync(existingCircle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(existingCircle));
         }
 
         public async Task<bool> IsEnabledAsync(GuidId circleId)
@@ -136,13 +216,49 @@ namespace Odin.Services.Membership.Circles
 
         public async Task<CircleDefinition> GetCircleAsync(GuidId circleId)
         {
-            var def = await CircleValueStorage.GetAsync<CircleDefinition>(tblKeyThreeValue, circleId);
-            return def;
+            var record = await db.CircleCached.GetAsync(circleId);
+            if (record != null)
+            {
+                return FromRecord(record);
+            }
+
+            // Pre-v13 only.  After the move a missing row means the circle was deleted, and the blob
+            // copy it left behind must not answer for it -- LegacyDefinitionStore says why the gate is
+            // the version and not the miss.
+            if (!await legacyStore.IsPreMoveAsync())
+            {
+                return null;
+            }
+
+            return (await legacyStore.ReadCircleDefinitionsAsync())
+                .SingleOrDefault(c => (Guid)c.Id == (Guid)circleId);
         }
-        
+
+        /// <summary>
+        /// Circles whose owning app wants members enrolled at the given moment.  Served straight from
+        /// the indexed column -- this is the auto-connect hot path.
+        /// </summary>
+        public async Task<List<CircleDefinition>> GetCirclesByGrantOnAsync(CircleGrantOn grantOn)
+        {
+            var records = await db.CircleCached.GetByGrantOnAsync((int)grantOn);
+            return records.Select(FromRecord).ToList();
+        }
+
         public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
         {
-            var circles = (await CircleValueStorage.GetByCategoryAsync<CircleDefinition>(tblKeyThreeValue, CircleDataType) ?? []).ToList();
+            var circles = (await db.CircleCached.GetAllAsync()).Select(FromRecord).ToList();
+
+            // Pre-v13 the definitions are still blob rows.  A union, for the same reason as the app
+            // list: a circle written during the window is in the table and is the newer of the two.
+            // GetCirclesByGrantOnAsync deliberately has no fallback -- a blob circle predates GrantOn,
+            // so it is None, and None is never what that query asks for.
+            if (await legacyStore.IsPreMoveAsync())
+            {
+                var known = circles.Select(c => (Guid)c.Id).ToHashSet();
+                circles.AddRange((await legacyStore.ReadCircleDefinitionsAsync())
+                    .Where(c => !known.Contains((Guid)c.Id)));
+            }
+
             if (!includeSystemCircle)
             {
                 circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
@@ -161,7 +277,7 @@ namespace Odin.Services.Membership.Circles
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
-            await CircleValueStorage.DeleteAsync(tblKeyThreeValue, id);
+            await db.CircleCached.DeleteAsync(id);
         }
 
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)
@@ -224,6 +340,60 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
+        /// <summary>
+        /// A circle that enrols without the owner present may hand out deposit capability and nothing
+        /// else: write/react drive permissions, no read beyond drives that are already public, and no
+        /// permission keys.
+        /// </summary>
+        /// <remarks>
+        /// This is what makes "an unreviewed connection holds zero read keys" an enforced property rather
+        /// than a convention.  It is checked when the definition is written -- not when the grant is
+        /// minted -- for the same confused-deputy reason the drives-it-can-already-read rule is: an app
+        /// can plant a definition, and the next owner-driven grant would mint it with the master key in
+        /// scope.
+        /// <para>
+        /// Read is permitted on drives with <c>AllowAnonymousReads</c>, since a member gains nothing a
+        /// stranger did not already have.  That carve-out is how connections keep decrypting public-drive
+        /// content.
+        /// </para>
+        /// </remarks>
+        public async Task AssertDepositOnlyIfAmbientAsync(CircleDefinition circle)
+        {
+            if (circle.GrantOn is not (CircleGrantOn.Connect or CircleGrantOn.OwnFlowConnect))
+            {
+                return;
+            }
+
+            if (circle.Permissions?.Keys?.Any() ?? false)
+            {
+                throw new OdinClientException(
+                    $"Circle '{circle.Name}' enrols on connect and cannot carry permission keys; " +
+                    "identity-wide keys are only mintable at the review.",
+                    OdinClientErrorCode.CannotGrantKeysOnAmbientCircle);
+            }
+
+            foreach (var grant in circle.DriveGrants ?? [])
+            {
+                var permission = grant.PermissionedDrive.Permission;
+
+                if (!permission.HasFlag(DrivePermission.Read))
+                {
+                    continue;
+                }
+
+                var drive = await driveManager.GetDriveAsync(grant.PermissionedDrive.Drive.Alias);
+
+                if (drive is not { AllowAnonymousReads: true })
+                {
+                    throw new OdinClientException(
+                        $"Circle '{circle.Name}' enrols on connect and cannot grant read on " +
+                        $"{grant.PermissionedDrive.Drive}; read grants carry a storage key and are only " +
+                        "mintable at the review.",
+                        OdinClientErrorCode.CannotGrantReadOnAmbientCircle);
+                }
+            }
+        }
+
         private void AssertValidPermissionSet(PermissionSet permissionSet)
         {
             if (permissionSet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
@@ -253,12 +423,72 @@ namespace Odin.Services.Membership.Circles
                 Name = request.Name,
                 Description = request.Description,
                 DriveGrants = request.DriveGrants,
-                Permissions = request.Permissions
+                Permissions = request.Permissions,
+                AppId = request.AppId,
+                GrantOn = request.GrantOn,
+                Designation = request.Designation,
+                Emoji = request.Emoji
             };
 
-            await CircleValueStorage.UpsertAsync(tblKeyThreeValue, circle.Id, GuidId.Empty, CircleDataType, circle);
+            await AssertDepositOnlyIfAmbientAsync(circle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
 
             return circle;
+        }
+
+        //
+
+        internal static CircleRecord ToRecord(CircleDefinition definition)
+        {
+            var appId = definition.AppId;
+            var grantOn = definition.GrantOn;
+            var designation = definition.Designation;
+            var emoji = definition.Emoji;
+
+            // Clear before serializing so the blob holds no second copy of what the columns own -- the
+            // same trick ToConnectionsRecord uses for the grant collections. Restored immediately: the
+            // caller's object is still live.
+            definition.AppId = null;
+            definition.GrantOn = CircleGrantOn.None;
+            definition.Designation = CircleDesignation.Personal;
+            definition.Emoji = null;
+
+            byte[] data;
+            try
+            {
+                data = OdinSystemSerializer.Serialize(definition).ToUtf8ByteArray();
+            }
+            finally
+            {
+                definition.AppId = appId;
+                definition.GrantOn = grantOn;
+                definition.Designation = designation;
+                definition.Emoji = emoji;
+            }
+
+            return new CircleRecord
+            {
+                circleId = definition.Id,
+                circleName = definition.Name,
+                data = data,
+                AppId = appId,
+                GrantOn = (int)grantOn,
+                Designation = (int)designation,
+                Emoji = emoji
+            };
+        }
+
+        internal static CircleDefinition FromRecord(CircleRecord record)
+        {
+            var definition = OdinSystemSerializer.Deserialize<CircleDefinition>(record.data.ToStringFromUtf8Bytes());
+
+            definition.AppId = record.AppId;
+            definition.GrantOn = (CircleGrantOn)record.GrantOn;
+            definition.Designation = (CircleDesignation)record.Designation;
+            definition.Emoji = record.Emoji;
+
+            return definition;
         }
     }
 }

@@ -28,7 +28,7 @@ public class FeedWriter(
     public async Task WriteNewFileToFeedDriveAsync(KeyHeader keyHeader, FileMetadata fileMetadata, IOdinContext odinContext)
     {
         // Method assumes you ensured the file was unique by some other method
-        var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+        var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
         await _fileSystem.Storage.AssertCanWriteToDrive(feedDriveId, odinContext);
 
         if (fileMetadata.DataSource == null)
@@ -66,7 +66,7 @@ public class FeedWriter(
         var targetFile = new InternalDriveFileId()
         {
             FileId = fileId,
-            DriveId = SystemDriveConstants.FeedDrive.Alias
+            DriveId = WellKnownAppDrives.FeedDrive.Alias
         };
         
         await _fileSystem.Storage.AssertCanWriteToDrive(targetFile.DriveId, odinContext);
@@ -88,7 +88,7 @@ public class FeedWriter(
             header.EncryptedKeyHeader = await _fileSystem.Storage.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext);
         }
 
-        var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+        var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
         if (targetFile.DriveId != feedDriveId)
         {
             throw new OdinSystemException("Method cannot be used on drive");
@@ -130,7 +130,7 @@ public class FeedWriter(
     {
         await _fileSystem.Storage.AssertCanWriteToDrive(file.DriveId, odinContext);
         var header = await _fileSystem.Storage.GetServerFileHeaderForWriting(file, odinContext);
-        var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+        var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
 
         if (file.DriveId != feedDriveId)
         {

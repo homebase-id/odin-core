@@ -20,7 +20,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// Verifies the v9 → v10 migration: the system connection circles
 /// (<see cref="SystemCircleConstants.ConfirmedConnectionsCircleId"/> and
 /// <see cref="SystemCircleConstants.AutoConnectionsCircleId"/>) grant
-/// <see cref="DrivePermission.Read"/> on the <see cref="SystemDriveConstants.ProfileDrive"/>, and — the
+/// <see cref="DrivePermission.Read"/> on the <see cref="WellKnownAppDrives.ProfileDrive"/>, and — the
 /// real goal — every connected member's circle grant ends up carrying the drive's <b>storage key</b>
 /// (<see cref="RedactedDriveGrant.HasStorageKey"/>) so they can decrypt ProfileDrive data.
 ///
@@ -106,11 +106,11 @@ public class V9ToV10ProfileDriveMigrationTests : V2Fixture
             "migration should grant ProfileDrive Read to the auto-connections circle");
 
         // The grant must not be duplicated by a repeated run.
-        Assert.That(confirmedAfter.DriveGrants.Count(g => g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive), Is.EqualTo(1),
+        Assert.That(confirmedAfter.DriveGrants.Count(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive), Is.EqualTo(1),
             "ProfileDrive grant should appear exactly once after repeated migration runs");
 
         // Existing drive grants are preserved (both circles ship with a ChatDrive grant).
-        Assert.That(confirmedAfter.DriveGrants.Any(g => g.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive), Is.True,
+        Assert.That(confirmedAfter.DriveGrants.Any(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive), Is.True,
             "the existing ChatDrive grant on the confirmed-connections circle must be preserved");
     }
 
@@ -122,14 +122,14 @@ public class V9ToV10ProfileDriveMigrationTests : V2Fixture
 
         var circleGrant = info.Content.AccessGrant.CircleGrants.SingleOrDefault(cg => cg.CircleId == circleId);
         return circleGrant?.DriveGrants?.SingleOrDefault(g =>
-            g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive);
+            g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive);
     }
 
     private static async Task RemoveProfileDriveGrantAsync(CircleDefinitionService service, GuidId circleId)
     {
         var def = await service.GetCircleAsync(circleId);
         def.DriveGrants = def.DriveGrants
-            .Where(g => g.PermissionedDrive.Drive != SystemDriveConstants.ProfileDrive)
+            .Where(g => g.PermissionedDrive.Drive != WellKnownAppDrives.ProfileDrive)
             .ToList();
         await service.UpdateAsync(def, skipValidation: true);
     }
@@ -137,7 +137,7 @@ public class V9ToV10ProfileDriveMigrationTests : V2Fixture
     private static bool HasProfileDriveRead(CircleDefinition circle)
     {
         return circle?.DriveGrants?.Any(g =>
-            g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+            g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
             g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)) ?? false;
     }
 

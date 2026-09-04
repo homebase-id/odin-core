@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -22,14 +23,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
     /// v8 → v9: introduces the server-side Contact API. Contact writes now funnel through
     /// <c>/api/v2/contacts</c>, which requires the new <see cref="PermissionKeys.ManageContacts"/>
     /// app permission. This migration grants <c>ManageContacts</c> to every already-registered app
-    /// that currently holds <b>write</b> access to the <see cref="SystemDriveConstants.ContactDrive"/>
+    /// that currently holds <b>write</b> access to the <see cref="WellKnownAppDrives.ContactDrive"/>
     /// (today: the Chat and Mail apps), so existing installs keep working after the API ships.
     ///
     /// <para>
-    /// v9 also adds new system drives. The <see cref="SystemDriveConstants.StickerDrive"/> gets an
+    /// v9 also adds new system drives. The <see cref="WellKnownAppDrives.StickerDrive"/> gets an
     /// app-level <see cref="DrivePermission.ReadWrite"/> grant on the system apps that ship with it
-    /// (Chat, Feed, Mail). The <see cref="SystemDriveConstants.LocationDrive"/> gets app-level ReadWrite
-    /// on the Chat app. The <see cref="SystemDriveConstants.ListsDrive"/> is granted exactly like the
+    /// (Chat, Feed, Mail). The <see cref="WellKnownAppDrives.LocationDrive"/> gets app-level ReadWrite
+    /// on the Chat app. The <see cref="WellKnownAppDrives.ListsDrive"/> is granted exactly like the
     /// ChatDrive: app-level ReadWrite on the Chat app, and Write+React to members of the system
     /// connection circles. This migration backfills those grants onto existing installs.
     /// </para>
@@ -79,6 +80,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             logger.LogDebug("Updating system circle definitions");
             await circleDefinitionService.EnsureSystemCirclesExistAsync();
 
+            // v9 is where Emergency Location Access arrives.  EnsureSystemCirclesExistAsync used to
+            // create it as a side effect from a second copy of its definition; it is created here from
+            // the tree instead, which is what a v13 identity gets and carries the owning app with it.
+            await circleDefinitionService.EnsureCircleExistsAsync(BuiltinCircles.EmergencyLocationAccessCircle);
+
             cancellationToken.ThrowIfCancellationRequested();
 
             // 3. Re-grant connected identities so the ListsDrive circle grant is actually issued.
@@ -90,14 +96,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             cancellationToken.ThrowIfCancellationRequested();
 
             // The new v9 Emergency Location Access built-in circle definition must have been provisioned
-            // by EnsureSystemCirclesExistAsync. It ships empty (no members), so there's nothing to
-            // backfill onto connected identities — only the definition itself needs to exist.
-            var emergencyLocationCircle =
-                await circleDefinitionService.GetCircleAsync(BuiltInCircleConstants.EmergencyLocationAccessCircleId);
+            // by the upgrade above. It ships empty (no members), so there's nothing to backfill onto
+            // connected identities — only the definition itself needs to exist.
+            var emergencyLocationCircleId = BuiltinCircles.EmergencyLocationAccessCircle.Id;
+            var emergencyLocationCircle = await circleDefinitionService.GetCircleAsync(emergencyLocationCircleId);
             if (emergencyLocationCircle == null)
             {
                 throw new OdinSystemException(
-                    $"Built-in circle {BuiltInCircleConstants.EmergencyLocationAccessCircleId} (Emergency Location Access) was not created");
+                    $"Built-in circle {emergencyLocationCircleId} (Emergency Location Access) was not created");
             }
 
             var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
@@ -158,7 +164,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                     }
 
                     var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                        .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.ListsDrive);
+                        .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ListsDrive);
 
                     if (driveGrant == null)
                     {
@@ -187,7 +193,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                         }
 
                         var appListsGrant = chatAppCircleGrant.KeyStoreKeyEncryptedDriveGrants
-                            .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.ListsDrive);
+                            .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ListsDrive);
 
                         if (appListsGrant == null ||
                             !appListsGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) ||
@@ -395,12 +401,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
         {
             if (app.AppId == SystemAppConstants.ChatAppId)
             {
-                return [SystemDriveConstants.StickerDrive, SystemDriveConstants.ListsDrive, SystemDriveConstants.LocationDrive];
+                return [WellKnownAppDrives.StickerDrive, WellKnownAppDrives.ListsDrive, WellKnownAppDrives.LocationDrive];
             }
 
             if (app.AppId == SystemAppConstants.FeedAppId || app.AppId == SystemAppConstants.MailAppId)
             {
-                return [SystemDriveConstants.StickerDrive];
+                return [WellKnownAppDrives.StickerDrive];
             }
 
             return [];
@@ -419,7 +425,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                     {
                         PermissionedDrive = new PermissionedDrive
                         {
-                            Drive = SystemDriveConstants.ListsDrive,
+                            Drive = WellKnownAppDrives.ListsDrive,
                             Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
@@ -432,7 +438,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
         private static bool HasContactDriveWriteAccess(RedactedAppRegistration app)
         {
             return app.Grant?.DriveGrants?.Any(g =>
-                g.PermissionedDrive.Drive == SystemDriveConstants.ContactDrive &&
+                g.PermissionedDrive.Drive == WellKnownAppDrives.ContactDrive &&
                 g.PermissionedDrive.Permission.HasFlag(DrivePermission.Write)) ?? false;
         }
 

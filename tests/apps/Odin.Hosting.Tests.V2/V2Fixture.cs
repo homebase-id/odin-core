@@ -121,7 +121,7 @@ public abstract class V2Fixture
     {
         var owner = await LoginAsOwner(ownerIdentity ?? Identities.Frodo);
         var d = spec.DriveSpec;
-        await owner.Admin.CreateDrive(d.Drive, d.Name, d.AllowAnonymousReads, d.OwnerOnly, d.AllowSubscriptions);
+        await owner.Admin.EnsureDrive(d.Drive, d.Name, d.AllowAnonymousReads, d.OwnerOnly, d.AllowSubscriptions);
         var caller = await spec.Build(owner);
         return (caller, owner);
     }

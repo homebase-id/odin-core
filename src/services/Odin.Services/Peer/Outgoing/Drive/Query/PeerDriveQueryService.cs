@@ -10,6 +10,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Apps;
@@ -22,6 +23,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Query;
+using Odin.Services.Util;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Query;
@@ -33,8 +35,89 @@ public class PeerDriveQueryService(
     ILogger<PeerDriveQueryService> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    OdinConfiguration odinConfiguration)
+    OdinConfiguration odinConfiguration,
+    ITenantLevel2Cache<PeerDriveQueryService> addressCache)
 {
+    private static readonly TimeSpan AddressCacheTtl = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// Asks <paramref name="odinId"/> what <c>/apps/{appSlug}/drives/{driveSlug}</c> names on its side,
+    /// so a caller can address a remote drive without both hosts sharing hardcoded guid constants.
+    /// Throws when nothing there answers to that address.
+    /// </summary>
+    /// <remarks>
+    /// Cached because the answer is stable: a slug is immutable once written, and it resolves to a
+    /// drive id that is likewise fixed.  Keyed by recipient and address only -- the remote decides what
+    /// this identity may see, and that decision is per identity, which is exactly the scope of a tenant
+    /// cache.  Only successes are cached: a miss can become a hit as soon as the remote creates the
+    /// drive, and caching that would strand the caller for the TTL.
+    /// </remarks>
+    public async Task<TargetDrive> ResolveRemoteDriveAsync(OdinId odinId, string appSlug, string driveSlug,
+        IOdinContext odinContext)
+    {
+        // Either transit permission, not Read alone: resolution serves the write routes too, and a
+        // caller that may send to a remote drive but not read from it must still be able to name it.
+        var perms = odinContext.PermissionsContext;
+        if (!perms.HasPermission(PermissionKeys.UseTransitRead) && !perms.HasPermission(PermissionKeys.UseTransitWrite))
+        {
+            throw new OdinSecurityException(
+                $"Resolving a peer drive address requires {nameof(PermissionKeys.UseTransitRead)} or " +
+                $"{nameof(PermissionKeys.UseTransitWrite)}");
+        }
+
+        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
+        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+
+        var cacheKey = $"peer-drive-address:{odinId}:{appSlug}:{driveSlug}";
+        var cached = await addressCache.TryGetAsync<TargetDrive>(cacheKey);
+        if (cached.HasValue && cached.Value != null)
+        {
+            return cached.Value;
+        }
+
+        var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
+
+        var request = new ResolveDriveAddressRequest
+        {
+            AppSlug = appSlug,
+            DriveSlug = driveSlug
+        };
+
+        ApiResponse<PerimeterDriveData> response = null;
+        try
+        {
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.ResolveDriveAddress(request); });
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+
+        // A 404 here is the remote saying "nothing of mine answers to that", which includes drives the
+        // caller may not read -- the perimeter does not distinguish the two, so neither can this.
+        if (response?.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new OdinClientException($"{odinId} has no drive at /apps/{appSlug}/drives/{driveSlug}",
+                OdinClientErrorCode.InvalidDrive);
+        }
+
+        await HandleInvalidResponseAsync(odinId, response, odinContext);
+
+        var targetDrive = response.Content?.TargetDrive;
+        if (targetDrive == null)
+        {
+            throw new OdinClientException($"{odinId} has no drive at /apps/{appSlug}/drives/{driveSlug}",
+                OdinClientErrorCode.InvalidDrive);
+        }
+
+        await addressCache.SetAsync(cacheKey, targetDrive, AddressCacheTtl);
+        return targetDrive;
+    }
+
     public async Task<QueryModifiedResult> GetModifiedAsync(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {

@@ -170,7 +170,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
     {
         var qp = new FileQueryParamsV1()
         {
-            TargetDrive = SystemDriveConstants.FeedDrive,
+            TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 

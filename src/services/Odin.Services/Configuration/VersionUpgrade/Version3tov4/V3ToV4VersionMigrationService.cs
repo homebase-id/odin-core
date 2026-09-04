@@ -46,7 +46,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
             var confirmedCircle = await circleDefinitionService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsDefinition.Id);
             foreach (var dg in SystemCircleConstants.ConfirmedConnectionsDefinition.DriveGrants)
             {
-                if (dg.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive)
+                if (dg.PermissionedDrive.Drive == WellKnownAppDrives.ShardRecoveryDrive)
                 {
                     // skipping in the v4 upgrade because this was added in v6 and will be handled there
                     continue;
@@ -69,7 +69,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
             var autoCircle = await circleDefinitionService.GetCircleAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition.Id);
             foreach (var dg in SystemCircleConstants.AutoConnectionsSystemCircleDefinition.DriveGrants)
             {
-                if (dg.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive)
+                if (dg.PermissionedDrive.Drive == WellKnownAppDrives.ShardRecoveryDrive)
                 {
                     // skipping in the v4 upgrade because this was added in v6 and will be handled there
                     continue;

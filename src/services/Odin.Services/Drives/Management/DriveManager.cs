@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
@@ -107,6 +108,74 @@ public class DriveManager : IDriveManager
             throw new OdinClientException("Drive by alias and type already exists", OdinClientErrorCode.InvalidDrive);
         }
 
+        // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
+        // unset field as "" or " " routinely, and without this the three spellings diverge: null and
+        // "" derive a slug while "   " fails validation and throws. Note this is not coercion of a
+        // real slug -- there is no address inside "   " to preserve. Anything with actual content is
+        // still validated and rejected on failure, so " chat " is an error, never trimmed to "chat".
+        var requestedSlug = string.IsNullOrWhiteSpace(request.DriveSlug) ? null : request.DriveSlug;
+        var requestedTypeSlug = string.IsNullOrWhiteSpace(request.DriveTypeSlug) ? null : request.DriveTypeSlug;
+
+        // Format only, and only when supplied. A slug is a URL segment and a wire address other
+        // identities resolve against, so a malformed one is rejected rather than coerced -- silently
+        // lowercasing or stripping produces an address the caller did not ask for.
+        OdinSlug.AssertValidOrNull(requestedSlug, nameof(request.DriveSlug));
+        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(request.DriveTypeSlug));
+
+        // AppId is taken on trust: it is never resolved, and the owning app is NOT required to exist.
+        // Provisioning creates drives before it registers apps (BuiltinProvisioner.EnsureAllAsync),
+        // because a registration is granted drives and a grant cannot be issued for a drive that is not
+        // there. Validating the app here would invert that and break identity setup. The reverse
+        // dependency is the real one; this direction must stay unchecked.
+        //
+        // The caller's values win; only a missing one is derived. A supplied slug is never replaced --
+        // it is an address, so handing back a different one would be worse than refusing.
+        //
+        // Nothing is derived for a drive with no owning app. The invariant is that AppId and DriveSlug
+        // are set together or both NULL (docs/drive-addressing.md, Schema): NULLs are distinct in a
+        // unique index in both dialects, so a slug on an AppId-less row is unconstrained and two drives
+        // could claim the same one. Every drive is expected to carry an AppId -- system drives included,
+        // under the system app -- so in practice this guard does not fire; it is what keeps the
+        // invariant true for anything that slips through without one.
+        var driveSlug = requestedSlug;
+        var driveTypeSlug = requestedTypeSlug;
+
+        if (request.AppId != null)
+        {
+            // Scope the taken set to this app: the constraint is per app, so feed/news and chat/news
+            // may coexist. Deduping across the whole identity would hand the second one "news-2" -- a
+            // permanent address nobody asked for, for a collision the schema permits.
+            //
+            // Read unconditionally, not only when deriving. The set answers both questions -- what a
+            // derived slug must avoid, and whether a supplied one is already claimed -- and without
+            // the second, a caller-supplied duplicate would reach the insert and surface as a raw
+            // UNIQUE(identityId, AppId, DriveSlug) violation instead of a client error.
+            var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+            var taken = new HashSet<string>(
+                existingDrives
+                    .Where(d => d.AppId == request.AppId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                    .Select(d => d.DriveSlug),
+                StringComparer.Ordinal);
+
+            if (driveSlug == null)
+            {
+                driveSlug = DriveSlugGenerator.Generate(request.TargetDrive.Alias.Value, request.Name, taken);
+            }
+            else if (taken.Contains(driveSlug))
+            {
+                // Refuse rather than suffix. A supplied slug is an address the caller intends to
+                // resolve against; handing back "news-2" would look like success and silently give
+                // them a different one. Re-creating the same drive is not this case -- an existing
+                // alias+type is already rejected above -- so this is always a different drive
+                // claiming a name the app holds.
+                throw new OdinClientException(
+                    $"Drive slug '{driveSlug}' is already used by another drive on this app",
+                    OdinClientErrorCode.IdAlreadyExists);
+            }
+
+            driveTypeSlug ??= DriveSlugGenerator.TypeSlugFor(request.TargetDrive.Alias.Value, request.TargetDrive.Type.Value);
+        }
+
         var mk = odinContext.Caller.GetMasterKey();
 
         var driveKey = new SymmetricKeyEncryptedAes(mk);
@@ -136,7 +205,13 @@ public class DriveManager : IDriveManager
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
-            StorageKeyCheckValue = id
+            StorageKeyCheckValue = id,
+
+            // Columns, not details -- see ToRecord. The slugs are the caller's or derived above; AppId is
+            // still the caller's alone, since nothing decides drive ownership yet.
+            AppId = request.AppId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug
         };
 
         try
@@ -176,7 +251,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinSecurityException("Cannot change system drive");
         }
@@ -212,7 +287,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinSecurityException("Cannot change system drive");
         }
@@ -280,7 +355,7 @@ public class DriveManager : IDriveManager
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinClientException("Cannot archive system drive");
         }
@@ -312,6 +387,52 @@ public class DriveManager : IDriveManager
                 OdinContext = odinContext,
             });
         }
+    }
+
+    /// <summary>
+    /// Sets a drive's owning app and address.  Migration only.
+    /// </summary>
+    /// <remarks>
+    /// There is no other way in: <see cref="CreateDriveAsync"/> sets these once and nothing updates them,
+    /// because a slug is a wire address other identities resolve against.  This exists because the tree
+    /// is the source of truth for the drives it declares, and it corrects rather than fills -- a drive
+    /// carrying a value an earlier build wrote is moved to what the tree now says.
+    /// <para>
+    /// Note it does <b>not</b> refuse protected drives, unlike every other setter here.  All fourteen are
+    /// protected, so guarding on that would make it useless for the one job it has.
+    /// </para>
+    /// <para>
+    /// <paramref name="appId"/> and <paramref name="driveTypeSlug"/> are nullable because a drive nobody
+    /// declares still gets a slug: it keeps whatever owner it had, and an unknown drive type has no
+    /// readable form to derive.
+    /// </para>
+    /// </remarks>
+    internal async Task<bool> ApplyAddressAsync(Guid driveId, Guid? appId, string driveSlug,
+        string? driveTypeSlug, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        OdinSlug.AssertValidOrNull(driveSlug, nameof(driveSlug));
+        OdinSlug.AssertValidOrNull(driveTypeSlug, nameof(driveTypeSlug));
+
+        var storageDrive = await GetDriveInternal(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (storageDrive.AppId == appId && storageDrive.DriveSlug == driveSlug &&
+            storageDrive.DriveTypeSlug == driveTypeSlug)
+        {
+            return false;
+        }
+
+        storageDrive.AppId = appId;
+        storageDrive.DriveSlug = driveSlug;
+        storageDrive.DriveTypeSlug = driveTypeSlug;
+
+        await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+        return true;
     }
 
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
@@ -396,6 +517,54 @@ public class DriveManager : IDriveManager
         return results;
     }
 
+    /// <summary>
+    /// The drive an app addresses as <c>{driveSlug}</c> -- the second half of
+    /// <c>/apps/{appSlug}/drives/{driveSlug}</c>, once the app slug has been resolved to an id.
+    /// Returns null when the app owns no drive by that slug, or when the caller may not see it.
+    /// </summary>
+    /// <remarks>
+    /// Filters the cached all-drives list rather than querying by slug. Drives number in the tens, the
+    /// list is already loaded for every other read on this class, and going through it means this
+    /// lookup inherits the same archived/owner-only/anonymous filtering as its siblings -- a slug must
+    /// not reveal a drive that <see cref="GetDrivesAsync(PageOptions, IOdinContext)"/> would hide.
+    ///
+    /// The result is single because UNIQUE(identityId, AppId, DriveSlug) makes it so: slugs are unique
+    /// per app, not per identity, so feed/news and chat/news are different drives and neither is
+    /// ambiguous. A drive with no AppId is unreachable here -- correctly, since an unowned row's slug
+    /// is unconstrained (NULLs are distinct in a unique index) and could be claimed twice.
+    /// </remarks>
+    public async Task<StorageDrive?> GetDriveBySlugAsync(
+        Guid appId,
+        string driveSlug,
+        IOdinContext odinContext,
+        bool failIfInvalid = false)
+    {
+        var drive = string.IsNullOrWhiteSpace(driveSlug)
+            ? null
+            : (await GetDrivesByAppIdAsync(appId, odinContext))
+                .SingleOrDefault(d => string.Equals(d.DriveSlug, driveSlug, StringComparison.Ordinal));
+
+        if (drive == null && failIfInvalid)
+        {
+            throw new OdinClientException($"No drive '{driveSlug}' on app {appId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        return drive;
+    }
+
+    /// <summary>
+    /// Every drive owned by an app that the caller may see, for <c>GET /apps/{appSlug}/drives</c>.
+    /// </summary>
+    /// <remarks>
+    /// No type-slug filter: an app owns a handful of drives, so <c>?type=</c> belongs on this result
+    /// rather than in a second lookup.
+    /// </remarks>
+    public async Task<List<StorageDrive>> GetDrivesByAppIdAsync(Guid appId, IOdinContext odinContext)
+    {
+        var page = await GetDrivesInternalAsync(false, PageOptions.All, odinContext);
+        return page.Results.Where(d => d.AppId == appId).ToList();
+    }
+
     public async Task<PagedResult<StorageDrive>> GetAnonymousDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
     {
         var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
@@ -449,7 +618,13 @@ public class DriveManager : IDriveManager
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(details),
-            StorageKeyCheckValue = storageDrive.TempOriginalDriveId
+            StorageKeyCheckValue = storageDrive.TempOriginalDriveId,
+
+            // Columns, not details: UNIQUE(identityId, AppId, DriveSlug) constrains these, and a copy
+            // inside detailsJson could drift from what the constraint is enforcing.
+            AppId = storageDrive.AppId,
+            DriveSlug = storageDrive.DriveSlug,
+            DriveTypeSlug = storageDrive.DriveTypeSlug
         };
 
         return record;
@@ -539,7 +714,11 @@ public class DriveManager : IDriveManager
             AllowSubscriptions = driveDetails.AllowSubscriptions,
             AllowCdn = driveDetails.AllowCdn,
             Attributes = driveDetails.Attributes,
-            IsArchived = driveDetails.IsArchived
+            IsArchived = driveDetails.IsArchived,
+
+            AppId = record.AppId,
+            DriveSlug = record.DriveSlug,
+            DriveTypeSlug = record.DriveTypeSlug
         };
 
         return sdd;

@@ -174,7 +174,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             FileId = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
+                TargetDrive = WellKnownAppDrives.FeedDrive
             },
             UniqueId = header.FileMetadata.AppData.UniqueId,
             FileMetadata = header.FileMetadata,
@@ -203,7 +203,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             FileId = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
+                TargetDrive = WellKnownAppDrives.FeedDrive
             },
             UniqueId = header.FileMetadata.AppData.UniqueId,
         };

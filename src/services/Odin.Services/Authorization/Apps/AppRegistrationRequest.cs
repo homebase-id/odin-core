@@ -14,6 +14,22 @@ namespace Odin.Services.Authorization.Apps
         public string Name { get; set; }
 
         /// <summary>
+        /// The app's wire address -- the segment other identities resolve against
+        /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).  Optional.
+        /// </summary>
+        /// <remarks>
+        /// A slug is a package name, not a role: a second chat implementation picks its own
+        /// (<c>chatty</c>) rather than occupying <c>chat</c> -- see <c>docs/drive-addressing.md</c>.
+        /// Registration is first-come and the slug is immutable once written, because other identities
+        /// may already hold it.
+        /// <para>
+        /// Not required.  Omit it and the server derives one from <see cref="Name"/>, which is what every
+        /// app registered before this field existed got.
+        /// </para>
+        /// </remarks>
+        public string AppSlug { get; set; }
+
+        /// <summary>
         /// The host name used for CORS to allow the app to access the identity from a browser
         /// </summary>
         public string CorsHostName { get; set; }

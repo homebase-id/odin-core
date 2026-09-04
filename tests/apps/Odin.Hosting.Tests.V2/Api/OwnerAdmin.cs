@@ -74,7 +74,10 @@ public sealed partial class OwnerAdmin
         bool ownerOnly = false,
         bool allowSubscriptions = false,
         System.Collections.Generic.Dictionary<string, string>? attributes = null,
-        bool allowCdn = false)
+        bool allowCdn = false,
+        Guid? appId = null,
+        string? driveSlug = null,
+        string? driveTypeSlug = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
@@ -88,9 +91,42 @@ public sealed partial class OwnerAdmin
             AllowCdn = allowCdn,
             OwnerOnly = ownerOnly,
             Attributes = attributes,
+
+            // Addressing: set together or both null. A drive with an AppId gets a slug either way --
+            // the server derives one from Name when none is given -- so passing appId alone is a
+            // legitimate case worth being able to express here.
+            AppId = appId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug,
         });
         EnsureSuccess(response, nameof(CreateDrive));
         return response;
+    }
+
+    /// <summary>
+    /// Creates a drive unless the identity already has it.
+    /// </summary>
+    /// <remarks>
+    /// A test that names a drive in its <see cref="DriveSpec"/> is stating a precondition -- "this
+    /// drive exists" -- not claiming to be the one that made it.  Drives the app tree provisions are
+    /// already there before the test runs, and <see cref="CreateDrive"/> answers that with
+    /// <c>400 Drive by alias and type already exists</c>.  Use this for setup; use
+    /// <see cref="CreateDrive"/> where creating is the thing under test.
+    /// </remarks>
+    public async Task EnsureDrive(
+        TargetDrive drive,
+        string name,
+        bool allowAnonymousReads = true,
+        bool ownerOnly = false,
+        bool allowSubscriptions = false)
+    {
+        var existing = await GetDrives();
+        if (existing.Any(d => d.TargetDriveInfo == drive))
+        {
+            return;
+        }
+
+        await CreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions);
     }
 
     /// <summary>
