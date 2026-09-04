@@ -697,5 +697,105 @@ public class ScopedConnectionFactoryTest : IocTestBase
         Assert.That(postCommitText, Is.EqualTo("Hello"));
     }
 
-}
 
+    //
+
+    // A post-commit action that opens its own transaction used to be re-run: at that point the
+    // ref count is already zero, so the nested BeginStackedTransactionAsync did not stack, it
+    // started a fresh outermost transaction, and disposing that one iterated the action list
+    // again because it had not been cleared yet.
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldNotRerunPostCommitActionsWhenAnActionStartsItsOwnTransaction(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        var runCount = 0;
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            scopedConnectionFactory.AddPostCommitAction(async () =>
+            {
+                // Only the first run opens a transaction, so a re-run stops here instead of
+                // recursing until the stack gives out.
+                if (++runCount > 1)
+                {
+                    return;
+                }
+
+                await using var innerTx = await cn.BeginStackedTransactionAsync();
+                innerTx.Commit();
+            });
+            tx.Commit();
+        }
+
+        Assert.That(runCount, Is.EqualTo(1));
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldNotRerunPostRollbackActionsWhenAnActionStartsItsOwnTransaction(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        var runCount = 0;
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            scopedConnectionFactory.AddPostRollbackAction(async () =>
+            {
+                if (++runCount > 1)
+                {
+                    return;
+                }
+
+                await using var innerTx = await cn.BeginStackedTransactionAsync();
+            });
+            // no commit: implicit rollback
+        }
+
+        Assert.That(runCount, Is.EqualTo(1));
+    }
+
+    //
+
+    // The transaction is fully torn down before the actions run, so an action sees a clean slate.
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldHaveNoTransactionWhilePostCommitActionsRun(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        bool? hasTransaction = null;
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            scopedConnectionFactory.AddPostCommitAction(() =>
+            {
+                hasTransaction = scopedConnectionFactory.HasTransaction;
+                return Task.CompletedTask;
+            });
+            tx.Commit();
+        }
+
+        Assert.That(hasTransaction, Is.False);
+    }
+
+}
