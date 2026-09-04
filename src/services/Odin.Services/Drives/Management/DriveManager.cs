@@ -204,11 +204,24 @@ public class DriveManager : IDriveManager
         var id = request.TargetDrive.Alias.Value;
         var storageKey = driveKey.DecryptKeyClone(mk);
 
+        // BISECT -- TEMPORARY. Minting is off, so this branch writes NULL to the column exactly as
+        // step-1 does. Nothing else about the branch changes.
+        //
+        // Why: a version upgrade hangs on step-2 and not on step-1, on the same v12 -> v14 climb, and
+        // the whole functional delta on that path is this keypair -- minted here, serialized in
+        // ToRecord, deserialized in ToStorageDriveData. If the hang goes with it, the keypair data is
+        // the cause and the next question is serialization, row size or the drive cache. If the hang
+        // stays, the keypair is innocent and the only other delta is the OdinDatabaseException catch
+        // in PublishDriveDefinitionAddedAsync, which can be reverted on its own.
+        //
+        // Restore this line either way -- the whole branch is built on drives having a keypair.
+        //
         // Minted here because this is the one moment the storage key is guaranteed to be in hand: it is
         // derived from the master key two lines up.  Later paths can only reach it through a grant that
         // carries it, and the caller who most needs the public half -- a stranger fetching it over peer
         // to deposit -- holds no grant at all, so it cannot be minted on demand for them.
-        var writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
+        EccFullKeyData writeOnlyKeyPair = null;
+        // var writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
 
         (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
 
