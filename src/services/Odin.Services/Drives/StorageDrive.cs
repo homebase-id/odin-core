@@ -49,6 +49,14 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     }
 
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => Data.MasterKeyEncryptedStorageKey;
+
+    /// <summary>The drive's write-only keypair; see <see cref="StorageDriveData.WriteOnlyKeyPair"/>.</summary>
+    public EccFullKeyData WriteOnlyKeyPair
+    {
+        get => Data.WriteOnlyKeyPair;
+        set => Data.WriteOnlyKeyPair = value;
+    }
+
     public byte[] EncryptedIdIv => Data.EncryptedIdIv;
     public byte[] EncryptedIdValue => Data.EncryptedIdValue;
 
@@ -260,6 +268,23 @@ public sealed class StorageDriveData
     /// Readable form of the drive's type, e.g. <c>channel</c>.  A category to filter on, not an address.
     /// </summary>
     public string DriveTypeSlug { get; set; }
+
+    /// <summary>
+    /// The drive's write-only keypair -- an ECC-384 <c>EccFullKeyData</c> holding the public half in
+    /// clear and the private half escrowed under this drive's own storage key.  Anyone with the public
+    /// half can seal a deposit to the drive; only a holder of the storage key can unseal it, so
+    /// deposit-collection custody is exactly existing read access (docs/drive-addressing.md).
+    /// </summary>
+    /// <remarks>
+    /// A column, not part of <see cref="StorageDriveDetails"/>, for the same reason the addressing
+    /// fields are: it is minted with the storage key in scope and has no business round-tripping
+    /// through a blob that other writers rebuild.
+    /// <para>
+    /// Null on every drive that predates this and on any drive whose creation had no master key in
+    /// scope.  The v14 -&gt; v15 migration backfills existing drives.
+    /// </para>
+    /// </remarks>
+    public EccFullKeyData WriteOnlyKeyPair { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
 

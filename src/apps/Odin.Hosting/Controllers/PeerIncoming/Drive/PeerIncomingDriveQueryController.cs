@@ -166,6 +166,27 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return drive == null ? NotFound() : drive;
         }
 
+        /// <summary>
+        /// Serves the write-only public key of the drive <c>/apps/{appSlug}/drives/{driveSlug}</c>
+        /// names here, so a caller that may write but not read can seal a deposit to it.
+        /// </summary>
+        /// <remarks>
+        /// 404 when nothing answers to the address; a caller that lacks Write gets a security
+        /// exception rather than a 404, since having resolved the address it already knows the drive
+        /// is there.
+        /// </remarks>
+        [HttpPost("metadata/by-slug/public-key")]
+        public async Task<ActionResult<DrivePublicKeyResponse>> GetDriveWriteOnlyPublicKey(
+            [FromBody] ResolveDriveAddressRequest request)
+        {
+            var perimeterService = GetPerimeterService();
+
+            var key = await perimeterService.GetDriveWriteOnlyPublicKeyAsync(request.AppSlug, request.DriveSlug,
+                WebOdinContext);
+
+            return key == null ? NotFound() : key;
+        }
+
         [HttpPost("metadata/type")]
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody] GetDrivesByTypeRequest request)
         {

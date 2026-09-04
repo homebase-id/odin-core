@@ -183,6 +183,12 @@ public class DriveManager : IDriveManager
         var id = request.TargetDrive.Alias.Value;
         var storageKey = driveKey.DecryptKeyClone(mk);
 
+        // Minted here because this is the one moment the storage key is guaranteed to be in hand: it is
+        // derived from the master key two lines up.  Later paths can only reach it through a grant that
+        // carries it, and the caller who most needs the public half -- a stranger fetching it over peer
+        // to deposit -- holds no grant at all, so it cannot be minted on demand for them.
+        var writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
+
         (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
 
         var driveData = new StorageDriveDetails()
@@ -211,7 +217,8 @@ public class DriveManager : IDriveManager
             // still the caller's alone, since nothing decides drive ownership yet.
             AppId = request.AppId,
             DriveSlug = driveSlug,
-            DriveTypeSlug = driveTypeSlug
+            DriveTypeSlug = driveTypeSlug,
+            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair)
         };
 
         try
@@ -435,6 +442,47 @@ public class DriveManager : IDriveManager
         return true;
     }
 
+    /// <summary>
+    /// Mints the drive's write-only keypair if it has none, for the v14 -&gt; v15 backfill.  Returns
+    /// false when one is already there.
+    /// </summary>
+    /// <remarks>
+    /// Migration-only, for the same reason <see cref="ApplyAddressAsync"/> is: minting needs the drive's
+    /// storage key, which no ordinary write path has cause to reach.  It is taken from the caller's own
+    /// grant rather than by decrypting <c>MasterKeyEncryptedStorageKey</c> with the master key: the two
+    /// yield the same key, but sourcing it from the grant is what the escrow actually means -- the
+    /// private half is sealed under the key that grants access to this drive.
+    /// <para>
+    /// Never overwrites.  Replacing a live keypair would strand every deposit already sealed to the old
+    /// public half, so a drive that has one is skipped and the run stays repeatable.  Key rotation is a
+    /// separate feature with its own grace-window handling (docs/drive-addressing.md).
+    /// </para>
+    /// </remarks>
+    internal async Task<bool> EnsureWriteOnlyKeyPairAsync(Guid driveId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveInternal(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (storageDrive.WriteOnlyKeyPair != null)
+        {
+            return false;
+        }
+
+        // Throws OdinSecurityException when the caller holds no grant on this drive.  Not wiped: the
+        // key belongs to the caller's permission group, which goes on using it after this returns.
+        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+
+        storageDrive.WriteOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
+
+        await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+        return true;
+    }
+
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -624,7 +672,12 @@ public class DriveManager : IDriveManager
             // inside detailsJson could drift from what the constraint is enforcing.
             AppId = storageDrive.AppId,
             DriveSlug = storageDrive.DriveSlug,
-            DriveTypeSlug = storageDrive.DriveTypeSlug
+            DriveTypeSlug = storageDrive.DriveTypeSlug,
+
+            // Must be carried, not rebuilt: this method backs every drive upsert, and omitting the field
+            // wrote NULL over the key on any rename, re-mode or archive.  Harmless while nothing minted
+            // one; silent key loss now that creation does.
+            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(storageDrive.WriteOnlyKeyPair)
         };
 
         return record;
@@ -717,6 +770,7 @@ public class DriveManager : IDriveManager
             IsArchived = driveDetails.IsArchived,
 
             AppId = record.AppId,
+            WriteOnlyKeyPair = DriveWriteOnlyKey.Deserialize(record.WriteOnlyKeyPair),
             DriveSlug = record.DriveSlug,
             DriveTypeSlug = record.DriveTypeSlug
         };

@@ -44,6 +44,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query
         Task<ApiResponse<PerimeterDriveData>> ResolveDriveAddress([Body] ResolveDriveAddressRequest request,
             CancellationToken cancellationToken = default);
 
+        [Post(DriveRoot + "/metadata/by-slug/public-key")]
+        Task<ApiResponse<DrivePublicKeyResponse>> GetDriveWriteOnlyPublicKey([Body] ResolveDriveAddressRequest request,
+            CancellationToken cancellationToken = default);
+
         [Post(DriveRoot + "/metadata/type")]
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request,
             CancellationToken cancellationToken = default);

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.UnifiedV2;
+using Odin.Services.Peer.Incoming.Drive.Query;
 using Odin.Hosting.UnifiedV2.Drive.Read;
 using Odin.Services.Apps;
 using Odin.Services.Base.SharedTypes;
@@ -35,6 +36,10 @@ public interface IPeerAppDriveHttpClientApiV2
     [Post(Drive + "/query-batch")]
     Task<ApiResponse<QueryBatchResponse>> QueryBatch(string odinId, string appSlug, string driveSlug,
         [Body] QueryBatchRequestV2 request);
+
+    [Get(Drive + "/public-key")]
+    Task<ApiResponse<DrivePublicKeyResponse>> GetDriveWriteOnlyPublicKey(string odinId, string appSlug,
+        string driveSlug);
 
     // ---- by FileId ----
 
