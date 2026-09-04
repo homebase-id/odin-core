@@ -1646,35 +1646,9 @@ namespace Odin.Services.Membership.Connections
             return registration;
         }
 
-        /// <summary>
-        /// Writes the connection registration, under the tenant lock.
-        /// </summary>
-        /// <remarks>
-        /// <b>The transaction is opened outside the lock on purpose, and it is load bearing.</b>
-        /// Disposing a transaction is what runs its post-commit actions, and one of those is the
-        /// deferred <c>DriveDefinitionAddedNotification</c>.  Its handler comes back around through
-        /// <c>HandleDriveAdded</c> -&gt; <c>GrantAnonymousRead</c> -&gt;
-        /// <c>UpdateCircleDefinitionAsync</c> and into this method again for the same tenant.
-        /// <para>
-        /// With the write's transaction disposing <i>inside</i> the lock -- which is what happened when
-        /// the only transaction was the one <c>CircleNetworkStorage.UpsertAsync</c> opens -- that
-        /// re-entry asked for a lock this frame was still holding.  The lock is keyed per tenant and is
-        /// not re-entrant, so it never came back: no exception, no thread, no CPU, just a connection
-        /// held open and an upgrade that stopped forever on its first member.
-        /// </para>
-        /// <para>
-        /// Transactions are ref-counted, so the inner one is no longer outermost and no longer runs the
-        /// post-commit actions; they run when this one disposes, by which point the lock is released and
-        /// the re-entrant call can take it.  Ordering changes, semantics do not -- the notification
-        /// still fires only after the commit, which is the whole point of deferring it.
-        /// </para>
-        /// </remarks>
         private async Task SaveIcrAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             var lockKey = NodeLockKey.Create(nameof(CircleNetworkService) + ":" + odinContext?.Tenant);
-
-            await using var tx = await db.BeginStackedTransactionAsync();
-
             await using (await nodeLock.LockAsync(lockKey))
             {
                 //TODO: this is a critical change; need to audit this
@@ -1687,8 +1661,6 @@ namespace Odin.Services.Membership.Connections
                     await circleNetworkStorage.UpsertAsync(icr, odinContext);
                 }
             }
-
-            tx.Commit();
         }
 
         public async Task UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
