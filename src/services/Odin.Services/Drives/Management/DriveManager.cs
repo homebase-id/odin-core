@@ -220,7 +220,6 @@ public class DriveManager : IDriveManager
         // derived from the master key two lines up.  Later paths can only reach it through a grant that
         // carries it, and the caller who most needs the public half -- a stranger fetching it over peer
         // to deposit -- holds no grant at all, so it cannot be minted on demand for them.
-        EccFullKeyData writeOnlyKeyPair = null;
         // var writeOnlyKeyPair = DriveWriteOnlyKey.CreateKeyPair(storageKey);
 
         (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
@@ -252,7 +251,8 @@ public class DriveManager : IDriveManager
             AppId = request.AppId,
             DriveSlug = driveSlug,
             DriveTypeSlug = driveTypeSlug,
-            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair)
+            // BISECT: NULL, as step-1 writes. Restore Serialize(writeOnlyKeyPair) with the mint above.
+            WriteOnlyKeyPair = null
         };
 
         try
