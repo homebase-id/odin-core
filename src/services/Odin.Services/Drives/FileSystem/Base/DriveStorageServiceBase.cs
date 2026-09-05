@@ -29,7 +29,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
-        ILoggerFactory loggerFactory,
+        ILogger<DriveStorageServiceBase> logger,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
@@ -41,7 +41,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         UploadFileStore uploadFileStore,
         FileExpiryScheduler fileExpiryScheduler) : RequirePermissionsBase
     {
-        private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
+        private readonly ILogger<DriveStorageServiceBase> _logger = logger;
 
         protected override IDriveManager DriveManager { get; } = driveManager;
 

@@ -15,7 +15,7 @@ using Odin.Services.Drives.Management;
 namespace Odin.Services.Drives.FileSystem.Comment;
 
 public class CommentFileStorageService(
-    ILoggerFactory loggerFactory,
+    ILogger<DriveStorageServiceBase> logger,
     IMediator mediator,
     IDriveAclAuthorizationService driveAclAuthorizationService,
     IDriveManager driveManager,
@@ -29,7 +29,7 @@ public class CommentFileStorageService(
     FileExpiryScheduler fileExpiryScheduler
 )
     : DriveStorageServiceBase(
-        loggerFactory,
+        logger,
         mediator,
         driveAclAuthorizationService,
         driveManager,
