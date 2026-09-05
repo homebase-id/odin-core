@@ -389,8 +389,7 @@ public class ScopedConnectionFactory<T>(
                     $" Creating command on tid:{Environment.CurrentManagedThreadId} at {filePath}:{lineNumber}");
             }
 
-            var command = instance._connection.CreateCommand();
-            return new CommandWrapper(instance, command);
+            return new CommandWrapper(instance, instance._connection);
         }
 
         //
@@ -642,10 +641,18 @@ public class ScopedConnectionFactory<T>(
     // CommandWrapper
     // A wrapper around a DbCommand that ensures that the command is disposed correctly.
     //
-    private sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
+    private sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbConnection connection) : ICommandWrapper
     {
         private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromSeconds(10);
         private bool _disposed;
+        private DbCommand? _command;
+
+        // Statement reuse is only worthwhile where the prepared statement lives on the command (SQLite);
+        // Npgsql prepares per connection on its own.
+        private readonly bool _reuseCommands = instance.DatabaseType == DatabaseType.Sqlite;
+
+        private DbCommand command => _command ??= connection.CreateCommand();
+
         public DbCommand DangerousInstance => command;
         public DatabaseType DatabaseType => instance.DatabaseType;
 
@@ -654,7 +661,25 @@ public class ScopedConnectionFactory<T>(
         public string CommandText
         {
             get => command.CommandText;
-            set => command.CommandText = value;
+            set
+            {
+                if (_reuseCommands && (_command == null || _command.Parameters.Count == 0) && _command?.CommandText != value)
+                {
+                    var cached = PreparedCommandCache.TryTake(connection, value);
+                    if (cached != null)
+                    {
+                        if (_command != null && !PreparedCommandCache.TryReturn(connection, _command))
+                        {
+                            _command.Dispose();
+                        }
+
+                        _command = cached;
+                        return;
+                    }
+                }
+
+                command.CommandText = value;
+            }
         }
 
         //
@@ -833,8 +858,19 @@ public class ScopedConnectionFactory<T>(
 
             _disposed = true;
 
+            if (_command == null)
+            {
+                return;
+            }
+
+            if (_reuseCommands && PreparedCommandCache.TryReturn(connection, _command))
+            {
+                instance.LogTrace(" Returned command to cache");
+                return;
+            }
+
             instance.LogTrace(" Disposing command");
-            await command.DisposeAsync();
+            await _command.DisposeAsync();
             instance.LogTrace(" Disposed command");
         }
 

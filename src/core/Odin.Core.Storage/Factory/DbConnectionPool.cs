@@ -181,6 +181,7 @@ public class DbConnectionPool(
     private async Task CloseConnectionAsync(DbConnection connection)
     {
         counters.IncrementNoPoolClosed();
+        await PreparedCommandCache.DisposeAllAsync(connection);
         await connection.DisposeAsync();
     }
 
