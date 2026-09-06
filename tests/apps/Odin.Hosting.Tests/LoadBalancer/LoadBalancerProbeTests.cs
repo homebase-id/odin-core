@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using NUnit.Framework;
@@ -21,6 +22,7 @@ using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
@@ -128,6 +130,49 @@ public class LoadBalancerProbeTests
         Assert.That(query.IsSuccessStatusCode, Is.True, $"query on B failed: {query.StatusCode}");
         Assert.That(query.Content!.SearchResults.Count(), Is.EqualTo(1),
             "node B cannot read a file uploaded through node A");
+    }
+
+    /// <summary>The bytes of a payload, unlike a header, do not live in the database. Uploading
+    /// through one node and downloading through the other is what proves blob storage is actually
+    /// shared (S3 or a shared mount) rather than sitting on the uploading node's local disk.</summary>
+    [Test]
+    public async Task PayloadUploadedOnNodeA_IsDownloadableFromNodeB()
+    {
+        var drive = TargetDrive.NewTargetDrive();
+        var created = await DriveManagerFor(NodeA).CreateDrive(new CreateDriveRequest
+        {
+            TargetDrive = drive,
+            Name = "lb payload probe",
+            Metadata = "",
+            AllowAnonymousReads = false,
+        });
+        Assert.That(created.IsSuccessStatusCode, Is.True, $"create on A failed: {created.StatusCode}");
+
+        var payloadBytes = Encoding.UTF8.GetBytes("payload written through node A " + Guid.NewGuid());
+        var payload = new TestPayloadDefinition
+        {
+            Key = "lbprobe1",
+            ContentType = "text/plain",
+            Content = payloadBytes,
+            Thumbnails = [],
+        };
+        var metadata = SampleMetadataData.Create(fileType: 4243, acl: AccessControlList.OwnerOnly);
+
+        var upload = await new UniversalDriveApiClient(Frodo, FactoryFor(NodeA)).UploadNewFile(
+            drive,
+            metadata,
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] },
+            [payload]);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload on A failed: {upload.StatusCode}");
+
+        var download = await new UniversalDriveApiClient(Frodo, FactoryFor(NodeB))
+            .GetPayload(upload.Content!.File, payload.Key);
+
+        Assert.That(download.IsSuccessStatusCode, Is.True,
+            $"node B could not download a payload uploaded through node A ({download.StatusCode}); " +
+            "blob storage is not shared between the nodes");
+        var received = await download.Content!.ReadAsByteArrayAsync();
+        Assert.That(received, Is.EqualTo(payloadBytes), "node B returned different bytes than node A stored");
     }
 
     /// <summary>Disabling a tenant is an operational kill switch; it must take effect cluster-wide.</summary>

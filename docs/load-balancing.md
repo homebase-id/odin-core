@@ -1,10 +1,14 @@
 # Running odin-core on more than one node
 
 Findings from a two-node cluster run on 2026-09-06: two `Odin.Hosting` processes against one
-Postgres, one Redis (L2 cache + backplane + pub/sub + distributed lock) and one shared tenant
-data root, serving the same identities on 8443 (node A) and 8444 (node B).
+Postgres and one Redis (L2 cache + backplane + pub/sub + distributed lock), serving the same
+identities on 8443 (node A) and 8444 (node B).
 
-Most of the shared-state machinery already works. Two things break, one of them silently.
+Two topologies were run: first with a shared tenant data root, then the realistic one, with a
+**separate local disk per node** and payloads in S3 (local MinIO). Both behave the same.
+
+Most of the shared-state machinery already works. **One thing actually breaks**: the identity
+registry. Everything else below is a constraint to configure correctly, not a defect.
 
 ## Reproducing
 
@@ -15,8 +19,11 @@ dotnet test tests/apps/Odin.Hosting.Tests --filter FullyQualifiedName~LoadBalanc
 ```
 
 Both nodes need, identically: `Database:Type=postgres` and one connection string,
-`Redis:Enabled=true` with one `Redis:Configuration`, `Cache:Level2CacheType=Redis`, and the same
-`Host:TenantDataRootPath` / `Host:SystemDataRootPath`. They differ only in
+`Redis:Enabled=true` with one `Redis:Configuration`, and `Cache:Level2CacheType=Redis`. For the
+realistic topology also set `S3Storage:Enabled=true` (MinIO: `ServiceUrl=http://localhost:9000`,
+`minioadmin`/`minioadmin`, `ForcePathStyle=true`) and `S3Payload:Enabled=true` with a
+`BucketName`; the host creates the bucket at startup. `Host:TenantDataRootPath` /
+`SystemDataRootPath` are then per node. Nodes otherwise differ only in
 `Host:IPAddressListenList` ports and `Admin:ApiPort`.
 
 `tests/apps/Odin.Hosting.Tests/LoadBalancer/LoadBalancerProbeTests.cs` is `[Explicit]` and asks
@@ -29,7 +36,8 @@ is the registry bug below.
 |---|---|
 | Owner session issued by A is accepted by B | probe test; tokens live in the shared DB and `OdinContextCache` invalidates over Redis pub/sub |
 | A drive created through A is listed by B | probe test; `TableDrives` L2 entries and backplane invalidation observed in Redis |
-| A file uploaded through A is queryable through B | probe test |
+| A file uploaded through A is queryable through B | probe test (header; it lives in the shared DB) |
+| A **payload** uploaded through A downloads byte-identical from B | probe test, with per-node local disks and S3 payloads: the object was written under `odin-payloads/payloads/<tenant>/drives/...` in MinIO and neither node's local disk held a `.payload` file |
 | Cache invalidation genuinely crosses nodes | `FusionCache.Backplane:v2` messages and a per-tenant `cache_invalidation` channel observed on the wire |
 | Certificates | stored in `TableCertificates` (shared DB), so SNI selection works on every node |
 | Scheduled jobs are not double-run | jobs are claimed with a conditional `UPDATE` on the shared `jobs` table; in this run node A claimed all six startup jobs and node B ran none |
@@ -37,7 +45,7 @@ is the registry bug below.
 
 ## What breaks
 
-### 1. The identity registry is a per-process cache with no cross-node invalidation
+### The identity registry is a per-process cache with no cross-node invalidation
 
 Registrations live in the shared system database, but `FileSystemIdentityRegistry` reads them
 **once at startup** into an in-memory trie. `ToggleDisabled` (and enable, delete,
@@ -60,30 +68,19 @@ The pieces to fix it are already present: the tenant pub/sub channel that carrie
 invalidation, or `INodeLock`/Redis. A registry-changed message that makes other nodes reload the
 affected registration would close it.
 
-### 2. The IP rate limiter is per-node, so the limit multiplies by node count
+## Notes and constraints (not breaks)
 
-`AddIpRateLimiter` builds an in-process `PartitionedRateLimiter`. Nothing is shared, so each node
-independently allows the configured rate.
-
-Measured with `Host:IpRateLimitRequestsPerSecond=5` and 20 rapid requests from one client:
-
-| target | allowed | limited |
-|---|---:|---:|
-| node A only | 5 | 15 |
-| node B only | 5 | 15 |
-| alternating A/B, as a balancer would spread one client | **10** | 10 |
-
-Exactly double, and it scales with the cluster. This is the same limiter the PROXY-protocol work
-restored the real client IP for; getting the address right does not help if the budget is per
-node. A shared counter (Redis) is the fix, or accept and document that the real limit is
-`configured × nodes`.
-
-## Deployment constraints (not bugs, but they will bite)
-
-- **Blob storage must be shared.** This run used one tenant data root for both nodes. With
-  per-node local disks, a file uploaded through A is not readable through B. Either enable
-  `S3Payload`/`S3Storage`, or put the tenant root on shared storage. Note that upload *staging* is
-  always local disk by design, which is fine, but the long-term payload location must be shared.
+- **The IP rate limiter is per node, so the effective limit is `configured x nodes`.**
+  `AddIpRateLimiter` builds an in-process `PartitionedRateLimiter` with nothing shared. Measured
+  with `IpRateLimitRequestsPerSecond=5` and 20 rapid requests from one client: 5 allowed against
+  one node, but 10 allowed when alternating across both, exactly double. This degrades a defence
+  rather than breaking the system; either divide the configured value by the node count, or move
+  the counter to Redis if a true cluster-wide limit is wanted.
+- **Blob storage must be shared, and S3 satisfies that.** Verified: with a separate local disk per
+  node and `S3Payload` enabled, a payload uploaded through A downloaded byte-identical from B, and
+  no `.payload` file appeared on either local disk. Without S3 the tenant root must be on shared
+  storage instead. Upload *staging* is always local disk by design and is per-request, so it needs
+  nothing shared.
 - **`Host:SystemProcessApiKey` defaults to a fresh GUID per process** and is not in the
   ansible template, so each node would generate its own. `SystemAuthenticationHandler` validates
   inbound calls against it and `SystemHttpClient` sends it, so any cross-node system call would
