@@ -5,6 +5,10 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Security.Authentication;
+using System.Net.Sockets;
+using System.Net.Security;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Autofac;
@@ -105,27 +109,61 @@ public class ProxyProtocolListenerTests
 
     // 2. A missing header is rejected
     [Test]
-    public void MissingHeader_IsRejected()
+    public async Task MissingHeader_IsRejected()
     {
-        using var client = CreateHttpClient(TrustedPort, proxyHeader: null);
-        var ex = Assert.CatchAsync(async () => await client.GetAsync(EchoUrl("frodo.dotyou.cloud", TrustedPort)));
-        Assert.That(ex, Is.Not.Null, "a TLS ClientHello with no PROXY header must not be served");
+        await AssertListenerClosesTlsConnection(TrustedPort, proxyHeader: null);
     }
 
     [Test]
-    public void MissingHeader_OnTheHttpPort_IsRejected()
+    public async Task MissingHeader_OnTheHttpPort_IsRejected()
     {
-        using var client = CreateHttpClient(8081, proxyHeader: null);
-        Assert.CatchAsync(async () => await client.GetAsync("http://frodo.dotyou.cloud:8081/api/v2/health/ip"));
+        await using var transport = await ConnectOrFail(8081, proxyHeader: null);
+        await transport.WriteAsync("GET /api/v2/health/ip HTTP/1.1\r\nHost: frodo.dotyou.cloud\r\n\r\n"u8.ToArray());
+
+        // Kestrel aborts the connection (reset) rather than closing it gracefully; either way no
+        // HTTP response may come back.
+        var read = -1;
+        var ex = Assert.CatchAsync<IOException>(async () => read = await transport.ReadAsync(new byte[64]));
+        Assert.That(ex != null || read == 0, Is.True, "the listener must close a headerless connection, not answer it");
     }
 
     // 3. A header from an untrusted peer is not honoured (the security test)
     [Test]
-    public void HeaderFromUntrustedPeer_IsRejected()
+    public async Task HeaderFromUntrustedPeer_IsRejected()
     {
-        using var client = CreateHttpClient(UntrustedPort, V2Header(Forged, 40004, IPAddress.Loopback, UntrustedPort));
-        var ex = Assert.CatchAsync(async () => await client.GetAsync(EchoUrl("frodo.dotyou.cloud", UntrustedPort)));
-        Assert.That(ex, Is.Not.Null, "an untrusted peer claiming a source address must be closed, never adopted");
+        var header = V2Header(Forged, 40004, IPAddress.Loopback, UntrustedPort);
+
+        // Positive control: the same header and handshake succeed where loopback is trusted,
+        // so a failure below is the trust check and not a broken client.
+        var control = await HandshakeAsync(TrustedPort, header, "frodo.dotyou.cloud");
+        Assert.That(control, Is.Not.Null);
+
+        await AssertListenerClosesTlsConnection(UntrustedPort, header);
+    }
+
+    // Connect (proving the listener is live, or fail loudly), then expect the server to close the
+    // connection during the TLS handshake instead of serving it.
+    private static async Task AssertListenerClosesTlsConnection(int port, byte[]? proxyHeader)
+    {
+        await using var transport = await ConnectOrFail(port, proxyHeader);
+        await using var ssl = new SslStream(transport, false, (_, _, _, _) => true);
+        var ex = Assert.CatchAsync(async () =>
+            await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions { TargetHost = "frodo.dotyou.cloud" }));
+        Assert.That(ex, Is.InstanceOf<IOException>().Or.InstanceOf<AuthenticationException>(),
+            $"expected the server to close the connection, got {ex?.GetType().Name}: {ex?.Message}");
+    }
+
+    private static async Task<Stream> ConnectOrFail(int port, byte[]? proxyHeader)
+    {
+        try
+        {
+            return await ConnectAsync(port, proxyHeader);
+        }
+        catch (SocketException e)
+        {
+            Assert.Fail($"listener on port {port} is not accepting connections ({e.SocketErrorCode}); a rejection cannot be asserted");
+            throw;
+        }
     }
 
     // 5. Request logs show the real client
