@@ -60,7 +60,11 @@ public class PeerCapiAuthenticationHandler(
             return AuthenticateResult.Fail($"Invalid session id in {ICapiCallbackSession.SessionHttpHeaderName}");
         }
 
-        var sessionLookup = await cache.TryGetAsync<bool>(sessionId);
+        // Bind the cached validation to the domain it was validated for. Keying on sessionId alone
+        // lets a caller who legitimately validated one domain's session replay that same id under
+        // another domain label and skip the callback, since the claims below use remoteDomain.
+        var sessionCacheKey = $"{remoteDomain}~{sessionId}";
+        var sessionLookup = await cache.TryGetAsync<bool>(sessionCacheKey);
         if (!sessionLookup.HasValue)
         {
             var localDomainAndSessionId = $"{DnsConfigurationSet.PrefixCertApi}.{odinIdentity.PrimaryDomain}~{sessionId}";
@@ -108,7 +112,7 @@ public class PeerCapiAuthenticationHandler(
                 return AuthenticateResult.Fail(responseContent);
             }
 
-            await cache.SetAsync(sessionId, true, config.Host.CapiSessionLifetime * 2);
+            await cache.SetAsync(sessionCacheKey, true, config.Host.CapiSessionLifetime * 2);
         }
 
         var claims = new List<Claim>

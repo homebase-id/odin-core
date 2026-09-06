@@ -39,7 +39,8 @@ namespace Odin.Hosting.Tests.Peer.Capi;
 ///   3. cache hit -> callback skipped -> are claims issued as victim.com?
 ///
 /// The security assertion is that step 3 must NOT yield a victim.com principal without a callback
-/// to victim.com. If this test is red, the impersonation is real at the authentication layer.
+/// to victim.com. Before the fix (receiver cache keyed on sessionId alone) this test failed;
+/// PeerCapiAuthenticationHandler now keys the cache on remoteDomain + sessionId, so it passes.
 ///
 /// Downstream, verified by reading the code (not by this test): the connected-peer drive path is
 /// not directly exploitable from this alone. OdinContextMiddleware.LoadTransitContextAsync takes
@@ -50,8 +51,8 @@ namespace Odin.Hosting.Tests.Peer.Capi;
 /// caller holds that identity's real token. So evil cannot assemble victim's permission context
 /// without victim's token. The residual risk is any peer path that trusts the CAPI-authenticated
 /// caller identity WITHOUT that second factor (e.g. token-less peer endpoints reading
-/// User.Identity.Name). The fix is small and removes the asymmetry regardless: key the receiver
-/// cache on remoteDomain + sessionId, matching the sender side (CapiCallbackSession).
+/// User.Identity.Name); keying the receiver cache on remoteDomain + sessionId (matching the
+/// sender side, CapiCallbackSession) removes the asymmetry regardless.
 /// </summary>
 public class PeerCapiSessionDomainBindingTests
 {
