@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+using Npgsql;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -198,6 +199,68 @@ public class LoadBalancerProbeTests
             await admin.PatchAsync(AdminUrl(4444, "tenants/frodo.dotyou.cloud/enable"), null);
             await admin.PatchAsync(AdminUrl(4445, "tenants/frodo.dotyou.cloud/enable"), null);
         }
+    }
+
+    /// <summary>The sweep is the guarantee behind the change notifications, so it has to be proven
+    /// without them. This changes the registration directly in the database, which no node
+    /// publishes, and asserts both nodes converge anyway.</summary>
+    [Test]
+    public async Task RegistryChangeMadeOnlyInTheDatabase_ConvergesOnBothNodes()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ODIN_LB_PG")
+                               ?? "Host=localhost;Port=54320;Database=homebase_dev;Username=homebase_dev;Password=homebase_dev";
+
+        await SetDisabledInDatabaseAsync(connectionString, disabled: true);
+        try
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(90);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (await PingAsync(NodeA) != HttpStatusCode.OK && await PingAsync(NodeB) != HttpStatusCode.OK)
+                {
+                    return;
+                }
+
+                await Task.Delay(2000);
+            }
+
+            Assert.Fail("nodes did not converge on a database-only registry change; " +
+                        "the reconciliation sweep is not running or not detecting updates");
+        }
+        finally
+        {
+            // Wait for the cluster to come back before returning: the sweep takes up to an interval,
+            // and leaving the tenant disabled would fail whichever test runs next.
+            await SetDisabledInDatabaseAsync(connectionString, disabled: false);
+            await WaitUntilServingAsync(TimeSpan.FromSeconds(90));
+        }
+    }
+
+    private static async Task WaitUntilServingAsync(TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow.Add(timeout);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await PingAsync(NodeA) == HttpStatusCode.OK && await PingAsync(NodeB) == HttpStatusCode.OK)
+            {
+                return;
+            }
+
+            await Task.Delay(2000);
+        }
+
+        Assert.Fail("nodes did not resume serving the tenant after it was re-enabled in the database");
+    }
+
+    private static async Task SetDisabledInDatabaseAsync(string connectionString, bool disabled)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "update registrations set disabled = @disabled where primarydomainname = @domain";
+        command.Parameters.AddWithValue("disabled", disabled);
+        command.Parameters.AddWithValue("domain", Frodo.DomainName);
+        await command.ExecuteNonQueryAsync();
     }
 
     // ---------- plumbing ----------

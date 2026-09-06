@@ -1,5 +1,9 @@
 # Plan: make the identity registry coherent across nodes
 
+> **Status: implemented.** All three phases landed; see the commit that adds
+> `RegistryChangeMessage`, `RegistryReconciliationBackgroundService` and the probe tests. Two
+> deviations from the plan as written are noted inline below.
+
 Fixes the one real break found in the two-node run (see `load-balancing.md`): registrations are
 shared in Postgres but cached per process, so a registry change on one node is invisible to every
 other node until it restarts. Disabling a tenant on node A left node B serving it, and the two
@@ -76,6 +80,13 @@ without phase 2 is an improvement that still fails silently.
 - **Do not** reuse `DeleteRegistration` on the receiving side: it also deletes the registration
   directory and payloads, which the originating node has already done. Remote nodes must only
   forget the tenant locally. This is the sharpest correctness trap in the change.
+- **Deviation, and an improvement on the plan:** rather than leaving the local delete as it was,
+  `DeleteRegistration` now *starts* by calling the same `ForgetLocallyAsync` primitive the remote
+  handler uses. That removes the tenant from lookup, stops its background services and disposes its
+  scope **before** any row or file is destroyed, so nothing is still reading storage that is being
+  deleted, and the local and remote paths cannot drift apart. The database rows are then deleted
+  from the root scope, because the tenant scope has deliberately just been disposed and re-creating
+  it would resurrect what is being removed.
 - `CacheIdentityAsync` runs `TenantConfigService.InitializeAsync()` and carries an explicit warning
   about not opening database transactions on the caller's scope. The subscriber runs on a pub/sub
   callback thread with no ambient scope, so it must create its own lifetime scope, exactly as
@@ -89,10 +100,10 @@ without phase 2 is an improvement that still fails silently.
   - rows absent from `_cache` → add,
   - rows whose `modified` is newer than the cached copy → replace,
   - cached entries absent from the result → unload.
-- Confirm `UpsertAsync` actually bumps `modified` on update; the column exists on
-  `RegistrationsRecord`, but the sweep's update detection depends on it, and if it is not bumped the
-  sweep silently degrades to add/remove only. If it is not, either bump it in SQL or compare a hash
-  of the mapped fields.
+- `UpsertAsync` does bump `modified` (`SET ... modified = MAX(Registrations.modified+1, now)`), so
+  that concern is resolved. **Deviation:** the sweep nonetheless compares the mapped fields directly
+  rather than trusting `modified`, which costs nothing at this row count and keeps the sweep correct
+  even if a future write path forgets to touch the column.
 - Interval via `BackgroundServices:RegistryReconciliationIntervalSeconds`, defaulting to something
   short enough for an operational kill switch, on the order of 30–60s. The query returns one row
   per tenant on the host, so this is cheap; it is a list the process already holds in full.

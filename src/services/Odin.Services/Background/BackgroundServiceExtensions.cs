@@ -37,6 +37,7 @@ public static class BackgroundServiceExtensions
         cb.RegisterBackgroundService<LogTransactionalCacheStatsBackgroundService>();
         cb.RegisterBackgroundService<LogMemoryDiagnosticsBackgroundService>();
         cb.RegisterBackgroundService<StartupVerificationBackgroundService>();
+        cb.RegisterBackgroundService<RegistryReconciliationBackgroundService>();
 
         // Non-singleton on purpose: only consumed by StartupVerificationBackgroundService
         cb.RegisterType<EmailInfraVerifier>().AsSelf().InstancePerDependency();
@@ -61,6 +62,7 @@ public static class BackgroundServiceExtensions
         await bsm.StartAsync<LogTransactionalCacheStatsBackgroundService>();
         await bsm.StartAsync<LogMemoryDiagnosticsBackgroundService>();
         await bsm.StartAsync<StartupVerificationBackgroundService>();
+        await bsm.StartAsync<RegistryReconciliationBackgroundService>();
     }
 
     //

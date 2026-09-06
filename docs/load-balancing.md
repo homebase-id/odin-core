@@ -7,8 +7,10 @@ identities on 8443 (node A) and 8444 (node B).
 Two topologies were run: first with a shared tenant data root, then the realistic one, with a
 **separate local disk per node** and payloads in S3 (local MinIO). Both behave the same.
 
-Most of the shared-state machinery already works. **One thing actually breaks**: the identity
-registry. Everything else below is a constraint to configure correctly, not a defect.
+Most of the shared-state machinery already works. One thing actually broke, the identity registry,
+and it is **fixed** as of the change described in `load-balancing-registry-fix-plan.md`; the section
+below is kept because it explains what the fix has to keep working. Everything else here is a
+constraint to configure correctly, not a defect.
 
 ## Reproducing
 
@@ -43,12 +45,12 @@ is the registry bug below.
 | Scheduled jobs are not double-run | jobs are claimed with a conditional `UPDATE` on the shared `jobs` table; in this run node A claimed all six startup jobs and node B ran none |
 | WebSocket notifications are *designed* to cross nodes | `AppNotificationDispatcher` publishes and subscribes drive/client notifications through `ITenantPubSub`, which is Redis-backed when Redis is enabled. The transport was observed carrying tenant messages; end-to-end socket delivery from a second node was **not** verified here |
 
-## What breaks
+## What broke, and how it is fixed
 
-### The identity registry is a per-process cache with no cross-node invalidation
+### The identity registry was a per-process cache with no cross-node invalidation
 
-Registrations live in the shared system database, but `FileSystemIdentityRegistry` reads them
-**once at startup** into an in-memory trie. `ToggleDisabled` (and enable, delete,
+Registrations live in the shared system database, but `FileSystemIdentityRegistry` used to read
+them **once at startup** into an in-memory trie and never again. `ToggleDisabled` (and enable, delete,
 public-web-presence, new registrations) mutates that node's trie and persists to the DB, and no
 other node is told.
 
@@ -64,9 +66,15 @@ Consequences behind a balancer, with N nodes:
   every other node restarts.
 - **Deleting a tenant** leaves the other nodes serving it from cache.
 
-The pieces to fix it are already present: the tenant pub/sub channel that carries cache
-invalidation, or `INodeLock`/Redis. A registry-changed message that makes other nodes reload the
-affected registration would close it.
+**Fixed** by two mechanisms with different jobs. Every registry mutation now publishes a
+`RegistryChangeMessage` on `ISystemPubSub`, carrying an identity id and a change kind and never the
+new state, so the receiver re-reads the row and duplicate or out-of-order delivery converges rather
+than clobbering. Because that delivery is at-most-once, a `RegistryReconciliationBackgroundService`
+sweeps the database every `BackgroundServices:RegistryReconciliationIntervalSeconds` (default 30)
+and repairs anything the notification missed, logging a warning when it does. Verified two ways:
+`TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` now passes, and
+`RegistryChangeMadeOnlyInTheDatabase_ConvergesOnBothNodes` changes a row directly in Postgres, which
+nothing publishes, and both nodes still converge.
 
 ## Notes and constraints (not breaks)
 

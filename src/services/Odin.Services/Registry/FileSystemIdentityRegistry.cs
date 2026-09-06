@@ -10,12 +10,14 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
+using Odin.Core.Json;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Core.Storage.PubSub;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
@@ -41,6 +43,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
+    private readonly Guid _nodeId = Guid.NewGuid();
+    private IPubSubSubscription? _registryChangeSubscription;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
     private readonly IDynamicHttpClientFactory _httpClientFactory;
@@ -216,15 +220,22 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
-            _trie.RemoveDomain(domain);
+            // Quiesce before destroying anything: drop the tenant from lookup, stop its background
+            // services and dispose its scope, so nothing is still reading the storage we are about to
+            // delete. ForgetLocallyAsync is the same step a remote node performs on a delete
+            // notification, which keeps the local and remote paths from drifting apart.
+            await ForgetLocallyAsync(registration);
 
-            await using var scope = GetOrCreateMultiTenantScope(registration)
-                .BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}");
-            var systemDatabase = scope.Resolve<SystemDatabase>();
-            await systemDatabase.Registrations.DeleteAsync(registration.Id);
-            await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
+            // Root scope: the tenant scope was just disposed, and re-creating it here only to delete
+            // rows would resurrect what we are removing.
+            await using (var scope = _serviceProvider.BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}"))
+            {
+                var systemDatabase = scope.Resolve<SystemDatabase>();
+                await systemDatabase.Registrations.DeleteAsync(registration.Id);
+                await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
+            }
 
-            await UnloadRegistration(registration);
+            await PublishRegistryChangeAsync(registration.Id, registration.PrimaryDomainName, RegistryChangeKind.Deleted);
 
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
@@ -368,6 +379,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         _logger.LogInformation("Wrote registration record for [{registrationId}]", registration.Id);
         await CacheIdentityAsync(registration);
+        await PublishRegistryChangeAsync(registration.Id, registration.PrimaryDomainName, RegistryChangeKind.Upserted);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -462,6 +474,18 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var registrations = await systemDatabase.Registrations.GetAllAsync();
         foreach (var registrationRecord in registrations)
         {
+            await LoadRegistrationRecordAsync(registrationRecord);
+        }
+    }
+
+    /// <summary>
+    /// Brings one registration fully into this node: directories, database migration, tenant scope,
+    /// caches and background services. Used both by the initial load and when another node tells us
+    /// about a registration this node has never seen.
+    /// </summary>
+    private async Task LoadRegistrationRecordAsync(RegistrationsRecord registrationRecord)
+    {
+        {
             try
             {
                 var identityId = registrationRecord.identityId.ToString();
@@ -527,6 +551,190 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
         }
     }
+
+    #region cross-node registry coherence
+
+    /// <summary>
+    /// Starts listening for registry changes made on other nodes. Call before
+    /// <see cref="LoadRegistrations"/>: subscribing first keeps the startup window small, and the
+    /// handler is idempotent so a message arriving mid-load is harmless.
+    /// </summary>
+    public async Task SubscribeToRegistryChangesAsync()
+    {
+        if (_registryChangeSubscription != null)
+        {
+            return;
+        }
+
+        var pubSub = _serviceProvider.Resolve<ISystemPubSub>();
+        _registryChangeSubscription = await pubSub.SubscribeAsync(RegistryChangeMessage.Channel, OnRegistryChangedAsync);
+        _logger.LogInformation("Registry node {nodeId} subscribed to {channel}", _nodeId, RegistryChangeMessage.Channel);
+    }
+
+    private async Task PublishRegistryChangeAsync(Guid identityId, string primaryDomain, RegistryChangeKind kind)
+    {
+        try
+        {
+            var pubSub = _serviceProvider.Resolve<ISystemPubSub>();
+            await pubSub.PublishAsync(RegistryChangeMessage.Channel, JsonEnvelope.Create(new RegistryChangeMessage
+            {
+                IdentityId = identityId,
+                PrimaryDomain = primaryDomain,
+                Kind = kind,
+                OriginNodeId = _nodeId,
+            }));
+        }
+        catch (Exception e)
+        {
+            // Delivery is best-effort by design and the sweep is what guarantees convergence, so a
+            // publish failure must never fail the operation that caused it.
+            _logger.LogWarning(e, "Could not publish registry change for {domain}: {error}", primaryDomain, e.Message);
+        }
+    }
+
+    private async Task OnRegistryChangedAsync(JsonEnvelope envelope)
+    {
+        try
+        {
+            if (envelope.DeserializeMessage() is not RegistryChangeMessage message || message.OriginNodeId == _nodeId)
+            {
+                return;
+            }
+
+            _logger.LogInformation("Registry change received: {kind} {domain} from node {originNodeId}",
+                message.Kind, message.PrimaryDomain, message.OriginNodeId);
+
+            if (message.Kind == RegistryChangeKind.Deleted)
+            {
+                var registration = _cache.GetValueOrDefault(message.IdentityId);
+                if (registration != null)
+                {
+                    await ForgetLocallyAsync(registration);
+                }
+
+                return;
+            }
+
+            await ApplyUpsertFromDatabaseAsync(message.IdentityId);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error applying registry change: {error}", e.Message);
+        }
+    }
+
+    /// <summary>
+    /// Re-reads one registration from the database and applies it locally. A registration this node
+    /// has never seen is loaded in full; a known one only has its mutable fields refreshed, so a flag
+    /// change does not re-run migration and background-service startup.
+    /// </summary>
+    private async Task ApplyUpsertFromDatabaseAsync(Guid identityId)
+    {
+        RegistrationsRecord record;
+        await using (var scope = _serviceProvider.BeginLifetimeScope($"RegistryUpsert:{identityId}"))
+        {
+            var systemDatabase = scope.Resolve<SystemDatabase>();
+            record = await systemDatabase.Registrations.GetAsync(identityId);
+        }
+
+        if (record == null)
+        {
+            // Deleted between publish and handling; the delete notification or the sweep removes it.
+            return;
+        }
+
+        var known = _cache.GetValueOrDefault(identityId);
+        if (known == null)
+        {
+            await LoadRegistrationRecordAsync(record);
+            return;
+        }
+
+        known.PrimaryDomainName = record.primaryDomainName;
+        known.Email = record.email;
+        known.PlanId = record.planId;
+        known.Disabled = record.disabled;
+        known.EnablePublicWebPresence = record.enablePublicWebPresence;
+        known.MarkedForDeletionDate = record.markedForDeletionDate;
+        known.FirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? null : Guid.Parse(record.firstRunToken);
+
+        _trie.TryRemoveDomain(known.PrimaryDomainName);
+        _trie.AddDomain(known.PrimaryDomainName, known);
+        _cache[known.Id] = known;
+    }
+
+    /// <summary>
+    /// Drops a registration from this node without touching any storage. This is what a node does
+    /// when another node deleted the tenant: that node already removed the rows, the registration
+    /// directory and the payloads, and repeating it here would delete a second time.
+    /// </summary>
+    private async Task ForgetLocallyAsync(IdentityRegistration registration)
+    {
+        _trie.TryRemoveDomain(registration.PrimaryDomainName);
+        await UnloadRegistration(registration);
+    }
+
+    /// <summary>
+    /// Reconciles the in-memory registry against the database, which is the source of truth. This is
+    /// the guarantee behind the change notifications: pub/sub is at-most-once, so a node that missed
+    /// a message, or was starting up, or could not reach Redis, converges here instead of staying
+    /// stale until it restarts.
+    /// </summary>
+    public async Task<int> ReconcileWithDatabaseAsync()
+    {
+        List<RegistrationsRecord> records;
+        await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryReconcile"))
+        {
+            var systemDatabase = scope.Resolve<SystemDatabase>();
+            records = await systemDatabase.Registrations.GetAllAsync();
+        }
+
+        var changes = 0;
+
+        foreach (var record in records)
+        {
+            var known = _cache.GetValueOrDefault(record.identityId);
+            if (known == null)
+            {
+                _logger.LogWarning("Reconciliation is adding {domain}, which this node had not seen; " +
+                                   "a registry change notification was missed", record.primaryDomainName);
+                await LoadRegistrationRecordAsync(record);
+                changes++;
+            }
+            else if (HasDivergedFrom(known, record))
+            {
+                _logger.LogWarning("Reconciliation is refreshing {domain}; a registry change notification was missed",
+                    record.primaryDomainName);
+                await ApplyUpsertFromDatabaseAsync(record.identityId);
+                changes++;
+            }
+        }
+
+        var liveIds = records.Select(r => r.identityId).ToHashSet();
+        foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id)).ToList())
+        {
+            _logger.LogWarning("Reconciliation is unloading {domain}, which is no longer registered; " +
+                               "a registry change notification was missed", orphan.PrimaryDomainName);
+            await ForgetLocallyAsync(orphan);
+            changes++;
+        }
+
+        return changes;
+    }
+
+    private static bool HasDivergedFrom(IdentityRegistration registration, RegistrationsRecord record)
+    {
+        var recordFirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? (Guid?)null : Guid.Parse(record.firstRunToken);
+        return registration.Disabled != record.disabled ||
+               registration.EnablePublicWebPresence != record.enablePublicWebPresence ||
+               registration.MarkedForDeletionDate != record.markedForDeletionDate ||
+               !string.Equals(registration.PrimaryDomainName, record.primaryDomainName, StringComparison.OrdinalIgnoreCase) ||
+               !string.Equals(registration.Email, record.email, StringComparison.OrdinalIgnoreCase) ||
+               !string.Equals(registration.PlanId, record.planId, StringComparison.Ordinal) ||
+               registration.FirstRunToken != recordFirstRunToken;
+    }
+
+    #endregion
 
     private async Task CacheIdentityAsync(IdentityRegistration registration)
     {
