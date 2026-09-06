@@ -122,6 +122,84 @@ recipient client's 200 ms notification coalescing delay and its `processInbox` r
 for media, the synchronous disk→S3 copy in the upload request. Those are the levers for perceived
 latency; the CPU fixes are throughput/host-load wins for multi-tenant servers.
 
+## Over the real wire: Kestrel, certificates, loopback TLS
+
+`tests/apps/Odin.Hosting.Tests/_Universal/Outbox/Performance/TlsChatSendBenchmarkTests.cs`
+(`[Explicit]`) repeats the profile on `WebScaffold`: real Kestrel on 8443 with the dev
+certificates, the production peer HTTP client (`OdinHttpClientFactory` →
+`DynamicHttpClientFactory`) delivering to `capi.sam.dotyou.cloud` over loopback HTTPS, the
+production `PeerCapiAuthenticationHandler`, and the outbox background service running on its own
+(the test polls the outbox every 1 ms instead of the 100 ms helper). An in-process
+`EventListener` on the `System.Net.*` event sources counts DNS lookups, connections and TLS
+handshakes per message and times the handshakes. Two idle probes send one message after 70 s and
+after 130 s of silence.
+
+```bash
+export ODIN_BENCH_WARMUP=200 ODIN_BENCH_ITERATIONS=300 ODIN_BENCH_IDLE_SECONDS=70,130 ODIN_BENCH_OUT=/tmp/bench
+dotnet test tests/apps/Odin.Hosting.Tests --filter FullyQualifiedName~TlsChatSendBenchmarkTests --logger "console;verbosity=normal"
+```
+
+Steady state (messages back to back), 300 measured iterations:
+
+| stage | p50 ms | p95 ms |
+|---|---:|---:|
+| 1-upload | 6.69 | 10.34 |
+| 2-delivery (upload return → outbox empty) | 8.59 | 12.12 |
+| 3-inbox | 6.14 | 9.45 |
+| **end-to-end** | **22.57** | 35.32 |
+
+Per message: 1.00 peer request, 0 DNS lookups, 0 new connections, 0 TLS handshakes, 0 CAPI
+validate callbacks. Under load the connection pool is reused exactly as intended, and the
+2-minute handler lifetime never bit inside the 15 s loop.
+
+After a pause it looks different:
+
+| probe | upload ms | delivery ms | inbox ms | DNS | new connection | TLS handshake | handshake ms |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| after 70 s idle | 67.0 | **206.6** | 10.2 | 1 | 1 | 1 | 6.7 |
+| after 130 s idle | 37.3 | **83.9** | 9.9 | 1 | 1 | 1 | 5.8 |
+
+The event timeline of the 130 s probe: `ResolutionStart capi.sam.dotyou.cloud` at 0.2 ms,
+`ResolutionStop` at 74.1 ms, connect + handshake done at 80.0 ms, response at 81.3 ms. The
+70 s probe reached `HandshakeStop` at 198 ms with a 6.7 ms handshake, so roughly 190 ms of it
+was name resolution. `ConnectionClosed` events for the pooled connections appear ~61 s after
+the last message: that is `SocketsHttpHandler.PooledConnectionIdleTimeout` (default 1 minute)
+closing them, well before the 2-minute handler lifetime.
+
+Why the lookup is slow here: `capi.*` names are not in this machine's hosts file; they resolve
+through real DNS as a CNAME chain (`capi.sam` → `sam` → `localhost`, TTL 59 s), 62 ms per
+uncached query on this resolver. The size of that number is environment-specific, but the
+mechanism is not: with the idle timeout at 60 s and the DNS TTL at 59 s, every message after a
+minute of silence does an uncached lookup, a TCP connect and a full TLS handshake before the
+recipient sees a byte. On a real network that is one DNS round trip plus three network round
+trips for TCP + TLS 1.3, tens to a few hundred milliseconds depending on distance, on the one
+message a person is actually waiting for.
+
+What is amiss in this part of the code, as verified above:
+
+- **Idle timeout is the .NET default, 1 minute, and the handler lifetime is absolute.**
+  `DynamicHttpClientFactory` builds an `HttpClientHandler`, which does not expose
+  `PooledConnectionIdleTimeout`; `HandlerEntry.IsExpired` is creation time + 2 min regardless
+  of use. Switching to `SocketsHttpHandler` allows a long idle timeout (10–15 min suits chat
+  cadence) with `PooledConnectionLifetime` covering DNS rotation, and the handler lifetime can
+  then be long or removed. The receiving Kestrel has no `KeepAliveTimeout` configured in this
+  repo, so its default of 130 s (ASP.NET documentation, not verified in code) would close the
+  connection first; both ends are odin-core, so both can be raised together.
+- **No client-side DNS cache.** .NET resolves per new connection through the OS; keeping the
+  connection alive is the fix, a resolver cache is the fallback.
+- **Dead mTLS remnant.** `ServerCertificateSelector` in `Program.cs` sets
+  `ClientCertificateRequired = true` for every `capi.*` host name, so the server asks the peer for
+  a client certificate on every handshake, but `OdinHttpClientFactory` never sends one (auth is
+  the `X-CAPI-Session-Id` header). Harmless to the handshake result, but it is a leftover.
+- **CAPI validate callback cadence.** The sender rotates its session id every 10 min
+  (`Host:CapiSessionLifetimeMinutes`), so the recipient's 20-min cache is refreshed by a fresh
+  callback roughly every 10 min per sender-recipient pair, not every 20. Out of scope here as
+  agreed, measured at 0 per message in the loop.
+
+Server-side cost per handshake is fine: the certificate selector resolves the tenant from the
+in-memory registry and the certificate from `CertificateStore`'s in-memory cache; the peer
+handshakes measured 5.8–6.7 ms on loopback.
+
 ## Not done, with the evidence
 
 Text-message scenario never hits these; they are the payload-path findings from the code trace:
