@@ -78,7 +78,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseLoggingMiddleware();
         app.UseMiddleware<OdinVersionNumberMiddleware>();
 
-        if (env.IsProduction())
+        if (config.Host.IpRateLimitEnabled ?? env.IsProduction())
         {
             app.UseRateLimiter();
         }

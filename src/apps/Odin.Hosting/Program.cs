@@ -26,6 +26,7 @@ using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Cli;
+using Odin.Hosting.Kestrel;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
@@ -205,9 +206,27 @@ namespace Odin.Hosting
                             foreach (var address in odinConfig.Host.IpAddressListenList)
                             {
                                 var ip = address.GetIp();
-                                kestrelOptions.Listen(ip, address.HttpPort);
-                                kestrelOptions.Listen(ip, address.HttpsPort,
-                                    options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
+                                var trustedProxies = address.ProxyProtocol.Enabled
+                                    ? address.ProxyProtocol.GetTrustedNetworks()
+                                    : null;
+
+                                kestrelOptions.Listen(ip, address.HttpPort, options =>
+                                {
+                                    if (trustedProxies != null)
+                                    {
+                                        options.UseProxyProtocol(trustedProxies);
+                                    }
+                                });
+                                kestrelOptions.Listen(ip, address.HttpsPort, options =>
+                                {
+                                    // The PROXY header precedes the TLS ClientHello: this must run before UseHttps.
+                                    if (trustedProxies != null)
+                                    {
+                                        options.UseProxyProtocol(trustedProxies);
+                                    }
+
+                                    ConfigureHttpListenOptions(odinConfig, kestrelOptions, options);
+                                });
                             }
 
                             // Admin API

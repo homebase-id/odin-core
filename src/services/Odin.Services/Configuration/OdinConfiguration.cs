@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
@@ -258,6 +259,8 @@ public class OdinConfiguration
         public Guid SystemProcessApiKey { get; set; }
 
         public int IpRateLimitRequestsPerSecond { get; init; }
+        /// <summary>Null = enabled in Production only (the historical behaviour).</summary>
+        public bool? IpRateLimitEnabled { get; init; }
 
         public string ReportContentUrl { get; set; } = "";
 
@@ -309,6 +312,24 @@ public class OdinConfiguration
             Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
             IpAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
+            foreach (var entry in IpAddressListenList.Where(e => e.ProxyProtocol.Enabled))
+            {
+                if (entry.ProxyProtocol.TrustedProxies.Count == 0)
+                {
+                    throw new OdinConfigException(
+                        $"Host:IPAddressListenList entry {entry.Ip}:{entry.HttpsPort} enables ProxyProtocol without TrustedProxies");
+                }
+
+                try
+                {
+                    entry.ProxyProtocol.GetTrustedNetworks();
+                }
+                catch (FormatException e)
+                {
+                    throw new OdinConfigException(
+                        $"Host:IPAddressListenList entry {entry.Ip}:{entry.HttpsPort} has an invalid ProxyProtocol:TrustedProxies value: {e.Message}");
+                }
+            }
 
             HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
@@ -332,6 +353,7 @@ public class OdinConfiguration
 
             // SEB:TODO figure out what the rate limit should default to. FE requests an insane amount of files in development mode.
             IpRateLimitRequestsPerSecond = config.GetOrDefault("Host:IpRateLimitRequestsPerSecond", 1000);
+            IpRateLimitEnabled = bool.TryParse(config["Host:IpRateLimitEnabled"], out var rateLimitEnabled) ? rateLimitEnabled : null;
 
             ClientRegistrationThreshold = config.GetOrDefault("Host:ClientRegistrationThreshold", 10);
             ClientRegistrationWindowThreshold = config.GetOrDefault("Host:ClientRegistrationWindowThreshold", 3);
@@ -349,10 +371,42 @@ public class OdinConfiguration
         public string Ip { get; init; } = "";
         public int HttpsPort { get; init; } = 0;
         public int HttpPort { get; init; } = 0;
+        public ProxyProtocolEntry ProxyProtocol { get; init; } = new();
 
         public IPAddress GetIp()
         {
             return this.Ip == "*" ? IPAddress.Any : IPAddress.Parse(this.Ip);
+        }
+    }
+
+    //
+
+    /// <summary>
+    /// PROXY protocol (v1 or v2) on a listen entry, for running behind an L4 load balancer that
+    /// cannot terminate TLS (per-tenant SNI certificates). When enabled, every connection on the
+    /// entry's ports must start with a PROXY header AND come from one of <see cref="TrustedProxies"/>;
+    /// anything else is closed. Health-check monitors on the balancer must send the header too.
+    /// </summary>
+    public class ProxyProtocolEntry
+    {
+        public bool Enabled { get; init; }
+        public List<string> TrustedProxies { get; init; } = [];
+
+        public IReadOnlyList<IPNetwork> GetTrustedNetworks()
+        {
+            return TrustedProxies.Select(ParseNetwork).ToList();
+        }
+
+        private static IPNetwork ParseNetwork(string value)
+        {
+            var text = value.Trim();
+            if (!text.Contains('/'))
+            {
+                var address = IPAddress.Parse(text);
+                text = $"{address}/{(address.AddressFamily == AddressFamily.InterNetwork ? 32 : 128)}";
+            }
+
+            return IPNetwork.Parse(text);
         }
     }
 
