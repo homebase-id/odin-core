@@ -1,3 +1,5 @@
+using System;
+
 namespace Odin.Services.Registry;
 
 #nullable enable
@@ -16,4 +18,11 @@ public sealed class RegistryChangeMessage
     public const string Channel = "registry-changed";
 
     public long Version { get; init; }
+
+    /// <summary>
+    /// The in-process pub/sub broker delivers a message back to its own publisher, and the
+    /// publishing node has already applied the change, so it must ignore its own announcement or
+    /// it would reconcile a tenant it is still in the middle of bringing up.
+    /// </summary>
+    public Guid OriginNodeId { get; init; }
 }

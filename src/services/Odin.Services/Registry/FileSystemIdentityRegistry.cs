@@ -45,6 +45,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
     private const string RegistryVersionKey = "registry-version";
+    private readonly Guid _nodeId = Guid.NewGuid();
     private long _localVersion;
     // Guards every mutation of _trie/_cache and the registration objects they hold: writers,
     // the initial load and reconcile. Without it a reconcile could copy a not-yet-committed row
@@ -203,8 +204,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             _registryLock.Release();
         }
 
-        await AnnounceAsync(version, registration.PrimaryDomainName);
-
         if (request.OptionalCertificatePemContent == null)
         {
             await InitializeCertificate(request.OdinId);
@@ -227,6 +226,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             await StartBackgroundServices(registration);
         }
+
+        // Announce last: a node that hears this re-reads the row and brings the tenant up itself,
+        // so the tenant must be complete here first.
+        await AnnounceAsync(version, registration.PrimaryDomainName);
 
         return registration.FirstRunToken.GetValueOrDefault();
     }
@@ -271,7 +274,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await using (var scope = _serviceProvider.BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}"))
         {
             var systemDatabase = scope.Resolve<SystemDatabase>();
-            version = await CommitRegistryChangeLockedAsync(systemDatabase, async () =>
+            version = await CommitRegistryChangeLockedAsync(systemDatabase, registration.Id, async () =>
             {
                 await systemDatabase.Registrations.DeleteAsync(registration.Id);
                 await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
@@ -419,7 +422,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             .BeginLifetimeScope($"SaveRegistration:{registration.PrimaryDomainName}");
 
         var systemDatabase = scope.Resolve<SystemDatabase>();
-        var version = await CommitRegistryChangeLockedAsync(systemDatabase, () =>
+        var version = await CommitRegistryChangeLockedAsync(systemDatabase, registration.Id, () =>
             systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
             {
                 identityId = registration.Id,
@@ -684,7 +687,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// version, another node's change landed here unapplied, so the rows are reconciled first,
     /// under the lock we already hold, before the new version is claimed and announced.
     /// </summary>
-    private async Task<long> CommitRegistryChangeLockedAsync(SystemDatabase systemDatabase, Func<Task> mutate)
+    private async Task<long> CommitRegistryChangeLockedAsync(SystemDatabase systemDatabase, Guid writingIdentityId, Func<Task> mutate)
     {
         long previous;
         long version;
@@ -697,9 +700,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (previous > Volatile.Read(ref _localVersion))
         {
+            // The identity this commit writes is excluded: its caller is still bringing it up, and
+            // loading it here would start its background services a second time.
             _logger.LogInformation("Registry was behind at write time (database {previous}, local {local}); reconciling before announcing",
                 previous, Volatile.Read(ref _localVersion));
-            await ReconcileLockedAsync(previous);
+            await ReconcileLockedAsync(previous, excludeIdentityId: writingIdentityId);
         }
 
         RaiseLocalVersion(version);
@@ -758,7 +763,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         try
         {
-            if (envelope.DeserializeMessage() is not RegistryChangeMessage message)
+            if (envelope.DeserializeMessage() is not RegistryChangeMessage message || message.OriginNodeId == _nodeId)
             {
                 return;
             }
@@ -779,7 +784,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private async Task PublishRegistryVersionAsync(long version, string primaryDomain)
     {
         var pubSub = _serviceProvider.Resolve<ISystemPubSub>();
-        var envelope = JsonEnvelope.Create(new RegistryChangeMessage { Version = version });
+        var envelope = JsonEnvelope.Create(new RegistryChangeMessage { Version = version, OriginNodeId = _nodeId });
 
         for (var attempt = 1; ; attempt++)
         {
@@ -821,7 +826,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// lock is held, before any scope or query, so a burst of announcements collapses into one
     /// pass and the rest return without touching the database.
     /// </summary>
-    public async Task ReconcileWithDatabaseAsync(long? floor, string reason)
+    private async Task ReconcileWithDatabaseAsync(long? floor, string reason)
     {
         await _registryLock.WaitAsync();
         try
@@ -854,7 +859,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     // Caller holds _registryLock. Reads rows and applies them; raises the local version only if
     // every tenant that needed loading came up, so a failed one is retried on the next trigger.
-    private async Task ReconcileLockedAsync(long version)
+    private async Task ReconcileLockedAsync(long version, Guid? excludeIdentityId = null)
     {
         List<RegistrationsRecord> records;
         await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryReconcile"))
@@ -866,6 +871,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var allLoaded = true;
         foreach (var record in records)
         {
+            if (record.identityId == excludeIdentityId)
+            {
+                continue;
+            }
+
             var known = _cache.GetValueOrDefault(record.identityId);
             if (known == null)
             {
@@ -883,7 +893,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         var unloaded = 0;
         var liveIds = records.Select(r => r.identityId).ToHashSet();
-        foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id)).ToList())
+        foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id) && r.Id != excludeIdentityId).ToList())
         {
             _logger.LogInformation("Reconciliation is unloading {domain}, which is no longer registered", orphan.PrimaryDomainName);
             try

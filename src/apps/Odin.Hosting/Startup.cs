@@ -496,13 +496,9 @@ public static class HostExtensions
 
         // Load identity registry
         var registry = services.GetRequiredService<IIdentityRegistry>();
-        // Subscribe before loading so the window where another node's change could be missed is as
-        // small as possible; the handler is idempotent, and the reconciliation sweep covers the rest.
-        if (registry is FileSystemIdentityRegistry fileSystemRegistry)
-        {
-            fileSystemRegistry.SubscribeToRegistryChangesAsync().BlockingWait();
-        }
-
+        // Subscribe before loading: a change announced mid-load is either at or below the version
+        // load reads, and dropped, or above it, and reconciled after.
+        registry.SubscribeToRegistryChangesAsync().BlockingWait();
         registry.LoadRegistrations().BlockingWait();
         var certificateStore = services.GetRequiredService<ICertificateStore>();
         DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry, certificateStore);
