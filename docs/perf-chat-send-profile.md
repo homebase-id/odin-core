@@ -54,6 +54,9 @@ completeness: chat-kmp coalesces every WebSocket notification behind a 200 ms de
 | 3-inbox | 3.11 | 4.81 | 3 / 9 | 7 |
 | **end-to-end** | **10.90** | 13.18 | 34 | 21 |
 
+Re-measured on main at the time of merge (500 warm-up, 500 measured): baseline **10.77 ms**,
+with the file-system scope fix **9.85 ms**, and with the unmerged command cache on top **8.78 ms**.
+
 Log level Information instead of Debug: end-to-end p50 10.18 ms (−7%).
 
 Statement census (slow-query threshold temporarily zeroed, one iteration): 11 / 11 / 12
@@ -79,7 +82,7 @@ JSON content serializers rebuilding `JsonSerializerOptions` (5%). Production has
 
 ## Fixes tried
 
-### 1. Build the drive file-system graph once per scope (committed)
+### 1. Build the drive file-system graph once per scope (merged)
 
 `StandardFileSystem`, `CommentFileSystem`, their storage/query services and `FileSystemResolver`
 were `InstancePerDependency`; `DriveStorageServiceBase` took `ILoggerFactory` and created a logger
@@ -94,29 +97,29 @@ caches.
 
 Statement counts unchanged.
 
-### 2. Reuse prepared SQLite commands per connection (committed)
+### 2. Reuse prepared SQLite commands per connection (measured, deliberately NOT merged)
 
-`ScopedConnectionFactory.CommandWrapper` created a fresh `SqliteCommand` per statement, so every
-execution re-ran `sqlite3_prepare_v2`. The wrapper now parks the command on the physical
-connection (keyed by SQL text, `PreparedCommandCache`) instead of disposing it, and a later
-command with the same text takes it over with parameters cleared. Commands are disposed together
-with the connection when `DbConnectionPool` closes it. SQLite only; Npgsql prepares on its own.
+`ScopedConnectionFactory.CommandWrapper` creates a fresh `SqliteCommand` per statement, so every
+execution re-runs `sqlite3_prepare_v2`, which the CPU sample put at ~8% of busy time. A prototype
+parks the command on the physical connection keyed by SQL text and lets a later command with the
+same text take it over, disposing cached commands with the connection. SQLite only; Npgsql prepares
+on its own.
 
-| variant | 1-upload p50 | 2-outbox p50 | 3-inbox p50 | end-to-end p50 |
-|---|---:|---:|---:|---:|
-| fs-scope | 3.51 / 3.55 | 2.89 / 2.81 | 2.82 / 2.75 | 9.59 / 9.35 |
-| fs-scope + cmd-cache | 3.30 / 3.18 | 2.67 / 2.63 | 2.65 / 2.59 | **8.89 / 8.72** (−19% vs baseline) |
-
-Caveat: a caller that disposes its command while its reader is still open would leave the cached
-`SqliteCommand` with a dangling reader reference and the next reuse would throw
-"DataReader already open". Every call site follows `await using cmd` / `await using rdr` in that
-order and the storage, V2 and V1 drive/peer suites pass, but that is the failure mode to look for.
+It works and it is the larger single win, but it is **held back on purpose**. It introduces an
+invariant nothing enforces: a caller that disposes its command while its reader is still open
+leaves the cached command holding a dangling reader, and the next reuse throws "DataReader already
+open". Today no call site does that (readers never outlive their commands, and the registry's
+`BumpMonotonicAsync` uses scalars only), and the full suites pass with it applied, but future code
+has to keep obeying a rule no test states. Weighed against the bottom line below, a ~1 ms saving on
+a path that is not what a user waits on does not justify that, so it waits for either a host that
+is genuinely CPU-bound or a wrapper that refuses to cache a command whose reader is still open.
 
 ### Bottom line
 
 Steady-state, the server spends about **11 ms of CPU-bound work** on a 1:1 text message on SQLite
-(sender request ≈ 4 ms, peer delivery ≈ 3.3 ms, recipient inbox ≈ 3.1 ms), and the two fixes cut
-that to ≈ 8.8 ms. None of that is what a user waits on. The wall-clock a user sees is dominated by
+(sender request ≈ 4 ms, peer delivery ≈ 3.3 ms, recipient inbox ≈ 3.1 ms). The merged fix takes
+that to ≈ 9.9 ms, and the unmerged command cache would take it to ≈ 8.8 ms. None of that is what a
+user waits on. The wall-clock a user sees is dominated by
 the network legs the harness bypasses (TLS to `capi.<recipient>`, the CAPI validate callback), the
 recipient client's 200 ms notification coalescing delay and its `processInbox` round trip, and,
 for media, the synchronous disk→S3 copy in the upload request. Those are the levers for perceived
