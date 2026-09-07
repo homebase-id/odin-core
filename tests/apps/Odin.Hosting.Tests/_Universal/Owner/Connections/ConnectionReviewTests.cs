@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -146,14 +148,20 @@ public class ConnectionReviewTests
 
         await Connect(frodo, sam);
 
-        var circleId = Guid.NewGuid();
-        var createCircle = await sam.Network.CreateCircle(circleId, "family", new PermissionSetGrantRequest
-        {
-            PermissionSet = new PermissionSet(PermissionKeys.AllowIntroductions)
-        });
-        ClassicAssert.IsTrue(createCircle.IsSuccessStatusCode);
+        // Two, so the rejection has more than one offender to report.
+        var familyCircleId = Guid.NewGuid();
+        var workCircleId = Guid.NewGuid();
 
-        var review = await sam.Network.MarkReviewed(frodo.OdinId, [circleId]);
+        foreach (var (id, name) in new[] { (familyCircleId, "family"), (workCircleId, "work") })
+        {
+            var createCircle = await sam.Network.CreateCircle(id, name, new PermissionSetGrantRequest
+            {
+                PermissionSet = new PermissionSet(PermissionKeys.AllowIntroductions)
+            });
+            ClassicAssert.IsTrue(createCircle.IsSuccessStatusCode, $"create '{name}' failed");
+        }
+
+        var review = await sam.Network.MarkReviewed(frodo.OdinId, [familyCircleId, workCircleId]);
         ClassicAssert.IsTrue(review.IsSuccessStatusCode, $"review failed: {review.StatusCode}");
 
         // circleIdList ACLs check membership, not tier, so a personal-circle member must stay reviewed.
@@ -162,10 +170,25 @@ public class ConnectionReviewTests
         ClassicAssert.AreEqual(OdinClientErrorCode.CannotClearReviewWhilePersonalCircleMember,
             WebScaffold.GetErrorCode(rejected.Error));
 
+        // Every offender in one response, with ids: the caller has to clear all of them, and finding
+        // that out one rejected attempt at a time is the thing this avoids.
+        var blocking = ReadBlockingCircles(rejected.Error?.Content);
+        ClassicAssert.AreEqual(2, blocking.Count, "the rejection must name every blocking circle, not just the first");
+        CollectionAssert.AreEquivalent(
+            new[] { familyCircleId, workCircleId }.Select(g => g.ToString("N")).ToList(),
+            blocking.Select(b => Guid.Parse(b).ToString("N")).ToList());
+
         ClassicAssert.IsNotNull((await sam.Network.GetConnectionInfo(frodo.OdinId)).Content.ReviewedAt);
 
-        // Remove the membership and the clear goes through.
-        await sam.Network.RevokeCircle(circleId, frodo.OdinId);
+        // One is not enough -- the other still blocks.
+        await sam.Network.RevokeCircle(familyCircleId, frodo.OdinId);
+
+        var stillRejected = await sam.Network.ClearReview(frodo.OdinId);
+        ClassicAssert.IsFalse(stillRejected.IsSuccessStatusCode);
+        ClassicAssert.AreEqual(1, ReadBlockingCircles(stillRejected.Error?.Content).Count);
+
+        // Remove the last membership and the clear goes through.
+        await sam.Network.RevokeCircle(workCircleId, frodo.OdinId);
 
         var cleared = await sam.Network.ClearReview(frodo.OdinId);
         ClassicAssert.IsTrue(cleared.IsSuccessStatusCode, $"clear failed: {cleared.StatusCode}");
@@ -175,6 +198,20 @@ public class ConnectionReviewTests
         ClassicAssert.IsFalse(after.Content.Vetted);
 
         await Disconnect(frodo, sam);
+    }
+
+    /// <summary>The circle ids the rejection named, read off the problem-details body.</summary>
+    private static List<string> ReadBlockingCircles(string problemDetails)
+    {
+        ClassicAssert.IsNotNull(problemDetails, "the rejection had no body to read");
+
+        using var doc = JsonDocument.Parse(problemDetails);
+        ClassicAssert.IsTrue(doc.RootElement.TryGetProperty("blockingCircles", out var circles),
+            $"the rejection carried no blockingCircles: {problemDetails}");
+
+        return circles.EnumerateArray()
+            .Select(c => c.GetProperty("circleId").GetString())
+            .ToList();
     }
 
     [Test]

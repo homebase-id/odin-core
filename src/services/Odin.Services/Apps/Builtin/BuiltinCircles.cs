@@ -178,7 +178,7 @@ public static class BuiltinCircles
         Description = "Members hold a shard of your recovery key",
         Emoji = "🔑",
         AppId = SystemAppConstants.RecoveryAppId,
-        GrantOn = CircleGrantOn.None,
+        GrantOn = CircleGrantOn.OwnFlowConnect,
         Designation = CircleDesignation.Personal,
         DriveGrants = [Grant(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Write)],
         Permissions = new PermissionSet { Keys = [] }
@@ -192,7 +192,7 @@ public static class BuiltinCircles
         Description = "Members of your community",
         Emoji = "🏘️",
         AppId = SystemAppConstants.CommunityAppId,
-        GrantOn = CircleGrantOn.None,
+        GrantOn = CircleGrantOn.OwnFlowConnect,
         Designation = CircleDesignation.Personal,
         DriveGrants = [],
         Permissions = new PermissionSet { Keys = [] }
@@ -234,7 +234,7 @@ public static class BuiltinCircles
         Description = "Members can see your photos",
         Emoji = "📷",
         AppId = SystemAppConstants.PhotoAppId,
-        GrantOn = CircleGrantOn.None,
+        GrantOn = CircleGrantOn.OwnFlowConnect,
         Designation = CircleDesignation.Personal,
         DriveGrants = [],
         Permissions = new PermissionSet { Keys = [] }

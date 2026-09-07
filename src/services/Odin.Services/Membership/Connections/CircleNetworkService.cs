@@ -1216,6 +1216,8 @@ namespace Odin.Services.Membership.Connections
                 .Concat(icr.PeerKeyStore?.DepositedGrants?.Select(d => d.CircleId.Value) ?? [])
                 .Distinct();
 
+            var blocking = new List<BlockingCircle>();
+
             foreach (var circleId in memberships)
             {
                 if (SystemCircleConstants.IsSystemCircle(circleId))
@@ -1226,11 +1228,23 @@ namespace Odin.Services.Membership.Connections
                 var definition = await circleDefinitionService.GetCircleAsync(circleId);
                 if (definition is { Designation: CircleDesignation.Personal, GrantOn: not CircleGrantOn.Connect })
                 {
-                    throw new OdinClientException(
-                        $"Cannot clear the review for {odinId} while they are a member of the personal circle " +
-                        $"'{definition.Name}'; remove them from it first",
-                        OdinClientErrorCode.CannotClearReviewWhilePersonalCircleMember);
+                    blocking.Add(new BlockingCircle { CircleId = definition.Id, Name = definition.Name });
                 }
+            }
+
+            // Every offender, not the first one found: the caller has to remove the contact from all of
+            // them before the clear can succeed, so reporting one at a time makes them discover the rest
+            // one rejected action at a time.  Ids as well as names, so the client can link to each circle
+            // rather than resolve a name that is not unique anyway.
+            if (blocking.Count > 0)
+            {
+                throw new OdinClientException(
+                    $"Cannot clear the review for {odinId} while they are a member of the personal circle(s) " +
+                    $"{string.Join(", ", blocking.Select(c => $"'{c.Name}'"))}; remove them from those first",
+                    OdinClientErrorCode.CannotClearReviewWhilePersonalCircleMember)
+                {
+                    Extensions = new Dictionary<string, object> { ["blockingCircles"] = blocking }
+                };
             }
 
             await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, null);
