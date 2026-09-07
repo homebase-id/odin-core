@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
@@ -43,7 +44,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
-    private readonly Guid _nodeId = Guid.NewGuid();
+    private const string RegistryVersionKey = "registry-version";
+    private long _localVersion;
+    private readonly SemaphoreSlim _reconcileGate = new(1, 1);
     private IPubSubSubscription? _registryChangeSubscription;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
@@ -228,14 +231,19 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
             // Root scope: the tenant scope was just disposed, and re-creating it here only to delete
             // rows would resurrect what we are removing.
+            long version;
             await using (var scope = _serviceProvider.BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}"))
             {
                 var systemDatabase = scope.Resolve<SystemDatabase>();
+                await using var tx = await systemDatabase.BeginStackedTransactionAsync();
                 await systemDatabase.Registrations.DeleteAsync(registration.Id);
                 await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
+                version = await BumpRegistryVersionAsync(systemDatabase);
+                tx.Commit();
             }
 
-            await PublishRegistryChangeAsync(registration.Id, registration.PrimaryDomainName, RegistryChangeKind.Deleted);
+            RaiseLocalVersion(version);
+            await PublishRegistryVersionAsync(version, registration.PrimaryDomainName);
 
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
@@ -365,21 +373,29 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             .BeginLifetimeScope($"SaveRegistration:{registration.PrimaryDomainName}");
 
         var systemDatabase = scope.Resolve<SystemDatabase>();
-        await systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
+        long version;
+        await using (var tx = await systemDatabase.BeginStackedTransactionAsync())
         {
-            identityId = registration.Id,
-            primaryDomainName = registration.PrimaryDomainName.ToLower(),
-            email = registration.Email?.ToLower(),
-            firstRunToken = registration.FirstRunToken?.ToString(),
-            disabled = registration.Disabled,
-            markedForDeletionDate = registration.MarkedForDeletionDate,
-            planId = registration.PlanId ?? "free",
-            enablePublicWebPresence = registration.EnablePublicWebPresence
-        });
+            await systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
+            {
+                identityId = registration.Id,
+                primaryDomainName = registration.PrimaryDomainName.ToLower(),
+                email = registration.Email?.ToLower(),
+                firstRunToken = registration.FirstRunToken?.ToString(),
+                disabled = registration.Disabled,
+                markedForDeletionDate = registration.MarkedForDeletionDate,
+                planId = registration.PlanId ?? "free",
+                enablePublicWebPresence = registration.EnablePublicWebPresence
+            });
+            version = await BumpRegistryVersionAsync(systemDatabase);
+            tx.Commit();
+        }
 
-        _logger.LogInformation("Wrote registration record for [{registrationId}]", registration.Id);
+        _logger.LogInformation("Wrote registration record for [{registrationId}] at registry version {version}",
+            registration.Id, version);
         await CacheIdentityAsync(registration);
-        await PublishRegistryChangeAsync(registration.Id, registration.PrimaryDomainName, RegistryChangeKind.Upserted);
+        RaiseLocalVersion(version);
+        await PublishRegistryVersionAsync(version, registration.PrimaryDomainName);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -471,11 +487,19 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         await using var systemScope = _serviceProvider.BeginLifetimeScope();
         var systemDatabase = systemScope.Resolve<SystemDatabase>();
+
+        // Version before rows: a change landing between the two reads then has a version above
+        // ours and its announcement triggers a reconcile, whereas rows-then-version could record a
+        // version newer than the rows we hold and silently skip that change.
+        var version = await ReadRegistryVersionAsync(systemDatabase);
         var registrations = await systemDatabase.Registrations.GetAllAsync();
         foreach (var registrationRecord in registrations)
         {
             await LoadRegistrationRecordAsync(registrationRecord);
         }
+
+        RaiseLocalVersion(version);
+        _logger.LogInformation("Registry loaded at version {version}", version);
     }
 
     /// <summary>
@@ -555,9 +579,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     #region cross-node registry coherence
 
     /// <summary>
-    /// Starts listening for registry changes made on other nodes. Call before
-    /// <see cref="LoadRegistrations"/>: subscribing first keeps the startup window small, and the
-    /// handler is idempotent so a message arriving mid-load is harmless.
+    /// Starts listening for registry version announcements from other nodes, and re-checks the
+    /// version whenever the Redis connection is restored. Call before <see cref="LoadRegistrations"/>:
+    /// an announcement arriving mid-load is either at or below the version load reads, and dropped,
+    /// or above it, and reconciled after, so there is no startup window to close with a timer.
     /// </summary>
     public async Task SubscribeToRegistryChangesAsync()
     {
@@ -567,100 +592,165 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         var pubSub = _serviceProvider.Resolve<ISystemPubSub>();
-        _registryChangeSubscription = await pubSub.SubscribeAsync(RegistryChangeMessage.Channel, OnRegistryChangedAsync);
-        _logger.LogInformation("Registry node {nodeId} subscribed to {channel}", _nodeId, RegistryChangeMessage.Channel);
-    }
+        _registryChangeSubscription = await pubSub.SubscribeAsync(RegistryChangeMessage.Channel, OnRegistryVersionAnnouncedAsync);
 
-    private async Task PublishRegistryChangeAsync(Guid identityId, string primaryDomain, RegistryChangeKind kind)
-    {
-        try
+        if (_config.Redis.Enabled)
         {
-            var pubSub = _serviceProvider.Resolve<ISystemPubSub>();
-            await pubSub.PublishAsync(RegistryChangeMessage.Channel, JsonEnvelope.Create(new RegistryChangeMessage
+            // Pub/sub has no replay: anything announced while this connection was down is gone.
+            // The version row says whether we missed something, and this is the only moment we
+            // could have, so re-check it here rather than on a timer.
+            var redis = _serviceProvider.Resolve<IConnectionMultiplexer>();
+            redis.ConnectionRestored += (_, _) =>
             {
-                IdentityId = identityId,
-                PrimaryDomain = primaryDomain,
-                Kind = kind,
-                OriginNodeId = _nodeId,
-            }));
-        }
-        catch (Exception e)
-        {
-            // Delivery is best-effort by design and the sweep is what guarantees convergence, so a
-            // publish failure must never fail the operation that caused it.
-            _logger.LogWarning(e, "Could not publish registry change for {domain}: {error}", primaryDomain, e.Message);
-        }
-    }
-
-    private async Task OnRegistryChangedAsync(JsonEnvelope envelope)
-    {
-        try
-        {
-            if (envelope.DeserializeMessage() is not RegistryChangeMessage message || message.OriginNodeId == _nodeId)
-            {
-                return;
-            }
-
-            _logger.LogInformation("Registry change received: {kind} {domain} from node {originNodeId}",
-                message.Kind, message.PrimaryDomain, message.OriginNodeId);
-
-            if (message.Kind == RegistryChangeKind.Deleted)
-            {
-                var registration = _cache.GetValueOrDefault(message.IdentityId);
-                if (registration != null)
+                _ = Task.Run(async () =>
                 {
-                    await ForgetLocallyAsync(registration);
-                }
+                    try
+                    {
+                        await ReconcileIfBehindAsync("redis connection restored");
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Registry re-check after redis reconnect failed: {error}", e.Message);
+                    }
+                });
+            };
+        }
 
+        _logger.LogInformation("Registry subscribed to {channel}", RegistryChangeMessage.Channel);
+    }
+
+    private async Task OnRegistryVersionAnnouncedAsync(JsonEnvelope envelope)
+    {
+        try
+        {
+            if (envelope.DeserializeMessage() is not RegistryChangeMessage message)
+            {
                 return;
             }
 
-            await ApplyUpsertFromDatabaseAsync(message.IdentityId);
+            if (message.Version <= Volatile.Read(ref _localVersion))
+            {
+                return;
+            }
+
+            _logger.LogInformation("Registry version {version} announced; local is {local}, reconciling",
+                message.Version, Volatile.Read(ref _localVersion));
+            await ReconcileWithDatabaseAsync();
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Error applying registry change: {error}", e.Message);
+            _logger.LogError(e, "Error handling registry version announcement: {error}", e.Message);
         }
+    }
+
+    private async Task PublishRegistryVersionAsync(long version, string primaryDomain)
+    {
+        var pubSub = _serviceProvider.Resolve<ISystemPubSub>();
+        var envelope = JsonEnvelope.Create(new RegistryChangeMessage { Version = version });
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await pubSub.PublishAsync(RegistryChangeMessage.Channel, envelope);
+                return;
+            }
+            catch (Exception e) when (attempt < 3)
+            {
+                _logger.LogWarning(e, "Publishing registry version {version} failed (attempt {attempt}): {error}",
+                    version, attempt, e.Message);
+                await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt));
+            }
+            catch (Exception e)
+            {
+                // The change is committed and applied here, but no other node will hear about it
+                // until the next registry change anywhere, a redis reconnect, or a restart. That is
+                // the one gap this design accepts, and it has to be findable in the logs.
+                _logger.LogError(e,
+                    "Could not publish registry version {version} after {domain} changed; other nodes stay stale " +
+                    "until the next registry change, a redis reconnect, or a restart: {error}",
+                    version, primaryDomain, e.Message);
+                return;
+            }
+        }
+    }
+
+    private async Task ReconcileIfBehindAsync(string reason)
+    {
+        long version;
+        await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryVersionCheck"))
+        {
+            version = await ReadRegistryVersionAsync(scope.Resolve<SystemDatabase>());
+        }
+
+        if (version <= Volatile.Read(ref _localVersion))
+        {
+            return;
+        }
+
+        _logger.LogWarning("Registry is behind after {reason}: database version {version}, local {local}; reconciling",
+            reason, version, Volatile.Read(ref _localVersion));
+        await ReconcileWithDatabaseAsync();
     }
 
     /// <summary>
-    /// Re-reads one registration from the database and applies it locally. A registration this node
-    /// has never seen is loaded in full; a known one only has its mutable fields refreshed, so a flag
-    /// change does not re-run migration and background-service startup.
+    /// Brings the in-memory registry up to the database, which is the source of truth. Reads the
+    /// version before the rows for the same reason as <see cref="LoadRegistrations"/>. Single-flight:
+    /// concurrent announcements and reconnect events collapse into one pass.
     /// </summary>
-    private async Task ApplyUpsertFromDatabaseAsync(Guid identityId)
+    public async Task<int> ReconcileWithDatabaseAsync()
     {
-        RegistrationsRecord record;
-        await using (var scope = _serviceProvider.BeginLifetimeScope($"RegistryUpsert:{identityId}"))
+        await _reconcileGate.WaitAsync();
+        try
         {
-            var systemDatabase = scope.Resolve<SystemDatabase>();
-            record = await systemDatabase.Registrations.GetAsync(identityId);
-        }
+            long version;
+            List<RegistrationsRecord> records;
+            await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryReconcile"))
+            {
+                var systemDatabase = scope.Resolve<SystemDatabase>();
+                version = await ReadRegistryVersionAsync(systemDatabase);
+                records = await systemDatabase.Registrations.GetAllAsync();
+            }
 
-        if (record == null)
+            var changes = 0;
+
+            foreach (var record in records)
+            {
+                var known = _cache.GetValueOrDefault(record.identityId);
+                if (known == null)
+                {
+                    _logger.LogInformation("Reconciliation is adding {domain}", record.primaryDomainName);
+                    await LoadRegistrationRecordAsync(record);
+                    changes++;
+                }
+                else if (HasDivergedFrom(known, record))
+                {
+                    _logger.LogInformation("Reconciliation is refreshing {domain}", record.primaryDomainName);
+                    ApplyRecord(known, record);
+                    changes++;
+                }
+            }
+
+            var liveIds = records.Select(r => r.identityId).ToHashSet();
+            foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id)).ToList())
+            {
+                _logger.LogInformation("Reconciliation is unloading {domain}, which is no longer registered", orphan.PrimaryDomainName);
+                await ForgetLocallyAsync(orphan);
+                changes++;
+            }
+
+            RaiseLocalVersion(version);
+            if (changes > 0)
+            {
+                _logger.LogInformation("Registry reconciled to version {version} with {changes} change(s)", version, changes);
+            }
+
+            return changes;
+        }
+        finally
         {
-            // Deleted between publish and handling; the delete notification or the sweep removes it.
-            return;
+            _reconcileGate.Release();
         }
-
-        var known = _cache.GetValueOrDefault(identityId);
-        if (known == null)
-        {
-            await LoadRegistrationRecordAsync(record);
-            return;
-        }
-
-        known.PrimaryDomainName = record.primaryDomainName;
-        known.Email = record.email;
-        known.PlanId = record.planId;
-        known.Disabled = record.disabled;
-        known.EnablePublicWebPresence = record.enablePublicWebPresence;
-        known.MarkedForDeletionDate = record.markedForDeletionDate;
-        known.FirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? null : Guid.Parse(record.firstRunToken);
-
-        _trie.TryRemoveDomain(known.PrimaryDomainName);
-        _trie.AddDomain(known.PrimaryDomainName, known);
-        _cache[known.Id] = known;
     }
 
     /// <summary>
@@ -674,52 +764,18 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await UnloadRegistration(registration);
     }
 
-    /// <summary>
-    /// Reconciles the in-memory registry against the database, which is the source of truth. This is
-    /// the guarantee behind the change notifications: pub/sub is at-most-once, so a node that missed
-    /// a message, or was starting up, or could not reach Redis, converges here instead of staying
-    /// stale until it restarts.
-    /// </summary>
-    public async Task<int> ReconcileWithDatabaseAsync()
+    private void ApplyRecord(IdentityRegistration known, RegistrationsRecord record)
     {
-        List<RegistrationsRecord> records;
-        await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryReconcile"))
-        {
-            var systemDatabase = scope.Resolve<SystemDatabase>();
-            records = await systemDatabase.Registrations.GetAllAsync();
-        }
-
-        var changes = 0;
-
-        foreach (var record in records)
-        {
-            var known = _cache.GetValueOrDefault(record.identityId);
-            if (known == null)
-            {
-                _logger.LogWarning("Reconciliation is adding {domain}, which this node had not seen; " +
-                                   "a registry change notification was missed", record.primaryDomainName);
-                await LoadRegistrationRecordAsync(record);
-                changes++;
-            }
-            else if (HasDivergedFrom(known, record))
-            {
-                _logger.LogWarning("Reconciliation is refreshing {domain}; a registry change notification was missed",
-                    record.primaryDomainName);
-                await ApplyUpsertFromDatabaseAsync(record.identityId);
-                changes++;
-            }
-        }
-
-        var liveIds = records.Select(r => r.identityId).ToHashSet();
-        foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id)).ToList())
-        {
-            _logger.LogWarning("Reconciliation is unloading {domain}, which is no longer registered; " +
-                               "a registry change notification was missed", orphan.PrimaryDomainName);
-            await ForgetLocallyAsync(orphan);
-            changes++;
-        }
-
-        return changes;
+        _trie.TryRemoveDomain(known.PrimaryDomainName);
+        known.PrimaryDomainName = record.primaryDomainName;
+        known.Email = record.email;
+        known.PlanId = record.planId;
+        known.Disabled = record.disabled;
+        known.EnablePublicWebPresence = record.enablePublicWebPresence;
+        known.MarkedForDeletionDate = record.markedForDeletionDate;
+        known.FirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? null : Guid.Parse(record.firstRunToken);
+        _trie.AddDomain(known.PrimaryDomainName, known);
+        _cache[known.Id] = known;
     }
 
     private static bool HasDivergedFrom(IdentityRegistration registration, RegistrationsRecord record)
@@ -732,6 +788,31 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                !string.Equals(registration.Email, record.email, StringComparison.OrdinalIgnoreCase) ||
                !string.Equals(registration.PlanId, record.planId, StringComparison.Ordinal) ||
                registration.FirstRunToken != recordFirstRunToken;
+    }
+
+    // The version is the settings row's modified stamp: the upsert sets it to
+    // MAX(modified + 1, now) in a single UPDATE, so concurrent bumps serialise on the row lock and
+    // the value is strictly increasing with no extra schema.
+    private static async Task<long> BumpRegistryVersionAsync(SystemDatabase systemDatabase)
+    {
+        var record = new SettingsRecord { key = RegistryVersionKey, value = "" };
+        await systemDatabase.Settings.UpsertAsync(record);
+        return record.modified.milliseconds;
+    }
+
+    private static async Task<long> ReadRegistryVersionAsync(SystemDatabase systemDatabase)
+    {
+        var record = await systemDatabase.Settings.GetAsync(RegistryVersionKey);
+        return record?.modified.milliseconds ?? 0;
+    }
+
+    private void RaiseLocalVersion(long version)
+    {
+        long current;
+        while ((current = Volatile.Read(ref _localVersion)) < version &&
+               Interlocked.CompareExchange(ref _localVersion, version, current) != current)
+        {
+        }
     }
 
     #endregion

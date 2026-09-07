@@ -66,15 +66,21 @@ Consequences behind a balancer, with N nodes:
   every other node restarts.
 - **Deleting a tenant** leaves the other nodes serving it from cache.
 
-**Fixed** by two mechanisms with different jobs. Every registry mutation now publishes a
-`RegistryChangeMessage` on `ISystemPubSub`, carrying an identity id and a change kind and never the
-new state, so the receiver re-reads the row and duplicate or out-of-order delivery converges rather
-than clobbering. Because that delivery is at-most-once, a `RegistryReconciliationBackgroundService`
-sweeps the database every `BackgroundServices:RegistryReconciliationIntervalSeconds` (default 30)
-and repairs anything the notification missed, logging a warning when it does. Verified two ways:
-`TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` now passes, and
-`RegistryChangeMadeOnlyInTheDatabase_ConvergesOnBothNodes` changes a row directly in Postgres, which
-nothing publishes, and both nodes still converge.
+**Fixed** with one mechanism and one event handler, and no timer. A registry version lives in
+the system `Settings` row `registry-version`, bumped in the **same transaction** as every
+registration write (the settings upsert sets `modified = MAX(modified+1, now)` in one statement,
+so concurrent bumps serialise on the row lock and the value is strictly monotonic). After commit,
+the node announces the new version over `ISystemPubSub`. A node that hears a version above its
+own reconciles from the database; anything at or below is dropped, which makes duplicate and
+out-of-order delivery harmless. Because pub/sub has no replay, the only way to miss an
+announcement is to be disconnected, so each node re-reads the version once on startup and
+whenever its Redis connection is restored (`IConnectionMultiplexer.ConnectionRestored`), and
+reconciles if behind. The one accepted gap: a node that commits and then fails to announce logs
+an **error** (after retries), and other nodes learn on the next registry change anywhere, a
+reconnect, or a restart. Verified two ways: `TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` passes,
+and `RegistryChangeMissedWhileRedisWasDown_ConvergesOnReconnect` stops Redis, changes the
+registration with nothing able to announce it, confirms both nodes are stale, starts Redis and
+asserts both converge.
 
 ## Notes and constraints (not breaks)
 

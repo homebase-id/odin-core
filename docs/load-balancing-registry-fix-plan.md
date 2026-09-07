@@ -1,8 +1,13 @@
 # Plan: make the identity registry coherent across nodes
 
-> **Status: implemented.** All three phases landed; see the commit that adds
-> `RegistryChangeMessage`, `RegistryReconciliationBackgroundService` and the probe tests. Two
-> deviations from the plan as written are noted inline below.
+> **Status: implemented, with the design changed in review.** The periodic sweep in this plan was
+> replaced: a registry **version** now lives in the system `Settings` row, bumped in the same
+> transaction as each registration write, so it cannot be missed. Nodes announce the version over
+> pub/sub and reconcile when they hear one above their own; since pub/sub has no replay, each node
+> re-reads the version on startup and on `ConnectionRestored` instead of on a timer. No background
+> service. The accepted gap (commit then failed announce) is logged as an error. The reasoning in
+> §"Two designs that look right and are not" still holds and is why the version is in Postgres,
+> not Redis. Everything below describes the original plan.
 
 Fixes the one real break found in the two-node run (see `load-balancing.md`): registrations are
 shared in Postgres but cached per process, so a registry change on one node is invisible to every

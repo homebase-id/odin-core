@@ -417,8 +417,6 @@ public class OdinConfiguration
         public int EnsureCertificateProcessorIntervalSeconds { get; init; }
         public int InboxOutboxReconciliationIntervalSeconds { get; init; }
         public int JobCleanUpIntervalSeconds { get; init; }
-        /// <summary>How often a node re-checks the database for registry changes it may have missed.</summary>
-        public int RegistryReconciliationIntervalSeconds { get; init; }
         public bool SystemBackgroundServicesEnabled { get; set; }
         public bool TenantBackgroundServicesEnabled { get; set; }
 
@@ -434,8 +432,6 @@ public class OdinConfiguration
             InboxOutboxReconciliationIntervalSeconds =
                 config.Required<int>("BackgroundServices:InboxOutboxReconciliationIntervalSeconds");
             JobCleanUpIntervalSeconds = config.Required<int>("BackgroundServices:JobCleanUpIntervalSeconds");
-            RegistryReconciliationIntervalSeconds =
-                config.GetOrDefault("BackgroundServices:RegistryReconciliationIntervalSeconds", 30);
             SystemBackgroundServicesEnabled = config.GetOrDefault("BackgroundServices:SystemBackgroundServicesEnabled", true);
             TenantBackgroundServicesEnabled = config.GetOrDefault("BackgroundServices:TenantBackgroundServicesEnabled", true);
         }
