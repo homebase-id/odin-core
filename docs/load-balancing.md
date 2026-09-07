@@ -68,8 +68,11 @@ Consequences behind a balancer, with N nodes:
 
 **Fixed** with one mechanism and one event handler, and no timer. A registry version lives in
 the system `Settings` row `registry-version`, bumped in the **same transaction** as every
-registration write (the settings upsert sets `modified = MAX(modified+1, now)` in one statement,
-so concurrent bumps serialise on the row lock and the value is strictly monotonic). After commit,
+registration write. The bump locks the row (`SELECT ... FOR UPDATE`; SQLite's write lock does the
+same) before reading and advancing it, so it is atomic and returns the value it advanced from; a
+writer whose "advanced from" is above its own local version knows another node's change landed
+unapplied and reconciles before claiming the new version. A plain read-then-upsert cannot see a
+consistent "before" under READ COMMITTED, which is why the read is locked. After commit,
 the node announces the new version over `ISystemPubSub`. A node that hears a version above its
 own reconciles from the database; anything at or below is dropped, which makes duplicate and
 out-of-order delivery harmless. Because pub/sub has no replay, the only way to miss an

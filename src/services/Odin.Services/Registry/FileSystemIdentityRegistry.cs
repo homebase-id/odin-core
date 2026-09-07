@@ -679,29 +679,27 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// it committed.
     /// </summary>
     /// <summary>
-    /// Runs a registry write under the caller-held registry lock: bumps the version inside the
-    /// write's transaction and returns it for the caller to announce once the lock is released.
-    /// If the database was already ahead of this node when we wrote, another node's change is not
-    /// applied here yet, and raising our version past it would hide that change forever; so the
-    /// rows are reconciled first, under the lock we already hold.
+    /// Runs a registry write under the caller-held registry lock. The version bump is atomic with
+    /// the write and reports the value it advanced from; if that is above this node's local
+    /// version, another node's change landed here unapplied, so the rows are reconciled first,
+    /// under the lock we already hold, before the new version is claimed and announced.
     /// </summary>
     private async Task<long> CommitRegistryChangeLockedAsync(SystemDatabase systemDatabase, Func<Task> mutate)
     {
-        long before;
+        long previous;
         long version;
         await using (var tx = await systemDatabase.BeginStackedTransactionAsync())
         {
-            before = await ReadRegistryVersionAsync(systemDatabase);
             await mutate();
-            version = await BumpRegistryVersionAsync(systemDatabase);
+            (previous, version) = await systemDatabase.Settings.BumpMonotonicAsync(RegistryVersionKey);
             tx.Commit();
         }
 
-        if (before > Volatile.Read(ref _localVersion))
+        if (previous > Volatile.Read(ref _localVersion))
         {
-            _logger.LogInformation("Registry was behind at write time (database {before}, local {local}); reconciling before announcing",
-                before, Volatile.Read(ref _localVersion));
-            await ReconcileLockedAsync(before);
+            _logger.LogInformation("Registry was behind at write time (database {previous}, local {local}); reconciling before announcing",
+                previous, Volatile.Read(ref _localVersion));
+            await ReconcileLockedAsync(previous);
         }
 
         RaiseLocalVersion(version);
@@ -962,16 +960,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // remote change must too or those readers stay stale here until restart.
         var scope = _serviceProvider.LookupTenantScope(known.PrimaryDomainName);
         scope?.Resolve<TenantContext>().Update(CreateTenantContext(known.PrimaryDomainName));
-    }
-
-    // The version is the settings row's modified stamp: the upsert sets it to
-    // MAX(modified + 1, now) in a single UPDATE, so concurrent bumps serialise on the row lock and
-    // the value is strictly increasing with no extra schema.
-    private static async Task<long> BumpRegistryVersionAsync(SystemDatabase systemDatabase)
-    {
-        var record = new SettingsRecord { key = RegistryVersionKey, value = "" };
-        await systemDatabase.Settings.UpsertAsync(record);
-        return record.modified.milliseconds;
     }
 
     private static async Task<long> ReadRegistryVersionAsync(SystemDatabase systemDatabase)
