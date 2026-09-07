@@ -325,6 +325,21 @@ public class LoadBalancerProbeTests
 
     private IApiClientFactory FactoryFor(int port) => new NodeApiClientFactory(_token, _sharedSecret, port);
 
+    // Shared with WebSocketFanOutProbeTests, which drives the same two nodes.
+    internal static IApiClientFactory FactoryForProbes(int port, ClientAuthenticationToken token, SensitiveByteArray secret)
+        => new NodeApiClientFactory(token, secret.GetKey(), port);
+
+    internal static IRefitDriveManagement DriveManagerForProbes(OdinId identity, int port, ClientAuthenticationToken token,
+        SensitiveByteArray secret)
+    {
+        var client = FactoryForProbes(port, token, secret).CreateHttpClient(identity, out var sharedSecret);
+        client.BaseAddress = new Uri($"https://{identity}:{port}");
+        return RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
+    }
+
+    internal static Task<(ClientAuthenticationToken token, SensitiveByteArray secret)> LoginForProbesAsync(OdinId identity, int port)
+        => LoginAsync(identity, port, Password);
+
     // IRefitDriveManagement declares absolute paths, so its base address must be the host root,
     // not the /api/owner/v1 prefix the _Universal clients expect.
     private IRefitDriveManagement DriveManagerFor(int port)

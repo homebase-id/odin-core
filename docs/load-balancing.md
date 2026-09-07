@@ -43,7 +43,7 @@ is the registry bug below.
 | Cache invalidation genuinely crosses nodes | `FusionCache.Backplane:v2` messages and a per-tenant `cache_invalidation` channel observed on the wire |
 | Certificates | stored in `TableCertificates` (shared DB), so SNI selection works on every node |
 | Scheduled jobs are not double-run | jobs are claimed with a conditional `UPDATE` on the shared `jobs` table; in this run node A claimed all six startup jobs and node B ran none |
-| WebSocket notifications are *designed* to cross nodes | `AppNotificationDispatcher` publishes and subscribes drive/client notifications through `ITenantPubSub`, which is Redis-backed when Redis is enabled. The transport was observed carrying tenant messages; end-to-end socket delivery from a second node was **not** verified here |
+| WebSocket notifications reach a client connected to the *other* node | verified end to end: a socket on node B receives a `FileAdded` for an upload through node A, and the reverse; both sockets get it exactly once; a socket does not receive events for drives it did not subscribe to. `AppNotificationDispatcher` publishes to `ITenantPubSub` and every node subscribes, so with Redis enabled the fan-out crosses nodes (`WebSocketFanOutProbeTests`) |
 
 ## What broke, and how it is fixed
 
