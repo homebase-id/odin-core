@@ -131,9 +131,36 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// The shape a third-party viewer gets: the identity and its public contact card, and nothing else.
+        /// </summary>
+        /// <remarks>
+        /// The connections list a peer may see is a list of identities, never a list of the owner's
+        /// judgments (docs/connection-defaults.md, "Viewer-scoped redaction").  So everything that records
+        /// what the owner thinks or how the relationship came about -- the review, the introducer, the
+        /// origin, the grants and their circles -- is absent here, rather than being present-but-empty.
+        ///
+        /// <para>
+        /// Note that <c>omitContactData</c> is the wrong axis for this and always was: it strips the
+        /// harmless half (the public card the viewer is there for) and keeps the sensitive half.  This
+        /// method is the right axis, and the flag stays only for its owner-side use.
+        /// </para>
+        /// </remarks>
+        public RedactedIdentityConnectionRegistration RedactedForExternalViewer()
+        {
+            return new RedactedIdentityConnectionRegistration()
+            {
+                OdinId = this.OdinId,
+                OriginalContactData = this.OriginalContactData
+            };
+        }
+
+        /// <summary>
         /// Returns the minimal info needed for external systems using this data.
         /// </summary>
-        /// <returns></returns>
+        /// <remarks>
+        /// Owner-side shape: it carries the owner's judgments and must only be served to the owner's own
+        /// clients.  Use <see cref="RedactedForExternalViewer"/> for anyone else.
+        /// </remarks>
         public RedactedIdentityConnectionRegistration Redacted(bool omitContactData = true)
         {
             return new RedactedIdentityConnectionRegistration()

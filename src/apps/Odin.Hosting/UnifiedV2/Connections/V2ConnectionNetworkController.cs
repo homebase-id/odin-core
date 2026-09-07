@@ -102,7 +102,9 @@ public class V2ConnectionNetworkController(
     public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromQuery] string odinId)
     {
         var result = await circleNetwork.GetIcrAsync(new OdinId(odinId), WebOdinContext);
-        return result?.Redacted();
+
+        // Guests reach this route too; they get the identity, never the owner's judgments about it.
+        return CallerIsOwnerSideViewer ? result?.Redacted() : result?.RedactedForExternalViewer();
     }
 
     [HttpGet("connected")]
@@ -110,14 +112,19 @@ public class V2ConnectionNetworkController(
     public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, string cursor)
     {
         var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
+        var ownerSide = CallerIsOwnerSideViewer;
+
         return new CursoredResult<RedactedIdentityConnectionRegistration>()
         {
             Cursor = result.Cursor,
-            Results = result.Results.Select(p => p.Redacted()).ToList()
+            Results = result.Results
+                .Select(p => ownerSide ? p.Redacted() : p.RedactedForExternalViewer())
+                .ToList()
         };
     }
 
     [HttpGet("blocked")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Get list of blocked identities")]
     public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, string cursor)
     {
