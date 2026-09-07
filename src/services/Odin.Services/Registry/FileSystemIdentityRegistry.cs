@@ -231,19 +231,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
             // Root scope: the tenant scope was just disposed, and re-creating it here only to delete
             // rows would resurrect what we are removing.
-            long version;
             await using (var scope = _serviceProvider.BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}"))
             {
                 var systemDatabase = scope.Resolve<SystemDatabase>();
-                await using var tx = await systemDatabase.BeginStackedTransactionAsync();
-                await systemDatabase.Registrations.DeleteAsync(registration.Id);
-                await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
-                version = await BumpRegistryVersionAsync(systemDatabase);
-                tx.Commit();
+                await CommitRegistryChangeAsync(systemDatabase, registration.PrimaryDomainName, async () =>
+                {
+                    await systemDatabase.Registrations.DeleteAsync(registration.Id);
+                    await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
+                });
             }
-
-            RaiseLocalVersion(version);
-            await PublishRegistryVersionAsync(version, registration.PrimaryDomainName);
 
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
@@ -373,10 +369,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             .BeginLifetimeScope($"SaveRegistration:{registration.PrimaryDomainName}");
 
         var systemDatabase = scope.Resolve<SystemDatabase>();
-        long version;
-        await using (var tx = await systemDatabase.BeginStackedTransactionAsync())
-        {
-            await systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
+        await CommitRegistryChangeAsync(systemDatabase, registration.PrimaryDomainName, () =>
+            systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
             {
                 identityId = registration.Id,
                 primaryDomainName = registration.PrimaryDomainName.ToLower(),
@@ -386,16 +380,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 markedForDeletionDate = registration.MarkedForDeletionDate,
                 planId = registration.PlanId ?? "free",
                 enablePublicWebPresence = registration.EnablePublicWebPresence
-            });
-            version = await BumpRegistryVersionAsync(systemDatabase);
-            tx.Commit();
-        }
+            }));
 
-        _logger.LogInformation("Wrote registration record for [{registrationId}] at registry version {version}",
-            registration.Id, version);
+        _logger.LogInformation("Wrote registration record for [{registrationId}]", registration.Id);
         await CacheIdentityAsync(registration);
-        RaiseLocalVersion(version);
-        await PublishRegistryVersionAsync(version, registration.PrimaryDomainName);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -509,74 +497,79 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// </summary>
     private async Task LoadRegistrationRecordAsync(RegistrationsRecord registrationRecord)
     {
+        try
         {
-            try
+            var identityId = registrationRecord.identityId.ToString();
+            var registrationPath = Path.Combine(RegistrationRoot, identityId);
+
+            // Scalability: ensure the registration directory exists on all hosts
+            Directory.CreateDirectory(registrationPath);
+
+            var registration = new IdentityRegistration { Id = registrationRecord.identityId };
+            CopyFields(registration, registrationRecord);
+
+            var tenantPathManger = new TenantPathManager(_config, registration.Id);
+            tenantPathManger.CreateDirectories();
+
+            // Sanity: create database if missing (can be necessary when switching dev from sqlite to postgres)
+            _logger.LogInformation("Migrating database for {database}", registration.PrimaryDomainName);
+            await using var tenantScope = GetOrCreateMultiTenantScope(registration)
+                .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
+            var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
+            await identityDatabase.MigrateDatabaseAsync();
+
+            var (requiresUpgrade, tenantVersion, _) = await tenantScope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
+            if (requiresUpgrade)
             {
-                var identityId = registrationRecord.identityId.ToString();
-                var registrationPath = Path.Combine(RegistrationRoot, identityId);
-
-                // Scalability: ensure the registration directory exists on all hosts
-                Directory.CreateDirectory(registrationPath);
-
-                var registration = new IdentityRegistration
-                {
-                    Id = registrationRecord.identityId,
-                    PrimaryDomainName = registrationRecord.primaryDomainName,
-                    Email = registrationRecord.email,
-                    FirstRunToken = string.IsNullOrEmpty(registrationRecord.firstRunToken)
-                        ? null
-                        : Guid.Parse(registrationRecord.firstRunToken),
-                    PlanId = registrationRecord.planId,
-                    Disabled = registrationRecord.disabled,
-                    EnablePublicWebPresence = registrationRecord.enablePublicWebPresence,
-                    MarkedForDeletionDate = registrationRecord.markedForDeletionDate,
-                    // LastSeen = registrationRecord.lastSeen // SEB:TODO
-                };
-
-                var tenantPathManger = new TenantPathManager(_config, registration.Id);
-                tenantPathManger.CreateDirectories();
-
-                // Sanity: create database if missing (can be necessary when switching dev from sqlite to postgres)
-                _logger.LogInformation("Migrating database for {database}", registration.PrimaryDomainName);
-                await using var tenantScope = GetOrCreateMultiTenantScope(registration)
-                    .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
-                var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
-                await identityDatabase.MigrateDatabaseAsync();
-
-                var (requiresUpgrade, tenantVersion, _) = await tenantScope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
-                if (requiresUpgrade)
-                {
-                    _logger.LogDebug("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
-                        registration.PrimaryDomainName,
-                        tenantVersion,
-                        Version.DataVersionNumber);
-                }
-                else
-                {
-                    _logger.LogDebug("{tenant} is on latest data version number v{latestVersion}",
-                        registration.PrimaryDomainName,
-                        Version.DataVersionNumber);
-                }
-
-                _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
-                await CacheIdentityAsync(registration);
-
-                await CacheCertificateAsync(registration);
-                await InitializeOdinContextCache(registration);
-
-                if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
-                {
-                    await StartBackgroundServices(registration);
-                }
+                _logger.LogDebug("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
+                    registration.PrimaryDomainName,
+                    tenantVersion,
+                    Version.DataVersionNumber);
             }
-            catch (Exception e)
+            else
             {
-                _logger.LogError(e, "Error loading registration {id}: {error}", registrationRecord.identityId, e.Message);
+                _logger.LogDebug("{tenant} is on latest data version number v{latestVersion}",
+                    registration.PrimaryDomainName,
+                    Version.DataVersionNumber);
             }
+
+            _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
+            await CacheIdentityAsync(registration);
+
+            await CacheCertificateAsync(registration);
+            await InitializeOdinContextCache(registration);
+
+            if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
+            {
+                await StartBackgroundServices(registration);
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error loading registration {id}: {error}", registrationRecord.identityId, e.Message);
         }
     }
 
     #region cross-node registry coherence
+
+    /// <summary>
+    /// Every registry write goes through here so the ordering that cross-node coherence depends on
+    /// cannot drift: the version is bumped inside the write's transaction, and announced only after
+    /// it committed.
+    /// </summary>
+    private async Task CommitRegistryChangeAsync(SystemDatabase systemDatabase, string primaryDomain, Func<Task> mutate)
+    {
+        long version;
+        await using (var tx = await systemDatabase.BeginStackedTransactionAsync())
+        {
+            await mutate();
+            version = await BumpRegistryVersionAsync(systemDatabase);
+            tx.Commit();
+        }
+
+        RaiseLocalVersion(version);
+        await PublishRegistryVersionAsync(version, primaryDomain);
+    }
 
     /// <summary>
     /// Starts listening for registry version announcements from other nodes, and re-checks the
@@ -599,24 +592,25 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // Pub/sub has no replay: anything announced while this connection was down is gone.
             // The version row says whether we missed something, and this is the only moment we
             // could have, so re-check it here rather than on a timer.
-            var redis = _serviceProvider.Resolve<IConnectionMultiplexer>();
-            redis.ConnectionRestored += (_, _) =>
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await ReconcileIfBehindAsync("redis connection restored");
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError(e, "Registry re-check after redis reconnect failed: {error}", e.Message);
-                    }
-                });
-            };
+            _serviceProvider.Resolve<IConnectionMultiplexer>().ConnectionRestored += OnRedisConnectionRestored;
         }
 
         _logger.LogInformation("Registry subscribed to {channel}", RegistryChangeMessage.Channel);
+    }
+
+    private void OnRedisConnectionRestored(object? sender, ConnectionFailedEventArgs e)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await ReconcileIfBehindAsync("redis connection restored");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Registry re-check after redis reconnect failed: {error}", ex.Message);
+            }
+        });
     }
 
     private async Task OnRegistryVersionAnnouncedAsync(JsonEnvelope envelope)
@@ -698,7 +692,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// version before the rows for the same reason as <see cref="LoadRegistrations"/>. Single-flight:
     /// concurrent announcements and reconnect events collapse into one pass.
     /// </summary>
-    public async Task<int> ReconcileWithDatabaseAsync()
+    public async Task ReconcileWithDatabaseAsync()
     {
         await _reconcileGate.WaitAsync();
         try
@@ -712,8 +706,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 records = await systemDatabase.Registrations.GetAllAsync();
             }
 
-            var changes = 0;
-
+            var added = 0;
             foreach (var record in records)
             {
                 var known = _cache.GetValueOrDefault(record.identityId);
@@ -721,31 +714,28 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 {
                     _logger.LogInformation("Reconciliation is adding {domain}", record.primaryDomainName);
                     await LoadRegistrationRecordAsync(record);
-                    changes++;
+                    added++;
                 }
-                else if (HasDivergedFrom(known, record))
+                else
                 {
-                    _logger.LogInformation("Reconciliation is refreshing {domain}", record.primaryDomainName);
+                    // We only get here because the version moved, and the table is small: applying
+                    // every row costs less than deciding which one changed.
                     ApplyRecord(known, record);
-                    changes++;
                 }
             }
 
+            var unloaded = 0;
             var liveIds = records.Select(r => r.identityId).ToHashSet();
             foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id)).ToList())
             {
                 _logger.LogInformation("Reconciliation is unloading {domain}, which is no longer registered", orphan.PrimaryDomainName);
                 await ForgetLocallyAsync(orphan);
-                changes++;
+                unloaded++;
             }
 
             RaiseLocalVersion(version);
-            if (changes > 0)
-            {
-                _logger.LogInformation("Registry reconciled to version {version} with {changes} change(s)", version, changes);
-            }
-
-            return changes;
+            _logger.LogInformation("Registry reconciled to version {version}: {count} registrations, {added} added, {unloaded} unloaded",
+                version, records.Count, added, unloaded);
         }
         finally
         {
@@ -764,30 +754,30 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await UnloadRegistration(registration);
     }
 
-    private void ApplyRecord(IdentityRegistration known, RegistrationsRecord record)
+    private static void CopyFields(IdentityRegistration target, RegistrationsRecord record)
     {
-        _trie.TryRemoveDomain(known.PrimaryDomainName);
-        known.PrimaryDomainName = record.primaryDomainName;
-        known.Email = record.email;
-        known.PlanId = record.planId;
-        known.Disabled = record.disabled;
-        known.EnablePublicWebPresence = record.enablePublicWebPresence;
-        known.MarkedForDeletionDate = record.markedForDeletionDate;
-        known.FirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? null : Guid.Parse(record.firstRunToken);
-        _trie.AddDomain(known.PrimaryDomainName, known);
-        _cache[known.Id] = known;
+        target.PrimaryDomainName = record.primaryDomainName;
+        target.Email = record.email;
+        target.FirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? null : Guid.Parse(record.firstRunToken);
+        target.PlanId = record.planId;
+        target.Disabled = record.disabled;
+        target.EnablePublicWebPresence = record.enablePublicWebPresence;
+        target.MarkedForDeletionDate = record.markedForDeletionDate;
+        // LastSeen = record.lastSeen // SEB:TODO
     }
 
-    private static bool HasDivergedFrom(IdentityRegistration registration, RegistrationsRecord record)
+    private void ApplyRecord(IdentityRegistration known, RegistrationsRecord record)
     {
-        var recordFirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? (Guid?)null : Guid.Parse(record.firstRunToken);
-        return registration.Disabled != record.disabled ||
-               registration.EnablePublicWebPresence != record.enablePublicWebPresence ||
-               registration.MarkedForDeletionDate != record.markedForDeletionDate ||
-               !string.Equals(registration.PrimaryDomainName, record.primaryDomainName, StringComparison.OrdinalIgnoreCase) ||
-               !string.Equals(registration.Email, record.email, StringComparison.OrdinalIgnoreCase) ||
-               !string.Equals(registration.PlanId, record.planId, StringComparison.Ordinal) ||
-               registration.FirstRunToken != recordFirstRunToken;
+        var previousDomain = known.PrimaryDomainName;
+        CopyFields(known, record);
+
+        // The trie holds this same object, so the field copy is already visible to lookups. Only
+        // a rename needs the trie touched, which keeps its momentary remove/add gap off the common path.
+        if (!string.Equals(previousDomain, known.PrimaryDomainName, StringComparison.OrdinalIgnoreCase))
+        {
+            _trie.TryRemoveDomain(previousDomain);
+            _trie.AddDomain(known.PrimaryDomainName, known);
+        }
     }
 
     // The version is the settings row's modified stamp: the upsert sets it to
