@@ -192,6 +192,28 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
     
+    public async Task<ApiResponse<HttpContent>> MarkReviewed(OdinId recipient, IEnumerable<GuidId> circleIds = null)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await connectionsService.MarkReviewed(new MarkConnectionReviewedRequest
+            {
+                OdinId = recipient,
+                CircleIds = circleIds ?? []
+            });
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> ClearReview(OdinId recipient)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await connectionsService.ClearReview(new OdinIdRequest() { OdinId = recipient });
+        }
+    }
+
     public async Task<ApiResponse<IcrVerificationResult>> ConfirmConnection(OdinId recipient)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);

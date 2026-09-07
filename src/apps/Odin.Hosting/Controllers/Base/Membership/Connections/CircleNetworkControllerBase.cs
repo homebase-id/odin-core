@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -40,6 +40,20 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> ConfirmConnection([FromBody] OdinIdRequest request)
         {
             await circleNetwork.ConfirmConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+            return Ok();
+        }
+
+        [HttpPost("review")]
+        public async Task<IActionResult> MarkReviewed([FromBody] MarkConnectionReviewedRequest request)
+        {
+            await circleNetwork.MarkReviewedAsync((OdinId)request.OdinId, request.CircleIds, WebOdinContext);
+            return Ok();
+        }
+
+        [HttpPost("review/clear")]
+        public async Task<IActionResult> ClearReview([FromBody] OdinIdRequest request)
+        {
+            await circleNetwork.ClearReviewAsync((OdinId)request.OdinId, WebOdinContext);
             return Ok();
         }
 

@@ -33,6 +33,7 @@ public enum OdinClientErrorCode
     IdentityAlreadyFollowed = 3009,
     CannotGrantAutoConnectedMoreCircles = 3010,
     IncomingRequestNotFound = 3011,
+    CannotClearReviewWhilePersonalCircleMember = 3012,
     CannotGrantKeysOnAmbientCircle = 3013,
     CannotGrantReadOnAmbientCircle = 3014,
 

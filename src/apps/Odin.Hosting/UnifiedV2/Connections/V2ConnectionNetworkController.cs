@@ -60,6 +60,23 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
+    [HttpPost("review")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Record the owner's review of a connection: enroll the chosen circles and stamp ReviewedAt")]
+    public async Task<IActionResult> MarkReviewed([FromBody] MarkConnectionReviewedRequest request)
+    {
+        await circleNetwork.MarkReviewedAsync((OdinId)request.OdinId, request.CircleIds, WebOdinContext);
+        return Ok();
+    }
+
+    [HttpPost("review/clear")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Clear the owner's review of a connection")]
+    public async Task<IActionResult> ClearReview([FromBody] OdinIdRequest request)
+    {
+        await circleNetwork.ClearReviewAsync((OdinId)request.OdinId, WebOdinContext);
+        return Ok();
+    }
+
     [HttpPost("verify-connection")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Verify connection status with an identity")]
     public async Task<IcrVerificationResult> VerifyConnection([FromBody] OdinIdRequest request)

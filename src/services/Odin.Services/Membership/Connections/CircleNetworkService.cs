@@ -550,6 +550,41 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
+            if (!odinContext.Caller.HasMasterKey && icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId))
+            {
+                throw new OdinClientException($"{odinId} is already member of circle",
+                    OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
+            }
+
+            await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
+        }
+
+        /// <summary>
+        /// Enrolls <paramref name="odinId"/> in a circle, minting the grant or depositing it when the
+        /// caller holds no master key.  Unlike <see cref="GrantCircleAsync"/> this is idempotent -- an
+        /// existing membership is a no-op rather than an error -- and it does not refuse auto-connected
+        /// identities.
+        /// </summary>
+        /// <remarks>
+        /// Those two differences are exactly what the connection review needs: it enrolls the circles the
+        /// owner checked in one act, over a contact who is very likely auto-connected and may already hold
+        /// some of them (docs/connection-defaults.md, "On verify": "Enrollment is idempotent -- already a
+        /// member is a no-op").  This method performs no permission check; the caller owns that.
+        /// </remarks>
+        private async Task EnrollInCircleInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null || !icr.IsConnected())
+            {
+                throw new OdinSecurityException($"{odinId} must have valid connection to be added to a circle");
+            }
+
+            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
+            {
+                return;
+            }
+
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
 
             if (odinContext.Caller.HasMasterKey)
@@ -600,8 +635,7 @@ namespace Odin.Services.Membership.Connections
                 // the key store key is in scope (peer CAT auth or the owner's next grant touch).
                 if (icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId))
                 {
-                    throw new OdinClientException($"{odinId} is already member of circle",
-                        OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
+                    return;
                 }
 
                 var deposit = await CreateDepositedGrantAsync(icr.PeerKeyStore, circleDefinition, odinContext);
@@ -1064,6 +1098,144 @@ namespace Odin.Services.Membership.Connections
             };
 
             return result;
+        }
+
+        /// <summary>
+        /// Records the owner's review of a connection: enrolls the circles the owner chose and stamps
+        /// <see cref="IdentityConnectionRegistration.ReviewedAt"/>, as one act.
+        /// </summary>
+        /// <remarks>
+        /// docs/connection-defaults.md, "On verify".  Nothing is removed -- whatever the connection already
+        /// holds from auto-connect stays -- and the stamp is set once: a later review may enroll more
+        /// circles but never moves the original timestamp, which is the date clients show the relationship
+        /// from.
+        /// </remarks>
+        public async Task MarkReviewedAsync(OdinId odinId, IEnumerable<GuidId> circleIds, IOdinContext odinContext)
+        {
+            AssertCanManageCircleMembership(odinContext);
+
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null || !icr.IsConnected())
+            {
+                throw new OdinClientException("Cannot review an identity that is not connected",
+                    OdinClientErrorCode.IdentityMustBeConnected);
+            }
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+
+            if (odinContext.Caller.HasMasterKey)
+            {
+                // The owner is present, so take the opportunity to re-mint whatever an app had to leave
+                // weakly encrypted when it accepted on their behalf.
+                await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
+            }
+
+            foreach (var circleId in circleIds ?? [])
+            {
+                await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
+            }
+
+            // Stamped last: enrollment rewrites the whole row, so a stamp written before it would be
+            // carried forward from a stale in-memory copy and lost.
+            await StampReviewedIfUnsetAsync(odinId);
+
+            tx.Commit();
+
+            // Peer contexts are cached for an hour keyed on the caller's token; without this the contact
+            // keeps running under their pre-review grants long after the owner acted.
+            await odinContextCache.ResetAsync();
+        }
+
+        /// <summary>
+        /// Stamps the review on a connection unless it already carries one.
+        /// </summary>
+        /// <remarks>
+        /// Set-once by design: a second review may enroll more circles, but the timestamp keeps saying when
+        /// the owner first vouched for this contact.
+        /// <para>
+        /// Makes no permission check of its own.  Callers reach it either through
+        /// <see cref="MarkReviewedAsync"/>, which asserts ManageCircleMembership, or from the accept of an
+        /// incoming connection request -- gated by its own controller policy, and itself the owner's review
+        /// happening at accept time (docs/connection-defaults.md, "On verify").
+        /// </para>
+        /// </remarks>
+        public async Task StampReviewedIfUnsetAsync(OdinId odinId)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null || !icr.IsConnected() || icr.ReviewedAt != null)
+            {
+                return;
+            }
+
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, UnixTimeUtc.Now());
+        }
+
+        /// <summary>
+        /// Clears the owner's review of a connection ("un-review"), returning it to New.
+        /// </summary>
+        /// <remarks>
+        /// Rejected while the contact holds a personal-circle membership that a review is what grants:
+        /// docs/connection-defaults.md -- "circleIdList ACLs check membership, not tier, so membership must
+        /// imply review".
+        /// <para>
+        /// Two kinds of membership are deliberately excluded from that check, because counting them would
+        /// make the clear unreachable rather than safe.  Ambient circles: a
+        /// <see cref="CircleGrantOn.Connect"/> circle is by definition granted without any review, and every
+        /// shipped one is also <see cref="CircleDesignation.Personal"/> (see
+        /// <c>BuiltinCircles.ChatCircle</c>), so every auto-connection would be permanently un-clearable.
+        /// The two system circles: they carry <see cref="CircleDesignation.Personal"/> only because that is
+        /// the column default, and every connection is in one of them, so the guard would reject every
+        /// clear there is.  They are the frozen platform bundles this series retires, assigned by the
+        /// pipeline rather than chosen by the owner.
+        /// </para>
+        /// <para>
+        /// Nothing is revoked here.  Clearing the stamp only withdraws the owner's vouching; to take
+        /// capability away, revoke the circles.
+        /// </para>
+        /// </remarks>
+        public async Task ClearReviewAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            AssertCanManageCircleMembership(odinContext);
+
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null)
+            {
+                throw new OdinClientException($"No connection found for {odinId}", OdinClientErrorCode.NotAConnectedIdentity);
+            }
+
+            if (icr.ReviewedAt == null)
+            {
+                return;
+            }
+
+            var memberships = (icr.PeerKeyStore?.CircleGrants?.Keys ?? (ICollection<Guid>)Array.Empty<Guid>())
+                .Concat(icr.PeerKeyStore?.DepositedGrants?.Select(d => d.CircleId.Value) ?? [])
+                .Distinct();
+
+            foreach (var circleId in memberships)
+            {
+                if (SystemCircleConstants.IsSystemCircle(circleId))
+                {
+                    continue;
+                }
+
+                var definition = await circleDefinitionService.GetCircleAsync(circleId);
+                if (definition is { Designation: CircleDesignation.Personal, GrantOn: not CircleGrantOn.Connect })
+                {
+                    throw new OdinClientException(
+                        $"Cannot clear the review for {odinId} while they are a member of the personal circle " +
+                        $"'{definition.Name}'; remove them from it first",
+                        OdinClientErrorCode.CannotClearReviewWhilePersonalCircleMember);
+                }
+            }
+
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, null);
+
+            await odinContextCache.ResetAsync();
         }
 
         /// <summary>

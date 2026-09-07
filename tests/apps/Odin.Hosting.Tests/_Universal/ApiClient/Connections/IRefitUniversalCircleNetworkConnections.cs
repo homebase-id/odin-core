@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -47,5 +47,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 
         [Post(RootPath + "/confirm-connection")]
         Task<ApiResponse<IcrVerificationResult>> ConfirmConnection([Body] OdinIdRequest request);
+
+        [Post(RootPath + "/review")]
+        Task<ApiResponse<HttpContent>> MarkReviewed([Body] MarkConnectionReviewedRequest request);
+
+        [Post(RootPath + "/review/clear")]
+        Task<ApiResponse<HttpContent>> ClearReview([Body] OdinIdRequest request);
     }
 }

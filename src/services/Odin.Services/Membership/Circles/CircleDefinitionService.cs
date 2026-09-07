@@ -155,6 +155,37 @@ namespace Odin.Services.Membership.Circles
             return true;
         }
 
+        /// <summary>
+        /// Gives a circle the emoji the tree names, but only if it does not have one.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// Fills rather than corrects, which is the opposite of <see cref="ApplyTreeDefinitionAsync"/> and
+        /// deliberately so.  Ownership, enrolment and designation are the tree's to dictate; the emoji is
+        /// the owner's -- it is editable through <see cref="UpdateAsync"/>, so a circle that already carries
+        /// one carries a choice somebody made, and the tree must not overwrite it.  The tree's value is a
+        /// default for circles that never got one, nothing more.
+        /// </remarks>
+        internal async Task<bool> ApplyTreeEmojiIfUnsetAsync(Guid circleId, string emoji)
+        {
+            if (string.IsNullOrWhiteSpace(emoji))
+            {
+                return false;
+            }
+
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null || !string.IsNullOrWhiteSpace(circle.Emoji))
+            {
+                return false;
+            }
+
+            circle.Emoji = emoji;
+
+            // No AssertDepositOnlyIfAmbientAsync here: that invariant is about GrantOn and the drive
+            // grants, and this touches neither.
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+            return true;
+        }
+
         public async Task EnsureCircleExistsAsync(CircleDefinition def)
         {
             if (await GetCircleAsync(def.Id) != null)
@@ -171,7 +202,8 @@ namespace Odin.Services.Membership.Circles
                 Permissions = def.Permissions,
                 AppId = def.AppId,
                 GrantOn = def.GrantOn,
-                Designation = def.Designation
+                Designation = def.Designation,
+                Emoji = def.Emoji
             }, skipValidation: true);
         }
 

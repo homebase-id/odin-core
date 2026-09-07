@@ -81,6 +81,18 @@ namespace Odin.Services.Membership.Connections
         public UnixTimeUtc Created { get; set; }
 
         /// <summary>
+        /// When the owner completed the connection review; null means New (never reviewed).
+        /// </summary>
+        /// <remarks>
+        /// Promoted from the <c>Connections.ReviewedAt</c> column, which is its only at-rest home.
+        /// <see cref="CircleNetworkStorage"/> maps it into this object on read and back to the column on
+        /// write; it is deliberately absent from <c>IcrAccessRecord</c> -- the type that becomes the row's
+        /// <c>data</c> blob -- because a second copy in there would let the pagination query (column) and
+        /// the hydrated object disagree.  See docs/drive-addressing.md, "One at-rest copy".
+        /// </remarks>
+        public UnixTimeUtc? ReviewedAt { get; set; }
+
+        /// <summary>
         /// The contact data received when the connection was established 
         /// </summary>
         public ContactRequestData OriginalContactData { get; set; }
@@ -136,7 +148,8 @@ namespace Odin.Services.Membership.Connections
                 AccessGrant = this.PeerKeyStore?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
-                Vetted = this.IsConnected() && this.IsConfirmedConnection()
+                ReviewedAt = this.ReviewedAt,
+                Vetted = this.ReviewedAt != null
             };
         }
     }
@@ -163,7 +176,14 @@ namespace Odin.Services.Membership.Connections
         public bool Rku { get; init; }
 
         /// <summary>
-        /// True if the identity is connected and is a member of the Confirmed Connections system circle
+        /// When the owner completed the connection review; null means New.  Owner-private -- this shape is
+        /// served to the owner's own clients only, never to a peer (docs/connection-defaults.md).
+        /// </summary>
+        public UnixTimeUtc? ReviewedAt { get; init; }
+
+        /// <summary>
+        /// True once the owner has reviewed this connection.  V1 compatibility alias for
+        /// <see cref="ReviewedAt"/> != null; new clients should read <see cref="ReviewedAt"/>.
         /// </summary>
         public bool Vetted { get; init; }
     }
