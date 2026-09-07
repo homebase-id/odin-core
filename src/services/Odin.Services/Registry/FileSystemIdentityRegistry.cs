@@ -47,7 +47,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private const string RegistryVersionKey = "registry-version";
     private long _localVersion;
     private readonly SemaphoreSlim _reconcileGate = new(1, 1);
-    private IPubSubSubscription? _registryChangeSubscription;
+    private IPubSubSubscription _registryChangeSubscription;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
     private readonly IDynamicHttpClientFactory _httpClientFactory;
@@ -598,7 +598,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _logger.LogInformation("Registry subscribed to {channel}", RegistryChangeMessage.Channel);
     }
 
-    private void OnRedisConnectionRestored(object? sender, ConnectionFailedEventArgs e)
+    private void OnRedisConnectionRestored(object sender, ConnectionFailedEventArgs e)
     {
         _ = Task.Run(async () =>
         {
