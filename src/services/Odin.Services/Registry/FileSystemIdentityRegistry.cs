@@ -46,7 +46,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
     private const string RegistryVersionKey = "registry-version";
     private long _localVersion;
-    private readonly SemaphoreSlim _reconcileGate = new(1, 1);
+    // Guards every mutation of _trie/_cache and the registration objects they hold: writers,
+    // the initial load and reconcile. Without it a reconcile could copy a not-yet-committed row
+    // back over a field a writer set in memory a moment earlier.
+    private readonly SemaphoreSlim _registryLock = new(1, 1);
     private IPubSubSubscription _registryChangeSubscription;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
@@ -189,7 +192,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var identityDatabase = scope.Resolve<IdentityDatabase>();
         await identityDatabase.MigrateDatabaseAsync();
 
-        await SaveRegistrationInternal(registration);
+        await _registryLock.WaitAsync();
+        try
+        {
+            await SaveRegistrationInternal(registration);
+        }
+        finally
+        {
+            _registryLock.Release();
+        }
 
         if (request.OptionalCertificatePemContent == null)
         {
@@ -223,28 +234,41 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
-            // Quiesce before destroying anything: drop the tenant from lookup, stop its background
-            // services and dispose its scope, so nothing is still reading the storage we are about to
-            // delete. ForgetLocallyAsync is the same step a remote node performs on a delete
-            // notification, which keeps the local and remote paths from drifting apart.
-            await ForgetLocallyAsync(registration);
-
-            // Root scope: the tenant scope was just disposed, and re-creating it here only to delete
-            // rows would resurrect what we are removing.
-            await using (var scope = _serviceProvider.BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}"))
+            await _registryLock.WaitAsync();
+            try
             {
-                var systemDatabase = scope.Resolve<SystemDatabase>();
-                await CommitRegistryChangeAsync(systemDatabase, registration.PrimaryDomainName, async () =>
-                {
-                    await systemDatabase.Registrations.DeleteAsync(registration.Id);
-                    await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
-                });
+                await DeleteRegistrationLocked(registration);
             }
-
-            var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
-            Directory.Delete(tenantRoot, true);
-            await DeletePayloads(registration);
+            finally
+            {
+                _registryLock.Release();
+            }
         }
+    }
+
+    private async Task DeleteRegistrationLocked(IdentityRegistration registration)
+    {
+        // Quiesce before destroying anything: drop the tenant from lookup, stop its background
+        // services and dispose its scope, so nothing is still reading the storage we are about to
+        // delete. ForgetLocallyAsync is the same step a remote node performs on a delete
+        // notification, which keeps the local and remote paths from drifting apart.
+        await ForgetLocallyAsync(registration);
+
+        // Root scope: the tenant scope was just disposed, and re-creating it here only to delete
+        // rows would resurrect what we are removing.
+        await using (var scope = _serviceProvider.BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}"))
+        {
+            var systemDatabase = scope.Resolve<SystemDatabase>();
+            await CommitRegistryChangeAsync(systemDatabase, registration.PrimaryDomainName, async () =>
+            {
+                await systemDatabase.Registrations.DeleteAsync(registration.Id);
+                await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
+            });
+        }
+
+        var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
+        Directory.Delete(tenantRoot, true);
+        await DeletePayloads(registration);
     }
 
     // Copy registration and payloads
@@ -306,9 +330,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task MarkRegistrationComplete(Guid firstRunToken)
     {
-        var registration = GetByFirstRunToken(firstRunToken);
-        registration.FirstRunToken = null;
-        await this.SaveRegistrationInternal(registration);
+        await _registryLock.WaitAsync();
+        try
+        {
+            var registration = GetByFirstRunToken(firstRunToken);
+            registration.FirstRunToken = null;
+            await this.SaveRegistrationInternal(registration);
+        }
+        finally
+        {
+            _registryLock.Release();
+        }
     }
 
     public Task AssetValidFirstRunToken(Guid firstRunToken, IOdinContext odinContext)
@@ -406,63 +438,95 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task<bool?> ToggleDisabled(string domain, bool disabled)
     {
-        bool? result = null;
-        var reg = _trie.LookupExactName(domain);
-        if (reg != null)
+        await _registryLock.WaitAsync();
+        try
         {
-            result = reg.Disabled;
-            if (reg.Disabled != disabled)
+            bool? result = null;
+            var reg = _trie.LookupExactName(domain);
+            if (reg != null)
             {
-                reg.Disabled = disabled;
-                await SaveRegistrationInternal(reg);
+                result = reg.Disabled;
+                if (reg.Disabled != disabled)
+                {
+                    reg.Disabled = disabled;
+                    await SaveRegistrationInternal(reg);
+                }
             }
-        }
 
-        return result;
+            return result;
+        }
+        finally
+        {
+            _registryLock.Release();
+        }
     }
 
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
     {
-        bool? result = null;
-        var reg = _trie.LookupExactName(domain);
-        if (reg != null)
+        await _registryLock.WaitAsync();
+        try
         {
-            result = reg.EnablePublicWebPresence;
-            if (reg.EnablePublicWebPresence != enabled)
+            bool? result = null;
+            var reg = _trie.LookupExactName(domain);
+            if (reg != null)
             {
-                reg.EnablePublicWebPresence = enabled;
-                await SaveRegistrationInternal(reg);
+                result = reg.EnablePublicWebPresence;
+                if (reg.EnablePublicWebPresence != enabled)
+                {
+                    reg.EnablePublicWebPresence = enabled;
+                    await SaveRegistrationInternal(reg);
+                }
             }
-        }
 
-        return result;
+            return result;
+        }
+        finally
+        {
+            _registryLock.Release();
+        }
     }
 
     public async Task<UnixTimeUtc> MarkForDeletionAsync(string domain)
     {
-        var reg = _trie.LookupExactName(domain);
-        if (reg == null)
+        await _registryLock.WaitAsync();
+        try
         {
-            throw new OdinClientException("Invalid domain");
+            var reg = _trie.LookupExactName(domain);
+            if (reg == null)
+            {
+                throw new OdinClientException("Invalid domain");
+            }
+
+            var markedDate = UnixTimeUtc.Now();
+            reg.MarkedForDeletionDate = markedDate;
+            await SaveRegistrationInternal(reg);
+
+            return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
         }
-
-        var markedDate = UnixTimeUtc.Now();
-        reg.MarkedForDeletionDate = UnixTimeUtc.Now();
-        await SaveRegistrationInternal(reg);
-
-        return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
+        finally
+        {
+            _registryLock.Release();
+        }
     }
 
     public async Task UnmarkForDeletionAsync(string domain)
     {
-        var reg = _trie.LookupExactName(domain);
-        if (reg == null)
+        await _registryLock.WaitAsync();
+        try
         {
-            throw new OdinClientException("Invalid domain");
-        }
+            var reg = _trie.LookupExactName(domain);
+            if (reg == null)
+            {
+                throw new OdinClientException("Invalid domain");
+            }
 
-        reg.MarkedForDeletionDate = null;
-        await SaveRegistrationInternal(reg);
+            reg.MarkedForDeletionDate = null;
+            await SaveRegistrationInternal(reg);
+        }
+        finally
+        {
+            _registryLock.Release();
+        }
     }
 
     public async Task LoadRegistrations()
@@ -473,21 +537,32 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             Directory.CreateDirectory(PayloadRoot);
         }
 
-        await using var systemScope = _serviceProvider.BeginLifetimeScope();
-        var systemDatabase = systemScope.Resolve<SystemDatabase>();
-
-        // Version before rows: a change landing between the two reads then has a version above
-        // ours and its announcement triggers a reconcile, whereas rows-then-version could record a
-        // version newer than the rows we hold and silently skip that change.
-        var version = await ReadRegistryVersionAsync(systemDatabase);
-        var registrations = await systemDatabase.Registrations.GetAllAsync();
-        foreach (var registrationRecord in registrations)
+        // Under the registry lock so an announcement arriving mid-load queues behind it instead
+        // of reconciling against a half-built registry; it then finds the version above ours and
+        // reconciles after, which is the "dropped or reconciled after" guarantee.
+        await _registryLock.WaitAsync();
+        try
         {
-            await LoadRegistrationRecordAsync(registrationRecord);
-        }
+            await using var systemScope = _serviceProvider.BeginLifetimeScope();
+            var systemDatabase = systemScope.Resolve<SystemDatabase>();
 
-        RaiseLocalVersion(version);
-        _logger.LogInformation("Registry loaded at version {version}", version);
+            // Version before rows: a change landing between the two reads then has a version above
+            // ours and its announcement triggers a reconcile, whereas rows-then-version could record a
+            // version newer than the rows we hold and silently skip that change.
+            var version = await ReadRegistryVersionAsync(systemDatabase);
+            var registrations = await systemDatabase.Registrations.GetAllAsync();
+            foreach (var registrationRecord in registrations)
+            {
+                await LoadRegistrationRecordAsync(registrationRecord);
+            }
+
+            RaiseLocalVersion(version);
+            _logger.LogInformation("Registry loaded at version {version}", version);
+        }
+        finally
+        {
+            _registryLock.Release();
+        }
     }
 
     /// <summary>
@@ -694,7 +769,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// </summary>
     public async Task ReconcileWithDatabaseAsync()
     {
-        await _reconcileGate.WaitAsync();
+        await _registryLock.WaitAsync();
         try
         {
             long version;
@@ -703,6 +778,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             {
                 var systemDatabase = scope.Resolve<SystemDatabase>();
                 version = await ReadRegistryVersionAsync(systemDatabase);
+                if (version <= Volatile.Read(ref _localVersion))
+                {
+                    // Whoever held the lock before us already brought us here.
+                    return;
+                }
+
                 records = await systemDatabase.Registrations.GetAllAsync();
             }
 
@@ -739,7 +820,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
         finally
         {
-            _reconcileGate.Release();
+            _registryLock.Release();
         }
     }
 

@@ -230,25 +230,20 @@ public class LoadBalancerProbeTests
                 "sanity: with redis down nothing can announce the change, so node A must still be stale");
             Assert.That(await PingAsync(NodeB), Is.EqualTo(HttpStatusCode.OK),
                 "sanity: with redis down nothing can announce the change, so node B must still be stale");
-        }
-        finally
-        {
-            Docker("start", redisContainer);
-        }
 
-        var deadline = DateTime.UtcNow.AddSeconds(90);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (await PingAsync(NodeA) != HttpStatusCode.OK && await PingAsync(NodeB) != HttpStatusCode.OK)
+            Docker("start", redisContainer);
+
+            var deadline = DateTime.UtcNow.AddSeconds(90);
+            while (DateTime.UtcNow < deadline)
             {
-                break;
+                if (await PingAsync(NodeA) != HttpStatusCode.OK && await PingAsync(NodeB) != HttpStatusCode.OK)
+                {
+                    break;
+                }
+
+                await Task.Delay(2000);
             }
 
-            await Task.Delay(2000);
-        }
-
-        try
-        {
             Assert.That(await PingAsync(NodeA), Is.Not.EqualTo(HttpStatusCode.OK),
                 "node A did not re-check the registry version after its redis connection was restored");
             Assert.That(await PingAsync(NodeB), Is.Not.EqualTo(HttpStatusCode.OK),
@@ -256,7 +251,10 @@ public class LoadBalancerProbeTests
         }
         finally
         {
-            // Restore through the API so the change is announced normally, then wait for both nodes.
+            // One finally owns every cleanup, so a failed sanity assert cannot leave the tenant
+            // disabled: a disabled tenant 409s every request, including the next run's
+            // OneTimeSetUp login, which would wedge the whole fixture.
+            Docker("start", redisContainer);
             await admin.PatchAsync(AdminUrl(4444, "tenants/frodo.dotyou.cloud/enable"), null);
             await WaitUntilServingAsync(TimeSpan.FromSeconds(90));
         }
