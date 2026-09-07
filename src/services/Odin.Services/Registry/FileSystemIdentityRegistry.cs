@@ -192,15 +192,18 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var identityDatabase = scope.Resolve<IdentityDatabase>();
         await identityDatabase.MigrateDatabaseAsync();
 
+        long version;
         await _registryLock.WaitAsync();
         try
         {
-            await SaveRegistrationInternal(registration);
+            version = await SaveRegistrationInternal(registration);
         }
         finally
         {
             _registryLock.Release();
         }
+
+        await AnnounceAsync(version, registration.PrimaryDomainName);
 
         if (request.OptionalCertificatePemContent == null)
         {
@@ -234,41 +237,51 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
+            long version;
             await _registryLock.WaitAsync();
             try
             {
-                await DeleteRegistrationLocked(registration);
+                version = await DeleteRegistrationLocked(registration);
             }
             finally
             {
                 _registryLock.Release();
             }
+
+            await AnnounceAsync(version, registration.PrimaryDomainName);
+
+            // Storage last, outside the lock: rows are gone and no node routes to the tenant, so
+            // nothing can reach this, and a large S3 wipe must not stall every other registry write.
+            var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
+            if (Directory.Exists(tenantRoot))
+            {
+                Directory.Delete(tenantRoot, true);
+            }
+
+            await DeletePayloads(registration);
         }
     }
 
-    private async Task DeleteRegistrationLocked(IdentityRegistration registration)
+    // Rows first, then forget: the order every other node observes. Forgetting first would, if the
+    // commit then failed, leave this node without a tenant that is still in the database, with no
+    // announcement to repair it, and let a retried delete find nothing and report success.
+    private async Task<long> DeleteRegistrationLocked(IdentityRegistration registration)
     {
-        // Quiesce before destroying anything: drop the tenant from lookup, stop its background
-        // services and dispose its scope, so nothing is still reading the storage we are about to
-        // delete. ForgetLocallyAsync is the same step a remote node performs on a delete
-        // notification, which keeps the local and remote paths from drifting apart.
-        await ForgetLocallyAsync(registration);
-
-        // Root scope: the tenant scope was just disposed, and re-creating it here only to delete
-        // rows would resurrect what we are removing.
+        long version;
         await using (var scope = _serviceProvider.BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}"))
         {
             var systemDatabase = scope.Resolve<SystemDatabase>();
-            await CommitRegistryChangeAsync(systemDatabase, registration.PrimaryDomainName, async () =>
+            version = await CommitRegistryChangeLockedAsync(systemDatabase, async () =>
             {
                 await systemDatabase.Registrations.DeleteAsync(registration.Id);
                 await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
             });
         }
 
-        var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
-        Directory.Delete(tenantRoot, true);
-        await DeletePayloads(registration);
+        // ForgetLocallyAsync is the same step a remote node performs on this delete, which keeps
+        // the local and remote paths from drifting apart.
+        await ForgetLocallyAsync(registration);
+        return version;
     }
 
     // Copy registration and payloads
@@ -330,17 +343,22 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task MarkRegistrationComplete(Guid firstRunToken)
     {
+        long version;
+        string domain;
         await _registryLock.WaitAsync();
         try
         {
             var registration = GetByFirstRunToken(firstRunToken);
+            domain = registration.PrimaryDomainName;
             registration.FirstRunToken = null;
-            await this.SaveRegistrationInternal(registration);
+            version = await this.SaveRegistrationInternal(registration);
         }
         finally
         {
             _registryLock.Release();
         }
+
+        await AnnounceAsync(version, domain);
     }
 
     public Task AssetValidFirstRunToken(Guid firstRunToken, IOdinContext odinContext)
@@ -395,13 +413,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return RegistrationStatus.Unknown;
     }
 
-    private async Task SaveRegistrationInternal(IdentityRegistration registration)
+    private async Task<long> SaveRegistrationInternal(IdentityRegistration registration)
     {
         await using var scope = GetOrCreateMultiTenantScope(registration)
             .BeginLifetimeScope($"SaveRegistration:{registration.PrimaryDomainName}");
 
         var systemDatabase = scope.Resolve<SystemDatabase>();
-        await CommitRegistryChangeAsync(systemDatabase, registration.PrimaryDomainName, () =>
+        var version = await CommitRegistryChangeLockedAsync(systemDatabase, () =>
             systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
             {
                 identityId = registration.Id,
@@ -414,8 +432,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 enablePublicWebPresence = registration.EnablePublicWebPresence
             }));
 
-        _logger.LogInformation("Wrote registration record for [{registrationId}]", registration.Id);
+        _logger.LogInformation("Wrote registration record for [{registrationId}] at registry version {version}",
+            registration.Id, version);
         await CacheIdentityAsync(registration);
+        return version;
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -438,10 +458,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task<bool?> ToggleDisabled(string domain, bool disabled)
     {
+        bool? result = null;
+        long? version = null;
         await _registryLock.WaitAsync();
         try
         {
-            bool? result = null;
             var reg = _trie.LookupExactName(domain);
             if (reg != null)
             {
@@ -449,24 +470,26 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 if (reg.Disabled != disabled)
                 {
                     reg.Disabled = disabled;
-                    await SaveRegistrationInternal(reg);
+                    version = await SaveRegistrationInternal(reg);
                 }
             }
-
-            return result;
         }
         finally
         {
             _registryLock.Release();
         }
+
+        await AnnounceAsync(version, domain);
+        return result;
     }
 
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
     {
+        bool? result = null;
+        long? version = null;
         await _registryLock.WaitAsync();
         try
         {
-            bool? result = null;
             var reg = _trie.LookupExactName(domain);
             if (reg != null)
             {
@@ -474,20 +497,23 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 if (reg.EnablePublicWebPresence != enabled)
                 {
                     reg.EnablePublicWebPresence = enabled;
-                    await SaveRegistrationInternal(reg);
+                    version = await SaveRegistrationInternal(reg);
                 }
             }
-
-            return result;
         }
         finally
         {
             _registryLock.Release();
         }
+
+        await AnnounceAsync(version, domain);
+        return result;
     }
 
     public async Task<UnixTimeUtc> MarkForDeletionAsync(string domain)
     {
+        UnixTimeUtc markedDate;
+        long version;
         await _registryLock.WaitAsync();
         try
         {
@@ -497,20 +523,22 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 throw new OdinClientException("Invalid domain");
             }
 
-            var markedDate = UnixTimeUtc.Now();
+            markedDate = UnixTimeUtc.Now();
             reg.MarkedForDeletionDate = markedDate;
-            await SaveRegistrationInternal(reg);
-
-            return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
+            version = await SaveRegistrationInternal(reg);
         }
         finally
         {
             _registryLock.Release();
         }
+
+        await AnnounceAsync(version, domain);
+        return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
     }
 
     public async Task UnmarkForDeletionAsync(string domain)
     {
+        long version;
         await _registryLock.WaitAsync();
         try
         {
@@ -521,12 +549,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
 
             reg.MarkedForDeletionDate = null;
-            await SaveRegistrationInternal(reg);
+            version = await SaveRegistrationInternal(reg);
         }
         finally
         {
             _registryLock.Release();
         }
+
+        await AnnounceAsync(version, domain);
     }
 
     public async Task LoadRegistrations()
@@ -551,13 +581,26 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // version newer than the rows we hold and silently skip that change.
             var version = await ReadRegistryVersionAsync(systemDatabase);
             var registrations = await systemDatabase.Registrations.GetAllAsync();
+            var allLoaded = true;
             foreach (var registrationRecord in registrations)
             {
-                await LoadRegistrationRecordAsync(registrationRecord);
+                // A reconcile that queued behind an early announcement may already have loaded it.
+                if (_cache.ContainsKey(registrationRecord.identityId))
+                {
+                    continue;
+                }
+
+                allLoaded &= await LoadRegistrationRecordAsync(registrationRecord);
             }
 
-            RaiseLocalVersion(version);
-            _logger.LogInformation("Registry loaded at version {version}", version);
+            // Only claim the version if every tenant actually came up; otherwise the next
+            // announcement or reconnect re-check retries the ones that failed.
+            if (allLoaded)
+            {
+                RaiseLocalVersion(version);
+            }
+
+            _logger.LogInformation("Registry loaded at version {version} (all loaded: {allLoaded})", version, allLoaded);
         }
         finally
         {
@@ -570,7 +613,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// caches and background services. Used both by the initial load and when another node tells us
     /// about a registration this node has never seen.
     /// </summary>
-    private async Task LoadRegistrationRecordAsync(RegistrationsRecord registrationRecord)
+    private async Task<bool> LoadRegistrationRecordAsync(RegistrationsRecord registrationRecord)
     {
         try
         {
@@ -622,7 +665,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         catch (Exception e)
         {
             _logger.LogError(e, "Error loading registration {id}: {error}", registrationRecord.identityId, e.Message);
+            return false;
         }
+
+        return true;
     }
 
     #region cross-node registry coherence
@@ -632,18 +678,34 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// cannot drift: the version is bumped inside the write's transaction, and announced only after
     /// it committed.
     /// </summary>
-    private async Task CommitRegistryChangeAsync(SystemDatabase systemDatabase, string primaryDomain, Func<Task> mutate)
+    /// <summary>
+    /// Runs a registry write under the caller-held registry lock: bumps the version inside the
+    /// write's transaction and returns it for the caller to announce once the lock is released.
+    /// If the database was already ahead of this node when we wrote, another node's change is not
+    /// applied here yet, and raising our version past it would hide that change forever; so the
+    /// rows are reconciled first, under the lock we already hold.
+    /// </summary>
+    private async Task<long> CommitRegistryChangeLockedAsync(SystemDatabase systemDatabase, Func<Task> mutate)
     {
+        long before;
         long version;
         await using (var tx = await systemDatabase.BeginStackedTransactionAsync())
         {
+            before = await ReadRegistryVersionAsync(systemDatabase);
             await mutate();
             version = await BumpRegistryVersionAsync(systemDatabase);
             tx.Commit();
         }
 
+        if (before > Volatile.Read(ref _localVersion))
+        {
+            _logger.LogInformation("Registry was behind at write time (database {before}, local {local}); reconciling before announcing",
+                before, Volatile.Read(ref _localVersion));
+            await ReconcileLockedAsync(before);
+        }
+
         RaiseLocalVersion(version);
-        await PublishRegistryVersionAsync(version, primaryDomain);
+        return version;
     }
 
     /// <summary>
@@ -675,11 +737,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private void OnRedisConnectionRestored(object sender, ConnectionFailedEventArgs e)
     {
+        // Fires once per physical connection; only the subscription connection carries announcements.
+        if (e.ConnectionType != ConnectionType.Subscription)
+        {
+            return;
+        }
+
         _ = Task.Run(async () =>
         {
             try
             {
-                await ReconcileIfBehindAsync("redis connection restored");
+                await ReconcileWithDatabaseAsync(null, "redis connection restored");
             }
             catch (Exception ex)
             {
@@ -702,9 +770,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 return;
             }
 
-            _logger.LogInformation("Registry version {version} announced; local is {local}, reconciling",
-                message.Version, Volatile.Read(ref _localVersion));
-            await ReconcileWithDatabaseAsync();
+            await ReconcileWithDatabaseAsync(message.Version, $"version {message.Version} announced");
         }
         catch (Exception e)
         {
@@ -744,83 +810,111 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
     }
 
-    private async Task ReconcileIfBehindAsync(string reason)
-    {
-        long version;
-        await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryVersionCheck"))
-        {
-            version = await ReadRegistryVersionAsync(scope.Resolve<SystemDatabase>());
-        }
-
-        if (version <= Volatile.Read(ref _localVersion))
-        {
-            return;
-        }
-
-        _logger.LogWarning("Registry is behind after {reason}: database version {version}, local {local}; reconciling",
-            reason, version, Volatile.Read(ref _localVersion));
-        await ReconcileWithDatabaseAsync();
-    }
 
     /// <summary>
     /// Brings the in-memory registry up to the database, which is the source of truth. Reads the
     /// version before the rows for the same reason as <see cref="LoadRegistrations"/>. Single-flight:
     /// concurrent announcements and reconnect events collapse into one pass.
     /// </summary>
-    public async Task ReconcileWithDatabaseAsync()
+    /// <summary>
+    /// Brings the in-memory registry up to the database if the database is known (or suspected)
+    /// to be past <paramref name="floor"/>. Announcements pass the version they carry; a redis
+    /// reconnect passes nothing and lets the database say. The floor is checked again once the
+    /// lock is held, before any scope or query, so a burst of announcements collapses into one
+    /// pass and the rest return without touching the database.
+    /// </summary>
+    public async Task ReconcileWithDatabaseAsync(long? floor, string reason)
     {
         await _registryLock.WaitAsync();
         try
         {
+            if (floor.HasValue && floor.Value <= Volatile.Read(ref _localVersion))
+            {
+                return;
+            }
+
             long version;
-            List<RegistrationsRecord> records;
             await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryReconcile"))
             {
-                var systemDatabase = scope.Resolve<SystemDatabase>();
-                version = await ReadRegistryVersionAsync(systemDatabase);
-                if (version <= Volatile.Read(ref _localVersion))
-                {
-                    // Whoever held the lock before us already brought us here.
-                    return;
-                }
-
-                records = await systemDatabase.Registrations.GetAllAsync();
+                version = await ReadRegistryVersionAsync(scope.Resolve<SystemDatabase>());
             }
 
-            var added = 0;
-            foreach (var record in records)
+            if (version <= Volatile.Read(ref _localVersion))
             {
-                var known = _cache.GetValueOrDefault(record.identityId);
-                if (known == null)
-                {
-                    _logger.LogInformation("Reconciliation is adding {domain}", record.primaryDomainName);
-                    await LoadRegistrationRecordAsync(record);
-                    added++;
-                }
-                else
-                {
-                    // We only get here because the version moved, and the table is small: applying
-                    // every row costs less than deciding which one changed.
-                    ApplyRecord(known, record);
-                }
+                return;
             }
 
-            var unloaded = 0;
-            var liveIds = records.Select(r => r.identityId).ToHashSet();
-            foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id)).ToList())
-            {
-                _logger.LogInformation("Reconciliation is unloading {domain}, which is no longer registered", orphan.PrimaryDomainName);
-                await ForgetLocallyAsync(orphan);
-                unloaded++;
-            }
-
-            RaiseLocalVersion(version);
-            _logger.LogInformation("Registry reconciled to version {version}: {count} registrations, {added} added, {unloaded} unloaded",
-                version, records.Count, added, unloaded);
+            _logger.LogInformation("Registry is behind after {reason}: database version {version}, local {local}; reconciling",
+                reason, version, Volatile.Read(ref _localVersion));
+            await ReconcileLockedAsync(version);
         }
         finally
         {
             _registryLock.Release();
+        }
+    }
+
+    // Caller holds _registryLock. Reads rows and applies them; raises the local version only if
+    // every tenant that needed loading came up, so a failed one is retried on the next trigger.
+    private async Task ReconcileLockedAsync(long version)
+    {
+        List<RegistrationsRecord> records;
+        await using (var scope = _serviceProvider.BeginLifetimeScope("RegistryReconcile"))
+        {
+            records = await scope.Resolve<SystemDatabase>().Registrations.GetAllAsync();
+        }
+
+        var added = 0;
+        var allLoaded = true;
+        foreach (var record in records)
+        {
+            var known = _cache.GetValueOrDefault(record.identityId);
+            if (known == null)
+            {
+                _logger.LogInformation("Reconciliation is adding {domain}", record.primaryDomainName);
+                allLoaded &= await LoadRegistrationRecordAsync(record);
+                added++;
+            }
+            else
+            {
+                // We only get here because the version moved, and the table is small: applying
+                // every row costs less than deciding which one changed.
+                await ApplyRecordAsync(known, record);
+            }
+        }
+
+        var unloaded = 0;
+        var liveIds = records.Select(r => r.identityId).ToHashSet();
+        foreach (var orphan in _cache.Values.Where(r => !liveIds.Contains(r.Id)).ToList())
+        {
+            _logger.LogInformation("Reconciliation is unloading {domain}, which is no longer registered", orphan.PrimaryDomainName);
+            try
+            {
+                await ForgetLocallyAsync(orphan);
+                unloaded++;
+            }
+            catch (Exception e)
+            {
+                // Keep sweeping: one tenant's scope refusing to dispose must not leave the others routable.
+                _logger.LogError(e, "Could not unload {domain}: {error}", orphan.PrimaryDomainName, e.Message);
+                allLoaded = false;
+            }
+        }
+
+        if (allLoaded)
+        {
+            RaiseLocalVersion(version);
+        }
+
+        _logger.LogInformation("Registry reconciled to version {version}: {count} registrations, {added} added, {unloaded} unloaded, complete: {complete}",
+            version, records.Count, added, unloaded, allLoaded);
+    }
+
+    private async Task AnnounceAsync(long? version, string primaryDomain)
+    {
+        if (version.HasValue)
+        {
+            await PublishRegistryVersionAsync(version.Value, primaryDomain);
         }
     }
 
@@ -847,18 +941,27 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // LastSeen = record.lastSeen // SEB:TODO
     }
 
-    private void ApplyRecord(IdentityRegistration known, RegistrationsRecord record)
+    private async Task ApplyRecordAsync(IdentityRegistration known, RegistrationsRecord record)
     {
-        var previousDomain = known.PrimaryDomainName;
+        if (!string.Equals(known.PrimaryDomainName, record.primaryDomainName, StringComparison.OrdinalIgnoreCase))
+        {
+            // The tenant scope, its background services and the certificate cache are all keyed by
+            // domain, so a rename is a different tenant to everything but the trie: rebuild it.
+            _logger.LogWarning("Registration {id} changed domain {old} -> {new}; reloading", known.Id,
+                known.PrimaryDomainName, record.primaryDomainName);
+            await ForgetLocallyAsync(known);
+            await LoadRegistrationRecordAsync(record);
+            return;
+        }
+
+        // The trie holds this same object, so the field copy is already visible to lookups.
         CopyFields(known, record);
 
-        // The trie holds this same object, so the field copy is already visible to lookups. Only
-        // a rename needs the trie touched, which keeps its momentary remove/add gap off the common path.
-        if (!string.Equals(previousDomain, known.PrimaryDomainName, StringComparison.OrdinalIgnoreCase))
-        {
-            _trie.TryRemoveDomain(previousDomain);
-            _trie.AddDomain(known.PrimaryDomainName, known);
-        }
+        // TenantContext is a per-scope singleton with its own copy of FirstRunToken, Email and the
+        // public-web-presence flag; the local write path refreshes it in CacheIdentityAsync, and a
+        // remote change must too or those readers stay stale here until restart.
+        var scope = _serviceProvider.LookupTenantScope(known.PrimaryDomainName);
+        scope?.Resolve<TenantContext>().Update(CreateTenantContext(known.PrimaryDomainName));
     }
 
     // The version is the settings row's modified stamp: the upsert sets it to

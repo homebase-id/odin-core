@@ -95,11 +95,12 @@ asserts both converge.
   no `.payload` file appeared on either local disk. Without S3 the tenant root must be on shared
   storage instead. Upload *staging* is always local disk by design and is per-request, so it needs
   nothing shared.
-- **`Host:SystemProcessApiKey` defaults to a fresh GUID per process** and is not in the
-  ansible template, so each node would generate its own. `SystemAuthenticationHandler` validates
-  inbound calls against it and `SystemHttpClient` sends it, so any cross-node system call would
-  fail. `SystemHttpClient` currently has no callers, so this is latent rather than broken. Pin the
-  value across the cluster before that changes.
+- **`Host:SystemProcessApiKey` defaults to a fresh GUID per process** and is not in the ansible
+  template, so each node would generate its own. `SystemAuthenticationHandler` validates inbound
+  calls against it and `SystemHttpClient` sends it. Its one caller is the registry's certificate
+  status check (`FileSystemIdentityRegistry.InitializeCertificate`), which calls the tenant's own
+  host and so may land on a different node behind a balancer and be rejected. Pin the value
+  across the cluster.
 - **Every node runs every background service** (43 each in this run), including the
   inbox/outbox reconciliation, orphan scan and temp-folder cleanup. Outbox and inbox are safe
   because items are checked out with a DB update, and no contention errors appeared in either
