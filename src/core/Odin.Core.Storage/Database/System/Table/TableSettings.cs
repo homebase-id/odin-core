@@ -23,6 +23,12 @@ public class TableSettings(ScopedSystemConnectionFactory scopedConnectionFactory
     public async Task<(long previous, long current)> BumpMonotonicAsync(string key)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        if (!cn.HasTransaction)
+        {
+            // Outside a transaction each statement autocommits and the row lock is released after the
+            // SELECT, so two callers can read the same "previous" and the returned pair lies.
+            throw new OdinDatabaseException(cn.DatabaseType, $"{nameof(BumpMonotonicAsync)} must run inside a transaction");
+        }
 
         await using (var insert = cn.CreateCommand())
         {

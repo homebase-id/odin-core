@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database.System.Table;
@@ -57,9 +59,9 @@ public class TableSettingsBumpMonotonicTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var settings = scope.Resolve<TableSettings>();
 
-        var (p1, c1) = await settings.BumpMonotonicAsync("counter");
-        var (p2, c2) = await settings.BumpMonotonicAsync("counter");
-        var (p3, c3) = await settings.BumpMonotonicAsync("counter");
+        var (p1, c1) = await BumpInTransactionAsync(scope, settings);
+        var (p2, c2) = await BumpInTransactionAsync(scope, settings);
+        var (p3, c3) = await BumpInTransactionAsync(scope, settings);
 
         Assert.That(c1, Is.GreaterThan(p1), "first bump must advance");
         Assert.That(p2, Is.EqualTo(c1), "second bump must report the first bump's result as its starting point");
@@ -83,7 +85,7 @@ public class TableSettingsBumpMonotonicTests : IocTestBase
         {
             await using var scope = Services.BeginLifetimeScope();
             var settings = scope.Resolve<TableSettings>();
-            results.Add(await settings.BumpMonotonicAsync("counter"));
+            results.Add(await BumpInTransactionAsync(scope, settings));
         }));
 
         var ordered = results.OrderBy(r => r.current).ToList();
@@ -95,5 +97,31 @@ public class TableSettingsBumpMonotonicTests : IocTestBase
             Assert.That(ordered[i].previous, Is.EqualTo(ordered[i - 1].current),
                 $"bump {i} advanced from {ordered[i].previous} but the previous bump produced {ordered[i - 1].current}");
         }
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task BumpRefusesToRunOutsideATransaction(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var settings = scope.Resolve<TableSettings>();
+
+        // Outside a transaction the row lock does not span the read and the update, so the returned
+        // "previous" can be shared by two callers; the method must refuse rather than lie.
+        Assert.ThrowsAsync<OdinDatabaseException>(() => settings.BumpMonotonicAsync("counter"));
+    }
+
+    // The contract the registry relies on: read-lock, read, advance, all inside one transaction.
+    private static async Task<(long previous, long current)> BumpInTransactionAsync(ILifetimeScope scope, TableSettings settings)
+    {
+        var db = scope.Resolve<SystemDatabase>();
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var result = await settings.BumpMonotonicAsync("counter");
+        tx.Commit();
+        return result;
     }
 }
