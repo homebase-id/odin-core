@@ -276,23 +276,23 @@ public static class TenantServices
 
         cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().InstancePerLifetimeScope();
 
-        cb.RegisterType<FileSystemResolver>().InstancePerDependency();
+        cb.RegisterType<FileSystemResolver>().InstancePerLifetimeScope();
         cb.RegisterType<FileSystemHttpRequestResolver>().InstancePerDependency();
 
         cb.RegisterType<StandardFileStreamWriter>().InstancePerDependency();
         cb.RegisterType<StandardFilePayloadStreamWriter>().InstancePerDependency();
         cb.RegisterType<FileExpiryScheduler>().InstancePerDependency();
-        cb.RegisterType<StandardFileDriveStorageService>().InstancePerDependency();
-        cb.RegisterType<StandardFileDriveQueryService>().InstancePerDependency();
+        cb.RegisterType<StandardFileDriveStorageService>().InstancePerLifetimeScope();
+        cb.RegisterType<StandardFileDriveQueryService>().InstancePerLifetimeScope();
         cb.RegisterType<StandardFileUpdateWriter>().InstancePerDependency();
 
-        cb.RegisterType<StandardFileSystem>().InstancePerDependency();
+        cb.RegisterType<StandardFileSystem>().InstancePerLifetimeScope();
 
         cb.RegisterType<CommentStreamWriter>().InstancePerDependency();
         cb.RegisterType<CommentPayloadStreamWriter>().InstancePerDependency();
-        cb.RegisterType<CommentFileStorageService>().InstancePerDependency();
-        cb.RegisterType<CommentFileQueryService>().InstancePerDependency();
-        cb.RegisterType<CommentFileSystem>().InstancePerDependency();
+        cb.RegisterType<CommentFileStorageService>().InstancePerLifetimeScope();
+        cb.RegisterType<CommentFileQueryService>().InstancePerLifetimeScope();
+        cb.RegisterType<CommentFileSystem>().InstancePerLifetimeScope();
         cb.RegisterType<CommentFileUpdateWriter>().InstancePerDependency();
 
         cb.RegisterType<ReactionContentService>().InstancePerLifetimeScope();
