@@ -406,9 +406,10 @@ namespace Odin.Hosting
             // certificate waiting.
             //
             var sw = Stopwatch.StartNew();
+            var issuanceRequested = false;
             try
             {
-                await certificateService.RequestIssuanceAsync(domain);
+                issuanceRequested = await certificateService.RequestIssuanceAsync(domain);
             }
             catch (OperationCanceledException)
             {
@@ -429,7 +430,17 @@ namespace Odin.Hosting
                 }
             }
 
-            Log.Warning("No certificate yet for {hostName}; issuance requested", hostName);
+            if (issuanceRequested)
+            {
+                Log.Warning("No certificate yet for {hostName}; issuance requested", hostName);
+            }
+            else
+            {
+                // Suppressed by backoff or throttle - saying "issuance requested" here would
+                // misdescribe what happened, once per connection, for as long as it lasts.
+                Log.Debug("No certificate for {hostName}; issuance not requested this time", hostName);
+            }
+
             return (null, false);
         }
 

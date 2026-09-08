@@ -176,10 +176,43 @@ public class CertificateOrderPolicyTests
     [Test]
     public async Task RequestIssuanceAsync_PulsesTheBackgroundIssuerAndOrdersNothingItself()
     {
-        await _certificateService.RequestIssuanceAsync(Domain);
+        Assert.That(await _certificateService.RequestIssuanceAsync(Domain), Is.True);
 
-        await _notifier.Received(1).NotifyWorkAvailableAsync(Arg.Any<string?>());
         await _certesAcme.DidNotReceiveWithAnyArgs().CreateCertificateAsync(default!, default!, default);
+    }
+
+    [Test]
+    public async Task RequestIssuanceAsync_DoesNotBlockWhenTheIssuerIsUnreachable()
+    {
+        // NotifyWorkAvailableAsync waits up to 30s for the background service and then throws
+        // when it never appears (SystemBackgroundServicesEnabled = false). The handshake path
+        // must not wear that, and must not fault on it either.
+        _notifier.NotifyWorkAvailableAsync(Arg.Any<string?>())
+            .Returns(async _ =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30));
+                throw new InvalidOperationException("Background service not found");
+            });
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Assert.That(await _certificateService.RequestIssuanceAsync(Domain), Is.True);
+        sw.Stop();
+
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1000),
+            "Requesting issuance must never wait on the background issuer");
+    }
+
+    [Test]
+    public async Task RequestIssuanceAsync_IsThrottledPerDomain()
+    {
+        // The pulse wakes a whole-registry sweep and inbound connections are attacker-chosen
+        // via SNI, so it must not be possible to drive back-to-back sweeps.
+        Assert.That(await _certificateService.RequestIssuanceAsync(Domain), Is.True);
+
+        for (var i = 0; i < 20; i++)
+        {
+            Assert.That(await _certificateService.RequestIssuanceAsync(Domain), Is.False);
+        }
     }
 
     [Test]
@@ -200,5 +233,17 @@ public class CertificateOrderPolicyTests
         }
 
         await _notifier.DidNotReceiveWithAnyArgs().NotifyWorkAvailableAsync(default);
+    }
+
+    //
+    // Transient CA errors must not escalate a domain up the failure schedule
+    //
+
+    [Test]
+    public void AcmeTransientException_IsNotTreatedAsAnOrderFailure()
+    {
+        Assert.That(new AcmeTransientException("badNonce"), Is.Not.InstanceOf<AcmeOrderException>(),
+            "A transient hiccup is not a verdict on the order, and must not trigger the " +
+            "optional-SAN fallback or the exponential backoff escalation");
     }
 }

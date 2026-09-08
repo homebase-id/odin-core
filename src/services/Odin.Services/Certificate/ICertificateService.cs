@@ -26,9 +26,10 @@ public interface ICertificateService
     /// Ask for a certificate to be issued for domain, out of band. Returns immediately and
     /// yields no certificate: the caller is telling the background issuer that a domain needs
     /// one, not waiting for it. This is the ONLY certificate-creating call that may be made
-    /// from a request path.
+    /// from a request path. Returns true if issuance was actually requested, false if it was
+    /// suppressed (the domain is in failure backoff, or was asked for very recently).
     /// </summary>
-    Task RequestIssuanceAsync(string domain);
+    Task<bool> RequestIssuanceAsync(string domain);
 
     /// <summary>
     /// Place an ACME order for domain and wait for it. Background use only - this blocks for

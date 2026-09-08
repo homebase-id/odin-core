@@ -175,28 +175,33 @@ optional name as a complaint about the apex as well, concludes a required name w
 and switches the fallback off in exactly the case it exists for. `MentionsName` matches on
 label boundaries for this reason, and is tested for it.
 
-### Issuance never blocks a request
+### Nothing on a request path waits, for anything
 
-`ICertificateService.CreateCertificateAsync` is non-blocking **by contract**. It
-returns null promptly rather than waiting, in three cases:
+`ServerCertificateSelector` looks the certificate up, calls `RequestIssuanceAsync`, and
+returns. It catches everything, so nothing escapes to Kestrel as an unhandled connection
+fault, and it logs a warning if the selector takes more than 5 seconds — a line that
+should never appear on a healthy host.
 
-- the domain is in failure backoff,
-- another thread or node holds the certificate lock,
-- the order itself failed.
+`RequestIssuanceAsync` itself does not await the pulse it sends.
+`BackgroundServiceManager.NotifyWorkAvailableAsync` waits up to **30 seconds** for the
+background service to appear and then throws if it never does, which is exactly what
+happens when `SystemBackgroundServicesEnabled` is false. Awaiting it would put a
+30-second stall straight back onto the handshake path. The pulse is dispatched, its
+failures are logged and swallowed, and the 12-hour sweep is the backstop.
 
-`ServerCertificateSelector` additionally catches everything, so nothing can escape to
-Kestrel as an unhandled connection fault, and logs a warning if the whole selector
-takes more than 5 seconds.
+The pulse is also **throttled to one per domain per minute**. It wakes a whole-registry
+sweep, and the domain comes from attacker-chosen SNI: unthrottled, anyone could drive
+back-to-back sweeps, each doing a registry read, a Redis lock attempt per domain, and an
+authoritative DNS lookup for every tenant still missing its mta-sts SAN.
 
-`RenewIfAboutToExpireAsync` is also non-blocking, for a different reason: whoever
-holds the lock is ordering for the same domain, so waiting only risks a lock timeout
-and an alarming-looking error. The background loop comes around again.
+`CreateCertificateAsync` is the opposite: it blocks for the whole order and is
+**background-only**. Its cancellation token must have application lifetime.
+`RenewIfAboutToExpireAsync` does not wait for the lock either — whoever holds it is
+ordering for the same domain, so waiting only risks a timeout and an alarming log line.
 
-**Trade-off, deliberately accepted.** Concurrent connections to a domain that has no
-certificate yet are now dropped promptly instead of queued. The first connection still
-issues inline and succeeds; a browser opening six parallel connections to a
-brand-new identity will have five dropped and retried. That is strictly better than
-five 30-second stalls, but it is a real behaviour change on first contact.
+**Trade-off, deliberately accepted.** The first requests to a brand-new identity fail
+fast and the client must retry, rather than one request blocking until the certificate
+exists. In practice that blocking request never succeeded — it stalled 60s and died.
 
 ### `INodeLock.TryLockAsync`
 
@@ -217,6 +222,9 @@ path would silently stop issuing certificates.
 order inside it:
 
 - **exponentially**: 5 minutes, then 10, 20, 40, capped at an hour,
+- **30 seconds** for a transient CA error (`badNonce`, `serverInternal`), which RFC 8555
+  expects to be retried and which says nothing about the domain, so it does not escalate
+  the schedule,
 - **the CA's own hour** when Let's Encrypt says `rateLimited`.
 
 A flat five minutes was twelve attempts an hour, against an allowance of five failed
@@ -228,7 +236,13 @@ state on restart is the right behaviour for an operator who has just fixed DNS a
 bounced the service.
 
 The failure is also still recorded in `Certificates.lastAttempt` / `lastError` for
-operator visibility, exactly as before.
+operator visibility — **except** when the order was cancelled. A cancelled order backs
+off in memory only: persisting it would stamp "cancelled before it completed" over the
+real last error on every restart during an in-flight order, and would do a scoped
+database write while the host is tearing down.
+
+A backoff window that ended more than six hours ago is forgotten entirely, so a domain
+that fails once every few months is not escalated to the hour cap forever.
 
 The **background** renewal loop (`UpdateCertificatesBackgroundService`) deliberately
 ignores the backoff. Its own interval is its rate limiter, and it is the thing that

@@ -50,6 +50,8 @@ public class CertificateService : ICertificateService
     // Exponential: 5m, 10m, 20m, 40m, then capped at an hour. A flat 5 minutes is twelve
     // attempts an hour against a Let's Encrypt allowance of five failed authorizations per
     // hostname per hour - it would breach the very limit it exists to protect.
+    // A badNonce or a server-side blip is routine and says nothing about this order
+    private static readonly TimeSpan TransientFailureBackoff = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan InitialFailureBackoff = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MaxFailureBackoff = TimeSpan.FromHours(1);
     private readonly ConcurrentDictionary<string, BackoffState> _backoff = new(StringComparer.OrdinalIgnoreCase);
@@ -66,6 +68,18 @@ public class CertificateService : ICertificateService
     // Node-local and lost on restart, like the backoff: an operator who has just fixed the
     // record and bounced the service gets an immediate retry, which is the behaviour they want.
     //
+    // One pulse per domain per minute. The pulse wakes a whole-registry sweep, and inbound
+    // connections are attacker-chosen (SNI), so an unthrottled pulse lets anyone drive
+    // back-to-back sweeps - a registry read, a Redis lock attempt per domain, and a DNS lookup
+    // per tenant still missing its mta-sts SAN.
+    private static readonly TimeSpan PulseThrottle = TimeSpan.FromMinutes(1);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastPulse = new(StringComparer.OrdinalIgnoreCase);
+
+    // A backoff window that ended this long ago is forgotten entirely, so a domain that fails
+    // once every few months is not escalated to the hour cap forever, and entries for domains
+    // that have gone away do not accumulate.
+    private static readonly TimeSpan BackoffForgottenAfter = TimeSpan.FromHours(6);
+
     private static readonly TimeSpan OptionalSanSuppression = TimeSpan.FromDays(7);
     private readonly ConcurrentDictionary<string, DateTimeOffset> _optionalSansSuppressed = new(StringComparer.OrdinalIgnoreCase);
 
@@ -129,18 +143,63 @@ public class CertificateService : ICertificateService
     /// already asked the CA to validate, and so having spent the same rate-limit allowance as a
     /// completed order while producing nothing. See docs/certificate-issuance-locking.md.
     /// </remarks>
-    public async Task RequestIssuanceAsync(string domain)
+    public Task<bool> RequestIssuanceAsync(string domain)
     {
         if (IsInFailureBackoff(domain, out var remaining))
         {
             _logger.LogDebug(
                 "Not requesting issuance for {domain}: a previous attempt failed, next attempt in {backoff}s",
                 domain, (int)remaining.TotalSeconds);
-            return;
+            return Task.FromResult(false);
         }
 
+        if (!ShouldPulse(domain))
+        {
+            _logger.LogDebug("Not requesting issuance for {domain}: already requested within the last {throttle}s",
+                domain, (int)PulseThrottle.TotalSeconds);
+            return Task.FromResult(false);
+        }
+
+        //
+        // Dispatched and deliberately not awaited. NotifyWorkAvailableAsync waits up to 30
+        // seconds for the background service to appear and then throws if it never does - which
+        // is what happens when SystemBackgroundServicesEnabled is false. Awaiting it here would
+        // put a 30-second stall back on the TLS handshake path: precisely the fault this method
+        // exists to remove. The 12h sweep is the backstop if the pulse cannot be delivered.
+        //
         _logger.LogDebug("Requesting out-of-band certificate issuance for {domain}", domain);
-        await _issuanceNotifier.NotifyWorkAvailableAsync();
+        _ = PulseIssuerAsync(domain);
+        return Task.FromResult(true);
+    }
+
+    //
+
+    private async Task PulseIssuerAsync(string domain)
+    {
+        try
+        {
+            await _issuanceNotifier.NotifyWorkAvailableAsync();
+        }
+        catch (Exception e)
+        {
+            // Never allowed to fault: nothing observes this task.
+            _logger.LogDebug(e, "Could not notify the certificate issuer for {domain}: {error}", domain, e.Message);
+        }
+    }
+
+    //
+
+    private bool ShouldPulse(string domain)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (_lastPulse.TryGetValue(domain, out var last) && now - last < PulseThrottle)
+        {
+            return false;
+        }
+
+        // A benign race here costs one extra pulse, which the sweep coalesces anyway
+        _lastPulse[domain] = now;
+        return true;
     }
 
     //
@@ -374,7 +433,12 @@ public class CertificateService : ICertificateService
             //
             var error = $"Certificate order for {domain} was cancelled before it completed";
             _logger.LogWarning("{error}", error);
-            await NoteFailureAsync(domain, error);
+
+            // In-memory only. Persisting would put "cancelled before it completed" into the
+            // certificates table as the domain's last error on every restart during an
+            // in-flight order - overwriting the real reason an operator is looking for, and
+            // doing a scoped DB write while the host is tearing down.
+            NoteFailure(domain, error);
             throw;
         }
         catch (Exception e)
@@ -382,9 +446,17 @@ public class CertificateService : ICertificateService
             var error = $"Error creating certificate for {domain}: {e.Message.ReplaceLineEndings(". ").TrimEnd()}";
             _logger.LogError("{error}", error);
 
-            // When the CA tells us how long it will keep saying no, believe it.
-            await NoteFailureAsync(domain, error,
-                (e as AcmeRateLimitedException)?.RetryAfter);
+            // When the CA tells us how long it will keep saying no, believe it. A transient
+            // error says nothing about this order and RFC 8555 expects it to be retried, so it
+            // must not escalate the domain up the failure schedule.
+            var explicitBackoff = e switch
+            {
+                AcmeRateLimitedException rateLimited => rateLimited.RetryAfter,
+                AcmeTransientException => TransientFailureBackoff,
+                _ => (TimeSpan?)null,
+            };
+
+            await NoteFailureAsync(domain, error, explicitBackoff, escalate: e is not AcmeTransientException);
             return null;
         }
     }
@@ -400,15 +472,23 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        remaining = state.Until - DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
+        remaining = state.Until - now;
         if (remaining > TimeSpan.Zero)
         {
             return true;
         }
 
-        // Window elapsed - allow the next attempt, but keep the failure count so the backoff
-        // keeps widening if it fails again. The count is only cleared by a successful order.
         remaining = TimeSpan.Zero;
+
+        // Window elapsed. Keep the failure count so the backoff keeps widening if the next
+        // attempt fails too - unless the window ended so long ago that this is a fresh problem
+        // rather than a continuing one, in which case forget the domain entirely.
+        if (now - state.Until > BackoffForgottenAfter)
+        {
+            _backoff.TryRemove(domain, out _);
+        }
+
         return false;
     }
 
@@ -417,11 +497,10 @@ public class CertificateService : ICertificateService
     /// <param name="explicitBackoff">
     /// What the CA told us to wait, when it told us. Otherwise the exponential schedule applies.
     /// </param>
-    private async Task NoteFailureAsync(string domain, string error, TimeSpan? explicitBackoff = null)
+    private void NoteFailure(string domain, string error, TimeSpan? explicitBackoff = null, bool escalate = true)
     {
-        var consecutiveFailures = _backoff.TryGetValue(domain, out var previous)
-            ? previous.ConsecutiveFailures + 1
-            : 1;
+        var previousFailures = _backoff.TryGetValue(domain, out var previous) ? previous.ConsecutiveFailures : 0;
+        var consecutiveFailures = escalate ? previousFailures + 1 : Math.Max(previousFailures, 1);
 
         var backoff = explicitBackoff ?? ExponentialBackoff(consecutiveFailures);
         _backoff[domain] = new BackoffState(DateTimeOffset.UtcNow + backoff, consecutiveFailures);
@@ -430,6 +509,14 @@ public class CertificateService : ICertificateService
             "Certificate order for {domain} failed ({consecutiveFailures} in a row); " +
             "not trying again for {backoff}s. Reason: {error}",
             domain, consecutiveFailures, (int)backoff.TotalSeconds, error);
+    }
+
+    //
+
+    private async Task NoteFailureAsync(
+        string domain, string error, TimeSpan? explicitBackoff = null, bool escalate = true)
+    {
+        NoteFailure(domain, error, explicitBackoff, escalate);
 
         try
         {

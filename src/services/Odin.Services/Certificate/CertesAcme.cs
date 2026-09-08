@@ -91,11 +91,12 @@ public sealed class CertesAcme : ICertesAcme
 
             if (RetryableErrorTypes.Contains(type))
             {
-                // Genuinely transient - the protocol expects us to try again. Leave it as-is so
-                // the caller's retry loop picks it up.
+                // Genuinely transient - the protocol expects us to try again. Surfaced as its
+                // own type so the caller can retry it soon rather than treating it as evidence
+                // that this domain is failing.
                 _logger.LogWarning("Transient ACME error for {domains}: {type}: {detail}",
                     string.Join(',', domains), type, detail);
-                throw;
+                throw new AcmeTransientException($"{type}: {detail}");
             }
 
             // Everything else is the CA rejecting this order on its merits. Ordering again right

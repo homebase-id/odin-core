@@ -37,3 +37,12 @@ public class AcmeRateLimitedException(
 {
     public TimeSpan RetryAfter { get; } = retryAfter;
 }
+
+//
+
+/// <summary>
+/// A routine, retryable hiccup from the CA - a stale nonce, or a server-side blip. RFC 8555
+/// expects these to be retried and they say nothing about the order, so they must not escalate
+/// a domain up the failure backoff schedule.
+/// </summary>
+public class AcmeTransientException(string message) : OdinSystemException(message);
