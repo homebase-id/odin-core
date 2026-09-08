@@ -6,6 +6,7 @@ using Odin.Core;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Drives;
 
 namespace Odin.Services.Membership.Circles
 {
@@ -67,6 +68,29 @@ namespace Odin.Services.Membership.Circles
         /// The permissions to be granted to members of this Circle
         /// </summary>
         public PermissionSet Permissions { get; set; }
+
+        /// <summary>
+        /// True when minting this circle's grant needs the connection's Peer Key -- i.e. when some drive
+        /// grant carries a storage key that has to be wrapped for the member.
+        /// </summary>
+        /// <remarks>
+        /// This is the line between a grant an app can mint on its own and one it cannot.  A read grant
+        /// escrows the drive's storage key under the Peer Key, which only the owner (master key) and the
+        /// peer (their CAT) can reach -- so an app has to deposit it instead and let conversion finish the
+        /// job.  A write/react grant carries no key material at all: it is a plaintext
+        /// <c>{driveId, permission}</c> record, and the Peer Key never enters into it.
+        /// <para>
+        /// Permission keys are deliberately not counted.  They live in clear on the grant, so they need no
+        /// Peer Key either; whether an app may hand them out is a policy question, and the deposit path
+        /// already answers it "yes" by carrying <c>PermissionSet</c> through untouched.
+        /// </para>
+        /// </remarks>
+        public bool RequiresPeerKey()
+        {
+            return DriveGrants?.Any(g =>
+                g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) ||
+                g.PermissionedDrive.Permission.HasFlag(DrivePermission.ConditionalTemporalRead)) ?? false;
+        }
 
         public bool Equals(CircleDefinition other)
         {

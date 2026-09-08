@@ -46,14 +46,18 @@ public class PeerCatConversionTests : V2Fixture
         var appDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(appDrive, "appDrive", allowAnonymousReads: false);
 
-        // circleX itself carries no drive grants — the deposit is trivial to source (no storage keys
-        // needed), and drive access to members comes entirely from the app's CircleMemberPermissionGrant.
+        // circleX grants Read, which is what makes this a deposit at all: a read grant escrows the
+        // drive's storage key under the connection's Peer Key, and the app cannot reach that. A
+        // write-only circle would be minted outright and never come near the conversion this test is
+        // about (see WriteOnlyCircleGrantTests). The app can read appDrive, so it can source the key
+        // to seal.
         var circleX = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleX, "circleX", new PermissionSetGrantRequest
         {
-            Drives = new List<DriveGrantRequest>(),
-            // A circle must grant at least one drive or one permission — this one carries no drives,
-            // so give it a harmless circle-valid permission key instead.
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = appDrive, Permission = DrivePermission.Read } }
+            },
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
         });
 
@@ -155,12 +159,14 @@ public class PeerCatConversionTests : V2Fixture
         // call into Frodo's later and trigger conversion of whatever Frodo holds pending about Sam.
         var trigger = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "trigger");
 
+        // Read, so that this is a deposit rather than a direct mint — see the note on circleX above.
         var circleY = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleY, "circleY-doomed", new PermissionSetGrantRequest
         {
-            Drives = new List<DriveGrantRequest>(),
-            // A circle must grant at least one drive or one permission — this one carries no drives,
-            // so give it a harmless circle-valid permission key instead.
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = trigger, Permission = DrivePermission.Read } }
+            },
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
         });
 

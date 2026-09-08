@@ -627,6 +627,32 @@ namespace Odin.Services.Membership.Connections
 
                 keyStoreKey.Wipe();
             }
+            else if (!circleDefinition.RequiresPeerKey())
+            {
+                // Nothing in this grant is sealed to anything, so the Peer Key the caller cannot reach is
+                // not needed: a write/react grant is a plaintext {driveId, permission} record. Depositing
+                // it would seal nothing, convert to the same record, and leave the member out of the
+                // circle until something else happened to touch the connection.
+                //
+                // The deposit path's write-side scope check has to come along, though. CreateDriveGrant
+                // makes no such check -- for the owner it is redundant -- so without this an app could
+                // grant write on a drive it cannot write to itself.
+                AssertCallerHoldsGrantedDrivePermissions(circleDefinition, odinContext);
+
+                var circleGrant = await circleMembershipService.CreateCircleGrantAsync(
+                    keyStoreKey: null,
+                    circleDefinition,
+                    new PermissionContextStorageKeySource(odinContext),
+                    odinContext);
+
+                icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
+
+                // Same tradeoff, and the same reasoning, as the peer-CAT conversion path: no master key
+                // here, so an app-authorized circle that wants Read comes out keyless and self-heals when
+                // ReconcileAuthorizedCircles next runs for that app.
+                await FanOutAppCircleGrantsAsync(icr, keyStoreKey: null, [circleId.Value],
+                    NoStorageKeySource.Instance, odinContext);
+            }
             else
             {
                 // Blocker #3: the caller (an app) has no path to this connection's key store key
@@ -1400,6 +1426,25 @@ namespace Odin.Services.Membership.Connections
         /// and sealed to the store's write-only public key. The caller never touches the store's
         /// key store key and can read nothing back.
         /// </summary>
+        /// <summary>
+        /// Refuses a grant the caller could not make itself: every drive permission being handed out must
+        /// be one the caller already holds on that drive.
+        /// </summary>
+        /// <remarks>
+        /// The write-side half of the scope constraint, mirroring the assertion
+        /// <see cref="CreateDepositedGrantAsync"/> makes for the same reason.  The read side needs no
+        /// check here because a read grant never reaches this path -- it requires the Peer Key and is
+        /// deposited instead.
+        /// </remarks>
+        private void AssertCallerHoldsGrantedDrivePermissions(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            foreach (var req in circleDefinition.DriveGrants ?? [])
+            {
+                var driveId = req.PermissionedDrive.Drive.Alias;
+                odinContext.PermissionsContext.AssertHasDrivePermission(driveId, req.PermissionedDrive.Permission);
+            }
+        }
+
         private async Task<DepositedGrant> CreateDepositedGrantAsync(PeerKeyStore store, CircleDefinition circleDefinition,
             IOdinContext odinContext)
         {
