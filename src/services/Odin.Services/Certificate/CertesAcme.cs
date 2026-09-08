@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,28 +80,67 @@ public sealed class CertesAcme : ICertesAcme
             // parse strings.
             var type = e.Error?.Type ?? "";
             var detail = e.Error?.Detail ?? e.Message;
+            var failed = FailedIdentifiers(e.Error);
 
             if (type.Equals(AcmeRateLimitedErrorType, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogWarning("Rate limited by the CA for {domains}: {detail}",
                     string.Join(',', domains), detail);
-                throw new AcmeRateLimitedException($"{type}: {detail}", DefaultRateLimitRetryAfter);
+                throw new AcmeRateLimitedException($"{type}: {detail}", DefaultRateLimitRetryAfter, failed);
             }
 
             if (RetryableErrorTypes.Contains(type))
             {
-                // Genuinely transient - the protocol expects us to try again. Leave it as-is so
-                // the caller's retry loop picks it up.
+                // Genuinely transient - the protocol expects us to try again. Surfaced as its
+                // own type so the caller can retry it soon rather than treating it as evidence
+                // that this domain is failing.
                 _logger.LogWarning("Transient ACME error for {domains}: {type}: {detail}",
                     string.Join(',', domains), type, detail);
-                throw;
+                throw new AcmeTransientException($"{type}: {detail}");
             }
 
             // Everything else is the CA rejecting this order on its merits. Ordering again right
             // away produces the same rejection, and at Let's Encrypt it also spends the
             // per-hostname failed-authorization allowance.
-            throw new AcmeOrderException($"{type}: {detail}");
+            throw new AcmeOrderException($"{type}: {detail}", failed);
         }
+    }
+
+    //
+
+    //
+    // RFC 8555 §6.7.1: a problem document may carry sub-problems, each naming the identifier it
+    // is about. That is how we learn WHICH name of a multi-name order the CA refused.
+    //
+    private static List<string> FailedIdentifiers(AcmeError? error)
+    {
+        var identifiers = new List<string>();
+        if (error == null)
+        {
+            return identifiers;
+        }
+
+        void Collect(AcmeError e)
+        {
+            var value = e.Identifier?.Value;
+            if (!string.IsNullOrWhiteSpace(value) && !identifiers.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                identifiers.Add(value);
+            }
+
+            if (e.Subproblems == null)
+            {
+                return;
+            }
+
+            foreach (var sub in e.Subproblems)
+            {
+                Collect(sub);
+            }
+        }
+
+        Collect(error);
+        return identifiers;
     }
 
     //
@@ -188,6 +228,18 @@ public sealed class CertesAcme : ICertesAcme
         //
         cancellationToken.ThrowIfCancellationRequested();
         authzs = await order.Authorizations();
+
+        //
+        // Every authorization is checked before throwing. Throwing at the first failure would
+        // report only one name, and the caller decides whether to drop optional names based on
+        // exactly that list: if a required name AND an optional one both failed, but the
+        // optional one happened to come first, the caller would conclude "only optional
+        // refused", drop it, and place a second order that fails on the required name anyway -
+        // spending the failed-authorization allowance twice. ACME does not promise an order for
+        // these, so the verdict has to be complete before it is useful.
+        //
+        var failures = new List<string>();
+        var failureDetail = new List<string>();
         foreach (var authz in authzs)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -202,9 +254,21 @@ public sealed class CertesAcme : ICertesAcme
 
             if (resource.Status != AuthorizationStatus.Valid)
             {
-                throw new AcmeOrderException(
-                    $"Failed or timed out validating one or more challenges. Status: {resource.Status}");
+                // We polled this authorization ourselves, so we know precisely which name failed
+                var name = resource.Identifier?.Value ?? "";
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    failures.Add(name);
+                }
+                failureDetail.Add($"'{name}' ({resource.Status})");
             }
+        }
+
+        if (failureDetail.Count > 0)
+        {
+            throw new AcmeOrderException(
+                $"Failed or timed out validating the challenge for {string.Join(", ", failureDetail)}.",
+                failures);
         }
 
         //

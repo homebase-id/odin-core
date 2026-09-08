@@ -565,6 +565,19 @@ public static class HostExtensions
         {
             services.StartSystemBackgroundServices().BlockingWait();
         }
+        else
+        {
+            //
+            // UpdateCertificatesBackgroundService is the ONLY thing that orders certificates -
+            // the TLS handshake path asks it for one and serves nothing until it delivers. With
+            // system background services off there is no issuer and no backstop, so a host that
+            // terminates TLS would silently never obtain a certificate for any domain.
+            //
+            logger.LogWarning(
+                "System background services are disabled. No certificates will be ordered or " +
+                "renewed. This is only safe for hosts that do not terminate TLS, or whose " +
+                "certificates are provisioned externally.");
+        }
 
         //
         // DON'T PUT ANY INITIALIZATION CODE BELOW THIS LINE

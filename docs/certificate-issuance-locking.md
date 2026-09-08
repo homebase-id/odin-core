@@ -77,30 +77,154 @@ Separately: `NodeLock`, the single-node implementation used when Redis is not
 configured, **ignored** the `timeout` argument entirely. The same condition on a
 single-node deployment was an unbounded hang rather than a 30-second one.
 
+## The follow-up incident, 2026-09-08 (same day)
+
+The fix above removed the exception but not the stall. On the NA cluster the host logged:
+
+```
+WRN Certificate lookup for delete.n1.id.pub took 60s on the TLS handshake path
+WRN Lock odin:lock:CertificateServiceLock:delete.n1.id.pub was held for 60s
+```
+
+### What "never waits" actually meant
+
+`CreateCertificateAsync` never waited **for the lock**. The connection that *won* the lock
+still ran the entire ACME order inline, because `InternalCreateCertificateAsync` was always
+on the handshake path and the first fix left it there. So the queue behind the holder was
+fixed and the holder itself was not.
+
+That path is bounded by Kestrel's 60-second handshake deadline (`Program.cs`,
+`handshakeTimeoutTimeSpan`), and an ACME order legitimately takes minutes. Every attempt
+therefore ran to 60s and was killed **mid-order** — after the CA had already been asked to
+validate. An abandoned order costs the same rate-limit allowance as a completed one and
+produces no certificate.
+
+### Why the backoff never engaged
+
+Worse, the cancellation was treated as a non-event:
+
+```csharp
+catch (OperationCanceledException) { throw; }   // before the generic catch
+catch (Exception e) { … await NoteFailureAsync(…); }
+```
+
+The rethrow was there so a client disconnect would not poison a domain for five minutes.
+The effect was the opposite of the intent: when the handshake deadline killed the order, **no
+backoff was recorded**, so the next inbound connection started a fresh order immediately.
+
+### What was NOT the cause
+
+Recorded because it was the first theory and it was wrong: the in-call retry loop was **not**
+re-burning the allowance. Production logs showed zero `(will retry)` lines over ninety
+minutes and `AcmeRateLimitedException` being honoured exactly as designed — backoffs an hour
+apart. The loop was removed anyway (see below), but on the arithmetic, not on this evidence.
+
+### The other bug it exposed: one optional name sinks the whole certificate
+
+The rate-limited identifier was `mta-sts.<domain>` — an **optional** SAN. A certificate order
+is all-or-nothing: refuse one name and the CA refuses the order. So an optional, email-only
+name denied the identity the certificate it needed for its apex, `capi` and `file` names.
+
+The original gate tested whether the mta-sts record *resolves*. Resolving is a weaker
+property than being able to serve the name's challenge, so it did not protect against this.
+
 ## The rules now
 
-### Issuance never blocks a request
+### Issuance never happens on a request path
 
-`ICertificateService.CreateCertificateAsync` is non-blocking **by contract**. It
-returns null promptly rather than waiting, in three cases:
+The TLS handshake path looks the certificate up and, if it is missing, calls
+`RequestIssuanceAsync` — which pulses the background issuer and returns. It never places an
+order itself. `CreateCertificateAsync` is background-only, and its cancellation token must
+have application lifetime, never a request's.
 
-- the domain is in failure backoff,
-- another thread or node holds the certificate lock,
-- the order itself failed.
+The trade, deliberately accepted: the first requests to a brand-new identity fail fast and
+the client must retry, rather than one request blocking until the certificate exists. In
+practice that blocking request never succeeded anyway — it stalled 60s and died.
 
-`ServerCertificateSelector` additionally catches everything, so nothing can escape to
-Kestrel as an unhandled connection fault, and logs a warning if the whole selector
-takes more than 5 seconds.
+### A cancelled order still counts as a failure
 
-`RenewIfAboutToExpireAsync` is also non-blocking, for a different reason: whoever
-holds the lock is ordering for the same domain, so waiting only risks a lock timeout
-and an alarming-looking error. The background loop comes around again.
+By the time an order is abandoned the CA has usually been asked to validate, so it has cost
+the same allowance as a completed one. Cancellation records a backoff and then propagates.
+If the cancellation is process shutdown this costs nothing, since the backoff map is
+in-memory and dies with the process.
 
-**Trade-off, deliberately accepted.** Concurrent connections to a domain that has no
-certificate yet are now dropped promptly instead of queued. The first connection still
-issues inline and succeeds; a browser opening six parallel connections to a
-brand-new identity will have five dropped and retried. That is strictly better than
-five 30-second stalls, but it is a real behaviour change on first contact.
+### One order per invocation
+
+The retry loop is gone. Every iteration called `NewOrder` and created a fresh set of
+authorizations; re-attempts belong to the backoff, which is spaced to respect the CA's limit.
+
+### An optional name may not sink the order
+
+If the CA's refusal names optional SANs and no required name, the optional names are dropped
+and the order is placed once more. Ordering again immediately is safe precisely because the
+names that remain are not the ones being refused. Working out which names a refusal
+implicates uses `AcmeError.Subproblems` where the CA provides them, and otherwise the
+hostname the CA writes into the detail text.
+
+Having dropped an optional name, it must not be asked for again straight away. The
+certificate is now missing a SAN that `NeedsRenewalAsync` thinks it ought to have, so the
+next sweep would renew to re-add it, fail, drop it, and issue *another* certificate - a
+duplicate every 12 hours, against a Let's Encrypt limit of five duplicates (identical name
+set) per week. Optional names are therefore suppressed for seven days after a refusal, which
+holds it to one. The suppression is **persisted in the shared system database**, not held in
+memory: the limit it protects is enforced by the CA against the whole cluster, so a node-local
+memory would let a second node renew straight back into the same refusal, and would re-arm the
+loop on every restart.
+
+**Beware the suffix trap.** Every SAN has the apex as a suffix, so
+`mta-sts.example.com` *contains* `example.com`. A substring test reads a complaint about the
+optional name as a complaint about the apex as well, concludes a required name was refused,
+and switches the fallback off in exactly the case it exists for. `MentionsName` matches on
+label boundaries for this reason, and is tested for it.
+
+### Nothing on a request path waits, for anything
+
+`ServerCertificateSelector` looks the certificate up, calls `RequestIssuanceAsync`, and
+returns. It catches everything, so nothing escapes to Kestrel as an unhandled connection
+fault, and it logs a warning if the selector takes more than 5 seconds — a line that
+should never appear on a healthy host.
+
+`RequestIssuanceAsync` itself does not await the pulse it sends.
+`BackgroundServiceManager.NotifyWorkAvailableAsync` waits up to **30 seconds** for the
+background service to appear and then throws if it never does, which is exactly what
+happens when `SystemBackgroundServicesEnabled` is false. Awaiting it would put a
+30-second stall straight back onto the handshake path. The pulse is dispatched, its
+failures are logged at warning level rather than swallowed quietly.
+
+**There is no backstop.** The background issuer is the only thing that orders certificates
+now, so a host that terminates TLS with `SystemBackgroundServicesEnabled` false will never
+obtain one. Startup logs a warning saying so; it does not refuse to start, because hosts
+serving pre-provisioned certificates legitimately run with background services off.
+
+The pulse is also **throttled to one per domain per minute**. It wakes a whole-registry
+sweep, and the domain comes from attacker-chosen SNI: unthrottled, anyone could drive
+back-to-back sweeps, each doing a registry read, a Redis lock attempt per domain, and an
+authoritative DNS lookup for every tenant still missing its mta-sts SAN.
+
+`CreateCertificateAsync` is the opposite: it blocks for the whole order and is
+**background-only**. Its cancellation token must have application lifetime.
+
+`RenewIfAboutToExpireAsync` **respects the failure backoff**, and must. It used to ignore it
+because "the loop's own interval is its rate limiter" — true while the sweep only ran on its
+12h timer, false the moment the sweep became pulsable from the request path. Otherwise a host
+with a few certificate-less domains cycling out of their backoffs pulses the sweep several
+times an hour, and each sweep re-places a full order for every *other* domain whose renewal
+is failing: the same allowance burn, arriving on a different domain than the one pulsed.
+The cost is bounded, since the backoff caps at an hour and renewal starts 7 days before
+expiry. `RenewIfAboutToExpireAsync` does not wait for the lock either — whoever holds it is
+ordering for the same domain, so waiting only risks a timeout and an alarming log line.
+
+**Trade-off, deliberately accepted.** The first requests to a brand-new identity fail
+fast and the client must retry, rather than one request blocking until the certificate
+exists. In practice that blocking request never succeeded — it stalled 60s and died.
+
+### The order lock outlives two orders
+
+`CertesAcme` polls each authorization up to 60 x 1s and then the order up to another 60 x 1s,
+so a four-name order can run ~300s — and the optional-SAN fallback can place two under one
+handle. The lock is therefore taken with a 20-minute forced release, not the 10-minute
+default, which would expire mid-order and let a second node order the same domain
+concurrently: double the CA spend, and a duplicate certificate.
 
 ### `INodeLock.TryLockAsync`
 
@@ -120,8 +244,14 @@ path would silently stop issuing certificates.
 `CertificateService` keeps a per-domain backoff window and refuses to start a new
 order inside it:
 
-- **5 minutes** after a generic failure (bad DNS, transport, anything unclassified),
+- **exponentially**: 5 minutes, then 10, 20, 40, capped at an hour,
+- **30 seconds** for a transient CA error (`badNonce`, `serverInternal`), which RFC 8555
+  expects to be retried and which says nothing about the domain, so it does not escalate
+  the schedule,
 - **the CA's own hour** when Let's Encrypt says `rateLimited`.
+
+A flat five minutes was twelve attempts an hour, against an allowance of five failed
+authorizations per hostname per hour — it breached the very limit it existed to protect.
 
 The window is node-local on purpose. The node lock already stops two nodes ordering
 at once, so the worst case is one wasted attempt per node per window, and losing the
@@ -129,7 +259,13 @@ state on restart is the right behaviour for an operator who has just fixed DNS a
 bounced the service.
 
 The failure is also still recorded in `Certificates.lastAttempt` / `lastError` for
-operator visibility, exactly as before.
+operator visibility — **except** when the order was cancelled. A cancelled order backs
+off in memory only: persisting it would stamp "cancelled before it completed" over the
+real last error on every restart during an in-flight order, and would do a scoped
+database write while the host is tearing down.
+
+A backoff window that ended more than six hours ago is forgotten entirely, so a domain
+that fails once every few months is not escalated to the hour cap forever.
 
 The **background** renewal loop (`UpdateCertificatesBackgroundService`) deliberately
 ignores the backoff. Its own interval is its rate limiter, and it is the thing that
@@ -149,6 +285,19 @@ eventually heals a domain whose DNS has since been fixed. Nothing is waiting on 
 The rule: **an order the CA has already rejected on its merits must not be placed
 again in a tight loop.** Retrying it is not merely useless, it is what converts a few
 minutes of DNS lag into an hour of rate-limited failure.
+
+## Clearing an optional-SAN suppression
+
+Suppression survives a restart and is shared across nodes, so bouncing the service no longer
+clears it. If the `mta-sts` record has been fixed and the tenant should get the SAN back
+before the seven days elapse, delete its row from the system database:
+
+```sql
+DELETE FROM Settings WHERE key = 'optional-sans-suppressed:<domain>';
+```
+
+The next order will ask for the optional name again. Expired rows are deleted automatically
+the next time that domain is checked, so this is only needed to cut the window short.
 
 ## Diagnosing a stuck certificate lock
 
