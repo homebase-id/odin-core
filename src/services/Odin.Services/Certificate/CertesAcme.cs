@@ -228,6 +228,18 @@ public sealed class CertesAcme : ICertesAcme
         //
         cancellationToken.ThrowIfCancellationRequested();
         authzs = await order.Authorizations();
+
+        //
+        // Every authorization is checked before throwing. Throwing at the first failure would
+        // report only one name, and the caller decides whether to drop optional names based on
+        // exactly that list: if a required name AND an optional one both failed, but the
+        // optional one happened to come first, the caller would conclude "only optional
+        // refused", drop it, and place a second order that fails on the required name anyway -
+        // spending the failed-authorization allowance twice. ACME does not promise an order for
+        // these, so the verdict has to be complete before it is useful.
+        //
+        var failures = new List<string>();
+        var failureDetail = new List<string>();
         foreach (var authz in authzs)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -244,10 +256,19 @@ public sealed class CertesAcme : ICertesAcme
             {
                 // We polled this authorization ourselves, so we know precisely which name failed
                 var name = resource.Identifier?.Value ?? "";
-                throw new AcmeOrderException(
-                    $"Failed or timed out validating the challenge for '{name}'. Status: {resource.Status}",
-                    string.IsNullOrWhiteSpace(name) ? [] : [name]);
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    failures.Add(name);
+                }
+                failureDetail.Add($"'{name}' ({resource.Status})");
             }
+        }
+
+        if (failureDetail.Count > 0)
+        {
+            throw new AcmeOrderException(
+                $"Failed or timed out validating the challenge for {string.Join(", ", failureDetail)}.",
+                failures);
         }
 
         //

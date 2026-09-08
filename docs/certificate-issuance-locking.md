@@ -189,12 +189,12 @@ should never appear on a healthy host.
 background service to appear and then throws if it never does, which is exactly what
 happens when `SystemBackgroundServicesEnabled` is false. Awaiting it would put a
 30-second stall straight back onto the handshake path. The pulse is dispatched, its
-failures are logged and swallowed, and the 12-hour sweep is the backstop.
+failures are logged at warning level rather than swallowed quietly.
 
 **There is no backstop.** The background issuer is the only thing that orders certificates
 now, so a host that terminates TLS with `SystemBackgroundServicesEnabled` false will never
-obtain one — startup logs a warning saying so, and a failed pulse is logged at warning
-rather than swallowed quietly.
+obtain one. Startup logs a warning saying so; it does not refuse to start, because hosts
+serving pre-provisioned certificates legitimately run with background services off.
 
 The pulse is also **throttled to one per domain per minute**. It wakes a whole-registry
 sweep, and the domain comes from attacker-chosen SNI: unthrottled, anyone could drive
@@ -285,6 +285,19 @@ eventually heals a domain whose DNS has since been fixed. Nothing is waiting on 
 The rule: **an order the CA has already rejected on its merits must not be placed
 again in a tight loop.** Retrying it is not merely useless, it is what converts a few
 minutes of DNS lag into an hour of rate-limited failure.
+
+## Clearing an optional-SAN suppression
+
+Suppression survives a restart and is shared across nodes, so bouncing the service no longer
+clears it. If the `mta-sts` record has been fixed and the tenant should get the SAN back
+before the seven days elapse, delete its row from the system database:
+
+```sql
+DELETE FROM Settings WHERE key = 'optional-sans-suppressed:<domain>';
+```
+
+The next order will ask for the optional name again. Expired rows are deleted automatically
+the next time that domain is checked, so this is only needed to cut the window short.
 
 ## Diagnosing a stuck certificate lock
 

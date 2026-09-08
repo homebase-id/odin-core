@@ -76,6 +76,14 @@ public class CertificateService : ICertificateService
     private static readonly TimeSpan PulseThrottle = TimeSpan.FromMinutes(1);
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastPulse = new(StringComparer.OrdinalIgnoreCase);
 
+    // ...and a floor on the aggregate rate. The per-domain throttle bounds one domain; with M
+    // certificate-less domains taking traffic it still admits M pulses a minute, and because
+    // SleepAsync returns immediately when the wake event is already set, those sweeps run back
+    // to back. Each is a registry read, a certificate-store read per tenant, and a DNS lookup
+    // per tenant missing its mta-sts SAN, so the fleet needs its own limit.
+    private static readonly TimeSpan GlobalPulseFloor = TimeSpan.FromSeconds(10);
+    private long _lastGlobalPulseTicks;
+
     // A backoff window that ended this long ago is forgotten entirely, so a domain that fails
     // once every few months is not escalated to the hour cap forever, and entries for domains
     // that have gone away do not accumulate.
@@ -187,7 +195,9 @@ public class CertificateService : ICertificateService
         // NOTE there is no backstop if the pulse cannot be delivered. The background issuer is
         // the ONLY thing that orders certificates now, so when it is not running no certificate
         // is ever obtained. That is why the failure below is logged as a warning, and why
-        // Startup refuses to serve HTTPS with system background services disabled.
+        // Startup logs a warning when system background services are disabled. Startup does not
+        // refuse to start: hosts that serve pre-provisioned certificates legitimately run with
+        // them off.
         //
         _logger.LogDebug("Requesting out-of-band certificate issuance for {domain}", domain);
         _ = PulseIssuerAsync(domain);
@@ -217,12 +227,22 @@ public class CertificateService : ICertificateService
     private bool ShouldPulse(string domain)
     {
         var now = DateTimeOffset.UtcNow;
+
         if (_lastPulse.TryGetValue(domain, out var last) && now - last < PulseThrottle)
         {
             return false;
         }
 
-        // A benign race here costs one extra pulse, which the sweep coalesces anyway
+        var lastGlobal = Interlocked.Read(ref _lastGlobalPulseTicks);
+        if (now.UtcTicks - lastGlobal < GlobalPulseFloor.Ticks)
+        {
+            // Deliberately does not stamp _lastPulse: this domain has not been pulsed, and must
+            // stay eligible once the global floor lifts.
+            return false;
+        }
+
+        // Benign races here cost one extra pulse, which the sweep coalesces anyway
+        Interlocked.Exchange(ref _lastGlobalPulseTicks, now.UtcTicks);
         _lastPulse[domain] = now;
         return true;
     }
@@ -314,16 +334,19 @@ public class CertificateService : ICertificateService
             return await CreateCertificateAsync(domain, sans, cancellationToken) != null;
         }
 
-        if (!await NeedsRenewalAsync(domain, x509, sans, cancellationToken))
-        {
-            return false;
-        }
-
+        // Before NeedsRenewalAsync, not after: that call does an authoritative DNS lookup for
+        // every tenant whose certificate lacks the mta-sts SAN, and sweeps are pulsable from the
+        // request path. A backed-off domain must not pay for it.
         if (IsInFailureBackoff(domain, out var backoffRemaining))
         {
             _logger.LogDebug(
                 "Not renewing {domain}: a previous attempt failed, next attempt in {backoff}s",
                 domain, (int)backoffRemaining.TotalSeconds);
+            return false;
+        }
+
+        if (!await NeedsRenewalAsync(domain, x509, sans, cancellationToken))
+        {
             return false;
         }
 
@@ -464,6 +487,18 @@ public class CertificateService : ICertificateService
             _logger.LogInformation("Created certificate for {domain} in {elapsed}s", domain, sw.ElapsedMilliseconds / 1000.0);
             return x509;
         }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Not our cancellation. HttpClient surfaces a request timeout as
+            // TaskCanceledException, so a CA connectivity problem lands here looking like a
+            // shutdown. Reporting it as "cancelled" and rethrowing would hide it twice over:
+            // the message names the wrong cause, and rethrowing leaves the sweep's task
+            // IsCanceled, which UpdateCertificatesBackgroundService does not log at all.
+            var error = $"Timed out talking to the CA for {domain}";
+            _logger.LogError("{error}", error);
+            await NoteFailureAsync(domain, error);
+            return null;
+        }
         catch (OperationCanceledException)
         {
             //
@@ -544,9 +579,13 @@ public class CertificateService : ICertificateService
     private void NoteFailure(string domain, string error, TimeSpan? explicitBackoff = null, bool escalate = true)
     {
         var previousFailures = _backoff.TryGetValue(domain, out var previous) ? previous.ConsecutiveFailures : 0;
-        var consecutiveFailures = escalate ? previousFailures + 1 : Math.Max(previousFailures, 1);
 
-        var backoff = explicitBackoff ?? ExponentialBackoff(consecutiveFailures);
+        // escalate:false leaves the counter untouched. Seeding it at 1 for a transient hiccup
+        // would make the next genuine failure wait 10 minutes instead of the intended 5 - which
+        // is escalation, the exact thing "must not escalate" was asking us not to do.
+        var consecutiveFailures = escalate ? previousFailures + 1 : previousFailures;
+
+        var backoff = explicitBackoff ?? ExponentialBackoff(Math.Max(consecutiveFailures, 1));
         _backoff[domain] = new BackoffState(DateTimeOffset.UtcNow + backoff, consecutiveFailures);
 
         _logger.LogWarning(
@@ -749,8 +788,20 @@ public class CertificateService : ICertificateService
                 return false;
             }
 
-            return long.TryParse(record.value, CultureInfo.InvariantCulture, out var untilMs) &&
-                   DateTimeOffset.FromUnixTimeMilliseconds(untilMs) > DateTimeOffset.UtcNow;
+            if (!long.TryParse(record.value, CultureInfo.InvariantCulture, out var untilMs))
+            {
+                return false;
+            }
+
+            if (DateTimeOffset.FromUnixTimeMilliseconds(untilMs) > DateTimeOffset.UtcNow)
+            {
+                return true;
+            }
+
+            // Expired. Drop it rather than leaving one dead row per domain that ever hit the
+            // fallback, and so the next order asks for the optional name again.
+            await tableSettings.DeleteAsync(OptionalSansSuppressedKey(domain));
+            return false;
         }
         catch (Exception e)
         {
@@ -833,15 +884,17 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        // The certificate is missing mta-sts because the CA refused it and we issued without
-        // it. Renewing to re-add it would fail, drop it, and mint another duplicate.
-        if (await AreOptionalSansSuppressedAsync(domain))
+        // Cheapest test first. The certificate already carrying the SAN is the steady state, and
+        // it must not cost a database round trip on every tenant on every sweep.
+        var mtaStsDomain = $"{DnsConfigurationSet.PrefixMtaSts}.{domain}";
+        if (certificate.GetSubjectAlternativeNames().Contains(mtaStsDomain, StringComparer.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        var mtaStsDomain = $"{DnsConfigurationSet.PrefixMtaSts}.{domain}";
-        if (certificate.GetSubjectAlternativeNames().Contains(mtaStsDomain, StringComparer.OrdinalIgnoreCase))
+        // The certificate is missing mta-sts because the CA refused it and we issued without
+        // it. Renewing to re-add it would fail, drop it, and mint another duplicate.
+        if (await AreOptionalSansSuppressedAsync(domain))
         {
             return false;
         }
