@@ -317,6 +317,18 @@ namespace Odin.Hosting
 
         //         
 
+        private static void WarnIfSlow(string hostName, Stopwatch sw)
+        {
+            if (sw.Elapsed > CertificateSelectorSlowThreshold)
+            {
+                Log.Warning(
+                    "Certificate lookup for {hostName} took {elapsed}s on the TLS handshake path",
+                    hostName, sw.ElapsedMilliseconds / 1000.0);
+            }
+        }
+
+        //
+
         // The handshake timeout is 60s; anything on this path that takes seconds is worth a log
         // line, because it is paid per connection.
         private static readonly TimeSpan CertificateSelectorSlowThreshold = TimeSpan.FromSeconds(5);
@@ -331,6 +343,12 @@ namespace Odin.Hosting
             {
                 Log.Verbose("Getting certificate for {host}", hostName);
             }
+
+            // Times the WHOLE selector. Bracketing only the issuance request would measure the
+            // one call that cannot be slow (it is Task.FromResult by construction) and miss the
+            // registry resolve and the certificate store read - which misses the store's cache
+            // and does a scoped DB read on every connection to a certless domain.
+            var sw = Stopwatch.StartNew();
 
             if (string.IsNullOrWhiteSpace(hostName))
             {
@@ -379,6 +397,7 @@ namespace Odin.Hosting
             var certificate = await certificateService.GetCertificateAsync(domain);
             if (certificate != null)
             {
+                WarnIfSlow(hostName, sw);
                 return (certificate, requireClientCertificate);
             }
 
@@ -405,7 +424,6 @@ namespace Odin.Hosting
             // instead and serve nothing this time round; the client retries and finds the
             // certificate waiting.
             //
-            var sw = Stopwatch.StartNew();
             var issuanceRequested = false;
             try
             {
@@ -420,15 +438,8 @@ namespace Odin.Hosting
                 Log.Error(e, "Error requesting certificate for {hostName}: {error}", hostName, e.Message);
                 return (null, false);
             }
-            finally
-            {
-                if (sw.Elapsed > CertificateSelectorSlowThreshold)
-                {
-                    Log.Warning(
-                        "Certificate lookup for {hostName} took {elapsed}s on the TLS handshake path",
-                        hostName, sw.ElapsedMilliseconds / 1000.0);
-                }
-            }
+
+            WarnIfSlow(hostName, sw);
 
             if (issuanceRequested)
             {

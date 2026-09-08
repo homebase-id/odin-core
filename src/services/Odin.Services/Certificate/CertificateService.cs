@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -80,8 +81,24 @@ public class CertificateService : ICertificateService
     // that have gone away do not accumulate.
     private static readonly TimeSpan BackoffForgottenAfter = TimeSpan.FromHours(6);
 
+    //
+    // The order lock must outlive the work it guards. CertesAcme polls each authorization up to
+    // 60 x 1s and then the order up to another 60 x 1s, so apex + capi + file + mta-sts is
+    // roughly 300s per order - and the optional-SAN fallback can place two orders under one
+    // handle. The 10-minute default would expire mid-order, letting a second node acquire the
+    // lock and order the same domain concurrently: double the CA spend and a duplicate
+    // certificate.
+    //
+    private static readonly TimeSpan OrderLockDuration = TimeSpan.FromMinutes(20);
+
+    //
+    // Persisted in the shared system database, NOT node-local. The limit it protects is enforced
+    // by the CA against the whole cluster: if node B does not know node A dropped the name, B's
+    // next sweep renews to re-add it, fails, drops it and mints another duplicate - exactly the
+    // loop this window exists to break. A node-local memory would also re-arm that loop on every
+    // restart and redeploy.
+    //
     private static readonly TimeSpan OptionalSanSuppression = TimeSpan.FromDays(7);
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _optionalSansSuppressed = new(StringComparer.OrdinalIgnoreCase);
 
     public CertificateService(
         ILogger<CertificateService> logger,
@@ -165,7 +182,12 @@ public class CertificateService : ICertificateService
         // seconds for the background service to appear and then throws if it never does - which
         // is what happens when SystemBackgroundServicesEnabled is false. Awaiting it here would
         // put a 30-second stall back on the TLS handshake path: precisely the fault this method
-        // exists to remove. The 12h sweep is the backstop if the pulse cannot be delivered.
+        // exists to remove.
+        //
+        // NOTE there is no backstop if the pulse cannot be delivered. The background issuer is
+        // the ONLY thing that orders certificates now, so when it is not running no certificate
+        // is ever obtained. That is why the failure below is logged as a warning, and why
+        // Startup refuses to serve HTTPS with system background services disabled.
         //
         _logger.LogDebug("Requesting out-of-band certificate issuance for {domain}", domain);
         _ = PulseIssuerAsync(domain);
@@ -182,8 +204,11 @@ public class CertificateService : ICertificateService
         }
         catch (Exception e)
         {
-            // Never allowed to fault: nothing observes this task.
-            _logger.LogDebug(e, "Could not notify the certificate issuer for {domain}: {error}", domain, e.Message);
+            // Never allowed to fault: nothing observes this task. Warning, not debug - if this
+            // is failing, the domain will never get a certificate at all.
+            _logger.LogWarning(e,
+                "Could not notify the certificate issuer for {domain}; it will not get a " +
+                "certificate until the issuer is reachable: {error}", domain, e.Message);
         }
     }
 
@@ -229,7 +254,8 @@ public class CertificateService : ICertificateService
             return null;
         }
 
-        await using var handle = await _nodeLock.TryLockAsync(LockKey(domain), cancellationToken: cancellationToken);
+        await using var handle = await _nodeLock.TryLockAsync(
+            LockKey(domain), OrderLockDuration, cancellationToken);
         if (handle == null)
         {
             // Contention, not a fault. Somebody else is ordering for this domain right now.
@@ -259,10 +285,19 @@ public class CertificateService : ICertificateService
     //
 
     /// <summary>
-    /// Background path, for a domain that already has a certificate. Deliberately ignores the
-    /// failure backoff: a certificate that is about to expire must be chased on every sweep, and
-    /// the loop's own interval is its rate limiter. Nobody is waiting on it.
+    /// Background path, for a domain that already has a certificate.
     /// </summary>
+    /// <remarks>
+    /// This respects the failure backoff, and must. It used to ignore it on the grounds that
+    /// "the loop's own interval is its rate limiter" - true while the sweep only ran on its 12h
+    /// timer, and false the moment the sweep became pulsable from the request path. A host with
+    /// a few certificate-less domains cycling out of their backoffs pulses the sweep several
+    /// times an hour, and each sweep would re-place a full ACME order for every OTHER domain
+    /// whose renewal is failing: the same allowance burn this work exists to stop, arriving on a
+    /// different domain than the one being pulsed.
+    ///
+    /// The cost is bounded: the backoff caps at an hour and renewal begins 7 days before expiry.
+    /// </remarks>
     /// <remarks>
     /// First issuance is a different problem and is routed to
     /// <see cref="CreateCertificateAsync(string,string[],CancellationToken)"/>, which does
@@ -284,10 +319,19 @@ public class CertificateService : ICertificateService
             return false;
         }
 
+        if (IsInFailureBackoff(domain, out var backoffRemaining))
+        {
+            _logger.LogDebug(
+                "Not renewing {domain}: a previous attempt failed, next attempt in {backoff}s",
+                domain, (int)backoffRemaining.TotalSeconds);
+            return false;
+        }
+
         // Also non-blocking, for a different reason than the create path: whoever holds this
         // lock is placing an order for this same domain, so waiting for them only risks a
         // lock timeout and an alarming-looking error. This loop comes around again.
-        await using var handle = await _nodeLock.TryLockAsync(LockKey(domain), cancellationToken: cancellationToken);
+        await using var handle = await _nodeLock.TryLockAsync(
+            LockKey(domain), OrderLockDuration, cancellationToken);
         if (handle == null)
         {
             _logger.LogDebug(
@@ -352,7 +396,7 @@ public class CertificateService : ICertificateService
                 // Resolving is a weaker test than it looks - it says the name points here, not
                 // that we can serve its challenge - so this gate cannot be the only protection.
                 // See the fallback at the order site below.
-                if (_configuration.Email.TenantMail.Enabled && !AreOptionalSansSuppressed(domain))
+                if (_configuration.Email.TenantMail.Enabled && !await AreOptionalSansSuppressedAsync(domain))
                 {
                     optionalSans = dnsConfigs
                         .Where(x => x.Optional && x.Type == "CNAME" && x.Status == DnsLookupRecordStatus.Success)
@@ -412,7 +456,7 @@ public class CertificateService : ICertificateService
                     string.Join(',', optionalSans), domain, e.Message);
 
                 pems = await OrderAsync(account, domain, required, cancellationToken);
-                SuppressOptionalSans(domain);
+                await SuppressOptionalSansAsync(domain);
             }
 
             var x509 = await _certificateStore.PutCertificateAsync(domain, pems.PrivateKeyPem, pems.CertificatesPem);
@@ -656,32 +700,66 @@ public class CertificateService : ICertificateService
 
     //
 
-    private void SuppressOptionalSans(string domain)
+    private static string OptionalSansSuppressedKey(string domain) => $"optional-sans-suppressed:{domain}";
+
+    //
+
+    private async Task SuppressOptionalSansAsync(string domain)
     {
-        _optionalSansSuppressed[domain] = DateTimeOffset.UtcNow + OptionalSanSuppression;
+        var until = DateTimeOffset.UtcNow + OptionalSanSuppression;
+
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
+            await tableSettings.UpsertAsync(new SettingsRecord
+            {
+                key = OptionalSansSuppressedKey(domain),
+                value = until.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture),
+            });
+        }
+        catch (Exception e)
+        {
+            // Not worth losing the certificate we just obtained over. The cost of failing to
+            // record it is a possible duplicate at the next renewal, not a failed issuance.
+            _logger.LogError(e,
+                "Could not record optional-SAN suppression for {domain}: {error}", domain, e.Message);
+            return;
+        }
+
         _logger.LogWarning(
             "Issued a certificate for {domain} without its optional name(s). Not asking for them " +
-            "again for {days} days, to avoid renewing into the same refusal.",
-            domain, OptionalSanSuppression.TotalDays);
+            "again until {until:u}, to avoid renewing into the same refusal.",
+            domain, until);
     }
 
     //
 
     // internal for testing
-    internal bool AreOptionalSansSuppressed(string domain)
+    internal async Task<bool> AreOptionalSansSuppressedAsync(string domain)
     {
-        if (!_optionalSansSuppressed.TryGetValue(domain, out var until))
+        try
         {
+            using var scope = _serviceProvider.CreateScope();
+            var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
+
+            var record = await tableSettings.GetAsync(OptionalSansSuppressedKey(domain));
+            if (record == null || string.IsNullOrEmpty(record.value))
+            {
+                return false;
+            }
+
+            return long.TryParse(record.value, CultureInfo.InvariantCulture, out var untilMs) &&
+                   DateTimeOffset.FromUnixTimeMilliseconds(untilMs) > DateTimeOffset.UtcNow;
+        }
+        catch (Exception e)
+        {
+            // A read failure must not decide policy. "Not suppressed" keeps the optional name in
+            // the order, which is the pre-existing behaviour.
+            _logger.LogError(e,
+                "Could not read optional-SAN suppression for {domain}: {error}", domain, e.Message);
             return false;
         }
-
-        if (until > DateTimeOffset.UtcNow)
-        {
-            return true;
-        }
-
-        _optionalSansSuppressed.TryRemove(domain, out _);
-        return false;
     }
 
     //
@@ -757,7 +835,7 @@ public class CertificateService : ICertificateService
 
         // The certificate is missing mta-sts because the CA refused it and we issued without
         // it. Renewing to re-add it would fail, drop it, and mint another duplicate.
-        if (AreOptionalSansSuppressed(domain))
+        if (await AreOptionalSansSuppressedAsync(domain))
         {
             return false;
         }

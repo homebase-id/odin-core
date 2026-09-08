@@ -164,9 +164,12 @@ public class CertificateOrderPolicyTests
     //
 
     [Test]
-    public void OptionalSans_AreNotSuppressedForAnUntouchedDomain()
+    public async Task OptionalSans_AreNotSuppressedWhenTheStoreCannotBeRead()
     {
-        Assert.That(_certificateService.AreOptionalSansSuppressed(Domain), Is.False);
+        // The substituted IServiceProvider cannot produce a scope, so this also pins the
+        // fail-safe: a read failure must not decide policy, and "not suppressed" preserves the
+        // pre-existing behaviour of keeping the optional name in the order.
+        Assert.That(await _certificateService.AreOptionalSansSuppressedAsync(Domain), Is.False);
     }
 
     //

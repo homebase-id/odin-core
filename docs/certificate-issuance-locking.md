@@ -166,8 +166,10 @@ certificate is now missing a SAN that `NeedsRenewalAsync` thinks it ought to hav
 next sweep would renew to re-add it, fail, drop it, and issue *another* certificate - a
 duplicate every 12 hours, against a Let's Encrypt limit of five duplicates (identical name
 set) per week. Optional names are therefore suppressed for seven days after a refusal, which
-holds it to one. The suppression is node-local and lost on restart, so an operator who has
-just fixed the record and bounced the service gets an immediate retry.
+holds it to one. The suppression is **persisted in the shared system database**, not held in
+memory: the limit it protects is enforced by the CA against the whole cluster, so a node-local
+memory would let a second node renew straight back into the same refusal, and would re-arm the
+loop on every restart.
 
 **Beware the suffix trap.** Every SAN has the apex as a suffix, so
 `mta-sts.example.com` *contains* `example.com`. A substring test reads a complaint about the
@@ -189,6 +191,11 @@ happens when `SystemBackgroundServicesEnabled` is false. Awaiting it would put a
 30-second stall straight back onto the handshake path. The pulse is dispatched, its
 failures are logged and swallowed, and the 12-hour sweep is the backstop.
 
+**There is no backstop.** The background issuer is the only thing that orders certificates
+now, so a host that terminates TLS with `SystemBackgroundServicesEnabled` false will never
+obtain one — startup logs a warning saying so, and a failed pulse is logged at warning
+rather than swallowed quietly.
+
 The pulse is also **throttled to one per domain per minute**. It wakes a whole-registry
 sweep, and the domain comes from attacker-chosen SNI: unthrottled, anyone could drive
 back-to-back sweeps, each doing a registry read, a Redis lock attempt per domain, and an
@@ -196,12 +203,28 @@ authoritative DNS lookup for every tenant still missing its mta-sts SAN.
 
 `CreateCertificateAsync` is the opposite: it blocks for the whole order and is
 **background-only**. Its cancellation token must have application lifetime.
-`RenewIfAboutToExpireAsync` does not wait for the lock either — whoever holds it is
+
+`RenewIfAboutToExpireAsync` **respects the failure backoff**, and must. It used to ignore it
+because "the loop's own interval is its rate limiter" — true while the sweep only ran on its
+12h timer, false the moment the sweep became pulsable from the request path. Otherwise a host
+with a few certificate-less domains cycling out of their backoffs pulses the sweep several
+times an hour, and each sweep re-places a full order for every *other* domain whose renewal
+is failing: the same allowance burn, arriving on a different domain than the one pulsed.
+The cost is bounded, since the backoff caps at an hour and renewal starts 7 days before
+expiry. `RenewIfAboutToExpireAsync` does not wait for the lock either — whoever holds it is
 ordering for the same domain, so waiting only risks a timeout and an alarming log line.
 
 **Trade-off, deliberately accepted.** The first requests to a brand-new identity fail
 fast and the client must retry, rather than one request blocking until the certificate
 exists. In practice that blocking request never succeeded — it stalled 60s and died.
+
+### The order lock outlives two orders
+
+`CertesAcme` polls each authorization up to 60 x 1s and then the order up to another 60 x 1s,
+so a four-name order can run ~300s — and the optional-SAN fallback can place two under one
+handle. The lock is therefore taken with a 20-minute forced release, not the 10-minute
+default, which would expire mid-order and let a second node order the same domain
+concurrently: double the CA spend, and a duplicate certificate.
 
 ### `INodeLock.TryLockAsync`
 
