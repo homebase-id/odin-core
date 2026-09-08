@@ -100,3 +100,64 @@ hardcoded GUIDs in odin-js `ConnectionSummary.tsx`.
 - Nothing pages on `ReviewedAt` yet. Filtering "reviewed" and "New people" is the stated reason it
   is a column rather than a blob field, and no endpoint uses it.
 - No cross-app pending enrolment queue for apps whose keys the reviewing client does not hold.
+
+## Open problem: finding connections that have work queued on them
+
+**Not decided. Written down so the next person does not rediscover it.**
+
+Deposited grants and pending enrollments both live inside `Connections.data`, the per-connection
+JSON blob. That satisfied "no new schema", and it is fine for writing — the code always already has
+the connection in hand. Reading is the problem: a blob field cannot be queried, so *"which
+connections have work waiting?"* has no answer except selecting every connection row and
+deserialising every blob.
+
+Where that costs something today:
+
+- `ProcessPendingEnrollmentsForAppAsync` — the sharp one. It runs on every `ProcessEnrollments`
+  socket command and every `POST connections/enrollments/process`, so an app that connects with
+  nothing pending still pays a full scan to discover that.
+- `GetPendingCircleMembersAsync` / `GetAllPendingCircleMembersAsync` — the owner-facing read behind
+  the pending-members UI.
+- `ConvertDepositedGrantsForConnectedIdentitiesAsync` and the enrollment pre-pass both scan too, but
+  they run once during an upgrade with the owner present, which is the one place a scan is fine.
+
+Nothing is broken. It is a scan per connect where an indexed read would do, and it gets worse with
+connection count rather than with the amount of work outstanding — which is backwards, because the
+outstanding set is small and drains itself.
+
+### Candidate: a `PendingWork` flags column on `Connections`
+
+The same move `ReviewedAt` already made on this table, and for the same stated reason
+(`drive-addressing.md`: point lookups did not need a column, filtering did).
+
+```sql
+PendingWork INT NOT NULL DEFAULT 0    -- 1 = deposited grants, 2 = pending enrollments, ...
+-- index on (identityId, PendingWork), ideally partial on PendingWork != 0
+```
+
+**Flags, not a boolean.** A single `HasPendingWork` bit shared by several producers cannot be
+cleared safely: no drain could clear it without first proving every *other* kind of work was also
+finished, which couples them permanently. A bit per kind lets each producer set its own and each
+drain clear only its own, off one column and one index.
+
+What it does and does not buy: it narrows to connections-that-have-work, not to *this app's* work.
+An app still reads the rows with the enrollment bit set and filters on `OwningAppId` from the blob.
+That is enough — the set is small — but it is a coarse filter, not an index on ownership. Per-app
+precision would need a real index, which is a different and larger decision.
+
+**The rule that keeps it safe.** The blob stays authoritative; the column is a hint about where to
+look. The two failure directions are not equal: set-but-empty costs one wasted read, while
+clear-but-not-empty strands work silently and indefinitely. So set the flag eagerly in the same
+write that queues the work, and clear it only when a drain has just proved the set empty. Have the
+upgrade pass rebuild the column from the blobs, which gives a self-heal path needing no repair
+tooling.
+
+**The trap to write into the code.** `ToConnectionsRecord` performs a full-row write, so any caller
+that forgets the new column nulls it. `ReviewedAt` was silently clobbered exactly this way earlier
+in this work, which is why that method takes it as a parameter; this column needs the same treatment
+and the same comment.
+
+**Rejected alternative.** A marker row in the `KeyValue` table holding the set of app ids with
+outstanding work. It avoids a migration, but only answers "is it worth scanning at all" — the moment
+the answer is yes you are back to a full scan — and it introduces a second at-rest copy of the same
+fact with no natural place to reconcile it.

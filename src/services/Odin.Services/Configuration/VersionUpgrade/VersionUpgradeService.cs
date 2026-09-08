@@ -176,6 +176,27 @@ public class VersionUpgradeService(
                     upgraded, skipped, keyPairsProvisioned);
             }, cancellationToken);
 
+            // Before the deposit drain below, because the owner can finish a pending enrollment outright --
+            // the master key sources any drive's storage key, so there is no app to wait for and no
+            // deposit stage. Ordered first anyway, so that anything which did land as a deposit is still
+            // converted by the pass that follows rather than waiting for the next upgrade.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await RunPhaseAsync("pending-enrollment-pre-pass", async ct =>
+            {
+                await using var enrollTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                runState.SetRunning(true);
+                var (connectionsProcessed, enrollmentsCompleted) =
+                    await circleNetworkService.ProcessPendingEnrollmentsForAppAsync(odinContext);
+                enrollTx.Commit();
+                logger.LogInformation(
+                    LogTag + " Pending enrollment pre-pass complete: {enrollmentsCompleted} enrollment(s) completed across {connectionsProcessed} connection(s)",
+                    enrollmentsCompleted, connectionsProcessed);
+            }, cancellationToken);
+
             // Straight after the pre-pass, and for the same reason: the owner is here with the master key
             // and we have just made every reachable connection's Peer Key reachable. Deposited grants
             // otherwise wait on the contact calling in or the owner touching that one connection, so a

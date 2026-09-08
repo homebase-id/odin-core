@@ -46,6 +46,9 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/circles/add")]
     Task<ApiResponse<HttpContent>> GrantCircle([Body] AddCircleMembershipRequest request);
 
+    [Post(Root + "/enrollments/process")]
+    Task<ApiResponse<PendingEnrollmentProcessingResult>> ProcessPendingEnrollments();
+
     [Post(Root + "/circles/revoke")]
     Task<ApiResponse<HttpContent>> RevokeCircle([Body] RevokeCircleMembershipRequest request);
 }

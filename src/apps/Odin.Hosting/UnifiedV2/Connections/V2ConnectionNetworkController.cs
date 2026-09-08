@@ -20,7 +20,7 @@ namespace Odin.Hosting.UnifiedV2.Connections;
 
 [ApiController]
 [Route(UnifiedApiRouteConstants.Connections)]
-[UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+[UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2ConnectionNetworkController(
     CircleNetworkService circleNetwork,
@@ -144,7 +144,24 @@ public class V2ConnectionNetworkController(
         return result;
     }
 
+    [HttpPost("enrollments/process")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Complete the pending circle enrollments this caller is able to complete")]
+    public async Task<PendingEnrollmentProcessingResult> ProcessPendingEnrollments()
+    {
+        var (connectionsProcessed, enrollmentsCompleted) =
+            await circleNetwork.ProcessPendingEnrollmentsForAppAsync(WebOdinContext);
+
+        return new PendingEnrollmentProcessingResult
+        {
+            ConnectionsProcessed = connectionsProcessed,
+            EnrollmentsCompleted = enrollmentsCompleted
+        };
+    }
+
     [HttpGet("circles/pending")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections],
         Summary = "Get identities whose grant for a circle is deposited but not yet in effect")]
     public async Task<IEnumerable<PendingCircleMember>> GetPendingCircleMembers(Guid circleId)
@@ -197,6 +214,13 @@ public class V2ConnectionNetworkController(
 }
 
 /// <summary>A circle definition (permission set redacted) together with its member identities.</summary>
+/// <summary>What a call to process pending enrollments managed to finish.</summary>
+public class PendingEnrollmentProcessingResult
+{
+    public int ConnectionsProcessed { get; set; }
+    public int EnrollmentsCompleted { get; set; }
+}
+
 public class CircleWithMembers
 {
     public RedactedCircleDefinition Circle { get; set; }

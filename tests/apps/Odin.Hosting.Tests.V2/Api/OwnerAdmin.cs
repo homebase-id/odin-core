@@ -206,9 +206,10 @@ public sealed partial class OwnerAdmin
     /// Creates a circle that members will be granted on connection. Used by <see cref="GuestSession"/>
     /// to attach a YouAuth domain to a drive-permission grant.
     /// </summary>
-    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant)
+    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant,
+        Guid? appId = null)
     {
-        var response = await _network.CreateCircle(id, name, grant);
+        var response = await _network.CreateCircle(id, name, grant, appId);
         EnsureSuccess(response, nameof(CreateCircle));
         return response;
     }

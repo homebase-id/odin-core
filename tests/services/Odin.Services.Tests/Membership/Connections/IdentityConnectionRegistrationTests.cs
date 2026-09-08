@@ -1,57 +1,63 @@
-using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using Odin.Core.Identity;
-using Odin.Services.Membership.Circles;
+using Odin.Core.Time;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Tests.Membership.Connections;
 
+/// <summary>
+/// The redacted shape's <c>Vetted</c> flag, which is now a compatibility alias for
+/// <c>ReviewedAt != null</c> rather than a lookup of Confirmed-circle membership.
+/// </summary>
 [TestFixture]
 public class IdentityConnectionRegistrationTests
 {
     [Test]
-    public void Redacted_ConfirmedConnection_IsVetted()
+    public void Redacted_ReviewedConnection_IsVetted()
     {
-        var icr = CreateIcr(SystemCircleConstants.ConfirmedConnectionsCircleId);
+        var icr = CreateIcr(reviewedAt: UnixTimeUtc.Now());
 
-        Assert.That(icr.Redacted().Vetted, Is.True);
+        var redacted = icr.Redacted();
+
+        Assert.That(redacted.Vetted, Is.True);
+        Assert.That(redacted.ReviewedAt, Is.Not.Null, "new clients read reviewedAt; vetted is the old name for it");
     }
 
     [Test]
-    public void Redacted_AutoConnectedOnly_IsNotVetted()
+    public void Redacted_UnreviewedConnection_IsNotVetted()
     {
-        var icr = CreateIcr(SystemCircleConstants.AutoConnectionsCircleId);
+        var icr = CreateIcr(reviewedAt: null);
 
-        Assert.That(icr.Redacted().Vetted, Is.False);
+        var redacted = icr.Redacted();
+
+        Assert.That(redacted.Vetted, Is.False);
+        Assert.That(redacted.ReviewedAt, Is.Null);
     }
 
     [Test]
-    public void Redacted_ConfirmedButNotConnected_IsNotVetted()
+    public void Redacted_ReviewedThenBlocked_IsStillVetted()
     {
-        var icr = CreateIcr(SystemCircleConstants.ConfirmedConnectionsCircleId);
+        // Vetted follows the review and nothing else. Blocking someone does not un-review them --
+        // the owner did once look at this contact and vouch for them -- and Status is what says they
+        // are blocked now. The old flag folded connectedness in, so this answer changed with it.
+        var icr = CreateIcr(reviewedAt: UnixTimeUtc.Now());
         icr.Status = ConnectionStatus.Blocked;
 
-        Assert.That(icr.Redacted().Vetted, Is.False);
+        var redacted = icr.Redacted();
+
+        Assert.That(redacted.Vetted, Is.True);
+        Assert.That(redacted.Status, Is.EqualTo(ConnectionStatus.Blocked));
     }
 
-    private static IdentityConnectionRegistration CreateIcr(Guid memberCircleId)
+    private static IdentityConnectionRegistration CreateIcr(UnixTimeUtc? reviewedAt)
     {
         var icr = new IdentityConnectionRegistration
         {
             OdinId = new OdinId("frodo.dotyou.cloud"),
-            PeerKeyStore = new PeerKeyStore
-            {
-                CircleGrants = new Dictionary<Guid, CircleGrant>
-                {
-                    [memberCircleId] = new CircleGrant
-                    {
-                        CircleId = memberCircleId,
-                        KeyStoreKeyEncryptedDriveGrants = new()
-                    }
-                }
-            }
+            PeerKeyStore = new PeerKeyStore(),
+            ReviewedAt = reviewedAt
         };
+
         icr.Status = ConnectionStatus.Connected;
         return icr;
     }

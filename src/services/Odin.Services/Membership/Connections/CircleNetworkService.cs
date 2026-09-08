@@ -631,7 +631,8 @@ namespace Odin.Services.Membership.Connections
         /// some of them (docs/connection-defaults.md, "On verify": "Enrollment is idempotent -- already a
         /// member is a no-op").  This method performs no permission check; the caller owns that.
         /// </remarks>
-        private async Task EnrollInCircleInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        private async Task EnrollInCircleInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext,
+            bool enqueueWhenOutOfReach = false)
         {
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
@@ -646,6 +647,18 @@ namespace Odin.Services.Membership.Connections
             }
 
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
+
+            // The owner chose a circle this caller cannot grant -- typically another app's, whose drives
+            // it cannot read. Record the intent so the app that can grant it may finish later, rather than
+            // failing an act the owner was entitled to perform. Recording confers nothing: whoever
+            // processes the entry re-checks scope then.
+            if (enqueueWhenOutOfReach && !odinContext.Caller.HasMasterKey &&
+                !await CallerCanGrantCircleAsync(circleDefinition, odinContext))
+            {
+                await EnqueuePendingEnrollmentAsync(icr, circleDefinition, odinContext);
+                await this.SaveIcrAsync(icr, odinContext);
+                return;
+            }
 
             if (odinContext.Caller.HasMasterKey)
             {
@@ -1198,8 +1211,6 @@ namespace Odin.Services.Membership.Connections
         /// </remarks>
         public async Task MarkReviewedAsync(OdinId odinId, IEnumerable<GuidId> circleIds, IOdinContext odinContext)
         {
-            AssertCanManageCircleMembership(odinContext);
-
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
             if (icr == null || !icr.IsConnected())
@@ -1220,7 +1231,11 @@ namespace Odin.Services.Membership.Connections
 
             foreach (var circleId in circleIds ?? [])
             {
-                await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
+                // The review is the owner's act, and they may well have chosen circles belonging to apps
+                // this client cannot serve. Those are recorded rather than refused -- rejecting the whole
+                // review because one app's toggle was out of reach would lose the rest of their choices
+                // along with it.
+                await EnrollInCircleInternalAsync(circleId, odinId, odinContext, enqueueWhenOutOfReach: true);
             }
 
             // Stamped last: enrollment rewrites the whole row, so a stamp written before it would be
@@ -1241,10 +1256,10 @@ namespace Odin.Services.Membership.Connections
         /// Set-once by design: a second review may enroll more circles, but the timestamp keeps saying when
         /// the owner first vouched for this contact.
         /// <para>
-        /// Makes no permission check of its own.  Callers reach it either through
-        /// <see cref="MarkReviewedAsync"/>, which asserts ManageCircleMembership, or from the accept of an
-        /// incoming connection request -- gated by its own controller policy, and itself the owner's review
-        /// happening at accept time (docs/connection-defaults.md, "On verify").
+        /// Makes no permission check of its own, and neither do its callers: the review endpoints and the
+        /// accept of an incoming connection request are both reached only by the owner or an app, gated at
+        /// the route, and both are the owner's own act -- the accept being the review happening at accept
+        /// time (docs/connection-defaults.md, "On verify").
         /// </para>
         /// </remarks>
         public async Task StampReviewedIfUnsetAsync(OdinId odinId)
@@ -1284,8 +1299,6 @@ namespace Odin.Services.Membership.Connections
         /// </remarks>
         public async Task ClearReviewAsync(OdinId odinId, IOdinContext odinContext)
         {
-            AssertCanManageCircleMembership(odinContext);
-
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
             if (icr == null)
@@ -1486,6 +1499,204 @@ namespace Odin.Services.Membership.Connections
         /// and sealed to the store's write-only public key. The caller never touches the store's
         /// key store key and can read nothing back.
         /// </summary>
+        /// <summary>
+        /// Completes the pending enrollments this caller is able to complete, and leaves the rest.
+        /// Returns how many connections were touched and how many enrollments were finished.
+        /// </summary>
+        /// <remarks>
+        /// A pending enrollment is a choice the owner made that nobody present could carry out -- almost
+        /// always another app's circle, whose drives only that app can read.  This is the app coming back
+        /// to finish its own share of a review someone else's client recorded.
+        /// <para>
+        /// Owning the circle <i>is</i> the authorization, which is why this asks for no permission of its
+        /// own.  The decision was the owner's and was made at review time; the app is carrying it out, not
+        /// making it, and a permission about deciding membership has nothing to say about executing a
+        /// decision already taken.  An app sees only the entries for circles it owns; the owner console,
+        /// scoped to no app, sees them all.
+        /// </para>
+        /// <para>
+        /// Scope is still re-checked per entry rather than trusted from enqueue time, so nothing an app
+        /// could not do directly becomes possible by way of the queue.
+        /// </para>
+        /// <para>
+        /// For a read-bearing circle this moves the enrollment one step, not all the way: the app still
+        /// cannot reach the Peer Key, so the result is a deposited grant that converts on the contact's
+        /// next call, an owner touch, or the upgrade drain.
+        /// </para>
+        /// </remarks>
+        public async Task<(int connectionsProcessed, int enrollmentsCompleted)> ProcessPendingEnrollmentsForAppAsync(
+            IOdinContext odinContext)
+        {
+            // The question is which app is acting, not who the caller is: an app is the owner acting, with
+            // less than the owner console has, so neither IsOwner nor HasMasterKey separates the two. An
+            // app is scoped to the circles it owns; the owner console, being no app in particular, is not
+            // scoped at all.
+            var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+
+            var connectionsProcessed = 0;
+            var enrollmentsCompleted = 0;
+
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected, odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    if (!(icr.PeerKeyStore?.HasPendingEnrollments ?? false))
+                    {
+                        continue;
+                    }
+
+                    var completed = new List<GuidId>();
+
+                    foreach (var entry in icr.PeerKeyStore.PendingEnrollments.ToList())
+                    {
+                        if (callerAppId != null && entry.OwningAppId != callerAppId)
+                        {
+                            continue;
+                        }
+
+                        // Everything about one entry is inside the try, not just the enrolment: reading
+                        // the definition and deciding whether this caller can grant it both reach into
+                        // the drive manager, which throws for a drive that has gone missing. A throw
+                        // there would otherwise abort the whole pass -- every later entry on this
+                        // connection and every connection after it -- for one unlucky entry.
+                        try
+                        {
+                            var circleDefinition = await circleDefinitionService.GetCircleAsync(entry.CircleId);
+
+                            if (circleDefinition == null)
+                            {
+                                // The circle was deleted while the entry waited. There is nothing left to
+                                // grant, so drop it rather than keeping an entry that can never complete
+                                // -- the same way a deposit for a deleted circle is dropped at conversion.
+                                logger.LogDebug("Dropping pending enrollment for {odinId}: circle {circleId} no longer exists",
+                                    icr.OdinId, entry.CircleId);
+                                completed.Add(entry.CircleId);
+                                continue;
+                            }
+
+                            if (!await CallerCanGrantCircleAsync(circleDefinition, odinContext))
+                            {
+                                continue;
+                            }
+
+                            await EnrollInCircleInternalAsync(entry.CircleId, icr.OdinId, odinContext);
+                            completed.Add(entry.CircleId);
+                            enrollmentsCompleted++;
+                        }
+                        catch (Exception e)
+                        {
+                            // Left in place, so it is retried next time rather than being lost.
+                            logger.LogWarning(e,
+                                "Failed to complete pending enrollment for {odinId} in circle {circleId}; leaving it queued",
+                                icr.OdinId, entry.CircleId);
+                        }
+                    }
+
+                    if (completed.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    // Re-read before stripping: enrollment saved the record itself, so the copy in hand is
+                    // now stale and writing it back would undo the grant just made.
+                    var current = await GetIdentityConnectionRegistrationInternalAsync(icr.OdinId);
+                    current.PeerKeyStore.PendingEnrollments.RemoveAll(p => completed.Any(c => c == p.CircleId));
+                    await SaveIcrAsync(current, odinContext);
+
+                    connectionsProcessed++;
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            return (connectionsProcessed, enrollmentsCompleted);
+        }
+
+        /// <summary>
+        /// Whether this caller could produce every part of the circle's grant itself.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately mirrors what <see cref="CreateDepositedGrantAsync"/> actually does, rather than
+        /// approximating it: a drive grant carrying Read needs the drive's storage key, which is sourced
+        /// through <see cref="PermissionContextStorageKeySource"/> and so asks
+        /// <c>TryGetDriveStorageKey</c>; one that does not need a key needs only that the caller holds the
+        /// permission it is handing out.  Answering differently from the builder would either enqueue work
+        /// that would have succeeded, or attempt work that throws.
+        /// </remarks>
+        private async Task<bool> CallerCanGrantCircleAsync(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            foreach (var req in circleDefinition.DriveGrants ?? [])
+            {
+                var drive = await driveManager.GetDriveAsync(req.PermissionedDrive.Drive.Alias, true);
+                var permission = req.PermissionedDrive.Permission;
+
+                var needsStorageKey = permission.HasFlag(DrivePermission.Read) ||
+                                      permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+
+                if (needsStorageKey)
+                {
+                    if (!odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+                    {
+                        return false;
+                    }
+
+                    storageKey?.Wipe();
+                    continue;
+                }
+
+                if (!odinContext.PermissionsContext.HasDrivePermission(drive.Id, permission))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Records that the owner asked for a circle nothing present could grant.  Idempotent -- a circle
+        /// already enqueued, deposited or granted is left alone.
+        /// </summary>
+        private async Task EnqueuePendingEnrollmentAsync(IdentityConnectionRegistration icr, CircleDefinition circleDefinition,
+            IOdinContext odinContext)
+        {
+            var circleId = circleDefinition.Id;
+
+            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId) ||
+                icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId) ||
+                icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circleId))
+            {
+                return;
+            }
+
+            icr.PeerKeyStore.PendingEnrollments.Add(new PendingEnrollment
+            {
+                CircleId = circleId,
+                OwningAppId = circleDefinition.AppId,
+                RequestedByAppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
+                Requested = UnixTimeUtc.Now()
+            });
+
+            logger.LogDebug(
+                "Enqueued pending enrollment for {odinId} in circle {circleId} (owned by app {owningAppId})",
+                icr.OdinId, circleId, circleDefinition.AppId);
+
+            // Tell the app that can finish this, if there is one and it happens to be listening. An owner
+            // circle has no app to tell; it waits for the owner either way.
+            if (circleDefinition.AppId.HasValue)
+            {
+                await mediator.Publish(new PendingEnrollmentsAwaitingNotification
+                {
+                    OdinContext = odinContext,
+                    TargetAppId = circleDefinition.AppId.Value,
+                    OdinId = icr.OdinId,
+                    CircleId = circleId.Value
+                });
+            }
+        }
+
         /// <summary>
         /// Refuses a grant the caller could not make itself: every drive permission being handed out must
         /// be one the caller already holds on that drive.

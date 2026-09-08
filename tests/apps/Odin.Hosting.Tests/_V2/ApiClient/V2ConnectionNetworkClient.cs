@@ -79,6 +79,18 @@ public class V2ConnectionNetworkClient(OdinId identity, IApiClientFactory factor
         return await svc.GetConnectionInfo(odinId.ToString());
     }
 
+    /// <summary>
+    /// Asks the server to complete whatever pending circle enrollments this caller can complete.
+    /// Which entries those are is decided server-side from the caller's app id, so the call takes no
+    /// arguments -- an app cannot ask for another app's queue.
+    /// </summary>
+    public async Task<ApiResponse<PendingEnrollmentProcessingResult>> ProcessPendingEnrollmentsAsync()
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.ProcessPendingEnrollments();
+    }
+
     public async Task<ApiResponse<HttpContent>> GrantCircleAsync(Guid circleId, OdinId odinId)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

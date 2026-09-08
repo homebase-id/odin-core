@@ -19,7 +19,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections;
 
 public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string circleName, PermissionSetGrantRequest grant)
+    /// <param name="appId">
+    /// Owning app. Null makes an owner circle, which is what most tests want; set it to exercise the
+    /// behaviour that keys off circle ownership, such as which app may complete a pending enrollment.
+    /// </param>
+    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string circleName, PermissionSetGrantRequest grant,
+        Guid? appId = null)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
@@ -31,7 +36,8 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
                 Name = circleName,
                 Description = $"Description for {circleName}",
                 DriveGrants = grant.Drives,
-                Permissions = grant.PermissionSet
+                Permissions = grant.PermissionSet,
+                AppId = appId
             };
 
             var createCircleResponse = await svc.CreateCircleDefinition(request);

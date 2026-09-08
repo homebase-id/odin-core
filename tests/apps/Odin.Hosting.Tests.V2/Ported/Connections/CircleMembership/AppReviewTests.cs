@@ -112,7 +112,7 @@ public class AppReviewTests : V2Fixture
     }
 
     [Test]
-    public async Task AppReview_FailingPartWayThrough_LeavesNothingBehind()
+    public async Task AppReview_WithACircleItCannotGrant_EnqueuesThatOneAndKeepsTheRest()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -121,15 +121,16 @@ public class AppReviewTests : V2Fixture
         var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
         await owner.ClearReviewAsync(sam.Identity);
 
-        var (_, goodCircle, app) = await SetupAppWithReadCircleAsync(frodo);
+        var (_, reachableCircle, app) = await SetupAppWithReadCircleAsync(frodo);
 
-        // A second circle on a drive the app has nothing on: the review enrols circle by circle, so this
-        // one fails after the first has already been written.
+        // A circle on a drive the reviewing app has nothing on -- the shape of another app's circle
+        // ticked from this one's review dialog. The app cannot source its storage key, so it cannot
+        // grant it in any form.
         var otherDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(otherDrive, "otherDrive", allowAnonymousReads: false);
 
-        var outOfScopeCircle = Guid.NewGuid();
-        await frodo.Admin.CreateCircle(outOfScopeCircle, "out-of-scope", new PermissionSetGrantRequest
+        var outOfReachCircle = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(outOfReachCircle, "out-of-reach", new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
             {
@@ -139,17 +140,280 @@ public class AppReviewTests : V2Fixture
         });
 
         var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
-            .MarkReviewedAsync(sam.Identity, [goodCircle, outOfScopeCircle]);
-        Assert.That(review.IsSuccessStatusCode, Is.False, "the review must fail if any circle cannot be enrolled");
+            .MarkReviewedAsync(sam.Identity, [reachableCircle, outOfReachCircle]);
+        Assert.That(review.IsSuccessStatusCode, Is.True,
+            $"the review must not fail because one circle was out of reach: {review.StatusCode}");
 
-        // One transaction: the circle that did succeed is rolled back, and so is the stamp.
         var icr = await Host.GetTenantScope(frodo.Identity.DomainName)
             .Resolve<CircleNetworkStorage>().GetAsync(sam.Identity);
-        Assert.That(icr!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == goodCircle), Is.False,
-            "the first circle should have been rolled back with the rest");
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(outOfScopeCircle), Is.False);
-        Assert.That(icr.ReviewedAt, Is.Null,
-            "a review that did not happen must not leave the contact marked reviewed");
+
+        // What it could do, it did.
+        Assert.That(icr!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == reachableCircle), Is.True,
+            "the circle the app could source keys for should have been deposited");
+
+        // What it could not, it recorded -- the owner's choice is kept, not discarded.
+        var enqueued = icr.PeerKeyStore.PendingEnrollments.SingleOrDefault(p => p.CircleId == outOfReachCircle);
+        Assert.That(enqueued, Is.Not.Null, "the out-of-reach circle should have been enqueued");
+        Assert.That(enqueued!.RequestedByAppId, Is.EqualTo(app.AppId), "provenance: which app recorded it");
+        Assert.That(enqueued.OwningAppId, Is.Null,
+            "this one is an owner circle, so only the owner can complete it; an app-owned circle would name its app");
+
+        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(outOfReachCircle), Is.False,
+            "enqueuing must grant nothing");
+        Assert.That(icr.ReviewedAt, Is.Not.Null, "and the review itself still counts");
+    }
+
+    [Test]
+    public async Task EnqueuedEnrollment_IsReportedSeparatelyFromADeposit()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
+        await owner.ClearReviewAsync(sam.Identity);
+
+        var (_, reachableCircle, app) = await SetupAppWithReadCircleAsync(frodo);
+
+        var otherDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(otherDrive, "otherDrive", allowAnonymousReads: false);
+        var outOfReachCircle = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(outOfReachCircle, "out-of-reach", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        });
+
+        await new V2ConnectionNetworkClient(app.Identity, app.Factory)
+            .MarkReviewedAsync(sam.Identity, [reachableCircle, outOfReachCircle]);
+
+        // The two states resolve differently -- one needs the Peer Key, the other needs an app that can
+        // source the drive keys -- so a client has to be able to tell them apart.
+        var info = await owner.GetConnectionInfoAsync(sam.Identity);
+        Assert.That(info.Content!.AccessGrant.PendingCircleIds, Does.Contain(reachableCircle));
+        Assert.That(info.Content.AccessGrant.PendingCircleIds, Does.Not.Contain(outOfReachCircle));
+        Assert.That(info.Content.AccessGrant.AwaitingAppCircleIds, Does.Contain(outOfReachCircle));
+        Assert.That(info.Content.AccessGrant.AwaitingAppCircleIds, Does.Not.Contain(reachableCircle));
+    }
+
+    [Test]
+    public async Task AppWithoutManageCircleMembership_CanReviewAndUnReview()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
+        await owner.ClearReviewAsync(sam.Identity);
+
+        // No permission keys at all. The review is the owner's judgment of a contact, reached only by
+        // the owner or one of their apps, and the stamp grants nothing -- so gating it on a permission
+        // about deciding circle membership was the wrong gate, and this pins that it is gone.
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "plainAppDrive", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read, permissionKeys: Array.Empty<int>());
+        var client = new V2ConnectionNetworkClient(app.Identity, app.Factory);
+
+        var review = await client.MarkReviewedAsync(sam.Identity);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+        Assert.That((await owner.GetConnectionInfoAsync(sam.Identity)).Content!.ReviewedAt, Is.Not.Null);
+
+        var cleared = await client.ClearReviewAsync(sam.Identity);
+        Assert.That(cleared.IsSuccessStatusCode, Is.True, $"clear failed: {cleared.StatusCode}");
+        Assert.That((await owner.GetConnectionInfoAsync(sam.Identity)).Content!.ReviewedAt, Is.Null,
+            "withdrawing the vouching is the same act in reverse and is gated the same way");
+    }
+
+    [Test]
+    public async Task EnqueuingTheSameCircleTwice_LeavesOneEntry()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
+        await owner.ClearReviewAsync(sam.Identity);
+
+        var (_, _, app) = await SetupAppWithReadCircleAsync(frodo);
+        var (outOfReachCircle, _) = await CreateOutOfReachCircleAsync(frodo, "out-of-reach");
+
+        // A second review is an ordinary thing -- the owner opens the dialog again, or a client retries
+        // -- and it must not leave the queue holding the same circle twice.
+        var client = new V2ConnectionNetworkClient(app.Identity, app.Factory);
+        var first = await client.MarkReviewedAsync(sam.Identity, [outOfReachCircle]);
+        Assert.That(first.IsSuccessStatusCode, Is.True, $"first review failed: {first.StatusCode}");
+        var second = await client.MarkReviewedAsync(sam.Identity, [outOfReachCircle]);
+        Assert.That(second.IsSuccessStatusCode, Is.True, $"second review failed: {second.StatusCode}");
+
+        var icr = await GetIcrAsync(frodo, sam);
+        Assert.That(icr.PeerKeyStore.PendingEnrollments.Count(p => p.CircleId == outOfReachCircle), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ACircleAlreadyInEffect_IsNotEnqueued()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
+        await owner.ClearReviewAsync(sam.Identity);
+
+        var (_, _, app) = await SetupAppWithReadCircleAsync(frodo);
+        var (circle, _) = await CreateOutOfReachCircleAsync(frodo, "already-granted");
+
+        // The owner grants it outright first; the app then reviews the same circle. Out of the app's
+        // reach it may be, but there is nothing left to want -- queueing it would ask for work already
+        // done, and would report the contact as awaiting an app it is not waiting for.
+        var granted = await owner.GrantCircleAsync(circle, sam.Identity);
+        Assert.That(granted.IsSuccessStatusCode, Is.True, $"owner grant failed: {granted.StatusCode}");
+
+        var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
+            .MarkReviewedAsync(sam.Identity, [circle]);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+
+        var icr = await GetIcrAsync(frodo, sam);
+        Assert.That(icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circle), Is.False);
+        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(circle), Is.True, "and the real grant is untouched");
+    }
+
+    [Test]
+    public async Task ACircleAlreadyDeposited_IsNotEnqueued()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
+        await owner.ClearReviewAsync(sam.Identity);
+
+        // The app that can source the drive's key deposits the circle...
+        var (_, circle, depositor) = await SetupAppWithReadCircleAsync(frodo);
+        var deposit = await new V2ConnectionNetworkClient(depositor.Identity, depositor.Factory)
+            .GrantCircleAsync(circle, sam.Identity);
+        Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
+
+        // ...and a different app, which cannot, reviews the same circle. A deposit is already further
+        // along than a queued entry, so recording one behind it would only add a state to undo later.
+        var otherDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(otherDrive, "reviewerDrive", allowAnonymousReads: false);
+        var reviewer = await AppSession.SetupAsync(frodo, otherDrive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var review = await new V2ConnectionNetworkClient(reviewer.Identity, reviewer.Factory)
+            .MarkReviewedAsync(sam.Identity, [circle]);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+
+        var icr = await GetIcrAsync(frodo, sam);
+        Assert.That(icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circle), Is.False);
+        Assert.That(icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circle), Is.True,
+            "and the deposit is still there, waiting on the Peer Key rather than on an app");
+    }
+
+    [Test]
+    public async Task AnEntryForAnAppOwnedCircle_NamesTheAppThatCanCompleteIt()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
+        await owner.ClearReviewAsync(sam.Identity);
+
+        var (_, _, reviewer) = await SetupAppWithReadCircleAsync(frodo);
+
+        // A circle belonging to another app entirely -- the case the queue is for. Ownership is copied
+        // onto the entry so "has this app any work?" needs no scan of every circle definition.
+        var mailDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(mailDrive, "mailDrive", allowAnonymousReads: false);
+        var mail = await AppSession.SetupAsync(frodo, mailDrive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var mailCircle = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(mailCircle, "mail-circle", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = mailDrive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: mail.AppId);
+
+        var review = await new V2ConnectionNetworkClient(reviewer.Identity, reviewer.Factory)
+            .MarkReviewedAsync(sam.Identity, [mailCircle]);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+
+        var icr = await GetIcrAsync(frodo, sam);
+        var entry = icr.PeerKeyStore.PendingEnrollments.SingleOrDefault(p => p.CircleId == mailCircle);
+        Assert.That(entry, Is.Not.Null, "the circle should have been enqueued");
+        Assert.That(entry!.OwningAppId, Is.EqualTo(mail.AppId), "the app that owns the circle can complete it");
+        Assert.That(entry.RequestedByAppId, Is.EqualTo(reviewer.AppId), "provenance: the app whose client asked");
+    }
+
+    [Test]
+    public async Task AnEnqueuedCircle_ConfersNothingUntilItIsCompleted()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
+        await owner.ClearReviewAsync(sam.Identity);
+
+        var (_, _, app) = await SetupAppWithReadCircleAsync(frodo);
+        var (circle, _) = await CreateOutOfReachCircleAsync(frodo, "out-of-reach");
+
+        var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
+            .MarkReviewedAsync(sam.Identity, [circle]);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+
+        // An entry is a record of what the owner asked for, not a grant of it: nothing here may behave
+        // as though sam were in the circle, or she would hold access nobody was able to key.
+        var icr = await GetIcrAsync(frodo, sam);
+        Assert.That(icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circle), Is.True,
+            "precondition: the circle should be enqueued");
+        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(circle), Is.False);
+        Assert.That(icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circle), Is.False);
+
+        Assert.That((await owner.GetCircleMembersAsync(circle)).Content!.Any(m => m == sam.Identity), Is.False,
+            "an enqueued circle must not produce a membership row");
+        Assert.That((await owner.GetPendingCircleMembersAsync(circle)).Content!.Any(m => m.OdinId == sam.Identity),
+            Is.False, "nor count as a deposited-but-pending member, which is a different state entirely");
+    }
+
+    private async Task<IdentityConnectionRegistration> GetIcrAsync(OwnerSession frodo, OwnerSession target)
+    {
+        var icr = await Host.GetTenantScope(frodo.Identity.DomainName)
+            .Resolve<CircleNetworkStorage>().GetAsync(target.Identity);
+        Assert.That(icr, Is.Not.Null);
+        return icr!;
+    }
+
+    /// <summary>
+    /// A read-bearing circle on a drive of its own, which the app from
+    /// <see cref="SetupAppWithReadCircleAsync"/> has nothing on -- the shape of another app's circle
+    /// ticked from this one's review dialog.
+    /// </summary>
+    private static async Task<(Guid circle, TargetDrive drive)> CreateOutOfReachCircleAsync(
+        OwnerSession frodo, string name)
+    {
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, $"{name}Drive", allowAnonymousReads: false);
+
+        var circle = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circle, name, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        });
+
+        return (circle, drive);
     }
 
     private static async Task<(TargetDrive drive, Guid circle, AppSession app)> SetupAppWithReadCircleAsync(
