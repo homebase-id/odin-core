@@ -84,7 +84,6 @@ public class ConnectionListRedactionTests
 
             // ...and nothing about what Sam thinks of them, or how they came to be connected.
             ClassicAssert.IsNull(frodosEntry.ReviewedAt, "the review must never reach a third party");
-            ClassicAssert.IsFalse(frodosEntry.Vetted);
             ClassicAssert.IsNull(frodosEntry.AccessGrant, "grants and their circles must never reach a third party");
             ClassicAssert.IsNull(frodosEntry.IntroducerOdinId);
             ClassicAssert.AreEqual(ConnectionRequestOrigin.None, frodosEntry.ConnectionRequestOrigin);

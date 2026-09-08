@@ -89,7 +89,8 @@ hardcoded GUIDs in odin-js `ConnectionSummary.tsx`.
 ## Client work
 
 - chat-kmp #1062: the review dialog against `POST review` / `review/clear`.
-- Move clients off `vetted` to `reviewedAt`; `vetted` is now only a compatibility alias.
+- ~~Move clients off `vetted` to `reviewedAt`~~ — done by deleting `vetted` outright; it had no
+  reader in the server or in any client in the tree, so there was nothing to transition.
 - Surface New-vs-reviewed in the contact book.
 
 ## Known gaps in what shipped

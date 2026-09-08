@@ -65,7 +65,6 @@ public class ConnectionReviewTests
         var samsViewOfFrodo = await sam.Network.GetConnectionInfo(frodo.OdinId);
         ClassicAssert.IsTrue(samsViewOfFrodo.IsSuccessStatusCode);
         ClassicAssert.IsNotNull(samsViewOfFrodo.Content.ReviewedAt, "accepting a request must stamp the review");
-        ClassicAssert.IsTrue(samsViewOfFrodo.Content.Vetted, "vetted is the compatibility alias for reviewedAt != null");
 
         // Frodo sent the request himself, naming the circles: the sender's half of the same act.
         var frodosViewOfSam = await frodo.Network.GetConnectionInfo(sam.OdinId);
@@ -195,7 +194,6 @@ public class ConnectionReviewTests
 
         var after = await sam.Network.GetConnectionInfo(frodo.OdinId);
         ClassicAssert.IsNull(after.Content.ReviewedAt, "clearing returns the connection to New");
-        ClassicAssert.IsFalse(after.Content.Vetted);
 
         await Disconnect(frodo, sam);
     }
@@ -246,7 +244,6 @@ public class ConnectionReviewTests
         ClassicAssert.IsTrue(beforeReview.IsSuccessStatusCode);
         ClassicAssert.IsTrue(beforeReview.Content.Status == ConnectionStatus.Connected);
         ClassicAssert.IsNull(beforeReview.Content.ReviewedAt, "an auto-connection must not be reviewed");
-        ClassicAssert.IsFalse(beforeReview.Content.Vetted);
 
         // The review with every toggle declined: it still stamps, and takes nothing away.
         var review = await merry.Network.MarkReviewed(TestIdentities.Samwise.OdinId);

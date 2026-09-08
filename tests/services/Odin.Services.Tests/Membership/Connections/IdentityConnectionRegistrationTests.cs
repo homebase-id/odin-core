@@ -6,46 +6,44 @@ using Odin.Services.Membership.Connections;
 namespace Odin.Services.Tests.Membership.Connections;
 
 /// <summary>
-/// The redacted shape's <c>Vetted</c> flag, which is now a compatibility alias for
-/// <c>ReviewedAt != null</c> rather than a lookup of Confirmed-circle membership.
+/// The redacted shape carries the review state as <c>ReviewedAt</c>, promoted straight from the
+/// <c>Connections.ReviewedAt</c> column rather than derived from Confirmed-circle membership.
 /// </summary>
 [TestFixture]
 public class IdentityConnectionRegistrationTests
 {
     [Test]
-    public void Redacted_ReviewedConnection_IsVetted()
+    public void Redacted_ReviewedConnection_CarriesReviewedAt()
     {
         var icr = CreateIcr(reviewedAt: UnixTimeUtc.Now());
 
         var redacted = icr.Redacted();
 
-        Assert.That(redacted.Vetted, Is.True);
-        Assert.That(redacted.ReviewedAt, Is.Not.Null, "new clients read reviewedAt; vetted is the old name for it");
+        Assert.That(redacted.ReviewedAt, Is.Not.Null);
     }
 
     [Test]
-    public void Redacted_UnreviewedConnection_IsNotVetted()
+    public void Redacted_UnreviewedConnection_HasNullReviewedAt()
     {
         var icr = CreateIcr(reviewedAt: null);
 
         var redacted = icr.Redacted();
 
-        Assert.That(redacted.Vetted, Is.False);
         Assert.That(redacted.ReviewedAt, Is.Null);
     }
 
     [Test]
-    public void Redacted_ReviewedThenBlocked_IsStillVetted()
+    public void Redacted_ReviewedThenBlocked_KeepsReviewedAt()
     {
-        // Vetted follows the review and nothing else. Blocking someone does not un-review them --
-        // the owner did once look at this contact and vouch for them -- and Status is what says they
-        // are blocked now. The old flag folded connectedness in, so this answer changed with it.
+        // The review stands on its own. Blocking someone does not un-review them -- the owner did
+        // once look at this contact and vouch for them -- and Status is what says they are blocked
+        // now. Nothing folds connectedness back into the review state.
         var icr = CreateIcr(reviewedAt: UnixTimeUtc.Now());
         icr.Status = ConnectionStatus.Blocked;
 
         var redacted = icr.Redacted();
 
-        Assert.That(redacted.Vetted, Is.True);
+        Assert.That(redacted.ReviewedAt, Is.Not.Null);
         Assert.That(redacted.Status, Is.EqualTo(ConnectionStatus.Blocked));
     }
 

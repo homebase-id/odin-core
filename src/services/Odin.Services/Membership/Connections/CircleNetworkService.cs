@@ -1219,6 +1219,11 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.IdentityMustBeConnected);
             }
 
+            // What was already waiting before this review, so only what it adds gets announced.
+            var alreadyQueued = (icr.PeerKeyStore?.PendingEnrollments ?? [])
+                .Select(p => p.CircleId.Value)
+                .ToList();
+
             await using var tx = await db.BeginStackedTransactionAsync();
 
             if (odinContext.Caller.HasMasterKey)
@@ -1243,6 +1248,10 @@ namespace Odin.Services.Membership.Connections
             await StampReviewedIfUnsetAsync(odinId);
 
             tx.Commit();
+
+            // After the commit, never before: an app told to come and do work that a rollback then erased
+            // would arrive to find nothing, and the queue is what makes this safe to send late.
+            await PublishPendingEnrollmentNotificationsAsync(odinId, alreadyQueued, odinContext);
 
             // Peer contexts are cached for an hour keyed on the caller's token; without this the contact
             // keeps running under their pre-review grants long after the owner acted.
@@ -1272,6 +1281,37 @@ namespace Odin.Services.Membership.Connections
             }
 
             await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, UnixTimeUtc.Now());
+        }
+
+        /// <summary>
+        /// Tells each app that a review has left it enrollments only it can complete.
+        /// </summary>
+        /// <remarks>
+        /// Read back from the committed record rather than from what the loop believed it wrote, and
+        /// filtered to what this review actually added, so a second review of the same contact does not
+        /// re-announce work an app has already been told about. An owner circle names no app and is
+        /// skipped; it waits for the owner regardless.
+        /// </remarks>
+        private async Task PublishPendingEnrollmentNotificationsAsync(OdinId odinId, List<Guid> alreadyQueued,
+            IOdinContext odinContext)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            foreach (var entry in icr?.PeerKeyStore?.PendingEnrollments ?? [])
+            {
+                if (!entry.OwningAppId.HasValue || alreadyQueued.Contains(entry.CircleId.Value))
+                {
+                    continue;
+                }
+
+                await mediator.Publish(new PendingEnrollmentsAwaitingNotification
+                {
+                    OdinContext = odinContext,
+                    TargetAppId = entry.OwningAppId.Value,
+                    OdinId = odinId,
+                    CircleId = entry.CircleId.Value
+                });
+            }
         }
 
         /// <summary>
@@ -1683,18 +1723,8 @@ namespace Odin.Services.Membership.Connections
                 "Enqueued pending enrollment for {odinId} in circle {circleId} (owned by app {owningAppId})",
                 icr.OdinId, circleId, circleDefinition.AppId);
 
-            // Tell the app that can finish this, if there is one and it happens to be listening. An owner
-            // circle has no app to tell; it waits for the owner either way.
-            if (circleDefinition.AppId.HasValue)
-            {
-                await mediator.Publish(new PendingEnrollmentsAwaitingNotification
-                {
-                    OdinContext = odinContext,
-                    TargetAppId = circleDefinition.AppId.Value,
-                    OdinId = icr.OdinId,
-                    CircleId = circleId.Value
-                });
-            }
+            // Deliberately silent. Telling the owning app is the caller's job, after its transaction has
+            // committed -- announcing work that a rollback would erase is worse than announcing it late.
         }
 
         /// <summary>

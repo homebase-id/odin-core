@@ -175,8 +175,7 @@ namespace Odin.Services.Membership.Connections
                 AccessGrant = this.PeerKeyStore?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
-                ReviewedAt = this.ReviewedAt,
-                Vetted = this.ReviewedAt != null
+                ReviewedAt = this.ReviewedAt
             };
         }
     }
@@ -207,11 +206,5 @@ namespace Odin.Services.Membership.Connections
         /// served to the owner's own clients only, never to a peer (docs/connection-defaults.md).
         /// </summary>
         public UnixTimeUtc? ReviewedAt { get; init; }
-
-        /// <summary>
-        /// True once the owner has reviewed this connection.  V1 compatibility alias for
-        /// <see cref="ReviewedAt"/> != null; new clients should read <see cref="ReviewedAt"/>.
-        /// </summary>
-        public bool Vetted { get; init; }
     }
 }

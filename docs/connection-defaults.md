@@ -314,8 +314,8 @@ Mechanics:
 **Viewer-scoped redaction — a required companion.** The connections-list API currently
 contradicts the "owner-private, never sent to the peer" promise: `CircleNetworkController` is
 mounted on **both the app route and the guest (YouAuth) route**, and both return the same
-`Redacted()` shape — which includes, per connection, the legacy `Vetted` flag (becoming
-`reviewedAt`), `introducerOdinId`, `connectionRequestOrigin`, and a redacted grant with circle
+`Redacted()` shape — which includes, per connection, the review state (the legacy `Vetted` flag,
+now `reviewedAt`), `introducerOdinId`, `connectionRequestOrigin`, and a redacted grant with circle
 info. The guest path is gated only by `ReadConnections`, which anonymous viewers can hold when
 the tenant setting allows. So anyone permitted to see the list today also sees the owner's
 *judgments* about each contact. Fix: **two shapes from one record** —
@@ -341,8 +341,10 @@ the sensitive part.)
 `ReviewedAt` + enroll the checked circles in a single call (the accept-with-circle-grants
 endpoint, #1599, is the precedent) — gated by `ManageCircleMembership`: the same trust level as
 granting a circle, which implies a review anyway. The owner/app redacted connection shape
-replaces the legacy `Vetted` boolean with **`reviewedAt`** (V1 compat: `vetted` served as
-`reviewedAt != null` during transition). The server-side **contact** API needs nothing: contact
+replaces the legacy `Vetted` boolean with **`reviewedAt`**. No compatibility alias was kept: the
+flag had no reader anywhere — not in the server, not in any client in the tree — and leaving it
+would have been the one field misreporting during the window before a tenant runs the backfill that
+populates `ReviewedAt`. The server-side **contact** API needs nothing: contact
 records are owner-only and carry no review state — review is connections-API domain, and it
 should stay that way. Likewise **no server endpoint** for "is this contact in any personal
 circle" — clients compute it from connection info ∩ circle definitions; a server-side
