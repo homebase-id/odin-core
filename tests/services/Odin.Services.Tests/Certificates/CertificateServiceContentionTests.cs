@@ -54,20 +54,18 @@ public class CertificateServiceContentionTests
     //
 
     [Test]
-    public async Task CreateCertificateAsync_ReturnsImmediately_WhenAnOrderIsAlreadyInProgress()
+    public async Task CreateCertificateAsync_WaitsForAnOrderAlreadyInProgress()
     {
         const string domain = "contended.example.com";
 
-        // Take the same lock the certificate service uses, as another thread or node would
-        await using var _ = await _nodeLock.LockAsync(NodeLockKey.Create("CertificateServiceLock:" + domain));
+        // Take the same lock the certificate service uses, as another thread or node would.
+        // NodeLock has no timeout, so the contended call parks until we release it - which is
+        // acceptable now that both callers are background work and nothing is on a request path.
+        await using var held = await _nodeLock.LockAsync(NodeLockKey.Create("CertificateServiceLock:" + domain));
 
-        var sw = Stopwatch.StartNew();
-        var certificate = await _certificateService.CreateCertificateAsync(domain, [$"capi.{domain}"]);
-        sw.Stop();
-
-        Assert.That(certificate, Is.Null);
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1000),
-            "A contended certificate lock must not stall the TLS handshake path");
+        var contended = _certificateService.CreateCertificateAsync(domain, [$"capi.{domain}"]);
+        var completed = await Task.WhenAny(contended, Task.Delay(TimeSpan.FromMilliseconds(500)));
+        Assert.That(completed, Is.Not.SameAs(contended), "The second caller must wait for the order in progress");
 
         // No order was attempted, and no failure was recorded: this is contention, not a fault
         await _certesAcme.DidNotReceiveWithAnyArgs()
@@ -125,8 +123,11 @@ public class CertificateServiceContentionTests
 
         await _certificateService.CreateCertificateAsync(domain, [$"capi.{domain}"]);
 
-        // A failing order must not leave the domain locked behind it
-        await using var handle = await _nodeLock.TryLockAsync(NodeLockKey.Create("CertificateServiceLock:" + domain));
-        Assert.That(handle, Is.Not.Null);
+        // A failing order must not leave the domain locked behind it. NodeLock.LockAsync has no
+        // timeout, so a leaked lock shows up as this call never returning.
+        var reacquire = _nodeLock.LockAsync(NodeLockKey.Create("CertificateServiceLock:" + domain));
+        var completed = await Task.WhenAny(reacquire, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.That(completed, Is.SameAs(reacquire), "The order lock was still held after a failed order");
+        await (await reacquire).DisposeAsync();
     }
 }

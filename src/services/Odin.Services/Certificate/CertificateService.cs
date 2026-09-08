@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net.Http;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -69,18 +70,21 @@ public class CertificateService : ICertificateService
     // Node-local and lost on restart, like the backoff: an operator who has just fixed the
     // record and bounced the service gets an immediate retry, which is the behaviour they want.
     //
-    // One pulse per domain per minute. The pulse wakes a whole-registry sweep, and inbound
-    // connections are attacker-chosen (SNI), so an unthrottled pulse lets anyone drive
-    // back-to-back sweeps - a registry read, a Redis lock attempt per domain, and a DNS lookup
-    // per tenant still missing its mta-sts SAN.
-    private static readonly TimeSpan PulseThrottle = TimeSpan.FromMinutes(1);
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastPulse = new(StringComparer.OrdinalIgnoreCase);
-
-    // ...and a floor on the aggregate rate. The per-domain throttle bounds one domain; with M
-    // certificate-less domains taking traffic it still admits M pulses a minute, and because
-    // SleepAsync returns immediately when the wake event is already set, those sweeps run back
-    // to back. Each is a registry read, a certificate-store read per tenant, and a DNS lookup
-    // per tenant missing its mta-sts SAN, so the fleet needs its own limit.
+    // One pulse per domain per minute. The pulse wakes a whole-registry sweep - a registry read,
+    // a Redis lock attempt per domain, and a DNS lookup per tenant still missing its mta-sts SAN
+    // - and SleepAsync returns immediately when the wake event is already set, so unthrottled
+    // pulses run sweeps back to back.
+    //
+    // NOT an attacker control: ServerCertificateSelector only reaches RequestIssuanceAsync after
+    // ResolveIdentityRegistration or IsKnownSystemDomain succeeds, so the reachable set is
+    // domains this host already serves that currently have no certificate. This is a bound on
+    // ordinary traffic to a newly provisioned identity, not a defence.
+    // A hard floor between sweeps, for the whole host. One pulse wakes a whole-registry sweep -
+    // a registry read, a certificate-store read per tenant, and a DNS lookup per tenant still
+    // missing its mta-sts SAN - and SleepAsync returns immediately when the wake event is
+    // already set, so unthrottled pulses run sweeps back to back. A per-domain throttle was
+    // tried alongside this and removed: it bounds one domain while still admitting one pulse per
+    // domain per minute, so this single global bound is the one that actually holds.
     private static readonly TimeSpan GlobalPulseFloor = TimeSpan.FromSeconds(10);
     private long _lastGlobalPulseTicks;
 
@@ -98,6 +102,10 @@ public class CertificateService : ICertificateService
     // certificate.
     //
     private static readonly TimeSpan OrderLockDuration = TimeSpan.FromMinutes(20);
+
+    // How long to wait for another worker's order before giving up and letting the next sweep
+    // handle it. Must be less than OrderLockDuration; RedisLock enforces that.
+    private static readonly TimeSpan OrderLockTimeout = TimeSpan.FromSeconds(30);
 
     //
     // Persisted in the shared system database, NOT node-local. The limit it protects is enforced
@@ -178,10 +186,10 @@ public class CertificateService : ICertificateService
             return Task.FromResult(false);
         }
 
-        if (!ShouldPulse(domain))
+        if (!ShouldPulse())
         {
-            _logger.LogDebug("Not requesting issuance for {domain}: already requested within the last {throttle}s",
-                domain, (int)PulseThrottle.TotalSeconds);
+            _logger.LogDebug("Not requesting issuance for {domain}: the issuer was pulsed within the last {floor}s",
+                domain, (int)GlobalPulseFloor.TotalSeconds);
             return Task.FromResult(false);
         }
 
@@ -224,26 +232,18 @@ public class CertificateService : ICertificateService
 
     //
 
-    private bool ShouldPulse(string domain)
+    private bool ShouldPulse()
     {
         var now = DateTimeOffset.UtcNow;
-
-        if (_lastPulse.TryGetValue(domain, out var last) && now - last < PulseThrottle)
-        {
-            return false;
-        }
 
         var lastGlobal = Interlocked.Read(ref _lastGlobalPulseTicks);
         if (now.UtcTicks - lastGlobal < GlobalPulseFloor.Ticks)
         {
-            // Deliberately does not stamp _lastPulse: this domain has not been pulsed, and must
-            // stay eligible once the global floor lifts.
             return false;
         }
 
-        // Benign races here cost one extra pulse, which the sweep coalesces anyway
+        // A benign race here costs one extra pulse, which the sweep coalesces anyway
         Interlocked.Exchange(ref _lastGlobalPulseTicks, now.UtcTicks);
-        _lastPulse[domain] = now;
         return true;
     }
 
@@ -274,14 +274,10 @@ public class CertificateService : ICertificateService
             return null;
         }
 
-        await using var handle = await _nodeLock.TryLockAsync(
-            LockKey(domain), OrderLockDuration, cancellationToken);
+        await using var handle = await TryAcquireOrderLockAsync(domain, cancellationToken);
         if (handle == null)
         {
             // Contention, not a fault. Somebody else is ordering for this domain right now.
-            _logger.LogDebug(
-                "Not creating certificate for {domain}: an order is already in progress on another thread or node",
-                domain);
             return null;
         }
 
@@ -350,16 +346,9 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        // Also non-blocking, for a different reason than the create path: whoever holds this
-        // lock is placing an order for this same domain, so waiting for them only risks a
-        // lock timeout and an alarming-looking error. This loop comes around again.
-        await using var handle = await _nodeLock.TryLockAsync(
-            LockKey(domain), OrderLockDuration, cancellationToken);
+        await using var handle = await TryAcquireOrderLockAsync(domain, cancellationToken);
         if (handle == null)
         {
-            _logger.LogDebug(
-                "Skipping renew of {domain} certificate: an order is already in progress on another thread or node",
-                domain);
             return false;
         }
 
@@ -528,14 +517,23 @@ public class CertificateService : ICertificateService
             // When the CA tells us how long it will keep saying no, believe it. A transient
             // error says nothing about this order and RFC 8555 expects it to be retried, so it
             // must not escalate the domain up the failure schedule.
+            //
+            // Transport failures count as transient too. Removing the in-call retry loop was
+            // right - every iteration placed a fresh order - but it also means a network blip
+            // reaching the CA no longer costs 2 seconds, it costs the whole backoff window.
+            // Nothing about a failed TCP connection says this domain is unhealthy.
+            //
+            var isTransient = e is AcmeTransientException or HttpRequestException ||
+                              e.InnerException is HttpRequestException;
+
             var explicitBackoff = e switch
             {
                 AcmeRateLimitedException rateLimited => rateLimited.RetryAfter,
-                AcmeTransientException => TransientFailureBackoff,
+                _ when isTransient => TransientFailureBackoff,
                 _ => (TimeSpan?)null,
             };
 
-            await NoteFailureAsync(domain, error, explicitBackoff, escalate: e is not AcmeTransientException);
+            await NoteFailureAsync(domain, error, explicitBackoff, escalate: !isTransient);
             return null;
         }
     }
@@ -735,6 +733,27 @@ public class CertificateService : ICertificateService
         }
 
         return false;
+    }
+
+    //
+
+    //
+    // Waits for the lock, and treats "could not get it" as "somebody else is already ordering
+    // for this domain", which is what it means. Both callers are background work, so waiting is
+    // free - nothing is on a request path any more.
+    //
+    private async Task<IAsyncDisposable?> TryAcquireOrderLockAsync(string domain, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _nodeLock.LockAsync(LockKey(domain), OrderLockTimeout, OrderLockDuration, cancellationToken);
+        }
+        catch (RedisLockException e)
+        {
+            _logger.LogDebug(
+                "Not ordering for {domain}: an order is already in progress elsewhere. {error}", domain, e.Message);
+            return null;
+        }
     }
 
     //

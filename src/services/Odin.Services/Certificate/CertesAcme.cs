@@ -148,6 +148,19 @@ public sealed class CertesAcme : ICertesAcme
     // urn:ietf:params:acme:error:rateLimited is per-hostname and per-hour at Let's Encrypt
     // (5 failed authorizations / hostname / hour), so an hour is the correct wait.
     // https://letsencrypt.org/docs/rate-limits/
+    //
+    // A verdict, not a stage. Polling on past one of these just burns a minute per name - and
+    // now that every authorization is checked before throwing, a four-name order where all four
+    // fail would otherwise sit in Task.Delay for four minutes while holding the order lock.
+    //
+    private static bool IsTerminal(AuthorizationStatus? status) =>
+        status is AuthorizationStatus.Invalid
+            or AuthorizationStatus.Revoked
+            or AuthorizationStatus.Deactivated
+            or AuthorizationStatus.Expired;
+
+    //
+
     private const string AcmeRateLimitedErrorType = "urn:ietf:params:acme:error:rateLimited";
     private static readonly TimeSpan DefaultRateLimitRetryAfter = TimeSpan.FromHours(1);
 
@@ -245,7 +258,7 @@ public sealed class CertesAcme : ICertesAcme
             cancellationToken.ThrowIfCancellationRequested();
             var resource = await authz.Resource();
             var maxAttempts = 60;
-            while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid)
+            while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid && !IsTerminal(resource.Status))
             {
                 await Task.Delay(1000, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();

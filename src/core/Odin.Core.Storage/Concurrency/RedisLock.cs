@@ -81,42 +81,6 @@ public sealed class RedisLock(ILogger<RedisLock> logger, IConnectionMultiplexer 
 
     //
 
-    public async Task<IAsyncDisposable?> TryLockAsync(
-        NodeLockKey key,
-        TimeSpan? forcedRelease = null,
-        CancellationToken cancellationToken = default)
-    {
-        forcedRelease ??= DefaultForcedRelease;
-
-        if (forcedRelease <= TimeSpan.Zero)
-        {
-            throw new RedisLockException($"{nameof(forcedRelease)} must be greater than zero");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var value = CreateOwnerToken();
-        var redis = _connectionMultiplexer.GetDatabase();
-        var redisKey = Prefix + key;
-
-        var didLock = await redis.StringSetAsync(redisKey, value, forcedRelease, When.NotExists);
-        if (didLock)
-        {
-            return new Releaser(this, logger, redisKey, value);
-        }
-
-        if (logger.IsEnabled(LogLevel.Debug))
-        {
-            var (holder, holderTtl) = await DescribeHolderAsync(redis, redisKey);
-            logger.LogDebug("Did not acquire lock {redisKey}. Held by {holder}, expires in {holderTtl}",
-                redisKey, holder, holderTtl);
-        }
-
-        return null;
-    }
-
-    //
-
     //
     // The lock value doubles as the owner token: the release script only deletes the key when
     // the value still matches, so it must be unique - but there is no reason for it to be
