@@ -54,6 +54,13 @@ public class UpdateCertificatesBackgroundService(
                 foreach (var task in tasks.Where(task => task.IsFaulted))
                 {
                     var exception = task.Exception?.GetBaseException();
+
+                    // Shutting down is not an error
+                    if (exception is OperationCanceledException && stoppingToken.IsCancellationRequested)
+                    {
+                        continue;
+                    }
+
                     logger.LogError(exception, "Error background updating certificate: {error}", exception?.Message);
                 }
             }

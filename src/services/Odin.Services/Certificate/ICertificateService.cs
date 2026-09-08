@@ -23,12 +23,15 @@ public interface ICertificateService
     Task<X509Certificate2> PutCertificateAsync(string domain, KeysAndCertificates pems);
 
     /// <summary>
-    /// Create certificate for domain
+    /// Create certificate for domain. Never waits: returns null if a certificate cannot be
+    /// issued right now (an order is already in flight, or the domain is in failure backoff).
     /// </summary>
     Task<X509Certificate2?> CreateCertificateAsync(string domain, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Create certificate for domain with sans (Subject Alternative Names)
+    /// Create certificate for domain with sans (Subject Alternative Names). Never waits: returns
+    /// null if a certificate cannot be issued right now (an order is already in flight, or the
+    /// domain is in failure backoff). Safe to call from the TLS handshake path.
     /// </summary>
     Task<X509Certificate2?> CreateCertificateAsync(string domain, string[] sans, CancellationToken cancellationToken = default);
 

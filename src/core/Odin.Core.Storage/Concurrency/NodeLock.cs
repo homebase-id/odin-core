@@ -21,6 +21,15 @@ public sealed class NodeLock : INodeLock
         return new Releaser(disposable);
     }
 
+    public async Task<IAsyncDisposable?> TryLockAsync(
+        NodeLockKey key,
+        TimeSpan? forcedRelease = null,  // ignored in this lock
+        CancellationToken cancellationToken = default)
+    {
+        var disposable = await _lock.TryLockAsync(key);
+        return disposable == null ? null : new Releaser(disposable);
+    }
+
     private sealed class Releaser(IDisposable disposable) : IAsyncDisposable
     {
         public ValueTask DisposeAsync()

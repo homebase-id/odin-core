@@ -69,6 +69,60 @@ public sealed class CertesAcme : ICertesAcme
 
     public async Task<KeysAndCertificates> CreateCertificateAsync(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken = default)
     {
+        try
+        {
+            return await InternalCreateCertificateAsync(acmeAccount, domains, cancellationToken);
+        }
+        catch (AcmeRequestException e)
+        {
+            // Translate the CA's verdict into something the caller can act on without having to
+            // parse strings.
+            var type = e.Error?.Type ?? "";
+            var detail = e.Error?.Detail ?? e.Message;
+
+            if (type.Equals(AcmeRateLimitedErrorType, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Rate limited by the CA for {domains}: {detail}",
+                    string.Join(',', domains), detail);
+                throw new AcmeRateLimitedException($"{type}: {detail}", DefaultRateLimitRetryAfter);
+            }
+
+            if (RetryableErrorTypes.Contains(type))
+            {
+                // Genuinely transient - the protocol expects us to try again. Leave it as-is so
+                // the caller's retry loop picks it up.
+                _logger.LogWarning("Transient ACME error for {domains}: {type}: {detail}",
+                    string.Join(',', domains), type, detail);
+                throw;
+            }
+
+            // Everything else is the CA rejecting this order on its merits. Ordering again right
+            // away produces the same rejection, and at Let's Encrypt it also spends the
+            // per-hostname failed-authorization allowance.
+            throw new AcmeOrderException($"{type}: {detail}");
+        }
+    }
+
+    //
+
+    // urn:ietf:params:acme:error:rateLimited is per-hostname and per-hour at Let's Encrypt
+    // (5 failed authorizations / hostname / hour), so an hour is the correct wait.
+    // https://letsencrypt.org/docs/rate-limits/
+    private const string AcmeRateLimitedErrorType = "urn:ietf:params:acme:error:rateLimited";
+    private static readonly TimeSpan DefaultRateLimitRetryAfter = TimeSpan.FromHours(1);
+
+    // RFC 8555 §6.5/§6.6: a bad nonce is expected occasionally and must be retried, and a
+    // server-side error says nothing about our order.
+    private static readonly HashSet<string> RetryableErrorTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "urn:ietf:params:acme:error:badNonce",
+        "urn:ietf:params:acme:error:serverInternal",
+    };
+
+    //
+
+    private async Task<KeysAndCertificates> InternalCreateCertificateAsync(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken)
+    {
         var sw = Stopwatch.StartNew();
         
         // Sanity
@@ -148,7 +202,7 @@ public sealed class CertesAcme : ICertesAcme
 
             if (resource.Status != AuthorizationStatus.Valid)
             {
-                throw new OdinSystemException(
+                throw new AcmeOrderException(
                     $"Failed or timed out validating one or more challenges. Status: {resource.Status}");
             }
         }
@@ -170,7 +224,7 @@ public sealed class CertesAcme : ICertesAcme
         
             if (resource.Status != OrderStatus.Valid)
             {
-                throw new OdinSystemException(
+                throw new AcmeOrderException(
                     $"Failed or timed out finalizing order. Status: {resource.Status}");
             }
         }

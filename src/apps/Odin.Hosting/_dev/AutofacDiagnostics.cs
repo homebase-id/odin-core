@@ -50,7 +50,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Email.Dkim.DkimStore), "7ccfa059"},
         {typeof(Odin.Services.Email.Dkim.DkimStorageKey), "4bbcfd3f"},
         {typeof(Odin.Core.Http.DynamicHttpClientFactory), "f7ffd4c4"},
-        {typeof(Odin.Core.Storage.Concurrency.RedisLock), "45a850b2"},
+        {typeof(Odin.Core.Storage.Concurrency.RedisLock), "9fdeb43b"},
         {typeof(Odin.Core.Storage.Concurrency.NodeLock), "e6f1c919"},
         {typeof(Odin.Services.LastSeen.LastSeenService), "ef375af0"},
         {typeof(Odin.Core.Storage.Database.TransactionalCacheStats), "e6f1c919"},
