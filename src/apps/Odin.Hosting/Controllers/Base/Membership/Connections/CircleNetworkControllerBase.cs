@@ -112,6 +112,16 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return result;
         }
 
+        /// <summary>
+        /// Identities an app has asked to add to this circle whose grant has not taken effect yet.  A
+        /// sibling of circles/list, not part of it -- they are not members.
+        /// </summary>
+        [HttpPost("circles/list/pending")]
+        public async Task<IEnumerable<PendingCircleMember>> GetPendingCircleMembers([FromBody] GetCircleMembersRequest request)
+        {
+            return await circleNetwork.GetPendingCircleMembersAsync(request.CircleId, WebOdinContext);
+        }
+
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {

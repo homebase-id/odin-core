@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -48,6 +49,27 @@ public class V2ConnectionNetworkClient(OdinId identity, IApiClientFactory factor
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
         return await svc.GetCircleMembers(circleId);
+    }
+
+    public async Task<ApiResponse<HttpContent>> MarkReviewedAsync(OdinId odinId, IEnumerable<GuidId>? circleIds = null)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.MarkReviewed(new MarkConnectionReviewedRequest { OdinId = odinId, CircleIds = circleIds ?? [] });
+    }
+
+    public async Task<ApiResponse<HttpContent>> ClearReviewAsync(OdinId odinId)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.ClearReview(new OdinIdRequest { OdinId = odinId });
+    }
+
+    public async Task<ApiResponse<List<PendingCircleMember>>> GetPendingCircleMembersAsync(Guid circleId)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPendingCircleMembers(circleId);
     }
 
     public async Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfoAsync(OdinId odinId)

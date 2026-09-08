@@ -468,6 +468,66 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Identities whose grant for <paramref name="circleId"/> is deposited but not yet converted --
+        /// asked for, not yet in effect.
+        /// </summary>
+        /// <remarks>
+        /// Reported beside <see cref="GetCircleMembersAsync"/> rather than folded into it: a pending
+        /// identity is not a member, and saying otherwise would claim access that does not exist yet.
+        /// <para>
+        /// This scans connections, where the member list is one indexed read.  Deposits live inside each
+        /// connection's own key store and nothing indexes circle to deposit, so there is no cheaper
+        /// answer; the set is small and shrinks on its own as deposits convert.  Prefer
+        /// <see cref="GetAllPendingCircleMembersAsync"/> when asking about more than one circle -- it
+        /// makes the same single pass and groups the answer.
+        /// </para>
+        /// </remarks>
+        public async Task<List<PendingCircleMember>> GetPendingCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
+        {
+            var all = await GetAllPendingCircleMembersAsync(odinContext);
+            return all.TryGetValue(circleId.Value, out var members) ? members : [];
+        }
+
+        /// <summary>
+        /// Every pending circle membership across all connections, keyed by circle id.  One pass, so a
+        /// caller listing many circles does not scan once per circle.
+        /// </summary>
+        public async Task<Dictionary<Guid, List<PendingCircleMember>>> GetAllPendingCircleMembersAsync(IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
+
+            var pending = new Dictionary<Guid, List<PendingCircleMember>>();
+
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected, odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    foreach (var deposit in icr.PeerKeyStore?.DepositedGrants ?? [])
+                    {
+                        if (!pending.TryGetValue(deposit.CircleId.Value, out var members))
+                        {
+                            members = [];
+                            pending[deposit.CircleId.Value] = members;
+                        }
+
+                        members.Add(new PendingCircleMember
+                        {
+                            OdinId = icr.OdinId,
+                            Deposited = deposit.Deposited,
+                            DepositingAppId = deposit.DepositingAppId
+                        });
+                    }
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            return pending;
+        }
+
+        /// <summary>
         /// Throws an exception if the odinId is blocked.
         /// </summary>
         /// <param name="odinId"></param>
@@ -2016,6 +2076,98 @@ namespace Odin.Services.Membership.Connections
             }
 
             return (upgraded, skipped, keyPairsProvisioned);
+        }
+
+        /// <summary>
+        /// Converts every pending deposited grant across all connections, for identities whose Peer Key the
+        /// owner can reach.  Returns the number of connections drained and the number of grants converted.
+        /// </summary>
+        /// <remarks>
+        /// Deposits otherwise wait on one of two events: the contact's next inbound peer request, or the
+        /// owner touching that specific connection.  Neither is guaranteed to happen -- a dormant contact
+        /// can hold a pending grant indefinitely -- which leaves the data in two shapes at once, and every
+        /// later pass over connections then has to understand both.
+        ///
+        /// <para>
+        /// Running it in the upgrade flow is the cheap way to make that stop: the owner is present with the
+        /// master key, we are already walking every connection for the key-store-key pre-pass, and draining
+        /// here means each subsequent migration sees grants in one shape.  It does mean conversion is tied
+        /// to the owner running an upgrade, which is a weaker trigger than either hook -- this is a
+        /// backstop, not a replacement for them.
+        /// </para>
+        ///
+        /// <para>
+        /// A connection that still requires the master-key encryption upgrade is skipped rather than
+        /// failed: its Peer Key is not reachable, which is the same reason the pre-pass above skips it.
+        /// Ordering matters for that reason -- run this after the pre-pass, so anything it repaired is
+        /// drainable here.
+        /// </para>
+        /// </remarks>
+        public async Task<(int connectionsDrained, int grantsConverted)> ConvertDepositedGrantsForConnectedIdentitiesAsync(
+            IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            var masterKey = odinContext.Caller.GetMasterKey();
+
+            var allIdentities = await GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
+
+            var connectionsDrained = 0;
+            var grantsConverted = 0;
+
+            foreach (var identity in allIdentities.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!(identity.PeerKeyStore?.HasPendingDeposits ?? false))
+                {
+                    continue;
+                }
+
+                if (identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    logger.LogWarning(
+                        "Identity {odinId} has pending deposits but still requires master key encryption upgrade; " +
+                        "leaving them pending", identity.OdinId);
+                    continue;
+                }
+
+                var keyStoreKey = identity.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                try
+                {
+                    var convertedCircleIds = await ConvertDepositedGrantsAsync(identity.PeerKeyStore, keyStoreKey, odinContext);
+                    if (convertedCircleIds.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    // The master key is in hand here, unlike the peer-CAT path, so app circle grants come
+                    // out with real storage keys rather than keyless.
+                    await FanOutAppCircleGrantsAsync(identity, keyStoreKey, convertedCircleIds,
+                        new MasterKeyStorageKeySource(masterKey), odinContext);
+
+                    await SaveIcrAsync(identity, odinContext);
+
+                    connectionsDrained++;
+                    grantsConverted += convertedCircleIds.Count;
+
+                    foreach (var convertedCircleId in convertedCircleIds)
+                    {
+                        await mediator.Publish(new ConnectionChangedNotification
+                        {
+                            OdinContext = odinContext,
+                            OdinId = identity.OdinId,
+                            CircleId = convertedCircleId,
+                            Change = ConnectionChangeType.CircleGranted,
+                        });
+                    }
+                }
+                finally
+                {
+                    keyStoreKey.Wipe();
+                }
+            }
+
+            return (connectionsDrained, grantsConverted);
         }
 
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,

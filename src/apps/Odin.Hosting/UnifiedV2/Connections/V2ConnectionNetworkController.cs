@@ -144,6 +144,14 @@ public class V2ConnectionNetworkController(
         return result;
     }
 
+    [HttpGet("circles/pending")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Get identities whose grant for a circle is deposited but not yet in effect")]
+    public async Task<IEnumerable<PendingCircleMember>> GetPendingCircleMembers(Guid circleId)
+    {
+        return await circleNetwork.GetPendingCircleMembersAsync(circleId, WebOdinContext);
+    }
+
     [HttpGet("circles/with-members")]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "List all circles and their members")]
@@ -151,13 +159,21 @@ public class V2ConnectionNetworkController(
     {
         var circles = await circleMembership.GetCircleDefinitions(includeSystemCircle, WebOdinContext);
 
+        // One pass for every circle, rather than a connection scan each time through the loop below.
+        var pending = await circleNetwork.GetAllPendingCircleMembersAsync(WebOdinContext);
+
         var result = new List<CircleWithMembers>();
         foreach (var circle in circles)
         {
             // Sequential by design: the request scope holds a single DB connection (not safe for
             // concurrent use), so we don't fan these out.
             var members = await circleNetwork.GetCircleMembersAsync(circle.Id, WebOdinContext);
-            result.Add(new CircleWithMembers { Circle = circle.Redacted(), Members = members.ToList() });
+            result.Add(new CircleWithMembers
+            {
+                Circle = circle.Redacted(),
+                Members = members.ToList(),
+                PendingMembers = pending.TryGetValue(circle.Id.Value, out var p) ? p : []
+            });
         }
 
         return result;
@@ -185,4 +201,11 @@ public class CircleWithMembers
 {
     public RedactedCircleDefinition Circle { get; set; }
     public List<OdinId> Members { get; set; }
+
+    /// <summary>
+    /// Identities asked into this circle by an app whose grant has not converted yet.  Deliberately a
+    /// sibling of <see cref="Members"/> rather than part of it: they hold nothing yet, and a client that
+    /// does not know about this field keeps behaving exactly as it did.
+    /// </summary>
+    public List<PendingCircleMember> PendingMembers { get; set; }
 }

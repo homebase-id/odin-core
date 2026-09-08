@@ -176,6 +176,28 @@ public class VersionUpgradeService(
                     upgraded, skipped, keyPairsProvisioned);
             }, cancellationToken);
 
+            // Straight after the pre-pass, and for the same reason: the owner is here with the master key
+            // and we have just made every reachable connection's Peer Key reachable. Deposited grants
+            // otherwise wait on the contact calling in or the owner touching that one connection, so a
+            // dormant contact can stay pending indefinitely -- and every migration below would have to
+            // cope with grants existing in two shapes. Draining here means the ladder sees one.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await RunPhaseAsync("deposited-grant-conversion-pre-pass", async ct =>
+            {
+                await using var depositTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                runState.SetRunning(true);
+                var (connectionsDrained, grantsConverted) =
+                    await circleNetworkService.ConvertDepositedGrantsForConnectedIdentitiesAsync(odinContext, ct);
+                depositTx.Commit();
+                logger.LogInformation(
+                    LogTag + " Deposited grant conversion pre-pass complete: {grantsConverted} grant(s) converted across {connectionsDrained} connection(s)",
+                    grantsConverted, connectionsDrained);
+            }, cancellationToken);
+
             // Ensure every system drive exists before running any migration. EnsureSystemDrivesExist is
             // idempotent and version-independent, so a single up-front pass lets the version ladder assume
             // the invariant — migrations that grant a (possibly newly-introduced) system drive no longer

@@ -28,6 +28,15 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/disconnect")]
     Task<ApiResponse<HttpContent>> Disconnect([Body] OdinIdRequest request);
 
+    [Post(Root + "/review")]
+    Task<ApiResponse<HttpContent>> MarkReviewed([Body] MarkConnectionReviewedRequest request);
+
+    [Post(Root + "/review/clear")]
+    Task<ApiResponse<HttpContent>> ClearReview([Body] OdinIdRequest request);
+
+    [Get(Root + "/circles/pending")]
+    Task<ApiResponse<List<PendingCircleMember>>> GetPendingCircleMembers(Guid circleId);
+
     [Get(Root + "/circles")]
     Task<ApiResponse<List<OdinId>>> GetCircleMembers(Guid circleId);
 
