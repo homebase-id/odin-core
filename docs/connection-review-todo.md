@@ -161,3 +161,72 @@ and the same comment.
 outstanding work. It avoids a migration, but only answers "is it worth scanning at all" — the moment
 the answer is yes you are back to a full scan — and it introduces a second at-rest copy of the same
 fact with no natural place to reconcile it.
+
+## Open decision: converting members of the two system circles
+
+**Not decided.** Retiring *Auto Connections* and *Confirmed Connections* means moving everyone
+already in them onto the per-app circles that replace them. The drive mapping is exact and needs no
+judgement — every target already exists via `BuiltinProvisioner` and carries an identical grant:
+
+| System circle grant | Becomes |
+|---|---|
+| Chat Write\|React | `ChatCircle` |
+| Lists Write\|React | `ListsCircle` |
+| Moments Write\|React | `MomentsCircle` |
+| Mail Write\|React | `MailCircle` |
+| Feed Write\|React | `FeedCircle` |
+| ShardRecovery Write *(Confirmed only)* | `RecoveryCircle` — but see the next section |
+
+So Auto members map to five circles, Confirmed members to six. One connection becomes five or six
+`CircleMember` rows and as many circle grants where there was one; fine for an ordinary identity,
+worth a thought for the feed's million-connection case the addressing doc raises.
+
+**What does not map: `AllowIntroductions`.** No built-in circle carries a permission key, and
+whether verified circles may carry them at all is `connection-defaults.md` open question 2. Worse,
+`TenantConfigService.UpdateSystemCirclePermissionAsync` writes *ConnectedIdentitiesCanViewConnections*
+and *WhoIFollow* onto the Confirmed circle at runtime, so it carries keys its static definition does
+not show. Confirmed cannot be fully retired until those have somewhere to live.
+
+**Preserve, do not normalise.** A faithful conversion gives every auto-connected identity all five
+circles. What the new model *would* have granted them is narrower -- ambient enrolment only grants
+`GrantOn = Connect` circles, and today only `ChatCircle` declares it -- so normalising would silently
+strip mail, moments, lists and feed write from existing contacts. The design already says an app
+toggle affects future connections only; the same principle applies here.
+
+**Additive first, revoke later.** Adding the new memberships while leaving the system-circle grants
+in place is reversible: people hold duplicate grants to the same drives, which is untidy and
+harmless. Revoking in the same pass is tidier and one-way. One consequence of waiting: the 3010
+lockout keys off Auto membership, so it keeps firing until the revoke happens.
+
+**Ordering.** Must run *after* v15 -> v16, which reads Confirmed membership to backfill `ReviewedAt`.
+Fan out and revoke first and that backfill loses its source. It does not depend on the ambient
+enrolment pipeline, so it can land well before that does.
+
+**Shape.** A version-upgrade pass with the master key present, so grants mint with real storage keys.
+Idempotent by construction, since enrolment already no-ops on existing membership.
+
+## Open decision: when someone enters the recovery circle
+
+**Not decided.** `RecoveryCircle` conflates two facts. Its grant is `ShardRecoveryDrive: Write` --
+*may deposit a shard on me*, which is eligibility. Its description says *members hold a shard of your
+recovery key*, which is selection. Today they coincide only by accident: Confirmed granted that write
+to every confirmed contact, and `ShamirReadinessCheckerService.VerifyRemotePlayerReadiness` gates on
+`IsConfirmedConnection()` rather than on the grant.
+
+- **On review** -- reviewed implies membership. Faithful to today, no behaviour change, but leaves a
+  drive open to every contact with no part in the owner's recovery, and the description stays untrue.
+- **On selection** -- the grant is minted when the owner picks shard holders. Least privilege, and the
+  description becomes true. No chicken-and-egg: readiness is checked against review state, not the
+  grant, so verify -> select -> grant -> distribute still works.
+- **Split them** -- circle means eligibility (renamed), separate marker for holders. Most honest, most
+  work, and it is not clear what it buys over selection.
+
+Selection is the better end state; nothing else in the system hands write access to everyone by
+default, and recovery is the last place to start. But the *migration* should still preserve rather
+than strip: everyone confirmed already holds that grant, and removing it in the conversion pass would
+quietly change who can take part in an in-flight recovery setup. Convert additively, tighten as its
+own change with its own release note.
+
+Either way `ShamirReadinessCheckerService.cs:52` is one of the last two `IsConfirmedConnection()`
+callers and has to move to `ReviewedAt != null` when the Confirmed circle retires, or readiness
+checks start failing for everyone.
