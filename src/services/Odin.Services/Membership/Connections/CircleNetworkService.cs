@@ -655,7 +655,7 @@ namespace Odin.Services.Membership.Connections
             if (enqueueWhenOutOfReach && !odinContext.Caller.HasMasterKey &&
                 !await CallerCanGrantCircleAsync(circleDefinition, odinContext))
             {
-                await EnqueuePendingEnrollmentAsync(icr, circleDefinition, odinContext);
+                EnqueuePendingEnrollment(icr, circleDefinition, odinContext);
                 await this.SaveIcrAsync(icr, odinContext);
                 return;
             }
@@ -1699,7 +1699,7 @@ namespace Odin.Services.Membership.Connections
         /// Records that the owner asked for a circle nothing present could grant.  Idempotent -- a circle
         /// already enqueued, deposited or granted is left alone.
         /// </summary>
-        private async Task EnqueuePendingEnrollmentAsync(IdentityConnectionRegistration icr, CircleDefinition circleDefinition,
+        private void EnqueuePendingEnrollment(IdentityConnectionRegistration icr, CircleDefinition circleDefinition,
             IOdinContext odinContext)
         {
             var circleId = circleDefinition.Id;
