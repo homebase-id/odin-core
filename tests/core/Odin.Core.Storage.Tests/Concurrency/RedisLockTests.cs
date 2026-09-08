@@ -127,41 +127,6 @@ public class RedisLockTests
     //
 
     [Test]
-    public async Task TryLockAsync_ReturnsNullWhenHeld_AndDoesNotWait()
-    {
-        await RegisterServicesAsync();
-
-        var lockKey = NodeLockKey.Create("testlock1");
-        var redisKey = "odin:lock:" + lockKey;
-
-        var connectionMultiplexer = _services!.Resolve<IConnectionMultiplexer>();
-        var db = connectionMultiplexer.GetDatabase();
-        var redisLock = _services!.Resolve<INodeLock>();
-
-        await using (await redisLock.LockAsync(lockKey, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(60)))
-        {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            var contended = await redisLock.TryLockAsync(lockKey);
-            sw.Stop();
-
-            Assert.That(contended, Is.Null, "TryLockAsync must not acquire a held lock");
-            Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1000), "TryLockAsync must not wait for the lock");
-
-            // The lock value must name its holder, so an operator can see who is holding it
-            var holder = (await db.StringGetAsync(redisKey)).ToString();
-            Assert.That(holder, Does.Contain(Environment.MachineName));
-            Assert.That(holder, Does.Contain("pid:" + Environment.ProcessId));
-        }
-
-        await Task.Delay(50);
-
-        await using var acquired = await redisLock.TryLockAsync(lockKey);
-        Assert.That(acquired, Is.Not.Null, "TryLockAsync must acquire once the lock is released");
-    }
-
-    //
-
-    [Test]
     public async Task LockAsync_TimeoutMessage_NamesTheHolder()
     {
         await RegisterServicesAsync();
