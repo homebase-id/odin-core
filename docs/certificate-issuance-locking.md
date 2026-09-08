@@ -191,6 +191,16 @@ Where else to look:
 - `src/core/Odin.Core/Threading/KeyedAsyncLock.cs` — `TryLockAsync`
 - `src/apps/Odin.Hosting/Program.cs` — `ServerCertificateSelector`
 
+**Gotcha when changing `RedisLock`:** it is a whitelisted singleton in
+`src/apps/Odin.Hosting/_dev/AutofacDiagnostics.cs`, keyed by a hash of its constructor
+signature. Change the constructor and that check logs
+`MANUAL CHECK AND WHITE LISTING REQUIRED: ... = <newhash>` at Error level on every
+startup, which fails ~54 `WebScaffold` tests via `DefaultAssertLogEvents`. Re-verify
+that the new dependencies really are singletons, then update the hash to the one the
+log reports. It only reproduces where Redis is configured (`RUN_REDIS_TESTS`); with
+`NodeLock` the type is never registered, so a local run without that define stays
+green.
+
 ## Reproducing
 
 Provision an identity whose DNS records are not yet all live — or exhaust the LE
