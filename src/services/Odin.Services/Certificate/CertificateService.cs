@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -29,6 +31,20 @@ public class CertificateService : ICertificateService
     private readonly IServiceProvider _serviceProvider;
     private readonly OdinConfiguration _configuration;
     private readonly string _accountKey;
+
+    //
+    // A domain that just failed to issue is not going to succeed on the next TLS handshake a
+    // few milliseconds later. Without this, every inbound connection to a domain that cannot
+    // get a certificate starts its own ACME order - which both queues behind the node lock and
+    // spends the CA's per-hostname failed-authorization allowance, turning a recoverable
+    // condition into an hour-long outage.
+    //
+    // Node-local on purpose: the node lock already stops two nodes ordering at once, so the
+    // worst case is one wasted attempt per node per window, and losing the state on restart is
+    // the right behaviour for an operator who has just fixed DNS and bounced the service.
+    //
+    private static readonly TimeSpan FailureBackoff = TimeSpan.FromMinutes(5);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _backoffUntil = new(StringComparer.OrdinalIgnoreCase);
 
     public CertificateService(
         ILogger<CertificateService> logger,
@@ -77,21 +93,48 @@ public class CertificateService : ICertificateService
 
     //
 
+    /// <summary>
+    /// Issues a certificate for <paramref name="domain"/> if one can be issued right now.
+    /// Returns null - promptly - if it cannot.
+    /// </summary>
+    /// <remarks>
+    /// This runs on the TLS handshake path, so it never waits: not for the node lock, and not
+    /// for a domain that is in failure backoff. Waiting would buy nothing. If another thread or
+    /// node holds the lock, the order is already being placed and this connection still has no
+    /// certificate to serve; blocking here only converts one un-issuable domain into a
+    /// handshake stall for every connection to it.
+    /// </remarks>
     public async Task<X509Certificate2?> CreateCertificateAsync(
         string domain,
         string[] sans,
         CancellationToken cancellationToken = default)
     {
-        await using (await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken))
+        if (IsInFailureBackoff(domain, out var backoffRemaining))
         {
-            var x509 = await GetCertificateAsync(domain);
-            if (x509 != null)
-            {
-                _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
-                return x509;
-            }
-            return await InternalCreateCertificateAsync(domain, sans, cancellationToken);
+            _logger.LogDebug(
+                "Not creating certificate for {domain}: a previous attempt failed, next attempt in {backoff}s",
+                domain, (int)backoffRemaining.TotalSeconds);
+            return null;
         }
+
+        await using var handle = await _nodeLock.TryLockAsync(LockKey(domain), cancellationToken: cancellationToken);
+        if (handle == null)
+        {
+            // Contention, not a fault. Somebody else is ordering for this domain right now.
+            _logger.LogDebug(
+                "Not creating certificate for {domain}: an order is already in progress on another thread or node",
+                domain);
+            return null;
+        }
+
+        var x509 = await GetCertificateAsync(domain);
+        if (x509 != null)
+        {
+            _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
+            return x509;
+        }
+
+        return await InternalCreateCertificateAsync(domain, sans, cancellationToken);
     }
 
     //
@@ -103,6 +146,12 @@ public class CertificateService : ICertificateService
 
     //
 
+    /// <summary>
+    /// Background path. Unlike <see cref="CreateCertificateAsync(string,string[],CancellationToken)"/>
+    /// this deliberately ignores the failure backoff: the background loop's own interval is its
+    /// rate limiter, and it is the thing that eventually heals a domain whose DNS has since been
+    /// fixed. It is not on any request path, so nobody is waiting on it.
+    /// </summary>
     public async Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default)
     {
         var x509 = await GetCertificateAsync(domain);
@@ -112,27 +161,36 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        await using (await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken))
+        // Also non-blocking, for a different reason than the create path: whoever holds this
+        // lock is placing an order for this same domain, so waiting for them only risks a
+        // lock timeout and an alarming-looking error. This loop comes around again.
+        await using var handle = await _nodeLock.TryLockAsync(LockKey(domain), cancellationToken: cancellationToken);
+        if (handle == null)
         {
-            x509 = await GetCertificateAsync(domain);
-
-            if (x509 != null && !await NeedsRenewalAsync(domain, x509, sans, cancellationToken))
-            {
-                _logger.LogDebug("Background renew of certificate {domain} completed on another thread", domain);
-                return false;
-            }
-
-            _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
-            x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
-            if (x509 != null)
-            {
-                _logger.LogDebug("Completed background renew of {domain} certificate", domain);
-                return true;
-            }
-
-            _logger.LogWarning("Could not RENEW {domain} certificate. See previous messages.", domain);
+            _logger.LogDebug(
+                "Skipping renew of {domain} certificate: an order is already in progress on another thread or node",
+                domain);
             return false;
         }
+
+        x509 = await GetCertificateAsync(domain);
+
+        if (x509 != null && !await NeedsRenewalAsync(domain, x509, sans, cancellationToken))
+        {
+            _logger.LogDebug("Background renew of certificate {domain} completed on another thread", domain);
+            return false;
+        }
+
+        _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
+        x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
+        if (x509 != null)
+        {
+            _logger.LogDebug("Completed background renew of {domain} certificate", domain);
+            return true;
+        }
+
+        _logger.LogWarning("Could not RENEW {domain} certificate. See previous messages.", domain);
+        return false;
     }
 
     //
@@ -144,7 +202,7 @@ public class CertificateService : ICertificateService
         {
             var error = $"Can't create certificate for {domain} because dotyou.cloud domains (should) resolve to 127.0.0.1. Did it expire?";
             _logger.LogError("{error}", error);
-            await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
+            await NoteFailureAsync(domain, error, FailureBackoff);
             return null;
         }
 
@@ -157,7 +215,7 @@ public class CertificateService : ICertificateService
                 {
                     var error = $"Cannot create certificate for {domain}. One or more DNS records are incorrect.";
                     _logger.LogWarning("{error}", error);
-                    await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
+                    await NoteFailureAsync(domain, error, FailureBackoff);
                     return null;
                 }
 
@@ -197,6 +255,7 @@ public class CertificateService : ICertificateService
 
             KeysAndCertificates? pems = null;
             var maxTries = 10;
+            var sw = Stopwatch.StartNew();
             while (pems == null)
             {
                 try
@@ -205,6 +264,15 @@ public class CertificateService : ICertificateService
                 }
                 catch (OperationCanceledException)
                 {
+                    throw;
+                }
+                catch (AcmeOrderException)
+                {
+                    // The CA has already made up its mind about this order. Every retry here is a
+                    // brand new order with brand new authorizations, and Let's Encrypt counts
+                    // failed authorizations against a per-hostname hourly allowance - so retrying
+                    // in a tight loop is exactly how a transient DNS lag becomes an hour of
+                    // rate-limited failures. Give up now and let the backoff hold us off.
                     throw;
                 }
                 catch (Exception e)
@@ -222,14 +290,65 @@ public class CertificateService : ICertificateService
             }
 
             var x509 = await _certificateStore.PutCertificateAsync(domain, pems.PrivateKeyPem, pems.CertificatesPem);
+            _backoffUntil.TryRemove(domain, out _);
+            _logger.LogInformation("Created certificate for {domain} in {elapsed}s", domain, sw.ElapsedMilliseconds / 1000.0);
             return x509;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception e)
         {
             var error = $"Error creating certificate for {domain}: {e.Message.ReplaceLineEndings(". ").TrimEnd()}";
             _logger.LogError("{error}", error);
-            await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
+
+            // When the CA tells us how long it will keep saying no, believe it.
+            var backoff = e is AcmeRateLimitedException rateLimited ? rateLimited.RetryAfter : FailureBackoff;
+            await NoteFailureAsync(domain, error, backoff);
             return null;
+        }
+    }
+
+    //
+
+    private bool IsInFailureBackoff(string domain, out TimeSpan remaining)
+    {
+        remaining = TimeSpan.Zero;
+
+        if (!_backoffUntil.TryGetValue(domain, out var until))
+        {
+            return false;
+        }
+
+        remaining = until - DateTimeOffset.UtcNow;
+        if (remaining > TimeSpan.Zero)
+        {
+            return true;
+        }
+
+        _backoffUntil.TryRemove(domain, out _);
+        remaining = TimeSpan.Zero;
+        return false;
+    }
+
+    //
+
+    private async Task NoteFailureAsync(string domain, string error, TimeSpan backoff)
+    {
+        _backoffUntil[domain] = DateTimeOffset.UtcNow + backoff;
+        _logger.LogWarning(
+            "Certificate order for {domain} failed; not trying again for {backoff}s. Reason: {error}",
+            domain, (int)backoff.TotalSeconds, error);
+
+        try
+        {
+            await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
+        }
+        catch (Exception e)
+        {
+            // Recording the failure must not itself become a failure on the handshake path
+            _logger.LogError(e, "Could not record failed certificate update for {domain}: {error}", domain, e.Message);
         }
     }
 

@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Threading;
 
+#nullable enable
+
 public sealed class KeyedAsyncLock
 {
     // SEB:NOTE we can't use a ConcurrentDictionary because the delegates called in AddOrUpdate and GetOrAdd
@@ -53,6 +55,54 @@ public sealed class KeyedAsyncLock
         {
             var disposer = await asyncLock.LockAsync(cancellationToken);
             return new Releaser(this, key, disposer);
+        }
+        catch
+        {
+            DecrementRefCount(key);
+            throw;
+        }
+    }
+
+    //
+
+    /// <summary>
+    /// Attempts to acquire the lock for <paramref name="key"/> without waiting.
+    /// Returns null if the lock is currently held by somebody else.
+    /// </summary>
+    /// <remarks>
+    /// Implemented with a pre-cancelled token: <see cref="AsyncLock"/> takes the lock
+    /// synchronously when it is free and only consults the token when it would have to
+    /// queue, so an already-cancelled token gives exact try-lock semantics.
+    /// See KeyedAsyncLockTests.TryLockAsync_* for the tests that pin this behaviour down.
+    /// </remarks>
+    public async Task<IDisposable?> TryLockAsync(string key)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key, nameof(key));
+
+        AsyncLock asyncLock;
+        lock (_lock)
+        {
+            if (_refCountedLocks.TryGetValue(key, out var value))
+            {
+                _refCountedLocks[key] = (value.asyncLock, value.refCount + 1);
+                asyncLock = value.asyncLock;
+            }
+            else
+            {
+                asyncLock = new AsyncLock();
+                _refCountedLocks[key] = (asyncLock, 1);
+            }
+        }
+
+        try
+        {
+            var disposer = await asyncLock.LockAsync(new CancellationToken(true));
+            return new Releaser(this, key, disposer);
+        }
+        catch (OperationCanceledException)
+        {
+            DecrementRefCount(key);
+            return null;
         }
         catch
         {

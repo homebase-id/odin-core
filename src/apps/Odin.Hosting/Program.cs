@@ -318,6 +318,11 @@ namespace Odin.Hosting
         //         
 
         private static readonly string[] NoSans = [];
+
+        // The handshake timeout is 60s; anything on this path that takes seconds is worth a log
+        // line, because it is paid per connection.
+        private static readonly TimeSpan CertificateSelectorSlowThreshold = TimeSpan.FromSeconds(5);
+
         private static async Task<(X509Certificate2 certificate, bool requireClientCertificate)> ServerCertificateSelector(
             string hostName,
             OdinConfiguration config,
@@ -396,7 +401,36 @@ namespace Odin.Hosting
                 sans = idReg.GetSans();
             }
 
-            certificate = await certificateService.CreateCertificateAsync(domain, sans, cancellationToken);
+            //
+            // NOTE: this is the TLS handshake path, one call per inbound connection. Nothing in
+            // here may block for long or throw: an exception escaping this callback is logged by
+            // Kestrel as an unhandled connection fault, and a stall here stalls every request to
+            // the domain. CreateCertificateAsync is non-blocking by contract and returns null
+            // rather than waiting; the catch below is the belt to that suspenders.
+            //
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                certificate = await certificateService.CreateCertificateAsync(domain, sans, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return (null, false);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Error creating certificate for {hostName}: {error}", hostName, e.Message);
+                return (null, false);
+            }
+            finally
+            {
+                if (sw.Elapsed > CertificateSelectorSlowThreshold)
+                {
+                    Log.Warning(
+                        "Certificate lookup for {hostName} took {elapsed}s on the TLS handshake path",
+                        hostName, sw.ElapsedMilliseconds / 1000.0);
+                }
+            }
 
             // Sanity #2
             if (certificate == null)
