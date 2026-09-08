@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,12 +80,13 @@ public sealed class CertesAcme : ICertesAcme
             // parse strings.
             var type = e.Error?.Type ?? "";
             var detail = e.Error?.Detail ?? e.Message;
+            var failed = FailedIdentifiers(e.Error);
 
             if (type.Equals(AcmeRateLimitedErrorType, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogWarning("Rate limited by the CA for {domains}: {detail}",
                     string.Join(',', domains), detail);
-                throw new AcmeRateLimitedException($"{type}: {detail}", DefaultRateLimitRetryAfter);
+                throw new AcmeRateLimitedException($"{type}: {detail}", DefaultRateLimitRetryAfter, failed);
             }
 
             if (RetryableErrorTypes.Contains(type))
@@ -99,8 +101,45 @@ public sealed class CertesAcme : ICertesAcme
             // Everything else is the CA rejecting this order on its merits. Ordering again right
             // away produces the same rejection, and at Let's Encrypt it also spends the
             // per-hostname failed-authorization allowance.
-            throw new AcmeOrderException($"{type}: {detail}");
+            throw new AcmeOrderException($"{type}: {detail}", failed);
         }
+    }
+
+    //
+
+    //
+    // RFC 8555 §6.7.1: a problem document may carry sub-problems, each naming the identifier it
+    // is about. That is how we learn WHICH name of a multi-name order the CA refused.
+    //
+    private static List<string> FailedIdentifiers(AcmeError? error)
+    {
+        var identifiers = new List<string>();
+        if (error == null)
+        {
+            return identifiers;
+        }
+
+        void Collect(AcmeError e)
+        {
+            var value = e.Identifier?.Value;
+            if (!string.IsNullOrWhiteSpace(value) && !identifiers.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                identifiers.Add(value);
+            }
+
+            if (e.Subproblems == null)
+            {
+                return;
+            }
+
+            foreach (var sub in e.Subproblems)
+            {
+                Collect(sub);
+            }
+        }
+
+        Collect(error);
+        return identifiers;
     }
 
     //
@@ -202,8 +241,11 @@ public sealed class CertesAcme : ICertesAcme
 
             if (resource.Status != AuthorizationStatus.Valid)
             {
+                // We polled this authorization ourselves, so we know precisely which name failed
+                var name = resource.Identifier?.Value ?? "";
                 throw new AcmeOrderException(
-                    $"Failed or timed out validating one or more challenges. Status: {resource.Status}");
+                    $"Failed or timed out validating the challenge for '{name}'. Status: {resource.Status}",
+                    string.IsNullOrWhiteSpace(name) ? [] : [name]);
             }
         }
 

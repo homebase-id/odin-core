@@ -77,7 +77,103 @@ Separately: `NodeLock`, the single-node implementation used when Redis is not
 configured, **ignored** the `timeout` argument entirely. The same condition on a
 single-node deployment was an unbounded hang rather than a 30-second one.
 
+## The follow-up incident, 2026-09-08 (same day)
+
+The fix above removed the exception but not the stall. On the NA cluster the host logged:
+
+```
+WRN Certificate lookup for delete.n1.id.pub took 60s on the TLS handshake path
+WRN Lock odin:lock:CertificateServiceLock:delete.n1.id.pub was held for 60s
+```
+
+### What "never waits" actually meant
+
+`CreateCertificateAsync` never waited **for the lock**. The connection that *won* the lock
+still ran the entire ACME order inline, because `InternalCreateCertificateAsync` was always
+on the handshake path and the first fix left it there. So the queue behind the holder was
+fixed and the holder itself was not.
+
+That path is bounded by Kestrel's 60-second handshake deadline (`Program.cs`,
+`handshakeTimeoutTimeSpan`), and an ACME order legitimately takes minutes. Every attempt
+therefore ran to 60s and was killed **mid-order** — after the CA had already been asked to
+validate. An abandoned order costs the same rate-limit allowance as a completed one and
+produces no certificate.
+
+### Why the backoff never engaged
+
+Worse, the cancellation was treated as a non-event:
+
+```csharp
+catch (OperationCanceledException) { throw; }   // before the generic catch
+catch (Exception e) { … await NoteFailureAsync(…); }
+```
+
+The rethrow was there so a client disconnect would not poison a domain for five minutes.
+The effect was the opposite of the intent: when the handshake deadline killed the order, **no
+backoff was recorded**, so the next inbound connection started a fresh order immediately.
+
+### What was NOT the cause
+
+Recorded because it was the first theory and it was wrong: the in-call retry loop was **not**
+re-burning the allowance. Production logs showed zero `(will retry)` lines over ninety
+minutes and `AcmeRateLimitedException` being honoured exactly as designed — backoffs an hour
+apart. The loop was removed anyway (see below), but on the arithmetic, not on this evidence.
+
+### The other bug it exposed: one optional name sinks the whole certificate
+
+The rate-limited identifier was `mta-sts.<domain>` — an **optional** SAN. A certificate order
+is all-or-nothing: refuse one name and the CA refuses the order. So an optional, email-only
+name denied the identity the certificate it needed for its apex, `capi` and `file` names.
+
+The original gate tested whether the mta-sts record *resolves*. Resolving is a weaker
+property than being able to serve the name's challenge, so it did not protect against this.
+
 ## The rules now
+
+### Issuance never happens on a request path
+
+The TLS handshake path looks the certificate up and, if it is missing, calls
+`RequestIssuanceAsync` — which pulses the background issuer and returns. It never places an
+order itself. `CreateCertificateAsync` is background-only, and its cancellation token must
+have application lifetime, never a request's.
+
+The trade, deliberately accepted: the first requests to a brand-new identity fail fast and
+the client must retry, rather than one request blocking until the certificate exists. In
+practice that blocking request never succeeded anyway — it stalled 60s and died.
+
+### A cancelled order still counts as a failure
+
+By the time an order is abandoned the CA has usually been asked to validate, so it has cost
+the same allowance as a completed one. Cancellation records a backoff and then propagates.
+If the cancellation is process shutdown this costs nothing, since the backoff map is
+in-memory and dies with the process.
+
+### One order per invocation
+
+The retry loop is gone. Every iteration called `NewOrder` and created a fresh set of
+authorizations; re-attempts belong to the backoff, which is spaced to respect the CA's limit.
+
+### An optional name may not sink the order
+
+If the CA's refusal names optional SANs and no required name, the optional names are dropped
+and the order is placed once more. Ordering again immediately is safe precisely because the
+names that remain are not the ones being refused. Working out which names a refusal
+implicates uses `AcmeError.Subproblems` where the CA provides them, and otherwise the
+hostname the CA writes into the detail text.
+
+Having dropped an optional name, it must not be asked for again straight away. The
+certificate is now missing a SAN that `NeedsRenewalAsync` thinks it ought to have, so the
+next sweep would renew to re-add it, fail, drop it, and issue *another* certificate - a
+duplicate every 12 hours, against a Let's Encrypt limit of five duplicates (identical name
+set) per week. Optional names are therefore suppressed for seven days after a refusal, which
+holds it to one. The suppression is node-local and lost on restart, so an operator who has
+just fixed the record and bounced the service gets an immediate retry.
+
+**Beware the suffix trap.** Every SAN has the apex as a suffix, so
+`mta-sts.example.com` *contains* `example.com`. A substring test reads a complaint about the
+optional name as a complaint about the apex as well, concludes a required name was refused,
+and switches the fallback off in exactly the case it exists for. `MentionsName` matches on
+label boundaries for this reason, and is tested for it.
 
 ### Issuance never blocks a request
 
@@ -120,8 +216,11 @@ path would silently stop issuing certificates.
 `CertificateService` keeps a per-domain backoff window and refuses to start a new
 order inside it:
 
-- **5 minutes** after a generic failure (bad DNS, transport, anything unclassified),
+- **exponentially**: 5 minutes, then 10, 20, 40, capped at an hour,
 - **the CA's own hour** when Let's Encrypt says `rateLimited`.
+
+A flat five minutes was twelve attempts an hour, against an allowance of five failed
+authorizations per hostname per hour — it breached the very limit it existed to protect.
 
 The window is node-local on purpose. The node lock already stops two nodes ordering
 at once, so the worst case is one wasted attempt per node per window, and losing the

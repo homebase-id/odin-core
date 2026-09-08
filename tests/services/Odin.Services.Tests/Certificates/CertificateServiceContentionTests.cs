@@ -8,6 +8,8 @@ using NSubstitute;
 using NUnit.Framework;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Util;
+using Odin.Services.Background;
+using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
@@ -45,7 +47,8 @@ public class CertificateServiceContentionTests
             _dnsLookupService,
             new AcmeAccountConfig(),
             Substitute.For<IServiceProvider>(),
-            new OdinConfiguration());
+            new OdinConfiguration(),
+            Substitute.For<IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>>());
     }
 
     //
