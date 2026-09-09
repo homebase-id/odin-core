@@ -177,6 +177,21 @@ in-memory and dies with the process.
 The retry loop is gone. Every iteration called `NewOrder` and created a fresh set of
 authorizations; re-attempts belong to the backoff, which is spaced to respect the CA's limit.
 
+### mta-sts stays on the tenant certificate
+
+Proposed during review and **rejected**: issuing `mta-sts.<domain>` as its own certificate so
+that a refusal of the optional name could never sink the tenant's order. It would remove the
+optional-SAN concept entirely, and the Public Suffix List entry for `*.id.pub` means each
+tenant is its own registered domain, so Let's Encrypt's per-registered-domain budget is not
+the constraint.
+
+It is rejected on scale and coupling, not on rate limits. One identity is one certificate;
+at a million-plus identities, a second order, renewal, row and lock per tenant is a permanent
+doubling of the certificate machinery to insure against a cause that, with the middleware
+fixed, nobody can name. And mail is not a detachable feature of an identity - it is
+intertwined with it, and its names belong on the identity's certificate. Revisit only if a
+real, named blocker appears.
+
 ### Nothing on a request path waits, for anything
 
 `ServerCertificateSelector` looks the certificate up, calls `RequestIssuanceAsync`, and
