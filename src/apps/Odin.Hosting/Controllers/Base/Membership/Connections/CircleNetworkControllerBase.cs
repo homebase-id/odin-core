@@ -78,7 +78,10 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             bool omitContactData = true)
         {
             var result = await circleNetwork.GetIcrAsync((OdinId)request.OdinId, WebOdinContext);
-            return result?.Redacted(omitContactData);
+
+            var redacted = result?.Redacted(omitContactData);
+            await circleNetwork.PopulateAwaitingAppNamesAsync([redacted], WebOdinContext);
+            return redacted;
         }
 
         [HttpPost("connected")]

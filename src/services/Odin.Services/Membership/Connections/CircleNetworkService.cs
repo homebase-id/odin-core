@@ -468,6 +468,56 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Fills in the circle and app names on each connection's awaiting-app entries, so a client can
+        /// say which app is being waited on rather than only that something is.
+        /// </summary>
+        /// <remarks>
+        /// Resolved on read rather than stored at enqueue time, so a circle or app renamed since the
+        /// review reads as it is called now.  Lookups are memoised across the whole batch, so a list of
+        /// connections all waiting on the same app costs one lookup, not one per connection -- and a
+        /// connection with nothing awaiting costs none at all, which is nearly all of them.
+        /// <para>
+        /// A name that cannot be resolved is left null rather than failing the read: a circle or app
+        /// deleted while an entry waited is a real state, and the entry still needs to be reportable so
+        /// the owner can see something is stuck.
+        /// </para>
+        /// </remarks>
+        public async Task PopulateAwaitingAppNamesAsync(
+            IEnumerable<RedactedIdentityConnectionRegistration> connections,
+            IOdinContext odinContext)
+        {
+            var circleNames = new Dictionary<Guid, string>();
+            var appNames = new Dictionary<Guid, string>();
+
+            foreach (var connection in connections ?? [])
+            {
+                foreach (var awaiting in connection?.AccessGrant?.AwaitingApps ?? [])
+                {
+                    if (!circleNames.TryGetValue(awaiting.CircleId, out var circleName))
+                    {
+                        circleName = (await circleDefinitionService.GetCircleAsync(awaiting.CircleId))?.Name;
+                        circleNames[awaiting.CircleId] = circleName;
+                    }
+
+                    awaiting.CircleName = circleName;
+
+                    if (!awaiting.AppId.HasValue)
+                    {
+                        continue;
+                    }
+
+                    if (!appNames.TryGetValue(awaiting.AppId.Value, out var appName))
+                    {
+                        appName = (await appRegistrationService.GetAppRegistration(awaiting.AppId.Value, odinContext))?.Name;
+                        appNames[awaiting.AppId.Value] = appName;
+                    }
+
+                    awaiting.AppName = appName;
+                }
+            }
+        }
+
+        /// <summary>
         /// Identities whose grant for <paramref name="circleId"/> is deposited but not yet converted --
         /// asked for, not yet in effect.
         /// </summary>

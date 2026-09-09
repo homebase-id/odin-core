@@ -89,7 +89,11 @@ public class PeerKeyStore
             CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
             AppGrants = this.AppGrants.ToDictionary(k => k.Key, pair => pair.Value.Values.Select(v => v.Redacted())),
             PendingCircleIds = this.DepositedGrants.Select(d => d.CircleId.Value).ToList(),
-            AwaitingAppCircleIds = (this.PendingEnrollments ?? []).Select(p => p.CircleId.Value).ToList()
+            // Ids only here; the names need lookups this type has no business doing. CircleNetworkService
+            // fills them in on the way out.
+            AwaitingApps = (this.PendingEnrollments ?? [])
+                .Select(p => new AwaitingAppEnrollment { CircleId = p.CircleId.Value, AppId = p.OwningAppId })
+                .ToList()
         };
     }
 
@@ -118,5 +122,28 @@ public class RedactedPeerKeyStore
     /// not a member of these, but further away than <see cref="PendingCircleIds"/>: those hold real key
     /// material and need only the Peer Key.
     /// </summary>
-    public List<Guid> AwaitingAppCircleIds { get; set; }
+    public List<AwaitingAppEnrollment> AwaitingApps { get; set; }
+}
+
+/// <summary>
+/// A circle waiting on the app that owns it, named well enough for a person to read.
+/// </summary>
+/// <remarks>
+/// Ids alone let a client say "waiting" and nothing more, because there is no app-id-to-name lookup on
+/// the client side; the names are here so it can say <i>waiting on Moments</i>.  They are resolved when
+/// the connection is read rather than stored on the entry, so a renamed circle or app reads correctly
+/// instead of showing whatever it was called when the review happened.
+/// </remarks>
+public class AwaitingAppEnrollment
+{
+    public Guid CircleId { get; set; }
+
+    /// <summary>Null if the circle has been deleted since the review.</summary>
+    public string CircleName { get; set; }
+
+    /// <summary>The app that owns the circle and is the only one that can complete this.</summary>
+    public Guid? AppId { get; set; }
+
+    /// <summary>Null for an owner circle, which has no app, or for an app since deleted.</summary>
+    public string AppName { get; set; }
 }

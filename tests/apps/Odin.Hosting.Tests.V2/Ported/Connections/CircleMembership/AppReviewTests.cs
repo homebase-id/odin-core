@@ -195,8 +195,14 @@ public class AppReviewTests : V2Fixture
         var info = await owner.GetConnectionInfoAsync(sam.Identity);
         Assert.That(info.Content!.AccessGrant.PendingCircleIds, Does.Contain(reachableCircle));
         Assert.That(info.Content.AccessGrant.PendingCircleIds, Does.Not.Contain(outOfReachCircle));
-        Assert.That(info.Content.AccessGrant.AwaitingAppCircleIds, Does.Contain(outOfReachCircle));
-        Assert.That(info.Content.AccessGrant.AwaitingAppCircleIds, Does.Not.Contain(reachableCircle));
+        var awaiting = info.Content.AccessGrant.AwaitingApps;
+        Assert.That(awaiting.Select(a => a.CircleId), Does.Contain(outOfReachCircle));
+        Assert.That(awaiting.Select(a => a.CircleId), Does.Not.Contain(reachableCircle));
+
+        // Named, not just identified: a client has no app-id-to-name lookup, so without these it can
+        // only say "waiting" where the owner wants to read "waiting on <app>".
+        var entry = awaiting.Single(a => a.CircleId == outOfReachCircle);
+        Assert.That(entry.CircleName, Is.EqualTo("out-of-reach"), "the circle should be named for the owner");
     }
 
     [Test]
@@ -351,6 +357,15 @@ public class AppReviewTests : V2Fixture
         Assert.That(entry, Is.Not.Null, "the circle should have been enqueued");
         Assert.That(entry!.OwningAppId, Is.EqualTo(mail.AppId), "the app that owns the circle can complete it");
         Assert.That(entry.RequestedByAppId, Is.EqualTo(reviewer.AppId), "provenance: the app whose client asked");
+
+        // And on the wire, named: the owner is meant to read "waiting on <app>", which a client cannot
+        // produce from an id because it has no app-id-to-name lookup of its own.
+        var info = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).GetConnectionInfoAsync(sam.Identity);
+        var awaiting = info.Content!.AccessGrant.AwaitingApps.Single(a => a.CircleId == mailCircle);
+
+        Assert.That(awaiting.CircleName, Is.EqualTo("mail-circle"));
+        Assert.That(awaiting.AppId, Is.EqualTo(mail.AppId));
+        Assert.That(awaiting.AppName, Is.Not.Null.And.Not.Empty, "the owning app must be named, not just identified");
     }
 
     [Test]

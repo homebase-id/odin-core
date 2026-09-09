@@ -104,7 +104,14 @@ public class V2ConnectionNetworkController(
         var result = await circleNetwork.GetIcrAsync(new OdinId(odinId), WebOdinContext);
 
         // Guests reach this route too; they get the identity, never the owner's judgments about it.
-        return CallerIsOwnerSideViewer ? result?.Redacted() : result?.RedactedForExternalViewer();
+        if (!CallerIsOwnerSideViewer)
+        {
+            return result?.RedactedForExternalViewer();
+        }
+
+        var redacted = result?.Redacted();
+        await circleNetwork.PopulateAwaitingAppNamesAsync([redacted], WebOdinContext);
+        return redacted;
     }
 
     [HttpGet("connected")]
@@ -114,12 +121,21 @@ public class V2ConnectionNetworkController(
         var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
         var ownerSide = CallerIsOwnerSideViewer;
 
+        var results = result.Results
+            .Select(p => ownerSide ? p.Redacted() : p.RedactedForExternalViewer())
+            .ToList();
+
+        if (ownerSide)
+        {
+            // One pass for the page: the lookups are memoised across it, and most connections have
+            // nothing awaiting, so this costs nothing for them.
+            await circleNetwork.PopulateAwaitingAppNamesAsync(results, WebOdinContext);
+        }
+
         return new CursoredResult<RedactedIdentityConnectionRegistration>()
         {
             Cursor = result.Cursor,
-            Results = result.Results
-                .Select(p => ownerSide ? p.Redacted() : p.RedactedForExternalViewer())
-                .ToList()
+            Results = results
         };
     }
 
