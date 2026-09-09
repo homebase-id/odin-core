@@ -128,6 +128,26 @@ name denied the identity the certificate it needed for its apex, `capi` and `fil
 The original gate tested whether the mta-sts record *resolves*. Resolving is a weaker
 property than being able to serve the name's challenge, so it did not protect against this.
 
+### Why mta-sts could never validate — the actual root cause
+
+Found on the third review pass, after the fallback below had already been built around it.
+`MtaStsMiddleware` is registered in `Startup` **before** `CertesAcmeMiddleware`, and when
+`Email.TenantMail.Enabled` is true it answers every request on an `mta-sts.*` host: the
+policy file for `/.well-known/mta-sts.txt`, and **404 for everything else** — including
+`/.well-known/acme-challenge/<token>`. `CertificateService` only adds the mta-sts SAN to the
+order when that same flag is on. So in the only configuration that requests the name, the
+challenge for it was refused by our own middleware. Deterministically, on every host, for
+every tenant.
+
+That is why DevOps saw Let's Encrypt *fetch* the challenge and still fail the authorization:
+the request arrived and got a 404. It was never DNS timing. (`RedirectIfNotApexMiddleware`
+avoids the same trap only because it passes plain HTTP through, and HTTP-01 arrives on port
+80.)
+
+The middleware now lets the ACME challenge path through. With that fixed, the optional-SAN
+fallback below is a safety net for a genuinely broken record, not the mechanism by which
+every mail-enabled tenant obtains a certificate.
+
 ## The rules now
 
 ### Issuance never happens on a request path

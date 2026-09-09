@@ -253,6 +253,7 @@ public sealed class CertesAcme : ICertesAcme
         //
         var failures = new List<string>();
         var failureDetail = new List<string>();
+        var timedOut = false;
         foreach (var authz in authzs)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -265,23 +266,43 @@ public sealed class CertesAcme : ICertesAcme
                 resource = await authz.Resource();
             }
 
-            if (resource.Status != AuthorizationStatus.Valid)
+            if (resource.Status == AuthorizationStatus.Valid)
             {
-                // We polled this authorization ourselves, so we know precisely which name failed
-                var name = resource.Identifier?.Value ?? "";
+                continue;
+            }
+
+            var name = resource.Identifier?.Value ?? "";
+            failureDetail.Add($"'{name}' ({resource.Status})");
+
+            if (IsTerminal(resource.Status))
+            {
+                // The CA refused this name. We polled it ourselves, so the attribution is exact.
                 if (!string.IsNullOrWhiteSpace(name))
                 {
                     failures.Add(name);
                 }
-                failureDetail.Add($"'{name}' ({resource.Status})");
+            }
+            else
+            {
+                // Still pending or processing when we gave up waiting. That is our timeout, not
+                // the CA's verdict - it must not be reported as a refusal, or a merely slow
+                // validation of an optional name would trigger the fallback and suppress that
+                // name cluster-wide for a week.
+                timedOut = true;
             }
         }
 
-        if (failureDetail.Count > 0)
+        if (failures.Count > 0)
         {
             throw new AcmeOrderException(
-                $"Failed or timed out validating the challenge for {string.Join(", ", failureDetail)}.",
+                $"The CA refused the challenge for {string.Join(", ", failureDetail)}.",
                 failures);
+        }
+
+        if (timedOut)
+        {
+            throw new AcmeTransientException(
+                $"Timed out waiting for the CA to validate {string.Join(", ", failureDetail)}.");
         }
 
         //
