@@ -1029,24 +1029,66 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration;
     }
 
+    // Long enough for an ACME order, which is the thing being waited on
+    private static readonly TimeSpan InitializeCertificateTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan InitializeCertificateRetryDelay = TimeSpan.FromSeconds(3);
+
     private async Task InitializeCertificate(string domain)
     {
         var httpClient = _httpClientFactory.CreateClient(domain);
-
         var uri = $"https://{domain}:{_config.Host.DefaultHttpsPort}/.well-known/acme-challenge/ping";
-        try
+
+        //
+        // This request exists only to make the host obtain a certificate for the new identity.
+        // It used to do so synchronously: the TLS handshake placed the ACME order inline, so a
+        // single GET came back once the certificate existed. Issuance now happens out of band
+        // (see docs/certificate-issuance-locking.md), so the first attempts are EXPECTED to fail
+        // while the order runs - the handshake asks the background issuer and serves nothing
+        // until it delivers. Retrying until the handshake succeeds keeps the old guarantee that
+        // registration finishes with a usable identity, without putting the order back on the
+        // handshake path.
+        //
+        var deadline = DateTimeOffset.UtcNow + InitializeCertificateTimeout;
+        var attempts = 0;
+
+        while (true)
         {
-            await httpClient.GetAsync(uri);
-        }
-        catch (TaskCanceledException)
-        {
-            _logger.LogWarning("InitializeCertificate took too long to complete and the http request was cancelled");
-        }
-        catch (HttpRequestException e)
-        {
-            // This can happen if a new identity gets created, but the DNS server the backed uses does not yet
-            // know the domain
-            _logger.LogWarning("InitializeCertificate: {error}. Will retry on next request to the domain.", e.Message);
+            attempts++;
+            try
+            {
+                var response = await httpClient.GetAsync(uri);
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation(
+                        "InitializeCertificate: {domain} is serving HTTPS after {attempts} attempt(s)",
+                        domain, attempts);
+                    return;
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                _logger.LogDebug("InitializeCertificate: request to {domain} timed out (attempt {attempts})",
+                    domain, attempts);
+            }
+            catch (HttpRequestException e)
+            {
+                // Expected while the certificate is still being ordered. Also happens when the
+                // DNS server this host uses does not yet know the domain.
+                _logger.LogDebug("InitializeCertificate: {domain} not ready yet (attempt {attempts}): {error}",
+                    domain, attempts, e.Message);
+            }
+
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                _logger.LogWarning(
+                    "InitializeCertificate: {domain} still has no certificate after {timeout}s and {attempts} " +
+                    "attempt(s). The background issuer will keep trying; the identity is not reachable over " +
+                    "HTTPS until it succeeds.",
+                    domain, (int)InitializeCertificateTimeout.TotalSeconds, attempts);
+                return;
+            }
+
+            await Task.Delay(InitializeCertificateRetryDelay);
         }
     }
 

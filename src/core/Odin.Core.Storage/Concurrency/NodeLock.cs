@@ -21,20 +21,6 @@ public sealed class NodeLock : INodeLock
         return new Releaser(disposable);
     }
 
-    public async Task<IAsyncDisposable?> TryLockAsync(
-        NodeLockKey key,
-        TimeSpan? forcedRelease = null,  // ignored in this lock
-        CancellationToken cancellationToken = default)
-    {
-        // Matches RedisLock.TryLockAsync: the two implementations of this interface must not
-        // diverge on an already-cancelled token, or a shutdown that aborts at the lock on a
-        // Redis deployment would proceed into the guarded work on a single-node one.
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var disposable = await _lock.TryLockAsync(key);
-        return disposable == null ? null : new Releaser(disposable);
-    }
-
     private sealed class Releaser(IDisposable disposable) : IAsyncDisposable
     {
         public ValueTask DisposeAsync()

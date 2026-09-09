@@ -276,7 +276,7 @@ namespace Odin.Hosting
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
                 var (cert, requireClientCertificate) =
-                    await ServerCertificateSelector(hostName, odinConfig, serviceProvider, cancellationToken);
+                    await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {
@@ -333,11 +333,12 @@ namespace Odin.Hosting
         // line, because it is paid per connection.
         private static readonly TimeSpan CertificateSelectorSlowThreshold = TimeSpan.FromSeconds(5);
 
+        // NOTE no CancellationToken. Nothing in here may take long enough to need one now that
+        // issuance is out of band, and accepting one invites putting the order back on this path.
         private static async Task<(X509Certificate2 certificate, bool requireClientCertificate)> ServerCertificateSelector(
             string hostName,
             OdinConfiguration config,
-            IServiceProvider serviceProvider,
-            CancellationToken cancellationToken = default)
+            IServiceProvider serviceProvider)
         {
             if (Log.IsEnabled(LogEventLevel.Verbose))
             {
@@ -386,6 +387,7 @@ namespace Odin.Hosting
                 Log.Verbose(
                     "Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host",
                     hostName);
+                WarnIfSlow(hostName, sw);
                 return (null, false);
             }
 
@@ -411,6 +413,7 @@ namespace Odin.Hosting
             if (config.Host.DefaultHttpPort != 80)
             {
                 Log.Error("Lets-encrypt requires port 80 for HTTP-01 challenge");
+                WarnIfSlow(hostName, sw);
                 return (null, false);
             }
 

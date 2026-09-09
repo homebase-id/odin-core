@@ -128,6 +128,26 @@ name denied the identity the certificate it needed for its apex, `capi` and `fil
 The original gate tested whether the mta-sts record *resolves*. Resolving is a weaker
 property than being able to serve the name's challenge, so it did not protect against this.
 
+### Why mta-sts could never validate — the actual root cause
+
+Found on the third review pass, after the fallback below had already been built around it.
+`MtaStsMiddleware` is registered in `Startup` **before** `CertesAcmeMiddleware`, and when
+`Email.TenantMail.Enabled` is true it answers every request on an `mta-sts.*` host: the
+policy file for `/.well-known/mta-sts.txt`, and **404 for everything else** — including
+`/.well-known/acme-challenge/<token>`. `CertificateService` only adds the mta-sts SAN to the
+order when that same flag is on. So in the only configuration that requests the name, the
+challenge for it was refused by our own middleware. Deterministically, on every host, for
+every tenant.
+
+That is why DevOps saw Let's Encrypt *fetch* the challenge and still fail the authorization:
+the request arrived and got a 404. It was never DNS timing. (`RedirectIfNotApexMiddleware`
+avoids the same trap only because it passes plain HTTP through, and HTTP-01 arrives on port
+80.)
+
+The middleware now lets the ACME challenge path through. With that fixed, the optional-SAN
+fallback below is a safety net for a genuinely broken record, not the mechanism by which
+every mail-enabled tenant obtains a certificate.
+
 ## The rules now
 
 ### Issuance never happens on a request path
@@ -196,10 +216,17 @@ now, so a host that terminates TLS with `SystemBackgroundServicesEnabled` false 
 obtain one. Startup logs a warning saying so; it does not refuse to start, because hosts
 serving pre-provisioned certificates legitimately run with background services off.
 
-The pulse is also **throttled to one per domain per minute**. It wakes a whole-registry
-sweep, and the domain comes from attacker-chosen SNI: unthrottled, anyone could drive
-back-to-back sweeps, each doing a registry read, a Redis lock attempt per domain, and an
-authoritative DNS lookup for every tenant still missing its mta-sts SAN.
+The pulse is **floored at one every ten seconds for the whole host**. It wakes a
+whole-registry sweep — a registry read, a certificate-store read per tenant, and an
+authoritative DNS lookup for every tenant still missing its mta-sts SAN — and `SleepAsync`
+returns immediately when the wake event is already set, so unthrottled pulses run sweeps back
+to back. A per-domain throttle was tried alongside this and removed: it bounds one domain
+while still admitting one pulse per domain per minute, so the global floor is the bound that
+actually holds.
+
+This is a limit on ordinary traffic, not a defence. `ServerCertificateSelector` only reaches
+`RequestIssuanceAsync` after the host has recognised the domain as one of its own, so the
+reachable set is domains this host already serves that currently have no certificate.
 
 `CreateCertificateAsync` is the opposite: it blocks for the whole order and is
 **background-only**. Its cancellation token must have application lifetime.
@@ -226,18 +253,18 @@ handle. The lock is therefore taken with a 20-minute forced release, not the 10-
 default, which would expire mid-order and let a second node order the same domain
 concurrently: double the CA spend, and a duplicate certificate.
 
-### `INodeLock.TryLockAsync`
+### The order lock is an ordinary blocking lock
 
-Added for exactly this shape of problem: acquire if free right now, otherwise return
-null. Use it on any latency-sensitive path where waiting out a contended lock buys
-nothing.
+`TryLockAsync` was added in the first fix and **reverted**. Its justification was the
+handshake stall, and once issuance moved off the handshake path the only callers left were
+background work, where waiting costs nothing. What it cost was a new primitive resting on
+undocumented Nito `AsyncLock` behaviour: if a package bump ever changed the fast path, it
+would silently never acquire, `CreateCertificateAsync` and `RenewIfAboutToExpireAsync` would
+both return null forever, and **no certificate would ever be ordered again** — visible only
+as a debug line. A latent total outage in exchange for tidier logs.
 
-`RedisLock` implements it as a single `SET NX`. `NodeLock` implements it via
-`KeyedAsyncLock.TryLockAsync`, which leans on an implementation detail of Nito's
-`AsyncLock` (it takes a free lock synchronously and only consults the cancellation
-token when it would have to queue). `KeyedAsyncLockTests.TryLockAsync_*` exist
-specifically to fail loudly if that ever stops being true — without them, the handshake
-path would silently stop issuing certificates.
+Both callers now use `LockAsync` and treat a timeout as "somebody else is already ordering
+for this domain", which is what it means.
 
 ### Failed orders back off
 
@@ -335,9 +362,8 @@ Where else to look:
 - `src/services/Odin.Services/Certificate/CertesAcme.cs` — CA error classification
 - `src/services/Odin.Services/Certificate/AcmeExceptions.cs` — `AcmeOrderException`,
   `AcmeRateLimitedException`
-- `src/core/Odin.Core.Storage/Concurrency/RedisLock.cs` — try-lock, owner token,
-  hold-time diagnostics
-- `src/core/Odin.Core/Threading/KeyedAsyncLock.cs` — `TryLockAsync`
+- `src/core/Odin.Core.Storage/Concurrency/RedisLock.cs` — owner token, hold-time
+  diagnostics
 - `src/apps/Odin.Hosting/Program.cs` — `ServerCertificateSelector`
 
 **Gotcha when changing `RedisLock`:** it is a whitelisted singleton in

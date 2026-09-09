@@ -148,6 +148,19 @@ public sealed class CertesAcme : ICertesAcme
     // urn:ietf:params:acme:error:rateLimited is per-hostname and per-hour at Let's Encrypt
     // (5 failed authorizations / hostname / hour), so an hour is the correct wait.
     // https://letsencrypt.org/docs/rate-limits/
+    //
+    // A verdict, not a stage. Polling on past one of these just burns a minute per name - and
+    // now that every authorization is checked before throwing, a four-name order where all four
+    // fail would otherwise sit in Task.Delay for four minutes while holding the order lock.
+    //
+    private static bool IsTerminal(AuthorizationStatus? status) =>
+        status is AuthorizationStatus.Invalid
+            or AuthorizationStatus.Revoked
+            or AuthorizationStatus.Deactivated
+            or AuthorizationStatus.Expired;
+
+    //
+
     private const string AcmeRateLimitedErrorType = "urn:ietf:params:acme:error:rateLimited";
     private static readonly TimeSpan DefaultRateLimitRetryAfter = TimeSpan.FromHours(1);
 
@@ -240,35 +253,56 @@ public sealed class CertesAcme : ICertesAcme
         //
         var failures = new List<string>();
         var failureDetail = new List<string>();
+        var timedOut = false;
         foreach (var authz in authzs)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var resource = await authz.Resource();
             var maxAttempts = 60;
-            while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid)
+            while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid && !IsTerminal(resource.Status))
             {
                 await Task.Delay(1000, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 resource = await authz.Resource();
             }
 
-            if (resource.Status != AuthorizationStatus.Valid)
+            if (resource.Status == AuthorizationStatus.Valid)
             {
-                // We polled this authorization ourselves, so we know precisely which name failed
-                var name = resource.Identifier?.Value ?? "";
+                continue;
+            }
+
+            var name = resource.Identifier?.Value ?? "";
+            failureDetail.Add($"'{name}' ({resource.Status})");
+
+            if (IsTerminal(resource.Status))
+            {
+                // The CA refused this name. We polled it ourselves, so the attribution is exact.
                 if (!string.IsNullOrWhiteSpace(name))
                 {
                     failures.Add(name);
                 }
-                failureDetail.Add($"'{name}' ({resource.Status})");
+            }
+            else
+            {
+                // Still pending or processing when we gave up waiting. That is our timeout, not
+                // the CA's verdict - it must not be reported as a refusal, or a merely slow
+                // validation of an optional name would trigger the fallback and suppress that
+                // name cluster-wide for a week.
+                timedOut = true;
             }
         }
 
-        if (failureDetail.Count > 0)
+        if (failures.Count > 0)
         {
             throw new AcmeOrderException(
-                $"Failed or timed out validating the challenge for {string.Join(", ", failureDetail)}.",
+                $"The CA refused the challenge for {string.Join(", ", failureDetail)}.",
                 failures);
+        }
+
+        if (timedOut)
+        {
+            throw new AcmeTransientException(
+                $"Timed out waiting for the CA to validate {string.Join(", ", failureDetail)}.");
         }
 
         //
