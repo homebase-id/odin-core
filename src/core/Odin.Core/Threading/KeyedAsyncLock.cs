@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Threading;
 
+#nullable enable
+
 public sealed class KeyedAsyncLock
 {
     // SEB:NOTE we can't use a ConcurrentDictionary because the delegates called in AddOrUpdate and GetOrAdd

@@ -276,7 +276,7 @@ namespace Odin.Hosting
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
                 var (cert, requireClientCertificate) =
-                    await ServerCertificateSelector(hostName, odinConfig, serviceProvider, cancellationToken);
+                    await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {
@@ -317,17 +317,39 @@ namespace Odin.Hosting
 
         //         
 
-        private static readonly string[] NoSans = [];
+        private static void WarnIfSlow(string hostName, Stopwatch sw)
+        {
+            if (sw.Elapsed > CertificateSelectorSlowThreshold)
+            {
+                Log.Warning(
+                    "Certificate lookup for {hostName} took {elapsed}s on the TLS handshake path",
+                    hostName, sw.ElapsedMilliseconds / 1000.0);
+            }
+        }
+
+        //
+
+        // The handshake timeout is 60s; anything on this path that takes seconds is worth a log
+        // line, because it is paid per connection.
+        private static readonly TimeSpan CertificateSelectorSlowThreshold = TimeSpan.FromSeconds(5);
+
+        // NOTE no CancellationToken. Nothing in here may take long enough to need one now that
+        // issuance is out of band, and accepting one invites putting the order back on this path.
         private static async Task<(X509Certificate2 certificate, bool requireClientCertificate)> ServerCertificateSelector(
             string hostName,
             OdinConfiguration config,
-            IServiceProvider serviceProvider,
-            CancellationToken cancellationToken = default)
+            IServiceProvider serviceProvider)
         {
             if (Log.IsEnabled(LogEventLevel.Verbose))
             {
                 Log.Verbose("Getting certificate for {host}", hostName);
             }
+
+            // Times the WHOLE selector. Bracketing only the issuance request would measure the
+            // one call that cannot be slow (it is Task.FromResult by construction) and miss the
+            // registry resolve and the certificate store read - which misses the store's cache
+            // and does a scoped DB read on every connection to a certless domain.
+            var sw = Stopwatch.StartNew();
 
             if (string.IsNullOrWhiteSpace(hostName))
             {
@@ -365,6 +387,7 @@ namespace Odin.Hosting
                 Log.Verbose(
                     "Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host",
                     hostName);
+                WarnIfSlow(hostName, sw);
                 return (null, false);
             }
 
@@ -376,35 +399,63 @@ namespace Odin.Hosting
             var certificate = await certificateService.GetCertificateAsync(domain);
             if (certificate != null)
             {
+                WarnIfSlow(hostName, sw);
                 return (certificate, requireClientCertificate);
             }
 
             // 
-            // Tenant or system found, but no certificate. Create it.
+            // Tenant or system found, but no certificate yet. Ask for one to be issued.
+            // The SAN set is decided by the background issuer, which is the only thing that
+            // orders now, so it is not worked out here any more.
             //
 
             // Sanity #1
             if (config.Host.DefaultHttpPort != 80)
             {
                 Log.Error("Lets-encrypt requires port 80 for HTTP-01 challenge");
+                WarnIfSlow(hostName, sw);
                 return (null, false);
             }
 
-            var sans = NoSans;
-            if (idReg != null)
+            //
+            // NOTE: this is the TLS handshake path, one call per inbound connection, and it is
+            // bounded by a 60s handshake deadline (see handshakeTimeoutTimeSpan above). It must
+            // never place the ACME order itself. An order takes minutes; running it here means
+            // the connection that starts it stalls until the deadline kills it, mid-order, after
+            // the CA has already been asked to validate - which spends the rate-limit allowance
+            // and yields nothing. That was the 2026-09-08 incident. Ask the background issuer
+            // instead and serve nothing this time round; the client retries and finds the
+            // certificate waiting.
+            //
+            var issuanceRequested = false;
+            try
             {
-                sans = idReg.GetSans();
+                issuanceRequested = await certificateService.RequestIssuanceAsync(domain);
+            }
+            catch (OperationCanceledException)
+            {
+                return (null, false);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Error requesting certificate for {hostName}: {error}", hostName, e.Message);
+                return (null, false);
             }
 
-            certificate = await certificateService.CreateCertificateAsync(domain, sans, cancellationToken);
+            WarnIfSlow(hostName, sw);
 
-            // Sanity #2
-            if (certificate == null)
+            if (issuanceRequested)
             {
-                Log.Warning("No certificate configured for {hostName}", hostName);
+                Log.Warning("No certificate yet for {hostName}; issuance requested", hostName);
+            }
+            else
+            {
+                // Suppressed by backoff or throttle - saying "issuance requested" here would
+                // misdescribe what happened, once per connection, for as long as it lasts.
+                Log.Debug("No certificate for {hostName}; issuance not requested this time", hostName);
             }
 
-            return (certificate, requireClientCertificate);
+            return (null, false);
         }
 
         //

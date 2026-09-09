@@ -127,6 +127,28 @@ public class RedisLockTests
     //
 
     [Test]
+    public async Task LockAsync_TimeoutMessage_NamesTheHolder()
+    {
+        await RegisterServicesAsync();
+
+        var lockKey = NodeLockKey.Create("testlock1");
+        var redisLock = _services!.Resolve<INodeLock>();
+
+        await using (await redisLock.LockAsync(lockKey, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(60)))
+        {
+            var ex = Assert.ThrowsAsync<RedisLockException>(async () =>
+                await redisLock.LockAsync(lockKey, TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(60)));
+
+            Assert.That(ex!.Message, Does.Contain(Environment.MachineName),
+                "The timeout message must identify the process holding the lock");
+            Assert.That(ex.Message, Does.Contain("expires in"),
+                "The timeout message must say how long the lock still has to live");
+        }
+    }
+
+    //
+
+    [Test]
     public async Task LockAsync_AllowsSequentialLocking()
     {
         await RegisterServicesAsync();

@@ -15,7 +15,7 @@ using Odin.Services.Drives.Management;
 namespace Odin.Services.Drives.FileSystem.Standard
 {
     public class StandardFileDriveStorageService(
-        ILoggerFactory loggerFactory,
+        ILogger<DriveStorageServiceBase> logger,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
@@ -28,7 +28,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
         UploadFileStore uploadFileStore,
         FileExpiryScheduler fileExpiryScheduler)
         : DriveStorageServiceBase(
-            loggerFactory,
+            logger,
             mediator,
             driveAclAuthorizationService,
             driveManager,
