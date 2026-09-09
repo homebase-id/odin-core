@@ -698,10 +698,20 @@ namespace Odin.Services.Membership.Connections
 
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
 
-            // The owner chose a circle this caller cannot grant -- typically another app's, whose drives
-            // it cannot read. Record the intent so the app that can grant it may finish later, rather than
-            // failing an act the owner was entitled to perform. Recording confers nothing: whoever
-            // processes the entry re-checks scope then.
+            // A circle with no owning app is the owner's own, and an app has no business putting anyone
+            // into one: nothing an app does should leave the contact waiting on the owner opening their
+            // console. Apps are not shown these circles either
+            // (CircleMembershipService.GetCircleDefinitions), so a well-behaved client never asks.
+            if (!circleDefinition.AppId.HasValue && odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot add {odinId} to circle {circleId}; it belongs to the owner, not to an app");
+            }
+
+            // The owner chose a circle this caller cannot grant -- another app's, whose drives it cannot
+            // read. Record the intent so the app that can grant it may finish later, rather than failing an
+            // act the owner was entitled to perform. Recording confers nothing: whoever processes the entry
+            // re-checks scope then.
             if (enqueueWhenOutOfReach && !odinContext.Caller.HasMasterKey &&
                 !await CallerCanGrantCircleAsync(circleDefinition, odinContext))
             {

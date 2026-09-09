@@ -194,6 +194,8 @@ public class DepositConversionPrePassTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "readDrive", allowAnonymousReads: false);
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "read-circle", new PermissionSetGrantRequest
         {
@@ -202,10 +204,10 @@ public class DepositConversionPrePassTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         return (drive, circle, app);
     }

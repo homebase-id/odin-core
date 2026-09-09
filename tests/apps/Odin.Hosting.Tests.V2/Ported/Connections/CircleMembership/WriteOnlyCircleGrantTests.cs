@@ -82,6 +82,8 @@ public class WriteOnlyCircleGrantTests : V2Fixture
 
         // Write-only circle, but on a drive the app has nothing on.  Minting needs no key here, so
         // nothing cryptographic stops it -- only the scope check does, which is why it exists.
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "out-of-scope-write", new PermissionSetGrantRequest
         {
@@ -97,10 +99,10 @@ public class WriteOnlyCircleGrantTests : V2Fixture
                 }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Write,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circle, sam.Identity);
         Assert.That(response.IsSuccessStatusCode, Is.False,
@@ -122,6 +124,8 @@ public class WriteOnlyCircleGrantTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "drive", allowAnonymousReads: false);
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "write-only", new PermissionSetGrantRequest
         {
@@ -137,10 +141,11 @@ public class WriteOnlyCircleGrantTests : V2Fixture
                 }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         // Drive access alone is not enough; needing no Peer Key does not mean needing no permission.
-        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Write, permissionKeys: Array.Empty<int>());
+        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Write,
+            permissionKeys: Array.Empty<int>(), knownAppId: appId);
 
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circle, sam.Identity);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
@@ -161,6 +166,8 @@ public class WriteOnlyCircleGrantTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "chat-shaped", allowAnonymousReads: false);
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "chat-shaped-circle", new PermissionSetGrantRequest
         {
@@ -176,10 +183,10 @@ public class WriteOnlyCircleGrantTests : V2Fixture
                 }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Write | DrivePermission.React,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         return (drive, circle, app);
     }

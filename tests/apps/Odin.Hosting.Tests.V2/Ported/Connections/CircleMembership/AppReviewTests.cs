@@ -81,6 +81,8 @@ public class AppReviewTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "chatDrive", allowAnonymousReads: false);
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "chat-shaped", new PermissionSetGrantRequest
         {
@@ -96,10 +98,10 @@ public class AppReviewTests : V2Fixture
                 }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Write | DrivePermission.React,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [circle]);
@@ -129,6 +131,8 @@ public class AppReviewTests : V2Fixture
         var otherDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(otherDrive, "otherDrive", allowAnonymousReads: false);
 
+        // Owned by some other app: a circle owned by no app can never be queued, because no app's
+        // queue would claim it.
         var outOfReachCircle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(outOfReachCircle, "out-of-reach", new PermissionSetGrantRequest
         {
@@ -137,7 +141,7 @@ public class AppReviewTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: Guid.NewGuid());
 
         var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [reachableCircle, outOfReachCircle]);
@@ -155,8 +159,8 @@ public class AppReviewTests : V2Fixture
         var enqueued = icr.PeerKeyStore.PendingEnrollments.SingleOrDefault(p => p.CircleId == outOfReachCircle);
         Assert.That(enqueued, Is.Not.Null, "the out-of-reach circle should have been enqueued");
         Assert.That(enqueued!.RequestedByAppId, Is.EqualTo(app.AppId), "provenance: which app recorded it");
-        Assert.That(enqueued.OwningAppId, Is.Null,
-            "this one is an owner circle, so only the owner can complete it; an app-owned circle would name its app");
+        Assert.That(enqueued.OwningAppId, Is.Not.Null.And.Not.EqualTo(app.AppId),
+            "queued for the app that owns the circle, which is not the one that performed the review");
 
         Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(outOfReachCircle), Is.False,
             "enqueuing must grant nothing");
@@ -177,6 +181,8 @@ public class AppReviewTests : V2Fixture
 
         var otherDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(otherDrive, "otherDrive", allowAnonymousReads: false);
+        // Owned by some other app: a circle owned by no app can never be queued, because no app's
+        // queue would claim it.
         var outOfReachCircle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(outOfReachCircle, "out-of-reach", new PermissionSetGrantRequest
         {
@@ -185,7 +191,7 @@ public class AppReviewTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: Guid.NewGuid());
 
         await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [reachableCircle, outOfReachCircle]);
@@ -412,8 +418,13 @@ public class AppReviewTests : V2Fixture
     /// <see cref="SetupAppWithReadCircleAsync"/> has nothing on -- the shape of another app's circle
     /// ticked from this one's review dialog.
     /// </summary>
+    /// <param name="owningAppId">
+    /// The app this circle belongs to.  It has to belong to one: a circle owned by no app can never be
+    /// queued, because no app's queue would claim it.  Defaults to an id standing in for some other
+    /// installed app -- the reviewing app is not it, which is the point.
+    /// </param>
     private static async Task<(Guid circle, TargetDrive drive)> CreateOutOfReachCircleAsync(
-        OwnerSession frodo, string name)
+        OwnerSession frodo, string name, Guid? owningAppId = null)
     {
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, $"{name}Drive", allowAnonymousReads: false);
@@ -426,7 +437,7 @@ public class AppReviewTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: owningAppId ?? Guid.NewGuid());
 
         return (circle, drive);
     }
@@ -437,6 +448,8 @@ public class AppReviewTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "readDrive", allowAnonymousReads: false);
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "read-circle", new PermissionSetGrantRequest
         {
@@ -445,10 +458,10 @@ public class AppReviewTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         return (drive, circle, app);
     }

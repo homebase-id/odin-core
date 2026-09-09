@@ -51,6 +51,8 @@ public class PeerCatConversionTests : V2Fixture
         // write-only circle would be minted outright and never come near the conversion this test is
         // about (see WriteOnlyCircleGrantTests). The app can read appDrive, so it can source the key
         // to seal.
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circleX = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleX, "circleX", new PermissionSetGrantRequest
         {
@@ -59,13 +61,14 @@ public class PeerCatConversionTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = appDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
-        });
+        }, appId: appId);
 
         // A Chat-shaped app on Frodo: ManageCircleMembership to deposit, AuthorizedCircles=[circleX],
         // and a CircleMemberPermissionGrant of Write|React (no Read) on appDrive — mirrors
         // SystemAppConstants.ChatAppRegistrationRequest's pattern.
         var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
             permissionKeys: new[] { PermissionKeys.ManageCircleMembership },
+            knownAppId: appId,
             authorizedCircles: new List<Guid> { circleX },
             circleMemberGrantRequest: new PermissionSetGrantRequest
             {
@@ -160,6 +163,8 @@ public class PeerCatConversionTests : V2Fixture
         var trigger = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "trigger");
 
         // Read, so that this is a deposit rather than a direct mint — see the note on circleX above.
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circleY = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleY, "circleY-doomed", new PermissionSetGrantRequest
         {
@@ -168,10 +173,10 @@ public class PeerCatConversionTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = trigger, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, trigger, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleY, sam.Identity);
         Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
@@ -212,6 +217,8 @@ public class PeerCatConversionTests : V2Fixture
         // Frodo's conversion of whatever he holds pending about her.
         var trigger = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "trigger");
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        var appId = Guid.NewGuid();
         var circleY = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleY, "circleY", new PermissionSetGrantRequest
         {
@@ -220,10 +227,10 @@ public class PeerCatConversionTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = trigger, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, trigger, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleY, sam.Identity);
         Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
@@ -239,7 +246,7 @@ public class PeerCatConversionTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: Guid.NewGuid());
 
         var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [awaitingCircle]);

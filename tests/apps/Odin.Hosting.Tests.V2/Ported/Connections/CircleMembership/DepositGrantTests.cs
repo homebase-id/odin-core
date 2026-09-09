@@ -43,6 +43,9 @@ public class DepositGrantTests : V2Fixture
         var driveA = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(driveA, "driveA", allowAnonymousReads: false);
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app, so an owner
+        // circle here would fail on ownership before reaching what this test is about.
+        var appId = Guid.NewGuid();
         var circleA = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleA, "circleA", new PermissionSetGrantRequest
         {
@@ -51,10 +54,11 @@ public class DepositGrantTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = driveA, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         // App has matching drive access but NOT the ManageCircleMembership permission key.
-        var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read, permissionKeys: Array.Empty<int>());
+        var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read,
+            permissionKeys: Array.Empty<int>(), knownAppId: appId);
 
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleA, sam.Identity);
 
@@ -103,6 +107,9 @@ public class DepositGrantTests : V2Fixture
         await frodo.Admin.CreateDrive(driveOutOfScope, "driveOOS", allowAnonymousReads: false);
 
         // Circle spans two drives; the app is only granted one of them.
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app, so an owner
+        // circle here would fail on ownership before reaching what this test is about.
+        var appId = Guid.NewGuid();
         var circleMulti = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleMulti, "circleMulti", new PermissionSetGrantRequest
         {
@@ -112,10 +119,10 @@ public class DepositGrantTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = driveOutOfScope, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleMulti, sam.Identity);
         Assert.That(response.IsSuccessStatusCode, Is.False, "deposit spanning an out-of-scope drive must fail entirely");
@@ -255,6 +262,9 @@ public class DepositGrantTests : V2Fixture
         var driveA = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(driveA, "driveA", allowAnonymousReads: false);
 
+        // App-owned: an app cannot enrol anyone into a circle that belongs to no app, so an owner
+        // circle here would fail on ownership before reaching what this test is about.
+        var appId = Guid.NewGuid();
         var circleA = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleA, "circleA", new PermissionSetGrantRequest
         {
@@ -263,10 +273,10 @@ public class DepositGrantTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = driveA, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
+        }, appId: appId);
 
         var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         return (driveA, circleA, app);
     }
