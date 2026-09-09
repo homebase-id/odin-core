@@ -144,9 +144,13 @@ the request arrived and got a 404. It was never DNS timing. (`RedirectIfNotApexM
 avoids the same trap only because it passes plain HTTP through, and HTTP-01 arrives on port
 80.)
 
-The middleware now lets the ACME challenge path through. With that fixed, the optional-SAN
-fallback below is a safety net for a genuinely broken record, not the mechanism by which
-every mail-enabled tenant obtains a certificate.
+The middleware now lets the ACME challenge path through. The optional-SAN fallback that #1715
+had built around this — dropping refused optional names and re-ordering, with a persisted
+seven-day suppression to stop the renewal loop that created — was **removed** once the real
+cause was found. It was ~200 lines, it was where three review rounds concentrated their
+findings, and its most fragile part scanned Let's Encrypt's human-readable error text for
+hostnames. With the challenge answerable, the DNS-resolves gate is the protection that remains:
+an optional name joins the order only when its record points here.
 
 ## The rules now
 
@@ -172,30 +176,6 @@ in-memory and dies with the process.
 
 The retry loop is gone. Every iteration called `NewOrder` and created a fresh set of
 authorizations; re-attempts belong to the backoff, which is spaced to respect the CA's limit.
-
-### An optional name may not sink the order
-
-If the CA's refusal names optional SANs and no required name, the optional names are dropped
-and the order is placed once more. Ordering again immediately is safe precisely because the
-names that remain are not the ones being refused. Working out which names a refusal
-implicates uses `AcmeError.Subproblems` where the CA provides them, and otherwise the
-hostname the CA writes into the detail text.
-
-Having dropped an optional name, it must not be asked for again straight away. The
-certificate is now missing a SAN that `NeedsRenewalAsync` thinks it ought to have, so the
-next sweep would renew to re-add it, fail, drop it, and issue *another* certificate - a
-duplicate every 12 hours, against a Let's Encrypt limit of five duplicates (identical name
-set) per week. Optional names are therefore suppressed for seven days after a refusal, which
-holds it to one. The suppression is **persisted in the shared system database**, not held in
-memory: the limit it protects is enforced by the CA against the whole cluster, so a node-local
-memory would let a second node renew straight back into the same refusal, and would re-arm the
-loop on every restart.
-
-**Beware the suffix trap.** Every SAN has the apex as a suffix, so
-`mta-sts.example.com` *contains* `example.com`. A substring test reads a complaint about the
-optional name as a complaint about the apex as well, concludes a required name was refused,
-and switches the fallback off in exactly the case it exists for. `MentionsName` matches on
-label boundaries for this reason, and is tested for it.
 
 ### Nothing on a request path waits, for anything
 
@@ -245,14 +225,6 @@ ordering for the same domain, so waiting only risks a timeout and an alarming lo
 fast and the client must retry, rather than one request blocking until the certificate
 exists. In practice that blocking request never succeeded — it stalled 60s and died.
 
-### The order lock outlives two orders
-
-`CertesAcme` polls each authorization up to 60 x 1s and then the order up to another 60 x 1s,
-so a four-name order can run ~300s — and the optional-SAN fallback can place two under one
-handle. The lock is therefore taken with a 20-minute forced release, not the 10-minute
-default, which would expire mid-order and let a second node order the same domain
-concurrently: double the CA spend, and a duplicate certificate.
-
 ### The order lock is an ordinary blocking lock
 
 `TryLockAsync` was added in the first fix and **reverted**. Its justification was the
@@ -271,11 +243,16 @@ for this domain", which is what it means.
 `CertificateService` keeps a per-domain backoff window and refuses to start a new
 order inside it:
 
-- **exponentially**: 5 minutes, then 10, 20, 40, capped at an hour,
-- **30 seconds** for a transient CA error (`badNonce`, `serverInternal`), which RFC 8555
-  expects to be retried and which says nothing about the domain, so it does not escalate
-  the schedule,
+- **exponentially**: 5 minutes, then 10, 20, 40, capped at an hour, for a failure the CA
+  handed down — that is the schedule sized for the allowance it spent,
+- **on a short schedule**, 30 seconds doubling to a 5-minute cap, for a *transient* failure:
+  `badNonce`, `serverInternal`, a network error or timeout reaching the CA, a validation we
+  gave up waiting for, or the pre-order DNS gate. None of these spent allowance and RFC 8555
+  expects them retried. They still escalate, so a CA outage is not asked sixty times an hour,
 - **the CA's own hour** when Let's Encrypt says `rateLimited`.
+
+One counter drives both schedules: a domain that keeps failing, whatever the cause, earns
+more caution.
 
 A flat five minutes was twelve attempts an hour, against an allowance of five failed
 authorizations per hostname per hour — it breached the very limit it existed to protect.
@@ -313,18 +290,37 @@ The rule: **an order the CA has already rejected on its merits must not be place
 again in a tight loop.** Retrying it is not merely useless, it is what converts a few
 minutes of DNS lag into an hour of rate-limited failure.
 
-## Clearing an optional-SAN suppression
+## Testing against Let's Encrypt staging
 
-Suppression survives a restart and is shared across nodes, so bouncing the service no longer
-clears it. If the `mta-sts` record has been fixed and the tenant should get the SAN back
-before the seven days elapse, delete its row from the system database:
+Set `CertificateRenewal:UseCertificateAuthorityProductionServers` to `false`
+(`CertificateRenewal__UseCertificateAuthorityProductionServers=false` as an environment
+variable). `CertesAcme` then orders from `WellKnownServers.LetsEncryptStagingV2`, whose rate
+limits are far higher than production's. *(That the limits are higher is Let's Encrypt's
+documented behaviour, not something this repository establishes.)*
 
-```sql
-DELETE FROM Settings WHERE key = 'optional-sans-suppressed:<domain>';
-```
+What the code guarantees, and what it does not:
 
-The next order will ask for the optional name again. Expired rows are deleted automatically
-the next time that domain is checked, so this is only needed to cut the window short.
+- **ACME accounts are separated.** `CertificateService` stores the account key under
+  `acme-account-staging-pem` or `acme-account-prod-pem`, so flipping the switch never touches
+  the production account.
+- **The switch is host-wide.** Every certificate the host orders while it is false is a staging
+  certificate. Setting it false also turns on `AllowUntrustedServerCertificate` in the HTTP
+  client factories and the peer CAPI handler, and turns off HSTS. Use a host serving only
+  throwaway identities.
+- **A staging certificate overwrites the production one.** `CertificateStore.PutCertificateAsync`
+  upserts by domain. Any domain issued during the test loses its trusted certificate row.
+- **A domain that already holds a valid certificate is not re-ordered.** Renewal fires only
+  within seven days of expiry, or when a tenant certificate lacks the mta-sts SAN while tenant
+  mail is on. A system domain carries no SANs, so a provisioning host's own certificate is
+  safe unless it is about to expire — check `NotAfter` before assuming.
+- **Switching back does not re-issue.** For the same reason: the staging certificate is valid
+  for 90 days, so nothing triggers renewal. Delete the certificate row for each domain issued
+  during the test to force a production order.
+- `SystemBackgroundServicesEnabled` must be true on the host — the background issuer is the
+  only thing that orders — and port 80 must be reachable for HTTP-01.
+
+Restore checklist: set the switch back to `true` → delete the certificate rows for every
+domain issued while it was `false` → deploy. There is no other persisted state to clear.
 
 ## Diagnosing a stuck certificate lock
 
@@ -378,9 +374,11 @@ green.
 
 ## Reproducing
 
-Provision an identity whose DNS records are not yet all live — or exhaust the LE
-failed-authorization allowance for a hostname — then make HTTPS requests to it.
-Before the fix each request hung ~30s and logged a `RedisLockException` from
-`ServerCertificateSelector`. After it, the first request attempts issuance once,
-records the failure, and every request for the next 5 minutes (or the hour LE asked
-for) returns without locking, without a DNS lookup, and without a new order.
+Provision an identity on a host with tenant mail enabled and watch the order. Before the
+middleware fix the `mta-sts` authorization failed every time — Let's Encrypt fetched the
+challenge and received a 404 from `MtaStsMiddleware` — and the whole certificate failed with
+it. After it, the order completes with all four names.
+
+For the handshake stall: make HTTPS requests to an identity that has no certificate. The
+handshake must return promptly with no certificate (the client sees a dropped connection and
+retries), never wait, and never log `took … on the TLS handshake path`.

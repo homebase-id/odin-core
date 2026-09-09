@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Odin.Core.Exceptions;
 
 namespace Odin.Services.Certificate;
@@ -12,16 +11,7 @@ namespace Odin.Services.Certificate;
 /// harmful - every retry is a fresh order, and Let's Encrypt counts failed authorizations
 /// against a per-hostname hourly allowance.
 /// </summary>
-public class AcmeOrderException(string message, IReadOnlyCollection<string>? failedIdentifiers = null)
-    : OdinSystemException(message)
-{
-    /// <summary>
-    /// The names the CA actually complained about, where it told us. Empty when it did not.
-    /// A certificate order is all-or-nothing, so knowing WHICH name failed is the difference
-    /// between dropping one optional SAN and denying the identity every certificate it needs.
-    /// </summary>
-    public IReadOnlyCollection<string> FailedIdentifiers { get; } = failedIdentifiers ?? [];
-}
+public class AcmeOrderException(string message) : OdinSystemException(message);
 
 //
 
@@ -29,11 +19,7 @@ public class AcmeOrderException(string message, IReadOnlyCollection<string>? fai
 /// The CA is refusing orders for this name because a rate limit has been hit. Nothing will
 /// change until <see cref="RetryAfter"/> has elapsed.
 /// </summary>
-public class AcmeRateLimitedException(
-    string message,
-    TimeSpan retryAfter,
-    IReadOnlyCollection<string>? failedIdentifiers = null)
-    : AcmeOrderException(message, failedIdentifiers)
+public class AcmeRateLimitedException(string message, TimeSpan retryAfter) : AcmeOrderException(message)
 {
     public TimeSpan RetryAfter { get; } = retryAfter;
 }
@@ -41,8 +27,8 @@ public class AcmeRateLimitedException(
 //
 
 /// <summary>
-/// A routine, retryable hiccup from the CA - a stale nonce, or a server-side blip. RFC 8555
-/// expects these to be retried and they say nothing about the order, so they must not escalate
-/// a domain up the failure backoff schedule.
+/// A routine, retryable hiccup - a stale nonce, a server-side blip, a timeout waiting for
+/// validation. RFC 8555 expects these to be retried and they say nothing about the domain, so
+/// they take the short backoff schedule rather than the one sized for CA allowance spend.
 /// </summary>
 public class AcmeTransientException(string message) : OdinSystemException(message);

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Net.Http;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -52,8 +51,12 @@ public class CertificateService : ICertificateService
     // Exponential: 5m, 10m, 20m, 40m, then capped at an hour. A flat 5 minutes is twelve
     // attempts an hour against a Let's Encrypt allowance of five failed authorizations per
     // hostname per hour - it would breach the very limit it exists to protect.
-    // A badNonce or a server-side blip is routine and says nothing about this order
-    private static readonly TimeSpan TransientFailureBackoff = TimeSpan.FromSeconds(30);
+    // A transient failure - a stale nonce, a server-side blip, a network error, a DNS record
+    // that is not right yet - says nothing about the CA's opinion of this domain and never spent
+    // its allowance. It gets its own, much shorter schedule: 30s doubling to a 5-minute cap.
+    // It still escalates, so a CA that is down for an hour is not asked sixty times.
+    private static readonly TimeSpan InitialTransientBackoff = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan MaxTransientBackoff = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan InitialFailureBackoff = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MaxFailureBackoff = TimeSpan.FromHours(1);
     private readonly ConcurrentDictionary<string, BackoffState> _backoff = new(StringComparer.OrdinalIgnoreCase);
@@ -93,28 +96,11 @@ public class CertificateService : ICertificateService
     // that have gone away do not accumulate.
     private static readonly TimeSpan BackoffForgottenAfter = TimeSpan.FromHours(6);
 
-    //
-    // The order lock must outlive the work it guards. CertesAcme polls each authorization up to
-    // 60 x 1s and then the order up to another 60 x 1s, so apex + capi + file + mta-sts is
-    // roughly 300s per order - and the optional-SAN fallback can place two orders under one
-    // handle. The 10-minute default would expire mid-order, letting a second node acquire the
-    // lock and order the same domain concurrently: double the CA spend and a duplicate
-    // certificate.
-    //
-    private static readonly TimeSpan OrderLockDuration = TimeSpan.FromMinutes(20);
-
     // How long to wait for another worker's order before giving up and letting the next sweep
-    // handle it. Must be less than OrderLockDuration; RedisLock enforces that.
+    // handle it. Must be less than the lock's forced release - RedisLock's 10-minute default,
+    // which comfortably outlives one order now that the authorization poll stops on a terminal
+    // status. RedisLock enforces the inequality.
     private static readonly TimeSpan OrderLockTimeout = TimeSpan.FromSeconds(30);
-
-    //
-    // Persisted in the shared system database, NOT node-local. The limit it protects is enforced
-    // by the CA against the whole cluster: if node B does not know node A dropped the name, B's
-    // next sweep renews to re-add it, fails, drops it and mints another duplicate - exactly the
-    // loop this window exists to break. A node-local memory would also re-arm that loop on every
-    // restart and redeploy.
-    //
-    private static readonly TimeSpan OptionalSanSuppression = TimeSpan.FromDays(7);
 
     public CertificateService(
         ILogger<CertificateService> logger,
@@ -385,8 +371,6 @@ public class CertificateService : ICertificateService
             return null;
         }
 
-        var optionalSans = Array.Empty<string>();
-
         try
         {
             if (sans.Length > 0) // don't verify system domains (e.g. provisioning, admin, etc)
@@ -396,7 +380,9 @@ public class CertificateService : ICertificateService
                 {
                     var error = $"Cannot create certificate for {domain}. One or more DNS records are incorrect.";
                     _logger.LogWarning("{error}", error);
-                    await NoteFailureAsync(domain, error);
+                    // Never reached the CA, so the CA-spend schedule is the wrong one. This is the
+                    // failure an operator fixes and wants noticed promptly.
+                    await NoteFailureAsync(domain, error, transient: true);
                     return null;
                 }
 
@@ -404,13 +390,9 @@ public class CertificateService : ICertificateService
                 // actually resolves AND the feature that needs them is on: the CA fails the
                 // WHOLE order if one name cannot validate, and manual-records tenants may not
                 // have created the record.
-                //
-                // Resolving is a weaker test than it looks - it says the name points here, not
-                // that we can serve its challenge - so this gate cannot be the only protection.
-                // See the fallback at the order site below.
-                if (_configuration.Email.TenantMail.Enabled && !await AreOptionalSansSuppressedAsync(domain))
+                if (_configuration.Email.TenantMail.Enabled)
                 {
-                    optionalSans = dnsConfigs
+                    var optionalSans = dnsConfigs
                         .Where(x => x.Optional && x.Type == "CNAME" && x.Status == DnsLookupRecordStatus.Success)
                         .Select(x => x.Domain)
                         .Where(x => !sans.Contains(x, StringComparer.OrdinalIgnoreCase))
@@ -437,7 +419,7 @@ public class CertificateService : ICertificateService
             }
 
             //
-            // Exactly one order per invocation - with one exception, below. There used to be a
+            // Exactly one order per invocation. There used to be a
             // retry loop here (ten attempts, two seconds apart) which read like resilience but
             // was not: every iteration calls NewOrder and creates a fresh set of authorizations,
             // and Let's Encrypt counts failed authorizations against a per-hostname hourly
@@ -445,31 +427,9 @@ public class CertificateService : ICertificateService
             // that limit.
             //
             var sw = Stopwatch.StartNew();
-            KeysAndCertificates pems;
-            try
-            {
-                pems = await OrderAsync(account, domain, sans, cancellationToken);
-            }
-            catch (AcmeOrderException e) when (RefusedOnlyOptionalNames(e, optionalSans, domain, sans))
-            {
-                //
-                // The exception. A certificate order is all-or-nothing: if the CA refuses one
-                // name it refuses the order. So an optional name we do not strictly need -
-                // mta-sts - can deny the identity the certificate it does need for its apex,
-                // capi and file names. That is not a trade worth making.
-                //
-                // Ordering again immediately is safe here precisely because the names that
-                // remain are not the ones the CA is refusing.
-                //
-                var required = sans.Where(x => !optionalSans.Contains(x, StringComparer.OrdinalIgnoreCase)).ToArray();
-                _logger.LogWarning(
-                    "The CA refused only optional name(s) {optional} for {domain}. " +
-                    "Ordering again without them so the identity still gets a certificate. Reason: {error}",
-                    string.Join(',', optionalSans), domain, e.Message);
-
-                pems = await OrderAsync(account, domain, required, cancellationToken);
-                await SuppressOptionalSansAsync(domain);
-            }
+            var domains = new List<string> { domain };
+            domains.AddRange(sans);
+            var pems = await _certesAcme.CreateCertificateAsync(account, domains.ToArray(), cancellationToken);
 
             var x509 = await _certificateStore.PutCertificateAsync(domain, pems.PrivateKeyPem, pems.CertificatesPem);
             _backoff.TryRemove(domain, out _);
@@ -485,7 +445,7 @@ public class CertificateService : ICertificateService
             // IsCanceled, which UpdateCertificatesBackgroundService does not log at all.
             var error = $"Timed out talking to the CA for {domain}";
             _logger.LogError("{error}", error);
-            await NoteFailureAsync(domain, error);
+            await NoteFailureAsync(domain, error, transient: true);
             return null;
         }
         catch (OperationCanceledException)
@@ -516,7 +476,7 @@ public class CertificateService : ICertificateService
 
             // When the CA tells us how long it will keep saying no, believe it. A transient
             // error says nothing about this order and RFC 8555 expects it to be retried, so it
-            // must not escalate the domain up the failure schedule.
+            // goes on the short schedule instead of the one sized for CA allowance spend.
             //
             // Transport failures count as transient too. Removing the in-call retry loop was
             // right - every iteration placed a fresh order - but it also means a network blip
@@ -526,14 +486,9 @@ public class CertificateService : ICertificateService
             var isTransient = e is AcmeTransientException or HttpRequestException ||
                               e.InnerException is HttpRequestException;
 
-            var explicitBackoff = e switch
-            {
-                AcmeRateLimitedException rateLimited => rateLimited.RetryAfter,
-                _ when isTransient => TransientFailureBackoff,
-                _ => (TimeSpan?)null,
-            };
-
-            await NoteFailureAsync(domain, error, explicitBackoff, escalate: !isTransient);
+            await NoteFailureAsync(domain, error,
+                explicitBackoff: (e as AcmeRateLimitedException)?.RetryAfter,
+                transient: isTransient);
             return null;
         }
     }
@@ -574,16 +529,16 @@ public class CertificateService : ICertificateService
     /// <param name="explicitBackoff">
     /// What the CA told us to wait, when it told us. Otherwise the exponential schedule applies.
     /// </param>
-    private void NoteFailure(string domain, string error, TimeSpan? explicitBackoff = null, bool escalate = true)
+    private void NoteFailure(string domain, string error, TimeSpan? explicitBackoff = null, bool transient = false)
     {
-        var previousFailures = _backoff.TryGetValue(domain, out var previous) ? previous.ConsecutiveFailures : 0;
+        // One counter for both kinds of failure: a domain that keeps failing, whatever the cause,
+        // deserves more caution. What differs is the schedule. A transient failure never spent CA
+        // allowance, so it waits seconds not minutes - but it still doubles, so a CA outage does
+        // not get asked once a minute for as long as it lasts.
+        var consecutiveFailures = (_backoff.TryGetValue(domain, out var previous) ? previous.ConsecutiveFailures : 0) + 1;
 
-        // escalate:false leaves the counter untouched. Seeding it at 1 for a transient hiccup
-        // would make the next genuine failure wait 10 minutes instead of the intended 5 - which
-        // is escalation, the exact thing "must not escalate" was asking us not to do.
-        var consecutiveFailures = escalate ? previousFailures + 1 : previousFailures;
-
-        var backoff = explicitBackoff ?? ExponentialBackoff(Math.Max(consecutiveFailures, 1));
+        var backoff = explicitBackoff ??
+                      (transient ? TransientBackoff(consecutiveFailures) : ExponentialBackoff(consecutiveFailures));
         _backoff[domain] = new BackoffState(DateTimeOffset.UtcNow + backoff, consecutiveFailures);
 
         _logger.LogWarning(
@@ -595,9 +550,9 @@ public class CertificateService : ICertificateService
     //
 
     private async Task NoteFailureAsync(
-        string domain, string error, TimeSpan? explicitBackoff = null, bool escalate = true)
+        string domain, string error, TimeSpan? explicitBackoff = null, bool transient = false)
     {
-        NoteFailure(domain, error, explicitBackoff, escalate);
+        NoteFailure(domain, error, explicitBackoff, transient);
 
         try
         {
@@ -612,131 +567,6 @@ public class CertificateService : ICertificateService
 
     //
 
-    private Task<KeysAndCertificates> OrderAsync(
-        AcmeAccount account, string domain, string[] sans, CancellationToken cancellationToken)
-    {
-        var domains = new List<string> { domain };
-        if (sans.Length > 0)
-        {
-            domains.AddRange(sans);
-        }
-
-        return _certesAcme.CreateCertificateAsync(account, domains.ToArray(), cancellationToken);
-    }
-
-    //
-
-    /// <summary>
-    /// True when the CA's complaint names at least one optional SAN and no required name, so
-    /// dropping the optional names is likely to produce a certificate rather than a second
-    /// wasted order.
-    /// </summary>
-    // internal for testing
-    internal bool RefusedOnlyOptionalNames(
-        AcmeOrderException e, string[] optionalSans, string domain, string[] allSans)
-    {
-        if (optionalSans.Length == 0)
-        {
-            return false;
-        }
-
-        var required = allSans
-            .Where(x => !optionalSans.Contains(x, StringComparer.OrdinalIgnoreCase))
-            .Append(domain)
-            .ToArray();
-
-        // Prefer what the CA told us outright. When it says nothing structured - a top-level
-        // rateLimited problem carries no sub-problems - fall back to the names it wrote into
-        // the detail text, which is where Let's Encrypt puts the hostname it is refusing.
-        var implicated = e.FailedIdentifiers.Count > 0
-            ? e.FailedIdentifiers
-            : optionalSans.Concat(required)
-                .Where(name => MentionsName(e.Message, name))
-                .ToArray();
-
-        if (implicated.Count == 0)
-        {
-            return false;
-        }
-
-        var refusedOptional = implicated.Any(x => optionalSans.Contains(x, StringComparer.OrdinalIgnoreCase));
-        var refusedRequired = implicated.Any(x => required.Contains(x, StringComparer.OrdinalIgnoreCase));
-
-        if (refusedOptional && refusedRequired)
-        {
-            _logger.LogDebug(
-                "Not dropping optional names for {domain}: the CA also refused a required name ({implicated})",
-                domain, string.Join(',', implicated));
-        }
-
-        return refusedOptional && !refusedRequired;
-    }
-
-    //
-
-    /// <summary>
-    /// Whether <paramref name="message"/> names exactly <paramref name="name"/>, rather than
-    /// merely containing it.
-    /// </summary>
-    /// <remarks>
-    /// A plain Contains is wrong here, and wrong in the direction that matters: every SAN has
-    /// the apex as a suffix, so "mta-sts.delete.n1.id.pub" contains "delete.n1.id.pub". A
-    /// substring test would read a complaint about the optional name as a complaint about the
-    /// apex too, conclude a required name was refused, and silently switch off the fallback in
-    /// exactly the case it exists for.
-    /// </remarks>
-    // internal for testing
-    internal static bool MentionsName(string message, string name)
-    {
-        if (string.IsNullOrEmpty(message) || string.IsNullOrEmpty(name))
-        {
-            return false;
-        }
-
-        static bool IsHostChar(char c) => char.IsLetterOrDigit(c) || c == '-';
-
-        for (var index = 0;
-             (index = message.IndexOf(name, index, StringComparison.OrdinalIgnoreCase)) >= 0;
-             index += name.Length)
-        {
-            // A label character immediately before means we matched a longer name's tail
-            // (the apex inside one of its own subdomains).
-            if (index > 0)
-            {
-                var before = message[index - 1];
-                if (IsHostChar(before) || before == '.')
-                {
-                    continue;
-                }
-            }
-
-            var end = index + name.Length;
-            if (end >= message.Length)
-            {
-                return true;
-            }
-
-            var after = message[end];
-            if (IsHostChar(after))
-            {
-                continue;
-            }
-
-            // A trailing dot is fine (root label, or end of sentence) unless another label
-            // follows it, which would again mean we matched a prefix of a longer name.
-            if (after == '.' && end + 1 < message.Length && IsHostChar(message[end + 1]))
-            {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    //
-
     //
     // Waits for the lock, and treats "could not get it" as "somebody else is already ordering
     // for this domain", which is what it means. Both callers are background work, so waiting is
@@ -746,7 +576,7 @@ public class CertificateService : ICertificateService
     {
         try
         {
-            return await _nodeLock.LockAsync(LockKey(domain), OrderLockTimeout, OrderLockDuration, cancellationToken);
+            return await _nodeLock.LockAsync(LockKey(domain), OrderLockTimeout, cancellationToken: cancellationToken);
         }
         catch (RedisLockException e)
         {
@@ -758,78 +588,12 @@ public class CertificateService : ICertificateService
 
     //
 
-    private static string OptionalSansSuppressedKey(string domain) => $"optional-sans-suppressed:{domain}";
-
-    //
-
-    private async Task SuppressOptionalSansAsync(string domain)
-    {
-        var until = DateTimeOffset.UtcNow + OptionalSanSuppression;
-
-        try
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
-            await tableSettings.UpsertAsync(new SettingsRecord
-            {
-                key = OptionalSansSuppressedKey(domain),
-                value = until.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture),
-            });
-        }
-        catch (Exception e)
-        {
-            // Not worth losing the certificate we just obtained over. The cost of failing to
-            // record it is a possible duplicate at the next renewal, not a failed issuance.
-            _logger.LogError(e,
-                "Could not record optional-SAN suppression for {domain}: {error}", domain, e.Message);
-            return;
-        }
-
-        _logger.LogWarning(
-            "Issued a certificate for {domain} without its optional name(s). Not asking for them " +
-            "again until {until:u}, to avoid renewing into the same refusal.",
-            domain, until);
-    }
-
-    //
-
     // internal for testing
-    internal async Task<bool> AreOptionalSansSuppressedAsync(string domain)
+    internal static TimeSpan TransientBackoff(int consecutiveFailures)
     {
-        try
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
-
-            var record = await tableSettings.GetAsync(OptionalSansSuppressedKey(domain));
-            if (record == null || string.IsNullOrEmpty(record.value))
-            {
-                return false;
-            }
-
-            if (!long.TryParse(record.value, CultureInfo.InvariantCulture, out var untilMs))
-            {
-                return false;
-            }
-
-            if (DateTimeOffset.FromUnixTimeMilliseconds(untilMs) > DateTimeOffset.UtcNow)
-            {
-                return true;
-            }
-
-            // Expired. Drop it rather than leaving one dead row per domain that ever hit the
-            // fallback, and so the next order asks for the optional name again.
-            await tableSettings.DeleteAsync(OptionalSansSuppressedKey(domain));
-            return false;
-        }
-        catch (Exception e)
-        {
-            // A read failure must not decide policy. "Not suppressed" keeps the optional name in
-            // the order, which is the pre-existing behaviour.
-            _logger.LogError(e,
-                "Could not read optional-SAN suppression for {domain}: {error}", domain, e.Message);
-            return false;
-        }
+        var doublings = Math.Min(consecutiveFailures - 1, 8);
+        var backoff = InitialTransientBackoff * (1 << doublings);
+        return backoff > MaxTransientBackoff ? MaxTransientBackoff : backoff;
     }
 
     //
@@ -903,17 +667,8 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        // Cheapest test first. The certificate already carrying the SAN is the steady state, and
-        // it must not cost a database round trip on every tenant on every sweep.
         var mtaStsDomain = $"{DnsConfigurationSet.PrefixMtaSts}.{domain}";
         if (certificate.GetSubjectAlternativeNames().Contains(mtaStsDomain, StringComparer.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        // The certificate is missing mta-sts because the CA refused it and we issued without
-        // it. Renewing to re-add it would fail, drop it, and mint another duplicate.
-        if (await AreOptionalSansSuppressedAsync(domain))
         {
             return false;
         }

@@ -18,20 +18,12 @@ namespace Odin.Services.Tests.Certificates;
 #nullable enable
 
 /// <summary>
-/// The policy decisions that stand between a tenant and a certificate: which names a refusal
-/// actually implicates, and how long to wait before asking the CA again.
+/// The policy decisions that stand between a tenant and a certificate: how long to wait before
+/// asking the CA again, and what the request path is allowed to do.
 /// </summary>
 public class CertificateOrderPolicyTests
 {
     private const string Domain = "delete.n1.id.pub";
-    private const string MtaSts = "mta-sts.delete.n1.id.pub";
-    private static readonly string[] OptionalSans = [MtaSts];
-    private static readonly string[] AllSans = ["capi.delete.n1.id.pub", "file.delete.n1.id.pub", MtaSts];
-
-    // The real thing, from the 2026-09-08 incident. Note it names the optional SAN only.
-    private const string RateLimitedDetail =
-        "urn:ietf:params:acme:error:rateLimited: too many failed authorizations (5) for " +
-        "\"mta-sts.delete.n1.id.pub\" in the last 1h0m0s, retry after 2026-09-08 19:16:26 UTC";
 
     private ICertesAcme _certesAcme = null!;
     private ICertificateStore _certificateStore = null!;
@@ -60,79 +52,7 @@ public class CertificateOrderPolicyTests
     }
 
     //
-    // Name matching. A plain Contains is wrong here in the direction that matters: every SAN
-    // has the apex as a suffix, so a complaint about mta-sts.<apex> would read as a complaint
-    // about <apex> too and switch off the fallback in exactly the case it exists for.
-    //
-
-    [Test]
-    public void MentionsName_DoesNotMatchTheApexInsideItsOwnSubdomain()
-    {
-        Assert.That(CertificateService.MentionsName(RateLimitedDetail, MtaSts), Is.True,
-            "The optional SAN is the name the CA actually refused");
-        Assert.That(CertificateService.MentionsName(RateLimitedDetail, Domain), Is.False,
-            "The apex appears only as a suffix of the optional SAN, and must not count as refused");
-    }
-
-    [Test]
-    [TestCase("failed for delete.n1.id.pub", true)]
-    [TestCase("failed for delete.n1.id.pub.", true)]
-    [TestCase("failed for \"delete.n1.id.pub\"", true)]
-    [TestCase("failed for xdelete.n1.id.pub", false)]
-    [TestCase("failed for delete.n1.id.public", false)]
-    [TestCase("failed for capi.delete.n1.id.pub", false)]
-    [TestCase("", false)]
-    public void MentionsName_RespectsLabelBoundaries(string message, bool expected)
-    {
-        Assert.That(CertificateService.MentionsName(message, Domain), Is.EqualTo(expected));
-    }
-
-    //
-    // Which names a refusal implicates
-    //
-
-    [Test]
-    public void RefusedOnlyOptionalNames_TrueWhenTheCaNamesOnlyAnOptionalSan()
-    {
-        var e = new AcmeOrderException("Failed validating", [MtaSts]);
-        Assert.That(_certificateService.RefusedOnlyOptionalNames(e, OptionalSans, Domain, AllSans), Is.True);
-    }
-
-    [Test]
-    public void RefusedOnlyOptionalNames_FalseWhenARequiredNameIsAlsoRefused()
-    {
-        var e = new AcmeOrderException("Failed validating", [MtaSts, "capi.delete.n1.id.pub"]);
-        Assert.That(_certificateService.RefusedOnlyOptionalNames(e, OptionalSans, Domain, AllSans), Is.False,
-            "Dropping the optional names would not help - the order fails either way");
-    }
-
-    [Test]
-    public void RefusedOnlyOptionalNames_FallsBackToTheDetailTextWhenThereAreNoSubproblems()
-    {
-        // A top-level rateLimited problem carries no sub-problems, so the only signal is the
-        // hostname Let's Encrypt writes into the detail. This is the live incident's shape.
-        var e = new AcmeRateLimitedException(RateLimitedDetail, TimeSpan.FromHours(1));
-
-        Assert.That(e.FailedIdentifiers, Is.Empty);
-        Assert.That(_certificateService.RefusedOnlyOptionalNames(e, OptionalSans, Domain, AllSans), Is.True);
-    }
-
-    [Test]
-    public void RefusedOnlyOptionalNames_FalseWhenNothingIsImplicated()
-    {
-        var e = new AcmeOrderException("the server experienced an internal error");
-        Assert.That(_certificateService.RefusedOnlyOptionalNames(e, OptionalSans, Domain, AllSans), Is.False);
-    }
-
-    [Test]
-    public void RefusedOnlyOptionalNames_FalseWhenThereAreNoOptionalSans()
-    {
-        var e = new AcmeOrderException("Failed validating", [Domain]);
-        Assert.That(_certificateService.RefusedOnlyOptionalNames(e, [], Domain, AllSans), Is.False);
-    }
-
-    //
-    // Backoff schedule. Let's Encrypt allows five failed authorizations per hostname per hour,
+    // Backoff schedules. Let's Encrypt allows five failed authorizations per hostname per hour,
     // so a flat five-minute wait (twelve attempts an hour) would breach the limit it protects.
     //
 
@@ -157,19 +77,24 @@ public class CertificateOrderPolicyTests
             "Four consecutive failures must span at least an hour");
     }
 
-    //
-    // Suppression: having dropped an optional name, we must not renew straight back into the
-    // same refusal. Let's Encrypt allows five duplicate certificates per week; a 12h sweep
-    // that re-added the SAN, failed, dropped it and reissued would mint fourteen.
-    //
+    [Test]
+    public void TransientBackoff_IsShortButStillEscalates()
+    {
+        // A transient failure never spent CA allowance, so it waits seconds - but a CA that is
+        // down for an hour must not be asked sixty times.
+        Assert.That(CertificateService.TransientBackoff(1), Is.EqualTo(TimeSpan.FromSeconds(30)));
+        Assert.That(CertificateService.TransientBackoff(2), Is.EqualTo(TimeSpan.FromMinutes(1)));
+        Assert.That(CertificateService.TransientBackoff(3), Is.EqualTo(TimeSpan.FromMinutes(2)));
+        Assert.That(CertificateService.TransientBackoff(4), Is.EqualTo(TimeSpan.FromMinutes(4)));
+        Assert.That(CertificateService.TransientBackoff(5), Is.EqualTo(TimeSpan.FromMinutes(5)));
+        Assert.That(CertificateService.TransientBackoff(1000), Is.EqualTo(TimeSpan.FromMinutes(5)));
+    }
 
     [Test]
-    public async Task OptionalSans_AreNotSuppressedWhenTheStoreCannotBeRead()
+    public void AcmeTransientException_IsNotAnOrderFailure()
     {
-        // The substituted IServiceProvider cannot produce a scope, so this also pins the
-        // fail-safe: a read failure must not decide policy, and "not suppressed" preserves the
-        // pre-existing behaviour of keeping the optional name in the order.
-        Assert.That(await _certificateService.AreOptionalSansSuppressedAsync(Domain), Is.False);
+        Assert.That(new AcmeTransientException("badNonce"), Is.Not.InstanceOf<AcmeOrderException>(),
+            "A transient hiccup is not a verdict on the order and must not be treated as one");
     }
 
     //
@@ -206,10 +131,9 @@ public class CertificateOrderPolicyTests
     }
 
     [Test]
-    public async Task RequestIssuanceAsync_IsThrottledPerDomain()
+    public async Task RequestIssuanceAsync_IsRateLimited()
     {
-        // The pulse wakes a whole-registry sweep and inbound connections are attacker-chosen
-        // via SNI, so it must not be possible to drive back-to-back sweeps.
+        // The pulse wakes a whole-registry sweep, so back-to-back requests must coalesce
         Assert.That(await _certificateService.RequestIssuanceAsync(Domain), Is.True);
 
         for (var i = 0; i < 20; i++)
@@ -236,17 +160,5 @@ public class CertificateOrderPolicyTests
         }
 
         await _notifier.DidNotReceiveWithAnyArgs().NotifyWorkAvailableAsync(default);
-    }
-
-    //
-    // Transient CA errors must not escalate a domain up the failure schedule
-    //
-
-    [Test]
-    public void AcmeTransientException_IsNotTreatedAsAnOrderFailure()
-    {
-        Assert.That(new AcmeTransientException("badNonce"), Is.Not.InstanceOf<AcmeOrderException>(),
-            "A transient hiccup is not a verdict on the order, and must not trigger the " +
-            "optional-SAN fallback or the exponential backoff escalation");
     }
 }

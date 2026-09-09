@@ -80,13 +80,12 @@ public sealed class CertesAcme : ICertesAcme
             // parse strings.
             var type = e.Error?.Type ?? "";
             var detail = e.Error?.Detail ?? e.Message;
-            var failed = FailedIdentifiers(e.Error);
 
             if (type.Equals(AcmeRateLimitedErrorType, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogWarning("Rate limited by the CA for {domains}: {detail}",
                     string.Join(',', domains), detail);
-                throw new AcmeRateLimitedException($"{type}: {detail}", DefaultRateLimitRetryAfter, failed);
+                throw new AcmeRateLimitedException($"{type}: {detail}", DefaultRateLimitRetryAfter);
             }
 
             if (RetryableErrorTypes.Contains(type))
@@ -102,7 +101,7 @@ public sealed class CertesAcme : ICertesAcme
             // Everything else is the CA rejecting this order on its merits. Ordering again right
             // away produces the same rejection, and at Let's Encrypt it also spends the
             // per-hostname failed-authorization allowance.
-            throw new AcmeOrderException($"{type}: {detail}", failed);
+            throw new AcmeOrderException($"{type}: {detail}");
         }
     }
 
@@ -111,38 +110,6 @@ public sealed class CertesAcme : ICertesAcme
     //
     // RFC 8555 §6.7.1: a problem document may carry sub-problems, each naming the identifier it
     // is about. That is how we learn WHICH name of a multi-name order the CA refused.
-    //
-    private static List<string> FailedIdentifiers(AcmeError? error)
-    {
-        var identifiers = new List<string>();
-        if (error == null)
-        {
-            return identifiers;
-        }
-
-        void Collect(AcmeError e)
-        {
-            var value = e.Identifier?.Value;
-            if (!string.IsNullOrWhiteSpace(value) && !identifiers.Contains(value, StringComparer.OrdinalIgnoreCase))
-            {
-                identifiers.Add(value);
-            }
-
-            if (e.Subproblems == null)
-            {
-                return;
-            }
-
-            foreach (var sub in e.Subproblems)
-            {
-                Collect(sub);
-            }
-        }
-
-        Collect(error);
-        return identifiers;
-    }
-
     //
 
     // urn:ietf:params:acme:error:rateLimited is per-hostname and per-hour at Let's Encrypt
@@ -243,15 +210,11 @@ public sealed class CertesAcme : ICertesAcme
         authzs = await order.Authorizations();
 
         //
-        // Every authorization is checked before throwing. Throwing at the first failure would
-        // report only one name, and the caller decides whether to drop optional names based on
-        // exactly that list: if a required name AND an optional one both failed, but the
-        // optional one happened to come first, the caller would conclude "only optional
-        // refused", drop it, and place a second order that fails on the required name anyway -
-        // spending the failed-authorization allowance twice. ACME does not promise an order for
-        // these, so the verdict has to be complete before it is useful.
+        // Every authorization is checked before throwing, so the error names every refused name
+        // rather than just the first. Cheap, because the poll stops the moment a status is
+        // terminal, and it is the line an operator will be reading.
         //
-        var failures = new List<string>();
+        var refused = false;
         var failureDetail = new List<string>();
         var timedOut = false;
         foreach (var authz in authzs)
@@ -276,27 +239,20 @@ public sealed class CertesAcme : ICertesAcme
 
             if (IsTerminal(resource.Status))
             {
-                // The CA refused this name. We polled it ourselves, so the attribution is exact.
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    failures.Add(name);
-                }
+                refused = true;
             }
             else
             {
                 // Still pending or processing when we gave up waiting. That is our timeout, not
-                // the CA's verdict - it must not be reported as a refusal, or a merely slow
-                // validation of an optional name would trigger the fallback and suppress that
-                // name cluster-wide for a week.
+                // the CA's verdict, and must not be reported as a refusal.
                 timedOut = true;
             }
         }
 
-        if (failures.Count > 0)
+        if (refused)
         {
             throw new AcmeOrderException(
-                $"The CA refused the challenge for {string.Join(", ", failureDetail)}.",
-                failures);
+                $"The CA refused the challenge for {string.Join(", ", failureDetail)}.");
         }
 
         if (timedOut)
