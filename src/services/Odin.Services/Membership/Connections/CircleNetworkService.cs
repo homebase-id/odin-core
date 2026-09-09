@@ -636,6 +636,16 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Gives access to all resource granted by the specified circle to the odinId
         /// </summary>
+        /// <summary>
+        /// Gives access to all resource granted by the specified circle to the odinId
+        /// </summary>
+        /// <remarks>
+        /// Deliberately does its own minting and depositing rather than going through
+        /// <see cref="EnrollInCircleInternalAsync"/>, which the review path uses.  This is the older,
+        /// app-callable way in, and its behaviour is held exactly as it was: a write-only circle deposits
+        /// here rather than minting outright, and a circle belonging to no app is allowed.  Both of those
+        /// differ from enrolment, and changing them under an existing caller is not worth the shared code.
+        /// </remarks>
         public async Task GrantCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
             AssertCanManageCircleMembership(odinContext);
@@ -660,13 +670,73 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
-            if (!odinContext.Caller.HasMasterKey && icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId))
+            var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
+
+            if (odinContext.Caller.HasMasterKey)
             {
-                throw new OdinClientException($"{odinId} is already member of circle",
-                    OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
+                // The store may have been created without the owner online (e.g. an app accepted the
+                // connection request), in which case the Peer Key is only held as the temp weak key.
+                // Re-mint it under the master key before we try to decrypt it.
+                if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
+                {
+                    // refetch the record since the above method just writes to db
+                    icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+                }
+
+                if (icr.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    throw new OdinSystemException(
+                        $"Cannot grant circle to {odinId}; the peer key store still requires master key encryption upgrade");
+                }
+
+                var masterKey = odinContext.Caller.GetMasterKey();
+                var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                var storageKeySource = new MasterKeyStorageKeySource(masterKey);
+
+                // The owner touch provisions the write-only keypair on stores created before it
+                // existed and converts anything apps have deposited in the meantime.
+                icr.PeerKeyStore.WriteOnlyKeyPair ??= PeerKeyStoreWriteOnlyKey.CreateKeyPair(keyStoreKey);
+                var convertedCircleIds = await ConvertDepositedGrantsAsync(icr.PeerKeyStore, keyStoreKey, odinContext);
+
+                if (!icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
+                {
+                    var circleGrant =
+                        await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, storageKeySource, odinContext);
+                    icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
+                }
+
+                // Check the apps.  If a circle being granted is authorized by an app
+                // ensure the new member gets the permissions given by the app
+                await FanOutAppCircleGrantsAsync(icr, keyStoreKey, convertedCircleIds.Append(circleId.Value).Distinct(),
+                    storageKeySource, odinContext);
+
+                keyStoreKey.Wipe();
+            }
+            else
+            {
+                // Blocker #3: the caller (an app) has no path to this connection's key store key
+                // and must not be handed one. It deposits the grant via the store's write-only
+                // public key instead; the deposit converts to a normal circle grant the next time
+                // the key store key is in scope (peer CAT auth or the owner's next grant touch).
+                if (icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId))
+                {
+                    throw new OdinClientException($"{odinId} is already member of circle",
+                        OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
+                }
+
+                var deposit = await CreateDepositedGrantAsync(icr.PeerKeyStore, circleDefinition, odinContext);
+                icr.PeerKeyStore.DepositedGrants.Add(deposit);
             }
 
-            await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
+            await this.SaveIcrAsync(icr, odinContext);
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                CircleId = circleId.Value,
+                Change = ConnectionChangeType.CircleGranted,
+            });
         }
 
         /// <summary>

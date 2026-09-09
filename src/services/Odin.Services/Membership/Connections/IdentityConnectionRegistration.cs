@@ -175,7 +175,8 @@ namespace Odin.Services.Membership.Connections
                 AccessGrant = this.PeerKeyStore?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
-                ReviewedAt = this.ReviewedAt
+                ReviewedAt = this.ReviewedAt,
+                Vetted = this.IsConnected() && this.IsConfirmedConnection()
             };
         }
     }
@@ -206,5 +207,18 @@ namespace Odin.Services.Membership.Connections
         /// served to the owner's own clients only, never to a peer (docs/connection-defaults.md).
         /// </summary>
         public UnixTimeUtc? ReviewedAt { get; init; }
+
+        /// <summary>
+        /// True if the identity is connected and is a member of the Confirmed Connections system circle.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately unchanged from what it has always meant, rather than re-expressed as
+        /// <see cref="ReviewedAt"/> != null.  Existing clients read this field and must keep seeing exactly
+        /// what they see today; the two can disagree during the transition, because they answer different
+        /// questions -- this one asks about Confirmed-circle membership, <see cref="ReviewedAt"/> asks
+        /// whether the owner has reviewed.  New clients should read <see cref="ReviewedAt"/>; this retires
+        /// with the Confirmed circle.
+        /// </remarks>
+        public bool Vetted { get; init; }
     }
 }

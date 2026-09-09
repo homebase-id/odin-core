@@ -44,8 +44,11 @@ public class WriteOnlyCircleGrantTests : V2Fixture
 
         var (_, circle, app) = await SetupAppWithWriteOnlyCircleAsync(frodo);
 
-        var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circle, sam.Identity);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"grant should succeed, got {response.StatusCode}");
+        // Through the review, not GrantCircleAsync: the older grant path deliberately keeps its original
+        // behaviour and deposits, so direct minting is something only enrolment does.
+        var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
+            .MarkReviewedAsync(sam.Identity, [circle]);
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"review should succeed, got {response.StatusCode}");
 
         // The point of the change: a real member, now -- not a pending deposit.
         var members = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).GetCircleMembersAsync(circle);

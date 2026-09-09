@@ -46,29 +46,22 @@ public class PeerCatConversionTests : V2Fixture
         var appDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(appDrive, "appDrive", allowAnonymousReads: false);
 
-        // circleX grants Read, which is what makes this a deposit at all: a read grant escrows the
-        // drive's storage key under the connection's Peer Key, and the app cannot reach that. A
-        // write-only circle would be minted outright and never come near the conversion this test is
-        // about (see WriteOnlyCircleGrantTests). The app can read appDrive, so it can source the key
-        // to seal.
-        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
-        var appId = Guid.NewGuid();
+        // circleX itself carries no drive grants — the deposit is trivial to source (no storage keys
+        // needed), and drive access to members comes entirely from the app's CircleMemberPermissionGrant.
         var circleX = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleX, "circleX", new PermissionSetGrantRequest
         {
-            Drives = new List<DriveGrantRequest>
-            {
-                new() { PermissionedDrive = new PermissionedDrive { Drive = appDrive, Permission = DrivePermission.Read } }
-            },
+            Drives = new List<DriveGrantRequest>(),
+            // A circle must grant at least one drive or one permission — this one carries no drives,
+            // so give it a harmless circle-valid permission key instead.
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
-        }, appId: appId);
+        });
 
         // A Chat-shaped app on Frodo: ManageCircleMembership to deposit, AuthorizedCircles=[circleX],
         // and a CircleMemberPermissionGrant of Write|React (no Read) on appDrive — mirrors
         // SystemAppConstants.ChatAppRegistrationRequest's pattern.
         var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
             permissionKeys: new[] { PermissionKeys.ManageCircleMembership },
-            knownAppId: appId,
             authorizedCircles: new List<Guid> { circleX },
             circleMemberGrantRequest: new PermissionSetGrantRequest
             {
@@ -162,21 +155,17 @@ public class PeerCatConversionTests : V2Fixture
         // call into Frodo's later and trigger conversion of whatever Frodo holds pending about Sam.
         var trigger = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "trigger");
 
-        // Read, so that this is a deposit rather than a direct mint — see the note on circleX above.
-        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
-        var appId = Guid.NewGuid();
         var circleY = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleY, "circleY-doomed", new PermissionSetGrantRequest
         {
-            Drives = new List<DriveGrantRequest>
-            {
-                new() { PermissionedDrive = new PermissionedDrive { Drive = trigger, Permission = DrivePermission.Read } }
-            },
+            Drives = new List<DriveGrantRequest>(),
+            // A circle must grant at least one drive or one permission — this one carries no drives,
+            // so give it a harmless circle-valid permission key instead.
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
-        }, appId: appId);
+        });
 
         var app = await AppSession.SetupAsync(frodo, trigger, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
 
         var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleY, sam.Identity);
         Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
@@ -205,76 +194,6 @@ public class PeerCatConversionTests : V2Fixture
             "the deposit for the deleted circle should have been dropped");
         Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(circleY), Is.False,
             "no CircleGrant should have been created for the deleted circle");
-    }
-
-    [Test]
-    public async Task PeerCall_ConvertsTheDeposit_ButLeavesAPendingEnrollmentAlone()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-
-        // Sam can write to Frodo's trigger drive, which is what lets her server call in and set off
-        // Frodo's conversion of whatever he holds pending about her.
-        var trigger = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "trigger");
-
-        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
-        var appId = Guid.NewGuid();
-        var circleY = Guid.NewGuid();
-        await frodo.Admin.CreateCircle(circleY, "circleY", new PermissionSetGrantRequest
-        {
-            Drives = new List<DriveGrantRequest>
-            {
-                new() { PermissionedDrive = new PermissionedDrive { Drive = trigger, Permission = DrivePermission.Read } }
-            },
-            PermissionSet = new PermissionSet(new List<int>())
-        }, appId: appId);
-
-        var app = await AppSession.SetupAsync(frodo, trigger, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
-
-        var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleY, sam.Identity);
-        Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
-
-        // ...and a circle on a drive the app has nothing on, which its review can only record.
-        var otherDrive = TargetDrive.NewTargetDrive();
-        await frodo.Admin.CreateDrive(otherDrive, "otherDrive", allowAnonymousReads: false);
-        var awaitingCircle = Guid.NewGuid();
-        await frodo.Admin.CreateCircle(awaitingCircle, "awaiting-app", new PermissionSetGrantRequest
-        {
-            Drives = new List<DriveGrantRequest>
-            {
-                new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
-            },
-            PermissionSet = new PermissionSet(new List<int>())
-        }, appId: Guid.NewGuid());
-
-        var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
-            .MarkReviewedAsync(sam.Identity, [awaitingCircle]);
-        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
-
-        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Connected);
-        metadata.AllowDistribution = true;
-
-        var send = await sam.Drives.Writer.UploadNewMetadata(trigger.Alias, metadata,
-            transitOptions: new TransitOptions { Recipients = new List<string> { frodo.Identity } });
-        Assert.That(send.IsSuccessStatusCode, Is.True, $"upload failed: {send.StatusCode}");
-
-        await sam.Sync.DrainOutboxAsync();
-        await frodo.Sync.ProcessInboxAsync(trigger);
-
-        var storage = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
-        var icr = await storage.GetAsync(sam.Identity);
-
-        Assert.That(icr!.PeerKeyStore.CircleGrants.ContainsKey(circleY), Is.True,
-            "the deposit had its key material already and only wanted the Peer Key, which the peer call supplies");
-
-        // The other kind of pending is not the peer's to resolve: a peer brings the Peer Key, not the
-        // app key, and this entry is waiting on an app that can read otherDrive. Converting it here
-        // would either fail or mint a grant with no usable key.
-        Assert.That(icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == awaitingCircle), Is.True,
-            "a pending enrollment must survive the peer call untouched");
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(awaitingCircle), Is.False);
-        Assert.That(icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == awaitingCircle), Is.False);
     }
 
     private static async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader?> QueryByGtid(

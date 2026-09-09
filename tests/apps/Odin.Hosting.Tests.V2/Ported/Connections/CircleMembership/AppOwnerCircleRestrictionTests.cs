@@ -40,11 +40,13 @@ public class AppOwnerCircleRestrictionTests : V2Fixture
 
         var (app, _, ownerCircle) = await SetupAppAndCirclesAsync(frodo);
 
+        // Through the review: GrantCircleAsync is the older path and keeps the behaviour it had, so the
+        // restriction lives on enrolment only.
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
-            .GrantCircleAsync(ownerCircle, sam.Identity);
+            .MarkReviewedAsync(sam.Identity, [ownerCircle]);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
-            $"an app must not add anyone to a circle it cannot complete; got {response.StatusCode}");
+            $"an app must not enrol anyone in a circle it cannot complete; got {response.StatusCode}");
 
         // Refused, not deferred: queuing it would be the "waiting on the owner console" state this rule
         // exists to prevent.
