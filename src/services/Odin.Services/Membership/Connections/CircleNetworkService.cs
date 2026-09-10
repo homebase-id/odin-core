@@ -1110,10 +1110,25 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.AppNotRegistered);
             }
 
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+
             await circleDefinitionService.SetOwningAppAsync(circleId, appId);
 
-            logger.LogInformation("Circle {circleId} adopted by app {appName} ({appId})",
-                circleId, app.Name, appId);
+            // Ownership and the ability to act on it, together or not at all: a half-applied adoption
+            // is an app named on a circle it cannot grant, which is the state this exists to prevent.
+            var granted = await GrantAppTheCirclesDrivesAsync(appId, circle, odinContext);
+
+            tx.Commit();
+
+            logger.LogInformation("Circle {circleId} adopted by app {appName} ({appId}); {granted} drive grant(s) added",
+                circleId, app.Name, appId, granted.Count);
 
             await mediator.Publish(new CircleDefinitionChangedNotification
             {
@@ -1121,6 +1136,99 @@ namespace Odin.Services.Membership.Connections
                 CircleId = circleId.Value,
                 Change = CircleDefinitionChangeType.Updated,
             });
+        }
+
+
+        /// <summary>
+        /// Gives the app the drive access the circle's own grants require, so that owning the circle
+        /// means being able to grant it.
+        /// </summary>
+        /// <remarks>
+        /// Naming an app as owner does not let it do the job.  Completing an enrollment mints a circle
+        /// grant, which escrows each drive's storage key for the member, and a key cannot be escrowed
+        /// by someone who cannot obtain it -- so an app without read on the circle's drives owns a
+        /// circle it can never act on, and every enrollment sits in the queue until the owner sweeps
+        /// it.  The master key is in scope here (this runs owner-console-only), which is precisely
+        /// what makes the escrow possible, so this is the one moment where the gap can be closed.
+        /// <para>
+        /// The circle states its own requirements: each of its drive grants names a drive and a
+        /// permission, and that tuple is exactly what <see cref="CallerCanGrantCircleAsync"/> checks
+        /// later.  Copying it satisfies both of that method's branches by construction -- Read brings
+        /// the storage key, anything else needs only the matching permission -- so nothing here is a
+        /// heuristic about what the app "probably" needs.
+        /// </para>
+        /// <para>
+        /// A union, never a replacement.  <c>UpdateAppPermissionsAsync</c> rebuilds the whole key
+        /// store from the drive list it is handed, so sending only the circle's drives would silently
+        /// revoke every other grant the app holds.  Permissions are OR'd per drive for the same
+        /// reason: an app holding Write on a drive whose circle grants Read must end with both.
+        /// </para>
+        /// <para>
+        /// Returns the drives whose access actually changed, so a caller can report what it did.  An
+        /// app that already had everything is left completely alone -- no rewrite, no cache reset.
+        /// </para>
+        /// </remarks>
+        private async Task<List<PermissionedDrive>> GrantAppTheCirclesDrivesAsync(Guid appId,
+            CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            var required = (circleDefinition.DriveGrants ?? []).ToList();
+            if (required.Count == 0)
+            {
+                return [];
+            }
+
+            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
+            if (app == null)
+            {
+                throw new OdinClientException($"No app is registered with id {appId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+
+            // Keyed on the drive, so the union is per drive rather than per grant.
+            var merged = new Dictionary<TargetDrive, DrivePermission>();
+            foreach (var existing in app.Grant?.DriveGrants ?? [])
+            {
+                merged[existing.PermissionedDrive.Drive] = existing.PermissionedDrive.Permission;
+            }
+
+            var changed = new List<PermissionedDrive>();
+            foreach (var req in required)
+            {
+                var drive = req.PermissionedDrive.Drive;
+                var wanted = req.PermissionedDrive.Permission;
+
+                var current = merged.TryGetValue(drive, out var p) ? p : DrivePermission.None;
+                if ((current & wanted) == wanted)
+                {
+                    continue;
+                }
+
+                merged[drive] = current | wanted;
+                changed.Add(new PermissionedDrive { Drive = drive, Permission = merged[drive] });
+            }
+
+            if (changed.Count == 0)
+            {
+                return [];
+            }
+
+            await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
+            {
+                AppId = appId,
+                // Untouched: this is about drive access, and rewriting the permission set from a
+                // redacted copy risks dropping a key the app was granted elsewhere.
+                PermissionSet = app.Grant?.PermissionSet ?? new PermissionSet(),
+                Drives = merged.Select(kv => new DriveGrantRequest
+                {
+                    PermissionedDrive = new PermissionedDrive { Drive = kv.Key, Permission = kv.Value }
+                }).ToList()
+            }, odinContext);
+
+            logger.LogInformation(
+                "Granted app {appId} access to {count} drive(s) so it can grant circle {circleId}: {drives}",
+                appId, changed.Count, circleDefinition.Id, string.Join(", ", changed.Select(d => d.ToString())));
+
+            return changed;
         }
 
         /// <summary>
@@ -1170,6 +1278,11 @@ namespace Odin.Services.Membership.Connections
             await using var tx = await db.BeginStackedTransactionAsync();
 
             await circleDefinitionService.ReassignOwningAppAsync(circleId, appId);
+
+            // The app receiving it needs the same access adoption grants. The app losing it keeps
+            // what it has: it may well need those drives for reasons that have nothing to do with
+            // this circle, and guessing which grants existed only to serve it would be exactly that.
+            await GrantAppTheCirclesDrivesAsync(appId, circle, odinContext);
 
             var entriesRepointed = 0;
             string cursor = null;
