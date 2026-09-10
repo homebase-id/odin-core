@@ -570,15 +570,37 @@ public class DriveManager : IDriveManager
                 .Select(d => d.DriveSlug),
             StringComparer.Ordinal);
 
-        var resolvedSlug = requestedSlug;
+        // A drive can already carry a slug while carrying no AppId: CreateDriveAsync only skips
+        // *deriving* one for an app-less drive, and a supplied one passes through untouched. Such a
+        // slug resolves to nothing today, because the wire address needs the app's half too -- but
+        // adoption is the moment it starts resolving, which is the worst moment to quietly swap it
+        // for one derived from the drive's name. Kept, therefore, not regenerated.
+        var existingSlug = string.IsNullOrWhiteSpace(storageDrive.DriveSlug) ? null : storageDrive.DriveSlug;
+        var existingTypeSlug =
+            string.IsNullOrWhiteSpace(storageDrive.DriveTypeSlug) ? null : storageDrive.DriveTypeSlug;
+
+        if (requestedSlug != null && existingSlug != null &&
+            !string.Equals(requestedSlug, existingSlug, StringComparison.Ordinal))
+        {
+            // Two explicit answers that disagree. Refused rather than picking one, so that renaming
+            // an address is never something adoption does on the way past: change the slug first, or
+            // adopt with the slug it has.
+            throw new OdinClientException(
+                $"Drive {driveId} already carries the slug '{existingSlug}'; adoption will not rename it to " +
+                $"'{requestedSlug}'",
+                OdinClientErrorCode.DriveSlugAlreadySet);
+        }
+
+        var resolvedSlug = requestedSlug ?? existingSlug;
         if (resolvedSlug == null)
         {
             resolvedSlug = DriveSlugGenerator.Generate(storageDrive.Id, storageDrive.Name, taken);
         }
         else if (taken.Contains(resolvedSlug))
         {
-            // Refuse rather than suffix, as on create: a supplied slug is an address the caller
-            // intends to resolve against, and handing back "news-2" would look like success.
+            // Checked for a kept slug as well as a supplied one: the slug was unconstrained while
+            // the drive had no AppId, so it may well collide with one the target app already holds,
+            // and reaching the insert would surface that as a raw UNIQUE violation.
             throw new OdinClientException(
                 $"Drive slug '{resolvedSlug}' is already used by another drive on this app",
                 OdinClientErrorCode.IdAlreadyExists);
@@ -586,7 +608,11 @@ public class DriveManager : IDriveManager
 
         storageDrive.AppId = appId;
         storageDrive.DriveSlug = resolvedSlug;
+
+        // Same order of preference, for the same reason -- though a type slug is a category rather
+        // than an address, so nothing resolves against it.
         storageDrive.DriveTypeSlug = requestedTypeSlug
+                                     ?? existingTypeSlug
                                      ?? DriveSlugGenerator.TypeSlugFor(storageDrive.TargetDriveInfo.Alias.Value,
                                          storageDrive.TargetDriveInfo.Type.Value);
 

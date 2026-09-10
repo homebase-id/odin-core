@@ -229,6 +229,110 @@ public class DriveOwningAppTests
     }
 
     [Test]
+    public async Task AnExistingSlugIsKeptRatherThanRegenerated()
+    {
+        // A drive can carry a slug with no AppId: CreateDriveAsync only skips *deriving* one for an
+        // app-less drive, and a supplied one passes through. Adoption is when that slug starts
+        // resolving, so it must not be swapped for a name-derived one on the way past.
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var appId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(appId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var drive = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager
+                .CreateDrive(drive, "Something Else Entirely", "", false, driveSlug: "news"))
+            .IsSuccessStatusCode);
+
+        var before = await GetDrive(ownerApiClient, drive);
+        Assert.That(before.AppId, Is.Null);
+        Assert.That(before.DriveSlug, Is.EqualTo("news"), "precondition: the drive carries a slug already");
+
+        // No slug supplied -- the pre-existing one must survive rather than being derived from
+        // "Something Else Entirely".
+        var response = await ownerApiClient.DriveManager.SetDriveOwningApp(drive, appId);
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
+
+        var after = await GetDrive(ownerApiClient, drive);
+        Assert.That(after.AppId, Is.EqualTo(appId));
+        Assert.That(after.DriveSlug, Is.EqualTo("news"), "adoption must not rewrite an existing slug");
+    }
+
+    [Test]
+    public async Task AdoptingWithTheSlugItAlreadyHasIsAllowed()
+    {
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var appId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(appId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var drive = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager
+                .CreateDrive(drive, "Whatever", "", false, driveSlug: "news"))
+            .IsSuccessStatusCode);
+
+        var response = await ownerApiClient.DriveManager.SetDriveOwningApp(drive, appId, "news");
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
+        Assert.That((await GetDrive(ownerApiClient, drive)).DriveSlug, Is.EqualTo("news"));
+    }
+
+    [Test]
+    public async Task AdoptingWithADifferentSlugThanTheDriveCarriesIsRefused()
+    {
+        // Two explicit answers that disagree. Refused rather than picking one, so renaming an
+        // address is never something adoption does on the way past.
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var appId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(appId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var drive = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager
+                .CreateDrive(drive, "Whatever", "", false, driveSlug: "news"))
+            .IsSuccessStatusCode);
+
+        var response = await ownerApiClient.DriveManager.SetDriveOwningApp(drive, appId, "headlines");
+        Assert.That(response.IsSuccessStatusCode, Is.False);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        var after = await GetDrive(ownerApiClient, drive);
+        Assert.That(after.AppId, Is.Null, "the refused call must leave the drive adoptable");
+        Assert.That(after.DriveSlug, Is.EqualTo("news"), "and must leave its slug alone");
+    }
+
+    [Test]
+    public async Task AKeptSlugThatCollidesWithinTheTargetAppIsRefused()
+    {
+        // The slug was unconstrained while the drive had no AppId, so it may well collide with one
+        // the target app already holds. Reaching the insert would surface that as a raw UNIQUE
+        // violation rather than a client error.
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var appId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(appId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var owned = TargetDrive.NewTargetDrive();
+        var orphan = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.CreateDrive(owned, "Owned", "", false))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager
+                .CreateDrive(orphan, "Orphan", "", false, driveSlug: "news"))
+            .IsSuccessStatusCode);
+
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.SetDriveOwningApp(owned, appId, "news"))
+            .IsSuccessStatusCode);
+
+        // The orphan keeps "news", which the target app now holds.
+        var response = await ownerApiClient.DriveManager.SetDriveOwningApp(orphan, appId);
+        Assert.That(response.IsSuccessStatusCode, Is.False);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
     public async Task AMalformedSlugIsRefused()
     {
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);

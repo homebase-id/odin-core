@@ -47,6 +47,7 @@ public enum OdinClientErrorCode
     CannotAllowSubscriptionsOnOwnerOnlyDrive = 4004,
     DriveAlreadyHasOwningApp = 4005,
     CannotSetOwningAppOnSystemDrive = 4006,
+    DriveSlugAlreadySet = 4007,
 
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
