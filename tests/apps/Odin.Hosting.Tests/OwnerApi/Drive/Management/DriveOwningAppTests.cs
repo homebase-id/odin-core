@@ -76,7 +76,11 @@ public class DriveOwningAppTests
         // The invariant that makes UNIQUE(identityId, AppId, DriveSlug) mean anything: an app-owned
         // row with no slug would sit outside the constraint entirely.
         Assert.That(after.DriveSlug, Is.Not.Null.And.Not.Empty);
-        Assert.That(after.DriveTypeSlug, Is.Not.Null.And.Not.Empty);
+
+        // DriveTypeSlug is deliberately NOT asserted non-null. TypeSlugFor returns null for a drive
+        // type it does not recognise, and this drive has a random one -- a type slug is a readable
+        // category, not an address, so having none is a correct answer rather than a gap.
+        Assert.That(after.DriveTypeSlug, Is.Null);
 
         // Adoption is an addressing change; it must not touch what the drive is or holds.
         Assert.That(after.Name, Is.EqualTo(before.Name));
