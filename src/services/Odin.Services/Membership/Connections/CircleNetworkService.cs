@@ -486,20 +486,28 @@ namespace Odin.Services.Membership.Connections
             IEnumerable<RedactedIdentityConnectionRegistration> connections,
             IOdinContext odinContext)
         {
-            var circleNames = new Dictionary<Guid, string>();
+            var circles = new Dictionary<Guid, CircleDefinition>();
             var appNames = new Dictionary<Guid, string>();
 
             foreach (var connection in connections ?? [])
             {
                 foreach (var awaiting in connection?.AccessGrant?.AwaitingApps ?? [])
                 {
-                    if (!circleNames.TryGetValue(awaiting.CircleId, out var circleName))
+                    if (!circles.TryGetValue(awaiting.CircleId, out var circle))
                     {
-                        circleName = (await circleDefinitionService.GetCircleAsync(awaiting.CircleId))?.Name;
-                        circleNames[awaiting.CircleId] = circleName;
+                        circle = await circleDefinitionService.GetCircleAsync(awaiting.CircleId);
+                        circles[awaiting.CircleId] = circle;
                     }
 
-                    awaiting.CircleName = circleName;
+                    awaiting.CircleName = circle?.Name;
+
+                    // Who it waits on comes from the circle, not from the entry's copy. The copy is
+                    // taken when the entry is queued, so a circle adopted or moved since then leaves it
+                    // naming the previous owner -- and this is the value the connection screen renders
+                    // as "waiting on X". Overwritten rather than trusted, for the same reason
+                    // ProcessPendingEnrollmentsForAppAsync stopped filtering on it: the definition is
+                    // loaded here anyway.
+                    awaiting.AppId = circle?.AppId;
 
                     if (!awaiting.AppId.HasValue)
                     {
@@ -1880,11 +1888,6 @@ namespace Odin.Services.Membership.Connections
 
                     foreach (var entry in icr.PeerKeyStore.PendingEnrollments.ToList())
                     {
-                        if (callerAppId != null && entry.OwningAppId != callerAppId)
-                        {
-                            continue;
-                        }
-
                         // Everything about one entry is inside the try, not just the enrolment: reading
                         // the definition and deciding whether this caller can grant it both reach into
                         // the drive manager, which throws for a drive that has gone missing. A throw
@@ -1905,8 +1908,32 @@ namespace Odin.Services.Membership.Connections
                                 continue;
                             }
 
+                            // Ownership is read from the definition, never from the entry's copy of it.
+                            // PendingEnrollment.OwningAppId is denormalised at enqueue time, so it is
+                            // whatever the circle said back then: adopting an unowned circle, or moving
+                            // one between apps, leaves every waiting entry pointing at the previous
+                            // answer. Filtering on that copy made the owning app process nothing at all,
+                            // silently, which is the opposite of what adopting a circle is for. Nothing
+                            // is saved by the copy here either -- the definition is loaded either way,
+                            // one line above.
+                            if (callerAppId != null && circleDefinition.AppId != callerAppId)
+                            {
+                                logger.LogDebug(
+                                    "Skipping pending enrollment for {odinId} in circle {circleId}: it belongs to " +
+                                    "app {owningAppId}, not to the calling app {callerAppId}",
+                                    icr.OdinId, entry.CircleId, circleDefinition.AppId, callerAppId);
+                                continue;
+                            }
+
                             if (!await CallerCanGrantCircleAsync(circleDefinition, odinContext))
                             {
+                                // The reason an app that owns the circle still cannot finish the job:
+                                // completing it needs the storage keys for the circle's drives, and this
+                                // caller cannot source them. Left queued for a caller that can.
+                                logger.LogDebug(
+                                    "Leaving pending enrollment for {odinId} in circle {circleId} queued: the caller " +
+                                    "cannot source the storage keys for its drives",
+                                    icr.OdinId, entry.CircleId);
                                 continue;
                             }
 

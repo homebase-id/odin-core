@@ -214,6 +214,14 @@ public sealed partial class OwnerAdmin
         return response;
     }
 
+    /// <summary>Moves a circle from the app that owns it to another.  Owner console only.</summary>
+    public async Task<ApiResponse<HttpContent>> ReassignCircleOwningApp(Guid circleId, Guid appId)
+    {
+        var response = await _network.ReassignCircleOwningApp(circleId, appId);
+        EnsureSuccess(response, nameof(ReassignCircleOwningApp));
+        return response;
+    }
+
     // -----------------------------------------------------------------------------------------
     // Shared throw-on-non-2xx helper used by every public method in the partial-class set.
     // -----------------------------------------------------------------------------------------

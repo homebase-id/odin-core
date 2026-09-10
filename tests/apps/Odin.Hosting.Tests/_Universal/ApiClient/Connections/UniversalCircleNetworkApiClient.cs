@@ -13,6 +13,7 @@ using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Connections;
@@ -42,6 +43,19 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
 
             var createCircleResponse = await svc.CreateCircleDefinition(request);
             return createCircleResponse;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> ReassignCircleOwningApp(Guid circleId, Guid appId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleDefinition>(client, ownerSharedSecret);
+            return await svc.ReassignCircleOwningApp(new SetCircleOwningAppRequest
+            {
+                CircleId = circleId,
+                AppId = appId
+            });
         }
     }
 

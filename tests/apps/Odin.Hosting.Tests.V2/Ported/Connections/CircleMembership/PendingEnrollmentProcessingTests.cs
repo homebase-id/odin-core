@@ -386,13 +386,77 @@ public class PendingEnrollmentProcessingTests : V2Fixture
     /// An app, a drive only it can read, and a read-bearing circle owned by that app -- the shape the
     /// queue exists for, since no other client can source that drive's storage key.
     /// </summary>
+    [Test]
+    public async Task AfterACircleMovesToAnotherApp_TheNewOwnerCompletesItsQueue()
+    {
+        // The queue entry carries a copy of the owning app taken when it was enqueued, so a circle
+        // that changes hands afterwards leaves every waiting entry naming the previous owner. Reading
+        // ownership from that copy meant the new owner processed nothing at all -- silently, which is
+        // the exact opposite of what handing it the circle was for.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var mail = await SetupAppOwningAReadCircleAsync(frodo, "mail");
+
+        // Queued while mail owns it: the entry records mail.
+        await EnqueueViaReviewAsync(frodo, sam.Identity, mail.Circle);
+
+        // A second app, given read on the SAME drive, so it can genuinely source the keys once the
+        // circle is its own -- the move has to be the only thing standing in the way.
+        var photos = await AppSession.SetupAsync(frodo, mail.Drive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        await frodo.Admin.ReassignCircleOwningApp(mail.Circle, photos.AppId);
+
+        var result = await new V2ConnectionNetworkClient(photos.Identity, photos.Factory)
+            .ProcessPendingEnrollmentsAsync();
+
+        Assert.That(result.IsSuccessStatusCode, Is.True, $"process failed: {result.StatusCode}");
+        Assert.That(result.Content!.EnrollmentsCompleted, Is.EqualTo(1),
+            "the app the circle now belongs to should have completed it");
+
+        var icr = await GetIcrAsync(frodo, sam.Identity);
+        Assert.That(icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == mail.Circle), Is.False,
+            "the entry should be off the queue");
+    }
+
+    [Test]
+    public async Task AfterACircleMovesAway_ThePreviousOwnerNoLongerCompletesIt()
+    {
+        // The other half: reading ownership live has to take the circle away from the old app as well
+        // as give it to the new one, or the copy is simply being ignored in one direction.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var mail = await SetupAppOwningAReadCircleAsync(frodo, "mail");
+        await EnqueueViaReviewAsync(frodo, sam.Identity, mail.Circle);
+
+        var photos = await AppSession.SetupAsync(frodo, mail.Drive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+        await frodo.Admin.ReassignCircleOwningApp(mail.Circle, photos.AppId);
+
+        var result = await new V2ConnectionNetworkClient(mail.App.Identity, mail.App.Factory)
+            .ProcessPendingEnrollmentsAsync();
+
+        Assert.That(result.IsSuccessStatusCode, Is.True, $"process failed: {result.StatusCode}");
+        Assert.That(result.Content!.EnrollmentsCompleted, Is.EqualTo(0),
+            "the app that no longer owns the circle must not complete it");
+
+        var icr = await GetIcrAsync(frodo, sam.Identity);
+        Assert.That(icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == mail.Circle), Is.True,
+            "the entry stays queued for the app that now owns it");
+    }
+
     private static async Task<AppOwnedCircle> SetupAppOwningAReadCircleAsync(
         OwnerSession owner, string label, IReadOnlyList<int>? permissionKeys = null)
     {
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, $"{label}Drive", allowAnonymousReads: false);
 
-        // The app comes first: ownership is set when the circle is created and cannot be reassigned.
+        // The app comes first: ownership is set when the circle is created, and while it can be moved
+        // afterwards that is the owner-console escape hatch, not this path.
         var app = await AppSession.SetupAsync(owner, drive, DrivePermission.Read,
             permissionKeys: permissionKeys ?? new[] { PermissionKeys.ManageCircleMembership });
 
