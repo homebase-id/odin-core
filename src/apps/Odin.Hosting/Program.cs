@@ -140,6 +140,19 @@ namespace Odin.Hosting
                         otlp.ResourceAttributes = new Dictionary<string, object>
                         {
                             ["service.name"] = oo.ServiceName,
+                            // WHICH MACHINE WROTE THIS. Without it the collector cannot tell one
+                            // identity host from another: service.name is set per CLUSTER, and the
+                            // "Hostname" property on each record is the request's TENANT
+                            // (john.doe.id.pub), not the box. Today that is survivable because a
+                            // single host serves every name; the moment a load balancer spreads
+                            // traffic across both cores, "which core did this?" stops having an
+                            // answer - which is exactly when it is asked.
+                            //
+                            // Environment.MachineName is correct here even in Docker: the app runs
+                            // with network_mode: host, so the container inherits the host's
+                            // hostname ("i1-1") rather than a container id. Verified on the NA
+                            // fleet 2026-09-10.
+                            ["service.instance.id"] = Environment.MachineName,
                         };
                     }));
             }
