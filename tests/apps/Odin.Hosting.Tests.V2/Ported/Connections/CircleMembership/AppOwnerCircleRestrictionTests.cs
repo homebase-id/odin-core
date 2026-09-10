@@ -115,7 +115,7 @@ public class AppOwnerCircleRestrictionTests : V2Fixture
         Assert.That(ids, Does.Contain(appCircle), "an app sees circles owned by an app");
         Assert.That(ids, Does.Not.Contain(ownerCircle),
             "and not the owner's own, which it could not act on anyway");
-        Assert.That(listed.Content.All(c => c.Circle.AppId.HasValue), Is.True,
+        Assert.That(listed.Content!.All(c => c.Circle.AppId.HasValue), Is.True,
             "nothing without an owning app should be offered to an app");
     }
 
