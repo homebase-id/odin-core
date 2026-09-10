@@ -49,6 +49,39 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.Circles
             await _cns.SetCircleOwningAppAsync(new GuidId(request.CircleId), request.AppId, WebOdinContext);
             return true;
         }
+
+        /// <summary>
+        /// Moves a circle from the app that owns it to another.  The escape hatch, not the ordinary
+        /// path -- see <see cref="SetCircleOwningApp"/>, which refuses an already-owned circle.
+        /// </summary>
+        /// <remarks>
+        /// Master key required, so this is the owner console and nothing else: an app is the owner
+        /// acting, and no app should be able to move a circle to itself.
+        /// <para>
+        /// Pending enrollments queued against the circle are re-pointed at the new app in the same
+        /// transaction, and the count comes back so a caller can say what moved.  Without that they
+        /// would be claimed by nobody -- the processing pass filters on the copy each entry carries.
+        /// </para>
+        /// </remarks>
+        [HttpPost("reassign-owner")]
+        public async Task<ReassignCircleOwningAppResult> ReassignCircleOwningApp(
+            [FromBody] SetCircleOwningAppRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotEmptyGuid(request.CircleId, nameof(request.CircleId));
+            OdinValidationUtils.AssertNotEmptyGuid(request.AppId, nameof(request.AppId));
+
+            var repointed = await _cns.ReassignCircleOwningAppAsync(new GuidId(request.CircleId), request.AppId,
+                WebOdinContext);
+
+            return new ReassignCircleOwningAppResult { EnrollmentsRepointed = repointed };
+        }
+    }
+
+    public class ReassignCircleOwningAppResult
+    {
+        /// <summary>Pending enrollments re-pointed at the new app.  Zero is normal.</summary>
+        public int EnrollmentsRepointed { get; set; }
     }
 
     public class SetCircleOwningAppRequest

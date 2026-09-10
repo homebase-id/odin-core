@@ -352,6 +352,135 @@ public class DriveOwningAppTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
+    //
+    // Reassignment: the escape hatch out of the one-way rule.
+    //
+
+    [Test]
+    public async Task ReassigningMovesTheDriveAndItsAddress()
+    {
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var firstAppId = Guid.NewGuid();
+        var secondAppId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(firstAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(secondAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var drive = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.CreateDrive(drive, "Movable", "", false))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.SetDriveOwningApp(drive, firstAppId, "news"))
+            .IsSuccessStatusCode);
+
+        var response = await ownerApiClient.DriveManager
+            .ReassignDriveOwningApp(drive, secondAppId, "headlines");
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
+
+        var after = await GetDrive(ownerApiClient, drive);
+        Assert.That(after.AppId, Is.EqualTo(secondAppId));
+        Assert.That(after.DriveSlug, Is.EqualTo("headlines"));
+    }
+
+    [Test]
+    public async Task ReassigningWithoutASlugIsRefused()
+    {
+        // Required rather than derived: the address changes, so it is stated rather than discovered.
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var firstAppId = Guid.NewGuid();
+        var secondAppId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(firstAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(secondAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var drive = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.CreateDrive(drive, "Movable", "", false))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.SetDriveOwningApp(drive, firstAppId, "news"))
+            .IsSuccessStatusCode);
+
+        var response = await ownerApiClient.DriveManager.ReassignDriveOwningApp(drive, secondAppId);
+        Assert.That(response.IsSuccessStatusCode, Is.False);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        var after = await GetDrive(ownerApiClient, drive);
+        Assert.That(after.AppId, Is.EqualTo(firstAppId), "the refused call must not have moved it");
+    }
+
+    [Test]
+    public async Task ReassigningOntoASlugTheNewAppHoldsIsRefused()
+    {
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var firstAppId = Guid.NewGuid();
+        var secondAppId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(firstAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(secondAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var occupant = TargetDrive.NewTargetDrive();
+        var mover = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.CreateDrive(occupant, "Occupant", "", false))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.CreateDrive(mover, "Mover", "", false))
+            .IsSuccessStatusCode);
+
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.SetDriveOwningApp(occupant, secondAppId, "news"))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.SetDriveOwningApp(mover, firstAppId, "mover"))
+            .IsSuccessStatusCode);
+
+        var response = await ownerApiClient.DriveManager.ReassignDriveOwningApp(mover, secondAppId, "news");
+        Assert.That(response.IsSuccessStatusCode, Is.False);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task ReassigningKeepingItsOwnSlugIsAllowed()
+    {
+        // The drive's own row must not count as an occupant of the slug it already holds.
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var firstAppId = Guid.NewGuid();
+        var secondAppId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(firstAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(secondAppId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var drive = TargetDrive.NewTargetDrive();
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.CreateDrive(drive, "Movable", "", false))
+            .IsSuccessStatusCode);
+        ClassicAssert.IsTrue((await ownerApiClient.DriveManager.SetDriveOwningApp(drive, firstAppId, "news"))
+            .IsSuccessStatusCode);
+
+        var response = await ownerApiClient.DriveManager.ReassignDriveOwningApp(drive, secondAppId, "news");
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
+
+        var after = await GetDrive(ownerApiClient, drive);
+        Assert.That(after.AppId, Is.EqualTo(secondAppId));
+        Assert.That(after.DriveSlug, Is.EqualTo("news"));
+    }
+
+    [Test]
+    public async Task ReassigningASystemDriveIsRefused()
+    {
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var appId = Guid.NewGuid();
+        ClassicAssert.IsTrue((await ownerApiClient.AppManager.RegisterApp(appId, new PermissionSetGrantRequest()))
+            .IsSuccessStatusCode);
+
+        var response = await ownerApiClient.DriveManager
+            .ReassignDriveOwningApp(BuiltinDrives.Protected.First(), appId, "anything");
+        Assert.That(response.IsSuccessStatusCode, Is.False);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
     private static async Task<OwnerClientDriveData> GetDrive(OwnerApiClientRedux client, TargetDrive drive)
     {
         var response = await client.DriveManager.GetDrives(1, 1000);

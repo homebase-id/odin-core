@@ -1115,6 +1115,105 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
+        /// <summary>
+        /// Moves a circle from the app that owns it to another.  The escape hatch out of
+        /// <see cref="SetCircleOwningAppAsync"/>'s one-way rule.
+        /// </summary>
+        /// <remarks>
+        /// Master key required, not merely owner: an app is the owner acting, and no app should be
+        /// able to move a circle -- least of all to itself.  Requiring the key is the sharpest way to
+        /// say "owner console only" for an operation with no undo but doing it again.
+        /// <para>
+        /// The queue rewrite is the whole reason this is not just a definition write.
+        /// <c>PendingEnrollment.OwningAppId</c> is denormalised from the definition, and
+        /// <see cref="ProcessPendingEnrollmentsForAppAsync"/> filters on that copy -- so an entry left
+        /// pointing at the previous app is looked at only by the previous app, which can no longer
+        /// source the circle's drive keys and therefore skips it. Nobody else ever sees it. Left
+        /// alone, moving a circle silently strands every enrollment queued against it.
+        /// </para>
+        /// <para>
+        /// Both writes are one transaction. Half of this is worse than none: the definition moved
+        /// with the copies left behind is exactly the stranded state, and the copies moved without
+        /// the definition points them at an app the circle does not belong to.
+        /// </para>
+        /// </remarks>
+        public async Task<int> ReassignCircleOwningAppAsync(GuidId circleId, Guid appId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+
+            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
+            if (app == null)
+            {
+                throw new OdinClientException($"No app is registered with id {appId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            var previousAppId = circle.AppId;
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+
+            await circleDefinitionService.ReassignOwningAppAsync(circleId, appId);
+
+            var entriesRepointed = 0;
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected,
+                    odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    if (!(icr.PeerKeyStore?.HasPendingEnrollments ?? false))
+                    {
+                        continue;
+                    }
+
+                    var stale = icr.PeerKeyStore.PendingEnrollments
+                        .Where(p => p.CircleId == circleId && p.OwningAppId != appId)
+                        .ToList();
+
+                    if (stale.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    foreach (var entry in stale)
+                    {
+                        entry.OwningAppId = appId;
+                        entriesRepointed++;
+                    }
+
+                    await SaveIcrAsync(icr, odinContext);
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            tx.Commit();
+
+            logger.LogInformation(
+                "Circle {circleId} moved from app {previousAppId} to {appName} ({appId}); " +
+                "{entriesRepointed} pending enrollment(s) re-pointed",
+                circleId, previousAppId, app.Name, appId, entriesRepointed);
+
+            await mediator.Publish(new CircleDefinitionChangedNotification
+            {
+                OdinContext = odinContext,
+                CircleId = circleId.Value,
+                Change = CircleDefinitionChangeType.Updated,
+            });
+
+            return entriesRepointed;
+        }
+
         public async Task<List<OdinId>> GetInvalidMembersOfCircleDefinition(CircleDefinition circleDef, IOdinContext odinContext)
         {
             await circleMembershipService.AssertValidDriveGrantsAsync(circleDef.DriveGrants);

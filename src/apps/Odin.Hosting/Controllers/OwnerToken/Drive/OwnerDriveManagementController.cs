@@ -153,7 +153,40 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return Ok();
         }
 
-        
+
+        /// <summary>
+        /// Moves a drive from the app that owns it to another, at a new address.
+        /// </summary>
+        /// <remarks>
+        /// The escape hatch out of <see cref="SetDriveOwningApp"/>'s one-way rule.  Master key
+        /// required, so the owner console and nothing else -- an app that could move a drive to
+        /// itself could help itself to the drive's address.
+        /// <para>
+        /// The old address stops resolving.  A slug is required rather than derived for exactly that
+        /// reason: the caller states the new address instead of discovering it afterwards.
+        /// </para>
+        /// </remarks>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("reassign-owner")]
+        public async Task<IActionResult> ReassignDriveOwningApp([FromBody] SetDriveOwningAppRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
+            OdinValidationUtils.AssertNotEmptyGuid(request.AppId, nameof(request.AppId));
+
+            var app = await appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
+            if (app == null)
+            {
+                throw new OdinClientException($"No app is registered with id {request.AppId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+
+            await driveManager.ReassignDriveOwningAppAsync(request.TargetDrive.Alias, request.AppId,
+                request.DriveSlug, request.DriveTypeSlug, WebOdinContext);
+
+            return Ok();
+        }
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpGet("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)

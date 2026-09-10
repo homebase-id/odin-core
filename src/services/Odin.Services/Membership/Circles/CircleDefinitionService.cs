@@ -207,6 +207,49 @@ namespace Odin.Services.Membership.Circles
         }
 
         /// <summary>
+        /// Moves a circle from one owning app to another.  The escape hatch, not the ordinary path.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="SetOwningAppAsync"/> exists because ownership should not move; this exists
+        /// because sometimes it has to, and the alternative is deleting and rebuilding a circle whose
+        /// membership the owner would then have to reconstruct by hand.
+        /// <para>
+        /// It does not touch the denormalised copies in <c>PendingEnrollment.OwningAppId</c>, and it
+        /// must not be called without also rewriting them -- an entry left pointing at the previous
+        /// app is claimed by nobody: the processing pass filters on that copy, so only the old app
+        /// looks at it, and the old app can no longer source the circle's drive keys.  The queue
+        /// rewrite lives with the connections in
+        /// <c>CircleNetworkService.ReassignCircleOwningAppAsync</c>, which is the only caller.
+        /// </para>
+        /// <para>
+        /// System circles are refused: they belong to no app by definition, and the app tree is what
+        /// stamps the ones that do.
+        /// </para>
+        /// </remarks>
+        internal async Task ReassignOwningAppAsync(GuidId circleId, Guid appId)
+        {
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (SystemCircleConstants.IsSystemCircle(circleId.Value))
+            {
+                throw new OdinClientException($"Circle {circleId} is a system circle and belongs to no app",
+                    OdinClientErrorCode.CannotReassignSystemCircle);
+            }
+
+            circle.AppId = appId;
+            circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
+
+            await AssertDepositOnlyIfAmbientAsync(circle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+        }
+
+        /// <summary>
         /// Gives a circle the emoji the tree names, but only if it does not have one.  Migration only.
         /// </summary>
         /// <remarks>

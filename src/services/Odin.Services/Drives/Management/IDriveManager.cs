@@ -22,6 +22,13 @@ public interface IDriveManager
     /// </summary>
     Task SetDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
         IOdinContext odinContext);
+
+    /// <summary>
+    /// Moves a drive between owning apps, changing its address.  See
+    /// <see cref="DriveManager.ReassignDriveOwningAppAsync"/>.
+    /// </summary>
+    Task ReassignDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+        IOdinContext odinContext);
     Task<StorageDrive> GetDriveAsync(Guid driveId, bool failIfInvalid = false);
     Task<PagedResult<StorageDrive>> GetDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
     Task<PagedResult<StorageDrive>> GetDrivesAsync(GuidId type, PageOptions pageOptions, IOdinContext odinContext);

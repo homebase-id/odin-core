@@ -35,5 +35,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles
 
         [Post(RootPath + "/set-owner")]
         Task<ApiResponse<bool>> SetCircleOwningApp([Body] SetCircleOwningAppRequest request);
+
+        [Post(RootPath + "/reassign-owner")]
+        Task<ApiResponse<ReassignCircleOwningAppResult>> ReassignCircleOwningApp(
+            [Body] SetCircleOwningAppRequest request);
     }
 }

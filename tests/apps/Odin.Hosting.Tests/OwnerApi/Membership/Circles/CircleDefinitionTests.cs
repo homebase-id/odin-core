@@ -760,5 +760,160 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
             }
         }
+
+        //
+        // Reassignment: the escape hatch out of the one-way rule above.
+        //
+
+        [Test]
+        public async Task ReassigningMovesTheCircleToTheNewApp()
+        {
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var firstAppId = Guid.NewGuid();
+            var secondAppId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(firstAppId, new PermissionSetGrantRequest());
+            await ownerClient.Apps.RegisterApp(secondAppId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Circle that moves",
+                    Description = "",
+                    Permissions = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+                };
+
+                ClassicAssert.IsTrue((await svc.CreateCircleDefinition(request)).IsSuccessStatusCode);
+                ClassicAssert.IsTrue((await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = firstAppId
+                })).IsSuccessStatusCode);
+
+                var response = await svc.ReassignCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = secondAppId
+                });
+
+                Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
+                Assert.That(response.Content, Is.Not.Null);
+                Assert.That(response.Content.EnrollmentsRepointed, Is.EqualTo(0),
+                    "no enrollments were queued against this circle");
+
+                var after = (await svc.GetCircleDefinition(request.Id)).Content;
+                Assert.That(after!.AppId, Is.EqualTo(secondAppId));
+
+                // Reassignment moves ownership only; it must not disturb what the circle grants.
+                Assert.That(after.Name, Is.EqualTo(request.Name));
+                Assert.That(after.Permissions.HasKey(PermissionKeys.ReadCircleMembership), Is.True);
+            }
+        }
+
+        [Test]
+        public async Task ReassigningAnUnownedCircleIsAllowed()
+        {
+            // Reassign is the escape hatch, not a stricter adopt: it does not care what the circle
+            // came from, only that the destination is real and the circle is not a system one.
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var appId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(appId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Never owned",
+                    Description = "",
+                    Permissions = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+                };
+
+                ClassicAssert.IsTrue((await svc.CreateCircleDefinition(request)).IsSuccessStatusCode);
+
+                var response = await svc.ReassignCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = appId
+                });
+
+                Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
+                Assert.That(((await svc.GetCircleDefinition(request.Id)).Content)!.AppId, Is.EqualTo(appId));
+            }
+        }
+
+        [Test]
+        public async Task ReassigningASystemCircleIsRefused()
+        {
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var appId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(appId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var response = await svc.ReassignCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = SystemCircleConstants.ConfirmedConnectionsCircleId.Value,
+                    AppId = appId
+                });
+
+                Assert.That(response.IsSuccessStatusCode, Is.False);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            }
+        }
+
+        [Test]
+        public async Task ReassigningToAnUnregisteredAppIsRefused()
+        {
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var appId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(appId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Going nowhere",
+                    Description = "",
+                    Permissions = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+                };
+
+                ClassicAssert.IsTrue((await svc.CreateCircleDefinition(request)).IsSuccessStatusCode);
+                ClassicAssert.IsTrue((await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = appId
+                })).IsSuccessStatusCode);
+
+                var response = await svc.ReassignCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = Guid.NewGuid()
+                });
+
+                Assert.That(response.IsSuccessStatusCode, Is.False);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+                Assert.That(((await svc.GetCircleDefinition(request.Id)).Content)!.AppId, Is.EqualTo(appId),
+                    "the refused call must not have moved it");
+            }
+        }
     }
 }
