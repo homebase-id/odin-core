@@ -246,7 +246,17 @@ namespace Odin.Hosting
                             var reservedHttpsPorts = odinConfig.Host.IpAddressListenList.Select(x => x.HttpsPort);
                             if (odinConfig.Admin.ApiEnabled && !reservedHttpsPorts.Contains(odinConfig.Admin.ApiPort))
                             {
-                                kestrelOptions.Listen(IPAddress.Any, odinConfig.Admin.ApiPort,
+                                // Was hardcoded to IPAddress.Any. That made the admin API the one
+                                // listener a deployment could not place: everything else here binds
+                                // an address from config, so it can be made unreachable BY
+                                // CONSTRUCTION, while this one could only be closed by a firewall
+                                // rule - one line of defence where the rest have two, and a flushed
+                                // ruleset exposes it.
+                                //
+                                // Default is unchanged ("0.0.0.0"), because Odin.Cli is documented
+                                // to reach this port over the network.
+                                kestrelOptions.Listen(IPAddress.Parse(odinConfig.Admin.ApiBindAddress),
+                                    odinConfig.Admin.ApiPort,
                                     options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
                             }
                         })
