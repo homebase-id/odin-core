@@ -36,6 +36,8 @@ public enum OdinClientErrorCode
     CannotClearReviewWhilePersonalCircleMember = 3012,
     CannotGrantKeysOnAmbientCircle = 3013,
     CannotGrantReadOnAmbientCircle = 3014,
+    CircleAlreadyHasOwningApp = 3015,
+    CircleNotFound = 3016,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

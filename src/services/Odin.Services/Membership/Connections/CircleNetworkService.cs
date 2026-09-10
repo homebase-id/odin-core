@@ -1057,6 +1057,64 @@ namespace Odin.Services.Membership.Connections
             //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
         }
 
+        /// <summary>
+        /// Hands a circle that belongs to no app to one that exists, so its enrollments have someone to
+        /// claim them.
+        /// </summary>
+        /// <remarks>
+        /// Circles predating app ownership carry no AppId, which reads as "the owner's own".  That is the
+        /// right default and wrong for the ones that were always meant to be an app's: an app is refused
+        /// them (<see cref="EnrollInCircleInternalAsync"/>) and never offered them
+        /// (<c>CircleMembershipService.GetCircleDefinitions</c>), so nothing an app does can ever involve
+        /// them.  Adoption is how the owner corrects that.
+        /// <para>
+        /// Owner console only, and deliberately not <c>OwnerOrApp</c>.  An app is the owner acting, so
+        /// were this open to apps any app could hand itself a circle and quietly widen its own reach --
+        /// which is the exact thing the ban on reassignment through a PUT exists to prevent.  The check
+        /// is on which app is acting rather than on who the caller is, since only the former separates
+        /// the console from an app.
+        /// </para>
+        /// <para>
+        /// No re-granting, unlike <see cref="UpdateCircleDefinitionAsync"/>: ownership names who may
+        /// administer the circle and complete its enrollments, and touches neither its drive grants nor
+        /// its permissions, so no member's access changes and no grant has to be reminted.
+        /// </para>
+        /// </remarks>
+        public async Task SetCircleOwningAppAsync(GuidId circleId, Guid appId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertCallerIsOwner();
+
+            if (odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot set the owning app of circle {circleId}; only the owner console can");
+            }
+
+            OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+
+            // Checked before the write rather than trusted: an AppId naming no app would leave the
+            // circle in the one state adoption exists to escape -- owned by something that can never
+            // come back for it, and no longer adoptable, since a second call is refused.
+            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
+            if (app == null)
+            {
+                throw new OdinClientException($"No app is registered with id {appId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+
+            await circleDefinitionService.SetOwningAppAsync(circleId, appId);
+
+            logger.LogInformation("Circle {circleId} adopted by app {appName} ({appId})",
+                circleId, app.Name, appId);
+
+            await mediator.Publish(new CircleDefinitionChangedNotification
+            {
+                OdinContext = odinContext,
+                CircleId = circleId.Value,
+                Change = CircleDefinitionChangeType.Updated,
+            });
+        }
+
         public async Task<List<OdinId>> GetInvalidMembersOfCircleDefinition(CircleDefinition circleDef, IOdinContext odinContext)
         {
             await circleMembershipService.AssertValidDriveGrantsAsync(circleDef.DriveGrants);

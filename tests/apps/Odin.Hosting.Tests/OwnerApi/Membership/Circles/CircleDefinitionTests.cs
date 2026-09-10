@@ -14,6 +14,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Refit;
@@ -559,6 +560,204 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 ClassicAssert.IsNotNull(remainingDefinitionList);
                 // The deleted user circle is gone; only built-in circles remain.
                 ClassicAssert.IsFalse(remainingDefinitionList.Any(c => c.Id == request.Id));
+            }
+        }
+
+        //
+        // Adoption: giving an unowned circle an owning app.
+        //
+        // A circle with no AppId reads as the owner's own, which is right for most and wrong for the
+        // ones that predate app ownership.  Adoption is one-way -- it fills an empty owner, never moves
+        // a set one -- because PendingEnrollment denormalises AppId on the promise that ownership does
+        // not change.
+        //
+
+        [Test]
+        public async Task AdoptingAnUnownedCircleGivesItTheApp()
+        {
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var appId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(appId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Circle awaiting an owner",
+                    Description = "Created without an app, as everything before app ownership was",
+                    Permissions = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+                };
+
+                var create = await svc.CreateCircleDefinition(request);
+                ClassicAssert.IsTrue(create.IsSuccessStatusCode, $"Failed.  Actual response {create.StatusCode}");
+
+                var before = (await svc.GetCircleDefinition(request.Id)).Content;
+                Assert.That(before, Is.Not.Null);
+                Assert.That(before.AppId, Is.Null, "a circle created without an app must start unowned");
+
+                var adopt = await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = appId
+                });
+                Assert.That(adopt.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {adopt.StatusCode}");
+
+                var after = (await svc.GetCircleDefinition(request.Id)).Content;
+                Assert.That(after, Is.Not.Null);
+                Assert.That(after.AppId, Is.EqualTo(appId));
+
+                // Adoption names an administrator.  Everything the circle actually grants is untouched.
+                Assert.That(after.Name, Is.EqualTo(before.Name));
+                Assert.That(after.Description, Is.EqualTo(before.Description));
+                Assert.That(after.Permissions.HasKey(PermissionKeys.ReadCircleMembership), Is.True);
+                Assert.That(after.GrantOn, Is.EqualTo(before.GrantOn));
+                Assert.That(after.Designation, Is.EqualTo(before.Designation));
+                Assert.That(after.Emoji, Is.EqualTo(before.Emoji));
+                Assert.That(after.Disabled, Is.EqualTo(before.Disabled));
+                Assert.That(after.Created, Is.EqualTo(before.Created));
+            }
+        }
+
+        [Test]
+        public async Task AdoptingACircleThatAlreadyHasAnAppIsRefused()
+        {
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var firstAppId = Guid.NewGuid();
+            var secondAppId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(firstAppId, new PermissionSetGrantRequest());
+            await ownerClient.Apps.RegisterApp(secondAppId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Circle adopted once",
+                    Description = "Ownership is set once and never moved",
+                    Permissions = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+                };
+
+                ClassicAssert.IsTrue((await svc.CreateCircleDefinition(request)).IsSuccessStatusCode);
+                ClassicAssert.IsTrue((await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = firstAppId
+                })).IsSuccessStatusCode);
+
+                var second = await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = secondAppId
+                });
+
+                Assert.That(second.IsSuccessStatusCode, Is.False, "ownership must not be reassignable");
+                Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+                var after = (await svc.GetCircleDefinition(request.Id)).Content;
+                Assert.That(after!.AppId, Is.EqualTo(firstAppId), "the refused call must not have moved it");
+            }
+        }
+
+        [Test]
+        public async Task ReAdoptingByTheSameAppIsRefused()
+        {
+            // Not idempotent on purpose: a repeat is indistinguishable from two apps racing for the
+            // circle, and that is the reading worth failing on.
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var appId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(appId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Circle adopted twice by one app",
+                    Description = "",
+                    Permissions = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+                };
+
+                ClassicAssert.IsTrue((await svc.CreateCircleDefinition(request)).IsSuccessStatusCode);
+
+                var body = new SetCircleOwningAppRequest { CircleId = request.Id, AppId = appId };
+                ClassicAssert.IsTrue((await svc.SetCircleOwningApp(body)).IsSuccessStatusCode);
+
+                var again = await svc.SetCircleOwningApp(body);
+                Assert.That(again.IsSuccessStatusCode, Is.False);
+                Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            }
+        }
+
+        [Test]
+        public async Task AdoptingByAnUnregisteredAppIsRefused()
+        {
+            // Checked before the write: stamping an app that does not exist would leave the circle in
+            // the very state adoption exists to escape -- owned by something that can never claim it,
+            // and no longer adoptable.
+            var identity = TestIdentities.Samwise;
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Circle offered to nobody",
+                    Description = "",
+                    Permissions = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+                };
+
+                ClassicAssert.IsTrue((await svc.CreateCircleDefinition(request)).IsSuccessStatusCode);
+
+                var response = await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = request.Id,
+                    AppId = Guid.NewGuid()
+                });
+
+                Assert.That(response.IsSuccessStatusCode, Is.False);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+                var after = (await svc.GetCircleDefinition(request.Id)).Content;
+                Assert.That(after!.AppId, Is.Null, "the circle must still be adoptable");
+            }
+        }
+
+        [Test]
+        public async Task AdoptingACircleThatDoesNotExistIsRefused()
+        {
+            var identity = TestIdentities.Samwise;
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var appId = Guid.NewGuid();
+            await ownerClient.Apps.RegisterApp(appId, new PermissionSetGrantRequest());
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+
+                var response = await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = Guid.NewGuid(),
+                    AppId = appId
+                });
+
+                Assert.That(response.IsSuccessStatusCode, Is.False);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
             }
         }
     }

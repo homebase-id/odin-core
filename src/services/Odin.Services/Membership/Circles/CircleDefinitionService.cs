@@ -156,6 +156,57 @@ namespace Odin.Services.Membership.Circles
         }
 
         /// <summary>
+        /// Hands an unowned circle to an app, once.
+        /// </summary>
+        /// <remarks>
+        /// The narrow exception to the rule <see cref="UpdateAsync"/> enforces.  That rule is really two:
+        /// ownership must not be settable by anyone who can PUT a definition, and ownership must not
+        /// <i>change</i> once set.  Only the first has to give way for an owner to adopt a circle that
+        /// belongs to no app -- so this refuses a circle that already has an owner rather than moving it,
+        /// and the second rule still holds everywhere.
+        /// <para>
+        /// That distinction is what keeps <c>PendingEnrollment.OwningAppId</c> honest.  It denormalises
+        /// this field on the reasoning that ownership never changes; a null-to-value transition cannot
+        /// make an existing copy wrong, because an entry queued against an unowned circle was recorded
+        /// with a null owner and stays claimable by exactly who it always was -- the owner.  A
+        /// value-to-value move would strand those copies pointing at the previous app, which is the
+        /// second reason not to allow one here.
+        /// </para>
+        /// <para>
+        /// Caller checks the caller; this checks the circle.  Permission and app-existence live in
+        /// <c>CircleNetworkService.SetCircleOwningAppAsync</c>.
+        /// </para>
+        /// </remarks>
+        internal async Task SetOwningAppAsync(GuidId circleId, Guid appId)
+        {
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.AppId.HasValue)
+            {
+                // Deliberately not idempotent even when the app matches: a caller re-sending the same
+                // adoption is indistinguishable from one racing another app for the circle, and the
+                // second reading is the one worth failing loudly on.
+                throw new OdinClientException(
+                    $"Circle {circleId} already belongs to app {circle.AppId.Value}; ownership cannot be reassigned",
+                    OdinClientErrorCode.CircleAlreadyHasOwningApp);
+            }
+
+            circle.AppId = appId;
+            circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
+
+            // GrantOn is untouched, so a circle cannot become ambient by being adopted -- but the
+            // invariant is cheap to re-assert and this is a write.
+            await AssertDepositOnlyIfAmbientAsync(circle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+        }
+
+        /// <summary>
         /// Gives a circle the emoji the tree names, but only if it does not have one.  Migration only.
         /// </summary>
         /// <remarks>
