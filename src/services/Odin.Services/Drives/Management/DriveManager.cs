@@ -497,6 +497,119 @@ public class DriveManager : IDriveManager
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
     }
 
+    /// <summary>
+    /// Hands a drive that belongs to no app to one, once, and gives it the address that goes with
+    /// being owned.
+    /// </summary>
+    /// <remarks>
+    /// Every drive predating the addressing work carries a null AppId, which reads as "the owner's
+    /// own" and leaves the drive unaddressable by slug.  This is how the owner corrects that for a
+    /// drive that should have been an app's all along.
+    /// <para>
+    /// One way.  A drive that already names an app is refused rather than moved, for the reason
+    /// <c>CircleDefinitionService.SetOwningAppAsync</c> refuses the same: the slug is an address other
+    /// identities resolve against, and moving a drive between apps changes that address underneath
+    /// them.  Filling an empty one cannot invalidate an address that never existed.
+    /// </para>
+    /// <para>
+    /// Provisioned drives are refused outright.  They already belong to the app that ships them, and
+    /// the ones still carrying a null AppId are waiting on provisioning to stamp it -- not on the
+    /// owner to guess.  The check is the same TargetDrive comparison
+    /// <see cref="SetArchiveDriveFlagAsync"/> uses, not <c>IsProtected</c>, which matches on alias
+    /// alone.
+    /// </para>
+    /// <para>
+    /// Slug and type slug are set here rather than left for later because of the invariant in
+    /// docs/drive-addressing.md: AppId and DriveSlug are set together or both NULL.  NULLs are
+    /// distinct in a unique index in both dialects, so an app-owned row with no slug would sit
+    /// outside UNIQUE(identityId, AppId, DriveSlug) entirely.  The derivation is deliberately the
+    /// same as <see cref="CreateDriveAsync"/>: caller's value wins, a missing one is derived, a
+    /// collision inside the same app is refused rather than suffixed.
+    /// </para>
+    /// </remarks>
+    public async Task SetDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+        IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinClientException("Cannot set the owning app of a system drive",
+                OdinClientErrorCode.CannotSetOwningAppOnSystemDrive);
+        }
+
+        if (storageDrive.AppId.HasValue)
+        {
+            throw new OdinClientException(
+                $"Drive {driveId} already belongs to app {storageDrive.AppId.Value}; ownership cannot be reassigned",
+                OdinClientErrorCode.DriveAlreadyHasOwningApp);
+        }
+
+        // Whitespace-only means "not set", as it does on create: clients serialize an unset field as
+        // "" or " " routinely, and without this the spellings diverge.
+        var requestedSlug = string.IsNullOrWhiteSpace(driveSlug) ? null : driveSlug;
+        var requestedTypeSlug = string.IsNullOrWhiteSpace(driveTypeSlug) ? null : driveTypeSlug;
+
+        OdinSlug.AssertValidOrNull(requestedSlug, nameof(driveSlug));
+        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(driveTypeSlug));
+
+        // Scoped to this app, because the constraint is: feed/news and chat/news may coexist. Read
+        // unconditionally -- the set answers both what a derived slug must avoid and whether a
+        // supplied one is already claimed, and without the second a duplicate would reach the insert
+        // as a raw UNIQUE violation instead of a client error.
+        var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+        var taken = new HashSet<string>(
+            existingDrives
+                .Where(d => d.AppId == appId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                .Select(d => d.DriveSlug),
+            StringComparer.Ordinal);
+
+        var resolvedSlug = requestedSlug;
+        if (resolvedSlug == null)
+        {
+            resolvedSlug = DriveSlugGenerator.Generate(storageDrive.Id, storageDrive.Name, taken);
+        }
+        else if (taken.Contains(resolvedSlug))
+        {
+            // Refuse rather than suffix, as on create: a supplied slug is an address the caller
+            // intends to resolve against, and handing back "news-2" would look like success.
+            throw new OdinClientException(
+                $"Drive slug '{resolvedSlug}' is already used by another drive on this app",
+                OdinClientErrorCode.IdAlreadyExists);
+        }
+
+        storageDrive.AppId = appId;
+        storageDrive.DriveSlug = resolvedSlug;
+        storageDrive.DriveTypeSlug = requestedTypeSlug
+                                     ?? DriveSlugGenerator.TypeSlugFor(storageDrive.TargetDriveInfo.Alias.Value,
+                                         storageDrive.TargetDriveInfo.Type.Value);
+
+        var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+        if (affected != 1)
+        {
+            throw new OdinSystemException(
+                $"Setting a drive's owning app should have updated 1 and only 1 row.  Number updated: {affected}");
+        }
+
+        _logger.LogInformation("Drive {driveId} adopted by app {appId} as slug '{slug}'",
+            driveId, appId, resolvedSlug);
+
+        // Same notification the archive path publishes: the definition changed, and the caches keyed
+        // on it have to be told regardless of which field moved.
+        await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+        {
+            IsNewDrive = false,
+            Drive = storageDrive,
+            OdinContext = odinContext,
+        });
+    }
+
     public async Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();

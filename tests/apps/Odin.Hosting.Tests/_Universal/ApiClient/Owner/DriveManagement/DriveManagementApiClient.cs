@@ -70,6 +70,21 @@ public class DriveManagementApiClient
         });
     }
 
+    public async Task<ApiResponse<HttpContent>> SetDriveOwningApp(TargetDrive drive, Guid appId,
+        string driveSlug = null, string driveTypeSlug = null)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
+
+        var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
+        return await driveSvc.SetDriveOwningApp(new SetDriveOwningAppRequest
+        {
+            TargetDrive = drive,
+            AppId = appId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug
+        });
+    }
+
     public async Task<ApiResponse<HttpContent>> Defrag()
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);

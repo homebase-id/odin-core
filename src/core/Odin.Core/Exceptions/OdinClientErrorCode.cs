@@ -45,6 +45,8 @@ public enum OdinClientErrorCode
     DriveAliasAndTypeAlreadyExists = 4003,
     InvalidGrantNonExistingDrive = 4004,
     CannotAllowSubscriptionsOnOwnerOnlyDrive = 4004,
+    DriveAlreadyHasOwningApp = 4005,
+    CannotSetOwningAppOnSystemDrive = 4006,
 
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
