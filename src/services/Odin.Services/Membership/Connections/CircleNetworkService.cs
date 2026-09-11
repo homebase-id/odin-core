@@ -1340,6 +1340,70 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Puts an identity the owner has already vetted into a review circle, skipping the confirm-first
+        /// refusal.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// The sibling of <see cref="ApplyAmbientCircleAsync"/>, and it exists for the same reason:
+        /// <see cref="GrantCircleAsync"/> refuses any identity still holding the Auto Connections circle,
+        /// and a reviewed connection may well still hold it.  <see cref="MarkReviewedAsync"/> removes
+        /// nothing -- only <see cref="ConfirmConnectionAsync"/> takes the auto circle away -- so an
+        /// introduction the owner reviewed without confirming is reviewed and auto-connected at once.
+        /// Backfilling through the older path would silently skip exactly those.
+        /// <para>
+        /// Where the ambient sibling is safe because a Connect circle can grant nothing that being
+        /// unreviewed should withhold, this one is safe because the review has already happened.
+        /// <c>ReviewedAt</c> is required and checked here rather than trusted from the caller, which is
+        /// the same rule <see cref="IsEnrollmentCandidate"/> applies to a Review circle: membership of a
+        /// personal circle must imply a review, or <see cref="ClearReviewAsync"/>'s guard is describing a
+        /// state the system can reach behind its back.  Nothing here stamps a review -- a migration that
+        /// invented one to make its own work possible would be asserting the owner vetted someone they
+        /// never looked at.
+        /// </para>
+        /// <para>
+        /// Narrow by construction, as the ambient one is: anything that is not a Review circle is refused,
+        /// so neither method can be used to reach the other's population.
+        /// </para>
+        /// <para>
+        /// Says whether it granted, so a migration can count what it did rather than infer it from a
+        /// re-read.  Expected to die with the backfill that needs it.
+        /// </para>
+        /// </remarks>
+        internal async Task<bool> ApplyReviewedCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.GrantOn != CircleGrantOn.Review)
+            {
+                throw new OdinSystemException(
+                    $"Circle {circleId} is {circle.GrantOn}, not Review; only a review circle may be applied " +
+                    "without the confirm-first check");
+            }
+
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (icr == null || !icr.IsConnected() || icr.ReviewedAt == null)
+            {
+                return false;
+            }
+
+            // Already there: additive and re-runnable, the way the v15->v16 stamp is.
+            if (icr.PeerKeyStore?.CircleGrants.ContainsKey(circleId) ?? false)
+            {
+                return false;
+            }
+
+            await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
+            return true;
+        }
+
+        /// <summary>
         /// Which app the caller may ask about, and refuses if it is not this one.
         /// </summary>
         /// <remarks>
