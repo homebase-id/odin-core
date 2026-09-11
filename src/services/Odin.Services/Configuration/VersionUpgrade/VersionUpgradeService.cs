@@ -26,6 +26,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version13tov14;
 using Odin.Services.Configuration.VersionUpgrade.Version14tov15;
 using Odin.Services.Configuration.VersionUpgrade.Version15tov16;
 using Odin.Services.Configuration.VersionUpgrade.Version16tov17;
+using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -50,6 +51,7 @@ public class VersionUpgradeService(
     V14ToV15VersionMigrationService v15,
     V15ToV16VersionMigrationService v16,
     V16ToV17VersionMigrationService v17,
+    V17ToV18VersionMigrationService v18,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -599,6 +601,51 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            if (currentVersion == 17)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                // Three phases rather than one, and a transaction each rather than one covering the lot.
+                // The passes are independent -- Moments is decided by the review stamp, Chat by being
+                // connected at all, Recovery by holding a shard -- and each is additive and re-runnable,
+                // so two that landed do not have to be rolled back to retry the third. Separate phases
+                // also mean the phase name in the log says which population was being moved when
+                // something stalled, which one phase covering all three could not.
+                //
+                // Placed here, after ensure-system-drives and well after v13->v14 ran
+                // BuiltinProvisioner.EnsureAllAsync, so the built-in circles these fill already exist.
+                await RunPhaseAsync("v17->v18 moments-reviewed-backfill", async ct =>
+                {
+                    await using var momentsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v18.EnrollReviewedContactsInMomentsAsync(odinContext, ct);
+                    momentsTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v17->v18 chat-ambient-backfill", async ct =>
+                {
+                    await using var chatTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v18.EnrollConnectedContactsInChatAsync(odinContext, ct);
+                    chatTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v17->v18 recovery-shard-holder-backfill", async ct =>
+                {
+                    await using var recoveryTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v18.EnrollShardHoldersInRecoveryAsync(odinContext, ct);
+                    recoveryTx.Commit();
+                }, cancellationToken);
+
+                await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v18.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                versionTx.Commit();
                 logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
