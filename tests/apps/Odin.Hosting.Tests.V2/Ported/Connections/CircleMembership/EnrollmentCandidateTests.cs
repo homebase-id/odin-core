@@ -15,6 +15,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 
@@ -46,9 +47,14 @@ public class EnrollmentCandidateTests : V2Fixture
 
         var forCircle = candidates.SingleOrDefault(c => c.CircleId == circleId);
         Assert.That(forCircle, Is.Not.Null, "the app's review circle should have an offer");
-        Assert.That(forCircle!.Candidates.Select(c => c.DomainName), Does.Contain(sam.Identity.DomainName));
+        Assert.That(forCircle!.Candidates.Select(c => c.OdinId.DomainName), Does.Contain(sam.Identity.DomainName));
         Assert.That(forCircle.GrantOn, Is.EqualTo(CircleGrantOn.Review),
             "the reason they qualify is carried, so a client can name it");
+
+        // The qualifying fact travels with the name: approving access off a bare list is approving
+        // on trust, and the date is what lets the owner notice a review they no longer stand behind.
+        var samCandidate = forCircle.Candidates.Single(c => c.OdinId.DomainName == sam.Identity.DomainName);
+        Assert.That(samCandidate.ReviewedAt, Is.Not.Null, "the review that qualifies them is reported");
     }
 
     [Test]
@@ -101,7 +107,7 @@ public class EnrollmentCandidateTests : V2Fixture
         await ReviewAsync(frodo, sam.Identity);
 
         var before = (await frodo.Admin.GetEnrollmentCandidates(appId)).Content!;
-        Assert.That(before.Single(c => c.CircleId == circleId).Candidates.Select(c => c.DomainName),
+        Assert.That(before.Single(c => c.CircleId == circleId).Candidates.Select(c => c.OdinId.DomainName),
             Does.Contain(sam.Identity.DomainName));
 
         var result = (await frodo.Admin.GrantCircleToMany(circleId, [sam.Identity])).Content!;
@@ -129,7 +135,8 @@ public class EnrollmentCandidateTests : V2Fixture
             .Single(c => c.CircleId == circleId).Candidates;
         Assert.That(candidates.Count, Is.EqualTo(2));
 
-        var result = (await frodo.Admin.GrantCircleToMany(circleId, candidates)).Content!;
+        var result = (await frodo.Admin.GrantCircleToMany(circleId, candidates.Select(c => c.OdinId).ToList()))
+            .Content!;
 
         Assert.That(result.Enrolled, Is.EqualTo(2), "the owner holds the master key, so these are grants outright");
         Assert.That(result.Deposited, Is.EqualTo(0));
@@ -158,6 +165,13 @@ public class EnrollmentCandidateTests : V2Fixture
 
         Assert.That(result.Enrolled, Is.EqualTo(1));
         Assert.That(result.Skipped, Is.EqualTo(1), "the repeat is skipped, not an error for the batch");
+
+        // Named, not just counted: "which one was skipped" is the question an owner asks, and a
+        // number cannot answer it.
+        Assert.That(result.Outcomes.Count, Is.EqualTo(2));
+        Assert.That(result.Outcomes.Count(o => o.Kind == EnrollmentOutcomeKind.Enrolled), Is.EqualTo(1));
+        Assert.That(result.Outcomes.Count(o => o.Kind == EnrollmentOutcomeKind.Skipped), Is.EqualTo(1));
+        Assert.That(result.Outcomes.All(o => o.OdinId.DomainName == sam.Identity.DomainName), Is.True);
     }
 
     [Test]

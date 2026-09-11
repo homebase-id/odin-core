@@ -1307,7 +1307,7 @@ namespace Odin.Services.Membership.Connections
                 return [];
             }
 
-            var byCircle = circles.ToDictionary(c => c.Id.Value, _ => new List<OdinId>());
+            var byCircle = circles.ToDictionary(c => c.Id.Value, _ => new List<EnrollmentCandidate>());
 
             string cursor = null;
             do
@@ -1320,7 +1320,14 @@ namespace Odin.Services.Membership.Connections
                 {
                     foreach (var circle in circles.Where(circle => IsEnrollmentCandidate(icr, circle)))
                     {
-                        byCircle[circle.Id.Value].Add(icr.OdinId);
+                        // The review date travels with the name: it is what qualifies them, and an
+                        // owner approving access deserves to see the basis rather than take it on
+                        // trust. Null on a Connect circle, where connecting is the qualifying act.
+                        byCircle[circle.Id.Value].Add(new EnrollmentCandidate
+                        {
+                            OdinId = icr.OdinId,
+                            ReviewedAt = circle.GrantOn == CircleGrantOn.Review ? icr.ReviewedAt : null
+                        });
                     }
                 }
             } while (!string.IsNullOrEmpty(cursor));
@@ -1372,6 +1379,8 @@ namespace Odin.Services.Membership.Connections
                 if (icr == null || !icr.IsConnected() || !IsEnrollmentCandidate(icr, circle))
                 {
                     result.Skipped++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Skipped });
                     continue;
                 }
 
@@ -1385,6 +1394,8 @@ namespace Odin.Services.Membership.Connections
                     logger.LogWarning(e, "Could not enrol {odinId} in circle {circleId} during a bulk add",
                         odinId, circleId);
                     result.Skipped++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Skipped });
                     continue;
                 }
 
@@ -1395,14 +1406,20 @@ namespace Odin.Services.Membership.Connections
                 if (after?.PeerKeyStore?.CircleGrants.ContainsKey(circleId) ?? false)
                 {
                     result.Enrolled++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Enrolled });
                 }
                 else if (after?.PeerKeyStore?.DepositedGrants.Any(d => d.CircleId == circleId) ?? false)
                 {
                     result.Deposited++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Deposited });
                 }
                 else
                 {
                     result.Skipped++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Skipped });
                 }
             }
 
