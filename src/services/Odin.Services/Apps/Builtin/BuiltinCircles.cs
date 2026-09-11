@@ -178,7 +178,11 @@ public static class BuiltinCircles
         Description = "Members hold a shard of your recovery key",
         Emoji = "🔑",
         AppId = SystemAppConstants.RecoveryAppId,
-        GrantOn = CircleGrantOn.OwnFlowConnect,
+        // Review, not OwnFlowConnect: holding a shard of the recovery key is the most trusted thing
+        // anyone can be given, so it should never be reachable through an app's own consent flow
+        // without the owner having vetted the person. Review is also the only tier that may carry
+        // read grants and permission keys, which recovery is likelier than most to need.
+        GrantOn = CircleGrantOn.Review,
         Designation = CircleDesignation.Personal,
         DriveGrants = [Grant(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Write)],
         Permissions = new PermissionSet { Keys = [] }
