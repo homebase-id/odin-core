@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
@@ -156,6 +158,38 @@ public class EnrollmentCandidateTests : V2Fixture
 
         Assert.That(result.Enrolled, Is.EqualTo(1));
         Assert.That(result.Skipped, Is.EqualTo(1), "the repeat is skipped, not an error for the batch");
+    }
+
+    [Test]
+    public async Task AnAppCannotSeeOrActOnTheOffer()
+    {
+        // Owner console only, and pinned at the route rather than left to the service's master-key
+        // assertion. These live on OwnerCircleNetworkController and not on the shared base that
+        // AppCircleNetworkController inherits, so an app finds nothing there at all -- which says
+        // "never yours to call" where a 403 would say "you lack permission".
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var (appId, circleId) = await SetupAppOwningAReviewCircleAsync(frodo, "mail");
+        await ReviewAsync(frodo, sam.Identity);
+
+        var appDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(appDrive, "callerDrive", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var client = app.Factory.CreateHttpClient(app.Identity, out _);
+
+        var read = await client.GetAsync($"/api/apps/v1/circles/connections/enrollment-candidates?appId={appId}");
+        Assert.That(read.IsSuccessStatusCode, Is.False,
+            $"an app must not be able to read the offer, got {read.StatusCode}");
+
+        var write = await client.PostAsync("/api/apps/v1/circles/connections/circles/add-many",
+            new StringContent($"{{\"circleId\":\"{circleId}\",\"odinIds\":[\"{sam.Identity.DomainName}\"]}}",
+                Encoding.UTF8, "application/json"));
+        Assert.That(write.IsSuccessStatusCode, Is.False,
+            $"an app must not be able to act on the offer, got {write.StatusCode}");
     }
 
     //
