@@ -14,6 +14,7 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
+using System.Linq;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Connections;
@@ -25,7 +26,7 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
     /// behaviour that keys off circle ownership, such as which app may complete a pending enrollment.
     /// </param>
     public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string circleName, PermissionSetGrantRequest grant,
-        Guid? appId = null)
+        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
@@ -38,11 +39,34 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
                 Description = $"Description for {circleName}",
                 DriveGrants = grant.Drives,
                 Permissions = grant.PermissionSet,
-                AppId = appId
+                AppId = appId,
+                GrantOn = grantOn
             };
 
             var createCircleResponse = await svc.CreateCircleDefinition(request);
             return createCircleResponse;
+        }
+    }
+
+    public async Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await svc.GetEnrollmentCandidates(appId);
+        }
+    }
+
+    public async Task<ApiResponse<EnrollmentResult>> GrantCircleToMany(Guid circleId, List<OdinId> odinIds)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await svc.GrantCircleToMany(new AddManyCircleMembershipRequest
+            {
+                CircleId = circleId,
+                OdinIds = odinIds.Select(o => o.DomainName).ToList()
+            });
         }
     }
 

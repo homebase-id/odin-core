@@ -7,6 +7,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using System;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
@@ -18,6 +19,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Post(RootPath + "/circles/list")]
         Task<ApiResponse<IEnumerable<OdinId>>> GetCircleMembers([Body] GetCircleMembersRequest circleId);
         
+        [Get(RootPath + "/circles/enrollment-candidates")]
+        Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId);
+
+        [Post(RootPath + "/circles/add-many")]
+        Task<ApiResponse<EnrollmentResult>> GrantCircleToMany([Body] AddManyCircleMembershipRequest request);
+
         [Post(RootPath + "/circles/add")]
         Task<ApiResponse<HttpContent>> AddCircle([Body] AddCircleMembershipRequest request);
         

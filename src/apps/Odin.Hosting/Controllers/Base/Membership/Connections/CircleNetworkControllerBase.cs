@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Verification;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
@@ -130,6 +131,39 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             await circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
+        }
+
+        /// <summary>
+        /// Per circle owned by an app, the connections that could be added to it but are not in it.
+        /// </summary>
+        /// <remarks>
+        /// Feeds the offer on the app's own page.  A circle assigned to an app does not reach back
+        /// over contacts the owner already reviewed -- a review is a moment, not a standing rule --
+        /// so this is the backlog that would otherwise be invisible.
+        /// </remarks>
+        [HttpGet("circles/enrollment-candidates")]
+        public async Task<IEnumerable<CircleEnrollmentCandidates>> GetEnrollmentCandidates([FromQuery] Guid appId)
+        {
+            OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+            return await circleNetwork.GetEnrollmentCandidatesForAppAsync(appId, WebOdinContext);
+        }
+
+        /// <summary>
+        /// Adds several identities to one circle in a single call.
+        /// </summary>
+        /// <remarks>
+        /// Server-side rather than a client loop so that fourteen contacts is one round trip, and so
+        /// one contact who stopped qualifying does not abort the rest.  Eligibility is re-checked per
+        /// identity: the list comes from a view that may be seconds old.
+        /// </remarks>
+        [HttpPost("circles/add-many")]
+        public async Task<EnrollmentResult> GrantCircleToMany([FromBody] AddManyCircleMembershipRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotEmptyGuid(request.CircleId, nameof(request.CircleId));
+
+            var odinIds = (request.OdinIds ?? []).Select(id => new OdinId(id)).ToList();
+            return await circleNetwork.EnrollManyInCircleAsync(new GuidId(request.CircleId), odinIds, WebOdinContext);
         }
 
         [HttpPost("circles/revoke")]

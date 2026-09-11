@@ -10,9 +10,13 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using System.Collections.Generic;
+using Odin.Core.Identity;
+using Odin.Services.Membership.Connections;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.Api;
@@ -207,10 +211,26 @@ public sealed partial class OwnerAdmin
     /// to attach a YouAuth domain to a drive-permission grant.
     /// </summary>
     public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant,
-        Guid? appId = null)
+        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
     {
-        var response = await _network.CreateCircle(id, name, grant, appId);
+        var response = await _network.CreateCircle(id, name, grant, appId, grantOn);
         EnsureSuccess(response, nameof(CreateCircle));
+        return response;
+    }
+
+    /// <summary>Per circle owned by the app, the connections that could be added but are not.</summary>
+    public async Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId)
+    {
+        var response = await _network.GetEnrollmentCandidates(appId);
+        EnsureSuccess(response, nameof(GetEnrollmentCandidates));
+        return response;
+    }
+
+    /// <summary>Adds several identities to one circle, reporting what each became.</summary>
+    public async Task<ApiResponse<EnrollmentResult>> GrantCircleToMany(Guid circleId, List<OdinId> odinIds)
+    {
+        var response = await _network.GrantCircleToMany(circleId, odinIds);
+        EnsureSuccess(response, nameof(GrantCircleToMany));
         return response;
     }
 

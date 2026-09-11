@@ -1232,6 +1232,188 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Whether this connection could be added to this circle right now.
+        /// </summary>
+        /// <remarks>
+        /// One predicate, shared by the read that offers the work and the write that does it, so the
+        /// two cannot disagree about who qualifies -- a count that offers people the enrol call then
+        /// refuses is worse than no count.
+        /// <para>
+        /// <see cref="CircleGrantOn"/> is the app's own declaration of when it wants members, so it
+        /// decides.  <c>Review</c> means the owner vetting the contact is the qualifying event, so a
+        /// review is required.  <c>Connect</c> means connection establishment is, and every existing
+        /// connection already passed that.  <c>OwnFlowConnect</c> is excluded outright: "never
+        /// ambiently" is exactly what a bulk add would be.  <c>None</c> is manual by definition.
+        /// </para>
+        /// <para>
+        /// Auto-connected identities are excluded because <see cref="GrantCircleAsync"/> refuses them
+        /// (<c>CannotGrantAutoConnectedMoreCircles</c>) -- offering them would be offering a call that
+        /// throws.  Anything already granted, deposited or queued for this circle is excluded for the
+        /// plainer reason that the work is already done or under way.
+        /// </para>
+        /// </remarks>
+        private static bool IsEnrollmentCandidate(IdentityConnectionRegistration icr, CircleDefinition circle)
+        {
+            if (circle.GrantOn != CircleGrantOn.Review && circle.GrantOn != CircleGrantOn.Connect)
+            {
+                return false;
+            }
+
+            var store = icr.PeerKeyStore;
+            if (store == null)
+            {
+                return false;
+            }
+
+            if (store.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId))
+            {
+                return false;
+            }
+
+            if (store.CircleGrants.ContainsKey(circle.Id) ||
+                store.DepositedGrants.Any(d => d.CircleId == circle.Id) ||
+                (store.PendingEnrollments ?? []).Any(p => p.CircleId == circle.Id))
+            {
+                return false;
+            }
+
+            return circle.GrantOn != CircleGrantOn.Review || icr.ReviewedAt != null;
+        }
+
+        /// <summary>
+        /// Per circle owned by <paramref name="appId"/>, the connections that could be added to it.
+        /// </summary>
+        /// <remarks>
+        /// Computed here rather than left to the client, which could derive the same answer from the
+        /// connection list it already receives -- but only by paging the whole list to produce a
+        /// number, on a page that is mostly not about this.  One pass over connections answers for
+        /// every circle at once.
+        /// <para>
+        /// Circles with nothing to offer are omitted, so an empty list means "nothing to do" without
+        /// the caller inspecting counts.
+        /// </para>
+        /// </remarks>
+        public async Task<List<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForAppAsync(Guid appId,
+            IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var circles = (await circleDefinitionService.GetCirclesAsync(false))
+                .Where(c => c.AppId == appId)
+                .ToList();
+
+            if (circles.Count == 0)
+            {
+                return [];
+            }
+
+            var byCircle = circles.ToDictionary(c => c.Id.Value, _ => new List<OdinId>());
+
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected,
+                    odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    foreach (var circle in circles.Where(circle => IsEnrollmentCandidate(icr, circle)))
+                    {
+                        byCircle[circle.Id.Value].Add(icr.OdinId);
+                    }
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            return circles
+                .Where(c => byCircle[c.Id.Value].Count > 0)
+                .Select(c => new CircleEnrollmentCandidates
+                {
+                    CircleId = c.Id.Value,
+                    CircleName = c.Name,
+                    GrantOn = c.GrantOn,
+                    Candidates = byCircle[c.Id.Value]
+                })
+                .ToList();
+        }
+
+        /// <summary>
+        /// Adds several identities to one circle, reporting what each became.
+        /// </summary>
+        /// <remarks>
+        /// A loop the caller could have written, kept server-side for two reasons: fourteen round
+        /// trips to add fourteen contacts is the wrong shape, and a per-identity failure should not
+        /// abort the rest -- someone who stopped qualifying since the page was drawn is a skip, not
+        /// an error for everybody behind them.
+        /// <para>
+        /// Eligibility is re-checked per identity against the same predicate the offer used.  The
+        /// list arrives from a client holding a view that may be seconds old, and acting on it
+        /// unchecked would be trusting the client about who belongs in a circle.
+        /// </para>
+        /// </remarks>
+        public async Task<EnrollmentResult> EnrollManyInCircleAsync(GuidId circleId, List<OdinId> odinIds,
+            IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            var result = new EnrollmentResult();
+
+            foreach (var odinId in odinIds ?? [])
+            {
+                var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+                if (icr == null || !icr.IsConnected() || !IsEnrollmentCandidate(icr, circle))
+                {
+                    result.Skipped++;
+                    continue;
+                }
+
+                try
+                {
+                    await GrantCircleAsync(circleId, odinId, odinContext);
+                }
+                catch (Exception e)
+                {
+                    // One contact's bad state is not the rest of the list's problem.
+                    logger.LogWarning(e, "Could not enrol {odinId} in circle {circleId} during a bulk add",
+                        odinId, circleId);
+                    result.Skipped++;
+                    continue;
+                }
+
+                // Read back rather than assume: with the master key this mints a grant outright, but
+                // the branch that decides lives in EnrollInCircleInternalAsync and the point of
+                // reporting separately is to not restate its rules from memory here.
+                var after = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+                if (after?.PeerKeyStore?.CircleGrants.ContainsKey(circleId) ?? false)
+                {
+                    result.Enrolled++;
+                }
+                else if (after?.PeerKeyStore?.DepositedGrants.Any(d => d.CircleId == circleId) ?? false)
+                {
+                    result.Deposited++;
+                }
+                else
+                {
+                    result.Skipped++;
+                }
+            }
+
+            logger.LogInformation(
+                "Bulk enrolment into circle {circleId}: {enrolled} enrolled, {deposited} deposited, {skipped} skipped",
+                circleId, result.Enrolled, result.Deposited, result.Skipped);
+
+            return result;
+        }
+
+        /// <summary>
         /// Moves a circle from the app that owns it to another.  The escape hatch out of
         /// <see cref="SetCircleOwningAppAsync"/>'s one-way rule.
         /// </summary>
