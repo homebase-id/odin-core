@@ -22,6 +22,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Get(RootPath + "/circles/enrollment-candidates")]
         Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId);
 
+        [Post(RootPath + "/circles/enrollment-candidates-for-circle")]
+        Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircle([Body] Guid circleId);
+
         [Post(RootPath + "/circles/add-many")]
         Task<ApiResponse<EnrollmentResult>> GrantCircleToMany([Body] AddManyCircleMembershipRequest request);
 

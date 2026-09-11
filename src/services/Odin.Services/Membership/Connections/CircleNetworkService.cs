@@ -1603,16 +1603,28 @@ namespace Odin.Services.Membership.Connections
 
                 try
                 {
-                    // An ambient circle goes through the sibling that skips the confirm-first
-                    // refusal, and only when the owner is here to waive it. GrantCircleAsync turns
-                    // away anyone still holding the Auto Connections circle, which for a Connect
-                    // circle is most of the population the offer just listed -- they would come
-                    // back as Skipped, and the owner would be told the system declined to do the
-                    // thing it had offered. An app gets the ordinary path: waiving the owner's
-                    // confirm-first rule is not an app's to do.
-                    if (circle.GrantOn == CircleGrantOn.Connect && odinContext.Caller.HasMasterKey)
+                    // Both siblings exist for one reason: GrantCircleAsync turns away anyone still
+                    // holding the Auto Connections circle, and for either rule that is much of the
+                    // population the offer just listed. Without them the owner is shown a list,
+                    // agrees to it, and is told the system declined to do the thing it offered.
+                    //
+                    // They are safe for different reasons. A Connect circle can grant nothing that
+                    // being unreviewed should withhold -- the deposit-only invariant sees to that.
+                    // A Review circle is safe because the review already happened, which
+                    // ApplyReviewedCircleAsync checks for itself rather than trusting this caller.
+                    //
+                    // Only when the owner is here: waiving their confirm-first rule is not an app's
+                    // to do, and both siblings require the master key regardless.
+                    //
+                    // The reviewed sibling reports whether it granted; ignored, because the outcome
+                    // is read back off the record below and two sources of that truth is one too many.
+                    if (odinContext.Caller.HasMasterKey && circle.GrantOn == CircleGrantOn.Connect)
                     {
                         await ApplyAmbientCircleAsync(circleId, odinId, odinContext);
+                    }
+                    else if (odinContext.Caller.HasMasterKey && circle.GrantOn == CircleGrantOn.Review)
+                    {
+                        await ApplyReviewedCircleAsync(circleId, odinId, odinContext);
                     }
                     else
                     {

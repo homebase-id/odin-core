@@ -218,6 +218,28 @@ public sealed partial class OwnerAdmin
         return response;
     }
 
+    /// <summary>The connections eligible for one circle that are not in it.</summary>
+    public async Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircle(Guid circleId)
+    {
+        var response = await _network.GetEnrollmentCandidatesForCircle(circleId);
+        EnsureSuccess(response, nameof(GetEnrollmentCandidatesForCircle));
+        return response;
+    }
+
+    /// <summary>Reads a circle definition.</summary>
+    public async Task<ApiResponse<CircleDefinition>> GetCircleDefinition(Guid circleId)
+    {
+        var response = await _network.GetCircleDefinition(circleId);
+        EnsureSuccess(response, nameof(GetCircleDefinition));
+        return response;
+    }
+
+    /// <summary>Writes a circle definition back.  Does not throw, so a refusal can be asserted on.</summary>
+    public Task<ApiResponse<HttpContent>> TryUpdateCircleDefinition(CircleDefinition definition)
+    {
+        return _network.UpdateCircleDefinition(definition);
+    }
+
     /// <summary>Per circle owned by the app, the connections that could be added but are not.</summary>
     public async Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId)
     {

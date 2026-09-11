@@ -57,6 +57,15 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
+    public async Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircle(Guid circleId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await svc.GetEnrollmentCandidatesForCircle(circleId);
+        }
+    }
+
     public async Task<ApiResponse<EnrollmentResult>> GrantCircleToMany(Guid circleId, List<OdinId> odinIds)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);

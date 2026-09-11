@@ -363,6 +363,128 @@ public class EnrollmentCandidateTests : V2Fixture
     }
 
     //
+    // Changing when a circle is granted.
+    //
+
+    [Test]
+    public async Task ChangingTheRuleToReviewCreatesAnOfferAndRemovesNobody()
+    {
+        // The change is forward-looking: it decides how people join from now on, and the people it
+        // implies but does not include are the backlog the console offers to reconcile.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var circleId = await CreateOwnerCircleAsync(frodo, "manual-circle", CircleGrantOn.None,
+            DrivePermission.Read);
+        await ReviewAsync(frodo, sam.Identity);
+
+        var before = (await frodo.Admin.GetEnrollmentCandidatesForCircle(circleId)).Content!;
+        Assert.That(before.Candidates, Is.Empty, "a manual circle implies nobody");
+
+        var definition = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        definition.GrantOn = CircleGrantOn.Review;
+        var saved = await frodo.Admin.TryUpdateCircleDefinition(definition);
+        Assert.That(saved.IsSuccessStatusCode, Is.True, $"update failed: {saved.StatusCode}");
+
+        var after = (await frodo.Admin.GetEnrollmentCandidatesForCircle(circleId)).Content!;
+        Assert.That(after.GrantOn, Is.EqualTo(CircleGrantOn.Review));
+        Assert.That(after.Candidates.Select(c => c.OdinId.DomainName),
+            Does.Contain(sam.Identity.DomainName), "the new rule implies them, so they are offered");
+
+        // Forward-looking only: changing the rule grants nobody by itself.
+        var members = (await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory)
+            .GetCircleMembersAsync(circleId)).Content!;
+        Assert.That(members, Is.Empty, "changing the rule must not enrol anyone on its own");
+    }
+
+    [Test]
+    public async Task ARuleChangeToConnectIsRefusedWhenTheCircleGrantsRead()
+    {
+        // The one transition that can fail. An ambient circle is bound by the deposit-only
+        // invariant -- write and react, never read -- so a circle granting read cannot become one.
+        // The console warns about this before saving; that warning and this rule must not drift.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        var circleId = await CreateOwnerCircleAsync(frodo, "reader-circle", CircleGrantOn.None,
+            DrivePermission.Read);
+
+        var definition = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        definition.GrantOn = CircleGrantOn.Connect;
+
+        var saved = await frodo.Admin.TryUpdateCircleDefinition(definition);
+
+        Assert.That(saved.IsSuccessStatusCode, Is.False,
+            $"a read-granting circle must not become ambient, got {saved.StatusCode}");
+
+        var unchanged = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        Assert.That(unchanged.GrantOn, Is.EqualTo(CircleGrantOn.None), "the refusal must not half-apply");
+    }
+
+    [Test]
+    public async Task ARuleChangeToConnectIsAllowedForAWriteOnlyCircle()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        var circleId = await CreateOwnerCircleAsync(frodo, "writer-circle", CircleGrantOn.None,
+            DrivePermission.Write | DrivePermission.React);
+
+        var definition = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        definition.GrantOn = CircleGrantOn.Connect;
+
+        var saved = await frodo.Admin.TryUpdateCircleDefinition(definition);
+        Assert.That(saved.IsSuccessStatusCode, Is.True, $"update failed: {saved.StatusCode}");
+
+        var after = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        Assert.That(after.GrantOn, Is.EqualTo(CircleGrantOn.Connect));
+    }
+
+    [Test]
+    public async Task AReviewedButStillAutoConnectedContactIsEnrolledRatherThanSkipped()
+    {
+        // MarkReviewedAsync removes nothing and only ConfirmConnectionAsync drops the Auto circle,
+        // so "reviewed and still auto-connected" is reachable. GrantCircleAsync refuses exactly
+        // those, which would mean the offer lists someone, the owner agrees, and the system reports
+        // it declined. Pinned because the routing that avoids it is easy to lose.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var circleId = await CreateOwnerCircleAsync(frodo, "review-circle", CircleGrantOn.Review,
+            DrivePermission.Read);
+        await ReviewAsync(frodo, sam.Identity);
+
+        var offer = (await frodo.Admin.GetEnrollmentCandidatesForCircle(circleId)).Content!;
+        Assert.That(offer.Candidates.Select(c => c.OdinId.DomainName),
+            Does.Contain(sam.Identity.DomainName));
+
+        var result = (await frodo.Admin.GrantCircleToMany(circleId, [sam.Identity])).Content!;
+
+        Assert.That(result.Skipped, Is.EqualTo(0),
+            "the offer must not list someone the enrolment then refuses");
+        Assert.That(result.Enrolled, Is.EqualTo(1));
+    }
+
+    private static async Task<Guid> CreateOwnerCircleAsync(OwnerSession owner, string name,
+        CircleGrantOn grantOn, DrivePermission permission)
+    {
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, $"{name}Drive", allowAnonymousReads: false);
+
+        var circleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(circleId, name, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: null, grantOn: grantOn);
+
+        return circleId;
+    }
+
+    //
 
     private static async Task<(Guid appId, Guid circleId)> SetupAppOwningAReviewCircleAsync(
         OwnerSession owner, string label) =>
