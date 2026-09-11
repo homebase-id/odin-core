@@ -298,6 +298,70 @@ public class EnrollmentCandidateTests : V2Fixture
             Is.Null, "no review is claimed, because none happened");
     }
 
+    [Test]
+    public async Task AnOwnerCircleCanBeAskedAboutDirectly()
+    {
+        // A circle belonging to no app carries a grant rule like any other, and the per-app query
+        // cannot reach it -- so without asking by circle, changing that rule would produce a
+        // backlog nothing could report.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "ownerDrive", allowAnonymousReads: false);
+
+        var circleId = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleId, "owner-circle", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: null, grantOn: CircleGrantOn.Review);
+
+        await ReviewAsync(frodo, sam.Identity);
+
+        var offer = (await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory)
+            .GetEnrollmentCandidatesForCircleAsync(circleId)).Content!;
+
+        Assert.That(offer.Candidates.Select(c => c.OdinId.DomainName),
+            Does.Contain(sam.Identity.DomainName));
+    }
+
+    [Test]
+    public async Task AnAppCannotAskAboutAnOwnerCircle()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "ownerDrive2", allowAnonymousReads: false);
+
+        var circleId = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleId, "owner-circle-2", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: null, grantOn: CircleGrantOn.Review);
+
+        var appDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(appDrive, "nosyDrive2", allowAnonymousReads: false);
+        var nosy = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership, PermissionKeys.ReadConnections });
+
+        var response = await new V2ConnectionNetworkClient(nosy.Identity, nosy.Factory)
+            .GetEnrollmentCandidatesForCircleAsync(circleId);
+
+        Assert.That(response.IsSuccessStatusCode, Is.False,
+            $"a circle owned by no app is the owner's; an app must be refused, got {response.StatusCode}");
+    }
+
     //
 
     private static async Task<(Guid appId, Guid circleId)> SetupAppOwningAReviewCircleAsync(

@@ -162,6 +162,21 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// Key -- so the owner doing it is faster, but the app doing it is not wrong: the work is
         /// recorded and completes when that key is next in scope.
         /// </remarks>
+        /// <summary>
+        /// The connections that could be added to one circle but are not in it.
+        /// </summary>
+        /// <remarks>
+        /// Answers for a single named circle, including one that belongs to no app -- which the
+        /// per-app query cannot reach, and which is exactly what an owner's own circle is once it
+        /// carries a grant rule.
+        /// </remarks>
+        [HttpPost("circles/enrollment-candidates-for-circle")]
+        public async Task<CircleEnrollmentCandidates> GetEnrollmentCandidatesForCircle([FromBody] Guid circleId)
+        {
+            OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+            return await circleNetwork.GetEnrollmentCandidatesForCircleAsync(new GuidId(circleId), WebOdinContext);
+        }
+
         [HttpPost("circles/add-many")]
         public async Task<EnrollmentResult> GrantCircleToMany([FromBody] AddManyCircleMembershipRequest request)
         {

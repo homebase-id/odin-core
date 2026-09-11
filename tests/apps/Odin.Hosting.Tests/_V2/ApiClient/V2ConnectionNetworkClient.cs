@@ -92,6 +92,13 @@ public class V2ConnectionNetworkClient(OdinId identity, IApiClientFactory factor
         return await svc.GetEnrollmentCandidates(appId);
     }
 
+    public async Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircleAsync(Guid circleId)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetEnrollmentCandidatesForCircle(circleId);
+    }
+
     public async Task<ApiResponse<EnrollmentResult>> GrantCircleToManyAsync(Guid circleId, List<OdinId> odinIds)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

@@ -1385,6 +1385,63 @@ namespace Odin.Services.Membership.Connections
                 .Where(c => c.AppId == appId)
                 .ToList();
 
+            return await GetEnrollmentCandidatesAsync(circles, odinContext);
+        }
+
+        /// <summary>
+        /// The connections that could be added to one circle but are not in it.
+        /// </summary>
+        /// <remarks>
+        /// The per-app query cannot answer for a circle that belongs to no app, and an owner's own
+        /// circle carries a <see cref="CircleGrantOn"/> like any other -- so without this, changing
+        /// that rule would produce a backlog nothing could report.
+        /// <para>
+        /// An app may ask only about a circle it owns.  A circle owned by no app is the owner's, and
+        /// only the owner may ask about it: the answer is drawn from every connection on the
+        /// identity.
+        /// </para>
+        /// </remarks>
+        public async Task<CircleEnrollmentCandidates> GetEnrollmentCandidatesForCircleAsync(GuidId circleId,
+            IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.AppId.HasValue)
+            {
+                AssertCallerMayAskAboutApp(circle.AppId.Value, odinContext);
+            }
+            else if (odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot ask about circle {circleId}; it belongs to the owner, not to an app");
+            }
+
+            var result = await GetEnrollmentCandidatesAsync([circle], odinContext);
+
+            // Never null, unlike the per-app list which omits empty circles: a caller asking about one
+            // named circle wants "none" as an answer, not an absence to interpret.
+            return result.FirstOrDefault() ?? new CircleEnrollmentCandidates
+            {
+                CircleId = circle.Id.Value,
+                CircleName = circle.Name,
+                GrantOn = circle.GrantOn,
+                Candidates = []
+            };
+        }
+
+        /// <summary>
+        /// One pass over connections, answering for every circle handed in.
+        /// </summary>
+        private async Task<List<CircleEnrollmentCandidates>> GetEnrollmentCandidatesAsync(
+            List<CircleDefinition> circles, IOdinContext odinContext)
+        {
             if (circles.Count == 0)
             {
                 return [];
@@ -1482,7 +1539,21 @@ namespace Odin.Services.Membership.Connections
 
                 try
                 {
-                    await GrantCircleAsync(circleId, odinId, odinContext);
+                    // An ambient circle goes through the sibling that skips the confirm-first
+                    // refusal, and only when the owner is here to waive it. GrantCircleAsync turns
+                    // away anyone still holding the Auto Connections circle, which for a Connect
+                    // circle is most of the population the offer just listed -- they would come
+                    // back as Skipped, and the owner would be told the system declined to do the
+                    // thing it had offered. An app gets the ordinary path: waiving the owner's
+                    // confirm-first rule is not an app's to do.
+                    if (circle.GrantOn == CircleGrantOn.Connect && odinContext.Caller.HasMasterKey)
+                    {
+                        await ApplyAmbientCircleAsync(circleId, odinId, odinContext);
+                    }
+                    else
+                    {
+                        await GrantCircleAsync(circleId, odinId, odinContext);
+                    }
                 }
                 catch (Exception e)
                 {
