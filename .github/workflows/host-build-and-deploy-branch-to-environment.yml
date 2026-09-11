@@ -24,9 +24,14 @@ on:
         required: true
         default: "main"
       kotlin_ref:
-        description: "chat-kmp branch/commit to include"
+        description: >-
+          chat-kmp commit to build the /apps/chat WASM bundle from. Pinned to a
+          sha deliberately: the bundle is cached per commit, so a fixed default
+          hits that cache and saves ~10 minutes, where "main" re-resolves and
+          misses every time chat-kmp moves. To take newer chat-kmp work, pass a
+          newer sha (or "main") here, then update this default to that sha.
         required: true
-        default: "main"
+        default: "ace9ea69f9d7501e8e949718660fc739a71b4b9a"
       rebuild_wasm:
         type: boolean
         required: false
