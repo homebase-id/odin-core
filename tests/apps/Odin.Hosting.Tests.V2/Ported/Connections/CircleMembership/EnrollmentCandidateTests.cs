@@ -252,6 +252,52 @@ public class EnrollmentCandidateTests : V2Fixture
             $"an app asking about another app's circles must be refused, got {read.StatusCode}");
     }
 
+    [Test]
+    public async Task AnUnreviewedContactIsOfferedForAConnectCircle()
+    {
+        // The mirror of AnUnreviewedContactIsNotOfferedForAReviewCircle. GrantOn.Connect is granted
+        // "at any connection establishment, ambient introductions included", so connecting is the
+        // qualifying act and no review is implied -- which is exactly why the old exclusion keyed on
+        // Auto Connections membership was wrong here, and why the rule now reads ReviewedAt only.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        // Connect circles are bound by the deposit-only invariant: write/react, never read.
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "chatDrive", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Write,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var circleId = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleId, "chat-circle", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive
+                        { Drive = drive, Permission = DrivePermission.Write | DrivePermission.React }
+                }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: app.AppId, grantOn: CircleGrantOn.Connect);
+
+        // Explicitly unreviewed: connecting stamps a review, so it has to be cleared to get the case.
+        var cleared = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory)
+            .ClearReviewAsync(sam.Identity);
+        Assert.That(cleared.IsSuccessStatusCode, Is.True, $"clear review failed: {cleared.StatusCode}");
+
+        var candidates = (await frodo.Admin.GetEnrollmentCandidates(app.AppId)).Content!;
+        var forCircle = candidates.SingleOrDefault(c => c.CircleId == circleId);
+
+        Assert.That(forCircle, Is.Not.Null, "a Connect circle offers unreviewed connections");
+        Assert.That(forCircle!.Candidates.Select(c => c.OdinId.DomainName),
+            Does.Contain(sam.Identity.DomainName));
+        Assert.That(forCircle.Candidates.Single(c => c.OdinId.DomainName == sam.Identity.DomainName).ReviewedAt,
+            Is.Null, "no review is claimed, because none happened");
+    }
+
     //
 
     private static async Task<(Guid appId, Guid circleId)> SetupAppOwningAReviewCircleAsync(

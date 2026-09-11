@@ -1246,10 +1246,15 @@ namespace Odin.Services.Membership.Connections
         /// ambiently" is exactly what a bulk add would be.  <c>None</c> is manual by definition.
         /// </para>
         /// <para>
-        /// Auto-connected identities are excluded because <see cref="GrantCircleAsync"/> refuses them
-        /// (<c>CannotGrantAutoConnectedMoreCircles</c>) -- offering them would be offering a call that
-        /// throws.  Anything already granted, deposited or queued for this circle is excluded for the
-        /// plainer reason that the work is already done or under way.
+        /// Being unreviewed is expressed by <c>ReviewedAt</c> and nothing else.  An earlier version
+        /// excluded members of the Auto Connections system circle outright, which was redundant for a
+        /// Review circle -- the review check below already covers them -- and wrong for a Connect one,
+        /// where connecting is the qualifying act and no review is implied.  It also keyed on a circle
+        /// that is being retired, and missed a connection whose review had been cleared.
+        /// </para>
+        /// <para>
+        /// Anything already granted, deposited or queued for this circle is excluded for the plainer
+        /// reason that the work is already done or under way.
         /// </para>
         /// </remarks>
         private static bool IsEnrollmentCandidate(IdentityConnectionRegistration icr, CircleDefinition circle)
@@ -1265,11 +1270,6 @@ namespace Odin.Services.Membership.Connections
                 return false;
             }
 
-            if (store.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId))
-            {
-                return false;
-            }
-
             if (store.CircleGrants.ContainsKey(circle.Id) ||
                 store.DepositedGrants.Any(d => d.CircleId == circle.Id) ||
                 (store.PendingEnrollments ?? []).Any(p => p.CircleId == circle.Id))
@@ -1278,6 +1278,65 @@ namespace Odin.Services.Membership.Connections
             }
 
             return circle.GrantOn != CircleGrantOn.Review || icr.ReviewedAt != null;
+        }
+
+        /// <summary>
+        /// Puts an identity into an ambient circle, skipping the confirm-first refusal.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="GrantCircleAsync"/> refuses any identity holding the Auto Connections circle --
+        /// "you must first confirm the connection" -- and that is the entire population this migration
+        /// exists to move.  Guarding on it would make this useless for the one job it has, which is the
+        /// same reason <c>DriveManager.ApplyAddressAsync</c> does not refuse protected drives.
+        /// <para>
+        /// Safe to skip because of what an ambient circle is allowed to contain, not because the caller
+        /// promises to behave.  <see cref="CircleGrantOn.Connect"/> is bound by the deposit-only
+        /// invariant -- write and react drive permissions only, no read beyond anonymous drives, no
+        /// permission keys, enforced when the definition is written -- so it grants an unreviewed
+        /// contact nothing that being unreviewed should withhold.  That is precisely what the
+        /// confirm-first rule is protecting, and it is not at stake here.
+        /// </para>
+        /// <para>
+        /// Narrow by construction rather than by caller discipline: anything that is not a Connect
+        /// circle is refused, so this cannot be used to slip a Review circle past the guard.  It
+        /// delegates rather than reimplementing, so the grant and deposit behaviour stays in one place.
+        /// </para>
+        /// <para>
+        /// Expected to die.  Once ambient granting is implemented at connection establishment -- which
+        /// <see cref="CircleGrantOn.Connect"/> describes and nothing yet does -- this has no callers.
+        /// </para>
+        /// </remarks>
+        internal async Task ApplyAmbientCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.GrantOn != CircleGrantOn.Connect)
+            {
+                throw new OdinSystemException(
+                    $"Circle {circleId} is {circle.GrantOn}, not Connect; only an ambient circle may be " +
+                    "applied without the confirm-first check");
+            }
+
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (icr == null || !icr.IsConnected())
+            {
+                return;
+            }
+
+            // Already there: additive and re-runnable, the way the v15->v16 stamp is.
+            if (icr.PeerKeyStore?.CircleGrants.ContainsKey(circleId) ?? false)
+            {
+                return;
+            }
+
+            await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
         }
 
         /// <summary>
