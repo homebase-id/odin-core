@@ -14,6 +14,7 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Membership.Connections.Verification;
+using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Connections;
@@ -174,6 +175,47 @@ public class V2ConnectionNetworkController(
             ConnectionsProcessed = connectionsProcessed,
             EnrollmentsCompleted = enrollmentsCompleted
         };
+    }
+
+    /// <summary>
+    /// Per circle owned by an app, the connections that could be added to it but are not in it.
+    /// </summary>
+    /// <remarks>
+    /// Answered here rather than left to each app to derive from the connection list, because the
+    /// eligibility rule is subtle -- GrantOn semantics, auto-connected exclusion, entries already
+    /// deposited or queued -- and reimplementations would drift from the server's definition of who
+    /// qualifies.  An app may ask only about itself; the console may ask about any app.
+    /// </remarks>
+    [HttpGet("circles/enrollment-candidates")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Connections eligible for an app's circles that are not in them yet")]
+    public async Task<IEnumerable<CircleEnrollmentCandidates>> GetEnrollmentCandidates([FromQuery] Guid appId)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        return await circleNetwork.GetEnrollmentCandidatesForAppAsync(appId, WebOdinContext);
+    }
+
+    /// <summary>
+    /// Adds several identities to one circle in a single call.
+    /// </summary>
+    /// <remarks>
+    /// Open to the owning app, not only the console.  An app enrolling into a Read circle produces
+    /// deposits rather than membership -- it cannot reach the connection's Peer Key -- so the owner
+    /// doing it is faster, but the app doing it is not wrong: the work is recorded and completes
+    /// when that key is next in scope.
+    /// </remarks>
+    [HttpPost("circles/add-many")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Add several identities to one circle")]
+    public async Task<EnrollmentResult> GrantCircleToMany([FromBody] AddManyCircleMembershipRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotEmptyGuid(request.CircleId, nameof(request.CircleId));
+
+        var odinIds = (request.OdinIds ?? []).Select(id => new OdinId(id)).ToList();
+        return await circleNetwork.EnrollManyInCircleAsync(new GuidId(request.CircleId), odinIds, WebOdinContext);
     }
 
     [HttpGet("circles/pending")]

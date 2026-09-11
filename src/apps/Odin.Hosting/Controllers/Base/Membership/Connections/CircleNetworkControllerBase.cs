@@ -133,6 +133,45 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return true;
         }
 
+        /// <summary>
+        /// Per circle owned by an app, the connections that could be added to it but are not in it.
+        /// </summary>
+        /// <remarks>
+        /// On the shared base, so the owning app can ask as well as the console.  The eligibility
+        /// rule is subtle -- GrantOn semantics, auto-connected exclusion, entries already deposited
+        /// or queued -- and every app deriving it from the connection list instead would drift from
+        /// the server's definition of who qualifies.
+        /// <para>
+        /// Scoped in the service: an app may ask only about itself, because the answer is drawn from
+        /// every connection on the identity.
+        /// </para>
+        /// </remarks>
+        [HttpGet("circles/enrollment-candidates")]
+        public async Task<IEnumerable<CircleEnrollmentCandidates>> GetEnrollmentCandidates([FromQuery] Guid appId)
+        {
+            OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+            return await circleNetwork.GetEnrollmentCandidatesForAppAsync(appId, WebOdinContext);
+        }
+
+        /// <summary>
+        /// Adds several identities to one circle in a single call.
+        /// </summary>
+        /// <remarks>
+        /// Available to the owning app too, not only the console.  An app enrolling into a Read
+        /// circle produces deposits rather than membership -- it cannot reach the connection's Peer
+        /// Key -- so the owner doing it is faster, but the app doing it is not wrong: the work is
+        /// recorded and completes when that key is next in scope.
+        /// </remarks>
+        [HttpPost("circles/add-many")]
+        public async Task<EnrollmentResult> GrantCircleToMany([FromBody] AddManyCircleMembershipRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotEmptyGuid(request.CircleId, nameof(request.CircleId));
+
+            var odinIds = (request.OdinIds ?? []).Select(id => new OdinId(id)).ToList();
+            return await circleNetwork.EnrollManyInCircleAsync(new GuidId(request.CircleId), odinIds, WebOdinContext);
+        }
+
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {

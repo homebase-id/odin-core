@@ -46,6 +46,12 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/circles/add")]
     Task<ApiResponse<HttpContent>> GrantCircle([Body] AddCircleMembershipRequest request);
 
+    [Get(Root + "/circles/enrollment-candidates")]
+    Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId);
+
+    [Post(Root + "/circles/add-many")]
+    Task<ApiResponse<EnrollmentResult>> GrantCircleToMany([Body] AddManyCircleMembershipRequest request);
+
     [Post(Root + "/enrollments/process")]
     Task<ApiResponse<PendingEnrollmentProcessingResult>> ProcessPendingEnrollments();
 

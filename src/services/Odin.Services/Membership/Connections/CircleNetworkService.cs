@@ -1281,6 +1281,25 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Which app the caller may ask about, and refuses if it is not this one.
+        /// </summary>
+        /// <remarks>
+        /// The owner console is no app in particular and may ask about any.  An app may ask only
+        /// about itself: the candidate list is drawn from every connection on the identity, so
+        /// answering app A's question about app B's circles would tell A which of the owner's
+        /// contacts were reviewed for a circle that is none of its business.
+        /// </remarks>
+        private static void AssertCallerMayAskAboutApp(Guid appId, IOdinContext odinContext)
+        {
+            var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+            if (callerAppId != null && callerAppId != appId)
+            {
+                throw new OdinSecurityException(
+                    $"An app may only ask about its own circles; caller is {callerAppId}, asked about {appId}");
+            }
+        }
+
+        /// <summary>
         /// Per circle owned by <paramref name="appId"/>, the connections that could be added to it.
         /// </summary>
         /// <remarks>
@@ -1296,7 +1315,12 @@ namespace Odin.Services.Membership.Connections
         public async Task<List<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForAppAsync(Guid appId,
             IOdinContext odinContext)
         {
-            odinContext.Caller.AssertHasMasterKey();
+            // Callable by the owning app as well as the console. The eligibility rule is subtle
+            // enough -- GrantOn semantics, auto-connected exclusion, entries already deposited or
+            // queued -- that every app reimplementing it from the connection list would drift from
+            // this one. Answering here keeps a single definition of who qualifies.
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
+            AssertCallerMayAskAboutApp(appId, odinContext);
 
             var circles = (await circleDefinitionService.GetCirclesAsync(false))
                 .Where(c => c.AppId == appId)
@@ -1361,13 +1385,26 @@ namespace Odin.Services.Membership.Connections
         public async Task<EnrollmentResult> EnrollManyInCircleAsync(GuidId circleId, List<OdinId> odinIds,
             IOdinContext odinContext)
         {
-            odinContext.Caller.AssertHasMasterKey();
-
+            // The per-identity gate is GrantCircleAsync's own (master key, or
+            // ManageCircleMembership), so this does not re-state it. What it adds is scope: an app
+            // may bulk-enrol only into a circle it owns.
             var circle = await circleDefinitionService.GetCircleAsync(circleId);
             if (circle == null)
             {
                 throw new OdinClientException($"Circle {circleId} does not exist",
                     OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.AppId.HasValue)
+            {
+                AssertCallerMayAskAboutApp(circle.AppId.Value, odinContext);
+            }
+            else if (odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                // Consistent with EnrollInCircleInternalAsync: a circle owned by no app is the
+                // owner's own, and an app has no business putting anyone into one.
+                throw new OdinSecurityException(
+                    $"An app cannot enrol identities into circle {circleId}; it belongs to the owner, not to an app");
             }
 
             var result = new EnrollmentResult();

@@ -2,11 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
@@ -175,35 +174,82 @@ public class EnrollmentCandidateTests : V2Fixture
     }
 
     [Test]
-    public async Task AnAppCannotSeeOrActOnTheOffer()
+    public async Task TheOwningAppCanSeeAndActOnItsOwnOffer()
     {
-        // Owner console only, and pinned at the route rather than left to the service's master-key
-        // assertion. These live on OwnerCircleNetworkController and not on the shared base that
-        // AppCircleNetworkController inherits, so an app finds nothing there at all -- which says
-        // "never yours to call" where a 403 would say "you lack permission".
+        // The app can do this itself, not only the owner console. Doing it in the console is faster
+        // -- the master key is there, so grants are minted outright -- but an app doing it records
+        // deposits that complete when the connection's Peer Key is next in scope, which is not
+        // wrong, just later.
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
 
-        var (appId, circleId) = await SetupAppOwningAReviewCircleAsync(frodo, "mail");
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "mailDrive", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership, PermissionKeys.ReadConnections });
+
+        var circleId = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleId, "mail-circle", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: app.AppId, grantOn: CircleGrantOn.Review);
+
         await ReviewAsync(frodo, sam.Identity);
 
-        var appDrive = TargetDrive.NewTargetDrive();
-        await frodo.Admin.CreateDrive(appDrive, "callerDrive", allowAnonymousReads: false);
-        var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+        // Through the app's own V2 client: app API calls are shared-secret encrypted, so a plain
+        // POST body is rejected by the envelope long before any of this logic is reached.
+        var appClient = new V2ConnectionNetworkClient(app.Identity, app.Factory);
 
-        var client = app.Factory.CreateHttpClient(app.Identity, out _);
+        var read = await appClient.GetEnrollmentCandidatesAsync(app.AppId);
+        Assert.That(read.IsSuccessStatusCode, Is.True,
+            $"the owning app must be able to read its own offer, got {read.StatusCode}");
+        Assert.That(read.Content!.Single(c => c.CircleId == circleId).Candidates
+                .Select(c => c.OdinId.DomainName),
+            Does.Contain(sam.Identity.DomainName));
 
-        var read = await client.GetAsync($"/api/apps/v1/circles/connections/enrollment-candidates?appId={appId}");
+        var write = await appClient.GrantCircleToManyAsync(circleId, [sam.Identity]);
+        Assert.That(write.IsSuccessStatusCode, Is.True,
+            $"the owning app must be able to act on it, got {write.StatusCode}");
+
+        // Landed as a grant or as a deposit -- which of the two depends on whether the caller could
+        // reach the Peer Key, and the point here is only that the app's call did something.
+        var members = (await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory)
+            .GetCircleMembersAsync(circleId)).Content!;
+        var pending = (await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory)
+            .GetPendingCircleMembersAsync(circleId)).Content!;
+        Assert.That(
+            members.Any(m => m.DomainName == sam.Identity.DomainName) || pending.Any(),
+            Is.True, "the enrolment landed, as membership or as a pending deposit");
+    }
+
+    [Test]
+    public async Task AnAppCannotAskAboutAnotherAppsCircles()
+    {
+        // The candidate list is drawn from every connection on the identity, so answering app A's
+        // question about app B would tell A which of the owner's contacts were reviewed for a
+        // circle that is none of its business.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var (otherAppId, _) = await SetupAppOwningAReviewCircleAsync(frodo, "mail");
+        await ReviewAsync(frodo, sam.Identity);
+
+        var nosyDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(nosyDrive, "nosyDrive", allowAnonymousReads: false);
+        var nosy = await AppSession.SetupAsync(frodo, nosyDrive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership, PermissionKeys.ReadConnections });
+
+        var read = await new V2ConnectionNetworkClient(nosy.Identity, nosy.Factory)
+            .GetEnrollmentCandidatesAsync(otherAppId);
+
         Assert.That(read.IsSuccessStatusCode, Is.False,
-            $"an app must not be able to read the offer, got {read.StatusCode}");
-
-        var write = await client.PostAsync("/api/apps/v1/circles/connections/circles/add-many",
-            new StringContent($"{{\"circleId\":\"{circleId}\",\"odinIds\":[\"{sam.Identity.DomainName}\"]}}",
-                Encoding.UTF8, "application/json"));
-        Assert.That(write.IsSuccessStatusCode, Is.False,
-            $"an app must not be able to act on the offer, got {write.StatusCode}");
+            $"an app asking about another app's circles must be refused, got {read.StatusCode}");
     }
 
     //

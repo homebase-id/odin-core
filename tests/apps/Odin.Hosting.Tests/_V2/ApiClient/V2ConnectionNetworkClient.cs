@@ -10,6 +10,7 @@ using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Membership.Connections;
+using System.Linq;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -84,6 +85,24 @@ public class V2ConnectionNetworkClient(OdinId identity, IApiClientFactory factor
     /// Which entries those are is decided server-side from the caller's app id, so the call takes no
     /// arguments -- an app cannot ask for another app's queue.
     /// </summary>
+    public async Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidatesAsync(Guid appId)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetEnrollmentCandidates(appId);
+    }
+
+    public async Task<ApiResponse<EnrollmentResult>> GrantCircleToManyAsync(Guid circleId, List<OdinId> odinIds)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.GrantCircleToMany(new AddManyCircleMembershipRequest
+        {
+            CircleId = circleId,
+            OdinIds = odinIds.Select(o => o.DomainName).ToList()
+        });
+    }
+
     public async Task<ApiResponse<PendingEnrollmentProcessingResult>> ProcessPendingEnrollmentsAsync()
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
