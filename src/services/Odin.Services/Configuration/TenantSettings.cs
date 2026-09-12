@@ -74,8 +74,10 @@ public class TenantSettings
     /// </summary>
     /// <remarks>
     /// A dark-launch switch, not a feature the owner is meant to reason about, and not meant to last:
-    /// it exists so the recut can be turned on a few identities at a time, and comes out along with the
-    /// flag checks here once every tenant is on v16 and the behaviour has settled.  Turning it on tightens
+    /// it exists so the recut can be enabled one tenant at a time rather than fleet-wide, and comes out
+    /// along with the flag checks here once every tenant is on v16 and the behaviour has settled.
+    /// Within a tenant it is all-or-nothing -- every connection is re-tiered the moment it flips, there
+    /// is no per-connection staging.  Turning it on tightens
     /// access: content behind a <c>connected</c> ACL stops being readable by connections the owner never
     /// reviewed, which is the point of the recut but is a real reduction for anyone relying on today's
     /// looser behaviour.  Reversible by turning it off; nothing is written or migrated either way.
