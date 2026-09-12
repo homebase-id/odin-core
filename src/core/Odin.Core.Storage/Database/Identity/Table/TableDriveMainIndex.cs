@@ -16,6 +16,13 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
+/// <summary>
+/// Per-identity storage totals. <paramref name="TotalBytes"/> counts every row, including
+/// soft-deleted tombstones (which keep a row and a header-sized byteCount);
+/// <paramref name="ActiveBytes"/> counts only FileState.Active rows.
+/// </summary>
+public sealed record IdentityStorageStats(long Files, long TotalBytes, long ActiveBytes);
+
 public class TableDriveMainIndex(
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity,
@@ -283,6 +290,44 @@ public class TableDriveMainIndex(
         }
 
         return size;
+    }
+
+    /// <summary>
+    /// File count and byte totals for this identity across every drive, in one pass.
+    /// Used by the admin metrics endpoint; see also <see cref="GetTotalSizeAllDrivesAsync"/>,
+    /// whose figure is the same as <see cref="IdentityStorageStats.TotalBytes"/>.
+    /// </summary>
+    internal async Task<IdentityStorageStats> GetIdentityStorageStatsAsync()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        // CASE WHEN rather than SUM(...) FILTER (WHERE ...): FILTER is not portable to
+        // every SQLite build we ship against, CASE WHEN is standard on both dialects.
+        cmd.CommandText =
+            """
+            SELECT COUNT(*),
+                   CAST(COALESCE(SUM(byteCount), 0) AS BIGINT),
+                   CAST(COALESCE(SUM(CASE WHEN fileState=@fileState THEN byteCount ELSE 0 END), 0) AS BIGINT)
+            FROM drivemainindex
+            WHERE identityId=@identityId;
+            """;
+
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@fileState", DbType.Int32, ActiveFileState);
+
+        await using (var rdr = await cmd.ExecuteReaderAsync())
+        {
+            if (await rdr.ReadAsync())
+            {
+                var files = rdr[0] == DBNull.Value ? 0 : (long)rdr[0];
+                var totalBytes = rdr[1] == DBNull.Value ? 0 : (long)rdr[1];
+                var activeBytes = rdr[2] == DBNull.Value ? 0 : (long)rdr[2];
+                return new IdentityStorageStats(files, totalBytes, activeBytes);
+            }
+        }
+
+        return new IdentityStorageStats(0, 0, 0);
     }
 
     /// <summary>
