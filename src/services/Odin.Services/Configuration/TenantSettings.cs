@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 
@@ -23,7 +24,8 @@ public class TenantSettings
         ConnectedIdentitiesCanCommentOnAnonymousDrives = true,
         DisableAutoAcceptIntroductionsForTests = false,
         DisableAutoAcceptConnectionRequests = false,
-        SendMonthlySecurityHealthReport = false
+        SendMonthlySecurityHealthReport = false,
+        UseReviewedSecurityTier = false
     };
 
     /// <summary/>
@@ -63,6 +65,25 @@ public class TenantSettings
     public bool DisableAutoAcceptConnectionRequests { get; set; } = false;
 
     public bool ConnectedIdentitiesCanCommentOnAnonymousDrives { get; set; }
+
+    /// <summary>
+    /// When true, a connected caller's security tier is decided by whether the owner has reviewed them:
+    /// reviewed callers stay at <see cref="SecurityGroupType.Connected"/>, unreviewed ones drop to
+    /// <see cref="SecurityGroupType.Authenticated"/>.  Off by default, which is today's behaviour --
+    /// every connected caller is Connected regardless of review.
+    /// </summary>
+    /// <remarks>
+    /// A dark-launch switch, not a feature the owner is meant to reason about.  Turning it on tightens
+    /// access: content behind a <c>connected</c> ACL stops being readable by connections the owner never
+    /// reviewed, which is the point of the recut but is a real reduction for anyone relying on today's
+    /// looser behaviour.  Reversible by turning it off; nothing is written or migrated either way.
+    /// <para>
+    /// Ignored on a tenant that has not yet run the v15 -&gt; v16 upgrade, because that is the pass which
+    /// fills in <c>ReviewedAt</c> from prior Confirmed-circle membership.  Honouring it earlier would read
+    /// every connection as unreviewed and demote the lot in one go.
+    /// </para>
+    /// </remarks>
+    public bool UseReviewedSecurityTier { get; set; }
 
     public List<int> GetAdditionalPermissionKeysForAuthenticatedIdentities()
     {
