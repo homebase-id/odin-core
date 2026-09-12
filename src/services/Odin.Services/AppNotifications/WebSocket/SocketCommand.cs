@@ -1,4 +1,4 @@
-﻿namespace Odin.Services.AppNotifications.WebSocket;
+namespace Odin.Services.AppNotifications.WebSocket;
 
 public class SocketCommand
 {
@@ -12,6 +12,7 @@ public enum SocketCommandType
     EstablishConnectionRequest = 001,
     ProcessTransitInstructions = 111,
     ProcessInbox = 222,
+    ProcessEnrollments = 333,
     Ping = 999,
     WhoIsOnline = 444,
 }

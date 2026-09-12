@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -7,6 +7,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using System;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
@@ -18,6 +19,15 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Post(RootPath + "/circles/list")]
         Task<ApiResponse<IEnumerable<OdinId>>> GetCircleMembers([Body] GetCircleMembersRequest circleId);
         
+        [Get(RootPath + "/circles/enrollment-candidates")]
+        Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId);
+
+        [Post(RootPath + "/circles/enrollment-candidates-for-circle")]
+        Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircle([Body] Guid circleId);
+
+        [Post(RootPath + "/circles/add-many")]
+        Task<ApiResponse<EnrollmentResult>> GrantCircleToMany([Body] AddManyCircleMembershipRequest request);
+
         [Post(RootPath + "/circles/add")]
         Task<ApiResponse<HttpContent>> AddCircle([Body] AddCircleMembershipRequest request);
         
@@ -47,5 +57,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 
         [Post(RootPath + "/confirm-connection")]
         Task<ApiResponse<IcrVerificationResult>> ConfirmConnection([Body] OdinIdRequest request);
+
+        [Post(RootPath + "/review")]
+        Task<ApiResponse<HttpContent>> MarkReviewed([Body] MarkConnectionReviewedRequest request);
+
+        [Post(RootPath + "/review/clear")]
+        Task<ApiResponse<HttpContent>> ClearReview([Body] OdinIdRequest request);
     }
 }

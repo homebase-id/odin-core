@@ -13,13 +13,20 @@ using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
+using System.Linq;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Connections;
 
 public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string circleName, PermissionSetGrantRequest grant)
+    /// <param name="appId">
+    /// Owning app. Null makes an owner circle, which is what most tests want; set it to exercise the
+    /// behaviour that keys off circle ownership, such as which app may complete a pending enrollment.
+    /// </param>
+    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string circleName, PermissionSetGrantRequest grant,
+        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
@@ -31,11 +38,57 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
                 Name = circleName,
                 Description = $"Description for {circleName}",
                 DriveGrants = grant.Drives,
-                Permissions = grant.PermissionSet
+                Permissions = grant.PermissionSet,
+                AppId = appId,
+                GrantOn = grantOn
             };
 
             var createCircleResponse = await svc.CreateCircleDefinition(request);
             return createCircleResponse;
+        }
+    }
+
+    public async Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await svc.GetEnrollmentCandidates(appId);
+        }
+    }
+
+    public async Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircle(Guid circleId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await svc.GetEnrollmentCandidatesForCircle(circleId);
+        }
+    }
+
+    public async Task<ApiResponse<EnrollmentResult>> GrantCircleToMany(Guid circleId, List<OdinId> odinIds)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await svc.GrantCircleToMany(new AddManyCircleMembershipRequest
+            {
+                CircleId = circleId,
+                OdinIds = odinIds.Select(o => o.DomainName).ToList()
+            });
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> ReassignCircleOwningApp(Guid circleId, Guid appId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleDefinition>(client, ownerSharedSecret);
+            return await svc.ReassignCircleOwningApp(new SetCircleOwningAppRequest
+            {
+                CircleId = circleId,
+                AppId = appId
+            });
         }
     }
 
@@ -192,6 +245,28 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
     
+    public async Task<ApiResponse<HttpContent>> MarkReviewed(OdinId recipient, IEnumerable<GuidId> circleIds = null)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await connectionsService.MarkReviewed(new MarkConnectionReviewedRequest
+            {
+                OdinId = recipient,
+                CircleIds = circleIds ?? []
+            });
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> ClearReview(OdinId recipient)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            return await connectionsService.ClearReview(new OdinIdRequest() { OdinId = recipient });
+        }
+    }
+
     public async Task<ApiResponse<IcrVerificationResult>> ConfirmConnection(OdinId recipient)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);

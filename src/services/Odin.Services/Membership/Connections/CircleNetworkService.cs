@@ -157,7 +157,7 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: SecurityGroupType.Connected,
+                        securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
                         circleIds: enabledCircles)
                 };
 
@@ -468,6 +468,124 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Fills in the circle and app names on each connection's awaiting-app entries, so a client can
+        /// say which app is being waited on rather than only that something is.
+        /// </summary>
+        /// <remarks>
+        /// Resolved on read rather than stored at enqueue time, so a circle or app renamed since the
+        /// review reads as it is called now.  Lookups are memoised across the whole batch, so a list of
+        /// connections all waiting on the same app costs one lookup, not one per connection -- and a
+        /// connection with nothing awaiting costs none at all, which is nearly all of them.
+        /// <para>
+        /// A name that cannot be resolved is left null rather than failing the read: a circle or app
+        /// deleted while an entry waited is a real state, and the entry still needs to be reportable so
+        /// the owner can see something is stuck.
+        /// </para>
+        /// </remarks>
+        public async Task PopulateAwaitingAppNamesAsync(
+            IEnumerable<RedactedIdentityConnectionRegistration> connections,
+            IOdinContext odinContext)
+        {
+            var circles = new Dictionary<Guid, CircleDefinition>();
+            var appNames = new Dictionary<Guid, string>();
+
+            foreach (var connection in connections ?? [])
+            {
+                foreach (var awaiting in connection?.AccessGrant?.AwaitingApps ?? [])
+                {
+                    if (!circles.TryGetValue(awaiting.CircleId, out var circle))
+                    {
+                        circle = await circleDefinitionService.GetCircleAsync(awaiting.CircleId);
+                        circles[awaiting.CircleId] = circle;
+                    }
+
+                    awaiting.CircleName = circle?.Name;
+
+                    // Who it waits on comes from the circle, not from the entry's copy. The copy is
+                    // taken when the entry is queued, so a circle adopted or moved since then leaves it
+                    // naming the previous owner -- and this is the value the connection screen renders
+                    // as "waiting on X". Overwritten rather than trusted, for the same reason
+                    // ProcessPendingEnrollmentsForAppAsync stopped filtering on it: the definition is
+                    // loaded here anyway.
+                    awaiting.AppId = circle?.AppId;
+
+                    if (!awaiting.AppId.HasValue)
+                    {
+                        continue;
+                    }
+
+                    if (!appNames.TryGetValue(awaiting.AppId.Value, out var appName))
+                    {
+                        appName = (await appRegistrationService.GetAppRegistration(awaiting.AppId.Value, odinContext))?.Name;
+                        appNames[awaiting.AppId.Value] = appName;
+                    }
+
+                    awaiting.AppName = appName;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Identities whose grant for <paramref name="circleId"/> is deposited but not yet converted --
+        /// asked for, not yet in effect.
+        /// </summary>
+        /// <remarks>
+        /// Reported beside <see cref="GetCircleMembersAsync"/> rather than folded into it: a pending
+        /// identity is not a member, and saying otherwise would claim access that does not exist yet.
+        /// <para>
+        /// This scans connections, where the member list is one indexed read.  Deposits live inside each
+        /// connection's own key store and nothing indexes circle to deposit, so there is no cheaper
+        /// answer; the set is small and shrinks on its own as deposits convert.  Prefer
+        /// <see cref="GetAllPendingCircleMembersAsync"/> when asking about more than one circle -- it
+        /// makes the same single pass and groups the answer.
+        /// </para>
+        /// </remarks>
+        public async Task<List<PendingCircleMember>> GetPendingCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
+        {
+            var all = await GetAllPendingCircleMembersAsync(odinContext);
+            return all.TryGetValue(circleId.Value, out var members) ? members : [];
+        }
+
+        /// <summary>
+        /// Every pending circle membership across all connections, keyed by circle id.  One pass, so a
+        /// caller listing many circles does not scan once per circle.
+        /// </summary>
+        public async Task<Dictionary<Guid, List<PendingCircleMember>>> GetAllPendingCircleMembersAsync(IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
+
+            var pending = new Dictionary<Guid, List<PendingCircleMember>>();
+
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected, odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    foreach (var deposit in icr.PeerKeyStore?.DepositedGrants ?? [])
+                    {
+                        if (!pending.TryGetValue(deposit.CircleId.Value, out var members))
+                        {
+                            members = [];
+                            pending[deposit.CircleId.Value] = members;
+                        }
+
+                        members.Add(new PendingCircleMember
+                        {
+                            OdinId = icr.OdinId,
+                            Deposited = deposit.Deposited,
+                            DepositingAppId = deposit.DepositingAppId
+                        });
+                    }
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            return pending;
+        }
+
+        /// <summary>
         /// Throws an exception if the odinId is blocked.
         /// </summary>
         /// <param name="odinId"></param>
@@ -526,6 +644,16 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Gives access to all resource granted by the specified circle to the odinId
         /// </summary>
+        /// <summary>
+        /// Gives access to all resource granted by the specified circle to the odinId
+        /// </summary>
+        /// <remarks>
+        /// Deliberately does its own minting and depositing rather than going through
+        /// <see cref="EnrollInCircleInternalAsync"/>, which the review path uses.  This is the older,
+        /// app-callable way in, and its behaviour is held exactly as it was: a write-only circle deposits
+        /// here rather than minting outright, and a circle belonging to no app is allowed.  Both of those
+        /// differ from enrolment, and changing them under an existing caller is not worth the shared code.
+        /// </remarks>
         public async Task GrantCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
             AssertCanManageCircleMembership(odinContext);
@@ -602,6 +730,149 @@ namespace Odin.Services.Membership.Connections
                 {
                     throw new OdinClientException($"{odinId} is already member of circle",
                         OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
+                }
+
+                var deposit = await CreateDepositedGrantAsync(icr.PeerKeyStore, circleDefinition, odinContext);
+                icr.PeerKeyStore.DepositedGrants.Add(deposit);
+            }
+
+            await this.SaveIcrAsync(icr, odinContext);
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                CircleId = circleId.Value,
+                Change = ConnectionChangeType.CircleGranted,
+            });
+        }
+
+        /// <summary>
+        /// Enrolls <paramref name="odinId"/> in a circle, minting the grant or depositing it when the
+        /// caller holds no master key.  Unlike <see cref="GrantCircleAsync"/> this is idempotent -- an
+        /// existing membership is a no-op rather than an error -- and it does not refuse auto-connected
+        /// identities.
+        /// </summary>
+        /// <remarks>
+        /// Those two differences are exactly what the connection review needs: it enrolls the circles the
+        /// owner checked in one act, over a contact who is very likely auto-connected and may already hold
+        /// some of them (docs/connection-defaults.md, "On verify": "Enrollment is idempotent -- already a
+        /// member is a no-op").  This method performs no permission check; the caller owns that.
+        /// </remarks>
+        private async Task EnrollInCircleInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext,
+            bool enqueueWhenOutOfReach = false)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null || !icr.IsConnected())
+            {
+                throw new OdinSecurityException($"{odinId} must have valid connection to be added to a circle");
+            }
+
+            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
+            {
+                return;
+            }
+
+            var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
+
+            // A circle with no owning app is the owner's own, and an app has no business putting anyone
+            // into one: nothing an app does should leave the contact waiting on the owner opening their
+            // console. Apps are not shown these circles either
+            // (CircleMembershipService.GetCircleDefinitions), so a well-behaved client never asks.
+            if (!circleDefinition.AppId.HasValue && odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot add {odinId} to circle {circleId}; it belongs to the owner, not to an app");
+            }
+
+            // The owner chose a circle this caller cannot grant -- another app's, whose drives it cannot
+            // read. Record the intent so the app that can grant it may finish later, rather than failing an
+            // act the owner was entitled to perform. Recording confers nothing: whoever processes the entry
+            // re-checks scope then.
+            if (enqueueWhenOutOfReach && !odinContext.Caller.HasMasterKey &&
+                !await CallerCanGrantCircleAsync(circleDefinition, odinContext))
+            {
+                EnqueuePendingEnrollment(icr, circleDefinition, odinContext);
+                await this.SaveIcrAsync(icr, odinContext);
+                return;
+            }
+
+            if (odinContext.Caller.HasMasterKey)
+            {
+                // The store may have been created without the owner online (e.g. an app accepted the
+                // connection request), in which case the Peer Key is only held as the temp weak key.
+                // Re-mint it under the master key before we try to decrypt it.
+                if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
+                {
+                    // refetch the record since the above method just writes to db
+                    icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+                }
+
+                if (icr.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    throw new OdinSystemException(
+                        $"Cannot grant circle to {odinId}; the peer key store still requires master key encryption upgrade");
+                }
+
+                var masterKey = odinContext.Caller.GetMasterKey();
+                var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                var storageKeySource = new MasterKeyStorageKeySource(masterKey);
+
+                // The owner touch provisions the write-only keypair on stores created before it
+                // existed and converts anything apps have deposited in the meantime.
+                icr.PeerKeyStore.WriteOnlyKeyPair ??= PeerKeyStoreWriteOnlyKey.CreateKeyPair(keyStoreKey);
+                var convertedCircleIds = await ConvertDepositedGrantsAsync(icr.PeerKeyStore, keyStoreKey, odinContext);
+
+                if (!icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
+                {
+                    var circleGrant =
+                        await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, storageKeySource, odinContext);
+                    icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
+                }
+
+                // Check the apps.  If a circle being granted is authorized by an app
+                // ensure the new member gets the permissions given by the app
+                await FanOutAppCircleGrantsAsync(icr, keyStoreKey, convertedCircleIds.Append(circleId.Value).Distinct(),
+                    storageKeySource, odinContext);
+
+                keyStoreKey.Wipe();
+            }
+            else if (!circleDefinition.RequiresPeerKey())
+            {
+                // Nothing in this grant is sealed to anything, so the Peer Key the caller cannot reach is
+                // not needed: a write/react grant is a plaintext {driveId, permission} record. Depositing
+                // it would seal nothing, convert to the same record, and leave the member out of the
+                // circle until something else happened to touch the connection.
+                //
+                // The deposit path's write-side scope check has to come along, though. CreateDriveGrant
+                // makes no such check -- for the owner it is redundant -- so without this an app could
+                // grant write on a drive it cannot write to itself.
+                AssertCallerHoldsGrantedDrivePermissions(circleDefinition, odinContext);
+
+                var circleGrant = await circleMembershipService.CreateCircleGrantAsync(
+                    keyStoreKey: null,
+                    circleDefinition,
+                    new PermissionContextStorageKeySource(odinContext),
+                    odinContext);
+
+                icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
+
+                // Same tradeoff, and the same reasoning, as the peer-CAT conversion path: no master key
+                // here, so an app-authorized circle that wants Read comes out keyless and self-heals when
+                // ReconcileAuthorizedCircles next runs for that app.
+                await FanOutAppCircleGrantsAsync(icr, keyStoreKey: null, [circleId.Value],
+                    NoStorageKeySource.Instance, odinContext);
+            }
+            else
+            {
+                // Blocker #3: the caller (an app) has no path to this connection's key store key
+                // and must not be handed one. It deposits the grant via the store's write-only
+                // public key instead; the deposit converts to a normal circle grant the next time
+                // the key store key is in scope (peer CAT auth or the owner's next grant touch).
+                if (icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId))
+                {
+                    return;
                 }
 
                 var deposit = await CreateDepositedGrantAsync(icr.PeerKeyStore, circleDefinition, odinContext);
@@ -792,6 +1063,718 @@ namespace Odin.Services.Membership.Connections
             });
 
             //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
+        }
+
+        /// <summary>
+        /// Hands a circle that belongs to no app to one that exists, so its enrollments have someone to
+        /// claim them.
+        /// </summary>
+        /// <remarks>
+        /// Circles predating app ownership carry no AppId, which reads as "the owner's own".  That is the
+        /// right default and wrong for the ones that were always meant to be an app's: an app is refused
+        /// them (<see cref="EnrollInCircleInternalAsync"/>) and never offered them
+        /// (<c>CircleMembershipService.GetCircleDefinitions</c>), so nothing an app does can ever involve
+        /// them.  Adoption is how the owner corrects that.
+        /// <para>
+        /// Owner console only, and deliberately not <c>OwnerOrApp</c>.  An app is the owner acting, so
+        /// were this open to apps any app could hand itself a circle and quietly widen its own reach --
+        /// which is the exact thing the ban on reassignment through a PUT exists to prevent.  The check
+        /// is on which app is acting rather than on who the caller is, since only the former separates
+        /// the console from an app.
+        /// </para>
+        /// <para>
+        /// No re-granting, unlike <see cref="UpdateCircleDefinitionAsync"/>: ownership names who may
+        /// administer the circle and complete its enrollments, and touches neither its drive grants nor
+        /// its permissions, so no member's access changes and no grant has to be reminted.
+        /// </para>
+        /// </remarks>
+        public async Task SetCircleOwningAppAsync(GuidId circleId, Guid appId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertCallerIsOwner();
+
+            if (odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot set the owning app of circle {circleId}; only the owner console can");
+            }
+
+            OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+
+            // Checked before the write rather than trusted: an AppId naming no app would leave the
+            // circle in the one state adoption exists to escape -- owned by something that can never
+            // come back for it, and no longer adoptable, since a second call is refused.
+            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
+            if (app == null)
+            {
+                throw new OdinClientException($"No app is registered with id {appId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+
+            await circleDefinitionService.SetOwningAppAsync(circleId, appId);
+
+            // Ownership and the ability to act on it, together or not at all: a half-applied adoption
+            // is an app named on a circle it cannot grant, which is the state this exists to prevent.
+            var granted = await GrantAppTheCirclesDrivesAsync(appId, circle, odinContext);
+
+            tx.Commit();
+
+            logger.LogInformation("Circle {circleId} adopted by app {appName} ({appId}); {granted} drive grant(s) added",
+                circleId, app.Name, appId, granted.Count);
+
+            await mediator.Publish(new CircleDefinitionChangedNotification
+            {
+                OdinContext = odinContext,
+                CircleId = circleId.Value,
+                Change = CircleDefinitionChangeType.Updated,
+            });
+        }
+
+
+        /// <summary>
+        /// Gives the app the drive access the circle's own grants require, so that owning the circle
+        /// means being able to grant it.
+        /// </summary>
+        /// <remarks>
+        /// Naming an app as owner does not let it do the job.  Completing an enrollment mints a circle
+        /// grant, which escrows each drive's storage key for the member, and a key cannot be escrowed
+        /// by someone who cannot obtain it -- so an app without read on the circle's drives owns a
+        /// circle it can never act on, and every enrollment sits in the queue until the owner sweeps
+        /// it.  The master key is in scope here (this runs owner-console-only), which is precisely
+        /// what makes the escrow possible, so this is the one moment where the gap can be closed.
+        /// <para>
+        /// The circle states its own requirements: each of its drive grants names a drive and a
+        /// permission, and that tuple is exactly what <see cref="CallerCanGrantCircleAsync"/> checks
+        /// later.  Copying it satisfies both of that method's branches by construction -- Read brings
+        /// the storage key, anything else needs only the matching permission -- so nothing here is a
+        /// heuristic about what the app "probably" needs.
+        /// </para>
+        /// <para>
+        /// A union, never a replacement.  <c>UpdateAppPermissionsAsync</c> rebuilds the whole key
+        /// store from the drive list it is handed, so sending only the circle's drives would silently
+        /// revoke every other grant the app holds.  Permissions are OR'd per drive for the same
+        /// reason: an app holding Write on a drive whose circle grants Read must end with both.
+        /// </para>
+        /// <para>
+        /// Returns the drives whose access actually changed, so a caller can report what it did.  An
+        /// app that already had everything is left completely alone -- no rewrite, no cache reset.
+        /// </para>
+        /// </remarks>
+        private async Task<List<PermissionedDrive>> GrantAppTheCirclesDrivesAsync(Guid appId,
+            CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            var required = (circleDefinition.DriveGrants ?? []).ToList();
+            if (required.Count == 0)
+            {
+                return [];
+            }
+
+            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
+            if (app == null)
+            {
+                throw new OdinClientException($"No app is registered with id {appId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+
+            // Keyed on the drive, so the union is per drive rather than per grant.
+            var merged = new Dictionary<TargetDrive, DrivePermission>();
+            foreach (var existing in app.Grant?.DriveGrants ?? [])
+            {
+                merged[existing.PermissionedDrive.Drive] = existing.PermissionedDrive.Permission;
+            }
+
+            var changed = new List<PermissionedDrive>();
+            foreach (var req in required)
+            {
+                var drive = req.PermissionedDrive.Drive;
+                var wanted = req.PermissionedDrive.Permission;
+
+                var current = merged.TryGetValue(drive, out var p) ? p : DrivePermission.None;
+                if ((current & wanted) == wanted)
+                {
+                    continue;
+                }
+
+                merged[drive] = current | wanted;
+                changed.Add(new PermissionedDrive { Drive = drive, Permission = merged[drive] });
+            }
+
+            if (changed.Count == 0)
+            {
+                return [];
+            }
+
+            await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
+            {
+                AppId = appId,
+                // Untouched: this is about drive access, and rewriting the permission set from a
+                // redacted copy risks dropping a key the app was granted elsewhere.
+                PermissionSet = app.Grant?.PermissionSet ?? new PermissionSet(),
+                Drives = merged.Select(kv => new DriveGrantRequest
+                {
+                    PermissionedDrive = new PermissionedDrive { Drive = kv.Key, Permission = kv.Value }
+                }).ToList()
+            }, odinContext);
+
+            logger.LogInformation(
+                "Granted app {appId} access to {count} drive(s) so it can grant circle {circleId}: {drives}",
+                appId, changed.Count, circleDefinition.Id, string.Join(", ", changed.Select(d => d.ToString())));
+
+            return changed;
+        }
+
+        /// <summary>
+        /// Whether this connection could be added to this circle right now.
+        /// </summary>
+        /// <remarks>
+        /// One predicate, shared by the read that offers the work and the write that does it, so the
+        /// two cannot disagree about who qualifies -- a count that offers people the enrol call then
+        /// refuses is worse than no count.
+        /// <para>
+        /// <see cref="CircleGrantOn"/> is the app's own declaration of when it wants members, so it
+        /// decides.  <c>Review</c> means the owner vetting the contact is the qualifying event, so a
+        /// review is required.  <c>Connect</c> means connection establishment is, and every existing
+        /// connection already passed that.  <c>OwnFlowConnect</c> is excluded outright: "never
+        /// ambiently" is exactly what a bulk add would be.  <c>None</c> is manual by definition.
+        /// </para>
+        /// <para>
+        /// Being unreviewed is expressed by <c>ReviewedAt</c> and nothing else.  An earlier version
+        /// excluded members of the Auto Connections system circle outright, which was redundant for a
+        /// Review circle -- the review check below already covers them -- and wrong for a Connect one,
+        /// where connecting is the qualifying act and no review is implied.  It also keyed on a circle
+        /// that is being retired, and missed a connection whose review had been cleared.
+        /// </para>
+        /// <para>
+        /// Anything already granted, deposited or queued for this circle is excluded for the plainer
+        /// reason that the work is already done or under way.
+        /// </para>
+        /// </remarks>
+        private static bool IsEnrollmentCandidate(IdentityConnectionRegistration icr, CircleDefinition circle)
+        {
+            if (circle.GrantOn != CircleGrantOn.Review && circle.GrantOn != CircleGrantOn.Connect)
+            {
+                return false;
+            }
+
+            var store = icr.PeerKeyStore;
+            if (store == null)
+            {
+                return false;
+            }
+
+            if (store.CircleGrants.ContainsKey(circle.Id) ||
+                store.DepositedGrants.Any(d => d.CircleId == circle.Id) ||
+                (store.PendingEnrollments ?? []).Any(p => p.CircleId == circle.Id))
+            {
+                return false;
+            }
+
+            return circle.GrantOn != CircleGrantOn.Review || icr.ReviewedAt != null;
+        }
+
+        /// <summary>
+        /// Puts an identity into an ambient circle, skipping the confirm-first refusal.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="GrantCircleAsync"/> refuses any identity holding the Auto Connections circle --
+        /// "you must first confirm the connection" -- and that is the entire population this migration
+        /// exists to move.  Guarding on it would make this useless for the one job it has, which is the
+        /// same reason <c>DriveManager.ApplyAddressAsync</c> does not refuse protected drives.
+        /// <para>
+        /// Safe to skip because of what an ambient circle is allowed to contain, not because the caller
+        /// promises to behave.  <see cref="CircleGrantOn.Connect"/> is bound by the deposit-only
+        /// invariant -- write and react drive permissions only, no read beyond anonymous drives, no
+        /// permission keys, enforced when the definition is written -- so it grants an unreviewed
+        /// contact nothing that being unreviewed should withhold.  That is precisely what the
+        /// confirm-first rule is protecting, and it is not at stake here.
+        /// </para>
+        /// <para>
+        /// Narrow by construction rather than by caller discipline: anything that is not a Connect
+        /// circle is refused, so this cannot be used to slip a Review circle past the guard.  It
+        /// delegates rather than reimplementing, so the grant and deposit behaviour stays in one place.
+        /// </para>
+        /// <para>
+        /// Expected to die.  Once ambient granting is implemented at connection establishment -- which
+        /// <see cref="CircleGrantOn.Connect"/> describes and nothing yet does -- this has no callers.
+        /// </para>
+        /// </remarks>
+        internal async Task ApplyAmbientCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.GrantOn != CircleGrantOn.Connect)
+            {
+                throw new OdinSystemException(
+                    $"Circle {circleId} is {circle.GrantOn}, not Connect; only an ambient circle may be " +
+                    "applied without the confirm-first check");
+            }
+
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (icr == null || !icr.IsConnected())
+            {
+                return;
+            }
+
+            // Already there: additive and re-runnable, the way the v15->v16 stamp is.
+            if (icr.PeerKeyStore?.CircleGrants.ContainsKey(circleId) ?? false)
+            {
+                return;
+            }
+
+            await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
+        }
+
+        /// <summary>
+        /// Puts an identity the owner has already vetted into a review circle, skipping the confirm-first
+        /// refusal.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// The sibling of <see cref="ApplyAmbientCircleAsync"/>, and it exists for the same reason:
+        /// <see cref="GrantCircleAsync"/> refuses any identity still holding the Auto Connections circle,
+        /// and a reviewed connection may well still hold it.  <see cref="MarkReviewedAsync"/> removes
+        /// nothing -- only <see cref="ConfirmConnectionAsync"/> takes the auto circle away -- so an
+        /// introduction the owner reviewed without confirming is reviewed and auto-connected at once.
+        /// Backfilling through the older path would silently skip exactly those.
+        /// <para>
+        /// Where the ambient sibling is safe because a Connect circle can grant nothing that being
+        /// unreviewed should withhold, this one is safe because the review has already happened.
+        /// <c>ReviewedAt</c> is required and checked here rather than trusted from the caller, which is
+        /// the same rule <see cref="IsEnrollmentCandidate"/> applies to a Review circle: membership of a
+        /// personal circle must imply a review, or <see cref="ClearReviewAsync"/>'s guard is describing a
+        /// state the system can reach behind its back.  Nothing here stamps a review -- a migration that
+        /// invented one to make its own work possible would be asserting the owner vetted someone they
+        /// never looked at.
+        /// </para>
+        /// <para>
+        /// Narrow by construction, as the ambient one is: anything that is not a Review circle is refused,
+        /// so neither method can be used to reach the other's population.
+        /// </para>
+        /// <para>
+        /// Says whether it granted, so a migration can count what it did rather than infer it from a
+        /// re-read.  Expected to die with the backfill that needs it.
+        /// </para>
+        /// </remarks>
+        internal async Task<bool> ApplyReviewedCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.GrantOn != CircleGrantOn.Review)
+            {
+                throw new OdinSystemException(
+                    $"Circle {circleId} is {circle.GrantOn}, not Review; only a review circle may be applied " +
+                    "without the confirm-first check");
+            }
+
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (icr == null || !icr.IsConnected() || icr.ReviewedAt == null)
+            {
+                return false;
+            }
+
+            // Already there: additive and re-runnable, the way the v15->v16 stamp is.
+            if (icr.PeerKeyStore?.CircleGrants.ContainsKey(circleId) ?? false)
+            {
+                return false;
+            }
+
+            await EnrollInCircleInternalAsync(circleId, odinId, odinContext);
+            return true;
+        }
+
+        /// <summary>
+        /// Which app the caller may ask about, and refuses if it is not this one.
+        /// </summary>
+        /// <remarks>
+        /// The owner console is no app in particular and may ask about any.  An app may ask only
+        /// about itself: the candidate list is drawn from every connection on the identity, so
+        /// answering app A's question about app B's circles would tell A which of the owner's
+        /// contacts were reviewed for a circle that is none of its business.
+        /// </remarks>
+        private static void AssertCallerMayAskAboutApp(Guid appId, IOdinContext odinContext)
+        {
+            var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+            if (callerAppId != null && callerAppId != appId)
+            {
+                throw new OdinSecurityException(
+                    $"An app may only ask about its own circles; caller is {callerAppId}, asked about {appId}");
+            }
+        }
+
+        /// <summary>
+        /// Per circle owned by <paramref name="appId"/>, the connections that could be added to it.
+        /// </summary>
+        /// <remarks>
+        /// Computed here rather than left to the client, which could derive the same answer from the
+        /// connection list it already receives -- but only by paging the whole list to produce a
+        /// number, on a page that is mostly not about this.  One pass over connections answers for
+        /// every circle at once.
+        /// <para>
+        /// Circles with nothing to offer are omitted, so an empty list means "nothing to do" without
+        /// the caller inspecting counts.
+        /// </para>
+        /// </remarks>
+        public async Task<List<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForAppAsync(Guid appId,
+            IOdinContext odinContext)
+        {
+            // Callable by the owning app as well as the console. The eligibility rule is subtle
+            // enough -- GrantOn semantics, auto-connected exclusion, entries already deposited or
+            // queued -- that every app reimplementing it from the connection list would drift from
+            // this one. Answering here keeps a single definition of who qualifies.
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
+            AssertCallerMayAskAboutApp(appId, odinContext);
+
+            var circles = (await circleDefinitionService.GetCirclesAsync(false))
+                .Where(c => c.AppId == appId)
+                .ToList();
+
+            return await GetEnrollmentCandidatesAsync(circles, odinContext);
+        }
+
+        /// <summary>
+        /// The connections that could be added to one circle but are not in it.
+        /// </summary>
+        /// <remarks>
+        /// The per-app query cannot answer for a circle that belongs to no app, and an owner's own
+        /// circle carries a <see cref="CircleGrantOn"/> like any other -- so without this, changing
+        /// that rule would produce a backlog nothing could report.
+        /// <para>
+        /// An app may ask only about a circle it owns.  A circle owned by no app is the owner's, and
+        /// only the owner may ask about it: the answer is drawn from every connection on the
+        /// identity.
+        /// </para>
+        /// </remarks>
+        public async Task<CircleEnrollmentCandidates> GetEnrollmentCandidatesForCircleAsync(GuidId circleId,
+            IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.AppId.HasValue)
+            {
+                AssertCallerMayAskAboutApp(circle.AppId.Value, odinContext);
+            }
+            else if (odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot ask about circle {circleId}; it belongs to the owner, not to an app");
+            }
+
+            var result = await GetEnrollmentCandidatesAsync([circle], odinContext);
+
+            // Never null, unlike the per-app list which omits empty circles: a caller asking about one
+            // named circle wants "none" as an answer, not an absence to interpret.
+            return result.FirstOrDefault() ?? new CircleEnrollmentCandidates
+            {
+                CircleId = circle.Id.Value,
+                CircleName = circle.Name,
+                GrantOn = circle.GrantOn,
+                Candidates = []
+            };
+        }
+
+        /// <summary>
+        /// One pass over connections, answering for every circle handed in.
+        /// </summary>
+        private async Task<List<CircleEnrollmentCandidates>> GetEnrollmentCandidatesAsync(
+            List<CircleDefinition> circles, IOdinContext odinContext)
+        {
+            if (circles.Count == 0)
+            {
+                return [];
+            }
+
+            var byCircle = circles.ToDictionary(c => c.Id.Value, _ => new List<EnrollmentCandidate>());
+
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected,
+                    odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    foreach (var circle in circles.Where(circle => IsEnrollmentCandidate(icr, circle)))
+                    {
+                        // The review date travels with the name: it is what qualifies them, and an
+                        // owner approving access deserves to see the basis rather than take it on
+                        // trust. Null on a Connect circle, where connecting is the qualifying act.
+                        byCircle[circle.Id.Value].Add(new EnrollmentCandidate
+                        {
+                            OdinId = icr.OdinId,
+                            ReviewedAt = circle.GrantOn == CircleGrantOn.Review ? icr.ReviewedAt : null
+                        });
+                    }
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            return circles
+                .Where(c => byCircle[c.Id.Value].Count > 0)
+                .Select(c => new CircleEnrollmentCandidates
+                {
+                    CircleId = c.Id.Value,
+                    CircleName = c.Name,
+                    GrantOn = c.GrantOn,
+                    Candidates = byCircle[c.Id.Value]
+                })
+                .ToList();
+        }
+
+        /// <summary>
+        /// Adds several identities to one circle, reporting what each became.
+        /// </summary>
+        /// <remarks>
+        /// A loop the caller could have written, kept server-side for two reasons: fourteen round
+        /// trips to add fourteen contacts is the wrong shape, and a per-identity failure should not
+        /// abort the rest -- someone who stopped qualifying since the page was drawn is a skip, not
+        /// an error for everybody behind them.
+        /// <para>
+        /// Eligibility is re-checked per identity against the same predicate the offer used.  The
+        /// list arrives from a client holding a view that may be seconds old, and acting on it
+        /// unchecked would be trusting the client about who belongs in a circle.
+        /// </para>
+        /// </remarks>
+        public async Task<EnrollmentResult> EnrollManyInCircleAsync(GuidId circleId, List<OdinId> odinIds,
+            IOdinContext odinContext)
+        {
+            // The per-identity gate is GrantCircleAsync's own (master key, or
+            // ManageCircleMembership), so this does not re-state it. What it adds is scope: an app
+            // may bulk-enrol only into a circle it owns.
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.AppId.HasValue)
+            {
+                AssertCallerMayAskAboutApp(circle.AppId.Value, odinContext);
+            }
+            else if (odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                // Consistent with EnrollInCircleInternalAsync: a circle owned by no app is the
+                // owner's own, and an app has no business putting anyone into one.
+                throw new OdinSecurityException(
+                    $"An app cannot enrol identities into circle {circleId}; it belongs to the owner, not to an app");
+            }
+
+            var result = new EnrollmentResult();
+
+            foreach (var odinId in odinIds ?? [])
+            {
+                var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+                if (icr == null || !icr.IsConnected() || !IsEnrollmentCandidate(icr, circle))
+                {
+                    result.Skipped++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Skipped });
+                    continue;
+                }
+
+                try
+                {
+                    // Both siblings exist for one reason: GrantCircleAsync turns away anyone still
+                    // holding the Auto Connections circle, and for either rule that is much of the
+                    // population the offer just listed. Without them the owner is shown a list,
+                    // agrees to it, and is told the system declined to do the thing it offered.
+                    //
+                    // They are safe for different reasons. A Connect circle can grant nothing that
+                    // being unreviewed should withhold -- the deposit-only invariant sees to that.
+                    // A Review circle is safe because the review already happened, which
+                    // ApplyReviewedCircleAsync checks for itself rather than trusting this caller.
+                    //
+                    // Only when the owner is here: waiving their confirm-first rule is not an app's
+                    // to do, and both siblings require the master key regardless.
+                    //
+                    // The reviewed sibling reports whether it granted; ignored, because the outcome
+                    // is read back off the record below and two sources of that truth is one too many.
+                    if (odinContext.Caller.HasMasterKey && circle.GrantOn == CircleGrantOn.Connect)
+                    {
+                        await ApplyAmbientCircleAsync(circleId, odinId, odinContext);
+                    }
+                    else if (odinContext.Caller.HasMasterKey && circle.GrantOn == CircleGrantOn.Review)
+                    {
+                        await ApplyReviewedCircleAsync(circleId, odinId, odinContext);
+                    }
+                    else
+                    {
+                        await GrantCircleAsync(circleId, odinId, odinContext);
+                    }
+                }
+                catch (Exception e)
+                {
+                    // One contact's bad state is not the rest of the list's problem.
+                    logger.LogWarning(e, "Could not enrol {odinId} in circle {circleId} during a bulk add",
+                        odinId, circleId);
+                    result.Skipped++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Skipped });
+                    continue;
+                }
+
+                // Read back rather than assume: with the master key this mints a grant outright, but
+                // the branch that decides lives in EnrollInCircleInternalAsync and the point of
+                // reporting separately is to not restate its rules from memory here.
+                var after = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+                if (after?.PeerKeyStore?.CircleGrants.ContainsKey(circleId) ?? false)
+                {
+                    result.Enrolled++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Enrolled });
+                }
+                else if (after?.PeerKeyStore?.DepositedGrants.Any(d => d.CircleId == circleId) ?? false)
+                {
+                    result.Deposited++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Deposited });
+                }
+                else
+                {
+                    result.Skipped++;
+                    result.Outcomes.Add(new EnrollmentOutcome
+                        { OdinId = odinId, Kind = EnrollmentOutcomeKind.Skipped });
+                }
+            }
+
+            logger.LogInformation(
+                "Bulk enrolment into circle {circleId}: {enrolled} enrolled, {deposited} deposited, {skipped} skipped",
+                circleId, result.Enrolled, result.Deposited, result.Skipped);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Moves a circle from the app that owns it to another.  The escape hatch out of
+        /// <see cref="SetCircleOwningAppAsync"/>'s one-way rule.
+        /// </summary>
+        /// <remarks>
+        /// Master key required, not merely owner: an app is the owner acting, and no app should be
+        /// able to move a circle -- least of all to itself.  Requiring the key is the sharpest way to
+        /// say "owner console only" for an operation with no undo but doing it again.
+        /// <para>
+        /// The queue rewrite is the whole reason this is not just a definition write.
+        /// <c>PendingEnrollment.OwningAppId</c> is denormalised from the definition, and
+        /// <see cref="ProcessPendingEnrollmentsForAppAsync"/> filters on that copy -- so an entry left
+        /// pointing at the previous app is looked at only by the previous app, which can no longer
+        /// source the circle's drive keys and therefore skips it. Nobody else ever sees it. Left
+        /// alone, moving a circle silently strands every enrollment queued against it.
+        /// </para>
+        /// <para>
+        /// Both writes are one transaction. Half of this is worse than none: the definition moved
+        /// with the copies left behind is exactly the stranded state, and the copies moved without
+        /// the definition points them at an app the circle does not belong to.
+        /// </para>
+        /// </remarks>
+        public async Task<int> ReassignCircleOwningAppAsync(GuidId circleId, Guid appId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+
+            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
+            if (app == null)
+            {
+                throw new OdinClientException($"No app is registered with id {appId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+
+            var circle = await circleDefinitionService.GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            var previousAppId = circle.AppId;
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+
+            await circleDefinitionService.ReassignOwningAppAsync(circleId, appId);
+
+            // The app receiving it needs the same access adoption grants. The app losing it keeps
+            // what it has: it may well need those drives for reasons that have nothing to do with
+            // this circle, and guessing which grants existed only to serve it would be exactly that.
+            await GrantAppTheCirclesDrivesAsync(appId, circle, odinContext);
+
+            var entriesRepointed = 0;
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected,
+                    odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    if (!(icr.PeerKeyStore?.HasPendingEnrollments ?? false))
+                    {
+                        continue;
+                    }
+
+                    var stale = icr.PeerKeyStore.PendingEnrollments
+                        .Where(p => p.CircleId == circleId && p.OwningAppId != appId)
+                        .ToList();
+
+                    if (stale.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    foreach (var entry in stale)
+                    {
+                        entry.OwningAppId = appId;
+                        entriesRepointed++;
+                    }
+
+                    await SaveIcrAsync(icr, odinContext);
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            tx.Commit();
+
+            logger.LogInformation(
+                "Circle {circleId} moved from app {previousAppId} to {appName} ({appId}); " +
+                "{entriesRepointed} pending enrollment(s) re-pointed",
+                circleId, previousAppId, app.Name, appId, entriesRepointed);
+
+            await mediator.Publish(new CircleDefinitionChangedNotification
+            {
+                OdinContext = odinContext,
+                CircleId = circleId.Value,
+                Change = CircleDefinitionChangeType.Updated,
+            });
+
+            return entriesRepointed;
         }
 
         public async Task<List<OdinId>> GetInvalidMembersOfCircleDefinition(CircleDefinition circleDef, IOdinContext odinContext)
@@ -1067,6 +2050,198 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Records the owner's review of a connection: enrolls the circles the owner chose and stamps
+        /// <see cref="IdentityConnectionRegistration.ReviewedAt"/>, as one act.
+        /// </summary>
+        /// <remarks>
+        /// docs/connection-defaults.md, "On verify".  Nothing is removed -- whatever the connection already
+        /// holds from auto-connect stays -- and the stamp is set once: a later review may enroll more
+        /// circles but never moves the original timestamp, which is the date clients show the relationship
+        /// from.
+        /// </remarks>
+        public async Task MarkReviewedAsync(OdinId odinId, IEnumerable<GuidId> circleIds, IOdinContext odinContext)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null || !icr.IsConnected())
+            {
+                throw new OdinClientException("Cannot review an identity that is not connected",
+                    OdinClientErrorCode.IdentityMustBeConnected);
+            }
+
+            // What was already waiting before this review, so only what it adds gets announced.
+            var alreadyQueued = (icr.PeerKeyStore?.PendingEnrollments ?? [])
+                .Select(p => p.CircleId.Value)
+                .ToList();
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+
+            if (odinContext.Caller.HasMasterKey)
+            {
+                // The owner is present, so take the opportunity to re-mint whatever an app had to leave
+                // weakly encrypted when it accepted on their behalf.
+                await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
+            }
+
+            foreach (var circleId in circleIds ?? [])
+            {
+                // The review is the owner's act, and they may well have chosen circles belonging to apps
+                // this client cannot serve. Those are recorded rather than refused -- rejecting the whole
+                // review because one app's toggle was out of reach would lose the rest of their choices
+                // along with it.
+                await EnrollInCircleInternalAsync(circleId, odinId, odinContext, enqueueWhenOutOfReach: true);
+            }
+
+            // Stamped last: enrollment rewrites the whole row, so a stamp written before it would be
+            // carried forward from a stale in-memory copy and lost.
+            await StampReviewedIfUnsetAsync(odinId);
+
+            tx.Commit();
+
+            // After the commit, never before: an app told to come and do work that a rollback then erased
+            // would arrive to find nothing, and the queue is what makes this safe to send late.
+            await PublishPendingEnrollmentNotificationsAsync(odinId, alreadyQueued, odinContext);
+
+            // Peer contexts are cached for an hour keyed on the caller's token; without this the contact
+            // keeps running under their pre-review grants long after the owner acted.
+            await odinContextCache.ResetAsync();
+        }
+
+        /// <summary>
+        /// Stamps the review on a connection unless it already carries one.
+        /// </summary>
+        /// <remarks>
+        /// Set-once by design: a second review may enroll more circles, but the timestamp keeps saying when
+        /// the owner first vouched for this contact.
+        /// <para>
+        /// Makes no permission check of its own, and neither do its callers: the review endpoints and the
+        /// accept of an incoming connection request are both reached only by the owner or an app, gated at
+        /// the route, and both are the owner's own act -- the accept being the review happening at accept
+        /// time (docs/connection-defaults.md, "On verify").
+        /// </para>
+        /// </remarks>
+        public async Task StampReviewedIfUnsetAsync(OdinId odinId)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null || !icr.IsConnected() || icr.ReviewedAt != null)
+            {
+                return;
+            }
+
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, UnixTimeUtc.Now());
+        }
+
+        /// <summary>
+        /// Tells each app that a review has left it enrollments only it can complete.
+        /// </summary>
+        /// <remarks>
+        /// Read back from the committed record rather than from what the loop believed it wrote, and
+        /// filtered to what this review actually added, so a second review of the same contact does not
+        /// re-announce work an app has already been told about. An owner circle names no app and is
+        /// skipped; it waits for the owner regardless.
+        /// </remarks>
+        private async Task PublishPendingEnrollmentNotificationsAsync(OdinId odinId, List<Guid> alreadyQueued,
+            IOdinContext odinContext)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            foreach (var entry in icr?.PeerKeyStore?.PendingEnrollments ?? [])
+            {
+                if (!entry.OwningAppId.HasValue || alreadyQueued.Contains(entry.CircleId.Value))
+                {
+                    continue;
+                }
+
+                await mediator.Publish(new PendingEnrollmentsAwaitingNotification
+                {
+                    OdinContext = odinContext,
+                    TargetAppId = entry.OwningAppId.Value,
+                    OdinId = odinId,
+                    CircleId = entry.CircleId.Value
+                });
+            }
+        }
+
+        /// <summary>
+        /// Clears the owner's review of a connection ("un-review"), returning it to New.
+        /// </summary>
+        /// <remarks>
+        /// Rejected while the contact holds a personal-circle membership that a review is what grants:
+        /// docs/connection-defaults.md -- "circleIdList ACLs check membership, not tier, so membership must
+        /// imply review".
+        /// <para>
+        /// Two kinds of membership are deliberately excluded from that check, because counting them would
+        /// make the clear unreachable rather than safe.  Ambient circles: a
+        /// <see cref="CircleGrantOn.Connect"/> circle is by definition granted without any review, and every
+        /// shipped one is also <see cref="CircleDesignation.Personal"/> (see
+        /// <c>BuiltinCircles.ChatCircle</c>), so every auto-connection would be permanently un-clearable.
+        /// The two system circles: they carry <see cref="CircleDesignation.Personal"/> only because that is
+        /// the column default, and every connection is in one of them, so the guard would reject every
+        /// clear there is.  They are the frozen platform bundles this series retires, assigned by the
+        /// pipeline rather than chosen by the owner.
+        /// </para>
+        /// <para>
+        /// Nothing is revoked here.  Clearing the stamp only withdraws the owner's vouching; to take
+        /// capability away, revoke the circles.
+        /// </para>
+        /// </remarks>
+        public async Task ClearReviewAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            if (icr == null)
+            {
+                throw new OdinClientException($"No connection found for {odinId}", OdinClientErrorCode.NotAConnectedIdentity);
+            }
+
+            if (icr.ReviewedAt == null)
+            {
+                return;
+            }
+
+            var memberships = (icr.PeerKeyStore?.CircleGrants?.Keys ?? (ICollection<Guid>)Array.Empty<Guid>())
+                .Concat(icr.PeerKeyStore?.DepositedGrants?.Select(d => d.CircleId.Value) ?? [])
+                .Distinct();
+
+            var blocking = new List<BlockingCircle>();
+
+            foreach (var circleId in memberships)
+            {
+                if (SystemCircleConstants.IsSystemCircle(circleId))
+                {
+                    continue;
+                }
+
+                var definition = await circleDefinitionService.GetCircleAsync(circleId);
+                if (definition is { Designation: CircleDesignation.Personal, GrantOn: not CircleGrantOn.Connect })
+                {
+                    blocking.Add(new BlockingCircle { CircleId = definition.Id, Name = definition.Name });
+                }
+            }
+
+            // Every offender, not the first one found: the caller has to remove the contact from all of
+            // them before the clear can succeed, so reporting one at a time makes them discover the rest
+            // one rejected action at a time.  Ids as well as names, so the client can link to each circle
+            // rather than resolve a name that is not unique anyway.
+            if (blocking.Count > 0)
+            {
+                throw new OdinClientException(
+                    $"Cannot clear the review for {odinId} while they are a member of the personal circle(s) " +
+                    $"{string.Join(", ", blocking.Select(c => $"'{c.Name}'"))}; remove them from those first",
+                    OdinClientErrorCode.CannotClearReviewWhilePersonalCircleMember)
+                {
+                    Extensions = new Dictionary<string, object> { ["blockingCircles"] = blocking }
+                };
+            }
+
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, null);
+
+            await odinContextCache.ResetAsync();
+        }
+
+        /// <summary>
         /// Upgrades a connection which was created automatically (i.e. because of an introduction) to a confirmed connection
         /// </summary>
         public async Task ConfirmConnectionAsync(OdinId odinId, IOdinContext odinContext)
@@ -1214,6 +2389,232 @@ namespace Odin.Services.Membership.Connections
         /// and sealed to the store's write-only public key. The caller never touches the store's
         /// key store key and can read nothing back.
         /// </summary>
+        /// <summary>
+        /// Completes the pending enrollments this caller is able to complete, and leaves the rest.
+        /// Returns how many connections were touched and how many enrollments were finished.
+        /// </summary>
+        /// <remarks>
+        /// A pending enrollment is a choice the owner made that nobody present could carry out -- almost
+        /// always another app's circle, whose drives only that app can read.  This is the app coming back
+        /// to finish its own share of a review someone else's client recorded.
+        /// <para>
+        /// Owning the circle <i>is</i> the authorization, which is why this asks for no permission of its
+        /// own.  The decision was the owner's and was made at review time; the app is carrying it out, not
+        /// making it, and a permission about deciding membership has nothing to say about executing a
+        /// decision already taken.  An app sees only the entries for circles it owns; the owner console,
+        /// scoped to no app, sees them all.
+        /// </para>
+        /// <para>
+        /// Scope is still re-checked per entry rather than trusted from enqueue time, so nothing an app
+        /// could not do directly becomes possible by way of the queue.
+        /// </para>
+        /// <para>
+        /// For a read-bearing circle this moves the enrollment one step, not all the way: the app still
+        /// cannot reach the Peer Key, so the result is a deposited grant that converts on the contact's
+        /// next call, an owner touch, or the upgrade drain.
+        /// </para>
+        /// </remarks>
+        public async Task<(int connectionsProcessed, int enrollmentsCompleted)> ProcessPendingEnrollmentsForAppAsync(
+            IOdinContext odinContext)
+        {
+            // The question is which app is acting, not who the caller is: an app is the owner acting, with
+            // less than the owner console has, so neither IsOwner nor HasMasterKey separates the two. An
+            // app is scoped to the circles it owns; the owner console, being no app in particular, is not
+            // scoped at all.
+            var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+
+            var connectionsProcessed = 0;
+            var enrollmentsCompleted = 0;
+
+            string cursor = null;
+            do
+            {
+                var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, ConnectionStatus.Connected, odinContext);
+                cursor = page.Cursor;
+
+                foreach (var icr in page.Results)
+                {
+                    if (!(icr.PeerKeyStore?.HasPendingEnrollments ?? false))
+                    {
+                        continue;
+                    }
+
+                    var completed = new List<GuidId>();
+
+                    foreach (var entry in icr.PeerKeyStore.PendingEnrollments.ToList())
+                    {
+                        // Everything about one entry is inside the try, not just the enrolment: reading
+                        // the definition and deciding whether this caller can grant it both reach into
+                        // the drive manager, which throws for a drive that has gone missing. A throw
+                        // there would otherwise abort the whole pass -- every later entry on this
+                        // connection and every connection after it -- for one unlucky entry.
+                        try
+                        {
+                            var circleDefinition = await circleDefinitionService.GetCircleAsync(entry.CircleId);
+
+                            if (circleDefinition == null)
+                            {
+                                // The circle was deleted while the entry waited. There is nothing left to
+                                // grant, so drop it rather than keeping an entry that can never complete
+                                // -- the same way a deposit for a deleted circle is dropped at conversion.
+                                logger.LogDebug("Dropping pending enrollment for {odinId}: circle {circleId} no longer exists",
+                                    icr.OdinId, entry.CircleId);
+                                completed.Add(entry.CircleId);
+                                continue;
+                            }
+
+                            // Ownership is read from the definition, never from the entry's copy of it.
+                            // PendingEnrollment.OwningAppId is denormalised at enqueue time, so it is
+                            // whatever the circle said back then: adopting an unowned circle, or moving
+                            // one between apps, leaves every waiting entry pointing at the previous
+                            // answer. Filtering on that copy made the owning app process nothing at all,
+                            // silently, which is the opposite of what adopting a circle is for. Nothing
+                            // is saved by the copy here either -- the definition is loaded either way,
+                            // one line above.
+                            if (callerAppId != null && circleDefinition.AppId != callerAppId)
+                            {
+                                logger.LogDebug(
+                                    "Skipping pending enrollment for {odinId} in circle {circleId}: it belongs to " +
+                                    "app {owningAppId}, not to the calling app {callerAppId}",
+                                    icr.OdinId, entry.CircleId, circleDefinition.AppId, callerAppId);
+                                continue;
+                            }
+
+                            if (!await CallerCanGrantCircleAsync(circleDefinition, odinContext))
+                            {
+                                // The reason an app that owns the circle still cannot finish the job:
+                                // completing it needs the storage keys for the circle's drives, and this
+                                // caller cannot source them. Left queued for a caller that can.
+                                logger.LogDebug(
+                                    "Leaving pending enrollment for {odinId} in circle {circleId} queued: the caller " +
+                                    "cannot source the storage keys for its drives",
+                                    icr.OdinId, entry.CircleId);
+                                continue;
+                            }
+
+                            await EnrollInCircleInternalAsync(entry.CircleId, icr.OdinId, odinContext);
+                            completed.Add(entry.CircleId);
+                            enrollmentsCompleted++;
+                        }
+                        catch (Exception e)
+                        {
+                            // Left in place, so it is retried next time rather than being lost.
+                            logger.LogWarning(e,
+                                "Failed to complete pending enrollment for {odinId} in circle {circleId}; leaving it queued",
+                                icr.OdinId, entry.CircleId);
+                        }
+                    }
+
+                    if (completed.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    // Re-read before stripping: enrollment saved the record itself, so the copy in hand is
+                    // now stale and writing it back would undo the grant just made.
+                    var current = await GetIdentityConnectionRegistrationInternalAsync(icr.OdinId);
+                    current.PeerKeyStore.PendingEnrollments.RemoveAll(p => completed.Any(c => c == p.CircleId));
+                    await SaveIcrAsync(current, odinContext);
+
+                    connectionsProcessed++;
+                }
+            } while (!string.IsNullOrEmpty(cursor));
+
+            return (connectionsProcessed, enrollmentsCompleted);
+        }
+
+        /// <summary>
+        /// Whether this caller could produce every part of the circle's grant itself.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately mirrors what <see cref="CreateDepositedGrantAsync"/> actually does, rather than
+        /// approximating it: a drive grant carrying Read needs the drive's storage key, which is sourced
+        /// through <see cref="PermissionContextStorageKeySource"/> and so asks
+        /// <c>TryGetDriveStorageKey</c>; one that does not need a key needs only that the caller holds the
+        /// permission it is handing out.  Answering differently from the builder would either enqueue work
+        /// that would have succeeded, or attempt work that throws.
+        /// </remarks>
+        private async Task<bool> CallerCanGrantCircleAsync(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            foreach (var req in circleDefinition.DriveGrants ?? [])
+            {
+                var drive = await driveManager.GetDriveAsync(req.PermissionedDrive.Drive.Alias, true);
+                var permission = req.PermissionedDrive.Permission;
+
+                var needsStorageKey = permission.HasFlag(DrivePermission.Read) ||
+                                      permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+
+                if (needsStorageKey)
+                {
+                    if (!odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
+                    {
+                        return false;
+                    }
+
+                    storageKey?.Wipe();
+                    continue;
+                }
+
+                if (!odinContext.PermissionsContext.HasDrivePermission(drive.Id, permission))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Records that the owner asked for a circle nothing present could grant.  Idempotent -- a circle
+        /// already enqueued, deposited or granted is left alone.
+        /// </summary>
+        private void EnqueuePendingEnrollment(IdentityConnectionRegistration icr, CircleDefinition circleDefinition,
+            IOdinContext odinContext)
+        {
+            var circleId = circleDefinition.Id;
+
+            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId) ||
+                icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId) ||
+                icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circleId))
+            {
+                return;
+            }
+
+            icr.PeerKeyStore.PendingEnrollments.Add(new PendingEnrollment
+            {
+                CircleId = circleId,
+                OwningAppId = circleDefinition.AppId,
+                RequestedByAppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
+                Requested = UnixTimeUtc.Now()
+            });
+
+            logger.LogDebug(
+                "Enqueued pending enrollment for {odinId} in circle {circleId} (owned by app {owningAppId})",
+                icr.OdinId, circleId, circleDefinition.AppId);
+
+            // Deliberately silent. Telling the owning app is the caller's job, after its transaction has
+            // committed -- announcing work that a rollback would erase is worse than announcing it late.
+        }
+
+        /// <summary>
+        /// Refuses a grant the caller could not make itself: every drive permission being handed out must
+        /// be one the caller already holds on that drive.
+        /// </summary>
+        /// <remarks>
+        /// The write-side half of the scope constraint, mirroring the assertion
+        /// <see cref="CreateDepositedGrantAsync"/> makes for the same reason.  The read side needs no
+        /// check here because a read grant never reaches this path -- it requires the Peer Key and is
+        /// deposited instead.
+        /// </remarks>
+        private void AssertCallerHoldsGrantedDrivePermissions(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            foreach (var req in circleDefinition.DriveGrants ?? [])
+            {
+                var driveId = req.PermissionedDrive.Drive.Alias;
+                odinContext.PermissionsContext.AssertHasDrivePermission(driveId, req.PermissionedDrive.Permission);
+            }
+        }
+
         private async Task<DepositedGrant> CreateDepositedGrantAsync(PeerKeyStore store, CircleDefinition circleDefinition,
             IOdinContext odinContext)
         {
@@ -1785,6 +3186,98 @@ namespace Odin.Services.Membership.Connections
             }
 
             return (upgraded, skipped, keyPairsProvisioned);
+        }
+
+        /// <summary>
+        /// Converts every pending deposited grant across all connections, for identities whose Peer Key the
+        /// owner can reach.  Returns the number of connections drained and the number of grants converted.
+        /// </summary>
+        /// <remarks>
+        /// Deposits otherwise wait on one of two events: the contact's next inbound peer request, or the
+        /// owner touching that specific connection.  Neither is guaranteed to happen -- a dormant contact
+        /// can hold a pending grant indefinitely -- which leaves the data in two shapes at once, and every
+        /// later pass over connections then has to understand both.
+        ///
+        /// <para>
+        /// Running it in the upgrade flow is the cheap way to make that stop: the owner is present with the
+        /// master key, we are already walking every connection for the key-store-key pre-pass, and draining
+        /// here means each subsequent migration sees grants in one shape.  It does mean conversion is tied
+        /// to the owner running an upgrade, which is a weaker trigger than either hook -- this is a
+        /// backstop, not a replacement for them.
+        /// </para>
+        ///
+        /// <para>
+        /// A connection that still requires the master-key encryption upgrade is skipped rather than
+        /// failed: its Peer Key is not reachable, which is the same reason the pre-pass above skips it.
+        /// Ordering matters for that reason -- run this after the pre-pass, so anything it repaired is
+        /// drainable here.
+        /// </para>
+        /// </remarks>
+        public async Task<(int connectionsDrained, int grantsConverted)> ConvertDepositedGrantsForConnectedIdentitiesAsync(
+            IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            var masterKey = odinContext.Caller.GetMasterKey();
+
+            var allIdentities = await GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
+
+            var connectionsDrained = 0;
+            var grantsConverted = 0;
+
+            foreach (var identity in allIdentities.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!(identity.PeerKeyStore?.HasPendingDeposits ?? false))
+                {
+                    continue;
+                }
+
+                if (identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    logger.LogWarning(
+                        "Identity {odinId} has pending deposits but still requires master key encryption upgrade; " +
+                        "leaving them pending", identity.OdinId);
+                    continue;
+                }
+
+                var keyStoreKey = identity.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                try
+                {
+                    var convertedCircleIds = await ConvertDepositedGrantsAsync(identity.PeerKeyStore, keyStoreKey, odinContext);
+                    if (convertedCircleIds.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    // The master key is in hand here, unlike the peer-CAT path, so app circle grants come
+                    // out with real storage keys rather than keyless.
+                    await FanOutAppCircleGrantsAsync(identity, keyStoreKey, convertedCircleIds,
+                        new MasterKeyStorageKeySource(masterKey), odinContext);
+
+                    await SaveIcrAsync(identity, odinContext);
+
+                    connectionsDrained++;
+                    grantsConverted += convertedCircleIds.Count;
+
+                    foreach (var convertedCircleId in convertedCircleIds)
+                    {
+                        await mediator.Publish(new ConnectionChangedNotification
+                        {
+                            OdinContext = odinContext,
+                            OdinId = identity.OdinId,
+                            CircleId = convertedCircleId,
+                            Change = ConnectionChangeType.CircleGranted,
+                        });
+                    }
+                }
+                finally
+                {
+                    keyStoreKey.Wipe();
+                }
+            }
+
+            return (connectionsDrained, grantsConverted);
         }
 
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,

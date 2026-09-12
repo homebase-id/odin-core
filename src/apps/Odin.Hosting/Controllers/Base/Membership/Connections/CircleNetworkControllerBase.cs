@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Verification;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
@@ -43,6 +44,20 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return Ok();
         }
 
+        [HttpPost("review")]
+        public async Task<IActionResult> MarkReviewed([FromBody] MarkConnectionReviewedRequest request)
+        {
+            await circleNetwork.MarkReviewedAsync((OdinId)request.OdinId, request.CircleIds, WebOdinContext);
+            return Ok();
+        }
+
+        [HttpPost("review/clear")]
+        public async Task<IActionResult> ClearReview([FromBody] OdinIdRequest request)
+        {
+            await circleNetwork.ClearReviewAsync((OdinId)request.OdinId, WebOdinContext);
+            return Ok();
+        }
+
         [HttpPost("verify-connection")]
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {
@@ -64,7 +79,10 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             bool omitContactData = true)
         {
             var result = await circleNetwork.GetIcrAsync((OdinId)request.OdinId, WebOdinContext);
-            return result?.Redacted(omitContactData);
+
+            var redacted = result?.Redacted(omitContactData);
+            await circleNetwork.PopulateAwaitingAppNamesAsync([redacted], WebOdinContext);
+            return redacted;
         }
 
         [HttpPost("connected")]
@@ -98,11 +116,75 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return result;
         }
 
+        /// <summary>
+        /// Identities an app has asked to add to this circle whose grant has not taken effect yet.  A
+        /// sibling of circles/list, not part of it -- they are not members.
+        /// </summary>
+        [HttpPost("circles/list/pending")]
+        public async Task<IEnumerable<PendingCircleMember>> GetPendingCircleMembers([FromBody] GetCircleMembersRequest request)
+        {
+            return await circleNetwork.GetPendingCircleMembersAsync(request.CircleId, WebOdinContext);
+        }
+
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
             await circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
+        }
+
+        /// <summary>
+        /// Per circle owned by an app, the connections that could be added to it but are not in it.
+        /// </summary>
+        /// <remarks>
+        /// On the shared base, so the owning app can ask as well as the console.  The eligibility
+        /// rule is subtle -- GrantOn semantics, auto-connected exclusion, entries already deposited
+        /// or queued -- and every app deriving it from the connection list instead would drift from
+        /// the server's definition of who qualifies.
+        /// <para>
+        /// Scoped in the service: an app may ask only about itself, because the answer is drawn from
+        /// every connection on the identity.
+        /// </para>
+        /// </remarks>
+        [HttpGet("circles/enrollment-candidates")]
+        public async Task<IEnumerable<CircleEnrollmentCandidates>> GetEnrollmentCandidates([FromQuery] Guid appId)
+        {
+            OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+            return await circleNetwork.GetEnrollmentCandidatesForAppAsync(appId, WebOdinContext);
+        }
+
+        /// <summary>
+        /// Adds several identities to one circle in a single call.
+        /// </summary>
+        /// <remarks>
+        /// Available to the owning app too, not only the console.  An app enrolling into a Read
+        /// circle produces deposits rather than membership -- it cannot reach the connection's Peer
+        /// Key -- so the owner doing it is faster, but the app doing it is not wrong: the work is
+        /// recorded and completes when that key is next in scope.
+        /// </remarks>
+        /// <summary>
+        /// The connections that could be added to one circle but are not in it.
+        /// </summary>
+        /// <remarks>
+        /// Answers for a single named circle, including one that belongs to no app -- which the
+        /// per-app query cannot reach, and which is exactly what an owner's own circle is once it
+        /// carries a grant rule.
+        /// </remarks>
+        [HttpPost("circles/enrollment-candidates-for-circle")]
+        public async Task<CircleEnrollmentCandidates> GetEnrollmentCandidatesForCircle([FromBody] Guid circleId)
+        {
+            OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+            return await circleNetwork.GetEnrollmentCandidatesForCircleAsync(new GuidId(circleId), WebOdinContext);
+        }
+
+        [HttpPost("circles/add-many")]
+        public async Task<EnrollmentResult> GrantCircleToMany([FromBody] AddManyCircleMembershipRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotEmptyGuid(request.CircleId, nameof(request.CircleId));
+
+            var odinIds = (request.OdinIds ?? []).Select(id => new OdinId(id)).ToList();
+            return await circleNetwork.EnrollManyInCircleAsync(new GuidId(request.CircleId), odinIds, WebOdinContext);
         }
 
         [HttpPost("circles/revoke")]

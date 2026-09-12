@@ -53,3 +53,6 @@ appsettings.production.json
 # "your" local setting files
 appsettings.local.json
 TestResults/
+
+# Scratch worktrees created for background agents; never part of the tree.
+.claude/worktrees/

@@ -28,6 +28,15 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/disconnect")]
     Task<ApiResponse<HttpContent>> Disconnect([Body] OdinIdRequest request);
 
+    [Post(Root + "/review")]
+    Task<ApiResponse<HttpContent>> MarkReviewed([Body] MarkConnectionReviewedRequest request);
+
+    [Post(Root + "/review/clear")]
+    Task<ApiResponse<HttpContent>> ClearReview([Body] OdinIdRequest request);
+
+    [Get(Root + "/circles/pending")]
+    Task<ApiResponse<List<PendingCircleMember>>> GetPendingCircleMembers(Guid circleId);
+
     [Get(Root + "/circles")]
     Task<ApiResponse<List<OdinId>>> GetCircleMembers(Guid circleId);
 
@@ -36,6 +45,18 @@ public interface IConnectionNetworkHttpClientApiV2
 
     [Post(Root + "/circles/add")]
     Task<ApiResponse<HttpContent>> GrantCircle([Body] AddCircleMembershipRequest request);
+
+    [Get(Root + "/circles/enrollment-candidates")]
+    Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId);
+
+    [Post(Root + "/circles/enrollment-candidates-for-circle")]
+    Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircle([Body] Guid circleId);
+
+    [Post(Root + "/circles/add-many")]
+    Task<ApiResponse<EnrollmentResult>> GrantCircleToMany([Body] AddManyCircleMembershipRequest request);
+
+    [Post(Root + "/enrollments/process")]
+    Task<ApiResponse<PendingEnrollmentProcessingResult>> ProcessPendingEnrollments();
 
     [Post(Root + "/circles/revoke")]
     Task<ApiResponse<HttpContent>> RevokeCircle([Body] RevokeCircleMembershipRequest request);

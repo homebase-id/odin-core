@@ -195,7 +195,8 @@ exactly three events — nothing happens between them:
   Nothing else happens. No circle definition changes.
 
 - **On verify** (the owner completes the connection review — including approving a connection
-  request, which is the review happening at accept time):
+  request, and including an owner-sent request completing, both of which are the review happening
+  at request time; see *Both halves of a request* below):
   1. The client sends the circles chosen in the dialog: the checked `Review` toggles,
      the selected personal circles — **and, for any checked app the contact is not yet a member
      of, its `Connect` circle.** That covers the baselines auto-connect never granted: a
@@ -209,6 +210,25 @@ exactly three events — nothing happens between them:
      Connections table — DDL in part 1's *Schema*). This is what promotes the caller's security level (see *The security ladder,
      recut* below) and what clients derive the New-vs-reviewed state from.
   Nothing is removed — membership from auto-connect stays.
+
+**Both halves of a request are a review.** A connection request has two sides and only one of
+them runs an accept, so stamping only the accept would leave the initiator's own record
+permanently New. Both sides stamp:
+
+| Side | Where | Why |
+|---|---|---|
+| The identity that **accepts** an incoming request | `AcceptConnectionRequestAsync`, when the owner is the one accepting | They saw the request, chose to accept, and named circles in the accept body. The review, at accept time. |
+| The identity that **sent** the request, when it completes | `EstablishConnection`, for an `IdentityOwner`-origin request only | The owner sent it deliberately and named the circles being minted right there — and *membership must imply review*, so a stamp is the only self-consistent outcome. |
+
+Each side's stamp is its own private record about the other; neither crosses the wire. The
+`IdentityOwner`-origin condition is what keeps the second row honest: an `Introduction`-origin
+outgoing request was sent by the introduction service without the owner present, and stays New on
+both sides — which is precisely the pile the review dialog exists to work through.
+
+The accept side takes an **explicit** flag rather than inferring "was this the owner?" from
+context: the introduction auto-accept and the owner's own accept reach the same method, and a
+call site that guesses wrong either vouches for someone the owner never saw or silently withholds
+capability from someone they did.
 
 **Cross-app verified enrollment — the pending queue.** The reviewing client can only mint
 read-bearing grants for apps whose App Keys it holds — its own suite. A checked toggle for any
@@ -294,8 +314,8 @@ Mechanics:
 **Viewer-scoped redaction — a required companion.** The connections-list API currently
 contradicts the "owner-private, never sent to the peer" promise: `CircleNetworkController` is
 mounted on **both the app route and the guest (YouAuth) route**, and both return the same
-`Redacted()` shape — which includes, per connection, the legacy `Vetted` flag (becoming
-`reviewedAt`), `introducerOdinId`, `connectionRequestOrigin`, and a redacted grant with circle
+`Redacted()` shape — which includes, per connection, the review state (the legacy `Vetted` flag,
+now `reviewedAt`), `introducerOdinId`, `connectionRequestOrigin`, and a redacted grant with circle
 info. The guest path is gated only by `ReadConnections`, which anonymous viewers can hold when
 the tenant setting allows. So anyone permitted to see the list today also sees the owner's
 *judgments* about each contact. Fix: **two shapes from one record** —
@@ -304,6 +324,12 @@ the tenant setting allows. So anyone permitted to see the list today also sees t
   state, origin, introducer, grants. This is what the contact book runs on.
 - **Third-party viewers** (guest, reviewed peers, anonymous where enabled): an **identity list
   only** — odinId plus the public contact card, nothing else.
+
+> **Built:** `RedactedForExternalViewer()` is the third-party shape — odinId plus the public
+> contact card, and nothing else — selected by `OdinControllerBase.CallerIsOwnerSideViewer` on the
+> shared app/guest `connected` list and on the V2 `connected` and `status` routes. The V2 `blocked`
+> route was restricted to owner/app in the same pass: it had no permission check of its own and the
+> V2 class policy admitted guests.
 
 *The connections list a peer may see is a list of identities, never a list of my judgments.* The
 "who can see my connections" setting decides **whether** third parties see the list; viewer-scoped
@@ -315,8 +341,10 @@ the sensitive part.)
 `ReviewedAt` + enroll the checked circles in a single call (the accept-with-circle-grants
 endpoint, #1599, is the precedent) — gated by `ManageCircleMembership`: the same trust level as
 granting a circle, which implies a review anyway. The owner/app redacted connection shape
-replaces the legacy `Vetted` boolean with **`reviewedAt`** (V1 compat: `vetted` served as
-`reviewedAt != null` during transition). The server-side **contact** API needs nothing: contact
+replaces the legacy `Vetted` boolean with **`reviewedAt`**. No compatibility alias was kept: the
+flag had no reader anywhere — not in the server, not in any client in the tree — and leaving it
+would have been the one field misreporting during the window before a tenant runs the backfill that
+populates `ReviewedAt`. The server-side **contact** API needs nothing: contact
 records are owner-only and carry no review state — review is connections-API domain, and it
 should stay that way. Likewise **no server endpoint** for "is this contact in any personal
 circle" — clients compute it from connection info ∩ circle definitions; a server-side

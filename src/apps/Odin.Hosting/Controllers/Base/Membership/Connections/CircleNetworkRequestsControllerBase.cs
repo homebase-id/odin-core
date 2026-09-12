@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -64,7 +64,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
-            await circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: false, WebOdinContext);
+            await circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: false, markReviewed: true,
+                WebOdinContext);
             return true;
         }
 

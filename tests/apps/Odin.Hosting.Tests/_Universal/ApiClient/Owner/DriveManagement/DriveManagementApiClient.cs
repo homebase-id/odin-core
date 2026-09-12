@@ -24,7 +24,8 @@ public class DriveManagementApiClient
 
     public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads,
         bool ownerOnly = false,
-        bool allowSubscriptions = false, Dictionary<string, string> attributes = null)
+        bool allowSubscriptions = false, Dictionary<string, string> attributes = null,
+        string driveSlug = null, string driveTypeSlug = null)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -43,7 +44,9 @@ public class DriveManagementApiClient
                 AllowAnonymousReads = allowAnonymousReads,
                 AllowSubscriptions = allowSubscriptions,
                 OwnerOnly = ownerOnly,
-                Attributes = attributes
+                Attributes = attributes,
+                DriveSlug = driveSlug,
+                DriveTypeSlug = driveTypeSlug
             });
 
             return response;
@@ -67,6 +70,36 @@ public class DriveManagementApiClient
         {
             TargetDrive = drive,
             Archived = value
+        });
+    }
+
+    public async Task<ApiResponse<HttpContent>> SetDriveOwningApp(TargetDrive drive, Guid appId,
+        string driveSlug = null, string driveTypeSlug = null)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
+
+        var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
+        return await driveSvc.SetDriveOwningApp(new SetDriveOwningAppRequest
+        {
+            TargetDrive = drive,
+            AppId = appId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug
+        });
+    }
+
+    public async Task<ApiResponse<HttpContent>> ReassignDriveOwningApp(TargetDrive drive, Guid appId,
+        string driveSlug = null, string driveTypeSlug = null)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
+
+        var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
+        return await driveSvc.ReassignDriveOwningApp(new SetDriveOwningAppRequest
+        {
+            TargetDrive = drive,
+            AppId = appId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug
         });
     }
 
