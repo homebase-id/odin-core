@@ -101,6 +101,35 @@ cannot drift apart silently.
 The older endpoint is unchanged and still serves `Odin.Cli` (`odin-cli tenants list`), which
 deserializes `TenantModel`.
 
+## For the collector
+
+Poll once a day and keep the raw rows; the value is in the diff, not the snapshot.
+
+**Key rows on `id`, never on `domain`.** `domain` is null for orphans and changes on a rename;
+`id` is stable for the life of the identity.
+
+What is worth alerting on:
+
+| signal | why |
+|---|---|
+| `activeBytes` or `files` drops for an identity between two runs | The thing this endpoint exists for. A legitimate user deletion looks the same, so alert on the magnitude, not on any drop. |
+| an `id` present yesterday is absent today | Either the tenant was deleted (check `markedForDeletionDate` on the previous run) or the node stopped reporting it. |
+| `registered: false` appears | Data outliving its registration — incomplete deletion. Expected to be rare; today it is not. |
+| `metricsError` is non-null | The figures for that tenant are **unknown**, not zero. Do not feed the row into a drop calculation or you will manufacture a false alarm. |
+| fleet `totalBytes` vs the bucket's `objectsSize` from the OVH API | Divergence between what odin-core believes it stored and what S3 actually holds is itself the signal. Neither number substitutes for the other. |
+
+Two things that will otherwise look like incidents and are not:
+
+- **`totalBytes` > `activeBytes` and the gap growing.** Soft-deleted files keep a row with a
+  header-sized `byteCount`. That gap is tombstones, not corruption.
+- **`registrationSize` near zero on every tenant.** Correct on Postgres + S3 — the database is
+  remote and payloads are in S3, so the local directory really is almost empty. Use `totalBytes`
+  for storage, never `registrationSize`.
+
+Figures are served from a cache with a 1 minute TTL, so two calls a second apart return the same
+numbers. That is fine for daily collection; see [Freshness](#freshness) for a known staleness
+defect inherited from the table caches.
+
 ## Caveats, and corrections to the original spec
 
 These were checked against this repository; the notes say where a claim is inference rather than
