@@ -12,6 +12,7 @@ using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Drives;
@@ -571,6 +572,7 @@ namespace Odin.Services.Membership.Circles
             var grantOn = definition.GrantOn;
             var designation = definition.Designation;
             var emoji = definition.Emoji;
+            var isTreeDeclared = definition.IsTreeDeclared;
 
             // Clear before serializing so the blob holds no second copy of what the columns own -- the
             // same trick ToConnectionsRecord uses for the grant collections. Restored immediately: the
@@ -579,6 +581,7 @@ namespace Odin.Services.Membership.Circles
             definition.GrantOn = CircleGrantOn.None;
             definition.Designation = CircleDesignation.Personal;
             definition.Emoji = null;
+            definition.IsTreeDeclared = false;
 
             byte[] data;
             try
@@ -591,6 +594,7 @@ namespace Odin.Services.Membership.Circles
                 definition.GrantOn = grantOn;
                 definition.Designation = designation;
                 definition.Emoji = emoji;
+                definition.IsTreeDeclared = isTreeDeclared;
             }
 
             return new CircleRecord
@@ -613,6 +617,9 @@ namespace Odin.Services.Membership.Circles
             definition.GrantOn = (CircleGrantOn)record.GrantOn;
             definition.Designation = (CircleDesignation)record.Designation;
             definition.Emoji = record.Emoji;
+
+            // Derived from the catalogue, not the row: the tree changes with the build.
+            definition.IsTreeDeclared = BuiltinApps.IsTreeDeclaredCircle(definition.Id.Value);
 
             return definition;
         }

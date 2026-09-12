@@ -44,6 +44,24 @@ namespace Odin.Services.Membership.Circles
         public Guid? AppId { get; set; }
 
         /// <summary>
+        /// True when the app tree declares this circle, so its owner, grant rule and designation are
+        /// re-applied on every version upgrade.
+        /// </summary>
+        /// <remarks>
+        /// Derived at read time from <see cref="Apps.Builtin.BuiltinApps.IsTreeDeclaredCircle"/>, never
+        /// stored -- <c>CircleDefinitionService.ToRecord</c> clears it along with the promoted columns,
+        /// for a related reason: the tree changes with the build, not with the row, so a copy at rest
+        /// could disagree with the catalogue it came from.
+        /// <para>
+        /// A client needs this before offering to edit any of those three.  Editing a declared circle is
+        /// undone by the next upgrade without saying so, whereas an app's runtime circle -- the feed app
+        /// minting one per channel, say -- is owned by an app but named by nobody and stays as the owner
+        /// leaves it.  <see cref="AppId"/> alone does not separate the two.
+        /// </para>
+        /// </remarks>
+        public bool IsTreeDeclared { get; set; }
+
+        /// <summary>
         /// When the owning app wants members enrolled.  See <see cref="CircleGrantOn"/>.
         /// </summary>
         public CircleGrantOn GrantOn { get; set; } = CircleGrantOn.None;
@@ -135,6 +153,7 @@ namespace Odin.Services.Membership.Circles
                 Description = Description,
                 Disabled = Disabled,
                 AppId = AppId,
+                IsTreeDeclared = IsTreeDeclared,
                 GrantOn = GrantOn,
                 Designation = Designation,
                 Emoji = Emoji,
@@ -155,6 +174,12 @@ namespace Odin.Services.Membership.Circles
 
         /// <summary>The app that owns this circle; null means an owner circle.</summary>
         public Guid? AppId { get; set; }
+
+        /// <summary>
+        /// True when the app tree declares this circle, so the next version upgrade re-applies its owner,
+        /// grant rule and designation -- and silently undoes any edit to them.  Derived, never stored.
+        /// </summary>
+        public bool IsTreeDeclared { get; set; }
 
         /// <summary>When the owning app wants members enrolled.</summary>
         public CircleGrantOn GrantOn { get; set; }
