@@ -10,6 +10,12 @@ public interface ITenantAdmin
     Task<TenantModel?> GetTenantAsync(string domain, bool includePayload);
     Task<bool> TenantExists(string domain);
 
+    /// <summary>
+    /// Storage and activity figures for every identity that has data on this node, including
+    /// identities with no registration row.
+    /// </summary>
+    Task<TenantMetricsResponse> GetTenantMetricsAsync();
+
     Task EnableTenant(string domain);
     Task DisableTenant(string domain);
 

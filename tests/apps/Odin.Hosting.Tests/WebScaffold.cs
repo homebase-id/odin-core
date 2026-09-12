@@ -148,7 +148,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("S3Payload__Enabled", "false");
 #if RUN_S3_TESTS
             Logger.LogInformation("Starting Minio S3 container for tests");
-            MinioContainer = new MinioBuilder("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+            MinioContainer = new MinioBuilder("quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z")
                 .WithUsername("minioadmin")
                 .WithPassword("minioadmin123")
                 .Build();
