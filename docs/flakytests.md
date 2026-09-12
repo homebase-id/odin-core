@@ -105,3 +105,27 @@ stashed clean tree, so the failure reproduces on neither the change nor its abse
 **Pattern worth noting:** a background service racing an assertion, with a zero-length delay
 as the parameter. Same family as the timing-sensitive entries above: the test asserts on work
 it does not wait for.
+
+---
+
+## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
+
+- `LockedExecuteAsync_ConcurrentDifferentKeys_ExecutesConcurrently`
+
+**Where:** CI, `ubuntu/postgres/release` (seen once on run 34635091541, 2026-09-11). The same
+test passed on the `ubuntu/sqlite/release` and `windows/sqlite/debug` jobs of that build, and on
+every other run of the branch that day.
+
+**Symptom:** `Actions with different keys should execute concurrently.` — the
+`Task.WhenAny(allTasks, Task.Delay(150))` race is won by the timeout instead of the work.
+
+**Not caused by the change in flight:** the branch (`connection-review-support`) does not touch
+`KeyedAsyncLock` or its test — `git diff main...HEAD -- '*LockedExecute*' '*AsyncLock*'` is
+empty — and the test passes on recent `main` runs.
+
+**Cause:** the test queues 50 `Task.Run` bodies that each `await Task.Delay(100)`, then asserts
+they all finish inside 150 ms. That leaves 50 ms of slack for thread-pool ramp-up across 50
+tasks, which a loaded CI runner can exceed. Verified by reading the test
+(`tests/core/Odin.Core.Tests/Threading/KeyedAsyncLockTest.cs:316`); no fix attempted here — the
+budget would need widening, or the assertion rewritten to measure concurrency rather than
+wall-clock.
