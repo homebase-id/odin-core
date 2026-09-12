@@ -10,9 +10,9 @@ namespace Odin.Core.Storage.Database.System;
 #nullable enable
 
 /// <summary>
-/// Storage totals for one identity, as seen from a cross-tenant scan of the identity tables.
+/// What one identity holds, as counted by a single pass over the whole database.
 /// </summary>
-public sealed record CrossTenantIdentityStorage(
+public sealed record IdentityStorageRow(
     Guid IdentityId,
     long Files,
     long TotalBytes,
@@ -20,17 +20,34 @@ public sealed record CrossTenantIdentityStorage(
     int DriveCount);
 
 /// <summary>
-/// Aggregates the identity tables across ALL tenants in one query.
+/// Counts what every identity in the database holds, in one pass.
 ///
-/// This only works on Postgres, where every tenant shares a single database and rows are
-/// discriminated by the identityId column. On SQLite each tenant has its own database file,
-/// so there is nothing to group over and <see cref="IsSupported"/> is false; callers must fall
-/// back to looping tenant scopes.
+/// WHY THIS EXISTS - two reasons, and the second is the one that is easy to miss:
 ///
-/// Note this deliberately reads identity tables from a SYSTEM-scoped connection. An identity
-/// scope is bound to one tenant's OdinIdentity and, on SQLite, to that tenant's file.
+/// 1. IT SEES IDENTITIES THE REGISTRY CANNOT NAME. Totalling one identity's storage is just
+///    <c>SUM(byteCount) WHERE identityId = @id</c>, and that is all a registered tenant needs. But
+///    you can only do that for identities you can *enumerate*, and the enumeration comes from the
+///    registry - so an identity whose Registrations row is gone can never be asked about. That is
+///    not hypothetical: measured on na-metal on 2026-09-12, Registrations held 3 tenants while
+///    drivemainindex held 4 distinct identityIds, two of them carrying ~166 KB with no
+///    registration at all, residue from tenants deleted two days earlier. A report built only from
+///    registrations would not merely miss that - it would hide it.
+///
+/// 2. IT IS ONE QUERY INSTEAD OF N. The per-identity sum has to be issued once per tenant, each
+///    needing its own lifetime scope and round trip. Grouping does the whole node in a single
+///    pass, which is the difference between two queries and several thousand sequential ones on a
+///    busy node.
+///
+/// LIMITS: Postgres only. There, every tenant shares one database and rows are told apart by the
+/// identityId column, so the whole population can be grouped at once. On SQLite each tenant has
+/// its own database file and an orphaned file is not reachable from any other, so there is nothing
+/// to group over: <see cref="IsSupported"/> is false, the census is empty, and the caller falls
+/// back to per-tenant sums plus a scan of the registration directories.
+///
+/// It reads identity tables from a SYSTEM-scoped connection on purpose: an identity scope is bound
+/// to a single tenant's OdinIdentity, which is precisely the assumption being checked here.
 /// </summary>
-public class CrossTenantStorageMetrics(ScopedSystemConnectionFactory scopedConnectionFactory)
+public class IdentityStorageCensus(ScopedSystemConnectionFactory scopedConnectionFactory)
 {
     // FileState.Active. The enum lives in Odin.Services, which this layer cannot reference upward.
     private const int ActiveFileState = 1;
@@ -38,10 +55,11 @@ public class CrossTenantStorageMetrics(ScopedSystemConnectionFactory scopedConne
     public bool IsSupported => scopedConnectionFactory.DatabaseType == DatabaseType.Postgres;
 
     /// <summary>
-    /// Every identity that owns at least one drivemainindex row or one drives row, whether or not
-    /// it still has a Registrations row. Returns an empty list when <see cref="IsSupported"/> is false.
+    /// Every identity that owns at least one file row or one drive row, registered or not.
+    /// Empty when <see cref="IsSupported"/> is false -- the caller must then fall back to
+    /// per-tenant sums, and will not see unregistered identities.
     /// </summary>
-    public async Task<List<CrossTenantIdentityStorage>> GetAllIdentityStorageAsync()
+    public async Task<List<IdentityStorageRow>> GetAllAsync()
     {
         if (!IsSupported)
         {
@@ -55,8 +73,8 @@ public class CrossTenantStorageMetrics(ScopedSystemConnectionFactory scopedConne
 
         await using (var cmd = cn.CreateCommand())
         {
-            // No index covers byteCount, so this is a full scan. Acceptable: the consumer runs
-            // this once a day, and a cached figure refreshed hourly is explicitly fine.
+            // No index covers byteCount, so this is a full scan. Acceptable: the consumer reads
+            // this once a day, and the spec is explicit that an hourly figure is fine.
             cmd.CommandText =
                 """
                 SELECT identityId,
@@ -79,6 +97,7 @@ public class CrossTenantStorageMetrics(ScopedSystemConnectionFactory scopedConne
             }
         }
 
+        // Drives are counted separately: an identity can hold drive rows and no files.
         await using (var cmd = cn.CreateCommand())
         {
             cmd.CommandText =
@@ -99,11 +118,11 @@ public class CrossTenantStorageMetrics(ScopedSystemConnectionFactory scopedConne
         var identityIds = new HashSet<Guid>(files.Keys);
         identityIds.UnionWith(drives.Keys);
 
-        var result = new List<CrossTenantIdentityStorage>(identityIds.Count);
+        var result = new List<IdentityStorageRow>(identityIds.Count);
         foreach (var identityId in identityIds)
         {
             var (fileCount, totalBytes, activeBytes) = files.GetValueOrDefault(identityId);
-            result.Add(new CrossTenantIdentityStorage(
+            result.Add(new IdentityStorageRow(
                 identityId,
                 fileCount,
                 totalBytes,

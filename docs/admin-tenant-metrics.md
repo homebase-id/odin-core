@@ -66,9 +66,17 @@ milliseconds. **Null means "not applicable or unknown", never zero.**
 
 Two independent scans, because they catch different things:
 
-- **`index`** — a cross-tenant `GROUP BY identityId` over `drivemainindex` and `drives`. Finds
-  identities whose rows outlived their registration. **Postgres only**: SQLite gives each tenant its
-  own database file, so there is nothing to group over. `indexOrphanScanSupported` says which you
+- **`index`** (`IdentityStorageCensus`) — one `GROUP BY identityId` pass over the whole database.
+  It earns its place twice over. First, it sees identities the registry cannot name: totalling one
+  identity's storage is just `SUM(byteCount) WHERE identityId = @id`, but that only works for
+  identities you can *enumerate*, and the enumeration comes from the registry — so an identity
+  whose registration is gone can never be asked about. Measured on na-metal on 2026-09-12,
+  `registrations` held 3 tenants while `drivemainindex` held 4 distinct `identityId`s, two of them
+  carrying ~166 KB with no registration at all. Second, it is one query instead of N: the same pass
+  supplies every *registered* tenant's figures too, so the endpoint issues two queries rather than
+  two per tenant.
+  **Postgres only**: there every tenant shares one database; on SQLite each tenant has its own file
+  and an orphaned file is not reachable from any other. `indexOrphanScanSupported` says which you
   got. On SQLite an identity whose rows survived but whose directory was removed will not appear.
 - **`directory`** — a scan of the registration root for directories named with a GUID that has no
   registration. Works on both backends. Counts are `null`: we deliberately do not open a stray
@@ -145,10 +153,17 @@ path is worth a separate look.
 
 ### Cost
 
-Registered tenants are measured by a sequential loop over tenant scopes — one child lifetime scope
-per tenant, because `ScopedConnectionFactory` is not safe for concurrent use. The cross-tenant scan
-is a full table scan; no index covers `byteCount`. Both are fine at the spec's "once a day" cadence
-and neither should be put on a per-minute poll.
+On **Postgres** the whole node costs two grouped queries: the census supplies both the registered
+tenants' figures and the orphans. It is a full table scan — no index covers `byteCount` — so it is
+fine at the spec's "once a day" cadence and should not be put on a per-minute poll.
+
+On **SQLite** there is no census, so registered tenants are measured one at a time through a
+sequential loop over tenant scopes, each in its own child lifetime scope because
+`ScopedConnectionFactory` is not safe for concurrent use. That is N round trips, which is
+acceptable for a dev or single-tenant box and is the reason the bulk path exists for production.
+
+The per-tenant query (`TableDriveMainIndexCached.GetIdentityStorageStatsAsync`) remains public and
+is the right call for anything that wants one tenant's figures on demand, such as a dashboard.
 
 ## Not answered here
 

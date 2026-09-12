@@ -27,7 +27,7 @@ public class TenantAdmin(
     IIdentityRegistry identityRegistry,
     IMultiTenantContainer multiTenantContainer,
     ILastSeenService lastSeenService,
-    CrossTenantStorageMetrics crossTenantStorageMetrics)
+    IdentityStorageCensus identityStorageCensus)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -115,15 +115,20 @@ public class TenantAdmin(
     {
         var registrations = await identityRegistry.GetTenants();
         var knownIds = new HashSet<Guid>(registrations.Select(r => r.Id));
+        var fsir = identityRegistry as FileSystemIdentityRegistry;
 
         var response = new TenantMetricsResponse
         {
             GeneratedAt = UnixTimeUtc.Now(),
             DatabaseType = config.Database.Type.ToString().ToLowerInvariant(),
-            IndexOrphanScanSupported = crossTenantStorageMetrics.IsSupported,
+            IndexOrphanScanSupported = identityStorageCensus.IsSupported,
         };
 
-        var fsir = identityRegistry as FileSystemIdentityRegistry;
+        // One pass over the whole database where that is possible (Postgres), which both covers
+        // every registered tenant without a query each AND surfaces identities the registry cannot
+        // name. Empty on SQLite, where each tenant is a separate database file.
+        var census = await identityStorageCensus.GetAllAsync();
+        var censusById = census.ToDictionary(r => r.IdentityId);
 
         foreach (var registration in registrations)
         {
@@ -139,7 +144,7 @@ public class TenantAdmin(
 
             try
             {
-                row = await MapMetricsAsync(registration, fsir);
+                row = await MapMetricsAsync(registration, fsir, censusById);
             }
             catch (Exception e)
             {
@@ -151,30 +156,29 @@ public class TenantAdmin(
             response.Tenants.Add(row);
         }
 
-        // Orphans found in the index: the identity still owns rows but has no registration.
-        // Postgres only - see CrossTenantStorageMetrics.
-        var indexOrphanIds = new HashSet<Guid>();
-        foreach (var row in await crossTenantStorageMetrics.GetAllIdentityStorageAsync())
+        // Identities that still own rows but lost their registration.
+        var censusOrphanIds = new HashSet<Guid>();
+        foreach (var storage in census)
         {
-            if (knownIds.Contains(row.IdentityId))
+            if (knownIds.Contains(storage.IdentityId))
             {
                 continue;
             }
 
-            indexOrphanIds.Add(row.IdentityId);
+            censusOrphanIds.Add(storage.IdentityId);
             response.Tenants.Add(new TenantMetricsModel
             {
-                Id = row.IdentityId.ToString(),
+                Id = storage.IdentityId.ToString(),
                 Domain = null,
                 Registered = false,
                 OrphanSource = OrphanSource.Index,
-                Files = row.Files,
-                TotalBytes = row.TotalBytes,
-                ActiveBytes = row.ActiveBytes,
-                DriveCount = row.DriveCount,
-                RegistrationPath = fsir == null ? null : GetRegistrationPath(fsir, row.IdentityId),
-                RegistrationSize = fsir == null ? null : GetRegistrationSizeOrNull(fsir, row.IdentityId),
-                PayloadPath = fsir == null ? null : GetPayloadPath(fsir, row.IdentityId),
+                Files = storage.Files,
+                TotalBytes = storage.TotalBytes,
+                ActiveBytes = storage.ActiveBytes,
+                DriveCount = storage.DriveCount,
+                RegistrationPath = fsir == null ? null : GetRegistrationPath(fsir, storage.IdentityId),
+                RegistrationSize = fsir == null ? null : GetRegistrationSizeOrNull(fsir, storage.IdentityId),
+                PayloadPath = fsir == null ? null : GetPayloadPath(fsir, storage.IdentityId),
             });
         }
 
@@ -184,7 +188,7 @@ public class TenantAdmin(
         {
             foreach (var identityId in EnumerateOrphanedRegistrationDirectories(fsir, knownIds))
             {
-                if (indexOrphanIds.Contains(identityId))
+                if (censusOrphanIds.Contains(identityId))
                 {
                     // Already reported, with real counts.
                     continue;
@@ -210,7 +214,8 @@ public class TenantAdmin(
 
     private async Task<TenantMetricsModel> MapMetricsAsync(
         IdentityRegistration registration,
-        FileSystemIdentityRegistry? fsir)
+        FileSystemIdentityRegistry? fsir,
+        IReadOnlyDictionary<Guid, IdentityStorageRow> censusById)
     {
         var result = new TenantMetricsModel
         {
@@ -233,9 +238,30 @@ public class TenantAdmin(
             result.PayloadPath = GetPayloadPath(fsir, registration.Id);
         }
 
-        // A child scope per tenant: ScopedConnectionFactory is per-lifetime-scope and is not safe
-        // for concurrent use, and the tenant scope itself is shared with that tenant's background
-        // services. Keep this loop sequential for the same reason.
+        if (censusById.TryGetValue(registration.Id, out var storage))
+        {
+            result.Files = storage.Files;
+            result.TotalBytes = storage.TotalBytes;
+            result.ActiveBytes = storage.ActiveBytes;
+            result.DriveCount = storage.DriveCount;
+            return result;
+        }
+
+        if (identityStorageCensus.IsSupported)
+        {
+            // The census covered the whole database and this identity was not in it, so it owns
+            // nothing. A real zero, not a missing measurement.
+            result.Files = 0;
+            result.TotalBytes = 0;
+            result.ActiveBytes = 0;
+            result.DriveCount = 0;
+            return result;
+        }
+
+        // SQLite: each tenant is its own database file, so there is no census and the figures have
+        // to be read one tenant at a time. A child scope per tenant, because ScopedConnectionFactory
+        // is per-lifetime-scope and is not safe for concurrent use, and the tenant scope itself is
+        // shared with that tenant's background services. Keep this sequential for the same reason.
         await using var scope = multiTenantContainer
             .GetTenantScope(registration.PrimaryDomainName)
             .BeginLifetimeScope($"TenantMetrics:{registration.Id}");
