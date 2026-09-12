@@ -52,6 +52,13 @@ internal class TableDriveMainIndexCacheKeys(TransactionalCache cache)
 
     //
 
+    internal string GetIdentityStorageStatsCacheKey()
+    {
+        return "identitystoragestats";
+    }
+
+    //
+
     internal List<string> GetDriveIdInvalidationTags(Guid driveId)
     {
         return ["driveId:" + driveId];
@@ -64,6 +71,7 @@ internal class TableDriveMainIndexCacheKeys(TransactionalCache cache)
         await cache.InvalidateAsync([
             cache.CreateRemoveByTagsAction(GetDriveIdInvalidationTags(driveId)),
             cache.CreateRemoveByKeyAction(GetTotalSizeAllDrivesCacheKey()),
+            cache.CreateRemoveByKeyAction(GetIdentityStorageStatsCacheKey()),
         ]);
     }
 

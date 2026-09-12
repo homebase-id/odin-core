@@ -74,6 +74,9 @@ public static class SystemExtensions
             cb.RegisterType(tableType).InstancePerLifetimeScope();
         }
 
+        // Cross-tenant aggregates (Postgres only; see the class docs)
+        cb.RegisterType<CrossTenantStorageMetrics>().InstancePerLifetimeScope();
+
         return cb;
     }
     

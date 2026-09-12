@@ -81,6 +81,11 @@ namespace Odin.Services.Registry
         /// </summary>
         public UnixTimeUtc? LastSeen { get; set; }
 
+        /// <summary>
+        /// When the registration row was created. Set by the database on insert.
+        /// </summary>
+        public UnixTimeUtc? Created { get; set; }
+
         public override string ToString()
         {
             return PrimaryDomainName;
