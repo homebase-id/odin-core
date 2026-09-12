@@ -80,6 +80,18 @@ public class TenantMetricsModel
     public int? DriveCount { get; set; }
 
     /// <summary>
+    /// Where this identity's registration directory lives. Populated for orphans too: for an
+    /// identity with no registration, this is where to go looking for what it left behind.
+    /// </summary>
+    public string? RegistrationPath { get; set; }
+
+    /// <summary>
+    /// Where this identity's payloads live - a local directory, or the S3 service/bucket/id prefix
+    /// when S3 payloads are enabled. Populated for orphans too, for the same reason.
+    /// </summary>
+    public string? PayloadPath { get; set; }
+
+    /// <summary>
     /// Bytes on local disk under the registration directory. On Postgres + S3 this is legitimately
     /// ~0: the tenant database is remote and payloads are in S3, so the directory holds little.
     /// </summary>

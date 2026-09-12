@@ -172,7 +172,9 @@ public class TenantAdmin(
                 TotalBytes = row.TotalBytes,
                 ActiveBytes = row.ActiveBytes,
                 DriveCount = row.DriveCount,
+                RegistrationPath = fsir == null ? null : GetRegistrationPath(fsir, row.IdentityId),
                 RegistrationSize = fsir == null ? null : GetRegistrationSizeOrNull(fsir, row.IdentityId),
+                PayloadPath = fsir == null ? null : GetPayloadPath(fsir, row.IdentityId),
             });
         }
 
@@ -194,7 +196,9 @@ public class TenantAdmin(
                     Domain = null,
                     Registered = false,
                     OrphanSource = OrphanSource.Directory,
+                    RegistrationPath = GetRegistrationPath(fsir, identityId),
                     RegistrationSize = GetRegistrationSizeOrNull(fsir, identityId),
+                    PayloadPath = GetPayloadPath(fsir, identityId),
                 });
             }
         }
@@ -224,7 +228,9 @@ public class TenantAdmin(
 
         if (fsir != null)
         {
+            result.RegistrationPath = GetRegistrationPath(fsir, registration.Id);
             result.RegistrationSize = GetRegistrationSizeOrNull(fsir, registration.Id);
+            result.PayloadPath = GetPayloadPath(fsir, registration.Id);
         }
 
         // A child scope per tenant: ScopedConnectionFactory is per-lifetime-scope and is not safe
@@ -242,6 +248,22 @@ public class TenantAdmin(
         result.DriveCount = await scope.Resolve<TableDrivesCached>().GetCountAsync(MetricsCacheTtl);
 
         return result;
+    }
+
+    //
+
+    private static string GetRegistrationPath(FileSystemIdentityRegistry fsir, Guid identityId)
+    {
+        return Path.Combine(fsir.RegistrationRoot, identityId.ToString());
+    }
+
+    //
+
+    private string GetPayloadPath(FileSystemIdentityRegistry fsir, Guid identityId)
+    {
+        return config.S3Payload.Enabled
+            ? Path.Combine(config.S3Storage.ServiceUrl, config.S3Payload.BucketName, identityId.ToString())
+            : Path.Combine(fsir.PayloadRoot, identityId.ToString());
     }
 
     //

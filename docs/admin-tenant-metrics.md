@@ -51,6 +51,7 @@ milliseconds. **Null means "not applicable or unknown", never zero.**
 | `activeBytes` | `fileState = Active` rows only — "how much would we restore". |
 | `files` | Row count, tombstones included. |
 | `driveCount` | Drives owned by this identity. |
+| `registrationPath` / `payloadPath` | Where the registration directory and the payloads live (payloads being the S3 `service/bucket/id` prefix when S3 payloads are on). Populated for orphans too: for an identity with no registration, this is where to go looking for what it left behind. |
 | `registrationSize` | Bytes on local disk under the registration directory. On Postgres + S3 this is legitimately near zero: the database is remote and payloads are in S3. Only meaningful on SQLite. |
 | `lastActivity` | See the caveat below — this is **not** "when the tenant was last used". |
 | `enabled` | Inverse of `registrations.disabled`, toggled by `odin-cli tenant enable` / `disable`. Boolean. |
@@ -74,6 +75,23 @@ Two independent scans, because they catch different things:
   database file to measure it.
 
 An identity found by both is reported once, as `index`, since that row carries real counts.
+
+## One call, not two
+
+This endpoint is a **superset** of `GET /tenants` — there is no need to call both. Every field the
+older endpoint carries has an equivalent here:
+
+| `/tenants?include-payload=true` | `/tenants/metrics` |
+|---|---|
+| `domain`, `id`, `enabled`, `enablePublicWebPresence` | same names |
+| `registrationPath`, `registrationSize`, `payloadPath` | same names |
+| `payloadSize` | `totalBytes` (identical figure — both sum `byteCount` over every file state) |
+
+`AdminControllerTest.ItShouldSupersedeTheTenantEndpoint` asserts this field by field, so the two
+cannot drift apart silently.
+
+The older endpoint is unchanged and still serves `Odin.Cli` (`odin-cli tenants list`), which
+deserializes `TenantModel`.
 
 ## Caveats, and corrections to the original spec
 

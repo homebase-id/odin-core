@@ -180,6 +180,39 @@ public class AdminControllerTest
     //
 
     /// <summary>
+    /// The metrics endpoint must be a superset of the tenant endpoint, so a caller collecting
+    /// storage figures never has to make a second call to fill in the gaps.
+    /// </summary>
+    [Test]
+    public async Task ItShouldSupersedeTheTenantEndpoint()
+    {
+        await CreatePayload(TestIdentities.Frodo);
+
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
+
+        var metrics = OdinSystemSerializer.Deserialize<TenantMetricsResponse>(
+            await (await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/metrics"))).Content.ReadAsStringAsync());
+        var frodoMetrics = metrics.Tenants.Single(t => t.Domain == "frodo.dotyou.cloud");
+
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(
+            await (await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true"))).Content.ReadAsStringAsync());
+
+        // Every field the old endpoint carries has an equivalent here.
+        Assert.That(frodoMetrics.Id, Is.EqualTo(tenant.Id));
+        Assert.That(frodoMetrics.Domain, Is.EqualTo(tenant.Domain));
+        Assert.That(frodoMetrics.Enabled, Is.EqualTo(tenant.Enabled));
+        Assert.That(frodoMetrics.EnablePublicWebPresence, Is.EqualTo(tenant.EnablePublicWebPresence));
+        Assert.That(frodoMetrics.RegistrationPath, Is.EqualTo(tenant.RegistrationPath));
+        Assert.That(frodoMetrics.RegistrationSize, Is.EqualTo(tenant.RegistrationSize));
+        Assert.That(frodoMetrics.PayloadPath, Is.EqualTo(tenant.PayloadPath));
+        Assert.That(frodoMetrics.TotalBytes, Is.EqualTo(tenant.PayloadSize));
+    }
+
+    //
+
+    /// <summary>
     /// "tenants/metrics" is a literal segment and must win over the "tenants/{domain}" parameter.
     /// </summary>
     [Test]
