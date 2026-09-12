@@ -44,7 +44,8 @@ public enum TenantConfigFlagNames
     /// <summary>
     /// Dark-launch switch for the reviewed security tier.  Off (the default) keeps every connected
     /// caller at <c>Connected</c> exactly as before; on assigns the tier from whether the owner has
-    /// reviewed them.  See <see cref="TenantSettings.UseReviewedSecurityTier"/>.
+    /// reviewed them.  Temporary -- it is removed with the flag-free recut.
+    /// See <see cref="TenantSettings.UseReviewedSecurityTier"/>.
     /// </summary>
     UseReviewedSecurityTier
 }
