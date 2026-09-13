@@ -946,6 +946,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         target.Disabled = record.disabled;
         target.EnablePublicWebPresence = record.enablePublicWebPresence;
         target.MarkedForDeletionDate = record.markedForDeletionDate;
+        target.Created = record.created;
         // LastSeen = record.lastSeen // SEB:TODO
     }
 

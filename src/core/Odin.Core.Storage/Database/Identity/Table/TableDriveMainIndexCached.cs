@@ -64,6 +64,13 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
+    private string GetIdentityStorageStatsCacheKey()
+    {
+        return _cacheKeys.GetIdentityStorageStatsCacheKey();
+    }
+
+    //
+
     private List<string> GetDriveIdTags(Guid driveId)
     {
         return _cacheKeys.GetDriveIdInvalidationTags(driveId);
@@ -211,6 +218,16 @@ public class TableDriveMainIndexCached : AbstractTableCaching
             _ => _table.GetTotalSizeAllDrivesAsync(),
             ttl ?? DefaultTtl);
         return result;
+    }
+
+    //
+
+    public async Task<IdentityStorageStats> GetIdentityStorageStatsAsync(TimeSpan? ttl = null)
+    {
+        return await Cache.GetOrSetAsync(
+            GetIdentityStorageStatsCacheKey(),
+            _ => _table.GetIdentityStorageStatsAsync(),
+            ttl ?? DefaultTtl);
     }
 
     //
