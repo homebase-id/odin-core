@@ -74,6 +74,9 @@ public static class SystemExtensions
             cb.RegisterType(tableType).InstancePerLifetimeScope();
         }
 
+        // Counts what every identity holds, in one pass (Postgres only; see the class docs)
+        cb.RegisterType<IdentityStorageCensus>().InstancePerLifetimeScope();
+
         return cb;
     }
     
