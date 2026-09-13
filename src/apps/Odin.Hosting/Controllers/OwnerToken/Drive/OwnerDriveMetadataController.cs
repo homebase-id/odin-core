@@ -10,6 +10,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
 {
@@ -53,7 +54,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
-                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
+                    IsSystemDrive = BuiltinDrives.IsProtected(drive.Id),
+                    AppId = drive.AppId,
+                    DriveSlug = drive.DriveSlug,
+                    DriveTypeSlug = drive.DriveTypeSlug,
+                    WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
+                    WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

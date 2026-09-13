@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 
@@ -11,7 +12,10 @@ namespace Odin.Hosting.Middleware
     /// </summary>
     public class IdentityReadyStateMiddleware(RequestDelegate next)
     {
-        public async Task InvokeAsync(HttpContext context, TenantConfigService tenantConfigService)
+        // Note: the ready-state service is resolved from the request scope rather than injected as a
+        // method parameter. Method-injected parameters are resolved on every request, before the path
+        // checks below get a chance to short-circuit.
+        public async Task InvokeAsync(HttpContext context)
         {
             var path = context.Request.Path.Value;
             
@@ -27,7 +31,8 @@ namespace Odin.Hosting.Middleware
                 return;
             }
 
-            if(!await tenantConfigService.IsIdentityServerConfiguredAsync())
+            var identityReadyState = context.RequestServices.GetRequiredService<IdentityReadyStateService>();
+            if(!await identityReadyState.IsIdentityServerConfiguredAsync())
             {
                 context.Response.Headers.Append(OdinHeaderNames.RequiresInitialConfiguration, bool.TrueString);
             }

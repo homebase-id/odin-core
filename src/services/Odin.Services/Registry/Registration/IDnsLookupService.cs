@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Odin.Core.Dns;
 using Odin.Core.Util;
 
+#nullable enable
+
 namespace Odin.Services.Registry.Registration;
 
 // Full identity domains are passed as AsciiDomainName - guaranteed valid and lowercased
@@ -21,7 +23,16 @@ public interface IDnsLookupService
     /// own zone exists - this is the domain-control proof for NS-based signups.
     /// </summary>
     Task<bool> IsDomainDelegatedToUsAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
-    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
+    /// <param name="extraRecords">
+    /// Records to verify alongside the configured set. For per-tenant records that
+    /// GetDnsConfiguration cannot know about because they are not configuration -
+    /// DKIM, whose values come from the tenant's own stored keys. They must be
+    /// Optional: this method's verdict feeds the certificate DNS gate.
+    /// </param>
+    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(
+        AsciiDomainName domain,
+        IReadOnlyCollection<DnsConfig>? extraRecords = null,
+        CancellationToken cancellationToken = default);
     Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
     Task<bool> IsManagedDomainAvailableAsync(string prefix, string apex, CancellationToken cancellationToken = default);
     void AssertManagedDomainApexAndPrefix(string prefix, string apex);

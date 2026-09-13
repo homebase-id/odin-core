@@ -44,7 +44,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
 
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
-            var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias, false);
+            var shardDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias, false);
 
             if (shardDrive == null)
             {
@@ -62,7 +62,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
                 if (identity.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out var circleGrant))
                 {
                     var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                        .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive);
+                        .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ShardRecoveryDrive);
 
                     if (driveGrant == null)
                     {

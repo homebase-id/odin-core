@@ -61,7 +61,10 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
     }
 
 
-    [Test]
+    // Explicit: known flaky on the Windows CI runner - the 9-thread hammer exhausts
+    // SQLite's busy timeout there ("SQLite Error 5: 'database is locked'" in
+    // BeginTransactionAsync), failing runs of unrelated PRs. Run manually / locally.
+    [Test, Explicit]
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {
         var identity = TestIdentities.Pippin;

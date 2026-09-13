@@ -269,8 +269,9 @@ namespace Odin.Hosting.Middleware
 
         private async Task LoadLinkPreviewContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
-            var linkPreviewService = httpContext.RequestServices.GetRequiredService<HomebasePublicPageService>();
-            if(!linkPreviewService.IsAllowedPath())
+            // Check the path before resolving anything: HomebasePublicPageService has a large dependency
+            // graph and on nearly every request (all /api traffic) the answer here is "not allowed".
+            if (!HomebasePublicPageService.IsAllowedPath(httpContext.Request.Path))
             {
                 return;
             }

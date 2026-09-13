@@ -1,0 +1,21 @@
+<Project>
+    <!-- NuGet's restore-time vulnerability audit. `all` includes transitive
+         packages, which is where advisories usually land and where the default
+         `direct` mode is blind. `low` reports every severity.
+         Audit findings stay warnings even though projects set
+         TreatWarningsAsErrors. -->
+    <PropertyGroup>
+        <NuGetAudit>true</NuGetAudit>
+        <NuGetAuditMode>all</NuGetAuditMode>
+        <NuGetAuditLevel>low</NuGetAuditLevel>
+        <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(DOTNET_RUNNING_IN_CONTAINER)' == 'true'">
+        <BaseIntermediateOutputPath>$(MSBuildProjectDirectory)/obj-container/</BaseIntermediateOutputPath>
+        <BaseOutputPath>$(MSBuildProjectDirectory)/bin-container/</BaseOutputPath>
+        <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(DOTNET_RUNNING_IN_CONTAINER)' != 'true'">
+        <DefaultItemExcludes>$(DefaultItemExcludes);obj-container/**;bin-container/**</DefaultItemExcludes>
+    </PropertyGroup>
+</Project>

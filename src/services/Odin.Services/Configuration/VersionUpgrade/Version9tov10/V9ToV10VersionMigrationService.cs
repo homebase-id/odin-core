@@ -20,7 +20,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version9tov10
     /// v9 → v10: ensures the system connection circles
     /// (<see cref="SystemCircleConstants.ConfirmedConnectionsCircleId"/> and
     /// <see cref="SystemCircleConstants.AutoConnectionsCircleId"/>) grant
-    /// <see cref="DrivePermission.Read"/> on the <see cref="SystemDriveConstants.ProfileDrive"/>, and
+    /// <see cref="DrivePermission.Read"/> on the <see cref="WellKnownAppDrives.ProfileDrive"/>, and
     /// re-issues that grant to every already-connected identity.
     ///
     /// <para>
@@ -72,7 +72,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version9tov10
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var profileDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ProfileDrive.Alias, false);
+            var profileDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.ProfileDrive.Alias, false);
             if (profileDrive == null)
             {
                 throw new OdinSystemException("Profile drive not created");
@@ -110,7 +110,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version9tov10
                     }
 
                     var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                        .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive);
+                        .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive);
 
                     if (driveGrant == null)
                     {
@@ -160,7 +160,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version9tov10
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ProfileDrive,
+                        Drive = WellKnownAppDrives.ProfileDrive,
                         Permission = DrivePermission.Read
                     }
                 });
@@ -175,7 +175,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version9tov10
         private static bool HasProfileDriveRead(CircleDefinition def)
         {
             return def.DriveGrants?.Any(g =>
-                g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+                g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
                 g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)) ?? false;
         }
     }

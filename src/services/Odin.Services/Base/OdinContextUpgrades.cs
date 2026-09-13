@@ -73,7 +73,7 @@ public static class OdinContextUpgrades
             DriveId = feedDriveId,
             PermissionedDrive = new()
             {
-                Drive = SystemDriveConstants.FeedDrive,
+                Drive = WellKnownAppDrives.FeedDrive,
                 Permission = DrivePermission.ReadWrite
             },
             KeyStoreKeyEncryptedStorageKey = encryptedFeedDriveStorageKey

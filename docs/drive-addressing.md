@@ -123,12 +123,18 @@ receiving possible — consumed by part 3's `weak-key-retirement.md` (transfer e
 pre-connection deposits).
 
 **Who may ask:** serving the key discloses the drive's existence, and *Scoping* above promises
-callers only see drives they can reach. Resolution by the doc's own capability-flag pattern: a
+callers only see drives they can reach. ~~Resolution by the doc's own capability-flag pattern: a
 drive opts in with a new **`AllowDeposits`** flag (sibling of `AllowAnonymousReads` /
 `AllowSubscriptions`), and the public-key endpoint answers only for drives that set it —
-existence is disclosed exactly where the owner opted into being writable. The deposit mechanics
+existence is disclosed exactly where the owner opted into being writable.~~ The deposit mechanics
 themselves (ECIES envelope, conversion on next read) are out of scope here; this doc carries only
-the address, the key, and the flag.
+the address and the key.
+
+> **Built:** the gate is **Write on the drive**, not a per-drive flag — a caller without it gets a
+> security exception, not a 404, since resolving the address already proved the drive is there. A
+> reader has no use for the key, so nothing is disclosed to anyone who could not already write.
+> This narrows the paragraph above: a writer with **no** grant at all cannot obtain the key, so the
+> unconnected-stranger deposit is not reachable yet and waits on part 3.
 
 ### Slugs are resolved by the recipient
 
@@ -237,7 +243,8 @@ AppId            BYTEA,   -- owning app; NULL = not app-owned
 DriveSlug        TEXT,    -- URL/wire segment; NULL when AppId is NULL
 DriveTypeSlug    TEXT,    -- readable form of DriveType, e.g. "channel"; NULL when AppId is NULL
 WriteOnlyKeyPair BYTEA,   -- serialized EccFullKeyData: Drive PK, private half escrowed under the
-                          -- drive's storage key; NULL = deposits not enabled (see AllowDeposits)
+                          -- drive's storage key. NULL only on a drive that predates the field and
+                          -- escaped v14 -> v15; every drive is minted one at creation
 
 , UNIQUE(identityId, AppId, DriveSlug)   -- one "news" per app
 -- index (identityId, DriveType)         -- legacy by-type lookups
@@ -419,9 +426,15 @@ ReviewedAt  BIGINT,   -- UnixTimeUtc of the owner's review; NULL = New. Set at t
 `WriteOnlyKeyPair` is **one field, not split columns** — `EccFullKeyData` self-contains the
 public half and the storage-key-encrypted private half, copying the shipped
 `PeerKeyStore.WriteOnlyKeyPair` pattern (name kept for symmetry). It is not passive DDL like the
-other columns: populating it means *minting* a keypair with the storage key in scope — lazily on
-first request, or backfilled in the VersionUpgrade pre-pass exactly as the `PeerKeyStore` keypair
-was. `AllowDeposits` is a capability flag stored with the drive's existing flags, not a column.
+other columns: populating it means *minting* a keypair with the storage key in scope — ~~lazily on
+first request~~, or backfilled in the VersionUpgrade pre-pass exactly as the `PeerKeyStore` keypair
+was. ~~`AllowDeposits` is a capability flag stored with the drive's existing flags, not a column.~~
+
+> **Built:** minted at drive creation for every drive, and backfilled for the rest by v14 → v15.
+> Lazy minting is struck because it cannot work: minting needs the drive's storage key, and the
+> caller who triggers the first request — a remote writer fetching the public half — never holds it.
+> `AllowDeposits` is struck with it. It existed to say which drives get a keypair; with every drive
+> getting one there is nothing left for it to gate.
 On rotation, `WriteOnlyKeyPair` always holds only the **current** key; the **previous** key and a
 rotation timestamp ride the drive's existing `jsonDetails` column (cold path — consulted only
 when an old-key envelope arrives during the grace window). Still no schema change.
@@ -455,9 +468,8 @@ in-memory ICR object on read and back to the column on write — exactly the exi
 `data` silently mints a second copy that drifts. A drifted `ReviewedAt` is not cosmetic: the
 pagination query (column) and the caller's security tier (hydrated object) would disagree.
 
-**Together with the addressing fields above (including `WriteOnlyKeyPair`, the
-`AllowDeposits` flag, and `Connections.ReviewedAt`), this is the complete schema surface for
-both phases** —
+**Together with the addressing fields above (including `WriteOnlyKeyPair` and
+`Connections.ReviewedAt`), this is the complete schema surface for both phases** —
 `connection-defaults.md` and the client proposal introduce no further schema.
 
 ## What this depends on

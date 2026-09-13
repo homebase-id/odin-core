@@ -293,6 +293,44 @@ namespace Odin.Core.Storage.Database.System.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<RegistrationsRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,enablePublicWebPresence,json,created,modified FROM Registrations " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(RegistrationsRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,enablePublicWebPresence,json,created,modified) " +
+                                            "VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@enablePublicWebPresence,@json,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@email", DbType.String, item.email);
+                importCommand.AddParameter("@primaryDomainName", DbType.String, item.primaryDomainName);
+                importCommand.AddParameter("@firstRunToken", DbType.String, item.firstRunToken);
+                importCommand.AddParameter("@disabled", DbType.Boolean, item.disabled);
+                importCommand.AddParameter("@markedForDeletionDate", DbType.Int64, item.markedForDeletionDate?.milliseconds);
+                importCommand.AddParameter("@planId", DbType.String, item.planId);
+                importCommand.AddParameter("@enablePublicWebPresence", DbType.Boolean, item.enablePublicWebPresence);
+                importCommand.AddParameter("@json", DbType.String, item.json);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         public virtual async Task<int> DeleteAsync(Guid identityId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

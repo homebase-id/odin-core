@@ -10,6 +10,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -570,6 +571,17 @@ public abstract class FileSystemStreamWriterBase
             {
                 throw new OdinClientException("UniqueId cannot be an empty Guid (all zeros)", OdinClientErrorCode.MalformedMetadata);
             }
+        }
+
+        // A positive Ttl is an absolute UnixTimeUtc in MILLISECONDS. Rejecting one that is already in
+        // the past is what catches the obvious mistake of passing seconds: a seconds-since-epoch value
+        // read as milliseconds lands in 1970, so it would otherwise upload a file that is born dead.
+        if (FileTtl.IsAbsolute(metadata.Ttl) && FileTtl.HasExpired(metadata.Ttl, UnixTimeUtc.Now()))
+        {
+            throw new OdinClientException(
+                "Ttl is an absolute UnixTimeUtc in milliseconds and must be in the future; " +
+                "use FileTtl.After/AfterFirstRead to build one",
+                OdinClientErrorCode.ArgumentError);
         }
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)

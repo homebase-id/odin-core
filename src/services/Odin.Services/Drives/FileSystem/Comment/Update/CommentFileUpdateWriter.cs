@@ -82,7 +82,8 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
 
             Payloads = package.GetFinalPayloadDescriptors(fromManifest: dataSource?.PayloadsAreRemote ?? false),
-            DataSource = dataSource
+            DataSource = dataSource,
+            Ttl = updateDescriptor.FileMetadata.Ttl
         };
 
         return Task.FromResult(metadata);

@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
@@ -29,10 +30,20 @@ public abstract class V2Fixture
     /// </summary>
     protected virtual bool ResetBetweenTests => true;
 
+    /// <summary>
+    /// Configuration this fixture needs the host booted with, merged over the per-host defaults.
+    /// Override for settings that must be in place before startup — e.g. a mail fixture turning on
+    /// <c>Email:TenantMail:Enabled</c>. Prefer this over environment variables: fixtures run in
+    /// parallel and env vars are process-wide, so one fixture's flag would leak into every other.
+    /// List settings bind by index (<c>"Email:TenantMail:MxNodes:0"</c>), not the <c>__0</c> form.
+    /// </summary>
+    protected virtual IReadOnlyDictionary<string, string?> ConfigOverrides =>
+        new Dictionary<string, string?>();
+
     [OneTimeSetUp]
     public async Task V2FixtureSetUp()
     {
-        Host = await OdinHost.StartAsync(HostIdentities);
+        Host = await OdinHost.StartAsync(HostIdentities, ConfigOverrides);
         if (ResetBetweenTests)
         {
             await Host.EnsureTenantsMaterializedAsync();
@@ -110,7 +121,7 @@ public abstract class V2Fixture
     {
         var owner = await LoginAsOwner(ownerIdentity ?? Identities.Frodo);
         var d = spec.DriveSpec;
-        await owner.Admin.CreateDrive(d.Drive, d.Name, d.AllowAnonymousReads, d.OwnerOnly, d.AllowSubscriptions);
+        await owner.Admin.EnsureDrive(d.Drive, d.Name, d.AllowAnonymousReads, d.OwnerOnly, d.AllowSubscriptions);
         var caller = await spec.Build(owner);
         return (caller, owner);
     }

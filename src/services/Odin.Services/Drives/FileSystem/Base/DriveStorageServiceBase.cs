@@ -10,6 +10,7 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
@@ -28,7 +29,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
-        ILoggerFactory loggerFactory,
+        ILogger<DriveStorageServiceBase> logger,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
@@ -37,9 +38,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         InboxStorageManager inboxStorageManager,
         IdentityDatabase db,
         InboxFileStore inboxFileStore,
-        UploadFileStore uploadFileStore) : RequirePermissionsBase
+        UploadFileStore uploadFileStore,
+        FileExpiryScheduler fileExpiryScheduler) : RequirePermissionsBase
     {
-        private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
+        private readonly ILogger<DriveStorageServiceBase> _logger = logger;
 
         protected override IDriveManager DriveManager { get; } = driveManager;
 
@@ -202,7 +204,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
@@ -236,7 +238,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 catch (Exception)
                 {
-                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
@@ -259,7 +261,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
@@ -332,6 +334,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
+            ApplyShortenOnlyTtl(existingHeader.FileMetadata, metadata);
 
             // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
             await AssertPayloadsExistOnFileSystemAsync(header);
@@ -503,7 +506,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 catch (Exception)
                 {
-                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
@@ -531,7 +534,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
@@ -645,8 +648,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header.ServerMetadata.FileSystemType;
         }
 
+        /// <param name="startExpiryClock">
+        /// Whether this read counts as "someone opened it" for an expire-after-first-read Ttl. Opt-in,
+        /// and only the caller-facing payload endpoint passes true. Plenty of internal callers stream a
+        /// payload for their own reasons - packaging it for a peer transfer, publishing static content,
+        /// reading a contact photo - and none of those are a reader opening the file. Defaulting this
+        /// to false means a new internal caller cannot silently start burning files.
+        /// </param>
         public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk,
-            IOdinContext odinContext)
+            IOdinContext odinContext, bool startExpiryClock = false)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
@@ -667,6 +677,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            if (startExpiryClock)
+            {
+                await TryResolveTtlOnFirstReadAsync(header, odinContext);
+            }
+
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
@@ -675,7 +690,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
@@ -698,7 +713,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext);
+            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
 
             return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
         }
@@ -709,7 +724,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var fileHeader = await GetServerFileHeaderInternal(file, odinContext);
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
 
             if (fileHeader == null)
             {
@@ -783,6 +798,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     success = true;
                 }
 
+                await TryScheduleExpiryAsync(serverHeader, odinContext);
+
                 if (serverHeader != null && await TryShouldRaiseDriveEventAsync(targetFile))
                 {
                     await TryPublishAsync(new DriveFileAddedNotification
@@ -843,6 +860,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
+            ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 
             newMetadata.File = existingServerHeader.FileMetadata.File;
             //Note: our call to GetServerFileHeader earlier validates the existing
@@ -850,9 +868,14 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             payloads = newMetadata.Payloads ?? [];
 
+            // Snapshot what the committed header points at before anything is copied over it. Both the mid-copy
+            // rollback and the post-commit-failure rollback below must leave these objects alone.
+            var committedPayloads = existingServerHeader.FileMetadata.Payloads?.ToList() ?? [];
+
             if (!ignorePayload.GetValueOrDefault(false))
             {
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, sourceArea);
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, sourceArea,
+                    committedPayloads);
             }
 
             bool success = false;
@@ -886,6 +909,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                     success = true;
                 }
 
+                // The TTL may have been shortened by this write; queue a delete for the new time. The
+                // job already queued for the old time re-reads the header and no-ops if it lost the race.
+                await TryScheduleExpiryAsync(serverHeader, odinContext);
+
                 if (serverHeader != null && await TryShouldRaiseDriveEventAsync(targetFile))
                 {
                     await TryPublishAsync(new DriveFileChangedNotification
@@ -902,8 +929,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     if (!ignorePayload.GetValueOrDefault(false))
                     {
-                        //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
-                        var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
+                        //Since this method is a full overwrite, zombies are all payloads on the file being
+                        //overwritten, except any the incoming header reuses in place: a peer retransmit carries the
+                        //sender's original descriptor, so an incoming payload can share Key and Uid (and therefore
+                        //its stored object) with the one it replaces. Deleting that would destroy live bytes.
+                        var zombiePayloads = PayloadStorage.ExcludeStillLive(committedPayloads, payloads);
                         await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
                     }
                 }
@@ -911,7 +941,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     if (!ignorePayload.GetValueOrDefault(false))
                     {
-                        await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, payloads);
+                        // The header was never replaced, so the old one still references committedPayloads. Roll back
+                        // only the incoming copies that live at their own objects.
+                        await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                            PayloadStorage.ExcludeStillLive(payloads, committedPayloads));
                     }
                 }
             }
@@ -943,15 +976,22 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            // zombies will be those payloads that we overwrite 
-            var zombiePayloads = existingServerHeader.FileMetadata.Payloads
-                .Where(existingPayload => incomingPayloads.Any(incomingPayload => incomingPayload.KeyEquals(existingPayload))).ToList();
+            // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
+            // cleanup paths below have to reason about what the DB header referenced before that.
+            var committedPayloads = existingServerHeader.FileMetadata.Payloads?.ToList() ?? [];
+
+            // zombies will be those payloads that we overwrite, minus any the incoming set reuses in place
+            // (same Key and Uid resolves to the same stored object, so deleting it would destroy live bytes)
+            var zombiePayloads = PayloadStorage.ExcludeStillLive(
+                committedPayloads
+                    .Where(existingPayload => incomingPayloads.Any(incomingPayload => incomingPayload.KeyEquals(existingPayload))),
+                incomingPayloads);
 
             try
             {
                 //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive,
-                    StagingArea.Upload);
+                    StagingArea.Upload, committedPayloads);
 
                 // get all the existing payloads that are not in the incoming list, we'll keep these
                 var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
@@ -966,7 +1006,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception)
             {
-                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, incomingPayloads);
+                // The header write failed, so the committed header still references committedPayloads; only the
+                // incoming copies that landed on their own objects are safe to reclaim.
+                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                    PayloadStorage.ExcludeStillLive(incomingPayloads, committedPayloads));
                 throw;
             }
 
@@ -1191,8 +1234,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // First prepare by copying everything needed
-            var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext,
-                sourceArea);
+            var (header, copiedPayloads, zombies, committedPayloads) = await UpdateBatchCopyFilesAsync(originFile, targetFile,
+                manifest, odinContext, sourceArea);
             try
             {
                 await AssertPayloadsExistOnFileSystemAsync(header);
@@ -1244,9 +1287,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 else
                 {
-                    // clean up the newly copied payloads since we failed to update the header 
+                    // clean up the newly copied payloads since we failed to update the header; the committed header is
+                    // unchanged, so anything sharing a stored object with it must be left alone
                     var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, copiedPayloads);
+                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                        PayloadStorage.ExcludeStillLive(copiedPayloads, committedPayloads));
                 }
             }
 
@@ -1269,12 +1314,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)>
+        private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies,
+                List<PayloadDescriptor> committedPayloads)>
             UpdateBatchCopyFilesAsync(InternalDriveFileId originFile,
                 InternalDriveFileId targetFile, BatchUpdateManifest manifest,
                 IOdinContext odinContext, StagingArea sourceArea)
         {
             List<PayloadDescriptor> copiedPayloads = new();
+            List<PayloadDescriptor> committedPayloads = [];
 
             List<PayloadDescriptor> DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
             {
@@ -1331,7 +1378,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 // Copy all payload from the temp folder to the long term folder
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive, sourceArea);
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive, sourceArea,
+                    committedPayloads);
 
                 return zombies;
             }
@@ -1385,14 +1433,22 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
             var zombies = new List<PayloadDescriptor>();
 
+            // ProcessAppendOrOverwrite upserts descriptors into existingHeader before copying any bytes, so snapshot
+            // what the committed header referenced first. Both the mid-copy rollback and the caller's
+            // failure branch need it to tell a genuine orphan from a live object.
+            committedPayloads = existingHeader.FileMetadata.Payloads?.ToList() ?? [];
+
             zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
             zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
 
             // At this point we have now copied all the files successfully and return
             // the payloads that must be cleaned up. The caller can now do its DB
-            // stuff and then call cleanup
+            // stuff and then call cleanup.
+            // Never hand back a zombie that shares its stored object (Key + Uid) with a payload the resulting
+            // header still points at; deleting it would destroy live bytes rather than a previous version.
+            var deletableZombies = PayloadStorage.ExcludeStillLive(zombies, existingHeader.FileMetadata.Payloads);
 
-            return (existingHeader, copiedPayloads, zombies);
+            return (existingHeader, copiedPayloads, deletableZombies, committedPayloads);
         }
 
 
@@ -1884,7 +1940,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext)
+        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext,
+            bool includeExpired = false)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
@@ -1894,9 +1951,198 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            // Belt and braces for the window between a TTL coming due and its job actually running.
+            // Jobs lag; a file must never outlive its stated life just because the runner is busy.
+            // The delete paths pass includeExpired so the expiry job can still see what it must remove.
+            if (!includeExpired && IsExpired(header))
+            {
+                return null;
+            }
+
             await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
 
             return header;
+        }
+
+        /// <summary>
+        /// True when this file's <see cref="FileMetadata.Ttl"/> has come due. A pending
+        /// (expire-after-first-read) TTL counts as expired once its unread backstop has passed.
+        /// </summary>
+        public static bool IsExpired(ServerFileHeader header)
+        {
+            var metadata = header.FileMetadata;
+            var dueAt = FileTtl.ExpiresAt(metadata.Ttl, metadata.Created);
+            return dueAt != null && dueAt.Value <= UnixTimeUtc.Now().milliseconds;
+        }
+
+        /// <summary>
+        /// Queues the delete for a newly committed file that carries a TTL. Never allowed to fail the
+        /// write: a file that got stored but whose job did not queue is recoverable, a write that
+        /// rolled back because the scheduler hiccuped is not.
+        /// </summary>
+        private async Task TryScheduleExpiryAsync(ServerFileHeader header, IOdinContext odinContext)
+        {
+            if (header == null || FileTtl.IsNever(header.FileMetadata.Ttl))
+            {
+                return;
+            }
+
+            try
+            {
+                await fileExpiryScheduler.ScheduleExpiryAsync(header, odinContext);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to schedule expiry for file {file} on drive {drive}",
+                    header.FileMetadata.File.FileId, header.FileMetadata.File.DriveId);
+            }
+        }
+
+        /// <summary>
+        /// Turns a pending (negative) TTL into a real point in time on this copy's first payload read,
+        /// then queues the delete. This is the whole mechanism behind expire-after-reading, and it is
+        /// deliberately hung off the payload read rather than the header read: mail clients and
+        /// security scanners prefetch links, and the payload URL is not in the message.
+        ///
+        /// The write advances the version tag, because it must: <c>TableDriveMainIndex.cs:71</c>
+        /// refuses an upsert that reuses the existing tag outright. That is arguably the honest
+        /// outcome anyway - the file really did change state, and a client watching a burn countdown
+        /// wants to see it. The cost is that a client holding the pre-read version tag will lose an
+        /// optimistic-concurrency update it attempts afterwards.
+        ///
+        /// The re-read inside the transaction means a second concurrent reader finds the TTL already
+        /// resolved and leaves it alone. Two readers racing at exactly the same instant could still
+        /// both write; the values would differ by at most a few milliseconds, which is harmless.
+        /// </summary>
+        private async Task TryResolveTtlOnFirstReadAsync(ServerFileHeader header, IOdinContext odinContext)
+        {
+            if (!FileTtl.IsPendingFirstRead(header.FileMetadata.Ttl))
+            {
+                return;
+            }
+
+            var file = header.FileMetadata.File;
+
+            try
+            {
+                var drive = await DriveManager.GetDriveAsync(file.DriveId);
+                var resolved = FileTtl.ResolveFirstRead(header.FileMetadata.Ttl, UnixTimeUtc.Now());
+
+                await using (var tx = await db.BeginStackedTransactionAsync())
+                {
+                    var fresh = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+                    if (fresh == null || !FileTtl.IsPendingFirstRead(fresh.FileMetadata.Ttl))
+                    {
+                        return; // already read, already resolved by someone else
+                    }
+
+                    fresh.FileMetadata.Ttl = resolved;
+                    await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: null);
+                    tx.Commit();
+                }
+
+                header.FileMetadata.Ttl = resolved;
+
+                await fileExpiryScheduler.ScheduleExpiryAtAsync(
+                    file, header.ServerMetadata.FileSystemType, resolved, odinContext.Tenant);
+
+                _logger.LogDebug("Resolved expire-after-read TTL for file {file} on drive {drive} to {resolved}",
+                    file.FileId, file.DriveId, resolved);
+            }
+            catch (Exception e)
+            {
+                // A read must not fail because the clock could not be started.
+                _logger.LogError(e, "Failed to resolve TTL on first read for file {file} on drive {drive}",
+                    file.FileId, file.DriveId);
+            }
+        }
+
+        /// <summary>
+        /// Applies the shorten-only rule: an update may bring a file's death forward but never push it
+        /// out. See <see cref="FileTtl.Shortest"/> for why this clamps instead of throwing.
+        /// </summary>
+        private void ApplyShortenOnlyTtl(FileMetadata existing, FileMetadata incoming)
+        {
+            var clamped = FileTtl.Shortest(incoming.Ttl, existing.Ttl, existing.Created);
+            if (clamped != incoming.Ttl)
+            {
+                _logger.LogInformation(
+                    "Update to file {file} tried to extend Ttl from {existingTtl} to {incomingTtl}; keeping the existing",
+                    existing.File.FileId, existing.Ttl, incoming.Ttl);
+            }
+
+            incoming.Ttl = clamped;
+        }
+
+        /// <summary>
+        /// Brings a file's death forward to now, at the request of a caller who can READ it. Safe to
+        /// expose anonymously for exactly one reason: anyone who can make this call already holds the
+        /// content, so the only thing they can take away is remaining lifetime - and only from a file
+        /// that is already dying. A file with no Ttl is refused outright: hastening is not killing,
+        /// and an anonymous visitor must never be able to destroy permanent public data.
+        /// SECURITY DEBT: must additionally require the drive to be non-enumerable
+        /// (BlockAnonymousEnumeration, not yet built) - see the banner on the expire-now endpoint.
+        /// </summary>
+        public async Task<bool> HastenExpiryAsync(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            await AssertCanReadDriveAsync(file.DriveId, odinContext);
+
+            var header = await GetServerFileHeaderInternal(file, odinContext);
+            if (header == null)
+            {
+                return false; // gone already, or never was - the caller cannot tell, on purpose
+            }
+
+            if (FileTtl.IsNever(header.FileMetadata.Ttl))
+            {
+                throw new OdinClientException("Only a file that already expires can be expired early",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
+            var nowMs = UnixTimeUtc.Now().milliseconds;
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+
+            await using (var tx = await db.BeginStackedTransactionAsync())
+            {
+                var fresh = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+                if (fresh == null)
+                {
+                    return false;
+                }
+
+                // Shorten-only by construction: now is earlier than any live absolute Ttl, and a
+                // pending negative Ttl resolves to at-least-now. Never extend, never resurrect.
+                fresh.FileMetadata.Ttl = nowMs;
+                await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: null);
+                tx.Commit();
+            }
+
+            try
+            {
+                await fileExpiryScheduler.ScheduleExpiryAtAsync(
+                    file, header.ServerMetadata.FileSystemType, nowMs, odinContext.Tenant);
+            }
+            catch (Exception e)
+            {
+                // The file is already dead - Ttl <= now refuses every read - the job only tombstones
+                // it eagerly. Same best-effort stance as TryScheduleExpiryAsync.
+                _logger.LogError(e, "Failed to schedule eager tombstoning of hastened file {file} on drive {drive}",
+                    file.FileId, file.DriveId);
+            }
+
+            _logger.LogInformation("Expiry hastened to now for file {file} on drive {drive}",
+                file.FileId, file.DriveId);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Loads a header for the TTL jobs, which must be able to see a file precisely because it has
+        /// expired. Every other read path hides expired files.
+        /// </summary>
+        public async Task<ServerFileHeader> GetServerFileHeaderForExpiry(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            return await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
         }
 
         private async Task OverwriteMetadataInternal(byte[] keyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
@@ -1934,6 +2180,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
+            ApplyShortenOnlyTtl(existingServerHeader.FileMetadata, newMetadata);
 
             //fields we keep
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
@@ -1958,14 +2205,22 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
             await WriteFileHeaderInternal(existingServerHeader, odinContext, useThisVersionTag); // Sets header.FileMetadata.Created/Updated
+            await TryScheduleExpiryAsync(existingServerHeader, odinContext);
         }
 
         /// <summary>
         /// Copies payloads and thumbs to long term storage
         /// </summary>
         /// <returns>List of all files copied (directory and filename)</returns>
+        /// <param name="committedPayloads">
+        /// Payloads the currently committed header references. On failure they must survive the rollback: an
+        /// incoming descriptor that shares Key and Uid with one of them resolves to the same stored object, so
+        /// "undo the copy" would delete live bytes rather than the copy. Null/empty for a brand-new file, where
+        /// nothing is committed yet and every incoming payload is genuinely an orphan.
+        /// </param>
         private async Task CopyPayloadsAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
-            List<PayloadDescriptor> descriptors, StorageDrive drive, StagingArea sourceArea)
+            List<PayloadDescriptor> descriptors, StorageDrive drive, StagingArea sourceArea,
+            List<PayloadDescriptor> committedPayloads = null)
         {
             // [UploadTiming] Diagnostic: time the whole commit-to-long-term loop (payloads uploaded sequentially here).
             var totalSw = System.Diagnostics.Stopwatch.StartNew();
@@ -1990,7 +2245,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 _logger.LogWarning(
                     "[UploadTiming] Commit-to-long-term FAILED fileId:{fileId} totalMs:{totalMs}",
                     targetFile.FileId, totalSw.ElapsedMilliseconds);
-                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, descriptors);
+                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId,
+                    PayloadStorage.ExcludeStillLive(descriptors, committedPayloads));
                 throw;
             }
         }
@@ -2055,7 +2311,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
 
             // special exception *eye roll*.  really need to root this feed thing out of the core
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
             {
                 return missingPayloads;
             }

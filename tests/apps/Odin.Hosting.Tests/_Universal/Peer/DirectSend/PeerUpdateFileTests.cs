@@ -350,8 +350,8 @@ public class PeerUpdateFileTests
         // Update the file via pippin's identity
         //
 
-        await member1_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await member1_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(member1_OwnerClient);
@@ -411,11 +411,11 @@ public class PeerUpdateFileTests
             var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = remoteTargetFile.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
+                TargetDrive = WellKnownAppDrives.FeedDrive
             };
 
-            await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+            await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
+            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive);
 
             var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
             ClassicAssert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);
@@ -510,8 +510,8 @@ public class PeerUpdateFileTests
         // Update the file via pippin's identity
         //
 
-        await member1_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await member1_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(member1_OwnerClient);
@@ -589,12 +589,12 @@ public class PeerUpdateFileTests
             var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
+                TargetDrive = WellKnownAppDrives.FeedDrive
             };
 
             await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
-            await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, int.MaxValue);
-            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+            await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive, int.MaxValue);
+            await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(WellKnownAppDrives.FeedDrive);
 
             var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
             ClassicAssert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);

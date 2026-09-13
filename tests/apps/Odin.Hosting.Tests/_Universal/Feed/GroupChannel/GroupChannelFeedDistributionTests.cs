@@ -88,7 +88,7 @@ public class GroupChannelFeedDistributionTests
         {
             QueryParams = new FileQueryParamsV1()
             {
-                TargetDrive = SystemDriveConstants.FeedDrive,
+                TargetDrive = WellKnownAppDrives.FeedDrive,
                 GlobalTransitId = [uploadResult.GlobalTransitId.GetValueOrDefault()]
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest()

@@ -244,6 +244,38 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<DriveReactionsRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,driveId,postId,identity,singleReaction FROM DriveReactions " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(DriveReactionsRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
+                                            "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                importCommand.AddParameter("@postId", DbType.Binary, item.postId);
+                importCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
+                importCommand.AddParameter("@singleReaction", DbType.String, item.singleReaction);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

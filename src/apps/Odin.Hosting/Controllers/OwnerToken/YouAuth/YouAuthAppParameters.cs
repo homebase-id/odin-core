@@ -17,6 +17,15 @@ public class YouAuthAppParameters
     [Required(ErrorMessage = $"{AppNameName} is required")]
     public string AppName { get; set; } = "";
 
+    /// <summary>
+    /// The app half of <c>/apps/{appSlug}/drives/{driveSlug}</c>. Optional: left empty, the server
+    /// derives one from <see cref="AppName"/> at registration. Either way it is immutable once
+    /// written, so this is the app's one chance to name itself.
+    /// </summary>
+    public const string AppSlugName = "as";
+    [JsonPropertyName(AppSlugName)]
+    public string AppSlug { get; set; } = "";
+
     public const string AppOriginName = "o";
     [JsonPropertyName(AppOriginName)]
     public string AppOrigin { get; set; } = "";
@@ -62,6 +71,7 @@ public class YouAuthAppParameters
 
     private YouAuthAppParameters(
         string appName,
+        string appSlug,
         string appOrigin,
         string appId,
         string clientFriendly,
@@ -74,6 +84,7 @@ public class YouAuthAppParameters
     {
         AppId = appId;
         AppName = appName;
+        AppSlug = appSlug;
         AppOrigin = appOrigin;
         ClientFriendly = clientFriendly;
         DrivesParam = drivesParam;
@@ -91,6 +102,7 @@ public class YouAuthAppParameters
 
         qs[AppIdName] = AppId;
         qs[AppNameName] = AppName;
+        qs[AppSlugName] = AppSlug;
         qs[AppOriginName] = AppOrigin;
         qs[ClientFriendlyName] = ClientFriendly;
         qs[DrivesParamName] = DrivesParam;
@@ -112,6 +124,7 @@ public class YouAuthAppParameters
         return new YouAuthAppParameters(
             appId: qs[AppIdName] ?? string.Empty,
             appName: qs[AppNameName] ?? string.Empty,
+            appSlug: qs[AppSlugName] ?? string.Empty,
             appOrigin: qs[AppOriginName] ?? string.Empty,
             clientFriendly: qs[ClientFriendlyName] ?? string.Empty,
             drivesParam: qs[DrivesParamName] ?? string.Empty,

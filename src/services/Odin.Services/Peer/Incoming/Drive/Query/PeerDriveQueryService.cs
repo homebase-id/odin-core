@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Time;
 using Odin.Services.Apps;
+using Odin.Core.Exceptions;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -16,7 +18,10 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Peer.Incoming.Drive.Query
 {
-    public class PeerDriveQueryService(IDriveManager driveManager, IDriveFileSystem fileSystem)
+    public class PeerDriveQueryService(
+        IDriveManager driveManager,
+        IDriveFileSystem fileSystem,
+        IAppRegistrationService appRegistrationService)
     {
         public async Task<QueryModifiedResult> QueryModified(FileQueryParamsV1 qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
@@ -118,6 +123,109 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType,
                 payloadDescriptor.LastModified, thumb);
+        }
+
+        /// <summary>
+        /// What <c>/apps/{appSlug}/drives/{driveSlug}</c> names here, so a remote caller can address a
+        /// drive without both sides sharing hardcoded guid constants.  Null when nothing answers to
+        /// that address, and equally when the caller may not read it.
+        /// </summary>
+        /// <remarks>
+        /// Any grant on the drive is enough -- read, write, or conditional-temporal-read.  Guarding on
+        /// Read alone would lock out the two callers this address most exists for: the deposit-only
+        /// writer, whose GrantOn=Connect circle grants Write and no read
+        /// (docs/connection-defaults.md), and the temporal reader, whose grant is neither.  Both could
+        /// act on the drive but never learn its address.  Holding any grant already proves the caller
+        /// legitimately knows of the drive, so this reveals nothing a drive-type query does not.
+        ///
+        /// Not-found and not-permitted return the same null on purpose: distinguishing them would let a
+        /// caller enumerate an identity's apps and drives by name.
+        /// </remarks>
+        public async Task<PerimeterDriveData> ResolveDriveAddressAsync(string appSlug, string driveSlug,
+            IOdinContext odinContext)
+        {
+            var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);
+            if (app == null)
+            {
+                return null;
+            }
+
+            var drive = await driveManager.GetDriveBySlugAsync(app.AppId, driveSlug, odinContext);
+            if (drive == null)
+            {
+                return null;
+            }
+
+            var perms = odinContext.PermissionsContext;
+            var canSee = perms.HasDrivePermission(drive.Id, DrivePermission.Read) ||
+                         perms.HasDrivePermission(drive.Id, DrivePermission.Write) ||
+                         perms.HasDrivePermission(drive.Id, DrivePermission.ConditionalTemporalRead);
+
+            if (!canSee)
+            {
+                return null;
+            }
+
+            return new PerimeterDriveData
+            {
+                TargetDrive = drive.TargetDriveInfo,
+                Attributes = drive.Attributes
+            };
+        }
+
+        /// <summary>
+        /// Serves a drive's write-only public key, so a caller can seal a deposit to a drive it may
+        /// write but never read.
+        /// </summary>
+        /// <remarks>
+        /// <b>Write is required, and only Write.</b>  Unlike
+        /// <see cref="ResolveDriveAddressAsync"/>, which accepts any grant because naming a drive
+        /// reveals nothing a caller cannot already learn, this hands out the means to put data on the
+        /// drive.  A reader has no business with it.
+        /// <para>
+        /// A missing drive is a 404 and a missing grant is a security exception -- deliberately
+        /// different, unlike resolution, which conflates them.  By the time a caller reaches here it
+        /// has already resolved the address, which means it already holds a grant; refusing with a
+        /// 404 would send it looking for a drive that is there.
+        /// </para>
+        /// <para>
+        /// Every drive is minted a keypair at creation and the migration backfills the rest, so a
+        /// null here is a drive that predates both and escaped the upgrade -- a server-side fault,
+        /// not something the caller can act on.
+        /// </para>
+        /// </remarks>
+        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKeyAsync(string appSlug, string driveSlug,
+            IOdinContext odinContext)
+        {
+            var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);
+            if (app == null)
+            {
+                return null;
+            }
+
+            var drive = await driveManager.GetDriveBySlugAsync(app.AppId, driveSlug, odinContext);
+            if (drive == null)
+            {
+                return null;
+            }
+
+            if (!odinContext.PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Write))
+            {
+                throw new OdinSecurityException(
+                    $"Write access is required to retrieve the public key for /apps/{appSlug}/drives/{driveSlug}");
+            }
+
+            if (drive.WriteOnlyKeyPair == null)
+            {
+                throw new OdinSystemException(
+                    $"Drive {drive.Id} has no write-only keypair; it cannot collect deposits");
+            }
+
+            return new DrivePublicKeyResponse
+            {
+                PublicKeyJwk = drive.WriteOnlyKeyPair.PublicKeyJwk(),
+                PublicKeyCrc32 = drive.WriteOnlyKeyPair.crc32c
+            };
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrivesAsync(Guid driveType, IOdinContext odinContext)

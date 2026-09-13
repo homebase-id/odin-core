@@ -132,11 +132,12 @@ public class DataImporterEndToEndTests
         // All identity tables should be copied 1:1
         await AssertTableCountsMatchAsync(srcId, tgtId, IdentityDatabase.TableTypes);
 
-        // Of system tables, only Registrations + Certificates are imported per-identity
+        // Of system tables, only Registrations + Certificates + DkimKeys are imported per-identity
         var perIdentitySystemTables = new HashSet<string>
         {
             "Registrations",
             "Certificates",
+            "DkimKeys",
         };
         await AssertSelectiveSystemCountsAsync(srcSys, tgtSys, perIdentitySystemTables);
     }
