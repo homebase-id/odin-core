@@ -150,6 +150,13 @@ captured for the connection that sent `GET / HTTP/1.1` instead of a PROXY header
 listener; all three CI workflows passed on `main` at the branch's base (`6df4c4301`). Not
 reproduced on a clean tree locally (port 8443 was occupied at the time).
 
-**Cause:** unknown. The test was last changed by `9d1315b7e` (PR #1732, stop warning about
-health probes on the PROXY listener), which split zero-byte peers (Verbose) from peers that send
-bytes (Warning); a timing or classification race in that split is a candidate, but unconfirmed.
+Failed a third time on `21bc5fa85` (`ubuntu/sqlite/release`, run 34768975917, 2026-09-13).
+
+**Status:** marked `[Explicit]` (2026-09-13) so it no longer runs in CI; tracked in #1734.
+Remove the attribute and this entry once that is fixed.
+
+**Cause (suspected, not reproduced):** the test disposes the socket right after writing, and
+`ProxyProtocolConnectionMiddleware` links `ConnectionClosed` into the read token. If the close is
+observed before the first read returns the buffered bytes, the read is cancelled with
+`bytesReceived == 0` and logged at Verbose instead of Warning. Details and candidate fixes in
+#1734. The test was added by `9d1315b7e` (PR #1732).
