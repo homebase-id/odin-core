@@ -54,11 +54,10 @@ public class TransitAuthenticationService :
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
         ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
+        var (permissionContext, circleIds, icr) =
+            await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
 
         // The peer's own record decides their tier; the setting decides whether that matters at all.
-        var icr = await _circleNetworkService.GetIcrAsync(callerOdinId, odinContext, overrideHack: true);
-
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,

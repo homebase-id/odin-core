@@ -58,7 +58,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
-        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContextAsync(
+        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds, IdentityConnectionRegistration icr)> CreateTransitPermissionContextAsync(
             OdinId odinId,
             ClientAuthenticationToken remoteIcrToken,
             IOdinContext odinContext)
@@ -101,7 +101,7 @@ namespace Odin.Services.Membership.Connections
                 applyAppCircleGrants: true,
                 odinContext);
 
-            return (permissionContext, enabledCircles);
+            return (permissionContext, enabledCircles, icr);
         }
 
         /// <summary>
