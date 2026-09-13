@@ -107,7 +107,7 @@ namespace Odin.Services.DataSubscription
             await pushNotificationService.EnqueueNotification(notification.Sender,
                 new AppNotificationOptions()
                 {
-                    AppId = SystemAppConstants.OwnerAppId,
+                    AppId = SystemAppConstants.SystemAppId,
                     TypeId = notification.NotificationTypeId,
                     TagId = notification.Sender.ToHashId(),
                     Silent = false
@@ -125,7 +125,7 @@ namespace Odin.Services.DataSubscription
             }
 
             return drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType ||
-                   drive.TargetDriveInfo == SystemDriveConstants.FeedDrive;
+                   drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive;
         }
     }
 }

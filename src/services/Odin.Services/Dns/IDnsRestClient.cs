@@ -32,6 +32,21 @@ public interface IDnsRestClient
     Task CreateCnameRecords(string zoneId, string name, string alias);
     Task DeleteCnameRecords(string zoneId, string name);
 
+    /// <summary>
+    /// Creates/replaces the MX rrset at name. Each content is "&lt;preference&gt; &lt;target&gt;."
+    /// (e.g. "10 node-a.example.") - all of a name's MX records must be written in ONE call,
+    /// since REPLACE swaps the whole rrset.
+    /// </summary>
+    Task CreateMxRecords(string zoneId, string name, IEnumerable<string> exchanges);
+    Task DeleteMxRecords(string zoneId, string name);
+
+    /// <summary>
+    /// Creates/replaces the TXT rrset at name. Values are plain text - zone-file quoting,
+    /// escaping, and 255-byte chunking are applied internally.
+    /// </summary>
+    Task CreateTxtRecords(string zoneId, string name, IEnumerable<string> values);
+    Task DeleteTxtRecords(string zoneId, string name);
+
     //
     // DNSSEC
     //

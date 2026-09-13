@@ -516,18 +516,35 @@ public class HomebasePublicPageService(
         return input.Substring(0, maxLength);
     }
 
+    private static readonly string[] AllowedPaths =
+    [
+        $"/{LinkPreviewDefaults.SsrPath}",
+        "/posts",
+        "/connections",
+        "/links",
+        "/about",
+        "/sitemap.xml"
+    ];
+
+    /// <summary>
+    /// Static so callers can test the path without first resolving this service (its dependency graph
+    /// is expensive to build, and on most requests the answer is false).
+    /// </summary>
+    public static bool IsAllowedPath(PathString path)
+    {
+        foreach (var allowed in AllowedPaths)
+        {
+            if (path.StartsWithSegments(allowed))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public bool IsAllowedPath()
     {
-        List<string> allowedPaths =
-        [
-            $"/{LinkPreviewDefaults.SsrPath}",
-            "/posts",
-            "/connections",
-            "/links",
-            "/about",
-            "/sitemap.xml"
-        ];
-
-        return allowedPaths.Any(IsPath);
+        return IsAllowedPath(httpContextAccessor.HttpContext.Request.Path);
     }
 }

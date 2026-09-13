@@ -20,6 +20,7 @@ public partial class SystemMigrator
             {
                 new TableJobsMigrationList(),
                 new TableCertificatesMigrationList(),
+                new TableDkimKeysMigrationList(),
                 new TableLastSeenMigrationList(),
                 new TableRegistrationsMigrationList(),
                 new TableSettingsMigrationList(),

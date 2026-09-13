@@ -34,5 +34,13 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// Specifies the identity that holds the payload content
         /// </summary>
         public DataSource DataSource { get; set; }
+
+        /// <summary>
+        /// When this file should expire, in milliseconds. <c>0</c> never, <c>&gt; 0</c> an absolute
+        /// <see cref="Odin.Core.Time.UnixTimeUtc"/>, <c>&lt; 0</c> a duration measured from the first
+        /// payload read. Use <see cref="FileTtl.After"/> / <see cref="FileTtl.AfterFirstRead"/> rather
+        /// than a raw number. Travels to recipients, which is how group retention works.
+        /// </summary>
+        public long Ttl { get; set; }
     }
 }

@@ -9,6 +9,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using SQLitePCL;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
@@ -458,7 +459,7 @@ public class DriveManagementTests
         {
             var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 
-            foreach (var systemDrive in SystemDriveConstants.SystemDrives)
+            foreach (var systemDrive in BuiltinDrives.Protected)
             {
                 var response = await svc.SetDriveReadMode(new UpdateDriveReadModeRequest()
                 {

@@ -24,7 +24,7 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize)
         _socketListener.NotificationReceived += SocketListenerOnNotificationReceived;
         await _socketListener.ConnectAsync(_client.Identity.OdinId, _client.GetTokenContext(), new EstablishConnectionOptions()
         {
-            Drives = [SystemDriveConstants.ChatDrive],
+            Drives = [WellKnownAppDrives.ChatDrive],
         });
     }
 
@@ -38,7 +38,7 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize)
         switch (notification.NotificationType)
         {
             case ClientNotificationType.InboxItemReceived:
-                await _client.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, processInboxBatchSize);
+                await _client.DriveRedux.ProcessInbox(WellKnownAppDrives.ChatDrive, processInboxBatchSize);
                 // Console.WriteLine($"Identity: {_client.Identity.OdinId}. Notification: InboxItemReceived");
                 break;
 

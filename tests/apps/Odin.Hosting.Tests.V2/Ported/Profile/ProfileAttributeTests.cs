@@ -26,7 +26,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Profile;
 [TestFixture]
 public class ProfileAttributeTests : V2Fixture
 {
-    private static readonly Guid ProfileDriveId = SystemDriveConstants.ProfileDrive.Alias;
+    private static readonly Guid ProfileDriveId = WellKnownAppDrives.ProfileDrive.Alias;
     private static readonly Guid NameType = BuiltInProfileAttributes.Name;
     private static readonly Guid StatusType = BuiltInProfileAttributes.Status;
 
@@ -265,7 +265,7 @@ public class ProfileAttributeTests : V2Fixture
 
         // Apps get a READ grant on the ProfileDrive (carrying the storage key the service needs to encrypt
         // non-public attributes); the API supplies Write via an ACL-bypass upgrade gated on ManageProfile.
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ProfileDrive,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
             Odin.Services.Drives.DrivePermission.Read, permissionKeys);
         return new V2ProfileClient(app.Identity, app.Factory);
     }

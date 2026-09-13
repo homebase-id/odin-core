@@ -13,6 +13,7 @@ using Odin.Services.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -127,28 +128,28 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsNotNull(createdDrivesResponse.Content);
 
             var createdDrives = createdDrivesResponse.Content;
-            ClassicAssert.IsTrue(createdDrives.Results.Count == SystemDriveConstants.SystemDrives.Count);
+            ClassicAssert.IsTrue(createdDrives.Results.Count == BuiltinDrives.Protected.Count);
 
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
-                $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ProfileDrive),
-                $"expected drive [{SystemDriveConstants.ProfileDrive}] not found");
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.WalletDrive),
-                $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive),
-                $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.MomentsDrive),
-                $"expected drive [{SystemDriveConstants.MomentsDrive}] not found");
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.MailDrive),
-                $"expected drive [{SystemDriveConstants.MailDrive}] not found");
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
-                $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.ContactDrive),
+                $"expected drive [{WellKnownAppDrives.ContactDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.ProfileDrive),
+                $"expected drive [{WellKnownAppDrives.ProfileDrive}] not found");
+            // WalletDrive is deliberately absent: it is no longer seeded for new identities, and only
+            // the ones that already had it keep it.
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.ChatDrive),
+                $"expected drive [{WellKnownAppDrives.ChatDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.MomentsDrive),
+                $"expected drive [{WellKnownAppDrives.MomentsDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.MailDrive),
+                $"expected drive [{WellKnownAppDrives.MailDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.FeedDrive),
+                $"expected drive [{WellKnownAppDrives.FeedDrive}] not found");
 
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.HomePageConfigDrive),
-                $"expected drive [{SystemDriveConstants.HomePageConfigDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.HomePageConfigDrive),
+                $"expected drive [{WellKnownAppDrives.HomePageConfigDrive}] not found");
 
-            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.PublicPostsChannelDrive),
-                $"expected drive [{SystemDriveConstants.PublicPostsChannelDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == WellKnownAppDrives.PublicPostsChannelDrive),
+                $"expected drive [{WellKnownAppDrives.PublicPostsChannelDrive}] not found");
 
 
             var getCircleDefinitionsResponse = await ownerClient.Membership.GetCircleDefinitions(includeSystemCircle: true);
@@ -157,24 +158,29 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var circleDefs = getCircleDefinitionsResponse.Content?.ToList();
             ClassicAssert.IsNotNull(circleDefs);
 
+            var seededCircles = BuiltinApps.SeededCircles.Select(c => (Guid)c.Id).Distinct().Count();
             ClassicAssert.IsTrue(
-                circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count + BuiltInCircleConstants.AllBuiltInCircles.Count,
-                "not all system and built-in circles were created");
+                circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count + seededCircles,
+                $"expected {SystemCircleConstants.AllSystemCircles.Count + seededCircles} circles, " +
+                $"found {circleDefs.Count()}");
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
-            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 9);
+            // 10, not 9: WebDropDrive is anonymous-read, and HandleDriveAdded grants the system
+            // circles read on every anonymous-read drive as it is created.  Seeding it followed
+            // Webdrop joining BuiltinApps.Builtin.
+            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 10);
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+                dg.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
                 dg.PermissionedDrive.Permission == DrivePermission.Read));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
             
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
          
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Permissions.Keys.Count == 1,
@@ -183,15 +189,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 connectedIdentitiesSystemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MailDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.FeedDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ListsDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ListsDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
             //
@@ -200,43 +206,43 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(autoConnectionsSystemCircle.Name == "Auto-connected Identities");
 
             // ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(dg =>
-            //     dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
+            //     dg.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
 
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)),
                 "auto connections get write + react access to moments");
 
             ClassicAssert.IsTrue(!autoConnectionsSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions));
 
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MailDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.FeedDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
 
             // Granted via allowAnonymous read
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
 
 
             // Granted via allowAnonymous read
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.HomePageConfigDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.HomePageConfigDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
 
 
             // Granted via allowAnonymous read
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.PublicPostsChannelDrive &&
+                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.PublicPostsChannelDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
 
 
@@ -254,10 +260,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     $"chat app should have ReadWrite on drive [{drive}]");
             }
 
-            AssertChatAppReadWrite(SystemDriveConstants.ChatDrive);
-            AssertChatAppReadWrite(SystemDriveConstants.ListsDrive);
-            AssertChatAppReadWrite(SystemDriveConstants.StickerDrive);
-            AssertChatAppReadWrite(SystemDriveConstants.LocationDrive);
+            AssertChatAppReadWrite(WellKnownAppDrives.ChatDrive);
+            AssertChatAppReadWrite(WellKnownAppDrives.ListsDrive);
+            AssertChatAppReadWrite(WellKnownAppDrives.StickerDrive);
+            AssertChatAppReadWrite(WellKnownAppDrives.LocationDrive);
         }
 
         [Test]
@@ -265,7 +271,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
-            var standardProfileDrive = SystemDriveConstants.ProfileDrive;
+            var standardProfileDrive = WellKnownAppDrives.ProfileDrive;
 
             var newDrive = new CreateDriveRequest()
             {
@@ -303,7 +309,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
             //check if system drives exist
-            var expectedDrives = SystemDriveConstants.SystemDrives.Concat([newDrive.TargetDrive]);
+            var expectedDrives = BuiltinDrives.Protected.Concat([newDrive.TargetDrive]);
 
             var createdDrivesResponse = await ownerClient.Drive.GetDrives(1, 100);
             ClassicAssert.IsNotNull(createdDrivesResponse.Content);
@@ -346,13 +352,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //note: the permission for chat drive is write
             var chatDriveGrant =
                 systemCircle.DriveGrants.SingleOrDefault(dg =>
-                    dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
+                    dg.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive &&
                     dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React));
             ClassicAssert.IsNotNull(chatDriveGrant, "the chat drive grant should exist in system circle");
             
             var momentsDriveGrant =
                 systemCircle.DriveGrants.SingleOrDefault(dg =>
-                    dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
+                    dg.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive &&
                     dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React));
             ClassicAssert.IsNotNull(momentsDriveGrant, "the chat drive grant should exist in system circle");
 

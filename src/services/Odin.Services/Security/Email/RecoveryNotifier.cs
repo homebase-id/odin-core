@@ -172,7 +172,8 @@ public class RecoveryNotifier(
     }
 
     public async Task NotifyUser(OdinId odinId, RecoveryInfo recoveryInfo, IOdinContext odinContext,
-        DnssecHealthResult dnssecAttention = null)
+        DnssecHealthResult dnssecAttention = null,
+        IReadOnlyCollection<string> mailAttention = null)
     {
         if (configuration.Mailgun.Enabled) //for #debug state
         {
@@ -184,8 +185,8 @@ public class RecoveryNotifier(
                 {
                     To = [new NameAndEmailAddress { Email = email }],
                     Subject = "Your Homebase Account Recovery Risk Report",
-                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention),
-                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention)
+                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention, mailAttention),
+                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention, mailAttention)
                 },
             };
 
@@ -201,7 +202,7 @@ public class RecoveryNotifier(
 
         await pushNotificationService.EnqueueNotification(odinId, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = ShamirConfigurationService.SecurityRiskReportNotificationTypeId,
                 TagId = odinId,
                 Silent = false,

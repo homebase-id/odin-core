@@ -148,7 +148,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("S3Payload__Enabled", "false");
 #if RUN_S3_TESTS
             Logger.LogInformation("Starting Minio S3 container for tests");
-            MinioContainer = new MinioBuilder("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+            MinioContainer = new MinioBuilder("quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z")
                 .WithUsername("minioadmin")
                 .WithPassword("minioadmin123")
                 .Build();
@@ -219,9 +219,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganization", "YF");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganizationUnit", "Dev");
 
-            Environment.SetEnvironmentVariable("Mailgun__ApiKey", "dontcare");
-            Environment.SetEnvironmentVariable("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
-            Environment.SetEnvironmentVariable("Mailgun__EmailDomain", "odin.earth");
+            // Tests must never send mail. Explicit rather than relying on the default:
+            // these are process-wide, so one fixture enabling it would leak into the rest.
             Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
 
             Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");

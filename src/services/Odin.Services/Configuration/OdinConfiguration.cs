@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
@@ -31,6 +32,9 @@ public class OdinConfiguration
     public BackgroundServicesSection BackgroundServices { get; init; } = new();
     public CertificateRenewalSection CertificateRenewal { get; init; } = new();
 
+    public EmailSection Email { get; init; } = new();
+
+    /// <summary>How this host sends its OWN mail to users (password recovery, security reports).</summary>
     public MailgunSection Mailgun { get; init; } = new();
     public AdminSection Admin { get; init; } = new();
 
@@ -62,6 +66,7 @@ public class OdinConfiguration
         Logging = new LoggingSection(config);
         BackgroundServices = new BackgroundServicesSection(config);
         Registry = new RegistrySection(config);
+        Email = new EmailSection(config);
         Mailgun = new MailgunSection(config);
         Admin = new AdminSection(config);
         AccountRecovery = new AccountRecoverySection(config);
@@ -172,6 +177,15 @@ public class OdinConfiguration
 
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
+        /// <summary>
+        /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
+        /// Default true; set false where the configured hostnames are not the real ones — a dev box
+        /// resolves them through /etc/hosts, so every lookup fails and the retry loop just logs noise.
+        /// Not a domain allowlist on purpose: the infra domain is also the production one, so
+        /// skipping it by name would disable the check exactly where it is wanted.
+        /// </summary>
+        public bool DnsInfraVerificationEnabled { get; init; } = true;
+
         public DnsConfigurationSet DnsConfigurationSet { get; init; } = new("127.0.0.1", "example.com");
         public List<string> DnsResolvers { get; init; } = [];
         public long DaysUntilAccountDeletion { get; init; } = long.MaxValue;
@@ -189,6 +203,7 @@ public class OdinConfiguration
             ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", true);
             AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
             ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", ManagedDomainApexes);
+            DnsInfraVerificationEnabled = config.GetOrDefault("Registry:DnsInfraVerificationEnabled", true);
             DnsResolvers = config.GetOrDefault("Registry:DnsResolvers",
                 new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
             DnsConfigurationSet = new DnsConfigurationSet(
@@ -244,6 +259,8 @@ public class OdinConfiguration
         public Guid SystemProcessApiKey { get; set; }
 
         public int IpRateLimitRequestsPerSecond { get; init; }
+        /// <summary>Null = enabled in Production only (the historical behaviour).</summary>
+        public bool? IpRateLimitEnabled { get; init; }
 
         public string ReportContentUrl { get; set; } = "";
 
@@ -295,6 +312,24 @@ public class OdinConfiguration
             Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
             IpAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
+            foreach (var entry in IpAddressListenList.Where(e => e.ProxyProtocol.Enabled))
+            {
+                if (entry.ProxyProtocol.TrustedProxies.Count == 0)
+                {
+                    throw new OdinConfigException(
+                        $"Host:IPAddressListenList entry {entry.Ip}:{entry.HttpsPort} enables ProxyProtocol without TrustedProxies");
+                }
+
+                try
+                {
+                    entry.ProxyProtocol.GetTrustedNetworks();
+                }
+                catch (FormatException e)
+                {
+                    throw new OdinConfigException(
+                        $"Host:IPAddressListenList entry {entry.Ip}:{entry.HttpsPort} has an invalid ProxyProtocol:TrustedProxies value: {e.Message}");
+                }
+            }
 
             HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
@@ -318,6 +353,7 @@ public class OdinConfiguration
 
             // SEB:TODO figure out what the rate limit should default to. FE requests an insane amount of files in development mode.
             IpRateLimitRequestsPerSecond = config.GetOrDefault("Host:IpRateLimitRequestsPerSecond", 1000);
+            IpRateLimitEnabled = bool.TryParse(config["Host:IpRateLimitEnabled"], out var rateLimitEnabled) ? rateLimitEnabled : null;
 
             ClientRegistrationThreshold = config.GetOrDefault("Host:ClientRegistrationThreshold", 10);
             ClientRegistrationWindowThreshold = config.GetOrDefault("Host:ClientRegistrationWindowThreshold", 3);
@@ -335,10 +371,42 @@ public class OdinConfiguration
         public string Ip { get; init; } = "";
         public int HttpsPort { get; init; } = 0;
         public int HttpPort { get; init; } = 0;
+        public ProxyProtocolEntry ProxyProtocol { get; init; } = new();
 
         public IPAddress GetIp()
         {
             return this.Ip == "*" ? IPAddress.Any : IPAddress.Parse(this.Ip);
+        }
+    }
+
+    //
+
+    /// <summary>
+    /// PROXY protocol (v1 or v2) on a listen entry, for running behind an L4 load balancer that
+    /// cannot terminate TLS (per-tenant SNI certificates). When enabled, every connection on the
+    /// entry's ports must start with a PROXY header AND come from one of <see cref="TrustedProxies"/>;
+    /// anything else is closed. Health-check monitors on the balancer must send the header too.
+    /// </summary>
+    public class ProxyProtocolEntry
+    {
+        public bool Enabled { get; init; }
+        public List<string> TrustedProxies { get; init; } = [];
+
+        public IReadOnlyList<IPNetwork> GetTrustedNetworks()
+        {
+            return TrustedProxies.Select(ParseNetwork).ToList();
+        }
+
+        private static IPNetwork ParseNetwork(string value)
+        {
+            var text = value.Trim();
+            if (!text.Contains('/'))
+            {
+                var address = IPAddress.Parse(text);
+                text = $"{address}/{(address.AddressFamily == AddressFamily.InterNetwork ? 32 : 128)}";
+            }
+
+            return IPNetwork.Parse(text);
         }
     }
 
@@ -416,6 +484,161 @@ public class OdinConfiguration
 
     //
 
+    /// <summary>
+    /// TENANT MAIL only: the mailboxes this host serves for its identities, via Stalwart.
+    ///
+    /// How this host sends its OWN mail to users - password recovery, security reports - is a
+    /// separate concern and lives in <see cref="MailgunSection"/>, where it always has. The two
+    /// were briefly merged here while Stalwart was being built, on the mistaken belief that they
+    /// were related. They are not: one is a mail SERVER we run for identities, the other is a
+    /// third-party API we call.
+    /// </summary>
+    public class EmailSection
+    {
+        public TenantMailSection TenantMail { get; init; } = new();
+        public StalwartSection Stalwart { get; init; } = new();
+        public RelaySection Relay { get; init; } = new();
+
+        /// <summary>
+        /// AES key encrypting tenant DKIM private keys at rest (DkimStore) - the
+        /// CertificateRenewal:StorageKey pattern, as a separate key by hygiene.
+        /// Optional until email activation ships to an environment: empty means
+        /// the DkimStore refuses to operate, nothing else is affected.
+        /// </summary>
+        public byte[] DkimStorageKey { get; init; } = [];
+
+        public EmailSection()
+        {
+            // Mockable support
+        }
+
+        public EmailSection(IConfiguration config)
+        {
+            TenantMail = new TenantMailSection(config);
+
+            var dkimStorageKeyHex = config.GetOrDefault("Email:DkimStorageKey", "");
+            if (!string.IsNullOrEmpty(dkimStorageKeyHex))
+            {
+                DkimStorageKey = Convert.FromHexString(dkimStorageKeyHex);
+                if (DkimStorageKey.Length != 32)
+                {
+                    throw new OdinConfigException("Email:DkimStorageKey must be a 32-byte hex string");
+                }
+            }
+
+            Stalwart = new StalwartSection(config);
+            Relay = new RelaySection(config);
+        }
+    }
+
+    /// <summary>
+    /// Outbound relay for TENANT mail. Stalwart receives; this is only how it sends, and it
+    /// exists because a host that cannot open port 25 outbound has no other route.
+    ///
+    /// Not to be confused with the top-level Mailgun section, which sends the HOST's own mail
+    /// (password recovery, security reports) and is unrelated.
+    ///
+    /// Ships as <see cref="RelayProvider.None"/>: no onboarding, no extra DNS, no status rows.
+    /// </summary>
+    public class RelaySection
+    {
+        public RelayProvider Provider { get; init; } = RelayProvider.None;
+
+        /// <summary>Management API key. Needs only the four /domain/* permissions.</summary>
+        public string ApiKey { get; init; } = "";
+
+        /// <summary>Regional endpoints exist (us-api, eu-api); one key works against all of them.</summary>
+        public string ApiBaseUrl { get; init; } = "https://api.smtp2go.com/v3";
+
+        /// <summary>What Stalwart smarthosts to. ACCOUNT-level credentials, deliberately:
+        /// per-domain credentials are exactly why Mailgun could not relay for many tenants.</summary>
+        public string SmtpHost { get; init; } = "";
+        public int SmtpPort { get; init; } = 587;
+        public string SmtpUsername { get; init; } = "";
+        public string SmtpPassword { get; init; } = "";
+
+        /// <summary>
+        /// Link/open tracking. Off by default: it adds a third per-tenant CNAME and rewrites
+        /// recipients' links, which sits badly with an end-to-end encrypted mail product.
+        /// </summary>
+        public bool EnableTracking { get; init; }
+
+        public bool IsConfigured => Provider != RelayProvider.None;
+
+        public RelaySection()
+        {
+            // Mockable support
+        }
+
+        public RelaySection(IConfiguration config)
+        {
+            Provider = Enum.TryParse<RelayProvider>(
+                config.GetOrDefault("Email:Relay:Provider", nameof(RelayProvider.None)),
+                ignoreCase: true,
+                out var provider)
+                ? provider
+                : throw new OdinConfigException(
+                    "Email:Relay:Provider must be one of: " +
+                    string.Join(", ", Enum.GetNames<RelayProvider>()));
+
+            if (!IsConfigured)
+            {
+                return;
+            }
+
+            // Required once a provider is named, so a half-configured host fails at boot rather
+            // than at the first tenant activation - by which point a mailbox exists that cannot
+            // send, which is worse than not starting.
+            ApiKey = config.Required<string>("Email:Relay:ApiKey");
+            ApiBaseUrl = config.GetOrDefault("Email:Relay:ApiBaseUrl", "https://api.smtp2go.com/v3").TrimEnd('/');
+            SmtpHost = config.Required<string>("Email:Relay:SmtpHost");
+            SmtpPort = config.GetOrDefault("Email:Relay:SmtpPort", 587);
+            SmtpUsername = config.Required<string>("Email:Relay:SmtpUsername");
+            SmtpPassword = config.Required<string>("Email:Relay:SmtpPassword");
+            EnableTracking = config.GetOrDefault("Email:Relay:EnableTracking", false);
+        }
+    }
+
+    public enum RelayProvider
+    {
+        /// <summary>No outbound relay. Tenant mail is delivered by Stalwart directly, if it can.</summary>
+        None,
+        Smtp2Go,
+    }
+
+
+    public class StalwartSection
+    {
+        /// <summary>Management base URL, e.g. "http://localhost:9080" - the /jmap endpoint lives under it.</summary>
+        public string BaseUrl { get; init; } = "";
+
+        public string AdminUsername { get; init; } = "";
+        public string AdminPassword { get; init; } = "";
+
+        public bool IsConfigured => !string.IsNullOrEmpty(BaseUrl);
+
+        public StalwartSection()
+        {
+            // Mockable support
+        }
+
+        public StalwartSection(IConfiguration config)
+        {
+            BaseUrl = config.GetOrDefault("Email:Stalwart:BaseUrl", "").TrimEnd('/');
+            if (IsConfigured)
+            {
+                AdminUsername = config.Required<string>("Email:Stalwart:AdminUsername");
+                AdminPassword = config.Required<string>("Email:Stalwart:AdminPassword");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Mailgun: how this host sends its own mail to users. Unrelated to <see cref="EmailSection"/>,
+    /// which is about mailboxes we serve for identities - a third-party sending API versus a mail
+    /// server we run. They were briefly merged while Stalwart was being built; this is the
+    /// long-standing shape and the one that stayed correct.
+    /// </summary>
     public class MailgunSection
     {
         public string ApiKey { get; init; } = "";
@@ -444,6 +667,34 @@ public class OdinConfiguration
         }
     }
 
+    public class TenantMailSection
+    {
+        public bool Enabled { get; init; }
+        public string CanaryDomain { get; init; } = "";
+        public List<string> MxNodes { get; init; } = [];
+        public string SpfIncludeTarget { get; init; } = "";
+        public string DmarcReportEmail { get; init; } = "";
+        public string TlsReportEmail { get; init; } = "";
+
+        public TenantMailSection()
+        {
+            // Mockable support
+        }
+
+        public TenantMailSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("Email:TenantMail:Enabled", false);
+            if (Enabled)
+            {
+                CanaryDomain = config.GetOrDefault("Email:TenantMail:CanaryDomain", "");
+                MxNodes = config.Required<List<string>>("Email:TenantMail:MxNodes");
+                SpfIncludeTarget = config.Required<string>("Email:TenantMail:SpfIncludeTarget");
+                DmarcReportEmail = config.Required<string>("Email:TenantMail:DmarcReportEmail");
+                TlsReportEmail = config.Required<string>("Email:TenantMail:TlsReportEmail");
+            }
+        }
+    }
+
     //
 
     public class AdminSection
@@ -452,6 +703,21 @@ public class OdinConfiguration
         public string ApiKey { get; init; } = "";
         public string ApiKeyHttpHeaderName { get; init; } = "";
         public int ApiPort { get; init; }
+
+        /// <summary>
+        /// Interface the admin API listens on. Defaults to "0.0.0.0", which is what this
+        /// listener has always done - the address used to be hardcoded, so a deployment that
+        /// wanted the admin API off the public interface had no way to ask for it and had to
+        /// rely on a firewall rule instead. Set "127.0.0.1" to make it unreachable by
+        /// construction rather than by filter.
+        ///
+        /// The default is deliberately NOT loopback: `Odin.Cli` is documented to talk to this
+        /// port over the network (`-I admin.example.com:4444`), so changing the default would
+        /// silently break existing remote administration. Deployments that do not need that
+        /// should set it explicitly.
+        /// </summary>
+        public string ApiBindAddress { get; init; } = "0.0.0.0";
+
         public string Domain { get; init; } = "";
         public string ExportTargetPath { get; init; } = "";
 
@@ -468,6 +734,12 @@ public class OdinConfiguration
                 ApiKey = config.Required<string>("Admin:ApiKey");
                 ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
                 ApiPort = config.Required<int>("Admin:ApiPort");
+                ApiBindAddress = config.GetOrDefault("Admin:ApiBindAddress", "0.0.0.0");
+                if (!IPAddress.TryParse(ApiBindAddress, out _))
+                {
+                    throw new OdinConfigException(
+                        $"Admin:ApiBindAddress '{ApiBindAddress}' is not a valid IP address");
+                }
                 Domain = config.Required<string>("Admin:Domain");
                 ExportTargetPath = config.Required<string>("Admin:ExportTargetPath");
             }

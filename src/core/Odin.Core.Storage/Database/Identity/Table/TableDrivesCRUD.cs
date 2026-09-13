@@ -344,6 +344,48 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<DrivesRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,AppId,DriveSlug,DriveTypeSlug,WriteOnlyKeyPair,created,modified FROM Drives " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(DrivesRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO Drives (identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,AppId,DriveSlug,DriveTypeSlug,WriteOnlyKeyPair,created,modified) " +
+                                            "VALUES (@identityId,@DriveId,@StorageKeyCheckValue,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,@AppId,@DriveSlug,@DriveTypeSlug,@WriteOnlyKeyPair,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@DriveId", DbType.Binary, item.DriveId);
+                importCommand.AddParameter("@StorageKeyCheckValue", DbType.Binary, item.StorageKeyCheckValue);
+                importCommand.AddParameter("@DriveType", DbType.Binary, item.DriveType);
+                importCommand.AddParameter("@DriveName", DbType.String, item.DriveName);
+                importCommand.AddParameter("@MasterKeyEncryptedStorageKeyJson", DbType.String, item.MasterKeyEncryptedStorageKeyJson);
+                importCommand.AddParameter("@EncryptedIdIv64", DbType.String, item.EncryptedIdIv64);
+                importCommand.AddParameter("@EncryptedIdValue64", DbType.String, item.EncryptedIdValue64);
+                importCommand.AddParameter("@detailsJson", DbType.String, item.detailsJson);
+                importCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                importCommand.AddParameter("@DriveSlug", DbType.String, item.DriveSlug);
+                importCommand.AddParameter("@DriveTypeSlug", DbType.String, item.DriveTypeSlug);
+                importCommand.AddParameter("@WriteOnlyKeyPair", DbType.Binary, item.WriteOnlyKeyPair);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid DriveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

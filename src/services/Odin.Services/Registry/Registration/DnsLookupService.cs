@@ -8,7 +8,9 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
+using Odin.Services.Email.Dkim;
 using Odin.Services.Configuration;
+using Odin.Services.Email;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -127,7 +129,66 @@ public class DnsLookupService : IDnsLookupService
             });
         }
 
+        // Email records (docs/email-dns-plan.md), only while tenant mail is enabled.
+        // All Optional: they must never join the identity-validation success rule or the
+        // certificate DNS gate - the mta-sts CNAME would otherwise fail both for every
+        // tenant provisioned before the email era.
+        var tenantMail = _configuration.Email.TenantMail;
+        if (tenantMail.Enabled)
+        {
+            for (var i = 0; i < tenantMail.MxNodes.Count; i++)
+            {
+                var value = $"{(i + 1) * 10} {tenantMail.MxNodes[i]}";
+                result.Add(new DnsConfig
+                {
+                    Type = "MX",
+                    Name = "",
+                    Domain = domainName,
+                    Value = value,
+                    AltValue = value,
+                    Description = "MX Record (inbound mail)",
+                    Optional = true,
+                });
+            }
+
+            result.Add(EmailTxt(domainName, "",
+                $"v=spf1 include:{tenantMail.SpfIncludeTarget} -all", "SPF (authorized senders)"));
+            result.Add(EmailTxt(domainName, "_dmarc",
+                $"v=DMARC1; p=reject; rua=mailto:{tenantMail.DmarcReportEmail}", "DMARC policy"));
+            result.Add(EmailTxt(domainName, "_mta-sts",
+                $"v=STSv1; id={MtaStsPolicy.ComputeId(tenantMail.MxNodes)}", "MTA-STS (TLS enforcement)"));
+            result.Add(EmailTxt(domainName, "_smtp._tls",
+                $"v=TLSRPTv1; rua=mailto:{tenantMail.TlsReportEmail}", "TLS-RPT (TLS failure reports)"));
+
+            result.Add(new DnsConfig
+            {
+                Type = "CNAME",
+                Name = DnsConfigurationSet.PrefixMtaSts,
+                Domain = $"{DnsConfigurationSet.PrefixMtaSts}.{domainName}",
+                Value = dns.ApexAliasRecord,
+                AltValue = domainName,
+                Description = "MTA-STS policy host CNAME",
+                Optional = true,
+            });
+        }
+
         return result;
+    }
+
+    //
+
+    private static DnsConfig EmailTxt(string domainName, string name, string value, string description)
+    {
+        return new DnsConfig
+        {
+            Type = "TXT",
+            Name = name,
+            Domain = name == "" ? domainName : $"{name}.{domainName}",
+            Value = value,
+            AltValue = value,
+            Description = description,
+            Optional = true,
+        };
     }
 
     //
@@ -194,9 +255,19 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
+    public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(
+        AsciiDomainName domain,
+        IReadOnlyCollection<DnsConfig>? extraRecords = null,
+        CancellationToken cancellationToken = default)
     {
         var dnsConfigs = GetDnsConfiguration(domain);
+        if (extraRecords != null)
+        {
+            // Verified exactly like the rest. Safe for the certificate gate because
+            // IsDomainDnsReady drops Optional records before deciding, and every
+            // caller-supplied record here is Optional by construction.
+            dnsConfigs.AddRange(extraRecords);
+        }
         var authority = await _authoritativeDnsLookup.LookupDomainAuthorityAsync(domain.DomainName, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
         {
@@ -254,7 +325,7 @@ public class DnsLookupService : IDnsLookupService
             record.Status = recordStatus;
         }
 
-        var result = AreDnsLookupsSuccessful(dnsConfigs);
+        var result = IsDomainDnsReady(dnsConfigs);
         return (result, dnsConfigs);
     }
 
@@ -295,41 +366,67 @@ public class DnsLookupService : IDnsLookupService
             }
         }
 
-        var result = AreDnsLookupsSuccessful(dnsConfigs);
+        var result = IsDomainDnsReady(dnsConfigs);
         return (result, dnsConfigs);
     }
 
     //
 
+    /// <summary>
+    /// Is this domain's DNS wired to this server - by delegation, or by manual records?
+    ///
+    /// That single question is the precondition for everything that consumes this verdict:
+    /// certificate issuance (ACME proves domain control by resolving these very records),
+    /// zone creation, and the provisioning UI's readiness display.
+    ///
+    /// Records flagged <see cref="DnsConfig.Optional"/> are excluded. That filter is
+    /// load-bearing rather than cosmetic: optional records (www, and the whole email set -
+    /// MX, SPF, DKIM, DMARC, MTA-STS, TLS-RPT) say nothing about whether the domain points
+    /// here, so letting one fail this check would block certificate renewal over, say, a
+    /// DKIM typo. Email correctness is enforced where it belongs - the owner console's
+    /// Email tab and the monthly security health report.
+    /// </summary>
     // internal for testing
-    internal static bool AreDnsLookupsSuccessful(IReadOnlyCollection<DnsConfig> dnsConfigs)
+    internal static bool IsDomainDnsReady(IReadOnlyCollection<DnsConfig> dnsConfigs)
     {
-        // Delegated mode: the NS entries verify the PARENT's delegation records (strict,
-        // all-ours - see GetAuthoritativeDomainDnsStatusAsync). Verified delegation counts
-        // as overall success even before the domain's zone exists on our servers: the zone
-        // is created AND populated at the commit points that consume this verdict (the
-        // provisioning UI's Provision action, CreateIdentityOnDomainAsync's ensure-net,
-        // the CLI backfill), and populate is an idempotent REPLACE, so records exist before
-        // anything (certificates, requests) needs them.
-        var nsRecords = dnsConfigs.Where(x => x.Type == "NS").ToList();
-        if (nsRecords.Count > 0 && nsRecords.TrueForAll(x => x.Status == DnsLookupRecordStatus.Success))
-        {
-            return true;
-        }
+        var required = dnsConfigs.Where(x => !x.Optional).ToList();
+        return DelegationIsComplete(required) || ManualRecordsAreValid(required);
+    }
 
-        // Manual mode: only one of records A or ALIAS need to be successful
-        if (dnsConfigs.Count(x => (x.Type is "A" or "ALIAS") && x.Status == DnsLookupRecordStatus.Success) < 1)
+    /// <summary>
+    /// Delegated route: the parent delegates the domain to our nameservers.
+    ///
+    /// Verified delegation counts as success even before the domain's zone exists on our
+    /// servers: the zone is created AND populated at the commit points that consume this
+    /// verdict (the provisioning UI's Provision action, CreateIdentityOnDomainAsync's
+    /// ensure-net, the CLI backfill), and populate is an idempotent REPLACE, so records
+    /// exist before anything (certificates, requests) needs them.
+    ///
+    /// The NS entries are checked against the PARENT's delegation records, strictly and
+    /// all-ours - see GetAuthoritativeDomainDnsStatusAsync.
+    /// </summary>
+    internal static bool DelegationIsComplete(IReadOnlyCollection<DnsConfig> requiredRecords)
+    {
+        var nsRecords = requiredRecords.Where(x => x.Type == "NS").ToList();
+        return nsRecords.Count > 0 && nsRecords.TrueForAll(x => x.Status == DnsLookupRecordStatus.Success);
+    }
+
+    /// <summary>
+    /// Manual route: the user points the records at us themselves. The apex is an either-or
+    /// (A or ALIAS - a zone cannot have both), every CNAME must resolve.
+    /// </summary>
+    internal static bool ManualRecordsAreValid(IReadOnlyCollection<DnsConfig> requiredRecords)
+    {
+        var apexResolves = requiredRecords
+            .Any(x => x.Type is "A" or "ALIAS" && x.Status == DnsLookupRecordStatus.Success);
+        if (!apexResolves)
         {
             return false;
         }
 
-        // All CNAME records must be successful
-        if (dnsConfigs.Where(x => x.Type == "CNAME").Any(record => record.Status != DnsLookupRecordStatus.Success))
-        {
-            return false;
-        }
-
-        return true;
+        return requiredRecords
+            .Where(x => x.Type == "CNAME")
+            .All(x => x.Status == DnsLookupRecordStatus.Success);
     }
 
     //
@@ -367,7 +464,9 @@ public class DnsLookupService : IDnsLookupService
             return false;
         }
 
-        foreach (var record in dnsConfig)
+        // Optional records (email extras) are excluded: this probe is keystroke-sensitive
+        // and their names (e.g. _dmarc) cannot pre-exist for a fresh managed prefix anyway
+        foreach (var record in dnsConfig.Where(x => !x.Optional))
         {
             if (record.Name != "")
             {
@@ -414,7 +513,7 @@ public class DnsLookupService : IDnsLookupService
         CancellationToken cancellationToken = default)
     {
         var result = DnsLookupRecordStatus.Unknown;
-        List<string> records;
+        List<string> records = [];
 
         var sw = new Stopwatch();
         sw.Start();
@@ -426,15 +525,21 @@ public class DnsLookupService : IDnsLookupService
             domain = label + "." + domain;
         }
 
-        // Bail if any AAAA records on domain
+        // Bail if any AAAA records on domain - address/alias records only: MX/TXT at the
+        // apex legitimately coexist with AAAA records
         var recordType = QueryType.AAAA;
-        var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
-        if (response?.Answers.AaaaRecords().Any() == true)
+        IDnsQueryResponse? response = null;
+        if (type is "A" or "ALIAS" or "CNAME")
         {
-            records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? [];
-            result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
+            response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
+            if (response?.Answers.AaaaRecords().Any() == true)
+            {
+                records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? [];
+                result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
+            }
         }
-        else
+
+        if (result != DnsLookupRecordStatus.AaaaRecordsNotSupported)
         {
             switch (type)
             {
@@ -451,6 +556,23 @@ public class DnsLookupService : IDnsLookupService
                     response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
                     records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? [];
                     result = VerifyDnsValue(records, expectedValue, expectedAltValue);
+                    break;
+
+                case "MX":
+                    recordType = QueryType.MX;
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
+                    records = response?.Answers.MxRecords()
+                        .Select(x => $"{x.Preference} {x.Exchange.ToString()!.TrimEnd('.')}").ToList() ?? [];
+                    result = VerifyDnsValueContained(records, expectedValue);
+                    break;
+
+                case "TXT":
+                    recordType = QueryType.TXT;
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
+                    // A long TXT value arrives as multiple <=255-byte character strings of one
+                    // record; concatenate before comparing
+                    records = response?.Answers.TxtRecords().Select(x => string.Concat(x.Text)).ToList() ?? [];
+                    result = VerifyDnsValueContained(records, expectedValue);
                     break;
 
                 default:
@@ -505,6 +627,67 @@ public class DnsLookupService : IDnsLookupService
             return DnsLookupRecordStatus.IncorrectValue;
         }
         return DnsLookupRecordStatus.Success;
+    }
+
+    //
+
+    // Set containment for record types where multiple values at one name are normal
+    // (multi-target MX, a foreign verification TXT beside our SPF at the apex): OUR
+    // value must be present; other values are none of our business.
+    // internal for testing
+    internal static DnsLookupRecordStatus VerifyDnsValueContained(
+        IReadOnlyCollection<string> records,
+        string expectedValue)
+    {
+        if (records.Count < 1)
+        {
+            return DnsLookupRecordStatus.DomainOrRecordNotFound;
+        }
+
+        // An empty expectation can never be satisfied, and must never report Success. It did:
+        // a relay record built from the wrong API field carried an empty value, was published
+        // as a CNAME pointing at the DNS root, and then matched its own empty expectation here
+        // - so the owner console showed a green tick over a record that could not work. Whatever
+        // produced the empty value is the bug; this makes sure it can never be a SILENT one.
+        if (string.IsNullOrWhiteSpace(expectedValue))
+        {
+            return DnsLookupRecordStatus.IncorrectValue;
+        }
+
+        if (records.Any(x => string.Equals(x, expectedValue, System.StringComparison.OrdinalIgnoreCase)))
+        {
+            return DnsLookupRecordStatus.Success;
+        }
+
+        return PublishedDkimKeyMatches(records, expectedValue)
+            ? DnsLookupRecordStatus.Success
+            : DnsLookupRecordStatus.IncorrectValue;
+    }
+
+    /// <summary>
+    /// DKIM records are compared by meaning, not by string.
+    ///
+    /// A published DKIM TXT can be cryptographically correct yet not byte-identical to what
+    /// we generated: DNS hosts reorder tags, add or strip spaces after semicolons, and
+    /// re-chunk long values. Comparing strings there reports IncorrectValue on a record that
+    /// every receiving mail server accepts - a false alarm the owner cannot act on, because
+    /// nothing is actually wrong.
+    ///
+    /// So: if both sides parse as DKIM, the record matches when the algorithm and the public
+    /// key match. Anything that is not a DKIM record falls through to the string comparison
+    /// above, where exactness is the right rule.
+    /// </summary>
+    private static bool PublishedDkimKeyMatches(IReadOnlyCollection<string> records, string expectedValue)
+    {
+        if (!DkimTxtRecord.TryParse(expectedValue, out var expectedKTag, out var expectedPublicKey))
+        {
+            return false;
+        }
+
+        return records.Any(published =>
+            DkimTxtRecord.TryParse(published, out var kTag, out var publicKey) &&
+            string.Equals(kTag, expectedKTag, System.StringComparison.OrdinalIgnoreCase) &&
+            publicKey.SequenceEqual(expectedPublicKey));
     }
 
     //

@@ -62,8 +62,8 @@ public class ProfilePublishService(
     private const int ChannelDefinitionFileType = 103;
     private const string DefaultPayloadKey = "dflt_key";
 
-    private static readonly TargetDrive ProfileDrive = SystemDriveConstants.ProfileDrive;
-    private static readonly TargetDrive HomePageConfigDrive = SystemDriveConstants.HomePageConfigDrive;
+    private static readonly TargetDrive ProfileDrive = WellKnownAppDrives.ProfileDrive;
+    private static readonly TargetDrive HomePageConfigDrive = WellKnownAppDrives.HomePageConfigDrive;
 
     // odin-js HomePageAttributes.Theme = toGuidId("theme_attribute"); not part of BuiltInProfileAttributes
     // since Theme attributes live on the HomePageConfigDrive, not the ProfileDrive, and are out of scope

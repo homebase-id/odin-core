@@ -310,7 +310,7 @@ namespace Odin.Services.DataSubscription
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
-                RemoteTargetDrive = SystemDriveConstants.FeedDrive
+                RemoteTargetDrive = WellKnownAppDrives.FeedDrive
             };
 
             var transferStatusMap = await _peerOutgoingTransferService.SendFile(
@@ -352,7 +352,7 @@ namespace Odin.Services.DataSubscription
                     new GlobalTransitIdFileIdentifier()
                     {
                         GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                        TargetDrive = SystemDriveConstants.FeedDrive
+                        TargetDrive = WellKnownAppDrives.FeedDrive
                     },
                     fileTransferOptions: new FileTransferOptions()
                     {

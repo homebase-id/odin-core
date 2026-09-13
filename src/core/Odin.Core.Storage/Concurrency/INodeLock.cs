@@ -14,4 +14,3 @@ public interface INodeLock
         TimeSpan? forcedRelease = null,   // Force release lock after timespan. Only used for distributed locks.
         CancellationToken cancellationToken = default);
 }
-

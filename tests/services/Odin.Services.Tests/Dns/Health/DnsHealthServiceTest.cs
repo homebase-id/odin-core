@@ -1,3 +1,5 @@
+#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -11,6 +13,8 @@ using Odin.Core.Dns;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns.Health;
+using Odin.Services.Email.Dkim;
+using Odin.Services.Email.Relay;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Tests.Dns.Health;
@@ -35,16 +39,24 @@ public class DnsHealthServiceTest
     private readonly Mock<IAuthoritativeDnsLookup> _authoritativeDnsLookup = new();
     private readonly Mock<IDnssecLookup> _dnssecLookup = new();
     private readonly Mock<IDnsLookupService> _dnsLookupService = new();
+
+    // Not configured: these tests cover the DNS/DNSSEC blocks, and an unconfigured store
+    // is what every non-mail host looks like, so DKIM contributes no records here.
+    private readonly Mock<IDkimStore> _dkimStore = new();
     private readonly Mock<ILookupClient> _dnsClient = new();
 
-    private DnsHealthService CreateService()
+    private DnsHealthService CreateService(bool tenantMailEnabled = false)
     {
         var configuration = new OdinConfiguration
         {
             Registry = new OdinConfiguration.RegistrySection
             {
                 DnsConfigurationSet = new DnsConfigurationSet("131.164.170.62", "identity-host.example"),
-            }
+            },
+            Email = new OdinConfiguration.EmailSection
+            {
+                TenantMail = new OdinConfiguration.TenantMailSection { Enabled = tenantMailEnabled },
+            },
         };
         return new DnsHealthService(
             new Mock<ILogger<DnsHealthService>>().Object,
@@ -52,7 +64,11 @@ public class DnsHealthServiceTest
             _dnsClient.Object,
             _authoritativeDnsLookup.Object,
             _dnssecLookup.Object,
-            _dnsLookupService.Object);
+            _dnsLookupService.Object,
+            _dkimStore.Object,
+            // No relay: these tests are about the config-derived records. A relay would add
+            // per-tenant rows fetched over the network, which is a separate concern.
+            new NullMailRelayProvider());
     }
 
     //
@@ -110,6 +126,161 @@ public class DnsHealthServiceTest
         var gost = new DsRecordData(60485, 5, 3, "deadbeef");
         Assert.That(DnsHealthService.AnyPublishedDsMatchesZoneKeys(
             "dskey.example.com", [key], [gost]), Is.False);
+    }
+
+    //
+    // Record split: Optional-flagged rows (the email record set) must reach clients
+    // as MailRecords, never as failed-looking required Records
+    //
+
+    /// <summary>
+    /// DKIM is per-tenant key material, not configuration, so it cannot come from
+    /// GetDnsConfiguration. It is handed to the lookup service as extra records and so
+    /// gets verified — and reported — exactly like every other mail record.
+    /// </summary>
+    [Test]
+    public async Task ItShouldCheckTheTenantsDkimRecords()
+    {
+        IReadOnlyCollection<DnsConfig>? passedExtras = null;
+        SetupLookupCapturing(extras => passedExtras = extras);
+
+        _dkimStore.Setup(x => x.IsConfigured).Returns(true);
+        _dkimStore.Setup(x => x.GetKeysAsync(Domain.DomainName)).ReturnsAsync([
+            new DkimKey
+            {
+                Selector = "s1",
+                Algorithm = DkimAlgorithm.Ed25519,
+                PublicKey = new byte[32],
+                PrivateKeyPkcs8 = [],
+            },
+        ]);
+
+        await CreateService(tenantMailEnabled: true).GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(passedExtras, Is.Not.Null);
+        Assert.That(passedExtras!.Count, Is.EqualTo(1));
+        var record = passedExtras!.Single();
+        Assert.That(record.Name, Does.Contain("_domainkey"));
+        Assert.That(record.Type, Is.EqualTo("TXT"));
+        // Load-bearing: IsDomainDnsReady drops Optional records before deciding, and
+        // that verdict feeds the certificate DNS gate. A non-optional DKIM record would let
+        // a missing DKIM TXT block certificate issuance.
+        Assert.That(record.Optional, Is.True);
+    }
+
+    [Test]
+    public async Task ItShouldCheckNoDkimWhenThereIsNothingToCheck()
+    {
+        // Tenant mail off — the overwhelmingly common case, and the store is never touched
+        IReadOnlyCollection<DnsConfig>? passedExtras = null;
+        SetupLookupCapturing(extras => passedExtras = extras);
+
+        await CreateService().GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(passedExtras, Is.Empty);
+        _dkimStore.Verify(x => x.GetKeysAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// A DKIM read failure must cost the DKIM block, not the whole panel: the owner still
+    /// needs to see their A record, their CNAMEs and their DNSSEC state.
+    /// </summary>
+    [Test]
+    public async Task ItShouldStillReportTheRestWhenDkimCannotBeRead()
+    {
+        SetupLookupCapturing(_ => { });
+        _dkimStore.Setup(x => x.IsConfigured).Returns(true);
+        _dkimStore.Setup(x => x.GetKeysAsync(Domain.DomainName)).ThrowsAsync(new Exception("store down"));
+
+        var result = await CreateService(tenantMailEnabled: true).GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(result.Records, Is.Not.Empty);
+    }
+
+    private void SetupLookupCapturing(Action<IReadOnlyCollection<DnsConfig>> capture)
+    {
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("example.com");
+        _dnsLookupService
+            .Setup(x => x.GetAuthoritativeDomainDnsStatusAsync(
+                Domain, It.IsAny<IReadOnlyCollection<DnsConfig>>(), It.IsAny<CancellationToken>()))
+            .Callback<AsciiDomainName, IReadOnlyCollection<DnsConfig>, CancellationToken>(
+                (_, extras, _) => capture(extras ?? []))
+            .ReturnsAsync((true, new List<DnsConfig>
+            {
+                new() { Type = "A", Name = "", Value = "127.0.0.1" },
+            }));
+    }
+
+    /// <summary>
+    /// The monthly report's trigger. A broken mail record is otherwise silent: mail is
+    /// refused or spam-foldered and the owner hears it from whoever stopped receiving it.
+    /// </summary>
+    [Test]
+    public async Task ItShouldReportBrokenMailRecordsAsNeedingAttention()
+    {
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("example.com");
+        _dnsLookupService
+            .Setup(x => x.GetAuthoritativeDomainDnsStatusAsync(
+                Domain, It.IsAny<IReadOnlyCollection<DnsConfig>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, new List<DnsConfig>
+            {
+                new() { Type = "A", Name = "", Value = "127.0.0.1", Status = DnsLookupRecordStatus.Success },
+                new()
+                {
+                    Type = "TXT", Name = "s1._domainkey", Domain = "s1._domainkey.frodo.example.com",
+                    Description = "DKIM key (ed25519)", Optional = true,
+                    Status = DnsLookupRecordStatus.DomainOrRecordNotFound,
+                },
+                new()
+                {
+                    Type = "TXT", Name = "", Domain = "frodo.example.com",
+                    Description = "SPF (authorized senders)", Optional = true,
+                    Status = DnsLookupRecordStatus.Success,
+                },
+            }));
+
+        var attention = await CreateService(tenantMailEnabled: true)
+            .GetMailRecordAttentionAsync(Domain, CancellationToken.None);
+
+        Assert.That(attention.Count, Is.EqualTo(1));
+        Assert.That(attention[0], Does.Contain("DKIM key (ed25519)"));
+        Assert.That(attention[0], Does.Contain("is missing"));
+    }
+
+    [Test]
+    public async Task ItShouldNotReportMailAttentionWhenTenantMailIsOff()
+    {
+        var attention = await CreateService().GetMailRecordAttentionAsync(Domain, CancellationToken.None);
+        Assert.That(attention, Is.Empty);
+    }
+
+    [Test]
+    public async Task ItShouldSplitOptionalRecordsIntoMailRecords()
+    {
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("example.com");
+        _dnsLookupService
+            .Setup(x => x.GetAuthoritativeDomainDnsStatusAsync(Domain, It.IsAny<IReadOnlyCollection<DnsConfig>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, new List<DnsConfig>
+            {
+                new() { Type = "A", Name = "", Value = "127.0.0.1" },
+                new() { Type = "CNAME", Name = "capi", Value = "alias.example" },
+                new() { Type = "TXT", Name = "_dmarc", Value = "v=DMARC1; p=reject", Optional = true },
+                new() { Type = "CNAME", Name = "mta-sts", Value = "alias.example", Optional = true },
+            }));
+
+        var result = await CreateService().GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(result.RecordsAreValid, Is.True);
+        Assert.That(result.Records.Select(r => r.Name), Is.EqualTo(new[] { "", "capi" }));
+        Assert.That(result.Records.All(r => !r.Optional), Is.True);
+        Assert.That(result.MailRecords.Select(r => r.Name), Is.EqualTo(new[] { "_dmarc", "mta-sts" }));
+        Assert.That(result.MailRecords.All(r => r.Optional), Is.True);
     }
 
     //

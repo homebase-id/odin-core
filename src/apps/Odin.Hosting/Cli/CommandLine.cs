@@ -450,6 +450,23 @@ public class CommandLine
             return (true, 0);
         }
 
+        //
+        // Command line: (Re)write managed-domain records in the shared apex zones - the
+        // managed-domain counterpart of create-own-domain-zones (applies new record types,
+        // e.g. the email records, to existing tenants).
+        //
+        // Dry-run unless "commit" is passed.
+        //
+        // examples:
+        //   dotnet run -- populate-managed-domain-records
+        //   dotnet run -- populate-managed-domain-records commit
+        //
+        if (args.Length > 0 && args[0] == "populate-managed-domain-records")
+        {
+            ManagedDomainRecords.PopulateAsync(_serviceProvider, args.Length > 1 && args[1] == "commit").BlockingWait();
+            return (true, 0);
+        }
+
 
         
         return (false, 0);

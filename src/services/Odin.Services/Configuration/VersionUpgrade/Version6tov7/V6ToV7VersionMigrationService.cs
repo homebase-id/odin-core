@@ -29,7 +29,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version6tov7
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var momentsDrive = await driveManager.GetDriveAsync(SystemDriveConstants.MomentsDrive.Alias, false);
+            var momentsDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias, false);
             if (momentsDrive == null)
             {
                 throw new OdinSystemException("Moments drive not created");

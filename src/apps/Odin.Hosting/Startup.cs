@@ -78,12 +78,14 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseLoggingMiddleware();
         app.UseMiddleware<OdinVersionNumberMiddleware>();
 
-        if (env.IsProduction())
+        if (config.Host.IpRateLimitEnabled ?? env.IsProduction())
         {
             app.UseRateLimiter();
         }
 
         app.UseMiddleware<ExceptionHandlingMiddleware>();
+        // Before RedirectIfNotApexMiddleware: RFC 8461 forbids redirects on the policy fetch
+        app.UseMiddleware<MtaStsMiddleware>();
         app.UseMiddleware<RedirectIfNotApexMiddleware>();
         app.UseMiddleware<CertesAcmeMiddleware>();
         app.UseMiddleware<CdnMiddleware>();
@@ -230,6 +232,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     {
                         chatApp.UseStaticFiles(new StaticFileOptions()
                         {
+                            OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
                             FileProvider = new PhysicalFileProvider(chatPath),
                             RequestPath = "/apps/chat",
                             // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
@@ -256,6 +259,9 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/web-drop"),
+                homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3007/"); }); });
+
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
@@ -272,12 +278,14 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
                     ownerApp.UseStaticFiles(new StaticFileOptions()
                     {
+                        OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
                         FileProvider = new PhysicalFileProvider(ownerPath),
                         RequestPath = "/owner"
                     });
 
                     ownerApp.Run(async context =>
                     {
+                        SpaFallback.ApplyShellNoCache(context.Response);
                         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                         await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
                         return;
@@ -290,11 +298,13 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     var feedPath = Path.Combine(env.ContentRootPath, "client", "apps", "feed");
                     feedApp.UseStaticFiles(new StaticFileOptions()
                     {
+                        OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
                         FileProvider = new PhysicalFileProvider(feedPath),
                         RequestPath = "/apps/feed"
                     });
                     feedApp.Run(async context =>
                     {
+                        SpaFallback.ApplyShellNoCache(context.Response);
                         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                         await context.Response.SendFileAsync(Path.Combine(feedPath, "index.html"));
                         return;
@@ -316,6 +326,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     {
                         chatApp.UseStaticFiles(new StaticFileOptions()
                         {
+                            OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
                             FileProvider = new PhysicalFileProvider(chatPath),
                             RequestPath = "/apps/chat",
                             // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
@@ -342,12 +353,14 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     var mailPath = Path.Combine(env.ContentRootPath, "client", "apps", "mail");
                     mailApp.UseStaticFiles(new StaticFileOptions()
                     {
+                        OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
                         FileProvider = new PhysicalFileProvider(mailPath),
                         RequestPath = "/apps/mail"
                     });
 
                     mailApp.Run(async context =>
                     {
+                        SpaFallback.ApplyShellNoCache(context.Response);
                         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                         await context.Response.SendFileAsync(Path.Combine(mailPath, "index.html"));
                         return;
@@ -360,16 +373,35 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     var communityPath = Path.Combine(env.ContentRootPath, "client", "apps", "community");
                     communityApp.UseStaticFiles(new StaticFileOptions()
                     {
+                        OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
                         FileProvider = new PhysicalFileProvider(communityPath),
                         RequestPath = "/apps/community"
                     });
 
                     communityApp.Run(async context =>
                     {
+                        SpaFallback.ApplyShellNoCache(context.Response);
                         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                         await context.Response.SendFileAsync(Path.Combine(communityPath, "index.html"));
                         return;
                     });
+                });
+
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/web-drop"),
+                webDropApp =>
+                {
+                    var webDropPath = Path.Combine(env.ContentRootPath, "client", "apps", "web-drop");
+                    var webDropIndexPath = Path.Combine(webDropPath, "index.html");
+                    webDropApp.UseStaticFiles(new StaticFileOptions()
+                    {
+                        OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
+                        FileProvider = new PhysicalFileProvider(webDropPath),
+                        RequestPath = "/apps/web-drop"
+                    });
+
+                    // The viewer is opened by strangers from emailed links; a missing asset must 404
+                    // rather than masquerade as the shell (see SpaFallback's class comment).
+                    webDropApp.Run(context => SpaFallback.ServeShellOrNotFound(context, webDropIndexPath));
                 });
 
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
@@ -379,12 +411,14 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
                     homeApp.UseStaticFiles(new StaticFileOptions()
                     {
+                        OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
                         FileProvider = new PhysicalFileProvider(publicPath),
                         // RequestPath = "/"
                     });
 
                     homeApp.Run(async context =>
                     {
+                        SpaFallback.ApplyShellNoCache(context.Response);
                         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
 
                         var svc = context.RequestServices.GetRequiredService<HomebasePublicPageService>();
@@ -462,6 +496,9 @@ public static class HostExtensions
 
         // Load identity registry
         var registry = services.GetRequiredService<IIdentityRegistry>();
+        // Subscribe before loading: a change announced mid-load is either at or below the version
+        // load reads, and dropped, or above it, and reconciled after.
+        registry.SubscribeToRegistryChangesAsync().BlockingWait();
         registry.LoadRegistrations().BlockingWait();
         var certificateStore = services.GetRequiredService<ICertificateStore>();
         DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry, certificateStore);
@@ -503,31 +540,8 @@ public static class HostExtensions
             payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
-        // Sanity ping CDN, disable it not successful
-        if (config.Cdn.Enabled)
-        {
-            var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
-            var client = factory.CreateClient("CdnPingClient");
-            var url = $"{config.Cdn.PayloadBaseUrl}/ping";
-            var error = "";
-            try
-            {
-                var response = client.GetAsync(url).Result;
-                if (!response.IsSuccessStatusCode)
-                {
-                    error = response.ReasonPhrase;
-                }
-            }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-            }
-            if (error != "")
-            {
-                config.Cdn.Enabled = false;
-                logger.LogError("CDN enabled, but not responding to ping at {url}. Error: {error}", url, error);
-            }
-        }
+        // The CDN sanity ping runs in StartupVerificationBackgroundService (with retries,
+        // non-blocking) - it disables config.Cdn.Enabled if the CDN does not respond.
 
         // Sanity ping PowerDNS, disable it if not successful
         // SEB:TODO only do this when we have a PowerDnsEnabled flag in config
@@ -550,6 +564,19 @@ public static class HostExtensions
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)
         {
             services.StartSystemBackgroundServices().BlockingWait();
+        }
+        else
+        {
+            //
+            // UpdateCertificatesBackgroundService is the ONLY thing that orders certificates -
+            // the TLS handshake path asks it for one and serves nothing until it delivers. With
+            // system background services off there is no issuer and no backstop, so a host that
+            // terminates TLS would silently never obtain a certificate for any domain.
+            //
+            logger.LogWarning(
+                "System background services are disabled. No certificates will be ordered or " +
+                "renewed. This is only safe for hosts that do not terminate TLS, or whose " +
+                "certificates are provisioned externally.");
         }
 
         //

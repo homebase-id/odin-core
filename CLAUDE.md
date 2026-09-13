@@ -32,6 +32,8 @@ Test framework is **NUnit** across 10 test projects (~2,000+ tests total). Tests
 
 **Note:** `dotnet test` CLI runs in NUnit "Non-Explicit" mode, which excludes `[Explicit]` tests. The CLI total will be lower than Visual Studio Test Explorer's count. This is expected — not missing tests.
 
+**Flaky tests:** `docs/flakytests.md` is the register of tests that fail intermittently or only in certain environments. Check it before concluding a red test is caused by your change, and **add an entry every time you find a new one** — including ones that "just need a re-run". Confirm a failure is pre-existing by running it on a clean tree (`git stash`) and by checking recent `main` runs, and record that evidence in the entry.
+
 ### Writing Integration Tests (Odin.Hosting.Tests)
 
 Two test infrastructures exist side by side:
