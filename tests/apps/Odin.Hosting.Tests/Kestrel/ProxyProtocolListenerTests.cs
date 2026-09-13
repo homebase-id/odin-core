@@ -279,7 +279,6 @@ public class ProxyProtocolListenerTests
     // The other half of the fix: a peer that said SOMETHING that was not a header is still a
     // misconfiguration worth seeing, and keeps its Warning.
     [Test]
-    [Explicit("flaky in CI - likely close-vs-read race; see #1734 and docs/flakytests.md")]
     public async Task ConnectionThatSendsGarbage_IsStillLoggedAtWarning()
     {
         var transport = await ConnectOrFail(TrustedPort, "GET / HTTP/1.1\r\n\r\n"u8.ToArray());
