@@ -43,10 +43,22 @@ the balancer can reach (cloud security group), which is the "dedicated listener"
 
 ## Health checks
 
-The balancer's monitor must send the PROXY header too, or a listener that correctly rejects
-headerless connections will fail every health check. On OpenStack Octavia the pool protocol
-(`PROXY` / `PROXYV2`) applies to monitors as well; confirm on the actual balancer before
-cutting over.
+Prefer a monitor that sends the PROXY header: on OpenStack Octavia the pool protocol (`PROXY` /
+`PROXYV2`) applies to monitors as well. Confirm on the actual balancer before cutting over.
+
+A plain TCP-connect monitor also works, because the connect succeeds before the listener gets to
+the header: the monitor sees an open port and marks the member up, and the listener then closes
+the headerless connection. Two consequences worth knowing:
+
+- The listener holds each probe connection for up to 5 seconds (the header wait) before giving up.
+- Each probe is recorded at `Verbose`, not `Warning`, so it stays out of the log stream at the
+  default `Debug` minimum level. That is deliberate: a connection that sends *zero* bytes and goes
+  away is a probe, not a malformed client, and warning about it once per probe buried everything
+  else (issue #1731). A connection that sends something that is not a valid header still warns, as
+  does a header from a peer outside `TrustedProxies`.
+
+To see the probe records, override the level for this source:
+`Serilog__MinimumLevel__Override__Odin.Hosting.Kestrel=Verbose`.
 
 ## Verifying on real infrastructure
 
