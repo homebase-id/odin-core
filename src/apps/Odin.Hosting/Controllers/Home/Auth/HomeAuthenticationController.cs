@@ -71,14 +71,25 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 
                 var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKeyAsync();
                 var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(public_key);
-                var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
-                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
-
-                //[100] Request exchange auth code for access token
                 var odinId = new OdinId(identity);
-                var tokenResponse = await this.ExchangeDigestForToken(odinId, exchangeSecretDigest);
 
-                if (null == tokenResponse)
+                //[100] Request exchange auth code for access token.
+                // An identity on a version from before #1728 may have derived the secret with the legacy encoding;
+                // that digest is only tried when it differs, and a digest the remote does not know is simply not found.
+                SensitiveByteArray? exchangeSecret = null;
+                YouAuthTokenResponse? tokenResponse = null;
+                foreach (var candidate in fullKey.GetEcdhSharedSecretCandidates(privateKey, remotePublicKey, Convert.FromBase64String(salt)))
+                {
+                    var exchangeSecretDigest = SHA256.Create().ComputeHash(candidate.GetKey()).ToBase64();
+                    tokenResponse = await this.ExchangeDigestForToken(odinId, exchangeSecretDigest);
+                    if (null != tokenResponse)
+                    {
+                        exchangeSecret = candidate;
+                        break;
+                    }
+                }
+
+                if (null == tokenResponse || null == exchangeSecret)
                 {
                     throw new OdinClientException("failed to get token");
                 }
@@ -123,7 +134,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
             var homeClientPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(authState.EccPk64);
             var salt = ByteArrayUtil.GetRndByteArray(16);
             var keyPairPassword = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            EccFullKeyData transferKeyPair = new EccFullKeyData(keyPairPassword, EccKeySize.P384, 2);
+            EccFullKeyData transferKeyPair = EccFullKeyData.CreateEphemeralFor(keyPairPassword, homeClientPublicKey, EccKeySize.P384, 2);
             var clientTransferSharedSecret = transferKeyPair.GetEcdhSharedSecret(keyPairPassword, homeClientPublicKey, salt);
 
             var catSharedSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());

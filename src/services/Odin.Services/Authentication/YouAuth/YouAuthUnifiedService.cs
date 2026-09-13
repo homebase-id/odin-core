@@ -160,11 +160,12 @@ public sealed class YouAuthUnifiedService(
             throw new OdinSystemException($"Invalid clientType '{clientType}'");
         }
 
+        var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkbase64UrlPublicKey);
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
+        // re-rolled so clients on either shared-secret encoding derive the same key (#1728)
+        var keyPair = EccFullKeyData.CreateEphemeralFor(privateKey, remotePublicKey, EccKeySize.P384, 1);
         var exchangeSalt = ByteArrayUtil.GetRndByteArray(16);
 
-        var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkbase64UrlPublicKey);
         var exchangeSharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, exchangeSalt);
         var exchangeSharedSecretDigest = SHA256.Create().ComputeHash(exchangeSharedSecret.GetKey()).ToBase64();
 

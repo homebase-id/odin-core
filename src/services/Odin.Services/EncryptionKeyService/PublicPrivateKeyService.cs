@@ -128,7 +128,8 @@ namespace Odin.Services.EncryptionKeyService
 
             // Note: here we are throwing a way the full key intentionally
             SensitiveByteArray pwd = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            EccFullKeyData senderEccFullKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
+            // re-rolled so recipients on either shared-secret encoding can decrypt (#1728)
+            EccFullKeyData senderEccFullKey = EccFullKeyData.CreateEphemeralFor(pwd, recipientPublicKey, EccKeySize.P384, 2);
 
             var randomSalt = ByteArrayUtil.GetRndByteArray(16);
             var transferSharedSecret = senderEccFullKey.GetEcdhSharedSecret(pwd, recipientPublicKey, randomSalt);
@@ -151,7 +152,8 @@ namespace Odin.Services.EncryptionKeyService
 
             //note: here we are throwing a way the full key intentionally
             SensitiveByteArray pwd = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            EccFullKeyData senderFullKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
+            // re-rolled so recipients on either shared-secret encoding can decrypt (#1728)
+            EccFullKeyData senderFullKey = EccFullKeyData.CreateEphemeralFor(pwd, recipientPublicEccKey, EccKeySize.P384, 2);
 
             var randomSalt = ByteArrayUtil.GetRndByteArray(16);
             var ss = senderFullKey.GetEcdhSharedSecret(pwd, recipientPublicEccKey, randomSalt);
@@ -197,8 +199,8 @@ namespace Odin.Services.EncryptionKeyService
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
 
-            var transferSharedSecret = recipientFullEccKey.GetEcdhSharedSecret(key, remotePublicKey, payload.Salt);
-            return AesGcm.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
+            // accepts the legacy shared-secret encoding too: senders on older versions, and stored payloads (#1728)
+            return recipientFullEccKey.EcdhAesGcmDecrypt(key, remotePublicKey, payload.Salt, payload.EncryptedData, payload.Iv);
         }
 
         public async Task<bool> IsValidEccPublicKeyAsync(PublicPrivateKeyType keyType, uint publicKeyCrc32C)

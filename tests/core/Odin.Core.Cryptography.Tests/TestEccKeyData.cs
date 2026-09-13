@@ -7,7 +7,12 @@ namespace Odin.Core.Cryptography.Tests
     using Odin.Core.Cryptography.Data;
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Text.Json;
+    using Org.BouncyCastle.Crypto.Parameters;
+    using Org.BouncyCastle.Security;
+    using Org.BouncyCastle.Utilities;
+    using NetCrypto = System.Security.Cryptography;
 
     [TestFixture]
     public class TestEccKeyData
@@ -259,6 +264,128 @@ namespace Odin.Core.Cryptography.Tests
 
             // The shared secrets should be identical
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretA.GetKey(), sharedSecretB.GetKey()));
+        }
+
+        // #1728: about 1 in 256 exchanges have a shared secret with a leading zero byte. The tests below find such a
+        // pair so that case is exercised deterministically, and use .NET's own ECDH (CNG / OpenSSL / Apple) as an
+        // independent fixed-length peer, standing in for WebCrypto, JCA and the other clients.
+
+        [Test]
+        public void GetEcdhSharedSecret_LeadingZeroSharedSecret_MatchesFixedLengthPlatformEcdh()
+        {
+            var (serverPwd, server, clientPwd, client) = CreatePairWithLeadingZeroSharedSecret();
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+
+            var rawSecret = PlatformRawSecret(client, clientPwd, server);
+            Assert.That(rawSecret.Length, Is.EqualTo(48));
+            Assert.That(rawSecret[0], Is.EqualTo(0), "the pair must exercise the leading-zero case");
+
+            var platformKey = NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, rawSecret, 16, salt, []);
+            var serverKey = server.GetEcdhSharedSecret(serverPwd, client, salt).GetKey();
+
+            Assert.That(serverKey, Is.EqualTo(platformKey));
+            Assert.That(client.GetEcdhSharedSecret(clientPwd, server, salt).GetKey(), Is.EqualTo(serverKey));
+        }
+
+        [Test]
+        public void GetEcdhSharedSecretCandidates_LeadingZeroSharedSecret_ListsFixedLengthThenLegacy()
+        {
+            var (serverPwd, server, clientPwd, client) = CreatePairWithLeadingZeroSharedSecret();
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+
+            var rawSecret = PlatformRawSecret(client, clientPwd, server);
+            var legacySecret = rawSecret.SkipWhile(b => b == 0).ToArray();
+
+            var candidates = server.GetEcdhSharedSecretCandidates(serverPwd, client, salt);
+
+            Assert.That(candidates.Count, Is.EqualTo(2));
+            Assert.That(candidates[0].GetKey(),
+                Is.EqualTo(NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, rawSecret, 16, salt, [])));
+            Assert.That(candidates[1].GetKey(),
+                Is.EqualTo(NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, legacySecret, 16, salt, [])));
+        }
+
+        [Test]
+        public void EcdhAesGcmDecrypt_AcceptsBothEncodings_AndRejectsAWrongKey()
+        {
+            var (serverPwd, server, clientPwd, client) = CreatePairWithLeadingZeroSharedSecret();
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+            var iv = ByteArrayUtil.GetRndByteArray(16);
+
+            // fixed-length (current senders), then legacy (older senders, payloads stored before #1728)
+            foreach (var senderKey in client.GetEcdhSharedSecretCandidates(clientPwd, server, salt))
+            {
+                var cipher = AesGcm.Encrypt(testMessage, senderKey, iv);
+                Assert.That(server.EcdhAesGcmDecrypt(serverPwd, client, salt, cipher, iv), Is.EqualTo(testMessage));
+            }
+
+            var strangerPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var stranger = new EccFullKeyData(strangerPwd, EccKeySize.P384, 2);
+            var strangerCipher = AesGcm.Encrypt(testMessage, stranger.GetEcdhSharedSecret(strangerPwd, server, salt), iv);
+
+            Assert.That(() => server.EcdhAesGcmDecrypt(serverPwd, client, salt, strangerCipher, iv),
+                Throws.InstanceOf<NetCrypto.CryptographicException>());
+        }
+
+        [Test]
+        public void CreateEphemeralFor_RecipientSeesASingleEncoding()
+        {
+            var recipientPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var recipient = new EccFullKeyData(recipientPwd, EccKeySize.P384, 2);
+
+            // Without re-rolling, 1024 key pairs would all avoid a leading zero only ~1.8% of the time
+            for (var i = 0; i < 1024; i++)
+            {
+                var pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+                var ephemeral = EccFullKeyData.CreateEphemeralFor(pwd, recipient, EccKeySize.P384, 2);
+
+                var candidates = recipient.GetEcdhSharedSecretCandidates(recipientPwd, ephemeral, ByteArrayUtil.GetRndByteArray(16));
+                Assert.That(candidates.Count, Is.EqualTo(1));
+            }
+        }
+
+        private static (SensitiveByteArray serverPwd, EccFullKeyData server, SensitiveByteArray clientPwd, EccFullKeyData client)
+            CreatePairWithLeadingZeroSharedSecret()
+        {
+            var serverPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var server = new EccFullKeyData(serverPwd, EccKeySize.P384, 2);
+
+            for (var attempt = 0; attempt < 20_000; attempt++)
+            {
+                var clientPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+                var client = new EccFullKeyData(clientPwd, EccKeySize.P384, 2);
+                if (!server.EcdhEncodingsAgree(serverPwd, client))
+                {
+                    return (serverPwd, server, clientPwd, client);
+                }
+            }
+
+            Assert.Fail("no key pair with a leading-zero shared secret found");
+            return default;
+        }
+
+        private static byte[] PlatformRawSecret(EccFullKeyData local, SensitiveByteArray localPwd, EccPublicKeyData remote)
+        {
+            var localPrivate = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(Convert.FromBase64String(local.privateDerBase64(localPwd)));
+
+            using var localEcdh = NetCrypto.ECDiffieHellman.Create(ToNetParameters(local, localPrivate));
+            using var remoteEcdh = NetCrypto.ECDiffieHellman.Create(ToNetParameters(remote, null));
+            return localEcdh.DeriveRawSecretAgreement(remoteEcdh.PublicKey);
+        }
+
+        private static NetCrypto.ECParameters ToNetParameters(EccPublicKeyData key, ECPrivateKeyParameters privateKey)
+        {
+            var publicKey = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(key.publicKey);
+            return new NetCrypto.ECParameters
+            {
+                Curve = NetCrypto.ECCurve.NamedCurves.nistP384,
+                Q = new NetCrypto.ECPoint
+                {
+                    X = BigIntegers.AsUnsignedByteArray(48, publicKey.Q.AffineXCoord.ToBigInteger()),
+                    Y = BigIntegers.AsUnsignedByteArray(48, publicKey.Q.AffineYCoord.ToBigInteger())
+                },
+                D = privateKey == null ? null : BigIntegers.AsUnsignedByteArray(48, privateKey.D)
+            };
         }
     }
 }

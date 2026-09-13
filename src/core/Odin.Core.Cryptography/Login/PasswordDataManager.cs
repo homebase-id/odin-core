@@ -134,8 +134,8 @@ namespace Odin.Core.Cryptography.Login
 
             try
             {
-                using var ss = hostEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, clientPublicEcc, nonce);
-                decryptedGcm = AesGcm.Decrypt(dataToDecrypt, ss, nonce);
+                // accepts both shared-secret encodings; browsers use the fixed-length one (#1728)
+                decryptedGcm = hostEcc.EcdhAesGcmDecrypt(EccKeyListManagement.zeroSensitiveKey, clientPublicEcc, nonce, dataToDecrypt, nonce);
             }
             catch
             {
