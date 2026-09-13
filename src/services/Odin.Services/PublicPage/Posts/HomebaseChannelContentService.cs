@@ -18,6 +18,7 @@ using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 
@@ -94,7 +95,9 @@ public class HomebaseChannelContentService(
         var qp = new FileQueryParamsV1
         {
             TargetDrive = targetDrive,
-            FileType = [PostFileType]
+            FileType = [PostFileType],
+            // a soft-deleted post leaves a tombstone (empty content, null payloads) that still matches the file type
+            FileState = [FileState.Active]
         };
 
         var options = new QueryBatchResultOptions
@@ -133,7 +136,9 @@ public class HomebaseChannelContentService(
         var qp = new FileQueryParamsV1
         {
             TargetDrive = targetDrive,
-            FileType = [PostFileType]
+            FileType = [PostFileType],
+            // a soft-deleted post leaves a tombstone (empty content, null payloads) that still matches the file type
+            FileState = [FileState.Active]
         };
 
         var options = new QueryBatchResultOptions
@@ -188,7 +193,8 @@ public class HomebaseChannelContentService(
         {
             TargetDrive = targetDrive,
             TagsMatchAtLeastOne = postIdAsTag == null ? default : [postIdAsTag.GetValueOrDefault()],
-            FileType = fileType == null ? default : [fileType.GetValueOrDefault()]
+            FileType = fileType == null ? default : [fileType.GetValueOrDefault()],
+            FileState = [FileState.Active]
         };
 
         var options = new QueryBatchResultOptions
@@ -321,7 +327,8 @@ public class HomebaseChannelContentService(
         };
 
         PostContent content = null;
-        var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
+        var payloads = postFile.FileMetadata.Payloads ?? [];
+        var payloadHeader = payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
 
         try
         {
@@ -337,7 +344,7 @@ public class HomebaseChannelContentService(
             }
             else
             {
-                if (includePayloadBody && postFile.FileMetadata.Payloads.Any(p => p.KeyEquals(PostFullTextPayloadKey)))
+                if (includePayloadBody && payloads.Any(p => p.KeyEquals(PostFullTextPayloadKey)))
                 {
                     var bodyFromPayload = await LoadBodyFromPayload(fileId);
                     content.Body = bodyFromPayload.Body;
@@ -381,7 +388,7 @@ public class HomebaseChannelContentService(
 
         if (content.PrimaryMediaFile?.FileKey != null)
         {
-            var mediaPayload = postFile.FileMetadata.Payloads
+            var mediaPayload = payloads
                 .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
 
             var theThumbnail = mediaPayload?.Thumbnails.OrderBy(t => t.PixelWidth)
