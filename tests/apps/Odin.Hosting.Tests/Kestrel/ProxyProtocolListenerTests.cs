@@ -37,6 +37,9 @@ public class ProxyProtocolListenerTests
     [
         .. ListenEntryEnv(1, 8081, TrustedPort, "127.0.0.0/8", "::1/128"),
         .. ListenEntryEnv(2, 8082, UntrustedPort, "10.0.0.0/8"),
+        // The silent-connection records are Verbose on purpose (see LogNoHeader); the test
+        // appsettings floor is Debug, so they would not reach the in-memory sink without this.
+        new("Serilog__MinimumLevel__Override__Odin.Hosting.Kestrel", "Verbose"),
     ];
 
     private WebScaffold _scaffold = null!;
@@ -224,6 +227,101 @@ public class ProxyProtocolListenerTests
         var seen = IPAddress.Parse((await EchoAsync(client, port: 8443))!);
         Assert.That(IPAddress.IsLoopback(seen.IsIPv4MappedToIPv6 ? seen.MapToIPv4() : seen), Is.True);
     }
+
+    // 8. Health-probe noise (issue #1731). An L4 monitor opens a connection, proves the port
+    // accepts and closes without saying anything - it cannot send a PROXY header. That is not a
+    // malformed client and must not be logged at Warning, or it buries everything else.
+    [Test]
+    public async Task SilentConnection_IsLoggedAtVerbose_NotWarning()
+    {
+        var transport = await ConnectOrFail(TrustedPort, proxyHeader: null);
+        await transport.DisposeAsync();
+
+        var events = await WaitForProxyEventsAsync(LogEventLevel.Verbose);
+        Assert.That(events, Is.Not.Empty, "a silent connection should still be recorded, at Verbose");
+        Assert.That(BytesReceived(events[0]), Is.EqualTo(0));
+        Assert.That(ProxyEvents(LogEventLevel.Warning), Is.Empty,
+            "a zero-byte connection is a health probe, not something to warn about");
+    }
+
+    // The reported case: the monitor holds the connection open instead of closing it, so the
+    // header wait runs out. Same verdict - nothing was said, so there is nothing to warn about.
+    [Test]
+    public async Task IdleConnection_IsLoggedAtVerbose_NotWarning()
+    {
+        await using var transport = await ConnectOrFail(TrustedPort, proxyHeader: null);
+
+        var events = await WaitForProxyEventsAsync(LogEventLevel.Verbose, TimeSpan.FromSeconds(20));
+        Assert.That(events, Is.Not.Empty, "the header-read timeout should have fired");
+        Assert.That(Reason(events[0]), Does.Contain("no header within"));
+        Assert.That(BytesReceived(events[0]), Is.EqualTo(0));
+        Assert.That(ProxyEvents(LogEventLevel.Warning), Is.Empty);
+    }
+
+    // A peer that resets rather than closing is still a zero-byte peer.
+    [Test]
+    public async Task ResetConnection_IsNotLoggedAsWarning()
+    {
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+        {
+            NoDelay = true,
+            LingerState = new LingerOption(true, 0), // close() sends RST instead of FIN
+        };
+        await socket.ConnectAsync(IPAddress.Loopback, TrustedPort);
+        socket.Dispose();
+
+        var events = await WaitForProxyEventsAsync(LogEventLevel.Verbose);
+        Assert.That(events, Is.Not.Empty);
+        Assert.That(ProxyEvents(LogEventLevel.Warning), Is.Empty);
+        _scaffold.AssertLogEvents(); // and it must not have escaped into Kestrel as an Error
+    }
+
+    // The other half of the fix: a peer that said SOMETHING that was not a header is still a
+    // misconfiguration worth seeing, and keeps its Warning.
+    [Test]
+    public async Task ConnectionThatSendsGarbage_IsStillLoggedAtWarning()
+    {
+        var transport = await ConnectOrFail(TrustedPort, "GET / HTTP/1.1\r\n\r\n"u8.ToArray());
+        await transport.DisposeAsync();
+
+        var events = await WaitForProxyEventsAsync(LogEventLevel.Warning);
+        Assert.That(events, Is.Not.Empty, "a peer that speaks the wrong protocol must still warn");
+        Assert.That(Reason(events[0]), Is.EqualTo("invalid header"));
+        Assert.That(BytesReceived(events[0]), Is.GreaterThan(0));
+    }
+
+    // ...and so does a header from a peer that is not trusted to send one. This is the message
+    // that was being drowned out.
+    [Test]
+    public async Task UntrustedPeer_IsStillLoggedAtWarning()
+    {
+        await AssertListenerClosesTlsConnection(UntrustedPort, V2Header(Forged, 40009, IPAddress.Loopback, UntrustedPort));
+
+        var events = await WaitForProxyEventsAsync(LogEventLevel.Warning);
+        Assert.That(events.Select(e => e.MessageTemplate.Text),
+            Has.Some.Contains("rejecting connection from untrusted peer"));
+    }
+
+    private List<LogEvent> ProxyEvents(LogEventLevel level) => _scaffold.GetLogEvents()[level]
+        .Where(e => e.MessageTemplate.Text.StartsWith("PROXY protocol:"))
+        .ToList();
+
+    private async Task<List<LogEvent>> WaitForProxyEventsAsync(LogEventLevel level, TimeSpan? maxWait = null)
+    {
+        var deadline = DateTime.UtcNow + (maxWait ?? TimeSpan.FromSeconds(10));
+        while (true)
+        {
+            var events = ProxyEvents(level);
+            if (events.Count > 0 || DateTime.UtcNow > deadline)
+            {
+                return events;
+            }
+            await Task.Delay(50);
+        }
+    }
+
+    private static string Reason(LogEvent e) => e.Properties["Reason"].ToString().Trim('"');
+    private static long BytesReceived(LogEvent e) => long.Parse(e.Properties["BytesReceived"].ToString());
 
     private static IEnumerable<string> DnsNames(X509Certificate2? cert)
     {
