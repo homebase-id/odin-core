@@ -1,8 +1,10 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -19,6 +21,9 @@ using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
 using Odin.Services.Configuration.VersionUpgrade.Version10tov11;
 using Odin.Services.Configuration.VersionUpgrade.Version11tov12;
+using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
+using Odin.Services.Configuration.VersionUpgrade.Version13tov14;
+using Odin.Services.Configuration.VersionUpgrade.Version14tov15;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -38,15 +43,83 @@ public class VersionUpgradeService(
     V9ToV10VersionMigrationService v10,
     V10ToV11VersionMigrationService v11,
     V11ToV12VersionMigrationService v12,
+    V12ToV13VersionMigrationService v13,
+    V13ToV14VersionMigrationService v14,
+    V14ToV15VersionMigrationService v15,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
-    ILogger<VersionUpgradeService> logger)
+    ILogger<VersionUpgradeService> logger,
+    VersionUpgradeRunState runState)
 {
-    private bool _isRunning;
 
     // Prefix on every log line emitted by the upgrade flow so it can be traced through the log.
     private const string LogTag = nameof(VersionUpgradeService) + ":";
+
+    /// <summary>
+    /// How long one phase may run before it is treated as hung.
+    /// </summary>
+    /// <remarks>
+    /// A hung phase used to be invisible: the run stopped mid-way with no error, the outer catch never
+    /// fired, so no failure was recorded and the scheduler kept reporting "previously failed build
+    /// version: none".  The job stays queued under its unique hash, every later attempt gets "already
+    /// exists", and the tenant sits below the release version forever -- answering 503 to every owner
+    /// endpoint.  Silence is the worst outcome here, so a phase that stops making progress is turned
+    /// into a real failure that names itself.  Generous on purpose: an upgrade over a large identity is
+    /// slow, and a false trip costs a retry.
+    /// </remarks>
+    private static readonly TimeSpan PhaseTimeout = TimeSpan.FromMinutes(20);
+
+    /// <summary>
+    /// Runs one phase of the upgrade, saying when it starts, when it ends, and how long it took.
+    /// </summary>
+    /// <remarks>
+    /// Every phase logs a start and a matching finish, so a phase that never finishes is visible as the
+    /// last unmatched start rather than as an absence.  A failure is logged with the phase name before
+    /// it is rethrown -- the outer handler records the failed version, but only the name says where.
+    /// </remarks>
+    private async Task RunPhaseAsync(string phase, Func<CancellationToken, Task> work,
+        CancellationToken cancellationToken)
+    {
+        var sw = Stopwatch.StartNew();
+        logger.LogInformation(LogTag + " phase '{phase}' starting", phase);
+
+        // Raced against a timer rather than driven by a cancellation token.  The work here does not
+        // take one -- EnsureSystemDrivesExist has no CancellationToken parameter, and neither do the
+        // notification handlers it fans out to -- so cancelling a token would be ignored and the hang
+        // would stay invisible.  Watching from outside is the only way to see it.
+        var workTask = work(cancellationToken);
+        var completed = await Task.WhenAny(workTask, Task.Delay(PhaseTimeout, cancellationToken));
+
+        if (completed != workTask)
+        {
+            // The phase is still running and cannot be stopped; it is abandoned, not cancelled. Say so,
+            // and make sure a later crash in it is not swallowed as an unobserved task exception.
+            _ = workTask.ContinueWith(
+                t => logger.LogError(t.Exception,
+                    LogTag + " abandoned phase '{phase}' later faulted", phase),
+                TaskContinuationOptions.OnlyOnFaulted);
+
+            logger.LogError(
+                LogTag + " phase '{phase}' made no progress for {timeout} and was abandoned. It is still " +
+                "running and cannot be interrupted. Everything before this phase committed; nothing after " +
+                "it ran. The last log line from this phase names where it stopped.",
+                phase, PhaseTimeout);
+
+            throw new OdinSystemException($"Version upgrade phase '{phase}' timed out after {PhaseTimeout}");
+        }
+
+        try
+        {
+            await workTask;
+            logger.LogInformation(LogTag + " phase '{phase}' finished in {elapsed}ms", phase, sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, LogTag + " phase '{phase}' failed after {elapsed}ms", phase, sw.ElapsedMilliseconds);
+            throw;
+        }
+    }
 
     public async Task UpgradeAsync(VersionUpgradeJobData data, CancellationToken cancellationToken)
     {
@@ -87,16 +160,17 @@ public class VersionUpgradeService(
                 return;
             }
 
-            await using (var encTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
+            await RunPhaseAsync("master-key-encryption-pre-pass", async ct =>
             {
-                _isRunning = true;
+                await using var encTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                runState.SetRunning(true);
                 var (upgraded, skipped, keyPairsProvisioned) =
-                    await circleNetworkService.UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(odinContext, cancellationToken);
+                    await circleNetworkService.UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(odinContext, ct);
                 encTx.Commit();
                 logger.LogInformation(
                     LogTag + " Master key encryption pre-pass complete: {upgraded} upgraded, {skipped} skipped, {keyPairsProvisioned} write-only keypairs provisioned",
                     upgraded, skipped, keyPairsProvisioned);
-            }
+            }, cancellationToken);
 
             // Ensure every system drive exists before running any migration. EnsureSystemDrivesExist is
             // idempotent and version-independent, so a single up-front pass lets the version ladder assume
@@ -107,19 +181,23 @@ public class VersionUpgradeService(
                 return;
             }
 
-            await using (var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
+            // Creating a drive here is not passive: it publishes DriveDefinitionAddedNotification, whose
+            // handlers re-mint circle grants for every existing member. On an identity that has never had
+            // one of these drives, that work runs for the first time inside this phase.
+            await RunPhaseAsync("ensure-system-drives", async ct =>
             {
-                _isRunning = true;
+                await using var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                runState.SetRunning(true);
                 logger.LogDebug(LogTag + " Ensuring system drives exist on identity: [{identity}]", odinContext.Tenant);
                 await tenantConfigService.EnsureSystemDrivesExist(odinContext);
                 drivesTx.Commit();
-            }
+            }, cancellationToken);
 
             if (currentVersion == 0)
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v1.UpgradeAsync(odinContext, cancellationToken);
@@ -142,7 +220,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v2.UpgradeAsync(odinContext, cancellationToken);
@@ -165,7 +243,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v3.UpgradeAsync(odinContext, cancellationToken);
@@ -188,7 +266,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v4.UpgradeAsync(odinContext, cancellationToken);
@@ -212,7 +290,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v5.UpgradeAsync(odinContext, cancellationToken);
@@ -229,7 +307,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v6.UpgradeAsync(odinContext, cancellationToken);
@@ -252,7 +330,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v7.UpgradeAsync(odinContext, cancellationToken);
@@ -275,7 +353,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v8.UpgradeAsync(odinContext, cancellationToken);
@@ -298,7 +376,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v9.UpgradeAsync(odinContext, cancellationToken);
@@ -321,7 +399,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v10.UpgradeAsync(odinContext, cancellationToken);
@@ -344,7 +422,7 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v11.UpgradeAsync(odinContext, cancellationToken);
@@ -367,12 +445,75 @@ public class VersionUpgradeService(
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
-                _isRunning = true;
+                runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v12.UpgradeAsync(odinContext, cancellationToken);
 
                 await v12.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 12)
+            {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await v13.UpgradeAsync(odinContext, cancellationToken);
+
+                await v13.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 13)
+            {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await v14.UpgradeAsync(odinContext, cancellationToken);
+
+                await v14.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            if (currentVersion == 14)
+            {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await v15.UpgradeAsync(odinContext, cancellationToken);
+
+                await v15.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
@@ -394,16 +535,18 @@ public class VersionUpgradeService(
         catch (Exception ex)
         {
             await tenantConfigService.SetVersionFailureInfoAsync(currentVersion + 1);
-            logger.LogError(ex, LogTag + " Upgrading from v{currentVersion} failed. Release Info: {releaseInfo}", currentVersion, Version.VersionText);
+            logger.LogError(ex, LogTag + " Upgrading from v{currentVersion} failed. Release Info: {releaseInfo}. " +
+                                "Recorded failed version {failedVersion} so the next attempt reports it rather than " +
+                                "starting from silence.", currentVersion, Version.VersionText, currentVersion + 1);
         }
         finally
         {
-            _isRunning = false;
+            runState.SetRunning(false);
         }
     }
 
     public bool IsRunning()
     {
-        return _isRunning;
+        return runState.IsRunning;
     }
 }

@@ -51,6 +51,11 @@ public class UpdateCertificatesBackgroundService(
             }
             catch (Exception)
             {
+                // NOTE only IsFaulted tasks are inspected. A task whose OperationCanceledException
+                // escaped is IsCanceled, not IsFaulted, and carries a null Exception - so
+                // shutdown is already excluded here by construction rather than by a check.
+                // Do not add an OperationCanceledException guard inside this loop expecting it
+                // to fire; it cannot.
                 foreach (var task in tasks.Where(task => task.IsFaulted))
                 {
                     var exception = task.Exception?.GetBaseException();

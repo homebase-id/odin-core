@@ -131,7 +131,7 @@ public class ContactEnrichmentService(
         {
             QueryParams = new FileQueryParamsV1
             {
-                TargetDrive = SystemDriveConstants.ProfileDrive,
+                TargetDrive = WellKnownAppDrives.ProfileDrive,
                 FileType = [ContactProfileAttributes.AttributeFileType],
                 TagsMatchAtLeastOne = ContactProfileAttributes.QueryTypes
             },

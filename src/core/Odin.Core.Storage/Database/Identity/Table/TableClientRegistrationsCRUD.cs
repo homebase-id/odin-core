@@ -282,6 +282,43 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<ClientRegistrationsRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified FROM ClientRegistrations " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(ClientRegistrationsRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO ClientRegistrations (identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified) " +
+                                            "VALUES (@identityId,@catId,@issuedToId,@ttl,@expiresAt,@categoryId,@catType,@value,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@catId", DbType.Binary, item.catId);
+                importCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId);
+                importCommand.AddParameter("@ttl", DbType.Int32, item.ttl);
+                importCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
+                importCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
+                importCommand.AddParameter("@catType", DbType.Int32, item.catType);
+                importCommand.AddParameter("@value", DbType.String, item.value);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
+
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid catId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

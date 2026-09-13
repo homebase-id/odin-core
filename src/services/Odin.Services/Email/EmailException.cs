@@ -7,4 +7,8 @@ public class EmailException : OdinException
     public EmailException(string message) : base(message)
     {
     }
+
+    public EmailException(string message, System.Exception inner) : base(message, inner)
+    {
+    }
 }

@@ -122,7 +122,7 @@ public class HomebaseProfileContentService(
 
     public async Task<AboutSection> LoadAboutSection(IOdinContext odinContext)
     {
-        var theDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ProfileDrive.Alias);
+        var theDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.ProfileDrive.Alias);
         if (null == theDrive)
         {
             return null;
@@ -130,7 +130,7 @@ public class HomebaseProfileContentService(
 
         var qp = new FileQueryParamsV1
         {
-            TargetDrive = SystemDriveConstants.ProfileDrive,
+            TargetDrive = WellKnownAppDrives.ProfileDrive,
             FileType = [ProfileAttributeService.AttributeFileType],
             GroupId = [ProfileAttributeService.AboutSectionId]
         };
@@ -146,14 +146,14 @@ public class HomebaseProfileContentService(
             Sorting = QueryBatchSortField.FileId
         };
 
-        var batch = await fileSystem.Query.GetBatch(SystemDriveConstants.ProfileDrive.Alias, qp, options, odinContext);
+        var batch = await fileSystem.Query.GetBatch(WellKnownAppDrives.ProfileDrive.Alias, qp, options, odinContext);
         var section = new AboutSection();
 
         string shortBioType = "1d89f51a-6e42-4074-8d6b-60916c0eec9a".ToLower();
         string statusType = "9acb44549b41563697bb490144ec6258".ToLower();
         string experienceType = "65635623682c2fadd2767d424f53690f".ToLower();
         string bioType = "2cd30a58568dc333237944481aeb9ff1".ToLower();
-        var targetDrive = SystemDriveConstants.ProfileDrive;
+        var targetDrive = WellKnownAppDrives.ProfileDrive;
         foreach (var s in batch.SearchResults)
         {
             try

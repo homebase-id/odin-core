@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Dns;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
+using Odin.Services.Email.Dkim;
+using Odin.Services.Email.Relay;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Dns.Health;
@@ -85,8 +87,26 @@ public sealed class DnsHealthResult
     /// <summary>Required records with live status (same shape the provisioning screens consume)</summary>
     public List<DnsConfig> Records { get; init; } = [];
 
+    /// <summary>
+    /// The Optional-flagged record set (today: the email records, present when
+    /// Email:TenantMail is enabled) with live status. Kept out of Records so
+    /// clients never render them as failed REQUIRED records - they are optional
+    /// until the tenant's mail is actually live.
+    /// </summary>
+    public List<DnsConfig> MailRecords { get; init; } = [];
+
     /// <summary>The server-side success rule over Records (delegation OR record rule)</summary>
     public bool RecordsAreValid { get; init; }
+
+    /// <summary>
+    /// Whether this HOST serves tenant mail at all (Email:TenantMail:Enabled).
+    ///
+    /// Without it an empty <see cref="MailRecords"/> is ambiguous, and the two cases call for
+    /// opposite messages: false means the server does not do email and the owner cannot act;
+    /// true with no records means the owner has not set it up yet and can. Additive field -
+    /// old frontends ignore it.
+    /// </summary>
+    public bool TenantMailEnabled { get; init; }
 
     /// <summary>Optional records (www) - informational, never errors</summary>
     public List<OptionalRecordResult> OptionalRecords { get; init; } = [];
@@ -107,7 +127,9 @@ public class DnsHealthService(
     ILookupClient dnsClient,
     IAuthoritativeDnsLookup authoritativeDnsLookup,
     IDnssecLookup dnssecLookup,
-    IDnsLookupService dnsLookupService)
+    IDnsLookupService dnsLookupService,
+    IDkimStore dkimStore,
+    IMailRelayProvider relayProvider)
 {
     private static readonly DnsQueryOptions AuthoritativeQueryOptions = new()
     {
@@ -119,13 +141,25 @@ public class DnsHealthService(
 
     public async Task<DnsHealthResult> GetDnsHealthAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var (recordsAreValid, records) = await dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
+        // Per-tenant records - values that exist only after activation, so they cannot come
+        // from the config-only GetDnsConfiguration. Both sets ride the same extraRecords seam,
+        // which means the status lookups, the Optional/mail split and every client's notion of
+        // "broken" pick them up without knowing they are different in origin.
+        var extraRecords = await GetDkimRecordsAsync(domain);
+        extraRecords.AddRange(await GetRelayRecordsAsync(domain));
+
+        var (recordsAreValid, records) = await dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(
+            domain, extraRecords, cancellationToken);
         var optionalRecords = await CheckOptionalWwwAsync(domain, cancellationToken);
         var dnssec = await GetDnssecHealthAsync(domain, cancellationToken);
 
         return new DnsHealthResult
         {
-            Records = records,
+            // Optional-flagged rows (the email record set) split out: they must never
+            // show up as failed required records in a client
+            Records = records.Where(x => !x.Optional).ToList(),
+            MailRecords = records.Where(x => x.Optional).ToList(),
+            TenantMailEnabled = configuration.Email.TenantMail.Enabled,
             RecordsAreValid = recordsAreValid,
             OptionalRecords = optionalRecords,
             Dnssec = dnssec,
@@ -135,6 +169,65 @@ public class DnsHealthService(
     //
 
     /// <summary>
+    /// <summary>
+    /// The tenant's DKIM records, so the owner console can check them like any other.
+    ///
+    /// They cannot come from GetDnsConfiguration: that list is built from configuration,
+    /// while DKIM values are per-tenant key material that exists only after email
+    /// activation. Returns empty whenever there is nothing to check - tenant mail off,
+    /// no storage key configured, or the tenant never activated email - so the caller
+    /// never has to distinguish "no DKIM" from "DKIM broken".
+    ///
+    /// A read failure is logged and swallowed: DKIM is one block of a health panel, and
+    /// a store hiccup should not take the whole panel down with it.
+    /// </summary>
+    /// <summary>
+    /// The outbound relay's per-tenant CNAMEs, when a relay is configured. Their names are
+    /// allocated by the relay, so they are read from it rather than derived - and an
+    /// unreachable relay omits them rather than reporting them missing, because "we could not
+    /// ask" and "they are not published" are different answers and only one is the owner's
+    /// problem.
+    /// </summary>
+    private async Task<List<DnsConfig>> GetRelayRecordsAsync(AsciiDomainName domain)
+    {
+        if (!configuration.Email.TenantMail.Enabled || !relayProvider.IsConfigured)
+        {
+            return [];
+        }
+
+        try
+        {
+            var state = await relayProvider.GetDomainAsync(domain);
+            return state?.Records ?? [];
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not read relay records for {domain}; omitted from the health check",
+                domain.DomainName);
+            return [];
+        }
+    }
+
+    private async Task<List<DnsConfig>> GetDkimRecordsAsync(AsciiDomainName domain)
+    {
+        if (!configuration.Email.TenantMail.Enabled || !dkimStore.IsConfigured)
+        {
+            return [];
+        }
+
+        try
+        {
+            var keys = await dkimStore.GetKeysAsync(domain.DomainName);
+            return keys.Count == 0 ? [] : DkimDnsRecords.ToDnsConfigs(domain.DomainName, keys);
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not read DKIM keys for {domain}; DKIM records omitted from the health check",
+                domain.DomainName);
+            return [];
+        }
+    }
+
     /// The optional www record. Deliberately NOT part of GetDnsConfiguration: that list
     /// feeds the signup success rule and certificate checks, and a missing optional
     /// record must never fail either. None of the states here is an error.
@@ -251,6 +344,46 @@ public class DnsHealthService(
             logger.LogWarning("DNSSEC attention check for {domain} failed: {error}", domain, e.Message);
             return null;
         }
+    }
+
+    /// <summary>
+    /// The tenant's broken mail DNS records, described for a human, or an empty list when
+    /// there is nothing to report. Feeds the monthly security health report - a broken SPF
+    /// or DKIM record is silent otherwise: mail is refused or spam-foldered and the owner
+    /// finds out from the people who stopped receiving it.
+    ///
+    /// Best-effort like the DNSSEC equivalent: a DNS hiccup must not block the report or
+    /// count as attention.
+    /// </summary>
+    public async Task<List<string>> GetMailRecordAttentionAsync(
+        AsciiDomainName domain,
+        CancellationToken cancellationToken = default)
+    {
+        if (!configuration.Email.TenantMail.Enabled)
+        {
+            return [];
+        }
+
+        try
+        {
+            var health = await GetDnsHealthAsync(domain, cancellationToken);
+            return health.MailRecords
+                .Where(x => x.Status != DnsLookupRecordStatus.Success)
+                .Select(DescribeBrokenRecord)
+                .ToList();
+        }
+        catch (System.Exception e)
+        {
+            logger.LogWarning("Mail record attention check for {domain} failed: {error}", domain, e.Message);
+            return [];
+        }
+    }
+
+    // internal for testing
+    internal static string DescribeBrokenRecord(DnsConfig record)
+    {
+        var what = record.Status == DnsLookupRecordStatus.IncorrectValue ? "has the wrong value" : "is missing";
+        return $"{record.Description} ({record.Type} record on {record.Domain}) {what}";
     }
 
     // Pure trigger rule, data-level testable

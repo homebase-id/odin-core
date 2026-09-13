@@ -187,6 +187,14 @@ runs:
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/community
         mv packages/apps/community-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/community
 
+    - name: Build web-drop-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:web-drop
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/web-drop
+        mv packages/apps/web-drop-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/web-drop
+
     - name: Build provisioning-app
       shell: bash
       working-directory: ./client/apps

@@ -1,0 +1,26 @@
+Group,Method,Guid Route (existing),Slug Route (new),Status,In Doc,Notes
+Peer read,POST,/api/v2/peer/{odinId}/drives/{driveId}/query-batch,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/query-batch,Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/{fileId}/header,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/{fileId}/header,Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/{fileId}/payload/{payloadKey},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/{fileId}/payload/{payloadKey},Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/{fileId}/payload/{payloadKey}/{start}/{length},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/{fileId}/payload/{payloadKey}/{start}/{length},Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/{fileId}/payload/{payloadKey}/thumb/{width}/{height},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/{fileId}/payload/{payloadKey}/thumb/{width}/{height},Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/by-uid/{uid}/exists,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/by-uid/{uid}/exists,Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/exists,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/by-gtid/{gtid}/exists,Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/header,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/by-gtid/{gtid}/header,Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/payload/{payloadKey},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/by-gtid/{gtid}/payload/{payloadKey},Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/payload/{payloadKey}/{start}/{length},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/by-gtid/{gtid}/payload/{payloadKey}/{start}/{length},Built,Yes (files shape),1:1 twin
+Peer read,GET,/api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/payload/{payloadKey}/thumb/{width}/{height},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/by-gtid/{gtid}/payload/{payloadKey}/thumb/{width}/{height},Built,Yes (files shape),1:1 twin
+Peer temporal,POST,/api/v2/peer/{odinId}/drives/{driveId}/temporal/verify,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/temporal/verify,Built,No,1:1 twin; temporal chain mirrors the read chain
+Peer temporal,POST,/api/v2/peer/{odinId}/drives/{driveId}/temporal/query-batch,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/temporal/query-batch,Built,No,1:1 twin
+Peer temporal,GET,/api/v2/peer/{odinId}/drives/{driveId}/temporal/files/{fileId}/header,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/temporal/files/{fileId}/header,Built,No,1:1 twin
+Peer temporal,GET,/api/v2/peer/{odinId}/drives/{driveId}/temporal/files/{fileId}/payload/{payloadKey},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/temporal/files/{fileId}/payload/{payloadKey},Built,No,1:1 twin
+Peer temporal,GET,/api/v2/peer/{odinId}/drives/{driveId}/temporal/files/{fileId}/payload/{payloadKey}/{start}/{length},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/temporal/files/{fileId}/payload/{payloadKey}/{start}/{length},Built,No,1:1 twin
+Peer temporal,GET,/api/v2/peer/{odinId}/drives/{driveId}/temporal/files/{fileId}/payload/{payloadKey}/thumb/{width}/{height},/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/temporal/files/{fileId}/payload/{payloadKey}/thumb/{width}/{height},Built,No,1:1 twin
+Peer write,POST,/api/v2/peer/{odinId}/drives/{driveId}/files/send,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/send,Built,Yes (doc headline example),Route overrides body remoteTargetDrive and recipients
+Peer write,POST,/api/v2/peer/{odinId}/drives/{driveId}/files/senddeleterequest,/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/senddeleterequest,Built,Yes (files shape),Route overrides body targetDrive and recipients
+Local,GET,/api/v2/drives/metadata/channel-drives,/api/v2/apps/{appSlug}/drives?type={typeSlug},Built,Yes,Generalizes the guid route; doc says this retires it
+Local,GET,(none),/api/v2/apps/{appSlug}/drives,Built,Yes,No guid equivalent existed
+Local,GET,(none),/api/v2/apps/{appSlug}/drives/{driveSlug},Built,No,ONLY GENUINELY NEW CAPABILITY - single drive metadata by address
+Local,ALL,/api/v2/drives/{driveId}/files/...,/api/v2/apps/{appSlug}/drives/{driveSlug}/files/...,NOT BUILT,Yes,Whole local file surface - upload update delete reactions by-uid by-gtid query
+Peer read,GET,(none),/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/public-key,NOT BUILT,Yes,Write-only deposit key; doc calls this where slugs earn their keep
+Server-to-server,POST,/api/perimeter/transit/host/drive/metadata/type,/api/perimeter/transit/host/drive/metadata/by-slug,Built,Implied,Recipient resolves the address; everything peer-side depends on it

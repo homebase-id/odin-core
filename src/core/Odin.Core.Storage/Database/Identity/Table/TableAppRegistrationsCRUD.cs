@@ -76,13 +76,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE AppRegistrations IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE AppRegistrations IS '{ \"Version\": 202608271000 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS AppRegistrations( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS AppRegistrations( -- { \"Version\": 202608271000 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"AppId BYTEA NOT NULL, "
@@ -281,6 +281,42 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.modified = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             return item;
        }
+
+        internal virtual async Task ExportRowsAsync(Guid identityId, Func<AppRegistrationsRecord, Task> onRow)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var exportCommand = cn.CreateCommand();
+            {
+                exportCommand.CommandText = "SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified FROM AppRegistrations " +
+                                            "WHERE identityId = @identityId ORDER BY rowId ASC;";
+                exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
+                while (await rdr.ReadAsync())
+                {
+                    await onRow(ReadRecordFromReaderAll(rdr));
+                }
+            }
+        }
+
+        internal virtual async Task<int> ImportRowAsync(AppRegistrationsRecord item)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var importCommand = cn.CreateCommand();
+            {
+                importCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified) " +
+                                            "VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,@created,@modified);";
+                importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                importCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                importCommand.AddParameter("@AppSlug", DbType.String, item.AppSlug);
+                importCommand.AddParameter("@Name", DbType.String, item.Name);
+                importCommand.AddParameter("@CorsHostName", DbType.String, item.CorsHostName);
+                importCommand.AddParameter("@grantJson", DbType.String, item.grantJson);
+                importCommand.AddParameter("@detailsJson", DbType.String, item.detailsJson);
+                importCommand.AddParameter("@created", DbType.Int64, item.created.milliseconds);
+                importCommand.AddParameter("@modified", DbType.Int64, item.modified.milliseconds);
+                return await importCommand.ExecuteNonQueryAsync();
+            }
+        }
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid AppId)
         {

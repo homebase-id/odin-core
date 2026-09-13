@@ -35,7 +35,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.ChatDrive,
+                    Drive = WellKnownAppDrives.ChatDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -43,7 +43,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.ListsDrive,
+                    Drive = WellKnownAppDrives.ListsDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -51,16 +51,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.MomentsDrive,
-                    Permission = DrivePermission.Write | DrivePermission.React
-                }
-            },
-
-            new DriveGrantRequest()
-            {
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = SystemDriveConstants.MailDrive,
+                    Drive = WellKnownAppDrives.MomentsDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -69,7 +60,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.FeedDrive,
+                    Drive = WellKnownAppDrives.MailDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -78,7 +69,16 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.ShardRecoveryDrive,
+                    Drive = WellKnownAppDrives.FeedDrive,
+                    Permission = DrivePermission.Write | DrivePermission.React
+                }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = WellKnownAppDrives.ShardRecoveryDrive,
                     Permission = DrivePermission.Write
                 }
             },
@@ -100,7 +100,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.ChatDrive,
+                    Drive = WellKnownAppDrives.ChatDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -109,7 +109,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.ListsDrive,
+                    Drive = WellKnownAppDrives.ListsDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -118,7 +118,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.MomentsDrive,
+                    Drive = WellKnownAppDrives.MomentsDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -127,7 +127,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.MailDrive,
+                    Drive = WellKnownAppDrives.MailDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             },
@@ -136,7 +136,7 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
-                    Drive = SystemDriveConstants.FeedDrive,
+                    Drive = WellKnownAppDrives.FeedDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             }

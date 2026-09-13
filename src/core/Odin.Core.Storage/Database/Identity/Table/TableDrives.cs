@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -52,9 +53,30 @@ public class TableDrives(
         return await base.GetByTargetDriveAsync(odinIdentity, driveAlias, driveType);
     }
 
+    /// <summary>
+    /// Number of drives belonging to THIS identity.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately does not call base.GetCountAsync(): the generated CRUD emits a bare
+    /// "SELECT COUNT(*) FROM Drives" with no identityId filter. That is accidentally correct on
+    /// SQLite, where each tenant has its own database file, but on Postgres every tenant shares
+    /// one database and the unfiltered count returns the drive count of the whole fleet.
+    /// </remarks>
     internal new async Task<int> GetCountAsync()
     {
-        return await base.GetCountAsync();
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText = "SELECT COUNT(*) FROM drives WHERE identityId=@identityId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+
+        var count = await cmd.ExecuteScalarAsync();
+        if (count == null || count == DBNull.Value || !(count is int || count is long))
+        {
+            return -1;
+        }
+
+        return Convert.ToInt32(count);
     }
 
     public async Task<(List<DrivesRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)

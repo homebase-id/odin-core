@@ -152,6 +152,67 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
 #endif
+        public async Task GetIdentityStorageStatsAsyncTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId1 = Guid.NewGuid();
+            var driveId2 = Guid.NewGuid();
+
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+
+            const int active = 1;
+            const int deleted = 0;
+
+            // Two drives, five files, two of them soft-deleted tombstones.
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId1, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1,
+                null, 42, new UnixTimeUtc(0), 0, null, null, 1, fileState: active);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId1, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1,
+                null, 42, new UnixTimeUtc(0), 0, null, null, 2, fileState: active);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId1, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1,
+                null, 42, new UnixTimeUtc(0), 0, null, null, 4, fileState: deleted);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId2, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1,
+                null, 42, new UnixTimeUtc(0), 0, null, null, 8, fileState: active);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId2, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1,
+                null, 42, new UnixTimeUtc(0), 0, null, null, 16, fileState: deleted);
+
+            var stats = await tblDriveMainIndex.GetIdentityStorageStatsAsync();
+
+            Assert.That(stats.Files, Is.EqualTo(5));
+            Assert.That(stats.TotalBytes, Is.EqualTo(1 + 2 + 4 + 8 + 16));
+            Assert.That(stats.ActiveBytes, Is.EqualTo(1 + 2 + 8));
+
+            // TotalBytes must keep agreeing with the figure the existing admin endpoint reports.
+            Assert.That(stats.TotalBytes, Is.EqualTo(await tblDriveMainIndex.GetTotalSizeAllDrivesAsync()));
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task GetIdentityStorageStatsAsyncReturnsZeroesWhenEmpty(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+
+            var stats = await tblDriveMainIndex.GetIdentityStorageStatsAsync();
+
+            Assert.That(stats.Files, Is.EqualTo(0));
+            Assert.That(stats.TotalBytes, Is.EqualTo(0));
+            Assert.That(stats.ActiveBytes, Is.EqualTo(0));
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
         public async Task GetSizeInvalidTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

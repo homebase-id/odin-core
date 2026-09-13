@@ -559,41 +559,42 @@ public class ScopedConnectionFactory<T>(
             {
                 instance.LogTrace("Disposing transaction");
 
+                // Snapshot before the teardown clears them, and run them after it, never during.
+                //
+                // Running them inside the teardown put the scope in a state that contradicts itself:
+                // the ref count is already zero above, but _transaction is not nulled until the finally
+                // below.  An action that touched the database in that window found HasTransaction true
+                // and the ref count zero, so AddPostCommitAction refused it, and -- worse --
+                // BeginStackedTransactionAsync did not stack.  Seeing a zero ref count it began a brand
+                // new transaction and overwrote the very field this finally was about to dispose, and
+                // when that transaction disposed it re-ran this same list, which had not been cleared
+                // yet, republishing the notification that started it.
+                //
+                // That cost a version upgrade: creating an anonymous-read drive publishes a deferred
+                // DriveDefinitionAddedNotification, whose handler grants the system circles read on the
+                // drive, which writes a connection registration, which opens a transaction here -- and
+                // round again.  The tenant lock in SaveIcrAsync is what it collided with: the second
+                // pass waited on a lock the first still held, and the upgrade stopped dead with no
+                // exception, no thread and no CPU, holding a connection nobody would return for.
+                //
+                // Afterwards the state is honest: the list is empty, _transaction is null, the ref count
+                // is zero.  An action that opens its own transaction now gets a real one, and anything
+                // it registers belongs to that transaction and runs when it disposes.
+                var commit = instance._commit;
+                var actions = new List<Func<Task>>(
+                    commit ? instance._postCommitActions : instance._postRollbackActions);
+
                 try
                 {
-                    if (instance._commit)
+                    if (commit)
                     {
                         instance.LogTrace("Committing transaction");
                         await instance._transaction!.CommitAsync();
-                        foreach (var action in instance._postCommitActions)
-                        {
-                            try
-                            {
-                                instance.LogTrace("Running post-commit action");
-                                await action();
-                            }
-                            catch (Exception e)
-                            {
-                                instance.LogException("Post-commit action failed", e);
-                            }
-                        }
                     }
                     else
                     {
                         instance._logger.LogDebug("Rolling back transaction");
                         await instance._transaction!.RollbackAsync();
-                        foreach (var action in instance._postRollbackActions)
-                        {
-                            try
-                            {
-                                instance.LogTrace("Running post-rollback action");
-                                await action();
-                            }
-                            catch (Exception e)
-                            {
-                                instance.LogException("Post-rollback action failed", e);
-                            }
-                        }
                     }
                 }
                 finally
@@ -608,6 +609,20 @@ public class ScopedConnectionFactory<T>(
                     _disposed = true;
 
                     TransactionDiagnostics.TryRemove(instance._transactionId, out _);
+                }
+
+                // A throwing commit or rollback skips these, as it did when they ran inside the try.
+                foreach (var action in actions)
+                {
+                    try
+                    {
+                        instance.LogTrace(commit ? "Running post-commit action" : "Running post-rollback action");
+                        await action();
+                    }
+                    catch (Exception e)
+                    {
+                        instance.LogException(commit ? "Post-commit action failed" : "Post-rollback action failed", e);
+                    }
                 }
 
                 instance.LogTrace("Disposed transaction");

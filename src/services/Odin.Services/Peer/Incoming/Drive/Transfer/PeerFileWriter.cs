@@ -399,7 +399,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var targetFile = new InternalDriveFileId()
             {
                 FileId = header.FileId,
-                DriveId = SystemDriveConstants.FeedDrive.Alias
+                DriveId = WellKnownAppDrives.FeedDrive.Alias
             };
 
             //Update the reaction preview first since the overwrite method; uses what's on disk

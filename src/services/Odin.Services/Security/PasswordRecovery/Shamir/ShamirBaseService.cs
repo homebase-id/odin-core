@@ -31,7 +31,7 @@ public abstract class ShamirBaseService<TLogger>(
         Guid shardId,
         IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
 
         var options = new ResultOptions
         {
@@ -43,7 +43,7 @@ public abstract class ShamirBaseService<TLogger>(
         };
 
         var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            SystemDriveConstants.ShardRecoveryDrive,
+            WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.Read,
             odinContext);
 
@@ -61,7 +61,7 @@ public abstract class ShamirBaseService<TLogger>(
 
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var shardDrive = await driveManager.GetDriveAsync(driveId);
 
         if (null == shardDrive)

@@ -46,7 +46,7 @@ public class ContactTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    private static readonly Guid ContactDriveId = SystemDriveConstants.ContactDrive.Alias;
+    private static readonly Guid ContactDriveId = WellKnownAppDrives.ContactDrive.Alias;
 
     public enum CallerKind
     {
@@ -1336,7 +1336,7 @@ public class ContactTests : V2Fixture
     public async Task AppData_AppWritesBlob_RidesInlineInContent_NotAPayload()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contacts = new V2ContactsClient(app.Identity, app.Factory);
 
@@ -1371,9 +1371,9 @@ public class ContactTests : V2Fixture
     public async Task AppData_DifferentApp_NeitherSeesNorOverwritesTheOther()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
         var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
@@ -1399,7 +1399,7 @@ public class ContactTests : V2Fixture
     public async Task AppData_CoreUpdate_PreservesAppBlob()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var appContacts = new V2ContactsClient(app.Identity, app.Factory);
         var ownerContacts = new V2ContactsClient(owner.Identity, owner.Factory);
@@ -1431,9 +1431,9 @@ public class ContactTests : V2Fixture
     public async Task AppData_Delete_ClearsOnlyThatAppsBlob()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
         var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
@@ -1464,7 +1464,7 @@ public class ContactTests : V2Fixture
     public async Task AppData_OverCap_Rejected()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contacts = new V2ContactsClient(app.Identity, app.Factory);
 
@@ -1521,7 +1521,7 @@ public class ContactTests : V2Fixture
     public async Task AppExtData_AppWritesBulkBlob_StoredAsPayload_NotInContent()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contacts = new V2ContactsClient(app.Identity, app.Factory);
 
@@ -1557,9 +1557,9 @@ public class ContactTests : V2Fixture
     public async Task AppExtData_DifferentApp_NeitherSeesNorOverwritesTheOther()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
         var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
@@ -1585,7 +1585,7 @@ public class ContactTests : V2Fixture
     public async Task AppExtData_CoreUpdate_PreservesBulkPayload()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var appContacts = new V2ContactsClient(app.Identity, app.Factory);
         var ownerContacts = new V2ContactsClient(owner.Identity, owner.Factory);
@@ -1616,9 +1616,9 @@ public class ContactTests : V2Fixture
     public async Task AppExtData_Delete_DropsPayloadWhenEmpty_KeepsOtherApp()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appA = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
-        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var appB = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
         var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
@@ -1655,7 +1655,7 @@ public class ContactTests : V2Fixture
     public async Task AppExtData_OverCap_Rejected()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read,
             PermissionKeyAllowance.Apps);
         var contacts = new V2ContactsClient(app.Identity, app.Factory);
 
@@ -1691,7 +1691,7 @@ public class ContactTests : V2Fixture
         // contact drive and write via this API). The Read grant carries the drive storage key, which
         // ContactService needs to encrypt content at rest; the API supplies the Write permission via
         // an ACL-bypass upgrade.
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read, permissionKeys);
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ContactDrive, DrivePermission.Read, permissionKeys);
         return new V2ContactsClient(app.Identity, app.Factory);
     }
 
@@ -1727,7 +1727,7 @@ public class ContactTests : V2Fixture
         };
 
         var seed = await identity.Drives.Writer.CreateNewUnencryptedFile(
-            SystemDriveConstants.ProfileDrive.Alias,
+            WellKnownAppDrives.ProfileDrive.Alias,
             new UploadFileMetadata
             {
                 IsEncrypted = false,
@@ -1847,7 +1847,7 @@ public class ContactTests : V2Fixture
         {
             QueryParams = new FileQueryParamsV1
             {
-                TargetDrive = SystemDriveConstants.ContactDrive,
+                TargetDrive = WellKnownAppDrives.ContactDrive,
                 FileType = [ContactService.ContactFileType]
             },
             ResultOptionsRequest = QueryBatchResultOptionsRequest.Default

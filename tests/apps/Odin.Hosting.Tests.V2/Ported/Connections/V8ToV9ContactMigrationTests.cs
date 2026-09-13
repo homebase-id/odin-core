@@ -43,7 +43,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ContactDrive,
+                        Drive = WellKnownAppDrives.ContactDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -85,7 +85,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ContactDrive,
+                        Drive = WellKnownAppDrives.ContactDrive,
                         Permission = DrivePermission.Read
                     }
                 }
@@ -120,7 +120,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ContactDrive,
+                        Drive = WellKnownAppDrives.ContactDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -162,7 +162,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ContactDrive,
+                        Drive = WellKnownAppDrives.ContactDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -197,7 +197,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ContactDrive,
+                        Drive = WellKnownAppDrives.ContactDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -234,7 +234,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ChatDrive,
+                        Drive = WellKnownAppDrives.ChatDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -259,7 +259,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
             "migration should grant StickerDrive ReadWrite to a system app that ships with it");
         // Existing drive grants are preserved.
         Assert.That(after!.Grant.DriveGrants.Any(g =>
-            g.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive), Is.True);
+            g.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive), Is.True);
     }
 
     [Test]
@@ -278,7 +278,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ContactDrive,
+                        Drive = WellKnownAppDrives.ContactDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -316,7 +316,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                     {
                         PermissionedDrive = new PermissionedDrive
                         {
-                            Drive = SystemDriveConstants.ChatDrive,
+                            Drive = WellKnownAppDrives.ChatDrive,
                             Permission = DrivePermission.ReadWrite
                         }
                     }
@@ -336,7 +336,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                     {
                         PermissionedDrive = new PermissionedDrive
                         {
-                            Drive = SystemDriveConstants.ChatDrive,
+                            Drive = WellKnownAppDrives.ChatDrive,
                             Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
@@ -361,14 +361,14 @@ public class V8ToV9ContactMigrationTests : V2Fixture
             "migration should backfill the ListsDrive Write+React circle-member grant onto the chat app");
         // Pre-existing circle-member grants are preserved.
         Assert.That(after!.CircleMemberPermissionSetGrantRequest.Drives.Any(g =>
-            g.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive), Is.True,
+            g.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive), Is.True,
             "the existing ChatDrive circle-member grant must be preserved");
     }
 
     private static bool HasListsDriveCircleMemberGrant(RedactedAppRegistration app)
     {
         return app.CircleMemberPermissionSetGrantRequest?.Drives?.Any(g =>
-            g.PermissionedDrive.Drive == SystemDriveConstants.ListsDrive &&
+            g.PermissionedDrive.Drive == WellKnownAppDrives.ListsDrive &&
             g.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) &&
             g.PermissionedDrive.Permission.HasFlag(DrivePermission.React)) ?? false;
     }
@@ -376,7 +376,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
     private static bool HasStickerDriveReadWrite(RedactedAppRegistration app)
     {
         return app.Grant?.DriveGrants?.Any(g =>
-            g.PermissionedDrive.Drive == SystemDriveConstants.StickerDrive &&
+            g.PermissionedDrive.Drive == WellKnownAppDrives.StickerDrive &&
             g.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite)) ?? false;
     }
 

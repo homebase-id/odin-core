@@ -49,7 +49,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var momentsDrive = await driveManager.GetDriveAsync(SystemDriveConstants.MomentsDrive.Alias, false);
+            var momentsDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.MomentsDrive.Alias, false);
             if (momentsDrive == null)
             {
                 throw new OdinSystemException("Moments drive not created");
@@ -71,7 +71,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
                     }
 
                     var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                        .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive);
+                        .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive);
 
                     if (driveGrant == null)
                     {

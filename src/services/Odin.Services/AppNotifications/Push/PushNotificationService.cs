@@ -135,7 +135,7 @@ public class PushNotificationService(
     {
         await this.EnqueueNotificationInternalAsync(notification.Recipient, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.Recipient.ToHashId(),
                 Silent = false
@@ -147,7 +147,7 @@ public class PushNotificationService(
     {
         await this.EnqueueNotificationInternalAsync(notification.Sender, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false
@@ -159,7 +159,7 @@ public class PushNotificationService(
     {
         await this.EnqueueNotificationInternalAsync(notification.Accessor, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.Accessor.ToHashId(),
                 Silent = false,
@@ -173,7 +173,7 @@ public class PushNotificationService(
     {
         await this.EnqueueNotificationInternalAsync(notification.Sender, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false,
@@ -186,7 +186,7 @@ public class PushNotificationService(
     {
         await this.EnqueueNotificationInternalAsync(notification.Sender, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false,
@@ -201,7 +201,7 @@ public class PushNotificationService(
         var sender = notification.OdinContext.Tenant;
         await this.EnqueueNotificationInternalAsync(sender, new AppNotificationOptions()
             {
-                AppId = SystemAppConstants.OwnerAppId,
+                AppId = SystemAppConstants.SystemAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = sender.ToHashId(),
                 Silent = false

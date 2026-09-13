@@ -52,6 +52,12 @@ public class ClientFileMetadata
 
     public DataSource DataSource { get; set; }
 
+    /// <summary>
+    /// When this file expires; see <see cref="FileTtl"/>. Zero means never. Exposed so a client can
+    /// show a countdown without a second round trip.
+    /// </summary>
+    public long Ttl { get; set; }
+
     public PayloadDescriptor GetPayloadDescriptor(string key)
     {
         return Payloads?.SingleOrDefault(p => p.KeyEquals(key));

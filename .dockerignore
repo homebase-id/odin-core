@@ -3,6 +3,10 @@
 **/obj/
 **/out/
 
+# container directories
+**/bin-container/
+**/obj-container/
+
 # files
 Dockerfile*
 **/*.trx

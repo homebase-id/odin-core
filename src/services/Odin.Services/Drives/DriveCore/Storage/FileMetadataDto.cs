@@ -40,6 +40,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         
         public DataSource DataSource { get; init; }
 
+        public long Ttl { get; init; }
+
         public FileMetadataDto() { }
 
         public FileMetadataDto(FileMetadata fileMetadata)
@@ -61,6 +63,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             Payloads = fileMetadata.Payloads;
             
             DataSource = fileMetadata.DataSource;
+            Ttl = fileMetadata.Ttl;
             // VersionTag = fileMetadata.VersionTag
         }
 

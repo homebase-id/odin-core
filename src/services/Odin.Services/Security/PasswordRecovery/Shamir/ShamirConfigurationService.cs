@@ -301,7 +301,7 @@ public class ShamirConfigurationService(
         }
 
         var dotYouContext = new OdinContext();
-        var drive = SystemDriveConstants.ShardRecoveryDrive;
+        var drive = WellKnownAppDrives.ShardRecoveryDrive;
         var driveGrants = new List<DriveGrant>()
         {
             new DriveGrant
@@ -390,7 +390,7 @@ public class ShamirConfigurationService(
     /// </summary>
     private async Task SaveDealerPackage(DealerShardPackage envelope, IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var uid = Guid.Parse(DealerShardConfigUid);
         var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(driveId, uid, odinContext);
         if (existingFile == null)
@@ -418,7 +418,7 @@ public class ShamirConfigurationService(
                 Recipients = [recipient],
                 DisableTransferHistory = true,
                 UseAppNotification = false,
-                RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
+                RemoteTargetDrive = WellKnownAppDrives.ShardRecoveryDrive,
                 Priority = OutboxPriority.High
             };
 
@@ -448,7 +448,7 @@ public class ShamirConfigurationService(
                         TransferInstructionSet = CreateTransferInstructionSet(
                             KeyHeader.Empty(),
                             clientAuthToken,
-                            SystemDriveConstants.ShardRecoveryDrive,
+                            WellKnownAppDrives.ShardRecoveryDrive,
                             TransferFileType.Normal,
                             FileSystemType.Standard,
                             options),
@@ -489,7 +489,7 @@ public class ShamirConfigurationService(
                 UseAppNotification = true,
                 AppNotificationOptions = new AppNotificationOptions
                 {
-                    AppId = SystemAppConstants.OwnerAppId,
+                    AppId = SystemAppConstants.SystemAppId,
                     TypeId = OwnerAppConstants.PasswordRecoveryRecruitedTypeId,
                     TagId = default,
                     Silent = false,
@@ -497,7 +497,7 @@ public class ShamirConfigurationService(
                     Recipients = null,
                     UnEncryptedMessage = $"{odinContext.Tenant.DomainName} has added you as part of their password recovery process. "
                 },
-                RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
+                RemoteTargetDrive = WellKnownAppDrives.ShardRecoveryDrive,
                 Priority = OutboxPriority.High
             };
 
@@ -517,7 +517,7 @@ public class ShamirConfigurationService(
 
     private async Task WriteNewDealerEnvelopeFile(DealerShardPackage dealerShard, IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var file = await FileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
@@ -550,7 +550,7 @@ public class ShamirConfigurationService(
     private async Task OverwriteDealerEnvelopeFile(DealerShardPackage dealerShard, Guid existingFileId,
         IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
         var file = new InternalDriveFileId()
         {
             FileId = existingFileId,

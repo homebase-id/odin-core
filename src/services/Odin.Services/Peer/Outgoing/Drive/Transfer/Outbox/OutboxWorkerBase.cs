@@ -153,7 +153,13 @@ public abstract class OutboxWorkerBase(
             VersionTag = sourceMetadata.VersionTag,
             Payloads = sourceMetadata.Payloads,
             FileState = sourceMetadata.FileState,
-            DataSource = datasourceOverride ?? sourceMetadata.DataSource
+            DataSource = datasourceOverride ?? sourceMetadata.DataSource,
+
+            // Retention must travel: the recipient schedules the deletion of their own copy from this
+            // value, which is how a group expires a message without any retention message being sent.
+            // An absolute Ttl makes every copy die at the same moment; a negative one arrives still
+            // pending so each copy runs its own clock from its own reader's first view.
+            Ttl = sourceMetadata.Ttl
         };
 
         var json = OdinSystemSerializer.Serialize(redactedMetadata);

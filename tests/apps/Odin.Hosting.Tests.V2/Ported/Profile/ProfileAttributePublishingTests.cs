@@ -316,7 +316,7 @@ public class ProfileAttributePublishingTests : V2Fixture
     public async Task SetAttribute_Name_ConnectedVisibility_NoPhoto_FallsBackToDomainAvatarNotName()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ProfileDrive,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
             DrivePermission.Read, [PermissionKeys.ManageProfile]);
         var profile = new V2ProfileClient(app.Identity, app.Factory);
 
@@ -387,7 +387,7 @@ public class ProfileAttributePublishingTests : V2Fixture
     public async Task SetAttribute_ConnectedVisibility_RepublishesButExcludesEncryptedContent()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ProfileDrive,
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
             DrivePermission.Read, [PermissionKeys.ManageProfile]);
         var profile = new V2ProfileClient(app.Identity, app.Factory);
 

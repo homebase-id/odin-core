@@ -12,6 +12,12 @@ namespace Odin.Services.Registry
         public Task LoadRegistrations();
 
         /// <summary>
+        /// Starts receiving registry changes made by other nodes. Call before
+        /// <see cref="LoadRegistrations"/>; the handler tolerates a change arriving mid-load.
+        /// </summary>
+        Task SubscribeToRegistryChangesAsync();
+
+        /// <summary>
         /// Returns ID for *exact* domain, e.g. www.frodo.me 
         /// </summary>
         /// <param name="domain"></param>

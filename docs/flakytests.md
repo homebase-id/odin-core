@@ -1,0 +1,131 @@
+# Flaky and environment-sensitive tests
+
+A register of tests that fail intermittently, or fail only in certain environments, so the
+same investigation is not repeated every time one goes red.
+
+**Record every intermittent failure here, always** — including ones that "probably just need a
+re-run". A test nobody has written down is a test everyone re-investigates.
+
+Before assuming a red test is your change: check this file, then confirm by running the test on
+a clean tree (`git stash`), and by checking whether recent runs on `main` pass.
+
+## How to add an entry
+
+Name the test by its fully-qualified name, say **where** it fails (CI OS/db matrix, or local
+only), what the failure looks like, and — critically — the evidence that it is *not* caused by
+whatever change was in flight. If the cause is known, say it; if not, say that plainly rather
+than guessing.
+
+---
+
+## `Odin.Services.Tests.Dns.Health.DnsHealthServiceTest`
+
+- `ItShouldReportBrokenMailRecordsAsNeedingAttention`
+- `ItShouldSplitOptionalRecordsIntoMailRecords`
+
+**Where:** local only. Both pass on CI (verified on the windows/sqlite/debug job of run
+32957912470).
+
+**Symptom:** fail when run under a broad filter (`dotnet test --filter "FullyQualifiedName~Mail"`),
+pass when run under `--filter "FullyQualifiedName~DnsHealthServiceTest"`. One asserts an
+attention count of 1 and gets 0; the other throws inside `CheckOptionalWwwAsync`.
+
+**Not caused by the change in flight:** reproduced on a clean tree by stashing (2026-08-26),
+and unaffected by whether the local dev server is running.
+
+**Likely cause (unconfirmed):** these do live DNS lookups, and a local
+`docker/stalwart-dev` setup adds `/etc/hosts` entries for `*.dotyou.cloud`. A developer without
+those entries would likely not see it. Not yet proven — if you confirm it, replace this
+paragraph with what you found.
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.Peer.TemporalReadTests`
+
+- `TemporalRead_ClampsToWindow_VerifyReportsAccess_AndNormalReadIsRejected`
+
+**Where:** CI, `windows/sqlite/debug` (seen on run 32957912470, 2026-08-26).
+
+**Symptom:** `expected fresh file readable; got NotFound` — a peer file transfer that has not
+landed by the time the assertion runs.
+
+**Not caused by the change in flight:** the change was a mail-DNS endpoint, which this test does
+not touch; the same job passes on recent `main` runs.
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.Drive.DriveReaderTests.InboxDrainOnQueryTests`
+
+- `QuerySmartBatch_DrainsInbox_OnRecipient`
+
+**Where:** CI, `ubuntu/sqlite/release` (seen on run 33010865390, 2026-08-26).
+
+**Symptom:** the test fails outright; a peer transfer has presumably not drained by the time
+the assertion runs.
+
+**Not caused by the change in flight:** the strongest evidence available — **the identical
+commit failed and then passed on re-run with no code change** (`62c66902a`). Both parents of
+the merge were green independently: the feature commit at 19:20 and `main` at 19:21. The
+change under test touched only `Email/*`, which this test does not reach.
+
+**Pattern worth noting:** this is the third entry from the same family — peer transfers and
+timing-sensitive delivery assertions (`TemporalReadTests`, and this). If a fourth appears,
+the shared cause is probably worth chasing rather than re-running.
+
+---
+
+## `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryTests`
+
+- `CanEnterAndExitRecoveryMode`
+
+**Where:** CI, `windows/sqlite/debug` (seen on run 32957912470, 2026-08-26).
+
+**Symptom:** expects a `Redirect`, gets `Forbidden`.
+
+**Not caused by the change in flight:** same run and reasoning as the entry above.
+
+---
+
+## `Odin.Services.Tests.JobManagement.JobManagerTests`
+
+- `ItShouldDeleteExpiredUnsuccessfulJobsInTheBackground(Sqlite,0)`
+
+**Where:** local, macOS, `Odin.Services.Tests` full run (2026-09-03).
+
+**Symptom:** `Assert.That(completedJob1, Is.Null)` fails with the job still present —
+`Expected: null, But was: <FailingJobTest>`. The background cleanup had not deleted the
+expired job by the time the assertion ran. Only the `deleteAfterMilliseconds = 0` case fails;
+the sibling case in the same theory passes.
+
+**Not caused by the change in flight:** the change touched `VersionUpgradeService`,
+`BuiltinProvisioner` and `CircleNetworkService` — logging and a phase timeout — none of which
+the job manager reaches. Re-running the test alone passed (2/2), and it also passed 2/2 on a
+stashed clean tree, so the failure reproduces on neither the change nor its absence.
+
+**Pattern worth noting:** a background service racing an assertion, with a zero-length delay
+as the parameter. Same family as the timing-sensitive entries above: the test asserts on work
+it does not wait for.
+
+---
+
+## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
+
+- `LockedExecuteAsync_ConcurrentDifferentKeys_ExecutesConcurrently`
+
+**Where:** CI, `ubuntu/postgres/release` (seen once on run 34635091541, 2026-09-11). The same
+test passed on the `ubuntu/sqlite/release` and `windows/sqlite/debug` jobs of that build, and on
+every other run of the branch that day.
+
+**Symptom:** `Actions with different keys should execute concurrently.` — the
+`Task.WhenAny(allTasks, Task.Delay(150))` race is won by the timeout instead of the work.
+
+**Not caused by the change in flight:** the branch (`connection-review-support`) does not touch
+`KeyedAsyncLock` or its test — `git diff main...HEAD -- '*LockedExecute*' '*AsyncLock*'` is
+empty — and the test passes on recent `main` runs.
+
+**Cause:** the test queues 50 `Task.Run` bodies that each `await Task.Delay(100)`, then asserts
+they all finish inside 150 ms. That leaves 50 ms of slack for thread-pool ramp-up across 50
+tasks, which a loaded CI runner can exceed. Verified by reading the test
+(`tests/core/Odin.Core.Tests/Threading/KeyedAsyncLockTest.cs:316`); no fix attempted here — the
+budget would need widening, or the assertion rewritten to measure concurrency rather than
+wall-clock.

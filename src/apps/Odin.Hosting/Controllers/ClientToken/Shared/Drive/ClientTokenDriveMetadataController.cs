@@ -43,7 +43,15 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             {
                 TargetDrive = drive.TargetDriveInfo,
                 Name = WebOdinContext.Caller.IsOwner ? drive.Name : string.Empty,
-                Attributes = WebOdinContext.Caller.IsOwner ? drive.Attributes : default
+                Attributes = WebOdinContext.Caller.IsOwner ? drive.Attributes : default,
+
+                // Redacted for third parties the same way Name and Attributes already are. The slug is
+                // designed to be a remote-resolvable address, but resolution happens on the recipient
+                // side (drive-addressing.md, "Slugs are resolved by the recipient"), so a guest does not
+                // need to read the list to use one.
+                AppId = WebOdinContext.Caller.IsOwner ? drive.AppId : null,
+                DriveSlug = WebOdinContext.Caller.IsOwner ? drive.DriveSlug : null,
+                DriveTypeSlug = WebOdinContext.Caller.IsOwner ? drive.DriveTypeSlug : null
             }).ToList();
 
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

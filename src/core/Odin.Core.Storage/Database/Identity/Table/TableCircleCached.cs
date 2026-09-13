@@ -12,6 +12,8 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
     AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private static readonly List<string> PagingByCircleIdTags = ["PagingByCircleId"];
+    private const string CacheKeyAll = "GetAll";
+    private static readonly List<string> ByGrantOnTags = ["ByGrantOn"];
 
     //
 
@@ -40,6 +42,8 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
     {
         return Cache.InvalidateAsync([
             Cache.CreateRemoveByKeyAction(GetCacheKey(circleId)),
+            Cache.CreateRemoveByKeyAction(CacheKeyAll),
+            Cache.CreateRemoveByTagsAction(ByGrantOnTags),
             Cache.CreateRemoveByTagsAction(PagingByCircleIdTags)
         ]);
     }
@@ -65,6 +69,40 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
 
         return result;
 
+    }
+
+    //
+
+    public async Task<int> UpsertAsync(CircleRecord item)
+    {
+        var result = await table.UpsertAsync(item);
+
+        await InvalidateAsync(item);
+
+        return result;
+    }
+
+    //
+
+    public async Task<List<CircleRecord>> GetAllAsync(TimeSpan? ttl = null)
+    {
+        var result = await Cache.GetOrSetListAsync(
+            CacheKeyAll,
+            _ => table.GetAllAsync(),
+            ttl ?? DefaultTtl);
+        return result;
+    }
+
+    //
+
+    public async Task<List<CircleRecord>> GetByGrantOnAsync(int grantOn, TimeSpan? ttl = null)
+    {
+        return await Cache.GetOrSetListAsync(
+            "ByGrantOn:" + grantOn,
+            _ => table.GetByGrantOnAsync(grantOn),
+            ttl ?? DefaultTtl,
+            DefaultEntrySize,
+            ByGrantOnTags);
     }
 
     //
