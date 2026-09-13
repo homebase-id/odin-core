@@ -35,6 +35,7 @@ public sealed class OwnerSession : IV2Caller
     public DriveHandles Drives { get; }
     public OwnerAdmin Admin { get; }
     public ConnectionsHandle Connections { get; }
+    public FollowersHandle Followers { get; }
 
     /// <summary>
     /// Test-only drain hooks scoped to this owner. Outbox drain / status reads delegate to the
@@ -55,6 +56,7 @@ public sealed class OwnerSession : IV2Caller
         Drives = new DriveHandles(Identity, Factory);
         Admin = new OwnerAdmin(this);
         Connections = new ConnectionsHandle(this);
+        Followers = new FollowersHandle(this);
         Sync = new OwnerSync(host.GetTestSync(identity), this);
     }
 
