@@ -129,3 +129,27 @@ tasks, which a loaded CI runner can exceed. Verified by reading the test
 (`tests/core/Odin.Core.Tests/Threading/KeyedAsyncLockTest.cs:316`); no fix attempted here — the
 budget would need widening, or the assertion rewritten to measure concurrency rather than
 wall-clock.
+
+---
+
+## `Odin.Hosting.Tests.Kestrel.ProxyProtocolListenerTests`
+
+- `ConnectionThatSendsGarbage_IsStillLoggedAtWarning`
+
+**Where:** CI, seen twice on the same commit (`1d79176e4`, PR #1733, 2026-09-13):
+`windows/sqlite/debug` of run 34766411275 and `ubuntu/sqlite/release` of run 34766545441. The
+same test passed on the other four jobs of that commit (runs 34766413714, 34766416193,
+34766545403, 34766545391) — each OS/db combination both passed and failed at least once.
+
+**Symptom:** `a peer that speaks the wrong protocol must still warn` —
+`Assert.That(events, Is.Not.Empty)` after the test's 10 s wait; no Warning-level PROXY event was
+captured for the connection that sent `GET / HTTP/1.1` instead of a PROXY header.
+
+**Not caused by the change in flight:** the branch only touches
+`HomebaseChannelContentService` and a new `PublicPage` test, nothing under Kestrel or the PROXY
+listener; all three CI workflows passed on `main` at the branch's base (`6df4c4301`). Not
+reproduced on a clean tree locally (port 8443 was occupied at the time).
+
+**Cause:** unknown. The test was last changed by `9d1315b7e` (PR #1732, stop warning about
+health probes on the PROXY listener), which split zero-byte peers (Verbose) from peers that send
+bytes (Warning); a timing or classification race in that split is a candidate, but unconfirmed.
