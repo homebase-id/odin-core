@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -756,7 +756,26 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Accepts a connection request.  This will store the public key certificate
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        public async Task AcceptConnectionRequestAsync(AcceptRequestHeader header, bool tryOverrideAcl, IOdinContext odinContext)
+        /// <param name="markReviewed">
+        /// True when the owner is the one accepting -- an explicit accept from a client.  That act is the
+        /// connection review happening at accept time, so it stamps
+        /// <see cref="IdentityConnectionRegistration.ReviewedAt"/> (docs/connection-defaults.md, "On
+        /// verify").  False for the introduction auto-accept, which nobody reviewed: an auto-connection
+        /// stays New until the owner looks at it.  Deliberately required, not defaulted -- a forgetful call
+        /// site would silently mint a connection the owner never vouched for, or vouch for one they never
+        /// saw.
+        /// <para>
+        /// The send-becomes-accept short-circuit -- "a request from them was already waiting, so accept
+        /// it rather than send one" -- is <b>not</b> automatically an owner accept.  It passes whatever
+        /// the waiting request's <see cref="ConnectionRequestOrigin"/> says, because an introduction that
+        /// completes through that branch is still an introduction: two identities a third party named to
+        /// each other, connecting without the owner present.  Hardcoding true there made the stamp depend
+        /// on which side's request arrived first, so the same introduction was reviewed or not by
+        /// coincidence of timing.
+        /// </para>
+        /// </param>
+        public async Task AcceptConnectionRequestAsync(AcceptRequestHeader header, bool tryOverrideAcl, bool markReviewed,
+            IOdinContext odinContext)
         {
             header.Validate();
 
@@ -866,6 +885,11 @@ namespace Odin.Services.Membership.Connections.Requests
                 incomingRequest.IntroducerOdinId,
                 verificationHash,
                 odinContext);
+
+            if (markReviewed)
+            {
+                await _cns.StampReviewedIfUnsetAsync(senderOdinId);
+            }
 
             keyStoreKey.Wipe();
 
@@ -1103,6 +1127,17 @@ namespace Odin.Services.Membership.Connections.Requests
                 originalRequest.IntroducerOdinId,
                 originalRequest.VerificationHash,
                 odinContext);
+
+            // The sender's half of the review.  An IdentityOwner-origin request is one the owner sent
+            // deliberately, naming the circles this connection is about to be enrolled in -- so by the time
+            // the recipient accepts, the owner has already done everything the review dialog asks for, and
+            // the circle memberships being minted right here must imply a review (docs/connection-defaults.md:
+            // "circleIdList ACLs check membership, not tier, so membership must imply review").  An
+            // Introduction-origin request was sent without the owner present and stays New.
+            if (originalRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+            {
+                await _cns.StampReviewedIfUnsetAsync((OdinId)reply.SenderOdinId);
+            }
 
             try
             {
@@ -1355,7 +1390,15 @@ namespace Odin.Services.Membership.Connections.Requests
                     ContactData = header.ContactData
                 };
 
-                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false, odinContext);
+                // Whether this counts as a review is the incoming request's to decide, not this
+                // path's. The short-circuit is "a request from them was already waiting, so accept
+                // it instead of sending one" -- and for an introduction-origin request nobody
+                // accepted anything: two identities a third party introduced connected on their
+                // own. Stamping it would vouch for a connection the owner never saw, and would do
+                // so only on the ordering where their request happened to arrive first.
+                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
+                    markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                    odinContext);
                 return;
             }
 
@@ -1448,7 +1491,15 @@ namespace Odin.Services.Membership.Connections.Requests
                         ContactData = header.ContactData
                     };
 
-                    await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false, odinContext);
+                    // Whether this counts as a review is the incoming request's to decide, not this
+                    // path's. The short-circuit is "a request from them was already waiting, so accept
+                    // it instead of sending one" -- and for an introduction-origin request nobody
+                    // accepted anything: two identities a third party introduced connected on their
+                    // own. Stamping it would vouch for a connection the owner never saw, and would do
+                    // so only on the ordering where their request happened to arrive first.
+                    await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
+                        markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                        odinContext);
                 }
             }
         }
@@ -1473,7 +1524,15 @@ namespace Odin.Services.Membership.Connections.Requests
                     ContactData = header.ContactData
                 };
 
-                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false, odinContext);
+                // Whether this counts as a review is the incoming request's to decide, not this
+                // path's. The short-circuit is "a request from them was already waiting, so accept
+                // it instead of sending one" -- and for an introduction-origin request nobody
+                // accepted anything: two identities a third party introduced connected on their
+                // own. Stamping it would vouch for a connection the owner never saw, and would do
+                // so only on the ordering where their request happened to arrive first.
+                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
+                    markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                    odinContext);
                 return;
             }
 

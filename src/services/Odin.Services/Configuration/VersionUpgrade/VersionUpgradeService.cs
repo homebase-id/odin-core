@@ -24,6 +24,9 @@ using Odin.Services.Configuration.VersionUpgrade.Version11tov12;
 using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Configuration.VersionUpgrade.Version13tov14;
 using Odin.Services.Configuration.VersionUpgrade.Version14tov15;
+using Odin.Services.Configuration.VersionUpgrade.Version15tov16;
+using Odin.Services.Configuration.VersionUpgrade.Version16tov17;
+using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -46,6 +49,9 @@ public class VersionUpgradeService(
     V12ToV13VersionMigrationService v13,
     V13ToV14VersionMigrationService v14,
     V14ToV15VersionMigrationService v15,
+    V15ToV16VersionMigrationService v16,
+    V16ToV17VersionMigrationService v17,
+    V17ToV18VersionMigrationService v18,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -170,6 +176,49 @@ public class VersionUpgradeService(
                 logger.LogInformation(
                     LogTag + " Master key encryption pre-pass complete: {upgraded} upgraded, {skipped} skipped, {keyPairsProvisioned} write-only keypairs provisioned",
                     upgraded, skipped, keyPairsProvisioned);
+            }, cancellationToken);
+
+            // Before the deposit drain below, because the owner can finish a pending enrollment outright --
+            // the master key sources any drive's storage key, so there is no app to wait for and no
+            // deposit stage. Ordered first anyway, so that anything which did land as a deposit is still
+            // converted by the pass that follows rather than waiting for the next upgrade.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await RunPhaseAsync("pending-enrollment-pre-pass", async ct =>
+            {
+                await using var enrollTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                runState.SetRunning(true);
+                var (connectionsProcessed, enrollmentsCompleted) =
+                    await circleNetworkService.ProcessPendingEnrollmentsForAppAsync(odinContext);
+                enrollTx.Commit();
+                logger.LogInformation(
+                    LogTag + " Pending enrollment pre-pass complete: {enrollmentsCompleted} enrollment(s) completed across {connectionsProcessed} connection(s)",
+                    enrollmentsCompleted, connectionsProcessed);
+            }, cancellationToken);
+
+            // Straight after the pre-pass, and for the same reason: the owner is here with the master key
+            // and we have just made every reachable connection's Peer Key reachable. Deposited grants
+            // otherwise wait on the contact calling in or the owner touching that one connection, so a
+            // dormant contact can stay pending indefinitely -- and every migration below would have to
+            // cope with grants existing in two shapes. Draining here means the ladder sees one.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await RunPhaseAsync("deposited-grant-conversion-pre-pass", async ct =>
+            {
+                await using var depositTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                runState.SetRunning(true);
+                var (connectionsDrained, grantsConverted) =
+                    await circleNetworkService.ConvertDepositedGrantsForConnectedIdentitiesAsync(odinContext, ct);
+                depositTx.Commit();
+                logger.LogInformation(
+                    LogTag + " Deposited grant conversion pre-pass complete: {grantsConverted} grant(s) converted across {connectionsDrained} connection(s)",
+                    grantsConverted, connectionsDrained);
             }, cancellationToken);
 
             // Ensure every system drive exists before running any migration. EnsureSystemDrivesExist is
@@ -518,6 +567,85 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            if (currentVersion == 15)
+            {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await v16.UpgradeAsync(odinContext, cancellationToken);
+
+                await v16.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            if (currentVersion == 16)
+            {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await v17.UpgradeAsync(odinContext, cancellationToken);
+
+                await v17.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            if (currentVersion == 17)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                // Three phases rather than one, and a transaction each rather than one covering the lot.
+                // The passes are independent -- Moments is decided by the review stamp, Chat by being
+                // connected at all, Recovery by holding a shard -- and each is additive and re-runnable,
+                // so two that landed do not have to be rolled back to retry the third. Separate phases
+                // also mean the phase name in the log says which population was being moved when
+                // something stalled, which one phase covering all three could not.
+                //
+                // Placed here, after ensure-system-drives and well after v13->v14 ran
+                // BuiltinProvisioner.EnsureAllAsync, so the built-in circles these fill already exist.
+                await RunPhaseAsync("v17->v18 moments-reviewed-backfill", async ct =>
+                {
+                    await using var momentsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v18.EnrollReviewedContactsInMomentsAsync(odinContext, ct);
+                    momentsTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v17->v18 chat-ambient-backfill", async ct =>
+                {
+                    await using var chatTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v18.EnrollConnectedContactsInChatAsync(odinContext, ct);
+                    chatTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v17->v18 recovery-shard-holder-backfill", async ct =>
+                {
+                    await using var recoveryTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v18.EnrollShardHoldersInRecoveryAsync(odinContext, ct);
+                    recoveryTx.Commit();
+                }, cancellationToken);
+
+                await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v18.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                versionTx.Commit();
                 logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
