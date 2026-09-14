@@ -108,14 +108,6 @@ namespace Odin.Services.Base
             masterKey = this._masterKey;
         }
 
-        public void AssertHasActiveConnection()
-        {
-            if (!HasActiveConnection)
-            {
-                throw new OdinSecurityException("Caller must be connected");
-            }
-        }
-
         public void AssertCallerIsOwner()
         {
             if (!IsOwner)
@@ -132,9 +124,12 @@ namespace Odin.Services.Base
             }
         }
 
+        /// <summary>
+        /// Asserts the caller holds an active connection (<see cref="HasActiveConnection"/>), not the Connected tier.
+        /// </summary>
         public void AssertCallerIsConnected()
         {
-            if (!IsConnected)
+            if (!HasActiveConnection)
             {
                 throw new OdinSecurityException("Caller must be connected");
             }

@@ -99,7 +99,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             {
                 if (WebOdinContext.AuthContext != "AutomatedIdentityAuthScheme")
                 {
-                    WebOdinContext.Caller.AssertHasActiveConnection();
+                    WebOdinContext.Caller.AssertCallerIsConnected();
                 }
 
                 if (!IsMultipartContentType(HttpContext.Request.ContentType))
