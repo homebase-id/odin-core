@@ -44,8 +44,13 @@ public static class ReviewedSecurityTier
 
     /// <summary>
     /// The tier to evaluate content with for this caller: their admitted tier, except that an unreviewed
-    /// connection is treated as <see cref="SecurityGroupType.Authenticated"/> while the setting is on.
+    /// connection is treated as <see cref="SecurityGroupType.Authenticated"/> when <b>both</b> identities have the
+    /// setting on -- this one, and the caller's (announced through <see cref="CallerContext.CallerUsesReviewedTier"/>).
     /// </summary>
+    /// <remarks>
+    /// Both, not just this one, so a dark launch among a few identities never changes anything for anyone else.
+    /// A caller that cannot announce it -- a browser login, an older server -- is never demoted.
+    /// </remarks>
     public static SecurityGroupType EffectiveLevel(TenantSettings? settings, CallerContext caller)
     {
         if (caller.SecurityLevel != SecurityGroupType.Connected || caller.IsReviewed)
@@ -53,6 +58,7 @@ public static class ReviewedSecurityTier
             return caller.SecurityLevel;
         }
 
-        return (settings?.UseReviewedSecurityTier ?? false) ? SecurityGroupType.Authenticated : SecurityGroupType.Connected;
+        var bothUseTheTier = (settings?.UseReviewedSecurityTier ?? false) && caller.CallerUsesReviewedTier;
+        return bothUseTheTier ? SecurityGroupType.Authenticated : SecurityGroupType.Connected;
     }
 }

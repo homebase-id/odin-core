@@ -43,6 +43,12 @@ namespace Odin.Services.Base
         /// </remarks>
         public bool IsReviewed { get; init; }
 
+        /// <summary>
+        /// True when the calling identity announced it has the reviewed security tier on
+        /// (<see cref="OdinHeaderNames.UsesReviewedSecurityTier"/>).  Only peer callers can send it.
+        /// </summary>
+        public bool CallerUsesReviewedTier { get; init; }
+
         public CallerContext(OdinId? odinId,
             SensitiveByteArray masterKey,
             SecurityGroupType securityLevel,
@@ -67,6 +73,7 @@ namespace Odin.Services.Base
             this.ClientTokenType = other.ClientTokenType;
             this.OdinClientContext = other.OdinClientContext?.Clone();
             this.IsReviewed = other.IsReviewed;
+            this.CallerUsesReviewedTier = other.CallerUsesReviewedTier;
         }
 
         public CallerContext Clone()

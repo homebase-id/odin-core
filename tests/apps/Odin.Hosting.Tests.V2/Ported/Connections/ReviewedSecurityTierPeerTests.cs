@@ -26,16 +26,17 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// The reviewed security tier (<see cref="TenantConfigFlagNames.UseReviewedSecurityTier"/>).
 /// </summary>
 /// <remarks>
-/// Frodo is the identity with the flag; Sam is connected to Frodo.  Three things must hold:
+/// Frodo and Sam are connected.  The rules:
 /// <list type="number">
-/// <item>With the flag off, nothing changes.</item>
-/// <item>With the flag on, an unreviewed connection can still message: send files, read receipts,
-/// disconnect, verify.</item>
-/// <item>With the flag on, an unreviewed connection cannot see content marked <c>connected</c>, and cannot
-/// introduce.</item>
+/// <item>With the flag off on either side, nothing changes -- a dark launch never reaches anyone else.</item>
+/// <item>With the flag on on both sides, an unreviewed connection can still message: send files, read
+/// receipts, disconnect, verify.</item>
+/// <item>With the flag on on both sides, an unreviewed connection cannot see content marked <c>connected</c>,
+/// and cannot introduce.</item>
 /// </list>
-/// A connection is admitted at Connected with <see cref="CallerContext.IsReviewed"/> set from the review
-/// stamp; content evaluation and the introduction check apply <see cref="ReviewedSecurityTier.EffectiveLevel"/>.
+/// A connection is admitted at Connected with <see cref="CallerContext.IsReviewed"/> set from the review stamp
+/// and <see cref="CallerContext.CallerUsesReviewedTier"/> set from the caller's header; content evaluation and the
+/// introduction check apply <see cref="ReviewedSecurityTier.EffectiveLevel"/>.
 /// <para>
 /// Not covered here: peer file updates, the peer app-notification token, and the verification-hash sync push.
 /// </para>
@@ -47,7 +48,7 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
 
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    // -- controls ---------------------------------------------------------------------------------
+    // -- flag off: nothing changes ----------------------------------------------------------------
 
     [Test]
     public async Task FlagOff_UnreviewedConnection_CanSendAFile()
@@ -65,19 +66,43 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
     }
 
     [Test]
-    public async Task FlagOn_ReviewedConnection_CanSendAFile()
+    public async Task FlagOff_UnreviewedConnection_CanSeeConnectedContent()
+    {
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-flag-off");
+
+        await ClearReviewOnAsync(frodo, sam.Identity);
+
+        await AssertSamSeesContentAsync(frodo, sam, drive, fileId, "with the flag off");
+    }
+
+    [Test]
+    public async Task FlagOff_UnreviewedConnection_CanStillIntroduce()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
-        var drive = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "reviewed");
+        await ConnectOwnersAsync(frodo, sam);
+
+        await ClearReviewOnAsync(sam, frodo.Identity);
+
+        var status = await PreflightIntroductionToAsync(frodo, sam);
+        Assert.That(status.AllowsIntroductions, Is.True, "with the flag off an unreviewed connection introduces as before");
+        Assert.That(status.Status, Is.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
+    }
+
+    // -- flag on one side only: the other identity is not affected ----------------------------------
+
+    [Test]
+    public async Task OnlyHostFlagOn_UnreviewedConnection_CanSeeConnectedContent()
+    {
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-host-only");
 
         await EnableReviewedTierAsync(frodo);
         try
         {
-            var gtid = await SendFileAsync(sam, frodo, drive);
+            await ClearReviewOnAsync(frodo, sam.Identity);
 
-            Assert.That(await CountByGtidAsync(frodo, drive, gtid), Is.EqualTo(1),
-                "a reviewed connection is Connected and sends files");
+            await AssertSamSeesContentAsync(frodo, sam, drive, fileId,
+                "Sam does not use the tier, so Frodo turning it on must not change what Sam sees");
         }
         finally
         {
@@ -85,16 +110,138 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
     }
 
-    // -- flag on: an unreviewed connection can still message ---------------------------------------
+    [Test]
+    public async Task OnlyCallerFlagOn_UnreviewedConnection_CanSeeConnectedContent()
+    {
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-caller-only");
+
+        await EnableReviewedTierAsync(sam);
+        try
+        {
+            await ClearReviewOnAsync(frodo, sam.Identity);
+
+            await AssertSamSeesContentAsync(frodo, sam, drive, fileId,
+                "Frodo does not use the tier, so Sam turning it on must not change what Sam sees");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(sam);
+        }
+    }
 
     [Test]
-    public async Task FlagOn_UnreviewedConnection_CanStillSendAFile()
+    public async Task OnlyRecipientFlagOn_UnreviewedConnection_CanIntroduce()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await ConnectOwnersAsync(frodo, sam);
+
+        await EnableReviewedTierAsync(sam);
+        try
+        {
+            await ClearReviewOnAsync(sam, frodo.Identity);
+
+            var status = await PreflightIntroductionToAsync(frodo, sam);
+            Assert.That(status.AllowsIntroductions, Is.True,
+                "Frodo does not use the tier, so Sam turning it on must not stop Frodo introducing");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(sam);
+        }
+    }
+
+    [Test]
+    public async Task OnlyIntroducerFlagOn_UnreviewedConnection_CanIntroduce()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await ConnectOwnersAsync(frodo, sam);
+
+        await EnableReviewedTierAsync(frodo);
+        try
+        {
+            await ClearReviewOnAsync(sam, frodo.Identity);
+
+            var status = await PreflightIntroductionToAsync(frodo, sam);
+            Assert.That(status.AllowsIntroductions, Is.True,
+                "Sam does not use the tier, so Frodo turning it on must not stop Frodo introducing");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(frodo);
+        }
+    }
+
+    // -- flag on both sides: reviewed connections ----------------------------------------------------
+
+    [Test]
+    public async Task BothFlagsOn_ReviewedConnection_CanSendAFile()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var drive = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "reviewed");
+
+        await EnableReviewedTierAsync(frodo, sam);
+        try
+        {
+            var gtid = await SendFileAsync(sam, frodo, drive);
+
+            Assert.That(await CountByGtidAsync(frodo, drive, gtid), Is.EqualTo(1),
+                "a reviewed connection sends files");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(frodo, sam);
+        }
+    }
+
+    [Test]
+    public async Task BothFlagsOn_ReviewedConnection_CanSeeConnectedContent()
+    {
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-reviewed");
+
+        await EnableReviewedTierAsync(frodo, sam);
+        try
+        {
+            await AssertSamSeesContentAsync(frodo, sam, drive, fileId, "a reviewed connection");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(frodo, sam);
+        }
+    }
+
+    [Test]
+    public async Task BothFlagsOn_ReviewedConnection_CanIntroduce()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await ConnectOwnersAsync(frodo, sam);
+
+        await EnableReviewedTierAsync(frodo, sam);
+        try
+        {
+            var status = await PreflightIntroductionToAsync(frodo, sam);
+            Assert.That(status.AllowsIntroductions, Is.True, "a reviewed connection may introduce");
+            Assert.That(status.Status, Is.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(frodo, sam);
+        }
+    }
+
+    // -- flag on both sides: an unreviewed connection can still message ------------------------------
+
+    [Test]
+    public async Task BothFlagsOn_UnreviewedConnection_CanStillSendAFile()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         var drive = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "unreviewed-send");
 
-        await EnableReviewedTierAsync(frodo);
+        await EnableReviewedTierAsync(frodo, sam);
         try
         {
             await ClearReviewOnAsync(frodo, sam.Identity);
@@ -106,12 +253,12 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
         finally
         {
-            await DisableReviewedTierAsync(frodo);
+            await DisableReviewedTierAsync(frodo, sam);
         }
     }
 
     [Test]
-    public async Task FlagOn_UnreviewedConnection_CanStillSendAReadReceipt()
+    public async Task BothFlagsOn_UnreviewedConnection_CanStillSendAReadReceipt()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -131,7 +278,7 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         await frodo.Sync.DrainOutboxAsync();
         await sam.Sync.ProcessInboxAsync(drive);
 
-        await EnableReviewedTierAsync(frodo);
+        await EnableReviewedTierAsync(frodo, sam);
         try
         {
             await ClearReviewOnAsync(frodo, sam.Identity);
@@ -152,18 +299,18 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
         finally
         {
-            await DisableReviewedTierAsync(frodo);
+            await DisableReviewedTierAsync(frodo, sam);
         }
     }
 
     [Test]
-    public async Task FlagOn_UnreviewedConnection_DisconnectIsHonouredByTheOtherSide()
+    public async Task BothFlagsOn_UnreviewedConnection_DisconnectIsHonouredByTheOtherSide()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "unreviewed-disconnect");
 
-        await EnableReviewedTierAsync(frodo);
+        await EnableReviewedTierAsync(frodo, sam);
         try
         {
             await ClearReviewOnAsync(frodo, sam.Identity);
@@ -180,18 +327,18 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
         finally
         {
-            await DisableReviewedTierAsync(frodo);
+            await DisableReviewedTierAsync(frodo, sam);
         }
     }
 
     [Test]
-    public async Task FlagOn_UnreviewedConnection_CanStillVerifyTheConnection()
+    public async Task BothFlagsOn_UnreviewedConnection_CanStillVerifyTheConnection()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "unreviewed-verify");
 
-        await EnableReviewedTierAsync(frodo);
+        await EnableReviewedTierAsync(frodo, sam);
         try
         {
             await ClearReviewOnAsync(frodo, sam.Identity);
@@ -203,112 +350,38 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
         finally
         {
-            await DisableReviewedTierAsync(frodo);
+            await DisableReviewedTierAsync(frodo, sam);
         }
     }
 
-    // -- content marked `connected` ----------------------------------------------------------------
+    // -- flag on both sides: an unreviewed connection is restricted ----------------------------------
 
     [Test]
-    public async Task FlagOff_UnreviewedConnection_CanSeeConnectedContent()
-    {
-        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-flag-off");
-
-        await ClearReviewOnAsync(frodo, sam.Identity);
-
-        Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(1),
-            "with the flag off an unreviewed connection sees connected content exactly as before");
-        var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
-        Assert.That(header.IsSuccessStatusCode, Is.True, $"header should be readable with the flag off: {header.StatusCode}");
-    }
-
-    [Test]
-    public async Task FlagOn_ReviewedConnection_CanSeeConnectedContent()
-    {
-        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-reviewed");
-
-        await EnableReviewedTierAsync(frodo);
-        try
-        {
-            Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(1),
-                "a reviewed connection sees connected content");
-            var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
-            Assert.That(header.IsSuccessStatusCode, Is.True, $"a reviewed connection reads the header: {header.StatusCode}");
-        }
-        finally
-        {
-            await DisableReviewedTierAsync(frodo);
-        }
-    }
-
-    [Test]
-    public async Task FlagOn_UnreviewedConnection_CannotSeeConnectedContent()
+    public async Task BothFlagsOn_UnreviewedConnection_CannotSeeConnectedContent()
     {
         var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-unreviewed");
 
-        await EnableReviewedTierAsync(frodo);
+        await EnableReviewedTierAsync(frodo, sam);
         try
         {
             await ClearReviewOnAsync(frodo, sam.Identity);
 
-            Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(0),
-                "an unreviewed connection must not see connected content in a query");
-            var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
-            Assert.That(header.IsSuccessStatusCode, Is.False,
-                $"an unreviewed connection must not read a connected file's header; got {header.StatusCode}");
+            await AssertSamCannotSeeContentAsync(frodo, sam, drive, fileId);
         }
         finally
         {
-            await DisableReviewedTierAsync(frodo);
+            await DisableReviewedTierAsync(frodo, sam);
         }
     }
 
-    // -- introductions ----------------------------------------------------------------------------
-    // Frodo asks to introduce people to Sam; Sam's server decides with CallerMayIntroduce, the same predicate
-    // the incoming introduction itself is checked with.
-
     [Test]
-    public async Task FlagOff_UnreviewedConnection_CanStillIntroduce()
+    public async Task BothFlagsOn_UnreviewedConnection_CannotIntroduce()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await ConnectOwnersAsync(frodo, sam);
 
-        await ClearReviewOnAsync(sam, frodo.Identity);
-
-        var status = await PreflightIntroductionToAsync(frodo, sam);
-        Assert.That(status.AllowsIntroductions, Is.True, "with the flag off an unreviewed connection introduces as before");
-        Assert.That(status.Status, Is.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
-    }
-
-    [Test]
-    public async Task FlagOn_ReviewedConnection_CanIntroduce()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-        await ConnectOwnersAsync(frodo, sam);
-
-        await EnableReviewedTierAsync(sam);
-        try
-        {
-            var status = await PreflightIntroductionToAsync(frodo, sam);
-            Assert.That(status.AllowsIntroductions, Is.True, "a reviewed connection may introduce");
-            Assert.That(status.Status, Is.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
-        }
-        finally
-        {
-            await DisableReviewedTierAsync(sam);
-        }
-    }
-
-    [Test]
-    public async Task FlagOn_UnreviewedConnection_CannotIntroduce()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-        await ConnectOwnersAsync(frodo, sam);
-
-        await EnableReviewedTierAsync(sam);
+        await EnableReviewedTierAsync(frodo, sam);
         try
         {
             await ClearReviewOnAsync(sam, frodo.Identity);
@@ -321,11 +394,50 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
         finally
         {
+            await DisableReviewedTierAsync(frodo, sam);
+        }
+    }
+
+    [Test]
+    public async Task BothFlagsOn_ThenCallerTurnsItOff_ContentIsVisibleAgainWithoutACacheReset()
+    {
+        // The caller's header is part of the transit context cache key, so turning the tier off on Sam's side
+        // must take effect on Frodo's side at once -- no cached context built under the old header.
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-toggle");
+
+        await EnableReviewedTierAsync(frodo, sam);
+        try
+        {
+            await ClearReviewOnAsync(frodo, sam.Identity);
+            await AssertSamCannotSeeContentAsync(frodo, sam, drive, fileId);
+
             await DisableReviewedTierAsync(sam);
+
+            await AssertSamSeesContentAsync(frodo, sam, drive, fileId, "after Sam turns the tier off");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(frodo, sam);
         }
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    private static async Task EnableReviewedTierAsync(params OwnerSession[] owners)
+    {
+        foreach (var owner in owners)
+        {
+            await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.TrueString);
+        }
+    }
+
+    private static async Task DisableReviewedTierAsync(params OwnerSession[] owners)
+    {
+        foreach (var owner in owners)
+        {
+            await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.FalseString);
+        }
+    }
 
     private static async Task ConnectOwnersAsync(OwnerSession sender, OwnerSession recipient)
     {
@@ -348,17 +460,6 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         return response.Content!.Recipients.Single(r => r.Recipient == recipient.Identity.DomainName);
     }
 
-    // No manual cache reset: the flag is read when content is evaluated, so toggling it applies at once.
-    private static async Task EnableReviewedTierAsync(OwnerSession owner)
-    {
-        await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.TrueString);
-    }
-
-    private static async Task DisableReviewedTierAsync(OwnerSession owner)
-    {
-        await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.FalseString);
-    }
-
     /// <summary>
     /// Frodo hosts a drive holding one file marked <c>connected</c>; Sam is connected with Read on it.
     /// </summary>
@@ -376,6 +477,24 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         Assert.That(upload.IsSuccessStatusCode, Is.True, $"frodo upload failed: {upload.StatusCode}");
 
         return (frodo, sam, drive, upload.Content!.FileId);
+    }
+
+    private static async Task AssertSamSeesContentAsync(OwnerSession frodo, OwnerSession sam, TargetDrive drive,
+        Guid fileId, string because)
+    {
+        Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(1), $"{because}: Sam sees connected content");
+        var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
+        Assert.That(header.IsSuccessStatusCode, Is.True, $"{because}: Sam reads the header; got {header.StatusCode}");
+    }
+
+    private static async Task AssertSamCannotSeeContentAsync(OwnerSession frodo, OwnerSession sam, TargetDrive drive,
+        Guid fileId)
+    {
+        Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(0),
+            "an unreviewed connection must not see connected content in a query");
+        var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
+        Assert.That(header.IsSuccessStatusCode, Is.False,
+            $"an unreviewed connection must not read a connected file's header; got {header.StatusCode}");
     }
 
     private static async Task<int> PeerQueryCountAsync(OwnerSession reader, OwnerSession host, TargetDrive drive)

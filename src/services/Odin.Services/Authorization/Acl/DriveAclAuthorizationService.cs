@@ -58,9 +58,7 @@ namespace Odin.Services.Authorization.Acl
                     return true;
 
                 case SecurityGroupType.Connected:
-                    var connection = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
-                    return connection.IsConnected() &&
-                           ReviewedSecurityTier.For(tenantContext.Settings, connection) == SecurityGroupType.Connected;
+                    return (await circleNetwork.GetIcrAsync(odinId, odinContext, true)).IsConnected();
             }
 
             return false;
