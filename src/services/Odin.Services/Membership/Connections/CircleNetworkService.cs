@@ -157,8 +157,11 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
+                        securityLevel: SecurityGroupType.Connected,
                         circleIds: enabledCircles)
+                    {
+                        IsReviewed = icr.ReviewedAt != null
+                    }
                 };
 
                 context.SetPermissionContext(permissionContext);

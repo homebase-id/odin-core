@@ -354,7 +354,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 var cc = new CallerContext(
                     odinId: client.OdinId,
                     masterKey: null,
-                    securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
+                    securityLevel: SecurityGroupType.Connected,
                     circleIds: enabledCircles,
                     odinClientContext: new OdinClientContext()
                     {
@@ -362,7 +362,10 @@ namespace Odin.Hosting.Controllers.Home.Service
                         CorsHostName = "",
                         AccessRegistrationId = client.AccessRegistration.Id,
                         DevicePushNotificationKey = null
-                    });
+                    })
+                {
+                    IsReviewed = icr.ReviewedAt != null
+                };
 
                 logger.LogDebug("Create Connected Permission Context -> {icr} has circles: [{circles}]", icr.OdinId,
                     string.Join(",", enabledCircles));
