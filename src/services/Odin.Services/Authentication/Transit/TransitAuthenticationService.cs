@@ -62,7 +62,11 @@ public class TransitAuthenticationService :
             odinId: callerOdinId,
             masterKey: null,
             securityLevel: ReviewedSecurityTier.For(_tenantContext.Settings, icr),
-            circleIds: circleIds);
+            circleIds: circleIds)
+        {
+            // CreateTransitPermissionContextAsync throws unless the connection is active.
+            HasActiveConnection = true
+        };
 
         return (cc, permissionContext);
     }

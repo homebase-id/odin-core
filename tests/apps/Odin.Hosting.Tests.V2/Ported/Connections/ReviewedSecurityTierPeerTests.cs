@@ -25,20 +25,18 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// The reviewed security tier (<see cref="TenantConfigFlagNames.UseReviewedSecurityTier"/>) with the flag on.
 /// </summary>
 /// <remarks>
-/// Frodo has the flag on; Sam is connected to Frodo but Frodo has not reviewed him.  The ladder is meant to
-/// limit what an unreviewed connection can <i>see</i> (content behind a <c>connected</c> ACL), not to stop
-/// the connection working: Sam is still in the circles that grant him write, so he must still be able to
-/// send files, send read receipts, disconnect and verify the connection.
+/// Frodo has the flag on; Sam is connected to Frodo but Frodo has not reviewed him.  The ladder limits what an
+/// unreviewed connection can <i>see</i> (content behind a <c>connected</c> ACL), not whether the connection
+/// works: Sam is still in the circles that grant him write, so he can still send files, send read receipts,
+/// disconnect and verify the connection.
 /// <para>
-/// These tests state that intended behaviour and are <b>expected to fail today</b>.  Several peer
-/// endpoints use the Connected tier to mean "is this a connection" (<c>AssertCallerIsConnected</c>,
-/// <c>Caller.IsConnected</c>), so demoting an unreviewed connection to Authenticated rejects them before
-/// their circle grants are ever checked.  The two control tests (flag off, and a reviewed connection) are
-/// expected to pass, which pins the failures on the unreviewed tier.
+/// Peer plumbing asks <see cref="CallerContext.HasActiveConnection"/>; content ACLs ask the tier
+/// (docs/connection-defaults.md, "Connected-but-unreviewed survives as an internal caller classification").
+/// The controls (flag off, reviewed connection) and the content test pin down both halves.
 /// </para>
 /// <para>
 /// Not covered here: peer file updates, introductions, the peer app-notification token, and the
-/// verification-hash sync push -- all gated the same way.
+/// verification-hash sync push.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -46,7 +44,7 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    // -- controls: expected to pass ---------------------------------------------------------------
+    // -- controls ---------------------------------------------------------------------------------
 
     [Test]
     public async Task FlagOff_UnreviewedConnection_CanSendAFile()
@@ -84,7 +82,7 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
     }
 
-    // -- the ladder with an unreviewed connection: expected to fail today --------------------------
+    // -- peer plumbing works for an unreviewed connection ------------------------------------------
 
     [Test]
     public async Task FlagOn_UnreviewedConnection_CanStillSendAFile()
@@ -206,21 +204,44 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
     }
 
-    // ---------------------------------------------------------------------------------------------
+    // -- content still follows the tier ------------------------------------------------------------
 
-    private async Task EnableReviewedTierAsync(OwnerSession owner)
+    [Test]
+    public async Task ConnectedAclContent_FollowsTheTier_NotTheConnection()
     {
-        await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.TrueString);
+        // The half of the ladder that must not move: an active connection alone does not open content
+        // behind a `connected` ACL.  Checked against the evaluator directly, with the caller shaped exactly
+        // as transit auth builds it for an unreviewed (Authenticated) and a reviewed (Connected) connection.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var acl = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<IDriveAclAuthorizationService>();
 
-        // Turning the flag on does not reset cached peer contexts, so drop them here or the peer keeps the
-        // tier it was admitted at before the flag changed.
-        await ResetPeerContextsAsync(owner);
+        var unreviewed = new OdinContext
+        {
+            Caller = new CallerContext(sam.Identity, null, SecurityGroupType.Authenticated) { HasActiveConnection = true }
+        };
+        var reviewed = new OdinContext
+        {
+            Caller = new CallerContext(sam.Identity, null, SecurityGroupType.Connected) { HasActiveConnection = true }
+        };
+
+        Assert.That(await acl.CallerHasPermission(AccessControlList.Connected, unreviewed), Is.False,
+            "an unreviewed connection must not see content behind a connected ACL");
+        Assert.That(await acl.CallerHasPermission(AccessControlList.Connected, reviewed), Is.True,
+            "a reviewed connection sees content behind a connected ACL");
     }
 
-    private async Task DisableReviewedTierAsync(OwnerSession owner)
+    // ---------------------------------------------------------------------------------------------
+
+    // No manual cache reset here: toggling the flag must take effect on its own.
+    private static async Task EnableReviewedTierAsync(OwnerSession owner)
+    {
+        await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.TrueString);
+    }
+
+    private static async Task DisableReviewedTierAsync(OwnerSession owner)
     {
         await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.FalseString);
-        await ResetPeerContextsAsync(owner);
     }
 
     /// <summary>
@@ -228,8 +249,8 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
     /// </summary>
     /// <remarks>
     /// Written to storage rather than through <c>review/clear</c>: the peer-flow setup puts the peer in a
-    /// personal circle, which the clear refuses by design.  This test is about what the tier does to an
-    /// unreviewed connection, not about how it became unreviewed.
+    /// personal circle, which the clear refuses by design.  A storage write bypasses the cache reset the real
+    /// clear does, so the cache is reset here.
     /// </remarks>
     private async Task ClearReviewOnAsync(OwnerSession owner, OdinId peer)
     {
@@ -240,11 +261,6 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         Assert.That(icr, Is.Not.Null, $"precondition: {owner.Identity} is connected to {peer}");
         Assert.That(icr!.ReviewedAt, Is.Null, $"precondition: {peer} is unreviewed on {owner.Identity}");
 
-        await ResetPeerContextsAsync(owner);
-    }
-
-    private async Task ResetPeerContextsAsync(OwnerSession owner)
-    {
         await Host.GetTenantScope(owner.Identity.DomainName).Resolve<OdinContextCache>().ResetAsync();
     }
 

@@ -159,6 +159,9 @@ namespace Odin.Services.Membership.Connections
                         masterKey: null,
                         securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
                         circleIds: enabledCircles)
+                    {
+                        HasActiveConnection = true
+                    }
                 };
 
                 context.SetPermissionContext(permissionContext);
@@ -195,8 +198,10 @@ namespace Odin.Services.Membership.Connections
             // and later re-established, a break-connection still pending in the caller's outbox carries
             // the old token; that no longer validates, so the perimeter downgrades the caller below
             // Connected. Requiring a connected caller here ensures we only honor a disconnect for the
-            // connection instance the caller actually still shares with us.
-            odinContext.Caller.AssertCallerIsConnected();
+            // connection instance the caller actually still shares with us.  Asks for an active connection
+            // rather than the Connected tier, so an unreviewed connection's disconnect is honoured too; a stale
+            // token still fails, because it never produces an active-connection caller.
+            odinContext.Caller.AssertHasActiveConnection();
             var caller = odinContext.GetCallerOdinIdOrFail();
 
             // notifyRemote:false -- the caller initiated this; echoing the notification back would loop.
@@ -2013,7 +2018,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<VerifyConnectionResponse> GetCallerVerificationHashAsync(IOdinContext odinContext)
         {
-            if (!odinContext.Caller.IsConnected)
+            if (!odinContext.Caller.HasActiveConnection)
             {
                 logger.LogDebug("Verification Connection Code - not connected, " +
                                 "returning null hash.(AuthContext:{ac})",
@@ -2300,7 +2305,7 @@ namespace Odin.Services.Membership.Connections
         {
             if (!odinContext.Caller.IsOwner)
             {
-                odinContext.Caller.AssertCallerIsConnected();
+                odinContext.Caller.AssertHasActiveConnection();
                 OdinValidationUtils.AssertIsTrue(odinId == odinContext.GetCallerOdinIdOrFail(), "caller does not match target identity");
             }
 
@@ -2349,7 +2354,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<ClientAccessToken> CreatePeerIcrClientForCallerAsync(IOdinContext odinContext)
         {
-            odinContext.Caller.AssertCallerIsConnected();
+            odinContext.Caller.AssertHasActiveConnection();
             var caller = odinContext.GetCallerOdinIdOrFail();
 
             var grantKeyStoreKey = odinContext.PermissionsContext.GetKeyStoreKey();

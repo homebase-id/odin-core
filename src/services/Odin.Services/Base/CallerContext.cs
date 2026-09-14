@@ -34,6 +34,19 @@ namespace Odin.Services.Base
 
         public OdinClientContext OdinClientContext { get; init; }
 
+        /// <summary>
+        /// True when the caller holds an active connection with this identity, whatever their
+        /// <see cref="SecurityLevel"/>.
+        /// </summary>
+        /// <remarks>
+        /// Separate from the tier on purpose.  With the reviewed security tier on, an unreviewed connection is
+        /// admitted at <see cref="SecurityGroupType.Authenticated"/>, so the tier no longer answers "is this a
+        /// connection".  Peer plumbing (receiving files, read receipts, disconnect notices, verification) asks
+        /// this; content ACLs keep asking the tier (docs/connection-defaults.md, "Connected-but-unreviewed
+        /// survives as an internal caller classification").
+        /// </remarks>
+        public bool HasActiveConnection { get; init; }
+
         public CallerContext(OdinId? odinId,
             SensitiveByteArray masterKey,
             SecurityGroupType securityLevel,
@@ -57,6 +70,7 @@ namespace Odin.Services.Base
             this.Circles = other.Circles?.ToList();
             this.ClientTokenType = other.ClientTokenType;
             this.OdinClientContext = other.OdinClientContext?.Clone();
+            this.HasActiveConnection = other.HasActiveConnection;
         }
 
         public CallerContext Clone()
@@ -92,6 +106,14 @@ namespace Odin.Services.Base
             }
             
             masterKey = this._masterKey;
+        }
+
+        public void AssertHasActiveConnection()
+        {
+            if (!HasActiveConnection)
+            {
+                throw new OdinSecurityException("Caller must be connected");
+            }
         }
 
         public void AssertCallerIsOwner()

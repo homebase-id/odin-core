@@ -296,7 +296,7 @@ public class CircleNetworkVerificationService(
     public async Task<SyncRemoteVerificationHashResult> SynchronizeVerificationHashFromRemoteAsync(SharedSecretEncryptedPayload payload,
         IOdinContext odinContext)
     {
-        odinContext.Caller.AssertCallerIsConnected();
+        odinContext.Caller.AssertHasActiveConnection();
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
