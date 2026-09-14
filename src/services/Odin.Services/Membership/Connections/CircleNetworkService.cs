@@ -3271,6 +3271,14 @@ namespace Odin.Services.Membership.Connections
                         });
                     }
                 }
+                catch (Exception e)
+                {
+                    // One connection whose deposits cannot be converted must not fail the upgrade for the
+                    // rest.  Its deposits stay pending and convert on the contact's next call or the owner's
+                    // next touch of that connection.
+                    logger.LogError(e, "Could not convert deposited grants for {odinId}; leaving them pending",
+                        identity.OdinId);
+                }
                 finally
                 {
                     keyStoreKey.Wipe();

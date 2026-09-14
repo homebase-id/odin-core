@@ -315,6 +315,10 @@ public class TenantConfigService(
 
                 break;
 
+            case TenantConfigFlagNames.HideOwnerCirclesFromApps:
+                cfg.HideOwnerCirclesFromApps = bool.Parse(request.Value);
+                break;
+
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
                 cfg.AuthenticatedIdentitiesCanReactOnAnonymousDrives = bool.Parse(request.Value);
                 break;
