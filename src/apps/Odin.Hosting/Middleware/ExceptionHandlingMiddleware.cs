@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
@@ -38,7 +38,8 @@ namespace Odin.Hosting.Middleware
                 // SEB:TODO OdinClientException is used in a lot of places.
                 // We need to go through them all and determine if any should map to something
                 // different than 400, in which case the code should throw a different exception.
-                await HandleExceptionAsync(context, new BadRequestException(e.Message, e.ErrorCode, e));
+                await HandleExceptionAsync(context,
+                    new BadRequestException(e.Message, e.ErrorCode, e) { Extensions = e.Extensions });
             }
             catch (OdinRemoteIdentityException e) // => HTTP 503
             {
@@ -96,6 +97,17 @@ namespace Odin.Hosting.Middleware
                 if (exception is ClientException ce)
                 {
                     problemDetails.Title = ce.Message;
+
+                    // The error's own fields first, so a stray key cannot displace correlationId, and
+                    // errorCode after, so it cannot be displaced either.
+                    foreach (var (key, value) in ce.Extensions ?? [])
+                    {
+                        if (!problemDetails.Extensions.ContainsKey(key))
+                        {
+                            problemDetails.Extensions[key] = value;
+                        }
+                    }
+
                     problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
                 }
             }

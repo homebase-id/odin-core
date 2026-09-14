@@ -11,7 +11,9 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 
 namespace Odin.Hosting.Tests.AppAPI.Membership;
 
@@ -128,11 +130,17 @@ public class AppCircleDefinitionTests
     {
         var identity = TestIdentities.Merry;
 
-        var appClient = await this.CreateAppAndClient(identity, PermissionKeys.ReadCircleMembership);
+        // The circles have to belong to this app for it to see them at all: an app is shown only
+        // the circles it owns (CircleMembershipService.GetCircleDefinitions), because a circle with
+        // no owning app is the owner's own and nothing an app does can involve one. The list this
+        // test is about is therefore a list of the app's circles, so they are adopted into it here
+        // rather than left unowned.
+        var appId = Guid.NewGuid();
+        var appClient = await this.CreateAppAndClient(identity, appId, PermissionKeys.ReadCircleMembership);
 
-        var def1 = await this.CreateRandomCircle(identity);
-        var def2 = await this.CreateRandomCircle(identity);
-        var def3 = await this.CreateRandomCircle(identity);
+        var def1 = await this.CreateRandomCircle(identity, appId);
+        var def2 = await this.CreateRandomCircle(identity, appId);
+        var def3 = await this.CreateRandomCircle(identity, appId);
 
         var getDefinitionResponse = await appClient.CircleDefinitions.GetCircleDefinitions();
         ClassicAssert.IsTrue(getDefinitionResponse.IsSuccessStatusCode);
@@ -214,7 +222,18 @@ public class AppCircleDefinitionTests
         ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
     }
 
-    private async Task<CircleDefinition> CreateRandomCircle(TestIdentity identity, params int[] permissionKeys)
+    private Task<CircleDefinition> CreateRandomCircle(TestIdentity identity, params int[] permissionKeys)
+    {
+        return CreateRandomCircle(identity, null, permissionKeys);
+    }
+
+    /// <summary>
+    /// Same, but handed to <paramref name="owningAppId"/> once created.  The create endpoint takes
+    /// an AppId, but the owner-side helper this uses does not carry one, so the circle is adopted
+    /// immediately afterwards instead.
+    /// </summary>
+    private async Task<CircleDefinition> CreateRandomCircle(TestIdentity identity, Guid? owningAppId,
+        params int[] permissionKeys)
     {
         var titleId = Guid.NewGuid();
         var ownerClient = _scaffold.CreateOwnerApiClient(identity);
@@ -237,13 +256,38 @@ public class AppCircleDefinitionTests
             PermissionSet = new PermissionSet(permissionKeys)
         });
 
+        if (owningAppId.HasValue)
+        {
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+                var response = await svc.SetCircleOwningApp(new SetCircleOwningAppRequest
+                {
+                    CircleId = def.Id.Value,
+                    AppId = owningAppId.Value
+                });
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode,
+                    $"Failed to set owning app.  Actual response {response.StatusCode}");
+
+                def.AppId = owningAppId.Value;
+            }
+        }
+
         return def;
     }
 
-    private async Task<AppApiClient> CreateAppAndClient(TestIdentity identity, params int[] permissionKeys)
+    private Task<AppApiClient> CreateAppAndClient(TestIdentity identity, params int[] permissionKeys)
     {
-        var appId = Guid.NewGuid();
+        return CreateAppAndClient(identity, Guid.NewGuid(), permissionKeys);
+    }
 
+    /// <summary>
+    /// Same, with the app's id chosen by the caller -- needed when the test also has to create
+    /// circles owned by that app.
+    /// </summary>
+    private async Task<AppApiClient> CreateAppAndClient(TestIdentity identity, Guid appId,
+        params int[] permissionKeys)
+    {
         var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
         var appDrive = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some Drive 1", "", false);
