@@ -354,7 +354,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 var cc = new CallerContext(
                     odinId: client.OdinId,
                     masterKey: null,
-                    securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
+                    securityLevel: SecurityGroupType.Connected,
                     circleIds: enabledCircles,
                     odinClientContext: new OdinClientContext()
                     {
@@ -364,7 +364,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                         DevicePushNotificationKey = null
                     })
                 {
-                    HasActiveConnection = true
+                    IsReviewed = icr.ReviewedAt != null
                 };
 
                 logger.LogDebug("Create Connected Permission Context -> {icr} has circles: [{circles}]", icr.OdinId,

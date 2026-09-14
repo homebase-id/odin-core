@@ -157,10 +157,10 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
+                        securityLevel: SecurityGroupType.Connected,
                         circleIds: enabledCircles)
                     {
-                        HasActiveConnection = true
+                        IsReviewed = icr.ReviewedAt != null
                     }
                 };
 
@@ -2016,7 +2016,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<VerifyConnectionResponse> GetCallerVerificationHashAsync(IOdinContext odinContext)
         {
-            if (!odinContext.Caller.HasActiveConnection)
+            if (!odinContext.Caller.IsConnected)
             {
                 logger.LogDebug("Verification Connection Code - not connected, " +
                                 "returning null hash.(AuthContext:{ac})",

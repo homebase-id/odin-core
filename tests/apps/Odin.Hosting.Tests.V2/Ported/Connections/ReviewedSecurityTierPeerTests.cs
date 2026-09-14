@@ -22,18 +22,18 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
 
 /// <summary>
-/// The reviewed security tier (<see cref="TenantConfigFlagNames.UseReviewedSecurityTier"/>) with the flag on.
+/// The reviewed security tier (<see cref="TenantConfigFlagNames.UseReviewedSecurityTier"/>).
 /// </summary>
 /// <remarks>
-/// Frodo has the flag on; Sam is connected to Frodo but Frodo has not reviewed him.  The ladder limits what an
-/// unreviewed connection can <i>see</i> (content behind a <c>connected</c> ACL), not whether the connection
-/// works: Sam is still in the circles that grant him write, so he can still send files, send read receipts,
-/// disconnect and verify the connection.
-/// <para>
-/// Peer plumbing asks <see cref="CallerContext.HasActiveConnection"/>; content ACLs ask the tier
-/// (docs/connection-defaults.md, "Connected-but-unreviewed survives as an internal caller classification").
-/// The controls (flag off, reviewed connection) and the content test pin down both halves.
-/// </para>
+/// Frodo is the identity with the flag; Sam is connected to Frodo.  Three things must hold:
+/// <list type="number">
+/// <item>With the flag off, nothing changes.</item>
+/// <item>With the flag on, an unreviewed connection can still message: send files, read receipts,
+/// disconnect, verify.</item>
+/// <item>With the flag on, an unreviewed connection cannot see content marked <c>connected</c>.</item>
+/// </list>
+/// A connection is admitted at Connected with <see cref="CallerContext.IsReviewed"/> set from the review
+/// stamp; content evaluation applies <see cref="ReviewedSecurityTier.EffectiveLevel"/>.
 /// <para>
 /// Not covered here: peer file updates, introductions, the peer app-notification token, and the
 /// verification-hash sync push.
@@ -42,6 +42,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 [TestFixture]
 public class ReviewedSecurityTierPeerTests : V2Fixture
 {
+    private const int ConnectedContentFileType = 7021;
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     // -- controls ---------------------------------------------------------------------------------
@@ -82,7 +84,7 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
     }
 
-    // -- peer plumbing works for an unreviewed connection ------------------------------------------
+    // -- flag on: an unreviewed connection can still message ---------------------------------------
 
     [Test]
     public async Task FlagOn_UnreviewedConnection_CanStillSendAFile()
@@ -204,36 +206,65 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
     }
 
-    // -- content still follows the tier ------------------------------------------------------------
+    // -- content marked `connected` ----------------------------------------------------------------
 
     [Test]
-    public async Task ConnectedAclContent_FollowsTheTier_NotTheConnection()
+    public async Task FlagOff_UnreviewedConnection_CanSeeConnectedContent()
     {
-        // The half of the ladder that must not move: an active connection alone does not open content
-        // behind a `connected` ACL.  Checked against the evaluator directly, with the caller shaped exactly
-        // as transit auth builds it for an unreviewed (Authenticated) and a reviewed (Connected) connection.
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-        var acl = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<IDriveAclAuthorizationService>();
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-flag-off");
 
-        var unreviewed = new OdinContext
-        {
-            Caller = new CallerContext(sam.Identity, null, SecurityGroupType.Authenticated) { HasActiveConnection = true }
-        };
-        var reviewed = new OdinContext
-        {
-            Caller = new CallerContext(sam.Identity, null, SecurityGroupType.Connected) { HasActiveConnection = true }
-        };
+        await ClearReviewOnAsync(frodo, sam.Identity);
 
-        Assert.That(await acl.CallerHasPermission(AccessControlList.Connected, unreviewed), Is.False,
-            "an unreviewed connection must not see content behind a connected ACL");
-        Assert.That(await acl.CallerHasPermission(AccessControlList.Connected, reviewed), Is.True,
-            "a reviewed connection sees content behind a connected ACL");
+        Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(1),
+            "with the flag off an unreviewed connection sees connected content exactly as before");
+        var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
+        Assert.That(header.IsSuccessStatusCode, Is.True, $"header should be readable with the flag off: {header.StatusCode}");
+    }
+
+    [Test]
+    public async Task FlagOn_ReviewedConnection_CanSeeConnectedContent()
+    {
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-reviewed");
+
+        await EnableReviewedTierAsync(frodo);
+        try
+        {
+            Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(1),
+                "a reviewed connection sees connected content");
+            var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
+            Assert.That(header.IsSuccessStatusCode, Is.True, $"a reviewed connection reads the header: {header.StatusCode}");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(frodo);
+        }
+    }
+
+    [Test]
+    public async Task FlagOn_UnreviewedConnection_CannotSeeConnectedContent()
+    {
+        var (frodo, sam, drive, fileId) = await SetupConnectedContentAsync("content-unreviewed");
+
+        await EnableReviewedTierAsync(frodo);
+        try
+        {
+            await ClearReviewOnAsync(frodo, sam.Identity);
+
+            Assert.That(await PeerQueryCountAsync(sam, frodo, drive), Is.EqualTo(0),
+                "an unreviewed connection must not see connected content in a query");
+            var header = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, drive.Alias, fileId);
+            Assert.That(header.IsSuccessStatusCode, Is.False,
+                $"an unreviewed connection must not read a connected file's header; got {header.StatusCode}");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(frodo);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    // No manual cache reset here: toggling the flag must take effect on its own.
+    // No manual cache reset: the flag is read when content is evaluated, so toggling it applies at once.
     private static async Task EnableReviewedTierAsync(OwnerSession owner)
     {
         await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.TrueString);
@@ -242,6 +273,36 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
     private static async Task DisableReviewedTierAsync(OwnerSession owner)
     {
         await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier, bool.FalseString);
+    }
+
+    /// <summary>
+    /// Frodo hosts a drive holding one file marked <c>connected</c>; Sam is connected with Read on it.
+    /// </summary>
+    private async Task<(OwnerSession frodo, OwnerSession sam, TargetDrive drive, Guid fileId)> SetupConnectedContentAsync(
+        string label)
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // Sam is the sender, so Frodo's circle grants Sam Read on Frodo's drive.
+        var drive = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Read, label, allowAnonymousReads: false);
+
+        var metadata = SampleMetadataData.Create(fileType: ConnectedContentFileType, acl: AccessControlList.Connected);
+        var upload = await frodo.Drives.Writer.UploadNewMetadata(drive.Alias, metadata);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"frodo upload failed: {upload.StatusCode}");
+
+        return (frodo, sam, drive, upload.Content!.FileId);
+    }
+
+    private static async Task<int> PeerQueryCountAsync(OwnerSession reader, OwnerSession host, TargetDrive drive)
+    {
+        var response = await reader.Drives.Peer.QueryBatchAsync(host.Identity, drive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { FileType = new[] { ConnectedContentFileType } },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 10, IncludeMetadataHeader = true }
+        });
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"peer query failed: {response.StatusCode}");
+        return response.Content!.SearchResults.Count();
     }
 
     /// <summary>

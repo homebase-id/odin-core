@@ -17,14 +17,11 @@ public class TransitAuthenticationService :
 {
     private readonly OdinContextCache _cache;
     private readonly CircleNetworkService _circleNetworkService;
-    private readonly TenantContext _tenantContext;
 
-    public TransitAuthenticationService(OdinContextCache cache, CircleNetworkService circleNetworkService,
-        TenantContext tenantContext)
+    public TransitAuthenticationService(OdinContextCache cache, CircleNetworkService circleNetworkService)
     {
         _cache = cache;
         _circleNetworkService = circleNetworkService;
-        _tenantContext = tenantContext;
     }
 
     /// <summary>
@@ -57,15 +54,14 @@ public class TransitAuthenticationService :
         var (permissionContext, circleIds, icr) =
             await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
 
-        // The peer's own record decides their tier; the setting decides whether that matters at all.
+        // Admitted as a connection; the review only matters where content is evaluated (ReviewedSecurityTier).
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
-            securityLevel: ReviewedSecurityTier.For(_tenantContext.Settings, icr),
+            securityLevel: SecurityGroupType.Connected,
             circleIds: circleIds)
         {
-            // CreateTransitPermissionContextAsync throws unless the connection is active.
-            HasActiveConnection = true
+            IsReviewed = icr.ReviewedAt != null
         };
 
         return (cc, permissionContext);

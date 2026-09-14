@@ -42,8 +42,7 @@ public class TenantConfigService(
     IdentityDatabase identityDatabase,
     ShamirConfigurationService shamirConfigurationService,
     IdentityReadyStateService identityReadyState,
-    BuiltinProvisioner builtinProvisioner,
-    OdinContextCache odinContextCache)
+    BuiltinProvisioner builtinProvisioner)
 {
     internal const string ConfigContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
 
@@ -353,13 +352,6 @@ public class TenantConfigService(
 
         //TODO: eww, use mediator instead
         tenantContext.UpdateSystemConfig(cfg);
-
-        // Cached peer contexts carry the tier they were admitted at; drop them so the change applies now rather
-        // than when the cache expires.  After the settings update, so a rebuilt context reads the new value.
-        if (flag is TenantConfigFlagNames.UseReviewedSecurityTier)
-        {
-            await odinContextCache.ResetAsync();
-        }
     }
 
     public async Task EnableAutoPasswordRecovery(IOdinContext odinContext)

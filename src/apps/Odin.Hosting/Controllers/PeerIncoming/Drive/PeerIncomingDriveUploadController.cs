@@ -240,7 +240,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             //TODO: later add check to see if this is from an introduction?
 
             var dotYouContext = WebOdinContext;
-            var isValidCaller = dotYouContext.Caller.HasActiveConnection || dotYouContext.Caller.ClientTokenType == ClientTokenType.DataProvider;
+            var isValidCaller = dotYouContext.Caller.IsConnected || dotYouContext.Caller.ClientTokenType == ClientTokenType.DataProvider;
             if (!isValidCaller)
             {
                 throw new OdinSecurityException("Caller must be connected");

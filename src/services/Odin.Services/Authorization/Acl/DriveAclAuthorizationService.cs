@@ -11,7 +11,8 @@ namespace Odin.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService(
         CircleNetworkService circleNetwork,
-        ILogger<DriveAclAuthorizationService> logger)
+        ILogger<DriveAclAuthorizationService> logger,
+        TenantContext tenantContext)
         : IDriveAclAuthorizationService
     {
         public async Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext)
@@ -57,7 +58,9 @@ namespace Odin.Services.Authorization.Acl
                     return true;
 
                 case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIcrAsync(odinId, odinContext, true)).IsConnected();
+                    var connection = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
+                    return connection.IsConnected() &&
+                           ReviewedSecurityTier.For(tenantContext.Settings, connection) == SecurityGroupType.Connected;
             }
 
             return false;
@@ -120,8 +123,9 @@ namespace Odin.Services.Authorization.Acl
 
         private Task<bool> CallerIsConnected(IOdinContext odinContext)
         {
-            //TODO: cache result - 
-            return Task.FromResult(odinContext.Caller.IsConnected);
+            //TODO: cache result -
+            return Task.FromResult(
+                ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, odinContext.Caller) == SecurityGroupType.Connected);
         }
     }
 }
