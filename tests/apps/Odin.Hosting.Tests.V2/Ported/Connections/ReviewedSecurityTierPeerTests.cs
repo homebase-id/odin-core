@@ -17,6 +17,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
@@ -30,13 +31,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// <item>With the flag off, nothing changes.</item>
 /// <item>With the flag on, an unreviewed connection can still message: send files, read receipts,
 /// disconnect, verify.</item>
-/// <item>With the flag on, an unreviewed connection cannot see content marked <c>connected</c>.</item>
+/// <item>With the flag on, an unreviewed connection cannot see content marked <c>connected</c>, and cannot
+/// introduce.</item>
 /// </list>
 /// A connection is admitted at Connected with <see cref="CallerContext.IsReviewed"/> set from the review
-/// stamp; content evaluation applies <see cref="ReviewedSecurityTier.EffectiveLevel"/>.
+/// stamp; content evaluation and the introduction check apply <see cref="ReviewedSecurityTier.EffectiveLevel"/>.
 /// <para>
-/// Not covered here: peer file updates, introductions, the peer app-notification token, and the
-/// verification-hash sync push.
+/// Not covered here: peer file updates, the peer app-notification token, and the verification-hash sync push.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -262,7 +263,90 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         }
     }
 
+    // -- introductions ----------------------------------------------------------------------------
+    // Frodo asks to introduce people to Sam; Sam's server decides with CallerMayIntroduce, the same predicate
+    // the incoming introduction itself is checked with.
+
+    [Test]
+    public async Task FlagOff_UnreviewedConnection_CanStillIntroduce()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await ConnectOwnersAsync(frodo, sam);
+
+        await ClearReviewOnAsync(sam, frodo.Identity);
+
+        var status = await PreflightIntroductionToAsync(frodo, sam);
+        Assert.That(status.AllowsIntroductions, Is.True, "with the flag off an unreviewed connection introduces as before");
+        Assert.That(status.Status, Is.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
+    }
+
+    [Test]
+    public async Task FlagOn_ReviewedConnection_CanIntroduce()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await ConnectOwnersAsync(frodo, sam);
+
+        await EnableReviewedTierAsync(sam);
+        try
+        {
+            var status = await PreflightIntroductionToAsync(frodo, sam);
+            Assert.That(status.AllowsIntroductions, Is.True, "a reviewed connection may introduce");
+            Assert.That(status.Status, Is.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(sam);
+        }
+    }
+
+    [Test]
+    public async Task FlagOn_UnreviewedConnection_CannotIntroduce()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await ConnectOwnersAsync(frodo, sam);
+
+        await EnableReviewedTierAsync(sam);
+        try
+        {
+            await ClearReviewOnAsync(sam, frodo.Identity);
+
+            var status = await PreflightIntroductionToAsync(frodo, sam);
+            Assert.That(status.AllowsIntroductions, Is.False, "an unreviewed connection must not be able to introduce");
+            Assert.That(status.Status, Is.Not.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
+            Assert.That(status.IsCallerConnected, Is.True,
+                "refusing the introduction must not report the connection itself as broken");
+        }
+        finally
+        {
+            await DisableReviewedTierAsync(sam);
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
+
+    private static async Task ConnectOwnersAsync(OwnerSession sender, OwnerSession recipient)
+    {
+        var send = await sender.Connections.SendConnectionRequest(recipient.Identity);
+        Assert.That(send.IsSuccessStatusCode, Is.True, $"send to {recipient.Identity} failed: {send.StatusCode}");
+
+        var accept = await recipient.Connections.AcceptConnectionRequest(sender.Identity);
+        Assert.That(accept.IsSuccessStatusCode, Is.True, $"accept on {recipient.Identity} failed: {accept.StatusCode}");
+    }
+
+    private static async Task<RecipientPreflightStatus> PreflightIntroductionToAsync(OwnerSession introducer,
+        OwnerSession recipient)
+    {
+        var response = await introducer.Connections.PreflightIntroductionsAsync(new IntroductionGroup
+        {
+            Message = "preflight",
+            Recipients = [recipient.Identity]
+        });
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"preflight failed: {response.StatusCode}");
+        return response.Content!.Recipients.Single(r => r.Recipient == recipient.Identity.DomainName);
+    }
 
     // No manual cache reset: the flag is read when content is evaluated, so toggling it applies at once.
     private static async Task EnableReviewedTierAsync(OwnerSession owner)
