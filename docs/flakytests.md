@@ -160,3 +160,28 @@ Remove the attribute and this entry once that is fixed.
 observed before the first read returns the buffered bytes, the read is cancelled with
 `bytesReceived == 0` and logged at Verbose instead of Warning. Details and candidate fixes in
 #1734. The test was added by `9d1315b7e` (PR #1732).
+
+---
+
+## `Odin.Hosting.Tests.AppAPI.Transit.TransferFileTests`
+
+- `TransientFileIsDeletedAfterSending`
+
+**Where:** CI, `windows/sqlite/debug` (run 34908631011, attempt 1, commit `125cb622f`, PR #1739,
+2026-09-14). The re-run of that job (attempt 2, same commit) passed. The same commit passed on
+`ubuntu/postgres/release` (run 34908631040) and `ubuntu/sqlite/release` (run 34908630925).
+
+**Symptom:** `Sender should no longer have the file since we used IsTransient` —
+`GetFileHeader` on the sender returned something other than `NotFound` after the outbox and
+inbox were processed for a transient transfer.
+
+**Not caused by the change in flight (evidence, not proof):** the same job passed on re-run
+with no code change, and the test does not appear in the logs of the 8 most recent failed
+`windows/sqlite/debug` runs checked on 2026-09-14. The change (reviewed security tier) only takes
+effect when a tenant enables `UseReviewedSecurityTier`, which this test does not do. Not
+reproduced on a clean tree locally: port 8443 was occupied, so `Odin.Hosting.Tests` could not
+start.
+
+**Cause:** unknown. The assertion runs immediately after the transfer, so a delayed deletion of
+the sender's transient copy on the slower Windows runner is a plausible explanation, but it has
+not been confirmed.
