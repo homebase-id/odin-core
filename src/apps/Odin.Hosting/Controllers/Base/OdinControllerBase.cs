@@ -33,6 +33,36 @@ public abstract class OdinControllerBase : ControllerBase
 {
     private IOdinContext _odinContext;
 
+    /// <summary>
+    /// True when the caller is the identity owner or one of the owner's own apps -- the viewers entitled
+    /// to see what the owner thinks about a contact, as opposed to a third party who may merely be allowed
+    /// to see that the contact exists.
+    /// </summary>
+    /// <remarks>
+    /// Several endpoints are mounted on both an owner/app route and the guest (YouAuth) route, and a guest
+    /// can hold <c>ReadConnections</c> whenever the tenant setting allows it.  Permission to read the list
+    /// is not permission to read the owner's judgments about the people on it, so those endpoints project a
+    /// narrower shape when this is false (docs/connection-defaults.md, "Viewer-scoped redaction").
+    ///
+    /// <para>
+    /// Both auth generations have to be asked: V1 carries the scheme in <c>AuthContext</c>, V2 in the
+    /// caller's <see cref="ClientTokenType"/>.  Same pairing as the guest-cache header below.
+    /// </para>
+    /// </remarks>
+    protected bool CallerIsOwnerSideViewer
+    {
+        get
+        {
+            if (WebOdinContext.Caller.IsOwner)
+            {
+                return true;
+            }
+
+            return WebOdinContext.Caller.ClientTokenType == ClientTokenType.App ||
+                   WebOdinContext.AuthContext == YouAuthConstants.AppSchemeName;
+        }
+    }
+
     /// <summary />
     protected FileSystemHttpRequestResolver GetHttpFileSystemResolver()
     {
