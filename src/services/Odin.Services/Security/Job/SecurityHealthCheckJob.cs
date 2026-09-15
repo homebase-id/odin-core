@@ -189,7 +189,7 @@ public class SecurityHealthCheckJob(
         }
 
         var driveManager = lifetimeScope.Resolve<IDriveManager>();
-        var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+        var shardDrive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
         if (null == shardDrive)
         {
             logger.LogDebug("{job} -> Sharding drive not yet configured (Tenant might need to upgrade)", nameof(SecurityHealthCheckJob));
@@ -216,7 +216,7 @@ public class SecurityHealthCheckJob(
                 tokenType: ClientTokenType.Other)
         };
 
-        var targetDrive = SystemDriveConstants.ShardRecoveryDrive;
+        var targetDrive = WellKnownAppDrives.ShardRecoveryDrive;
         var driveGrant = new DriveGrant()
         {
             DriveId = targetDrive.Alias,

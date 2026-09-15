@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
@@ -35,6 +36,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     public class PeerIncomingDriveQueryController(
         IDriveManager driveManager,
         IMediator mediator,
+        IAppRegistrationService appRegistrationService,
         ITenantLevel2Cache<PeerTemporalDriveQueryService> temporalCache) : OdinControllerBase
     {
         [HttpPost("batchcollection")]
@@ -145,6 +147,44 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             return new FileStreamResult(thumb, "application/octet-stream");
+        }
+
+        /// <summary>
+        /// Resolves <c>/apps/{appSlug}/drives/{driveSlug}</c> to the drive it names here, so a remote
+        /// caller can address it without both sides sharing hardcoded guid constants.  404 when
+        /// nothing answers to that address -- including when the caller may not read it.
+        /// </summary>
+        [HttpPost("metadata/by-slug")]
+        public async Task<ActionResult<PerimeterDriveData>> ResolveDriveAddress(
+            [FromBody] ResolveDriveAddressRequest request)
+        {
+            var perimeterService = GetPerimeterService();
+
+            var drive = await perimeterService.ResolveDriveAddressAsync(request.AppSlug, request.DriveSlug,
+                WebOdinContext);
+
+            return drive == null ? NotFound() : drive;
+        }
+
+        /// <summary>
+        /// Serves the write-only public key of the drive <c>/apps/{appSlug}/drives/{driveSlug}</c>
+        /// names here, so a caller that may write but not read can seal a deposit to it.
+        /// </summary>
+        /// <remarks>
+        /// 404 when nothing answers to the address; a caller that lacks Write gets a security
+        /// exception rather than a 404, since having resolved the address it already knows the drive
+        /// is there.
+        /// </remarks>
+        [HttpPost("metadata/by-slug/public-key")]
+        public async Task<ActionResult<DrivePublicKeyResponse>> GetDriveWriteOnlyPublicKey(
+            [FromBody] ResolveDriveAddressRequest request)
+        {
+            var perimeterService = GetPerimeterService();
+
+            var key = await perimeterService.GetDriveWriteOnlyPublicKeyAsync(request.AppSlug, request.DriveSlug,
+                WebOdinContext);
+
+            return key == null ? NotFound() : key;
         }
 
         [HttpPost("metadata/type")]
@@ -480,7 +520,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService GetPerimeterService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            return new Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService(driveManager, fileSystem);
+            return new Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService(driveManager, fileSystem,
+                appRegistrationService);
         }
 
         private PeerTemporalDriveQueryService GetTemporalPerimeterService()

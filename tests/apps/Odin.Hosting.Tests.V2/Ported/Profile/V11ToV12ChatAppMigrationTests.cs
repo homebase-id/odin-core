@@ -45,7 +45,7 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ChatDrive,
+                        Drive = WellKnownAppDrives.ChatDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -70,7 +70,7 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
             "migration should grant ManageCircleMembership to the chat app");
 
         // Pre-existing drive grant and permission key are preserved.
-        Assert.That(after!.Grant.DriveGrants.Any(g => g.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive), Is.True,
+        Assert.That(after!.Grant.DriveGrants.Any(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive), Is.True,
             "the existing ChatDrive grant must be preserved");
         Assert.That(after.Grant.PermissionSet.HasKey(PermissionKeys.ReadConnections), Is.True,
             "the existing ReadConnections key must be preserved");
@@ -89,7 +89,7 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ChatDrive,
+                        Drive = WellKnownAppDrives.ChatDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }
@@ -130,7 +130,7 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
                 {
                     PermissionedDrive = new PermissionedDrive
                     {
-                        Drive = SystemDriveConstants.ChatDrive,
+                        Drive = WellKnownAppDrives.ChatDrive,
                         Permission = DrivePermission.ReadWrite
                     }
                 }

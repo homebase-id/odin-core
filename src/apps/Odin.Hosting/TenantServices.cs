@@ -82,6 +82,9 @@ using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
 using Odin.Services.Configuration.VersionUpgrade.Version10tov11;
 using Odin.Services.Configuration.VersionUpgrade.Version11tov12;
+using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
+using Odin.Services.Configuration.VersionUpgrade.Version13tov14;
+using Odin.Services.Configuration.VersionUpgrade.Version14tov15;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -89,6 +92,7 @@ using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Tenant.Container;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Services.Apps.Builtin;
 
 namespace Odin.Hosting;
 
@@ -198,6 +202,7 @@ public static class TenantServices
             .InstancePerLifetimeScope();
 
         cb.RegisterType<IdentityReadyStateService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
@@ -271,23 +276,23 @@ public static class TenantServices
 
         cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().InstancePerLifetimeScope();
 
-        cb.RegisterType<FileSystemResolver>().InstancePerDependency();
+        cb.RegisterType<FileSystemResolver>().InstancePerLifetimeScope();
         cb.RegisterType<FileSystemHttpRequestResolver>().InstancePerDependency();
 
         cb.RegisterType<StandardFileStreamWriter>().InstancePerDependency();
         cb.RegisterType<StandardFilePayloadStreamWriter>().InstancePerDependency();
         cb.RegisterType<FileExpiryScheduler>().InstancePerDependency();
-        cb.RegisterType<StandardFileDriveStorageService>().InstancePerDependency();
-        cb.RegisterType<StandardFileDriveQueryService>().InstancePerDependency();
+        cb.RegisterType<StandardFileDriveStorageService>().InstancePerLifetimeScope();
+        cb.RegisterType<StandardFileDriveQueryService>().InstancePerLifetimeScope();
         cb.RegisterType<StandardFileUpdateWriter>().InstancePerDependency();
 
-        cb.RegisterType<StandardFileSystem>().InstancePerDependency();
+        cb.RegisterType<StandardFileSystem>().InstancePerLifetimeScope();
 
         cb.RegisterType<CommentStreamWriter>().InstancePerDependency();
         cb.RegisterType<CommentPayloadStreamWriter>().InstancePerDependency();
-        cb.RegisterType<CommentFileStorageService>().InstancePerDependency();
-        cb.RegisterType<CommentFileQueryService>().InstancePerDependency();
-        cb.RegisterType<CommentFileSystem>().InstancePerDependency();
+        cb.RegisterType<CommentFileStorageService>().InstancePerLifetimeScope();
+        cb.RegisterType<CommentFileQueryService>().InstancePerLifetimeScope();
+        cb.RegisterType<CommentFileSystem>().InstancePerLifetimeScope();
         cb.RegisterType<CommentFileUpdateWriter>().InstancePerDependency();
 
         cb.RegisterType<ReactionContentService>().InstancePerLifetimeScope();
@@ -401,6 +406,10 @@ public static class TenantServices
         cb.RegisterType<V9ToV10VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V10ToV11VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V11ToV12VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<LegacyDefinitionStore>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<V12ToV13VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V13ToV14VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V14ToV15VersionMigrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<VersionUpgradeRunState>().AsSelf().SingleInstance();
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();

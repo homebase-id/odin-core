@@ -76,13 +76,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE AppRegistrations IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE AppRegistrations IS '{ \"Version\": 202608271000 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS AppRegistrations( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS AppRegistrations( -- { \"Version\": 202608271000 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"AppId BYTEA NOT NULL, "

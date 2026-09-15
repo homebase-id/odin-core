@@ -69,6 +69,19 @@ public class MtaStsMiddlewareTest
     }
 
     [Test]
+    public async Task ItShouldLetTheAcmeChallengeThroughOnTheMtaStsHost()
+    {
+        // The HTTP-01 challenge for mta-sts.<domain> must reach CertesAcmeMiddleware. A 404 here
+        // makes the mta-sts SAN un-issuable on every host with tenant mail enabled - the only
+        // configuration in which it is requested.
+        var (context, nextCalled) = await InvokeAsync(
+            enabled: true, "mta-sts.frodo.example.com", "/.well-known/acme-challenge/some-token");
+
+        Assert.That(nextCalled, Is.True);
+        Assert.That(context.Response.StatusCode, Is.Not.EqualTo(404));
+    }
+
+    [Test]
     public async Task ItShouldServeNothingElseOnTheMtaStsHost()
     {
         var (context, nextCalled) = await InvokeAsync(

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
@@ -258,6 +259,8 @@ public class OdinConfiguration
         public Guid SystemProcessApiKey { get; set; }
 
         public int IpRateLimitRequestsPerSecond { get; init; }
+        /// <summary>Null = enabled in Production only (the historical behaviour).</summary>
+        public bool? IpRateLimitEnabled { get; init; }
 
         public string ReportContentUrl { get; set; } = "";
 
@@ -309,6 +312,24 @@ public class OdinConfiguration
             Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
             IpAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
+            foreach (var entry in IpAddressListenList.Where(e => e.ProxyProtocol.Enabled))
+            {
+                if (entry.ProxyProtocol.TrustedProxies.Count == 0)
+                {
+                    throw new OdinConfigException(
+                        $"Host:IPAddressListenList entry {entry.Ip}:{entry.HttpsPort} enables ProxyProtocol without TrustedProxies");
+                }
+
+                try
+                {
+                    entry.ProxyProtocol.GetTrustedNetworks();
+                }
+                catch (FormatException e)
+                {
+                    throw new OdinConfigException(
+                        $"Host:IPAddressListenList entry {entry.Ip}:{entry.HttpsPort} has an invalid ProxyProtocol:TrustedProxies value: {e.Message}");
+                }
+            }
 
             HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
@@ -332,6 +353,7 @@ public class OdinConfiguration
 
             // SEB:TODO figure out what the rate limit should default to. FE requests an insane amount of files in development mode.
             IpRateLimitRequestsPerSecond = config.GetOrDefault("Host:IpRateLimitRequestsPerSecond", 1000);
+            IpRateLimitEnabled = bool.TryParse(config["Host:IpRateLimitEnabled"], out var rateLimitEnabled) ? rateLimitEnabled : null;
 
             ClientRegistrationThreshold = config.GetOrDefault("Host:ClientRegistrationThreshold", 10);
             ClientRegistrationWindowThreshold = config.GetOrDefault("Host:ClientRegistrationWindowThreshold", 3);
@@ -349,10 +371,42 @@ public class OdinConfiguration
         public string Ip { get; init; } = "";
         public int HttpsPort { get; init; } = 0;
         public int HttpPort { get; init; } = 0;
+        public ProxyProtocolEntry ProxyProtocol { get; init; } = new();
 
         public IPAddress GetIp()
         {
             return this.Ip == "*" ? IPAddress.Any : IPAddress.Parse(this.Ip);
+        }
+    }
+
+    //
+
+    /// <summary>
+    /// PROXY protocol (v1 or v2) on a listen entry, for running behind an L4 load balancer that
+    /// cannot terminate TLS (per-tenant SNI certificates). When enabled, every connection on the
+    /// entry's ports must start with a PROXY header AND come from one of <see cref="TrustedProxies"/>;
+    /// anything else is closed. Health-check monitors on the balancer must send the header too.
+    /// </summary>
+    public class ProxyProtocolEntry
+    {
+        public bool Enabled { get; init; }
+        public List<string> TrustedProxies { get; init; } = [];
+
+        public IReadOnlyList<IPNetwork> GetTrustedNetworks()
+        {
+            return TrustedProxies.Select(ParseNetwork).ToList();
+        }
+
+        private static IPNetwork ParseNetwork(string value)
+        {
+            var text = value.Trim();
+            if (!text.Contains('/'))
+            {
+                var address = IPAddress.Parse(text);
+                text = $"{address}/{(address.AddressFamily == AddressFamily.InterNetwork ? 32 : 128)}";
+            }
+
+            return IPNetwork.Parse(text);
         }
     }
 
@@ -649,6 +703,21 @@ public class OdinConfiguration
         public string ApiKey { get; init; } = "";
         public string ApiKeyHttpHeaderName { get; init; } = "";
         public int ApiPort { get; init; }
+
+        /// <summary>
+        /// Interface the admin API listens on. Defaults to "0.0.0.0", which is what this
+        /// listener has always done - the address used to be hardcoded, so a deployment that
+        /// wanted the admin API off the public interface had no way to ask for it and had to
+        /// rely on a firewall rule instead. Set "127.0.0.1" to make it unreachable by
+        /// construction rather than by filter.
+        ///
+        /// The default is deliberately NOT loopback: `Odin.Cli` is documented to talk to this
+        /// port over the network (`-I admin.example.com:4444`), so changing the default would
+        /// silently break existing remote administration. Deployments that do not need that
+        /// should set it explicitly.
+        /// </summary>
+        public string ApiBindAddress { get; init; } = "0.0.0.0";
+
         public string Domain { get; init; } = "";
         public string ExportTargetPath { get; init; } = "";
 
@@ -665,6 +734,12 @@ public class OdinConfiguration
                 ApiKey = config.Required<string>("Admin:ApiKey");
                 ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
                 ApiPort = config.Required<int>("Admin:ApiPort");
+                ApiBindAddress = config.GetOrDefault("Admin:ApiBindAddress", "0.0.0.0");
+                if (!IPAddress.TryParse(ApiBindAddress, out _))
+                {
+                    throw new OdinConfigException(
+                        $"Admin:ApiBindAddress '{ApiBindAddress}' is not a valid IP address");
+                }
                 Domain = config.Required<string>("Admin:Domain");
                 ExportTargetPath = config.Required<string>("Admin:ExportTargetPath");
             }

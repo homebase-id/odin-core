@@ -30,7 +30,7 @@ public static class ResetFeed
 
         registry.LoadRegistrations().BlockingWait();
         var allTenants = await registry.GetTenants();
-        var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+        var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
         foreach (var tenant in allTenants)
         {
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
@@ -45,7 +45,7 @@ public static class ResetFeed
             foreach (var header in headers)
             {
                 // because im oddly paranoid
-                if (header.driveId != SystemDriveConstants.FeedDrive.Alias)
+                if (header.driveId != WellKnownAppDrives.FeedDrive.Alias)
                 {
                     logger.LogError("whoa horsey, you're going to delete something not on the feed " +
                                     "drive.  the incorrect drive was {d}", header.driveId);

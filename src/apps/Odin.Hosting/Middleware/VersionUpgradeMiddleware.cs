@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Hosting.Controllers.OwnerToken.Configuration;
+using Odin.Hosting.Controllers.OwnerToken.DataConversion;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
@@ -43,8 +44,16 @@ namespace Odin.Hosting.Middleware
             if (runState.IsRunning)
             {
                 context.Response.Headers.Append(OdinHeaderNames.UpgradeIsRunning, bool.TrueString);
-                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                return Task.CompletedTask;
+
+                // The version-info endpoint is how a client finds out what the upgrade is doing, and
+                // blocking it means the one question worth asking during an upgrade is the one that
+                // cannot be asked. It reads two config values and writes nothing. The rest of the
+                // data-conversion controller mutates, so it stays behind the guard.
+                if (!path.Contains(OwnerDataConversionController.VersionInfoEndpoint))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                    return Task.CompletedTask;
+                }
             }
 
             return next(context);

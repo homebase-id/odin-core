@@ -24,7 +24,7 @@ namespace Odin.Services.Contacts;
 
 /// <summary>
 /// Server-side authority for <b>writing</b> contacts to the
-/// <see cref="SystemDriveConstants.ContactDrive"/>. Reads stay client-side: clients read contacts as
+/// <see cref="WellKnownAppDrives.ContactDrive"/>. Reads stay client-side: clients read contacts as
 /// plain files from the contact drive (QueryBatch on <c>fileType=100</c>), so there is no read/list API
 /// here.
 ///
@@ -63,7 +63,7 @@ public class ContactService(
     /// <summary>Larger cap for the short bio / tagline (still small enough to ride inline).</summary>
     private const int MaxShortBioChars = 1024;
 
-    private static readonly TargetDrive Drive = SystemDriveConstants.ContactDrive;
+    private static readonly TargetDrive Drive = WellKnownAppDrives.ContactDrive;
     private static Guid DriveId => Drive.Alias;
 
     private static readonly JsonSerializerOptions ContentSerializerOptions = new()

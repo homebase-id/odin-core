@@ -32,7 +32,10 @@ public class V2DriveMetadataController(
         {
             TargetDrive = drive.TargetDriveInfo,
             Name = drive.Name,
-            Attributes = drive.Attributes
+            Attributes = drive.Attributes,
+            AppId = drive.AppId,
+            DriveSlug = drive.DriveSlug,
+            DriveTypeSlug = drive.DriveTypeSlug
         }).ToList();
 
         return new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

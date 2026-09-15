@@ -43,6 +43,16 @@ public class AdminController : ControllerBase
 
     //
 
+    // NOTE: a literal route segment outranks the {domain} parameter below, so this does not
+    // shadow "tenants/{domain}". Pinned by AdminControllerTest.ItShouldNotShadowTheTenantByDomainRoute.
+    [HttpGet("tenants/metrics")]
+    public async Task<ActionResult<TenantMetricsResponse>> GetTenantMetrics()
+    {
+        return await _tenantAdmin.GetTenantMetricsAsync();
+    }
+
+    //
+
     [HttpGet("tenants/{domain}")]
     public async Task<ActionResult<TenantModel>> GetTenant(
         string domain, [FromQuery(Name = "include-payload")] bool includePayload = false)

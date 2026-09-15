@@ -126,7 +126,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (responseCode == PeerResponseCode.AcceptedDirectWrite || responseCode == PeerResponseCode.AcceptedIntoInbox)
             {
                 //Feed hack (again)
-                if (_transferState.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
+                if (_transferState.TransferInstructionSet.TargetDrive == WellKnownAppDrives.FeedDrive ||
                     _transferState.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
                 {
                     //Note: we say new feed item here because comments are never pushed into the feed drive; so any

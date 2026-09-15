@@ -255,9 +255,9 @@ public class DirectDriveSizeValidationTests
         // Update the file via pippin's identity
         //
 
-        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(WellKnownAppDrives.FeedDrive);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(originalAuthor_OwnerClient);

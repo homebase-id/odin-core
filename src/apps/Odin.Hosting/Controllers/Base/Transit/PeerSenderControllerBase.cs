@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/send")]
-        public async Task<TransitResult> SendFile()
+        public virtual async Task<TransitResult> SendFile()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -69,7 +69,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/senddeleterequest")]
-        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
+        public virtual async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
         {
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertValidRecipientList(request?.Recipients ?? [], false);
@@ -156,7 +156,16 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// Map the client's transit instructions to an upload instruction set so we
         /// so we can keep the upload infrastructure for Alpha
         /// </summary>
-        private async Task<UploadInstructionSet> RemapTransitInstructionSet(Stream transitInstructionStream)
+        /// <summary>
+        /// Reads the client's <see cref="TransitInstructionSet"/> and maps it onto the transient-temp-drive
+        /// upload the outbox actually sends.
+        /// </summary>
+        /// <remarks>
+        /// Virtual so a route that names the remote drive in its path rather than its body can stamp the
+        /// resolved address over what the body carried -- see the slug-addressed peer write route.  The
+        /// mapping itself stays here so both forms produce the same instruction set.
+        /// </remarks>
+        protected virtual async Task<UploadInstructionSet> RemapTransitInstructionSet(Stream transitInstructionStream)
         {
             string json = await new StreamReader(transitInstructionStream).ReadToEndAsync();
             var transitInstructionSet = OdinSystemSerializer.Deserialize<TransitInstructionSet>(json);

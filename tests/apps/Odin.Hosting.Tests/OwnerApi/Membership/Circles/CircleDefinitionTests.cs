@@ -9,6 +9,7 @@ using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -334,8 +335,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                     ClassicAssert.IsNotNull(getCircleDefinitionsResponse.Content);
                     var definitionList = getCircleDefinitionsResponse.Content.ToList();
 
-                    // The owner's circle list now also includes the built-in circles (e.g. Emergency Location Access).
-                    ClassicAssert.IsTrue(definitionList.Count == 2 + BuiltInCircleConstants.AllBuiltInCircles.Count);
+                    // The owner's list is the two circles made here plus every circle the app tree
+                    // provisions. Counted from the tree rather than written down, so adding an app's
+                    // circle does not silently break an unrelated assertion.
+                    var seeded = BuiltinApps.SeededCircles.Select(c => (Guid)c.Id).Distinct().Count();
+                    ClassicAssert.IsTrue(definitionList.Count == 2 + seeded,
+                        $"expected {2 + seeded} circles, found {definitionList.Count}");
 
                     var circle1 = definitionList.Single(x => x.Name == request1.Name);
                     ClassicAssert.AreEqual(request1.Name, circle1.Name);

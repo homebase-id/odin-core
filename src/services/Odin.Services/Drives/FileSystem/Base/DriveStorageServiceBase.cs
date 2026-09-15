@@ -29,7 +29,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
-        ILoggerFactory loggerFactory,
+        ILogger<DriveStorageServiceBase> logger,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
@@ -41,7 +41,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         UploadFileStore uploadFileStore,
         FileExpiryScheduler fileExpiryScheduler) : RequirePermissionsBase
     {
-        private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
+        private readonly ILogger<DriveStorageServiceBase> _logger = logger;
 
         protected override IDriveManager DriveManager { get; } = driveManager;
 
@@ -204,7 +204,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
@@ -238,7 +238,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 catch (Exception)
                 {
-                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
@@ -261,7 +261,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
@@ -506,7 +506,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 catch (Exception)
                 {
-                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
@@ -534,7 +534,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
@@ -690,7 +690,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
@@ -2075,6 +2075,68 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// Brings a file's death forward to now, at the request of a caller who can READ it. Safe to
+        /// expose anonymously for exactly one reason: anyone who can make this call already holds the
+        /// content, so the only thing they can take away is remaining lifetime - and only from a file
+        /// that is already dying. A file with no Ttl is refused outright: hastening is not killing,
+        /// and an anonymous visitor must never be able to destroy permanent public data.
+        /// SECURITY DEBT: must additionally require the drive to be non-enumerable
+        /// (BlockAnonymousEnumeration, not yet built) - see the banner on the expire-now endpoint.
+        /// </summary>
+        public async Task<bool> HastenExpiryAsync(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            await AssertCanReadDriveAsync(file.DriveId, odinContext);
+
+            var header = await GetServerFileHeaderInternal(file, odinContext);
+            if (header == null)
+            {
+                return false; // gone already, or never was - the caller cannot tell, on purpose
+            }
+
+            if (FileTtl.IsNever(header.FileMetadata.Ttl))
+            {
+                throw new OdinClientException("Only a file that already expires can be expired early",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
+            var nowMs = UnixTimeUtc.Now().milliseconds;
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+
+            await using (var tx = await db.BeginStackedTransactionAsync())
+            {
+                var fresh = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+                if (fresh == null)
+                {
+                    return false;
+                }
+
+                // Shorten-only by construction: now is earlier than any live absolute Ttl, and a
+                // pending negative Ttl resolves to at-least-now. Never extend, never resurrect.
+                fresh.FileMetadata.Ttl = nowMs;
+                await longTermStorageManager.SaveFileHeader(drive, fresh, useThisVersionTag: null);
+                tx.Commit();
+            }
+
+            try
+            {
+                await fileExpiryScheduler.ScheduleExpiryAtAsync(
+                    file, header.ServerMetadata.FileSystemType, nowMs, odinContext.Tenant);
+            }
+            catch (Exception e)
+            {
+                // The file is already dead - Ttl <= now refuses every read - the job only tombstones
+                // it eagerly. Same best-effort stance as TryScheduleExpiryAsync.
+                _logger.LogError(e, "Failed to schedule eager tombstoning of hastened file {file} on drive {drive}",
+                    file.FileId, file.DriveId);
+            }
+
+            _logger.LogInformation("Expiry hastened to now for file {file} on drive {drive}",
+                file.FileId, file.DriveId);
+
+            return true;
+        }
+
+        /// <summary>
         /// Loads a header for the TTL jobs, which must be able to see a file precisely because it has
         /// expired. Every other read path hides expired files.
         /// </summary>
@@ -2249,7 +2311,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
 
             // special exception *eye roll*.  really need to root this feed thing out of the core
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
             {
                 return missingPayloads;
             }

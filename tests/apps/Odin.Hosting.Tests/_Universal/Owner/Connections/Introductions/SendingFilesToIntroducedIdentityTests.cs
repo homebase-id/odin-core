@@ -85,7 +85,7 @@ public class SendingFilesToIntroducedIdentityTests
         //
         // Act - now that merry and sam are introduced; send a file from sam to merry
         // 
-        var targetDrive = SystemDriveConstants.ChatDrive;
+        var targetDrive = WellKnownAppDrives.ChatDrive;
         var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 333, "sam says hi to merry", AccessControlList.Connected);
         fileMetadata.AllowDistribution = true;
 

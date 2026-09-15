@@ -9,6 +9,8 @@ using Moq;
 using NUnit.Framework;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Util;
+using Odin.Services.Background;
+using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
@@ -51,7 +53,8 @@ public class CertificateRenewalPredicateTest
             _dnsLookupService.Object,
             new AcmeAccountConfig(),
             new Mock<IServiceProvider>().Object,
-            configuration);
+            configuration,
+            new Mock<IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>>().Object);
     }
 
     private static X509Certificate2 Cert(string[] sans, TimeSpan validFor)

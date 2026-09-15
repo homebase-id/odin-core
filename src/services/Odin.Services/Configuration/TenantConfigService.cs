@@ -8,6 +8,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -37,11 +38,11 @@ public class TenantConfigService(
     IcrKeyService icrKeyService,
     PasswordKeyRecoveryService recoverService,
     CircleMembershipService circleMembershipService,
-    IAppRegistrationService appRegistrationService,
     ICorrelationContext correlationContext,
     IdentityDatabase identityDatabase,
     ShamirConfigurationService shamirConfigurationService,
-    IdentityReadyStateService identityReadyState)
+    IdentityReadyStateService identityReadyState,
+    BuiltinProvisioner builtinProvisioner)
 {
     internal const string ConfigContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
 
@@ -214,7 +215,7 @@ public class TenantConfigService(
         //drives, they should be added after the system circle exists
         await circleMembershipService.CreateSystemCirclesAsync(odinContext);
 
-        await EnsureSystemDrivesExist(odinContext);
+        await builtinProvisioner.EnsureAllAsync(odinContext);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
@@ -226,8 +227,6 @@ public class TenantConfigService(
         {
             await CreateCircleIfNotExistsAsync(rc, odinContext);
         }
-
-        await this.EnsureBuiltInApps(odinContext);
 
         await using var tx = await identityDatabase.BeginStackedTransactionAsync();
 
@@ -242,27 +241,14 @@ public class TenantConfigService(
         tx.Commit();
     }
 
+    /// <summary>
+    /// Creates the drives an identity starts with.  Kept here because the version ladder calls it --
+    /// <c>VersionUpgradeService</c> does a single up-front pass so migrations can assume every drive
+    /// exists.  The set itself comes from <see cref="BuiltinApps"/>.
+    /// </summary>
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
     {
-        // Note - if the drive attributes was changed, they will be applied by this
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateShardRecoveryDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMomentsDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
-        // ListsDrive is granted to the system connection circles, so it must exist before any
-        // anonymous-read drive below — creating an anonymous drive re-validates every system circle
-        // drive grant, which would fail on a not-yet-created ListsDrive.
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateListsDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateStickerDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateLocationDriveRequest, odinContext);
-
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
+        await builtinProvisioner.EnsureDrivesAsync(odinContext);
     }
 
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)
@@ -387,41 +373,18 @@ public class TenantConfigService(
     }
     //
 
+    /// <summary>
+    /// Registers the apps an identity starts with.  Kept here for <c>V0ToV1MigrationService</c>, which
+    /// calls it directly.  The set comes from <see cref="BuiltinApps"/>.
+    /// </summary>
     public async Task EnsureBuiltInApps(IOdinContext odinContext)
     {
-        await RegisterChatAppAsync(odinContext);
-        await RegisterMailAppAsync(odinContext);
-        await RegisterFeedApp(odinContext);
-        // await RegisterPhotosApp();
+        await builtinProvisioner.EnsureAppsAsync(odinContext);
     }
 
-    private async Task RegisterFeedApp(IOdinContext odinContext)
-    {
-        var request = SystemAppConstants.FeedAppRegistrationRequest;
-        var existingApp = await appRegistrationService.GetAppRegistration(request.AppId, odinContext);
-        if (existingApp == null)
-        {
-            await appRegistrationService.RegisterAppAsync(request, odinContext);
-        }
-    }
 
-    private async Task RegisterChatAppAsync(IOdinContext odinContext)
-    {
-        var existingApp = await appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
-        if (null == existingApp)
-        {
-            await appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
-        }
-    }
 
-    private async Task RegisterMailAppAsync(IOdinContext odinContext)
-    {
-        var existingApp = await appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
-        if (null == existingApp)
-        {
-            await appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
-        }
-    }
+
 
     private async Task<bool> CreateCircleIfNotExistsAsync(CreateCircleRequest request, IOdinContext odinContext)
     {

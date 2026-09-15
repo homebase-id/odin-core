@@ -233,7 +233,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             return Task.Run(async () =>
             {
-                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return;
                 }

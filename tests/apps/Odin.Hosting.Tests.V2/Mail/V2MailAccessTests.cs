@@ -60,8 +60,9 @@ public class V2MailAccessTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        // The email drive exists, so this cannot pass for the "drive missing" reason.
-        await owner.Admin.CreateDrive(WellKnownAppDrives.EmailAppDrive, "Email",
+        // The email drive exists, so this cannot pass for the "drive missing" reason. The tree
+        // provisions it now, so this only has to make sure of it, not be the one that made it.
+        await owner.Admin.EnsureDrive(WellKnownAppDrives.EmailAppDrive, "Email",
             allowAnonymousReads: false, ownerOnly: true);
 
         var otherDrive = TargetDrive.NewTargetDrive();

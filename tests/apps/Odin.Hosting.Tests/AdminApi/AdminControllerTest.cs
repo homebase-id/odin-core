@@ -97,6 +97,147 @@ public class AdminControllerTest
     //
 
     [Test]
+    public async Task ItShouldGetTenantMetrics()
+    {
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
+        var request = NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/metrics");
+        var response = await apiClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var metrics = OdinSystemSerializer.Deserialize<TenantMetricsResponse>(
+            await response.Content.ReadAsStringAsync());
+
+        Assert.That(metrics.GeneratedAt.milliseconds, Is.GreaterThan(0));
+        Assert.That(metrics.DatabaseType, Is.EqualTo(_config.Database.Type.ToString().ToLowerInvariant()));
+        // The cross-tenant scan needs one shared database; SQLite gives each tenant its own file.
+        Assert.That(metrics.IndexOrphanScanSupported,
+            Is.EqualTo(_config.Database.Type == DatabaseType.Postgres));
+
+        var frodo = metrics.Tenants.SingleOrDefault(t => t.Domain == "frodo.dotyou.cloud");
+        Assert.That(frodo, Is.Not.Null);
+        Assert.That(frodo.Registered, Is.True);
+        Assert.That(frodo.OrphanSource, Is.Null);
+        Assert.That(frodo.Enabled, Is.True);
+        Assert.That(frodo.DriveCount, Is.Not.Null.And.GreaterThan(0));
+        Assert.That(frodo.Files, Is.Not.Null);
+        Assert.That(frodo.ActiveBytes, Is.Not.Null.And.LessThanOrEqualTo(frodo.TotalBytes));
+
+        // The id must be a canonical UUID string, and the same one the tenant list reports.
+        Assert.That(Guid.TryParse(frodo.Id, out _), Is.True);
+
+        var tenantRequest = NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud");
+        var tenantResponse = await apiClient.SendAsync(tenantRequest);
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(
+            await tenantResponse.Content.ReadAsStringAsync());
+        Assert.That(frodo.Id, Is.EqualTo(tenant.Id));
+
+        // Every row carries a canonical id, registered or not - that is the whole point for a
+        // consumer that wants to join an orphan back to a log line or a support ticket.
+        Assert.That(metrics.Tenants, Has.All.Matches<TenantMetricsModel>(t => Guid.TryParse(t.Id, out _)));
+        Assert.That(metrics.Tenants, Has.All.Matches<TenantMetricsModel>(t => t.Registered == (t.Domain != null)));
+    }
+
+    //
+
+    /// <summary>
+    /// Read cold, after the upload. These figures come through the table caches, so a read taken
+    /// before the upload would still be served from cache afterwards -- see the note on
+    /// TenantAdmin.MetricsCacheTtl.
+    /// </summary>
+    [Test]
+    public async Task ItShouldReportBytesAfterUpload()
+    {
+        await CreatePayload(TestIdentities.Frodo);
+
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
+
+        var response = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/metrics"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var metrics = OdinSystemSerializer.Deserialize<TenantMetricsResponse>(
+            await response.Content.ReadAsStringAsync());
+        var frodo = metrics.Tenants.Single(t => t.Domain == "frodo.dotyou.cloud");
+
+        Assert.That(frodo.Files, Is.Not.Null.And.GreaterThan(0));
+        Assert.That(frodo.TotalBytes, Is.Not.Null.And.GreaterThan(0));
+        Assert.That(frodo.ActiveBytes, Is.Not.Null.And.GreaterThan(0));
+        Assert.That(frodo.DriveCount, Is.Not.Null.And.GreaterThan(0));
+
+        // Nothing was deleted, so every byte is live.
+        Assert.That(frodo.ActiveBytes, Is.EqualTo(frodo.TotalBytes));
+
+        // Same figure the existing endpoint reports: both sum byteCount over every file state.
+        var payloadResponse = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true"));
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(
+            await payloadResponse.Content.ReadAsStringAsync());
+        Assert.That(frodo.TotalBytes, Is.EqualTo(tenant.PayloadSize));
+    }
+
+    //
+
+    /// <summary>
+    /// The metrics endpoint must be a superset of the tenant endpoint, so a caller collecting
+    /// storage figures never has to make a second call to fill in the gaps.
+    /// </summary>
+    [Test]
+    public async Task ItShouldSupersedeTheTenantEndpoint()
+    {
+        await CreatePayload(TestIdentities.Frodo);
+
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
+
+        var metrics = OdinSystemSerializer.Deserialize<TenantMetricsResponse>(
+            await (await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/metrics"))).Content.ReadAsStringAsync());
+        var frodoMetrics = metrics.Tenants.Single(t => t.Domain == "frodo.dotyou.cloud");
+
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(
+            await (await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true"))).Content.ReadAsStringAsync());
+
+        // Every field the old endpoint carries has an equivalent here.
+        Assert.That(frodoMetrics.Id, Is.EqualTo(tenant.Id));
+        Assert.That(frodoMetrics.Domain, Is.EqualTo(tenant.Domain));
+        Assert.That(frodoMetrics.Enabled, Is.EqualTo(tenant.Enabled));
+        Assert.That(frodoMetrics.EnablePublicWebPresence, Is.EqualTo(tenant.EnablePublicWebPresence));
+        Assert.That(frodoMetrics.RegistrationPath, Is.EqualTo(tenant.RegistrationPath));
+        Assert.That(frodoMetrics.RegistrationSize, Is.EqualTo(tenant.RegistrationSize));
+        Assert.That(frodoMetrics.PayloadPath, Is.EqualTo(tenant.PayloadPath));
+        Assert.That(frodoMetrics.TotalBytes, Is.EqualTo(tenant.PayloadSize));
+    }
+
+    //
+
+    /// <summary>
+    /// "tenants/metrics" is a literal segment and must win over the "tenants/{domain}" parameter.
+    /// </summary>
+    [Test]
+    public async Task ItShouldNotShadowTheTenantByDomainRoute()
+    {
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
+
+        var metricsResponse = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/metrics"));
+        Assert.That(metricsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var metrics = OdinSystemSerializer.Deserialize<TenantMetricsResponse>(
+            await metricsResponse.Content.ReadAsStringAsync());
+        Assert.That(metrics.Tenants, Is.Not.Empty);
+
+        var tenantResponse = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud"));
+        Assert.That(tenantResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(
+            await tenantResponse.Content.ReadAsStringAsync());
+        Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
+    }
+
+    //
+
+    [Test]
     public async Task ItShouldGetSpecificTenant()
     {
         var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
