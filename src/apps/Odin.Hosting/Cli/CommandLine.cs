@@ -289,6 +289,85 @@ public class CommandLine
         }
 
         //
+        // Command line: Export one identity's tables to a single JSON file
+        //
+        // THE HOST MUST BE STOPPED. Nothing here can stop a running host's tenant
+        // background workers: they live in that host's container, and on more than one
+        // host they are out of reach entirely. Exporting underneath them silently loses
+        // whatever they commit after the snapshot, so the export aborts if it can see a
+        // host listening on the configured ports. That probe is local-only; see
+        // IdentityJsonTransfer.HostIsStopped and HostLivenessCheck for what it cannot catch.
+        //
+        // S3 PAYLOADS ONLY. Payloads are not in the file and move separately, which today
+        // means a copy between S3 buckets, so a disk-based host is refused outright. See
+        // IdentityJsonTransfer.PayloadsAreOnS3.
+        //
+        // The file contains key material; see the warning it prints.
+        //
+        // examples:
+        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
+        //
+        if (args.Length >= 1 && args[0] == "identity-export")
+        {
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            if (operands.Count != 2)
+            {
+                _logger.LogError("Usage: identity-export <domain> <file.json>");
+                return (true, 1);
+            }
+
+            var exported = IdentityJsonTransfer.ExportAsync(
+                _serviceProvider, operands[0], operands[1]).BlockingWait();
+            return (true, exported ? 0 : 1);
+        }
+
+        //
+        // Command line: Import an identity export file
+        //
+        // Refuses unless the target is empty of this identity and every table version
+        // matches. Dry run unless "commit" is passed. Like export, this aborts if a host
+        // is listening: the import writes the shared system tables, and a running host
+        // would neither see the new identity nor expect its registration to appear. Also
+        // like export, the target host must keep payloads on S3, since that is the only
+        // place the payloads can be copied to. See IdentityJsonTransfer.PayloadsAreOnS3.
+        //
+        // examples:
+        //   dotnet run -- identity-import /path/to/frodo.json commit
+        //
+        if (args.Length >= 1 && args[0] == "identity-import")
+        {
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            // "commit" is a positional keyword, not a flag: anything else after the path
+            // is a typo, and treating a typo as a dry run would be the wrong way to fail.
+            if (operands.Count < 1 || operands.Count > 2 ||
+                (operands.Count == 2 && operands[1] != "commit"))
+            {
+                _logger.LogError("Usage: identity-import <file.json> [commit]");
+                return (true, 1);
+            }
+
+            var commit = operands.Count == 2;
+            var imported = IdentityJsonTransfer.ImportAsync(_serviceProvider, operands[0], commit).BlockingWait();
+            return (true, imported ? 0 : 1);
+        }
+
+        //
         // Command line: Reset Modified
         //
         // examples:

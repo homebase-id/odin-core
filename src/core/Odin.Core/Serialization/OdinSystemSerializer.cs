@@ -36,6 +36,14 @@ public static class OdinSystemSerializer
         JsonSerializer.Serialize(writer, value, JsonSerializerOptions);
     }
 
+    // Runtime-typed counterpart to the generic overload above, for callers holding an
+    // object whose concrete type is only known at runtime. The generic overload would
+    // serialize such a value against its declared type and drop the derived members.
+    public static void Serialize(Utf8JsonWriter writer, object? value, Type inputType)
+    {
+        JsonSerializer.Serialize(writer, value, inputType, JsonSerializerOptions);
+    }
+
     public static async Task Serialize(Stream utf8Json,
         object? value,
         Type inputType,
