@@ -354,7 +354,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 var cc = new CallerContext(
                     odinId: client.OdinId,
                     masterKey: null,
-                    securityLevel: SecurityGroupType.Connected,
+                    securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
                     circleIds: enabledCircles,
                     odinClientContext: new OdinClientContext()
                     {

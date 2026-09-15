@@ -497,6 +497,246 @@ public class DriveManager : IDriveManager
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
     }
 
+    /// <summary>
+    /// Hands a drive that belongs to no app to one, once, and gives it the address that goes with
+    /// being owned.
+    /// </summary>
+    /// <remarks>
+    /// Every drive predating the addressing work carries a null AppId, which reads as "the owner's
+    /// own" and leaves the drive unaddressable by slug.  This is how the owner corrects that for a
+    /// drive that should have been an app's all along.
+    /// <para>
+    /// One way.  A drive that already names an app is refused rather than moved, for the reason
+    /// <c>CircleDefinitionService.SetOwningAppAsync</c> refuses the same: the slug is an address other
+    /// identities resolve against, and moving a drive between apps changes that address underneath
+    /// them.  Filling an empty one cannot invalidate an address that never existed.
+    /// </para>
+    /// <para>
+    /// Provisioned drives are refused outright.  They already belong to the app that ships them, and
+    /// the ones still carrying a null AppId are waiting on provisioning to stamp it -- not on the
+    /// owner to guess.  The check is the same TargetDrive comparison
+    /// <see cref="SetArchiveDriveFlagAsync"/> uses, not <c>IsProtected</c>, which matches on alias
+    /// alone.
+    /// </para>
+    /// <para>
+    /// Slug and type slug are set here rather than left for later because of the invariant in
+    /// docs/drive-addressing.md: AppId and DriveSlug are set together or both NULL.  NULLs are
+    /// distinct in a unique index in both dialects, so an app-owned row with no slug would sit
+    /// outside UNIQUE(identityId, AppId, DriveSlug) entirely.  The derivation is deliberately the
+    /// same as <see cref="CreateDriveAsync"/>: caller's value wins, a missing one is derived, a
+    /// collision inside the same app is refused rather than suffixed.
+    /// </para>
+    /// </remarks>
+    public async Task SetDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+        IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinClientException("Cannot set the owning app of a system drive",
+                OdinClientErrorCode.CannotSetOwningAppOnSystemDrive);
+        }
+
+        if (storageDrive.AppId.HasValue)
+        {
+            throw new OdinClientException(
+                $"Drive {driveId} already belongs to app {storageDrive.AppId.Value}; ownership cannot be reassigned",
+                OdinClientErrorCode.DriveAlreadyHasOwningApp);
+        }
+
+        // Whitespace-only means "not set", as it does on create: clients serialize an unset field as
+        // "" or " " routinely, and without this the spellings diverge.
+        var requestedSlug = string.IsNullOrWhiteSpace(driveSlug) ? null : driveSlug;
+        var requestedTypeSlug = string.IsNullOrWhiteSpace(driveTypeSlug) ? null : driveTypeSlug;
+
+        OdinSlug.AssertValidOrNull(requestedSlug, nameof(driveSlug));
+        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(driveTypeSlug));
+
+        // Scoped to this app, because the constraint is: feed/news and chat/news may coexist. Read
+        // unconditionally -- the set answers both what a derived slug must avoid and whether a
+        // supplied one is already claimed, and without the second a duplicate would reach the insert
+        // as a raw UNIQUE violation instead of a client error.
+        var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+        var taken = new HashSet<string>(
+            existingDrives
+                .Where(d => d.AppId == appId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                .Select(d => d.DriveSlug),
+            StringComparer.Ordinal);
+
+        // A drive can already carry a slug while carrying no AppId: CreateDriveAsync only skips
+        // *deriving* one for an app-less drive, and a supplied one passes through untouched. Such a
+        // slug resolves to nothing today, because the wire address needs the app's half too -- but
+        // adoption is the moment it starts resolving, which is the worst moment to quietly swap it
+        // for one derived from the drive's name. Kept, therefore, not regenerated.
+        var existingSlug = string.IsNullOrWhiteSpace(storageDrive.DriveSlug) ? null : storageDrive.DriveSlug;
+        var existingTypeSlug =
+            string.IsNullOrWhiteSpace(storageDrive.DriveTypeSlug) ? null : storageDrive.DriveTypeSlug;
+
+        if (requestedSlug != null && existingSlug != null &&
+            !string.Equals(requestedSlug, existingSlug, StringComparison.Ordinal))
+        {
+            // Two explicit answers that disagree. Refused rather than picking one, so that renaming
+            // an address is never something adoption does on the way past: change the slug first, or
+            // adopt with the slug it has.
+            throw new OdinClientException(
+                $"Drive {driveId} already carries the slug '{existingSlug}'; adoption will not rename it to " +
+                $"'{requestedSlug}'",
+                OdinClientErrorCode.DriveSlugAlreadySet);
+        }
+
+        var resolvedSlug = requestedSlug ?? existingSlug;
+        if (resolvedSlug == null)
+        {
+            resolvedSlug = DriveSlugGenerator.Generate(storageDrive.Id, storageDrive.Name, taken);
+        }
+        else if (taken.Contains(resolvedSlug))
+        {
+            // Checked for a kept slug as well as a supplied one: the slug was unconstrained while
+            // the drive had no AppId, so it may well collide with one the target app already holds,
+            // and reaching the insert would surface that as a raw UNIQUE violation.
+            throw new OdinClientException(
+                $"Drive slug '{resolvedSlug}' is already used by another drive on this app",
+                OdinClientErrorCode.IdAlreadyExists);
+        }
+
+        storageDrive.AppId = appId;
+        storageDrive.DriveSlug = resolvedSlug;
+
+        // Same order of preference, for the same reason -- though a type slug is a category rather
+        // than an address, so nothing resolves against it.
+        storageDrive.DriveTypeSlug = requestedTypeSlug
+                                     ?? existingTypeSlug
+                                     ?? DriveSlugGenerator.TypeSlugFor(storageDrive.TargetDriveInfo.Alias.Value,
+                                         storageDrive.TargetDriveInfo.Type.Value);
+
+        var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+        if (affected != 1)
+        {
+            throw new OdinSystemException(
+                $"Setting a drive's owning app should have updated 1 and only 1 row.  Number updated: {affected}");
+        }
+
+        _logger.LogInformation("Drive {driveId} adopted by app {appId} as slug '{slug}'",
+            driveId, appId, resolvedSlug);
+
+        // Same notification the archive path publishes: the definition changed, and the caches keyed
+        // on it have to be told regardless of which field moved.
+        await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+        {
+            IsNewDrive = false,
+            Drive = storageDrive,
+            OdinContext = odinContext,
+        });
+    }
+
+    /// <summary>
+    /// Moves a drive from the app that owns it to another, with a new address.  The escape hatch out
+    /// of <see cref="SetDriveOwningAppAsync"/>'s one-way rule.
+    /// </summary>
+    /// <remarks>
+    /// Master key required, not merely owner: an app is the owner acting, and an app that could move
+    /// a drive to itself could help itself to the drive's address.
+    /// <para>
+    /// The address breaks, and that is not a side effect to be smoothed over -- it is what this does.
+    /// A drive answers at <c>/apps/{appSlug}/drives/{driveSlug}</c>, so moving it changes the first
+    /// half and the old address stops resolving for every remote identity holding it. There is no
+    /// forwarding and no alias.
+    /// </para>
+    /// <para>
+    /// The slug is therefore required rather than derived or kept. Adoption may keep a slug, because
+    /// nothing resolved against it before; here something did, and the caller has to say what the new
+    /// address is instead of discovering it afterwards.
+    /// </para>
+    /// <para>
+    /// Provisioned drives are refused, as they are for adoption: they belong to the app that ships
+    /// them and provisioning re-stamps whatever it finds.
+    /// </para>
+    /// </remarks>
+    public async Task ReassignDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug,
+        string driveTypeSlug, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (BuiltinDrives.Protected.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinClientException("Cannot reassign the owning app of a system drive",
+                OdinClientErrorCode.CannotSetOwningAppOnSystemDrive);
+        }
+
+        // Required, not optional. Deriving one here would pick the new address on the caller's
+        // behalf at the one moment the old one stops working.
+        if (string.IsNullOrWhiteSpace(driveSlug))
+        {
+            throw new OdinClientException(
+                "A drive slug is required when reassigning a drive: the address changes, so it has to be stated",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        OdinSlug.AssertValidOrNull(driveSlug, nameof(driveSlug));
+        var requestedTypeSlug = string.IsNullOrWhiteSpace(driveTypeSlug) ? null : driveTypeSlug;
+        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(driveTypeSlug));
+
+        // Taken set scoped to the *new* app: the drive is arriving somewhere it has not been, and the
+        // slug that was free under the old owner says nothing about this one.
+        var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+        var taken = new HashSet<string>(
+            existingDrives
+                .Where(d => d.AppId == appId && d.DriveId != driveId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                .Select(d => d.DriveSlug),
+            StringComparer.Ordinal);
+
+        if (taken.Contains(driveSlug))
+        {
+            throw new OdinClientException(
+                $"Drive slug '{driveSlug}' is already used by another drive on this app",
+                OdinClientErrorCode.IdAlreadyExists);
+        }
+
+        var previousAppId = storageDrive.AppId;
+        var previousSlug = storageDrive.DriveSlug;
+
+        storageDrive.AppId = appId;
+        storageDrive.DriveSlug = driveSlug;
+        storageDrive.DriveTypeSlug = requestedTypeSlug
+                                     ?? storageDrive.DriveTypeSlug
+                                     ?? DriveSlugGenerator.TypeSlugFor(storageDrive.TargetDriveInfo.Alias.Value,
+                                         storageDrive.TargetDriveInfo.Type.Value);
+
+        var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+        if (affected != 1)
+        {
+            throw new OdinSystemException(
+                $"Reassigning a drive should have updated 1 and only 1 row.  Number updated: {affected}");
+        }
+
+        // Warning, not information: an address other identities resolve against has just stopped
+        // resolving, and the previous one is worth having in the log when someone asks why.
+        _logger.LogWarning(
+            "Drive {driveId} moved from app {previousAppId} slug '{previousSlug}' to app {appId} slug '{slug}'; " +
+            "the previous address no longer resolves",
+            driveId, previousAppId, previousSlug, appId, driveSlug);
+
+        await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+        {
+            IsNewDrive = false,
+            Drive = storageDrive,
+            OdinContext = odinContext,
+        });
+    }
+
     public async Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();

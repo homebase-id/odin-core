@@ -15,6 +15,20 @@ public interface IDriveManager
     Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext);
     Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext);
     Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext);
+
+    /// <summary>
+    /// Hands a drive that belongs to no app to one, once.  See
+    /// <see cref="DriveManager.SetDriveOwningAppAsync"/>.
+    /// </summary>
+    Task SetDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+        IOdinContext odinContext);
+
+    /// <summary>
+    /// Moves a drive between owning apps, changing its address.  See
+    /// <see cref="DriveManager.ReassignDriveOwningAppAsync"/>.
+    /// </summary>
+    Task ReassignDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+        IOdinContext odinContext);
     Task<StorageDrive> GetDriveAsync(Guid driveId, bool failIfInvalid = false);
     Task<PagedResult<StorageDrive>> GetDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
     Task<PagedResult<StorageDrive>> GetDrivesAsync(GuidId type, PageOptions pageOptions, IOdinContext odinContext);
