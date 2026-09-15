@@ -12,6 +12,7 @@ using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
 
@@ -101,22 +102,47 @@ public class AppOwnerCircleRestrictionTests : V2Fixture
     }
 
     [Test]
-    public async Task AppListingCircles_SeesOnlyAppOwnedOnes()
+    public async Task AppListingCircles_SeesOnlyAppOwnedOnes_WhenFlagIsOn()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var (app, appCircle, ownerCircle) = await SetupAppAndCirclesAsync(frodo);
 
+        await frodo.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.HideOwnerCirclesFromApps, bool.TrueString);
+        try
+        {
+            var listed = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
+                .GetCirclesWithMembersAsync(includeSystemCircle: false);
+            Assert.That(listed.IsSuccessStatusCode, Is.True, $"listing failed: {listed.StatusCode}");
+
+            var ids = listed.Content!.Select(c => c.Circle.Id.Value).ToList();
+
+            Assert.That(ids, Does.Contain(appCircle), "an app sees circles owned by an app");
+            Assert.That(ids, Does.Not.Contain(ownerCircle),
+                "and not the owner's own, which it could not act on anyway");
+            Assert.That(listed.Content!.All(c => c.Circle.AppId.HasValue), Is.True,
+                "nothing without an owning app should be offered to an app");
+        }
+        finally
+        {
+            await frodo.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.HideOwnerCirclesFromApps, bool.FalseString);
+        }
+    }
+
+    [Test]
+    public async Task AppListingCircles_SeesOwnerCirclesToo_WhenFlagIsOff()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var (app, appCircle, ownerCircle) = await SetupAppAndCirclesAsync(frodo);
+
+        // The default: the filter is dark, so an app's circle list is what it was before the filter existed.
         var listed = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .GetCirclesWithMembersAsync(includeSystemCircle: false);
         Assert.That(listed.IsSuccessStatusCode, Is.True, $"listing failed: {listed.StatusCode}");
 
         var ids = listed.Content!.Select(c => c.Circle.Id.Value).ToList();
 
-        Assert.That(ids, Does.Contain(appCircle), "an app sees circles owned by an app");
-        Assert.That(ids, Does.Not.Contain(ownerCircle),
-            "and not the owner's own, which it could not act on anyway");
-        Assert.That(listed.Content!.All(c => c.Circle.AppId.HasValue), Is.True,
-            "nothing without an owning app should be offered to an app");
+        Assert.That(ids, Does.Contain(appCircle));
+        Assert.That(ids, Does.Contain(ownerCircle), "with the flag off an app still sees the owner's own circles");
     }
 
     [Test]

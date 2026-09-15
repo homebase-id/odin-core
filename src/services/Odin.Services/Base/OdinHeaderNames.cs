@@ -31,6 +31,13 @@ public static class OdinHeaderNames
 
     public const string CorrelationId = "Odin-Correlation-Id";
 
+    /// <summary>
+    /// Sent on outbound peer requests when the sending identity has the reviewed security tier on.  The receiving
+    /// identity applies the tier only to callers that send it, so the tier takes effect only between two identities
+    /// that both have it on.  Server-to-server only; not a browser header.
+    /// </summary>
+    public const string UsesReviewedSecurityTier = "X-ODIN-REVIEWED-TIER";
+
     //
     // 🚩️ When adding a new header, make sure to update the CorsPolicies.CorsAllowAndExposeHeaders if needed 🚩
     //

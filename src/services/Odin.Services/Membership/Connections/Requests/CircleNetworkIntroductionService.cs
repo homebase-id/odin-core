@@ -21,6 +21,7 @@ using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -334,6 +335,13 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </param>
     private bool CallerMayIntroduce(IOdinContext odinContext, bool isCallerAutoConnected)
     {
+        // With the reviewed security tier on, only a reviewed connection may introduce.  With it off every
+        // connection evaluates as Connected, and no other caller can reach either branch below, so nothing changes.
+        if (ReviewedSecurityTier.EffectiveLevel(_tenantContext.Settings, odinContext.Caller) != SecurityGroupType.Connected)
+        {
+            return false;
+        }
+
         if (odinContext.PermissionsContext?.HasPermission(PermissionKeys.AllowIntroductions) ?? false)
         {
             return true;
