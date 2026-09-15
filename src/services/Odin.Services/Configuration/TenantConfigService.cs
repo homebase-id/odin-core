@@ -347,6 +347,10 @@ public class TenantConfigService(
                 cfg.SendMonthlySecurityHealthReport = bool.Parse(request.Value);
                 break;
 
+            case TenantConfigFlagNames.DisableAllowIntroductions:
+                cfg.DisableAllowIntroductions = bool.Parse(request.Value);
+                break;
+
 
             default:
                 throw new OdinClientException("Flag name is valid but not handled", OdinClientErrorCode.UnknownFlagName);
