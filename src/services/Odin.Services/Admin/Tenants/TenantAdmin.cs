@@ -222,7 +222,7 @@ public class TenantAdmin(
             Id = registration.Id.ToString(),
             Domain = registration.PrimaryDomainName,
             Registered = true,
-            Enabled = !registration.Disabled,
+            Enabled = registration.Status != TenantStatus.Disabled,
             EnablePublicWebPresence = registration.EnablePublicWebPresence,
             Email = registration.Email,
             PlanId = registration.PlanId,
@@ -345,22 +345,29 @@ public class TenantAdmin(
 
     public async Task EnableTenant(string domain)
     {
-        await identityRegistry.ToggleDisabled(domain, false);
+        var registration = await identityRegistry.GetAsync(domain);
+        if (registration?.Status == TenantStatus.Disabled)
+        {
+            await identityRegistry.SetStatusAsync(domain, TenantStatus.Active);
+        }
     }
 
     //
 
     public async Task DisableTenant(string domain)
     {
-        await identityRegistry.ToggleDisabled(domain, true);
+        var registration = await identityRegistry.GetAsync(domain);
+        if (registration != null && registration.Status != TenantStatus.Disabled)
+        {
+            await identityRegistry.SetStatusAsync(domain, TenantStatus.Disabled, DisabledReason.Admin);
+        }
     }
 
     //
 
-    public async Task<TenantStatusModel?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
+    public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
     {
-        var previous = await identityRegistry.SetStatusAsync(domain, status, reason);
-        return previous == null ? null : TenantStatusModel.From(previous);
+        return identityRegistry.SetStatusAsync(domain, status, reason);
     }
 
     //
@@ -385,7 +392,6 @@ public class TenantAdmin(
         {
             Domain = identityRegistration.PrimaryDomainName,
             Id = identityRegistration.Id.ToString(),
-            Enabled = !identityRegistration.Disabled,
             Status = identityRegistration.Status,
             DisabledReason = identityRegistration.DisabledReason,
             StatusChangedAt = identityRegistration.StatusChangedAt,

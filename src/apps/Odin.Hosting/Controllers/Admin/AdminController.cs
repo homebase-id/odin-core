@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Services.Admin;
 using Odin.Services.Admin.Tenants;
+using Odin.Services.Registry;
 using Odin.Hosting.Controllers.Job;
 
 namespace Odin.Hosting.Controllers.Admin;
@@ -129,14 +130,10 @@ public class AdminController : ControllerBase
     /// Sets the tenant's status and returns the previous one. 400 if the transition is not allowed.
     /// </summary>
     [HttpPatch("tenants/{domain}/status")]
-    public async Task<ActionResult<TenantStatusModel>> SetTenantStatus(string domain, [FromBody] SetTenantStatusRequest request)
+    public async Task<ActionResult<TenantStatusState>> SetTenantStatus(string domain, [FromBody] SetTenantStatusRequest request)
     {
-        if (request.Status == null)
-        {
-            return BadRequest("status is required");
-        }
-
-        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status.Value, request.DisabledReason);
+        // A missing status is a 400 before we get here: [Required] on the property, [ApiController] on the class
+        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status!.Value, request.DisabledReason);
         if (previous == null)
         {
             return NotFound();

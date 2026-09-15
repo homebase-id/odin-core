@@ -11,12 +11,12 @@ public class TenantModel
     public string RegistrationPath { get; set; } = "";
     public long RegistrationSize { get; set; } = 0;
 
-    /// <summary>
-    /// False only when <see cref="Status"/> is <see cref="TenantStatus.Disabled"/>
-    /// </summary>
-    public bool Enabled { get; set; }
-
     public TenantStatus Status { get; set; }
+
+    /// <summary>
+    /// Kept for clients that predate <see cref="Status"/>: false only when disabled
+    /// </summary>
+    public bool Enabled => Status != TenantStatus.Disabled;
     public DisabledReason? DisabledReason { get; set; }
     public UnixTimeUtc? StatusChangedAt { get; set; }
     public bool EnablePublicWebPresence { get; set; }

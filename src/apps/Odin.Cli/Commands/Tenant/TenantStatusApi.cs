@@ -19,7 +19,7 @@ internal static class TenantStatusApi
 
     //
 
-    public static async Task<TenantStatusModel> SetStatusAsync(HttpClient httpClient, string domain, TenantStatus status,
+    public static async Task<TenantStatusState> SetStatusAsync(HttpClient httpClient, string domain, TenantStatus status,
         DisabledReason? reason = null)
     {
         var body = OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status, DisabledReason = reason });
@@ -27,12 +27,13 @@ internal static class TenantStatusApi
         var response = await httpClient.PatchAsync($"tenants/{domain}/status", content);
         await EnsureSuccessAsync(response, domain);
         var json = await response.Content.ReadAsStringAsync();
-        return OdinSystemSerializer.Deserialize<TenantStatusModel>(json) ?? new TenantStatusModel();
+        return OdinSystemSerializer.Deserialize<TenantStatusState>(json) ??
+               throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");
     }
 
     //
 
-    public static void WriteChange(string domain, TenantStatusModel previous, TenantStatus status, DisabledReason? reason)
+    public static void WriteChange(string domain, TenantStatusState previous, TenantStatus status, DisabledReason? reason)
     {
         AnsiConsole.MarkupLineInterpolated($"{domain}: {Describe(status, reason)} (was {Describe(previous.Status, previous.DisabledReason)})");
     }

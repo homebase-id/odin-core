@@ -31,10 +31,7 @@ public class DeviceSocketCollection
     public async Task<int> RemoveAllSocketsAsync(WebSocketCloseStatus status, string message)
     {
         var keys = _sockets.Keys.ToList();
-        foreach (var key in keys)
-        {
-            await RemoveSocket(key, status, message);
-        }
+        await Task.WhenAll(keys.Select(key => RemoveSocket(key, status, message)));
         return keys.Count;
     }
 

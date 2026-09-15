@@ -77,9 +77,9 @@ namespace Odin.Services.Registry
         public UnixTimeUtc? StatusChangedAt { get; set; }
 
         /// <summary>
-        /// Whether the identity is disabled
+        /// <see cref="Status"/>, <see cref="DisabledReason"/> and <see cref="StatusChangedAt"/> as one value
         /// </summary>
-        public bool Disabled => Status == TenantStatus.Disabled;
+        public TenantStatusState StatusState => new(Status, DisabledReason, StatusChangedAt);
 
         /// <summary>
         /// Whether the identity is allowed a public home page (link previews, SEO/SSR content, etc.)

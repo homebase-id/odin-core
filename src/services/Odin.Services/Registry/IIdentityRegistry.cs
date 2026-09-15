@@ -94,13 +94,6 @@ namespace Odin.Services.Registry
         Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken);
 
         /// <summary>
-        /// Toggles disabled on/off. Disabling uses <see cref="DisabledReason.Admin"/> and keeps the reason of an
-        /// already disabled identity; enabling only affects a disabled identity, so a paused or out-of-quota one is left alone.
-        /// </summary>
-        /// <returns>Previous state or null if not found</returns>
-        Task<bool?> ToggleDisabled(string domain, bool disabled);
-
-        /// <summary>
         /// Sets the identity's <see cref="TenantStatus"/> and, before returning, brings this node's background services
         /// in line with it: stopped when paused or disabled, running otherwise. Other nodes follow once they apply the change. A disabled status without a reason means
         /// <see cref="DisabledReason.Admin"/>. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/> on a

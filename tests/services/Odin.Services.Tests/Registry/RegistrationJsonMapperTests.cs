@@ -30,13 +30,12 @@ public class RegistrationJsonMapperTests
         var json = RegistrationJsonMapper.ToJson(source);
 
         var target = new IdentityRegistration();
-        var valid = RegistrationJsonMapper.Apply(target, disabledColumn: source.Disabled, json);
+        var valid = RegistrationJsonMapper.Apply(target, disabledColumn: source.Status == TenantStatus.Disabled, json);
 
         Assert.That(valid, Is.True);
         Assert.That(target.Status, Is.EqualTo(status));
         Assert.That(target.DisabledReason, Is.EqualTo(reason));
         Assert.That(target.StatusChangedAt, Is.EqualTo(changedAt));
-        Assert.That(target.Disabled, Is.EqualTo(status == TenantStatus.Disabled));
     }
 
     [Test]
