@@ -105,7 +105,7 @@ namespace Odin.Core.Cryptography.Data
 
 
         // Method to ensure byte array length
-        private byte[] EnsureLength(byte[] bytes, int length)
+        protected static byte[] EnsureLength(byte[] bytes, int length)
         {
             if (bytes.Length >= length) return bytes;
 
@@ -392,14 +392,15 @@ namespace Odin.Core.Cryptography.Data
             ECDHBasicAgreement ecdhUagree = new ECDHBasicAgreement();
             ecdhUagree.Init(privateKeyParameters);
 
-            // Calculate the shared secret
-            BigInteger sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
-
-            // Convert the shared secret to a byte array
-            var sharedSecretBytes = sharedSecret.ToByteArrayUnsigned().ToSensitiveByteArray();
+            // Calculate the shared secret: the X coordinate of the shared point, encoded at the curve's field
+            // length and zero-padded, as WebCrypto, JCA and the other platform ECDH implementations do. Encoding it
+            // with ToByteArrayUnsigned() instead dropped a leading zero byte, so about 1 exchange in 256 derived a
+            // different key here than on the client (#1728).
+            var sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
+            var sharedSecretBytes = EnsureLength(sharedSecret.ToByteArrayUnsigned(), ecdhUagree.GetFieldSize());
 
             // Apply HKDF to derive a symmetric key from the shared secret
-            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), randomSalt, 16).ToSensitiveByteArray();
+            return HashUtil.Hkdf(sharedSecretBytes, randomSalt, 16).ToSensitiveByteArray();
         }
 
         public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
