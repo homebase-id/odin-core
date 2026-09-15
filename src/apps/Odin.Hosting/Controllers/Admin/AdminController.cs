@@ -111,7 +111,7 @@ public class AdminController : ControllerBase
     //
 
     [HttpPatch("tenants/{domain}/disable")]
-    public async Task<ActionResult> ResumeTenant(string domain)
+    public async Task<ActionResult> DisableTenant(string domain)
     {
         if (!await _tenantAdmin.TenantExists(domain))
         {
@@ -121,6 +121,28 @@ public class AdminController : ControllerBase
         await _tenantAdmin.DisableTenant(domain);
 
         return Ok();
+    }
+
+    //
+
+    /// <summary>
+    /// Sets the tenant's status and returns the previous one. 400 if the transition is not allowed.
+    /// </summary>
+    [HttpPatch("tenants/{domain}/status")]
+    public async Task<ActionResult<TenantStatusModel>> SetTenantStatus(string domain, [FromBody] SetTenantStatusRequest request)
+    {
+        if (request.Status == null)
+        {
+            return BadRequest("status is required");
+        }
+
+        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status.Value, request.DisabledReason);
+        if (previous == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(previous);
     }
 
     //

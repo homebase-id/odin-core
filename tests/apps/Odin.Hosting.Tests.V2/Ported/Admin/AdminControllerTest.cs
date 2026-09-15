@@ -23,6 +23,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.JobManagement;
+using Odin.Services.Registry;
 
 namespace Odin.Hosting.Tests.V2.Ported.Admin;
 
@@ -561,6 +562,20 @@ public class AdminControllerTest : V2Fixture
 
         Assert.That(jobResponse.JobId, Is.Not.Null);
         Assert.That(exportData?.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, Identities.Frodo)));
+
+        // The copy pauses the tenant and must hand it back as it found it
+        var registry = Host.Server.Services.GetRequiredService<IIdentityRegistry>();
+        var frodo = await registry.GetAsync(Identities.Frodo);
+        Assert.That(frodo!.Status, Is.EqualTo(TenantStatus.Active));
+        Assert.That(frodo.StatusChangedAt, Is.Not.Null, "it was paused during the copy");
+        // The WebScaffold original also asserted AreBackgroundServicesRunning is true afterwards. That
+        // cannot be carried: this host sets BackgroundServices:TenantBackgroundServicesEnabled=false, so
+        // the registry's stop/restart machinery is switched off here and the tenant is not running
+        // before the export either (measured: false before, false after, stable over 5 s). Asserting
+        // true would fail for a reason unrelated to the export; asserting "unchanged" would pass
+        // vacuously. The restart itself -- Active brings the workers back -- is covered on WebScaffold,
+        // where the machinery is live, by _Universal/TenantStatus/TenantStatusTests.
+
 
         Assert.That(await jobManager.JobExistsAsync(jobId), Is.True);
         Assert.That(await jobManager.DeleteJobByIdAsync(jobId), Is.True);

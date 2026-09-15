@@ -44,6 +44,15 @@ app.Configure(config =>
         c.AddCommand<EnableTenantCommand>("enable")
             .WithExample("tenant", "enable", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
                 "your-secret-api-key-here");
+        c.AddCommand<PauseTenantCommand>("pause")
+            .WithExample("tenant", "pause", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
+                "your-secret-api-key-here");
+        c.AddCommand<ResumeTenantCommand>("resume")
+            .WithExample("tenant", "resume", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
+                "your-secret-api-key-here");
+        c.AddCommand<SetTenantStatusCommand>("set-status")
+            .WithExample("tenant", "set-status", "frodo.dotyou.cloud", "disabled", "--reason", "moved", "-I",
+                "admin.dotyou.cloud:4444", "-K", "your-secret-api-key-here");
         c.AddCommand<EnablePublicWebPresenceCommand>("enable-public-web-presence")
             .WithExample("tenant", "enable-public-web-presence", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
                 "your-secret-api-key-here");

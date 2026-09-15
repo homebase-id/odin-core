@@ -357,6 +357,14 @@ public class TenantAdmin(
 
     //
 
+    public async Task<TenantStatusModel?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
+    {
+        var previous = await identityRegistry.SetStatusAsync(domain, status, reason);
+        return previous == null ? null : TenantStatusModel.From(previous);
+    }
+
+    //
+
     public async Task EnablePublicWebPresence(string domain)
     {
         await identityRegistry.SetPublicWebPresenceAsync(domain, true);
@@ -378,6 +386,9 @@ public class TenantAdmin(
             Domain = identityRegistration.PrimaryDomainName,
             Id = identityRegistration.Id.ToString(),
             Enabled = !identityRegistration.Disabled,
+            Status = identityRegistration.Status,
+            DisabledReason = identityRegistration.DisabledReason,
+            StatusChangedAt = identityRegistration.StatusChangedAt,
             EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence
         };
 

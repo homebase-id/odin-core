@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Odin.Services.Registry;
 using System.Threading.Tasks;
 
 namespace Odin.Services.Admin.Tenants;
@@ -18,6 +19,11 @@ public interface ITenantAdmin
 
     Task EnableTenant(string domain);
     Task DisableTenant(string domain);
+
+    /// <summary>
+    /// Sets the tenant's status. Returns the previous status, or null if the tenant does not exist.
+    /// </summary>
+    Task<TenantStatusModel?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason);
 
     Task EnablePublicWebPresence(string domain);
     Task DisablePublicWebPresence(string domain);

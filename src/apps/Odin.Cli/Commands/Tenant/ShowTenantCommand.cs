@@ -47,6 +47,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
         grid.AddColumn(); // Domain
         grid.AddColumn(); // Id
         grid.AddColumn(); // Enabled
+        grid.AddColumn(); // Status
         grid.AddColumn(); // Web Presence
         grid.AddColumn(); // Registration Size
         grid.AddColumn(); // Payload Size
@@ -57,6 +58,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
                 new Text("Domain", new Style(Color.Blue)).LeftJustified(),
                 new Text("Id", new Style(Color.Blue)).LeftJustified(),
                 new Text("Enabled", new Style(Color.Blue)).RightJustified(),
+                new Text("Status", new Style(Color.Blue)).LeftJustified(),
                 new Text("Web Presence", new Style(Color.Blue)).RightJustified(),
                 new Text("Reg. Size", new Style(Color.Blue)).RightJustified(),
                 new Text("Payload Size", new Style(Color.Blue)).RightJustified());
@@ -67,6 +69,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
             new Text(tenant.Domain).LeftJustified(),
             new Text(tenant.Id).LeftJustified(),
             new Text(tenant.Enabled ? "yes" : "no").LeftJustified(),
+            new Text(TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
             new Text(tenant.EnablePublicWebPresence ? "yes" : "no").LeftJustified(),
             new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
             new Text(payLoadSize).RightJustified());
