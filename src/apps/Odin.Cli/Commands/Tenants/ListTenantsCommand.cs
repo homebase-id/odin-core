@@ -65,7 +65,6 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         var grid = new Grid();
         grid.AddColumn(); // Domain
         grid.AddColumn(); // Id
-        grid.AddColumn(); // Enabled
         grid.AddColumn(); // Status
         grid.AddColumn(); // Registration Size
         grid.AddColumn(); // Payload Size
@@ -75,7 +74,6 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             grid.AddRow(
                 new Text("Domain", new Style(Color.Blue)).LeftJustified(),
                 new Text("Id", new Style(Color.Blue)).LeftJustified(),
-                new Text("Enabled", new Style(Color.Blue)).LeftJustified(),
                 new Text("Status", new Style(Color.Blue)).LeftJustified(),
                 new Text("Reg. Size", new Style(Color.Blue)).RightJustified(),
                 new Text("Payload Size", new Style(Color.Blue)).RightJustified());
@@ -87,7 +85,6 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             grid.AddRow(
                 new Text(tenant.Domain).LeftJustified(),
                 new Text(tenant.Id).LeftJustified(),
-                new Text(tenant.Enabled ? "yes" : "no").RightJustified(),
                 new Text(Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
                 new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
                 new Text(payLoadSize).RightJustified());
@@ -104,10 +101,9 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         var root = new Tree("[bold blue]Tenants[/]");
         foreach (var tenant in tenants)
         {
-            var enabled = tenant.Enabled ? "yes" : "no";
             var t = root.AddNode($"[blue]{tenant.Domain}[/]");
             t.AddNode($"[blue]Id:[/] {tenant.Id}");
-            t.AddNode($"[blue]Enabled:[/] {enabled}");
+            t.AddNode($"[blue]Status:[/] {Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}");
             t.AddNode($"[blue]Registration Size:[/] {tenant.RegistrationSize.HumanReadableBytes()}");
 
             if (settings.IncludePayload)

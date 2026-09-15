@@ -27,6 +27,11 @@ public interface IBackgroundServiceManager
     Task ShutdownAsync();
     Task NotifyWorkAvailableAsync(string serviceIdentifier);
     Task NotifyWorkAvailableAsync<T>();
+
+    /// <summary>
+    /// True while at least one service is registered: started and not stopped since
+    /// </summary>
+    bool IsRunning { get; }
 }
 
 //
@@ -47,7 +52,20 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     //
     
     private record ScopedAbstractBackgroundService(ILifetimeScope Scope, AbstractBackgroundService BackgroundService);
-    
+
+    //
+
+    public bool IsRunning
+    {
+        get
+        {
+            using (_lock.ReaderLock())
+            {
+                return _backgroundServices.Count > 0;
+            }
+        }
+    }
+
     //
 
     public T Create<T>(string? serviceIdentifier = null) where T : AbstractBackgroundService

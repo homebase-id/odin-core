@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Odin.Core.Time;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Admin.Tenants;
@@ -17,21 +16,4 @@ public class SetTenantStatusRequest
     /// Only valid with <see cref="TenantStatus.Disabled"/>; defaults to <see cref="Registry.DisabledReason.Admin"/>
     /// </summary>
     public DisabledReason? DisabledReason { get; set; }
-}
-
-public class TenantStatusModel
-{
-    public TenantStatus Status { get; set; }
-    public DisabledReason? DisabledReason { get; set; }
-    public UnixTimeUtc? StatusChangedAt { get; set; }
-
-    public static TenantStatusModel From(TenantStatusState state)
-    {
-        return new TenantStatusModel
-        {
-            Status = state.Status,
-            DisabledReason = state.DisabledReason,
-            StatusChangedAt = state.StatusChangedAt
-        };
-    }
 }

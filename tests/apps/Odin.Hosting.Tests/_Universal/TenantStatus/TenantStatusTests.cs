@@ -100,14 +100,14 @@ public class TenantStatusTests
             (Status.Active, null, null),
         };
 
-        var previous = new TenantStatusModel { Status = Status.Active };
+        var previous = new TenantStatusState(Status.Active, null, null);
         foreach (var step in steps)
         {
             var before = UnixTimeUtcNow();
             var response = await SetStatusViaAdminAsync(domain, step.Status, step.Reason);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"setting {step.Status}");
 
-            var returned = OdinSystemSerializer.Deserialize<TenantStatusModel>(await response.Content.ReadAsStringAsync())!;
+            var returned = OdinSystemSerializer.Deserialize<TenantStatusState>(await response.Content.ReadAsStringAsync())!;
             Assert.That(returned.Status, Is.EqualTo(previous.Status), "response carries the previous status");
             Assert.That(returned.DisabledReason, Is.EqualTo(previous.DisabledReason));
 
@@ -118,7 +118,7 @@ public class TenantStatusTests
             Assert.That(tenant.StatusChangedAt, Is.Not.Null);
             Assert.That(tenant.StatusChangedAt!.Value.milliseconds, Is.GreaterThanOrEqualTo(before));
 
-            previous = new TenantStatusModel { Status = tenant.Status, DisabledReason = tenant.DisabledReason };
+            previous = new TenantStatusState(tenant.Status, tenant.DisabledReason, null);
         }
     }
 
@@ -133,7 +133,7 @@ public class TenantStatusTests
         await Task.Delay(20);
         var response = await SetStatusViaAdminAsync(domain, Status.Paused, null);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var returned = OdinSystemSerializer.Deserialize<TenantStatusModel>(await response.Content.ReadAsStringAsync())!;
+        var returned = OdinSystemSerializer.Deserialize<TenantStatusState>(await response.Content.ReadAsStringAsync())!;
         Assert.That(returned.Status, Is.EqualTo(Status.Paused), "reports it was already paused");
 
         var second = (await GetTenantViaAdminAsync(domain)).StatusChangedAt;

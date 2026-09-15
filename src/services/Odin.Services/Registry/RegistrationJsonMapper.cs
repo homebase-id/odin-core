@@ -1,32 +1,19 @@
 using System;
 using Odin.Core.Serialization;
-using Odin.Core.Time;
 
 #nullable enable
 
 namespace Odin.Services.Registry;
 
 /// <summary>
-/// Registration state stored in the Registrations json column. Kept out of dedicated columns so
-/// it can grow without a schema change.
+/// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/>.
+/// Kept out of dedicated columns so it can grow without a schema change.
 /// </summary>
-public sealed record RegistrationJson
-{
-    public TenantStatus Status { get; init; }
-    public DisabledReason? DisabledReason { get; init; }
-    public UnixTimeUtc? StatusChangedAt { get; init; }
-}
-
 public static class RegistrationJsonMapper
 {
     public static string ToJson(IdentityRegistration registration)
     {
-        return OdinSystemSerializer.Serialize(new RegistrationJson
-        {
-            Status = registration.Status,
-            DisabledReason = registration.DisabledReason,
-            StatusChangedAt = registration.StatusChangedAt
-        });
+        return OdinSystemSerializer.Serialize(registration.StatusState);
     }
 
     /// <summary>
@@ -72,7 +59,7 @@ public static class RegistrationJsonMapper
         return valid;
     }
 
-    private static RegistrationJson? TryParse(string? json, out bool valid)
+    private static TenantStatusState? TryParse(string? json, out bool valid)
     {
         valid = true;
         if (string.IsNullOrWhiteSpace(json))
@@ -82,7 +69,7 @@ public static class RegistrationJsonMapper
 
         try
         {
-            var parsed = OdinSystemSerializer.Deserialize<RegistrationJson>(json);
+            var parsed = OdinSystemSerializer.Deserialize<TenantStatusState>(json);
             if (parsed != null &&
                 Enum.IsDefined(parsed.Status) &&
                 (!parsed.DisabledReason.HasValue || Enum.IsDefined(parsed.DisabledReason.Value)))

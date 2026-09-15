@@ -21,6 +21,7 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Storage.PubSub;
+using Odin.Core.Threading;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
@@ -54,9 +55,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     // the initial load and reconcile. Without it a reconcile could copy a not-yet-committed row
     // back over a field a writer set in memory a moment earlier.
     private readonly SemaphoreSlim _registryLock = new(1, 1);
-    // Serializes starting and stopping one identity's background services, and records which are running
-    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _backgroundServiceGates = new();
-    private readonly ConcurrentDictionary<Guid, bool> _backgroundServicesRunning = new();
+    // Serializes starting and stopping one identity's background services
+    private readonly KeyedAsyncLock _backgroundServiceGate = new();
     private IPubSubSubscription _registryChangeSubscription;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
@@ -308,7 +308,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // Hold the identity still while copying: a paused identity serves nothing and runs no background
         // services on this node; other nodes follow once they apply the change. An already disabled one
         // is left as it is.
-        var previous = new TenantStatusState(registration.Status, registration.DisabledReason, registration.StatusChangedAt);
+        var previous = registration.StatusState;
         UnixTimeUtc? pausedForCopyAt = null;
         if (registration.Status is TenantStatus.Active or TenantStatus.OutOfQuota)
         {
@@ -470,7 +470,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 primaryDomainName = registration.PrimaryDomainName.ToLower(),
                 email = registration.Email?.ToLower(),
                 firstRunToken = registration.FirstRunToken?.ToString(),
-                disabled = registration.Disabled,
+                // Superseded by the status in json; written as a mirror for nodes on older versions
+                disabled = registration.Status == TenantStatus.Disabled,
                 markedForDeletionDate = registration.MarkedForDeletionDate,
                 planId = registration.PlanId ?? "free",
                 enablePublicWebPresence = registration.EnablePublicWebPresence,
@@ -499,23 +500,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var reg = _trie.LookupExactName(domain);
         return Task.FromResult(reg);
-    }
-
-    public async Task<bool?> ToggleDisabled(string domain, bool disabled)
-    {
-        var reg = _trie.LookupExactName(domain);
-        if (reg == null)
-        {
-            return null;
-        }
-
-        if (reg.Disabled == disabled)
-        {
-            return disabled;
-        }
-
-        var previous = await SetStatusAsync(domain, disabled ? TenantStatus.Disabled : TenantStatus.Active, disabled ? DisabledReason.Admin : null);
-        return previous == null ? null : previous.Status == TenantStatus.Disabled;
     }
 
     public Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null)
@@ -547,7 +531,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 return null;
             }
 
-            previous = new TenantStatusState(reg.Status, reg.DisabledReason, reg.StatusChangedAt);
+            previous = reg.StatusState;
             if (precondition != null && !precondition(reg))
             {
                 return previous;
@@ -1090,17 +1074,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             // Normal when another node changed it. A node running a version without the json column
             // resets the status to what its disabled flag says on every save, so make that visible.
-            if (string.IsNullOrEmpty(record.json))
-            {
-                _logger.LogWarning("Status of {domain} changed from {previous} ({previousReason}) to {status} ({reason}) " +
-                                   "by a node running a version without registration json",
-                    known.PrimaryDomainName, previousStatus, previousReason, known.Status, known.DisabledReason);
-            }
-            else
-            {
-                _logger.LogInformation("Status of {domain} changed from {previous} ({previousReason}) to {status} ({reason}) by another node",
-                    known.PrimaryDomainName, previousStatus, previousReason, known.Status, known.DisabledReason);
-            }
+            var byOldNode = string.IsNullOrEmpty(record.json);
+            _logger.Log(byOldNode ? LogLevel.Warning : LogLevel.Information,
+                "Status of {domain} changed from {previous} ({previousReason}) to {status} ({reason}) by {who}",
+                known.PrimaryDomainName, previousStatus, previousReason, known.Status, known.DisabledReason,
+                byOldNode ? "a node running a version without registration json" : "another node");
         }
 
         // TenantContext is a per-scope singleton with its own copy of FirstRunToken, Email and the
@@ -1112,7 +1090,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // Another node may have paused or resumed this identity. We hold the registry lock here, and
         // stopping waits for in-flight work, so converge in the background instead of stalling the reconcile.
         var identityId = known.Id;
-        if (_config.BackgroundServices.TenantBackgroundServicesEnabled &&
+        if (!_config.BackgroundServices.TenantBackgroundServicesEnabled ||
             TenantStatusRules.RunsBackgroundServices(known.Status) == AreBackgroundServicesRunning(identityId))
         {
             return;
@@ -1175,16 +1153,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // Out of the cache first, so a concurrent EnsureBackgroundServicesMatchStatusAsync finds nothing to start
         _cache.TryRemove(registration.Id, out _);
 
-        var gate = _backgroundServiceGates.GetOrAdd(registration.Id, _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync();
-        try
+        using (await _backgroundServiceGate.LockAsync(registration.Id.ToString()))
         {
             await StopBackgroundServices(registration);
-            _backgroundServicesRunning.TryRemove(registration.Id, out _);
-        }
-        finally
-        {
-            gate.Release();
         }
 
         RemoveMultiTenantScope(registration.PrimaryDomainName);
@@ -1365,7 +1336,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     // Caller holds _registryLock. Returns true if the database holds the status the failed save tried to write.
     private async Task<bool> RefreshStatusFromDatabaseAsync(IdentityRegistration reg, TenantStatusState fallback, Exception saveError)
     {
-        var attempted = new TenantStatusState(reg.Status, reg.DisabledReason, reg.StatusChangedAt);
+        var attempted = reg.StatusState;
         try
         {
             RegistrationsRecord record;
@@ -1399,7 +1370,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// </summary>
     public bool AreBackgroundServicesRunning(Guid identityId)
     {
-        return _backgroundServicesRunning.ContainsKey(identityId);
+        return _cache.TryGetValue(identityId, out var registration) &&
+               _serviceProvider.LookupTenantScope(registration.PrimaryDomainName)?.Resolve<IBackgroundServiceManager>().IsRunning == true;
     }
 
     /// <summary>
@@ -1416,21 +1388,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             return;
         }
 
-        var gate = _backgroundServiceGates.GetOrAdd(identityId, _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync();
-        try
+        using (await _backgroundServiceGate.LockAsync(identityId.ToString()))
         {
             var registration = _cache.GetValueOrDefault(identityId);
             if (registration == null)
             {
                 // Unloaded meanwhile
-                return;
-            }
-
-            var shouldRun = TenantStatusRules.RunsBackgroundServices(registration.Status);
-            var isRunning = _backgroundServicesRunning.ContainsKey(identityId);
-            if (shouldRun && isRunning)
-            {
                 return;
             }
 
@@ -1441,6 +1404,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
 
             var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+            var shouldRun = TenantStatusRules.RunsBackgroundServices(registration.Status);
+            var isRunning = backgroundServiceManager.IsRunning;
+            if (shouldRun && isRunning)
+            {
+                return;
+            }
+
             if (shouldRun)
             {
                 try
@@ -1454,23 +1424,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     throw;
                 }
 
-                _backgroundServicesRunning[identityId] = true;
                 _logger.LogInformation("Started background services for {domain} ({status})",
                     registration.PrimaryDomainName, registration.Status);
             }
             else
             {
-                try
-                {
-                    // Also when nothing was started (a paused identity loaded this way): it tells the manager
-                    // its services are stopped on purpose, so work notifications return instead of waiting
-                    await backgroundServiceManager.StopAllAsync();
-                }
-                finally
-                {
-                    // Even a partial stop must allow a later start to run again
-                    _backgroundServicesRunning.TryRemove(identityId, out _);
-                }
+                // Also when nothing was started (a paused identity loaded this way): it tells the manager
+                // its services are stopped on purpose, so work notifications return instead of waiting
+                await backgroundServiceManager.StopAllAsync();
 
                 // Open sockets were accepted before the status changed and can still issue commands
                 // (e.g. process the inbox); the middleware refuses their reconnects
@@ -1483,20 +1444,19 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
             }
         }
-        finally
-        {
-            gate.Release();
-        }
     }
 
     //
 
     private async Task CloseClientSocketsAsync(ILifetimeScope scope, IdentityRegistration registration)
     {
-        var closed = await scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>()
-            .RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, $"identity is {registration.Status}");
-        closed += await scope.Resolve<SharedDeviceSocketCollection<PeerAppNotificationHandler>>()
-            .RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, $"identity is {registration.Status}");
+        var message = $"identity is {registration.Status}";
+        var counts = await Task.WhenAll(
+            scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>()
+                .RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, message),
+            scope.Resolve<SharedDeviceSocketCollection<PeerAppNotificationHandler>>()
+                .RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, message));
+        var closed = counts.Sum();
         if (closed > 0)
         {
             _logger.LogInformation("Closed {count} client sockets of {domain} ({status})", closed, registration.PrimaryDomainName, registration.Status);
