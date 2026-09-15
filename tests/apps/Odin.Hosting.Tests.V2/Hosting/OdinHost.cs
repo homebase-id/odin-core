@@ -162,7 +162,7 @@ public sealed partial class OdinHost : IAsyncDisposable
             .ConfigureContainer<ContainerBuilder>(cb =>
             {
                 cb.RegisterInstance(serverHolder).SingleInstance();
-                cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>(), c.Resolve<TenantContext>()))
+                cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>()))
                     .As<IOdinHttpClientFactory>()
                     .InstancePerLifetimeScope();
 

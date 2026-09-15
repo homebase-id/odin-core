@@ -34,7 +34,6 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
 
     private readonly TestServerHolder _serverHolder;
     private readonly OdinIdentity _localIdentity;
-    private readonly TenantContext _tenantContext;
 
     // Cached handler so we don't orphan one per peer call. server.CreateHandler() returns a fresh
     // instance each call; the handler just routes anything fed to it back into the TestServer, so
@@ -44,11 +43,10 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
     private TestServer? _cachedHandlerServer;
     private HttpMessageHandler? _cachedHandler;
 
-    public TestPeerHttpClientFactory(TestServerHolder serverHolder, OdinIdentity localIdentity, TenantContext tenantContext)
+    public TestPeerHttpClientFactory(TestServerHolder serverHolder, OdinIdentity localIdentity)
     {
         _serverHolder = serverHolder;
         _localIdentity = localIdentity;
-        _tenantContext = tenantContext;
     }
 
     private HttpMessageHandler GetHandler(TestServer server)
@@ -111,12 +109,6 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
         if (fileSystemType.HasValue)
         {
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
-        }
-
-        // Mirrors the production factory: announce the reviewed security tier when this identity has it on.
-        if (_tenantContext.Settings?.UseReviewedSecurityTier ?? false)
-        {
-            client.DefaultRequestHeaders.Add(OdinHeaderNames.UsesReviewedSecurityTier, bool.TrueString);
         }
 
         if (clientAuthenticationToken != null)

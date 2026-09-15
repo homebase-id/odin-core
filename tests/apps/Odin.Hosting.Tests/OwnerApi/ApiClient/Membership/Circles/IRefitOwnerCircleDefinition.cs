@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Services.Authentication.Owner;
-using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Services.Membership.Circles;
 using Refit;
 
@@ -32,12 +31,5 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles
         
         [Post(RootPath + "/enable")]
         Task<ApiResponse<bool>> EnableCircleDefinition([Body] Guid id);
-
-        [Post(RootPath + "/set-owner")]
-        Task<ApiResponse<bool>> SetCircleOwningApp([Body] SetCircleOwningAppRequest request);
-
-        [Post(RootPath + "/reassign-owner")]
-        Task<ApiResponse<ReassignCircleOwningAppResult>> ReassignCircleOwningApp(
-            [Body] SetCircleOwningAppRequest request);
     }
 }

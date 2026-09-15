@@ -61,12 +61,9 @@ public sealed class AppSession : IV2Caller
         DrivePermission drivePermission,
         IReadOnlyList<int>? permissionKeys = null,
         List<Guid>? authorizedCircles = null,
-        PermissionSetGrantRequest? circleMemberGrantRequest = null,
-        Guid? knownAppId = null)
+        PermissionSetGrantRequest? circleMemberGrantRequest = null)
     {
-        // Pinnable, because a circle this app owns must name its id while the app may in turn have to
-        // name the circle (authorizedCircles) -- so one of the two has to be known before either exists.
-        var appId = knownAppId ?? Guid.NewGuid();
+        var appId = Guid.NewGuid();
         var permissions = new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>

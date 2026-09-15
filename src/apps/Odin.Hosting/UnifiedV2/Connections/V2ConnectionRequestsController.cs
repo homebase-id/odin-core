@@ -146,7 +146,7 @@ public class V2ConnectionRequestsController(
         header.Validate();
 
         await circleNetworkRequestService
-            .AcceptConnectionRequestAsync(header, tryOverrideAcl: false, markReviewed: true, WebOdinContext);
+            .AcceptConnectionRequestAsync(header, false, WebOdinContext);
 
         return NoContent();
     }

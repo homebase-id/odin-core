@@ -34,21 +34,6 @@ namespace Odin.Services.Base
 
         public OdinClientContext OdinClientContext { get; init; }
 
-        /// <summary>
-        /// True when this caller is a connection the owner has reviewed (<c>Connections.ReviewedAt</c> is set).
-        /// </summary>
-        /// <remarks>
-        /// The raw fact only.  Content evaluation goes through
-        /// <see cref="Authorization.Acl.ReviewedSecurityTier.EffectiveLevel"/>, which also honours the tenant flag.
-        /// </remarks>
-        public bool IsReviewed { get; init; }
-
-        /// <summary>
-        /// True when the calling identity announced it has the reviewed security tier on
-        /// (<see cref="OdinHeaderNames.UsesReviewedSecurityTier"/>).  Only peer callers can send it.
-        /// </summary>
-        public bool CallerUsesReviewedTier { get; init; }
-
         public CallerContext(OdinId? odinId,
             SensitiveByteArray masterKey,
             SecurityGroupType securityLevel,
@@ -72,8 +57,6 @@ namespace Odin.Services.Base
             this.Circles = other.Circles?.ToList();
             this.ClientTokenType = other.ClientTokenType;
             this.OdinClientContext = other.OdinClientContext?.Clone();
-            this.IsReviewed = other.IsReviewed;
-            this.CallerUsesReviewedTier = other.CallerUsesReviewedTier;
         }
 
         public CallerContext Clone()
