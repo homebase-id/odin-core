@@ -105,7 +105,7 @@ namespace Odin.Core.Cryptography.Data
 
 
         // Method to ensure byte array length
-        private byte[] EnsureLength(byte[] bytes, int length)
+        protected static byte[] EnsureLength(byte[] bytes, int length)
         {
             if (bytes.Length >= length) return bytes;
 
@@ -367,110 +367,19 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        /// <summary>
-        /// Creates a throwaway key pair for encrypting to <paramref name="remotePublicKey"/>. About 1 in 256 key pairs
-        /// give a shared secret with a leading zero byte, where the legacy encoding (see
-        /// <see cref="GetEcdhSharedSecretCandidates"/>) differs; those are re-rolled, so a recipient on either
-        /// encoding derives the same key.
-        /// </summary>
-        public static EccFullKeyData CreateEphemeralFor(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, EccKeySize keySize,
-            int hours)
-        {
-            // Each attempt is rejected with probability 1/256; 16 rejections in a row does not happen in practice
-            for (var attempt = 0; attempt < 16; attempt++)
-            {
-                var keyPair = new EccFullKeyData(pwd, keySize, hours);
-                if (keyPair.EcdhEncodingsAgree(pwd, remotePublicKey))
-                {
-                    return keyPair;
-                }
-            }
-
-            throw new Exception("Unable to create an ephemeral ECC key whose shared secret encodings agree");
-        }
-
-        /// <summary>
-        /// Derives a 16-byte key from ECDH with <paramref name="remotePublicKey"/> and <paramref name="randomSalt"/>.
-        /// The shared secret is encoded at the curve's full field length (SEC1), zero-padded, as WebCrypto, JCA and
-        /// other platform ECDH implementations do.
-        /// </summary>
         public SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] randomSalt)
-        {
-            AssertValidSalt(randomSalt);
-            var (sharedX, fieldSize) = CalculateEcdhAgreement(pwd, remotePublicKey);
-            return DeriveEcdhKey(Org.BouncyCastle.Utilities.BigIntegers.AsUnsignedByteArray(fieldSize, sharedX), randomSalt);
-        }
-
-        /// <summary>
-        /// The keys a peer may have derived for this exchange: the fixed-length encoding first, then - only when it
-        /// differs - the legacy encoding with leading zero bytes stripped. odin-core used the legacy encoding before
-        /// #1728, so identities on older versions, and payloads stored before then, may carry it.
-        /// </summary>
-        public List<SensitiveByteArray> GetEcdhSharedSecretCandidates(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey,
-            byte[] randomSalt)
-        {
-            AssertValidSalt(randomSalt);
-            var (sharedX, fieldSize) = CalculateEcdhAgreement(pwd, remotePublicKey);
-
-            var candidates = new List<SensitiveByteArray>
-            {
-                DeriveEcdhKey(Org.BouncyCastle.Utilities.BigIntegers.AsUnsignedByteArray(fieldSize, sharedX), randomSalt)
-            };
-
-            var legacySecret = sharedX.ToByteArrayUnsigned();
-            if (legacySecret.Length != fieldSize)
-            {
-                candidates.Add(DeriveEcdhKey(legacySecret, randomSalt));
-            }
-
-            return candidates;
-        }
-
-        /// <summary>
-        /// True when the fixed-length and legacy shared-secret encodings produce the same key, i.e. the shared secret
-        /// with <paramref name="remotePublicKey"/> has no leading zero byte.
-        /// </summary>
-        public bool EcdhEncodingsAgree(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey)
-        {
-            var (sharedX, fieldSize) = CalculateEcdhAgreement(pwd, remotePublicKey);
-            return sharedX.ToByteArrayUnsigned().Length == fieldSize;
-        }
-
-        /// <summary>
-        /// AES-GCM decrypts data whose key was derived by ECDH with <paramref name="remotePublicKey"/>, accepting either
-        /// shared-secret encoding. GCM authenticates, so a key from the wrong encoding is rejected, never silently used.
-        /// </summary>
-        public byte[] EcdhAesGcmDecrypt(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] salt, byte[] cipherText,
-            byte[] iv)
-        {
-            var candidates = GetEcdhSharedSecretCandidates(pwd, remotePublicKey, salt);
-            try
-            {
-                for (var i = 0;; i++)
-                {
-                    try
-                    {
-                        return AesGcm.Decrypt(cipherText, candidates[i], iv);
-                    }
-                    catch (System.Security.Cryptography.CryptographicException) when (i < candidates.Count - 1)
-                    {
-                        // wrong encoding; try the next one
-                    }
-                }
-            }
-            finally
-            {
-                candidates.ForEach(c => c.Wipe());
-            }
-        }
-
-        private (BigInteger sharedX, int fieldSize) CalculateEcdhAgreement(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey)
         {
             if (remotePublicKey == null)
                 throw new ArgumentNullException(nameof(remotePublicKey));
 
             if (remotePublicKey.publicKey == null)
                 throw new ArgumentNullException(nameof(remotePublicKey.publicKey));
+
+            if (randomSalt == null)
+                throw new ArgumentNullException(nameof(randomSalt));
+
+            if (randomSalt.Length < 16)
+                throw new ArgumentException("Salt must be at least 16 bytes");
 
             // Retrieve the private key from the secure storage
             var privateKeyBytes = GetFullKey(pwd).GetKey();
@@ -483,27 +392,15 @@ namespace Odin.Core.Cryptography.Data
             ECDHBasicAgreement ecdhUagree = new ECDHBasicAgreement();
             ecdhUagree.Init(privateKeyParameters);
 
-            // The shared secret is the X coordinate of the shared point
-            var sharedX = ecdhUagree.CalculateAgreement(publicKeyParameters);
-            var fieldSize = (privateKeyParameters.Parameters.Curve.FieldSize + 7) / 8;
-            return (sharedX, fieldSize);
-        }
+            // Calculate the shared secret: the X coordinate of the shared point, encoded at the curve's field
+            // length and zero-padded, as WebCrypto, JCA and the other platform ECDH implementations do. Encoding it
+            // with ToByteArrayUnsigned() instead dropped a leading zero byte, so about 1 exchange in 256 derived a
+            // different key here than on the client (#1728).
+            var sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
+            var sharedSecretBytes = EnsureLength(sharedSecret.ToByteArrayUnsigned(), ecdhUagree.GetFieldSize());
 
-        private static void AssertValidSalt(byte[] randomSalt)
-        {
-            if (randomSalt == null)
-                throw new ArgumentNullException(nameof(randomSalt));
-
-            if (randomSalt.Length < 16)
-                throw new ArgumentException("Salt must be at least 16 bytes");
-        }
-
-        private static SensitiveByteArray DeriveEcdhKey(byte[] sharedSecret, byte[] randomSalt)
-        {
             // Apply HKDF to derive a symmetric key from the shared secret
-            var key = HashUtil.Hkdf(sharedSecret, randomSalt, 16).ToSensitiveByteArray();
-            Array.Clear(sharedSecret);
-            return key;
+            return HashUtil.Hkdf(sharedSecretBytes, randomSalt, 16).ToSensitiveByteArray();
         }
 
         public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)

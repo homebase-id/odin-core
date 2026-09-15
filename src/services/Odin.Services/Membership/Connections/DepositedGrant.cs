@@ -71,7 +71,7 @@ public static class PeerKeyStoreWriteOnlyKey
     public static EccEncryptedPayload Seal(EccPublicKeyData storePublicKey, byte[] payload)
     {
         var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-        var tempKey = EccFullKeyData.CreateEphemeralFor(pwd, storePublicKey, EccKeySize.P384, hours: 2);
+        var tempKey = new EccFullKeyData(pwd, EccKeySize.P384, hours: 2);
 
         var salt = ByteArrayUtil.GetRndByteArray(16);
         var sharedSecret = tempKey.GetEcdhSharedSecret(pwd, storePublicKey, salt);
@@ -93,8 +93,8 @@ public static class PeerKeyStoreWriteOnlyKey
     public static byte[] Unseal(EccFullKeyData storeKeyPair, SensitiveByteArray keyStoreKey, EccEncryptedPayload payload)
     {
         var sealerPublicKey = EccPublicKeyData.FromJwkPublicKey(payload.RemotePublicKeyJwk);
-        // accepts deposits sealed with the legacy shared-secret encoding before #1728
-        return storeKeyPair.EcdhAesGcmDecrypt(keyStoreKey, sealerPublicKey, payload.Salt, payload.EncryptedData, payload.Iv);
+        var sharedSecret = storeKeyPair.GetEcdhSharedSecret(keyStoreKey, sealerPublicKey, payload.Salt);
+        return AesGcm.Decrypt(payload.EncryptedData, sharedSecret, payload.Iv);
     }
 }
 

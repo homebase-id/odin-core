@@ -7,7 +7,6 @@ namespace Odin.Core.Cryptography.Tests
     using Odin.Core.Cryptography.Data;
     using System;
     using System.Collections.Generic;
-    using System.Linq;
     using System.Text.Json;
     using Org.BouncyCastle.Crypto.Parameters;
     using Org.BouncyCastle.Security;
@@ -265,10 +264,11 @@ namespace Odin.Core.Cryptography.Tests
             // The shared secrets should be identical
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretA.GetKey(), sharedSecretB.GetKey()));
         }
-
-        // #1728: about 1 in 256 exchanges have a shared secret with a leading zero byte. The tests below find such a
-        // pair so that case is exercised deterministically, and use .NET's own ECDH (CNG / OpenSSL / Apple) as an
-        // independent fixed-length peer, standing in for WebCrypto, JCA and the other clients.
+        // #1728: the shared secret is the X coordinate encoded at the curve's field length. About 1 exchange in 256
+        // has an X with a leading zero byte, where the old ToByteArrayUnsigned() encoding came out a byte short and
+        // derived a different key than the client. These tests find such a pair so that case is exercised
+        // deterministically, and use .NET's own ECDH as an independent fixed-length peer - standing in for WebCrypto
+        // (odin-js) and JCA (chat-kmp, via cryptography-kotlin), which is what every client actually derives.
 
         [Test]
         public void GetEcdhSharedSecret_LeadingZeroSharedSecret_MatchesFixedLengthPlatformEcdh()
@@ -288,62 +288,22 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
-        public void GetEcdhSharedSecretCandidates_LeadingZeroSharedSecret_ListsFixedLengthThenLegacy()
+        public void GetEcdhSharedSecret_MatchesFixedLengthPlatformEcdh()
         {
-            var (serverPwd, server, clientPwd, client) = CreatePairWithLeadingZeroSharedSecret();
+            var serverPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var server = new EccFullKeyData(serverPwd, EccKeySize.P384, 2);
+            var clientPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var client = new EccFullKeyData(clientPwd, EccKeySize.P384, 2);
             var salt = ByteArrayUtil.GetRndByteArray(16);
 
             var rawSecret = PlatformRawSecret(client, clientPwd, server);
-            var legacySecret = rawSecret.SkipWhile(b => b == 0).ToArray();
+            var platformKey = NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, rawSecret, 16, salt, []);
 
-            var candidates = server.GetEcdhSharedSecretCandidates(serverPwd, client, salt);
-
-            Assert.That(candidates.Count, Is.EqualTo(2));
-            Assert.That(candidates[0].GetKey(),
-                Is.EqualTo(NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, rawSecret, 16, salt, [])));
-            Assert.That(candidates[1].GetKey(),
-                Is.EqualTo(NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, legacySecret, 16, salt, [])));
+            Assert.That(server.GetEcdhSharedSecret(serverPwd, client, salt).GetKey(), Is.EqualTo(platformKey));
         }
 
-        [Test]
-        public void EcdhAesGcmDecrypt_AcceptsBothEncodings_AndRejectsAWrongKey()
-        {
-            var (serverPwd, server, clientPwd, client) = CreatePairWithLeadingZeroSharedSecret();
-            var salt = ByteArrayUtil.GetRndByteArray(16);
-            var iv = ByteArrayUtil.GetRndByteArray(16);
-
-            // fixed-length (current senders), then legacy (older senders, payloads stored before #1728)
-            foreach (var senderKey in client.GetEcdhSharedSecretCandidates(clientPwd, server, salt))
-            {
-                var cipher = AesGcm.Encrypt(testMessage, senderKey, iv);
-                Assert.That(server.EcdhAesGcmDecrypt(serverPwd, client, salt, cipher, iv), Is.EqualTo(testMessage));
-            }
-
-            var strangerPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var stranger = new EccFullKeyData(strangerPwd, EccKeySize.P384, 2);
-            var strangerCipher = AesGcm.Encrypt(testMessage, stranger.GetEcdhSharedSecret(strangerPwd, server, salt), iv);
-
-            Assert.That(() => server.EcdhAesGcmDecrypt(serverPwd, client, salt, strangerCipher, iv),
-                Throws.InstanceOf<NetCrypto.CryptographicException>());
-        }
-
-        [Test]
-        public void CreateEphemeralFor_RecipientSeesASingleEncoding()
-        {
-            var recipientPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var recipient = new EccFullKeyData(recipientPwd, EccKeySize.P384, 2);
-
-            // Without re-rolling, 1024 key pairs would all avoid a leading zero only ~1.8% of the time
-            for (var i = 0; i < 1024; i++)
-            {
-                var pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-                var ephemeral = EccFullKeyData.CreateEphemeralFor(pwd, recipient, EccKeySize.P384, 2);
-
-                var candidates = recipient.GetEcdhSharedSecretCandidates(recipientPwd, ephemeral, ByteArrayUtil.GetRndByteArray(16));
-                Assert.That(candidates.Count, Is.EqualTo(1));
-            }
-        }
-
+        /// <summary>Finds a key pair whose shared secret X starts with a zero byte, using the platform ECDH so the
+        /// search does not depend on the encoding under test.</summary>
         private static (SensitiveByteArray serverPwd, EccFullKeyData server, SensitiveByteArray clientPwd, EccFullKeyData client)
             CreatePairWithLeadingZeroSharedSecret()
         {
@@ -354,7 +314,7 @@ namespace Odin.Core.Cryptography.Tests
             {
                 var clientPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
                 var client = new EccFullKeyData(clientPwd, EccKeySize.P384, 2);
-                if (!server.EcdhEncodingsAgree(serverPwd, client))
+                if (PlatformRawSecret(client, clientPwd, server)[0] == 0)
                 {
                     return (serverPwd, server, clientPwd, client);
                 }
