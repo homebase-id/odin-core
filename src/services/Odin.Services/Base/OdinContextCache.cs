@@ -54,8 +54,7 @@ public class OdinContextCache(
     public async Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
         Func<Task<IOdinContext?>> dotYouContextFactory,
-        TimeSpan? expiration = null,
-        string? keySuffix = null)
+        TimeSpan? expiration = null)
     {
         var duration = expiration ?? DefaultDuration;
         if (duration < TimeSpan.FromSeconds(1))
@@ -63,8 +62,7 @@ public class OdinContextCache(
             throw new OdinSystemException("Cache duration must be at least 1 second.");
         }
 
-        // The suffix separates contexts built for the same token under different request inputs.
-        var key = token.AsKey().ToString().ToLower() + (keySuffix == null ? "" : ":" + keySuffix);
+        var key = token.AsKey().ToString().ToLower();
 
         // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory
         // We accept the risk for a potential race condition since they should always produce the same result for the same token

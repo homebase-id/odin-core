@@ -362,10 +362,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                         CorsHostName = "",
                         AccessRegistrationId = client.AccessRegistration.Id,
                         DevicePushNotificationKey = null
-                    })
-                {
-                    IsReviewed = icr.ReviewedAt != null
-                };
+                    });
 
                 logger.LogDebug("Create Connected Permission Context -> {icr} has circles: [{circles}]", icr.OdinId,
                     string.Join(",", enabledCircles));
