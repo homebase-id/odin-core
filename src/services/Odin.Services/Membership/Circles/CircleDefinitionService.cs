@@ -12,6 +12,7 @@ using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Drives;
@@ -155,6 +156,131 @@ namespace Odin.Services.Membership.Circles
             return true;
         }
 
+        /// <summary>
+        /// Hands an unowned circle to an app, once.
+        /// </summary>
+        /// <remarks>
+        /// The narrow exception to the rule <see cref="UpdateAsync"/> enforces.  That rule is really two:
+        /// ownership must not be settable by anyone who can PUT a definition, and ownership must not
+        /// <i>change</i> once set.  Only the first has to give way for an owner to adopt a circle that
+        /// belongs to no app -- so this refuses a circle that already has an owner rather than moving it,
+        /// and the second rule still holds everywhere.
+        /// <para>
+        /// That distinction is what keeps <c>PendingEnrollment.OwningAppId</c> honest.  It denormalises
+        /// this field on the reasoning that ownership never changes; a null-to-value transition cannot
+        /// make an existing copy wrong, because an entry queued against an unowned circle was recorded
+        /// with a null owner and stays claimable by exactly who it always was -- the owner.  A
+        /// value-to-value move would strand those copies pointing at the previous app, which is the
+        /// second reason not to allow one here.
+        /// </para>
+        /// <para>
+        /// Caller checks the caller; this checks the circle.  Permission and app-existence live in
+        /// <c>CircleNetworkService.SetCircleOwningAppAsync</c>.
+        /// </para>
+        /// </remarks>
+        internal async Task SetOwningAppAsync(GuidId circleId, Guid appId)
+        {
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (circle.AppId.HasValue)
+            {
+                // Deliberately not idempotent even when the app matches: a caller re-sending the same
+                // adoption is indistinguishable from one racing another app for the circle, and the
+                // second reading is the one worth failing loudly on.
+                throw new OdinClientException(
+                    $"Circle {circleId} already belongs to app {circle.AppId.Value}; ownership cannot be reassigned",
+                    OdinClientErrorCode.CircleAlreadyHasOwningApp);
+            }
+
+            circle.AppId = appId;
+            circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
+
+            // GrantOn is untouched, so a circle cannot become ambient by being adopted -- but the
+            // invariant is cheap to re-assert and this is a write.
+            await AssertDepositOnlyIfAmbientAsync(circle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+        }
+
+        /// <summary>
+        /// Moves a circle from one owning app to another.  The escape hatch, not the ordinary path.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="SetOwningAppAsync"/> exists because ownership should not move; this exists
+        /// because sometimes it has to, and the alternative is deleting and rebuilding a circle whose
+        /// membership the owner would then have to reconstruct by hand.
+        /// <para>
+        /// It does not touch the denormalised copies in <c>PendingEnrollment.OwningAppId</c>, and it
+        /// must not be called without also rewriting them -- an entry left pointing at the previous
+        /// app is claimed by nobody: the processing pass filters on that copy, so only the old app
+        /// looks at it, and the old app can no longer source the circle's drive keys.  The queue
+        /// rewrite lives with the connections in
+        /// <c>CircleNetworkService.ReassignCircleOwningAppAsync</c>, which is the only caller.
+        /// </para>
+        /// <para>
+        /// System circles are refused: they belong to no app by definition, and the app tree is what
+        /// stamps the ones that do.
+        /// </para>
+        /// </remarks>
+        internal async Task ReassignOwningAppAsync(GuidId circleId, Guid appId)
+        {
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist",
+                    OdinClientErrorCode.CircleNotFound);
+            }
+
+            if (SystemCircleConstants.IsSystemCircle(circleId.Value))
+            {
+                throw new OdinClientException($"Circle {circleId} is a system circle and belongs to no app",
+                    OdinClientErrorCode.CannotReassignSystemCircle);
+            }
+
+            circle.AppId = appId;
+            circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
+
+            await AssertDepositOnlyIfAmbientAsync(circle);
+
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+        }
+
+        /// <summary>
+        /// Gives a circle the emoji the tree names, but only if it does not have one.  Migration only.
+        /// </summary>
+        /// <remarks>
+        /// Fills rather than corrects, which is the opposite of <see cref="ApplyTreeDefinitionAsync"/> and
+        /// deliberately so.  Ownership, enrolment and designation are the tree's to dictate; the emoji is
+        /// the owner's -- it is editable through <see cref="UpdateAsync"/>, so a circle that already carries
+        /// one carries a choice somebody made, and the tree must not overwrite it.  The tree's value is a
+        /// default for circles that never got one, nothing more.
+        /// </remarks>
+        internal async Task<bool> ApplyTreeEmojiIfUnsetAsync(Guid circleId, string emoji)
+        {
+            if (string.IsNullOrWhiteSpace(emoji))
+            {
+                return false;
+            }
+
+            var circle = await GetCircleAsync(circleId);
+            if (circle == null || !string.IsNullOrWhiteSpace(circle.Emoji))
+            {
+                return false;
+            }
+
+            circle.Emoji = emoji;
+
+            // No AssertDepositOnlyIfAmbientAsync here: that invariant is about GrantOn and the drive
+            // grants, and this touches neither.
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
+            return true;
+        }
+
         public async Task EnsureCircleExistsAsync(CircleDefinition def)
         {
             if (await GetCircleAsync(def.Id) != null)
@@ -171,7 +297,8 @@ namespace Odin.Services.Membership.Circles
                 Permissions = def.Permissions,
                 AppId = def.AppId,
                 GrantOn = def.GrantOn,
-                Designation = def.Designation
+                Designation = def.Designation,
+                Emoji = def.Emoji
             }, skipValidation: true);
         }
 
@@ -445,6 +572,7 @@ namespace Odin.Services.Membership.Circles
             var grantOn = definition.GrantOn;
             var designation = definition.Designation;
             var emoji = definition.Emoji;
+            var isTreeDeclared = definition.IsTreeDeclared;
 
             // Clear before serializing so the blob holds no second copy of what the columns own -- the
             // same trick ToConnectionsRecord uses for the grant collections. Restored immediately: the
@@ -453,6 +581,7 @@ namespace Odin.Services.Membership.Circles
             definition.GrantOn = CircleGrantOn.None;
             definition.Designation = CircleDesignation.Personal;
             definition.Emoji = null;
+            definition.IsTreeDeclared = false;
 
             byte[] data;
             try
@@ -465,6 +594,7 @@ namespace Odin.Services.Membership.Circles
                 definition.GrantOn = grantOn;
                 definition.Designation = designation;
                 definition.Emoji = emoji;
+                definition.IsTreeDeclared = isTreeDeclared;
             }
 
             return new CircleRecord
@@ -487,6 +617,9 @@ namespace Odin.Services.Membership.Circles
             definition.GrantOn = (CircleGrantOn)record.GrantOn;
             definition.Designation = (CircleDesignation)record.Designation;
             definition.Emoji = record.Emoji;
+
+            // Derived from the catalogue, not the row: the tree changes with the build.
+            definition.IsTreeDeclared = BuiltinApps.IsTreeDeclaredCircle(definition.Id.Value);
 
             return definition;
         }

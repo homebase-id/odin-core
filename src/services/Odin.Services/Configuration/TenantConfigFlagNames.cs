@@ -39,5 +39,20 @@ public enum TenantConfigFlagNames
     DisableAutoAcceptConnectionRequests,
 
     /// <summary/>
-    SendMonthlySecurityHealthReport
+    SendMonthlySecurityHealthReport,
+
+    /// <summary>
+    /// Dark-launch switch for the reviewed security tier.  Off (the default) keeps every connected
+    /// caller at <c>Connected</c> exactly as before; on assigns the tier from whether the owner has
+    /// reviewed them.  Temporary -- it is removed with the flag-free recut.
+    /// See <see cref="TenantSettings.UseReviewedSecurityTier"/>.
+    /// </summary>
+    UseReviewedSecurityTier,
+
+    /// <summary>
+    /// Dark-launch switch for hiding circles that belong to no app from app callers.  Off (the default)
+    /// lists every circle to an app exactly as before; on lists only app-owned circles.
+    /// See <see cref="TenantSettings.HideOwnerCirclesFromApps"/>.
+    /// </summary>
+    HideOwnerCirclesFromApps
 }
