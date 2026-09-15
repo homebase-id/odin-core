@@ -157,8 +157,11 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
+                        securityLevel: SecurityGroupType.Connected,
                         circleIds: enabledCircles)
+                    {
+                        IsReviewed = icr.ReviewedAt != null
+                    }
                 };
 
                 context.SetPermissionContext(permissionContext);
@@ -3270,6 +3273,14 @@ namespace Odin.Services.Membership.Connections
                             Change = ConnectionChangeType.CircleGranted,
                         });
                     }
+                }
+                catch (Exception e)
+                {
+                    // One connection whose deposits cannot be converted must not fail the upgrade for the
+                    // rest.  Its deposits stay pending and convert on the contact's next call or the owner's
+                    // next touch of that connection.
+                    logger.LogError(e, "Could not convert deposited grants for {odinId}; leaving them pending",
+                        identity.OdinId);
                 }
                 finally
                 {

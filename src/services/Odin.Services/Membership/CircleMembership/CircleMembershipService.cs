@@ -33,7 +33,8 @@ public class CircleMembershipService(
     ExchangeGrantService exchangeGrantService,
     ILogger<CircleMembershipService> logger,
     IMediator mediator,
-    IdentityDatabase db)
+    IdentityDatabase db,
+    TenantContext tenantContext)
 {
     public async Task Temp_ReconcileCircleAndAppGrants()
     {
@@ -319,8 +320,10 @@ public class CircleMembershipService(
 
         // Null AppId means the owner's own circle. An app cannot enrol anyone into one
         // (CircleNetworkService.EnrollInCircleInternalAsync), so offering it would only be a choice that
-        // fails; the owner console is scoped to no app and keeps seeing everything.
-        if (odinContext.Caller.OdinClientContext?.AppId != null)
+        // fails; the owner console is scoped to no app and keeps seeing everything.  Behind a tenant flag
+        // (off by default) because it also changes what every existing app screen that lists circles sees.
+        if ((tenantContext.Settings?.HideOwnerCirclesFromApps ?? false) &&
+            odinContext.Caller.OdinClientContext?.AppId != null)
         {
             circles = circles.Where(c => c.AppId.HasValue).ToList();
         }
