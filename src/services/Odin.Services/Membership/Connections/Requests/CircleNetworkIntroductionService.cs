@@ -277,21 +277,24 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // The whole point of the extra fields: log why we are about to say no, so the reason
             // distribution is visible in production rather than collapsing into one message.
             //
-            // disableAutoAcceptConnectionRequests is this identity's own setting, not the caller's, and
-            // it is the other half of the auto-connected branch in CallerMayIntroduce. Without it,
-            // isCallerAutoConnected=true on a refusal is unexplainable from the log alone: it is only
-            // possible when this flag is true, and reading it here beats inferring it from the reason.
+            // disableAutoAcceptConnectionRequests and disableAutoAcceptIntroductions are this identity's own
+            // settings, not the caller's, and together they are the other half of the auto-connected branch in
+            // CallerMayIntroduce. Without them, isCallerAutoConnected=true on a refusal is unexplainable from the
+            // log alone: it is only possible when one of them is true, and reading them here beats inferring it
+            // from the reason.
             _logger.LogInformation(
                 "Preflight incoming: not permitting introductions from {caller}. reason={reason} " +
                 "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} isCallerConnected={isCallerConnected} " +
                 "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected} " +
                 "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests} " +
+                "disableAutoAcceptIntroductions={disableAutoAcceptIntroductions} " +
                 "connectionState={connectionState}",
                 caller,
                 DescribeIncomingRefusal(isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed,
                     isCallerAutoConnected, connectionState),
                 isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed, isCallerAutoConnected,
                 _tenantContext.Settings.DisableAutoAcceptConnectionRequests,
+                _tenantContext.Settings.DisableAutoAcceptIntroductions,
                 connectionState);
         }
 
@@ -312,11 +315,13 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     ///
     /// <para>
     /// The <see cref="PermissionKeys.AllowIntroductions"/> grant itself comes from the Confirmed
-    /// Connections circle. On top of that, an identity that auto-accepts connection requests
-    /// (<see cref="TenantSettings.DisableAutoAcceptConnectionRequests"/> is false) has already decided it
+    /// Connections circle. On top of that, an identity that auto-accepts connections (both
+    /// <see cref="TenantSettings.DisableAutoAcceptConnectionRequests"/> and
+    /// <see cref="TenantSettings.DisableAutoAcceptIntroductions"/> are false) has already decided it
     /// will connect to whoever asks, so there is nothing left for it to withhold from the identities it
     /// auto-connected -- treating them as unable to introduce made every auto-connection a dead end until
-    /// the owner confirmed it by hand.
+    /// the owner confirmed it by hand.  With either one on, it has not decided that, so an auto-connection
+    /// gets no such allowance.
     /// </para>
     ///
     /// <para>
@@ -347,7 +352,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return true;
         }
 
-        return isCallerAutoConnected && !_tenantContext.Settings.DisableAutoAcceptConnectionRequests;
+        return isCallerAutoConnected
+               && !_tenantContext.Settings.DisableAutoAcceptConnectionRequests
+               && !_tenantContext.Settings.DisableAutoAcceptIntroductions;
     }
 
     /// <summary>
@@ -386,8 +393,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return "caller-not-recognized";
         }
 
-        // Only reachable when this identity does NOT auto-accept connection requests -- otherwise
-        // CallerMayIntroduce would have let an auto-connected caller through and we would not be here.
+        // Only reachable when this identity does NOT auto-accept (DisableAutoAcceptConnectionRequests or
+        // DisableAutoAcceptIntroductions is on) -- otherwise CallerMayIntroduce would have let an
+        // auto-connected caller through and we would not be here.
         if (isCallerAutoConnected && !isCallerConfirmed)
         {
             return "auto-connection-not-confirmed";
@@ -818,11 +826,13 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             _logger.LogInformation(
                 "Rejecting introductions from {caller}. isCallerConnected={isCallerConnected} " +
                 "isCallerAutoConnected={isCallerAutoConnected} " +
-                "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests}",
+                "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests} " +
+                "disableAutoAcceptIntroductions={disableAutoAcceptIntroductions}",
                 caller,
                 odinContext.Caller.IsConnected,
                 isCallerAutoConnected,
-                _tenantContext.Settings.DisableAutoAcceptConnectionRequests);
+                _tenantContext.Settings.DisableAutoAcceptConnectionRequests,
+                _tenantContext.Settings.DisableAutoAcceptIntroductions);
 
             throw new OdinSecurityException("Does not have permission");
         }
@@ -950,7 +960,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return;
         }
 
-        if (_tenantContext.Settings.DisableAutoAcceptIntroductionsForTests && !force)
+        if (_tenantContext.Settings.DisableAutoAcceptIntroductions && !force)
         {
             return;
         }
@@ -1181,7 +1191,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 dataTypeKey: iid.IntroducerOdinId.ToHashId().ToByteArray(),
                 ReceivedIntroductionDataType, iid);
 
-            if (!_tenantContext.Settings.DisableAutoAcceptIntroductionsForTests)
+            if (!_tenantContext.Settings.DisableAutoAcceptIntroductions)
             {
                 var item = new OutboxFileItem
                 {

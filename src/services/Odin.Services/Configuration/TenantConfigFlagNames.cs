@@ -32,8 +32,10 @@ public enum TenantConfigFlagNames
     /// <summary/>
     ConnectedIdentitiesCanCommentOnAnonymousDrives,
     
-    /// <summary/>
-    DisableAutoAcceptIntroductionsForTests,
+    /// <summary>
+    /// See <see cref="TenantSettings.DisableAutoAcceptIntroductions"/>.
+    /// </summary>
+    DisableAutoAcceptIntroductions,
 
     /// <summary/>
     DisableAutoAcceptConnectionRequests,

@@ -1449,7 +1449,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             logger.LogDebug("Sending Introduced-connection request to {recipient}", recipient);
 
-            if (tenantContext.Settings.DisableAutoAcceptIntroductionsForTests)
+            if (tenantContext.Settings.DisableAutoAcceptIntroductions)
             {
                 var existingOutgoingRequest = await this.GetSentRequestInternalAsync(recipient);
                 if (null == existingOutgoingRequest)

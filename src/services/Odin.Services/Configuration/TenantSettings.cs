@@ -22,7 +22,7 @@ public class TenantSettings
         AuthenticatedIdentitiesCanReactOnAnonymousDrives = true,
         ConnectedIdentitiesCanReactOnAnonymousDrives = true,
         ConnectedIdentitiesCanCommentOnAnonymousDrives = true,
-        DisableAutoAcceptIntroductionsForTests = false,
+        DisableAutoAcceptIntroductions = false,
         DisableAutoAcceptConnectionRequests = false,
         SendMonthlySecurityHealthReport = false,
         UseReviewedSecurityTier = false,
@@ -52,11 +52,15 @@ public class TenantSettings
 
     public bool ConnectedIdentitiesCanReactOnAnonymousDrives { get; set; }
     
-    public bool DisableAutoAcceptIntroductionsForTests { get; set; }
+    /// <summary>
+    /// When true, no connection is made automatically: an incoming connection request is never auto-accepted
+    /// (whether it follows an introduction, crosses one already sent, comes from an existing connection, or was
+    /// sent from an app), and being introduced to someone does not send them a connection request.  Requests
+    /// wait in the pending list for the owner.
+    /// </summary>
+    public bool DisableAutoAcceptIntroductions { get; set; }
     
     public bool SendMonthlySecurityHealthReport { get; set; }
-    
-    public bool DisableAutoAcceptIntroductions { get; set; }
 
     /// <summary>
     /// When true, incoming connection requests with origin <see cref="Membership.Connections.Requests.ConnectionRequestOrigin.IdentityOwnerApp"/>
