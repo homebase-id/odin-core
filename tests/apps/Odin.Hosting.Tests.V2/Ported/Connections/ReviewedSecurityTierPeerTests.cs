@@ -30,13 +30,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// <list type="number">
 /// <item>With the flag off on either side, nothing changes -- a dark launch never reaches anyone else.</item>
 /// <item>With the flag on on both sides, an unreviewed connection can still message: send files, read
-/// receipts, disconnect, verify.</item>
-/// <item>With the flag on on both sides, an unreviewed connection cannot see content marked <c>connected</c>,
-/// and cannot introduce.</item>
+/// receipts, disconnect, verify, and introduce.</item>
+/// <item>With the flag on on both sides, an unreviewed connection cannot see content marked <c>connected</c>.</item>
 /// </list>
 /// A connection is admitted at Connected with <see cref="CallerContext.IsReviewed"/> set from the review stamp
-/// and <see cref="CallerContext.CallerUsesReviewedTier"/> set from the caller's header; content evaluation and the
-/// introduction check apply <see cref="ReviewedSecurityTier.EffectiveLevel"/>.
+/// and <see cref="CallerContext.CallerUsesReviewedTier"/> set from the caller's header; content evaluation applies
+/// <see cref="ReviewedSecurityTier.EffectiveLevel"/>.  Introductions are decided by
+/// <see cref="TenantConfigFlagNames.DisableAllowIntroductions"/> instead, whatever the tier.
 /// <para>
 /// Not covered here: peer file updates, the peer app-notification token, and the verification-hash sync push.
 /// </para>
@@ -375,7 +375,7 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
     }
 
     [Test]
-    public async Task BothFlagsOn_UnreviewedConnection_CannotIntroduce()
+    public async Task BothFlagsOn_UnreviewedConnection_CanStillIntroduce()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -387,10 +387,10 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
             await ClearReviewOnAsync(sam, frodo.Identity);
 
             var status = await PreflightIntroductionToAsync(frodo, sam);
-            Assert.That(status.AllowsIntroductions, Is.False, "an unreviewed connection must not be able to introduce");
-            Assert.That(status.Status, Is.Not.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
-            Assert.That(status.IsCallerConnected, Is.True,
-                "refusing the introduction must not report the connection itself as broken");
+            Assert.That(status.AllowsIntroductions, Is.True,
+                "introductions are decided by DisableAllowIntroductions, not by the reviewed tier");
+            Assert.That(status.Status, Is.EqualTo(IntroductionPreflightStatus.Ready), $"detail={status.Detail}");
+            Assert.That(status.IsCallerConnected, Is.True);
         }
         finally
         {

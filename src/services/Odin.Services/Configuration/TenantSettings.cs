@@ -69,7 +69,7 @@ public class TenantSettings
     /// <summary>
     /// When true, nobody may introduce the owner to anyone: every incoming introduction is refused, and the
     /// introduction preflight reports it as not permitted.  When false (the default) any connection may
-    /// introduce, subject to the reviewed security tier.  Replaces the
+    /// introduce, reviewed or not.  Replaces the
     /// <see cref="PermissionKeys.AllowIntroductions"/> circle permission as the check that decides it.
     /// </summary>
     public bool DisableAllowIntroductions { get; set; }

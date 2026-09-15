@@ -274,9 +274,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // The whole point of the extra fields: log why we are about to say no, so the reason
             // distribution is visible in production rather than collapsing into one message.
             //
-            // disableAllowIntroductions is this identity's own setting, not the caller's, and short of the
-            // reviewed security tier it is the only thing that refuses a connected caller. Reading it here
-            // beats inferring it from the reason.
+            // disableAllowIntroductions is this identity's own setting, not the caller's, and it is the only
+            // thing that refuses a connected caller. Reading it here beats inferring it from the reason.
             _logger.LogInformation(
                 "Preflight incoming: not permitting introductions from {caller}. reason={reason} " +
                 "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} isCallerConnected={isCallerConnected} " +
@@ -284,8 +283,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 "disableAllowIntroductions={disableAllowIntroductions} " +
                 "connectionState={connectionState}",
                 caller,
-                DescribeIncomingRefusal(isConfigured, requiresUpgrade, isCallerConnected,
-                    _tenantContext.Settings.DisableAllowIntroductions, connectionState),
+                DescribeIncomingRefusal(isConfigured, requiresUpgrade, isCallerConnected, connectionState),
                 isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed, isCallerAutoConnected,
                 _tenantContext.Settings.DisableAllowIntroductions,
                 connectionState);
@@ -316,13 +314,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </summary>
     private bool CallerMayIntroduce(IOdinContext odinContext)
     {
-        // With the reviewed security tier on, only a reviewed connection may introduce.  With it off every
-        // connection evaluates as Connected, and a caller that is not a connection is refused here either way.
-        if (ReviewedSecurityTier.EffectiveLevel(_tenantContext.Settings, odinContext.Caller) != SecurityGroupType.Connected)
-        {
-            return false;
-        }
-
         return odinContext.Caller.IsConnected && !_tenantContext.Settings.DisableAllowIntroductions;
     }
 
@@ -340,7 +331,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// introduction. Mirrors the classification the caller will apply to the same fields.
     /// </summary>
     private static string DescribeIncomingRefusal(bool isConfigured, bool requiresUpgrade, bool isCallerConnected,
-        bool disableAllowIntroductions, PeerCallerConnectionState connectionState)
+        PeerCallerConnectionState connectionState)
     {
         if (!isConfigured)
         {
@@ -362,14 +353,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return "caller-not-recognized";
         }
 
-        if (disableAllowIntroductions)
-        {
-            return "introductions-disabled";
-        }
-
-        // A connected caller on an identity that allows introductions is refused only by the reviewed
-        // security tier.
-        return "connection-not-reviewed";
+        // A connected caller is refused only when this identity has turned introductions off.
+        return "introductions-disabled";
     }
 
     /// <summary>
@@ -615,9 +600,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     ///
     /// <para>
     /// A recipient refuses a connected caller only when its owner has turned introductions off
-    /// (<see cref="TenantSettings.DisableAllowIntroductions"/>) or, with the reviewed security tier on, has not
-    /// reviewed the caller.  Both are the recipient's decision, so both report as
-    /// <see cref="IntroductionPreflightStatus.IntroductionsNotPermitted"/>.  Which system circle the caller is in
+    /// (<see cref="TenantSettings.DisableAllowIntroductions"/>).  That is the recipient's decision, so it reports
+    /// as <see cref="IntroductionPreflightStatus.IntroductionsNotPermitted"/>.  Which system circle the caller is in
     /// no longer decides the answer, so <see cref="IntroductionPreflightStatus.RecipientConnectionNotConfirmed"/>
     /// is not produced here.
     /// </para>
