@@ -17,14 +17,11 @@ public class TransitAuthenticationService :
 {
     private readonly OdinContextCache _cache;
     private readonly CircleNetworkService _circleNetworkService;
-    private readonly TenantContext _tenantContext;
 
-    public TransitAuthenticationService(OdinContextCache cache, CircleNetworkService circleNetworkService,
-        TenantContext tenantContext)
+    public TransitAuthenticationService(OdinContextCache cache, CircleNetworkService circleNetworkService)
     {
         _cache = cache;
         _circleNetworkService = circleNetworkService;
-        _tenantContext = tenantContext;
     }
 
     /// <summary>
@@ -54,14 +51,11 @@ public class TransitAuthenticationService :
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
         ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var (permissionContext, circleIds, icr) =
-            await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
-
-        // The peer's own record decides their tier; the setting decides whether that matters at all.
+        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
-            securityLevel: ReviewedSecurityTier.For(_tenantContext.Settings, icr),
+            securityLevel: SecurityGroupType.Connected,
             circleIds: circleIds);
 
         return (cc, permissionContext);

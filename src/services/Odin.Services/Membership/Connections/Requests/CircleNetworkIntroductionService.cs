@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -1157,9 +1157,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             PermissionKeys.ReadCircleMembership,
             PermissionKeys.ManageFeed);
 
-        // markReviewed: false -- nobody reviewed an introduction; it stays New until the owner does.
-        await _circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, markReviewed: false,
-            newContext);
+        await _circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, newContext);
     }
 
     private async Task SaveAndEnqueueToConnect(IdentityIntroduction iid, Guid driveId)
