@@ -24,12 +24,12 @@ Replaces the one hardcoded bundle every new connection gets with one small circl
 Everything else waits on this.
 
 - Add the per-app owner-console toggle to tenant settings, seeded at app install. Does not exist.
-- Call `CircleDefinitionService.GetCirclesByGrantOnAsync(Connect)` from the auto-connect path,
-  filter by that toggle, enrol. **The method is written and indexed and has zero callers** — the
-  declarations are live data with no consumer. `BuiltinCircles.ChatCircle` already says
-  `GrantOn = Connect` and nothing reads it.
-- Then re-read `ClearReviewAsync`: its ambient carve-out is theoretical today because nothing
-  grants ambiently. It starts mattering the moment this lands.
+- ~~Call `CircleDefinitionService.GetCirclesByGrantOnAsync(Connect)` from the auto-connect path and
+  enrol.~~ Done: `CircleNetworkRequestService.WithConnectCirclesAsync` adds every enabled Connect
+  circle on both halves (accept and send) for Introduction and IdentityOwnerApp origins, pinned by
+  `GrantOnConnectEnrollmentTests`. **Still unfiltered** — wire in the toggle above once it exists.
+- Re-read `ClearReviewAsync`: its ambient carve-out (Connect circles do not block a clear) is now live,
+  since auto-connections hold the Chat circle.
 
 Already done and needs nothing: the circle declarations (`BuiltinCircles`), their provisioning
 (`BuiltinProvisioner.EnsureCirclesAsync`), and the deposit-only invariant

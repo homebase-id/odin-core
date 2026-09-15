@@ -31,6 +31,7 @@ using Odin.Services.Drives;
 using Odin.Services.Optimization.Cdn;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -64,7 +65,8 @@ namespace Odin.Services.Membership.Connections.Requests
         ContactEnrichmentService contactEnrichmentService,
         StaticFileContentService staticFileContentService,
         VersionUpgradeScheduler versionUpgradeScheduler,
-        PeerOutbox peerOutbox)
+        PeerOutbox peerOutbox,
+        CircleDefinitionService circleDefinitionService)
         : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {
         private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
@@ -832,7 +834,7 @@ namespace Odin.Services.Membership.Connections.Requests
             // No master key (accepting without the owner online) deliberately mints keyless
             // grants; the deferred master-key upgrade re-mints them with real storage keys.
             var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
-            var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
+            var circles = await WithConnectCirclesAsync(header.CircleIds, incomingRequest.ConnectionRequestOrigin);
             accessGrant ??= new PeerKeyStore()
             {
                 MasterKeyEncryptedPeerKey = odinContext.Caller.HasMasterKey
@@ -1662,6 +1664,9 @@ namespace Odin.Services.Membership.Connections.Requests
                 keyStoreKey,
                 ClientTokenType.IdentityConnectionRegistration);
 
+            // The sender's half: this key store is what the sender holds once the connection completes.
+            circles = await WithConnectCirclesAsync(circles, origin);
+
             // We allow the master key to be null in the case of connection requests coming due to
             // an introduction; the keyless grants are re-minted by the deferred master-key upgrade.
             var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
@@ -1681,6 +1686,46 @@ namespace Odin.Services.Membership.Connections.Requests
             };
 
             return (clientAccessToken, grant);
+        }
+
+        /// <summary>
+        /// The circles a new connection is granted: the ones named by the caller, plus every
+        /// <see cref="CircleGrantOn.Connect"/> circle when the connection is an ambient one.
+        /// </summary>
+        /// <remarks>
+        /// Ambient means the origins that <see cref="CircleNetworkUtils.EnsureSystemCircles"/> routes to the
+        /// Auto Connections circle -- introductions and app-initiated requests -- which is exactly the
+        /// population a Connect circle is declared for (docs/connection-defaults.md, "On auto-connect").
+        /// An owner-sent request is left alone: the owner names its circles, and the review is where a
+        /// Connect circle is offered to them.
+        /// <para>
+        /// Safe without the owner present because of what a Connect circle may contain, not because of who
+        /// is calling: <see cref="CircleDefinitionService.AssertDepositOnlyIfAmbientAsync"/> holds it to
+        /// write/react grants when the definition is written, so nothing minted here can read.
+        /// </para>
+        /// <para>
+        /// Not yet filtered by a per-app owner toggle; that setting does not exist
+        /// (docs/connection-review-todo.md).  Returns a new list so the caller's is never mutated.
+        /// </para>
+        /// </remarks>
+        private async Task<List<GuidId>> WithConnectCirclesAsync(IEnumerable<GuidId> circleIds, ConnectionRequestOrigin origin)
+        {
+            var circles = circleIds?.ToList() ?? new List<GuidId>();
+
+            if (origin is not (ConnectionRequestOrigin.Introduction or ConnectionRequestOrigin.IdentityOwnerApp))
+            {
+                return circles;
+            }
+
+            foreach (var circle in await circleDefinitionService.GetCirclesByGrantOnAsync(CircleGrantOn.Connect))
+            {
+                if (!circle.Disabled)
+                {
+                    circles.EnsureItem(circle.Id);
+                }
+            }
+
+            return circles;
         }
 
         private async Task<(bool success, ConnectionRequestReceipt receipt)> TrySendRequestInternalAsync(
