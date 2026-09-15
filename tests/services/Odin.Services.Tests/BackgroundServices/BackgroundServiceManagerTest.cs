@@ -51,6 +51,7 @@ public class BackgroundServiceManagerTest
         builder.RegisterType<NoOpBackgroundService>().InstancePerDependency();
         builder.RegisterType<LoopingBackgroundService>().InstancePerDependency();
         builder.RegisterType<NotifySiblingWhenStoppingBackgroundService>().InstancePerDependency();
+        builder.RegisterType<SlowToStopBackgroundService>().InstancePerDependency();
         builder.RegisterType<LoopingBackgroundServiceWithSleepAndWakeUp>().InstancePerDependency();
         builder.RegisterType<ResetEventDemo>().InstancePerDependency();
         builder.RegisterType<BackgroundServiceWithBadSleep>().InstancePerDependency();
@@ -225,6 +226,25 @@ public class BackgroundServiceManagerTest
         await manager.StopAllAsync();
         Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)));
         Assert.That(service.DidNotify, Is.True);
+    }
+
+    [Test]
+    public async Task ItShouldReportRunningUntilEveryStopHasCompleted()
+    {
+        // Pausing a tenant relies on this: "not running" must mean no service is doing work anymore
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+        Assert.That(manager.IsRunning, Is.False, "nothing started");
+
+        var service = await manager.StartAsync<SlowToStopBackgroundService>("slow");
+        Assert.That(manager.IsRunning, Is.True, "started");
+
+        var stopping = manager.StopAllAsync();
+        await service.StopRequested.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.That(manager.IsRunning, Is.True, "still finishing its work");
+
+        service.AllowFinish.SetResult();
+        await stopping;
+        Assert.That(manager.IsRunning, Is.False, "stopped");
     }
 
     [Test]
@@ -626,6 +646,27 @@ public class NotifySiblingWhenStoppingBackgroundService(ILogger logger, IBackgro
 
         await manager.NotifyWorkAvailableAsync("already-stopped-sibling");
         DidNotify = true;
+    }
+}
+
+public class SlowToStopBackgroundService(ILogger logger) : BaseBackgroundService(logger)
+{
+    public TaskCompletionSource StopRequested { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource AllowFinish { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // stopping: finish the "in-flight work" only when the test says so
+        }
+
+        StopRequested.SetResult();
+        await AllowFinish.Task;
     }
 }
 
