@@ -53,12 +53,30 @@ public static class ReviewedSecurityTier
     /// </remarks>
     public static SecurityGroupType EffectiveLevel(TenantSettings? settings, CallerContext caller)
     {
-        if (caller.SecurityLevel != SecurityGroupType.Connected || caller.IsReviewed)
+        // Only connections are ever demoted
+        if (caller.SecurityLevel != SecurityGroupType.Connected)
         {
             return caller.SecurityLevel;
         }
 
-        var bothUseTheTier = (settings?.UseReviewedSecurityTier ?? false) && caller.CallerUsesReviewedTier;
-        return bothUseTheTier ? SecurityGroupType.Authenticated : SecurityGroupType.Connected;
+        // A reviewed connection keeps its tier
+        if (caller.IsReviewed)
+        {
+            return SecurityGroupType.Connected;
+        }
+
+        // This identity has the tier off
+        if (!(settings?.UseReviewedSecurityTier ?? false))
+        {
+            return SecurityGroupType.Connected;
+        }
+
+        // The caller did not announce it has the tier on
+        if (!caller.CallerUsesReviewedTier)
+        {
+            return SecurityGroupType.Connected;
+        }
+
+        return SecurityGroupType.Authenticated;
     }
 }
