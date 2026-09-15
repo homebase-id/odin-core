@@ -24,6 +24,7 @@ public class PushNotificationSubscription
         {
             FriendlyName = this.FriendlyName,
             AccessRegistrationId = this.AccessRegistrationId,
+            Endpoint = this.Endpoint,
             SubscriptionStartedDate = this.SubscriptionStartedDate,
             ExpirationTime = this.ExpirationTime,
             FirebaseDeviceToken = this.FirebaseDeviceToken,
@@ -37,6 +38,12 @@ public class RedactedPushNotificationSubscription
     public Guid AccessRegistrationId { get; set; }
 
     public string FriendlyName { get; set; }
+
+    // A web (VAPID) subscription has no FirebaseDeviceToken, so without this the caller cannot tell a
+    // healthy subscription from none at all, nor notice that the browser rotated its push endpoint.
+    // Auth/P256DH stay hidden: they are the payload encryption secrets; the endpoint alone is not
+    // sendable without a VAPID signature from the identity's private key.
+    public string Endpoint { get; set; }
 
     public UnixTimeUtc ExpirationTime { get; set; }
     public UnixTimeUtc SubscriptionStartedDate { get; set; }
