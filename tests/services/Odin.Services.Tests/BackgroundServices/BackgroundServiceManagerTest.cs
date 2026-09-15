@@ -50,6 +50,8 @@ public class BackgroundServiceManagerTest
         builder.RegisterType<ThrowingBackgroundService>().InstancePerDependency();
         builder.RegisterType<NoOpBackgroundService>().InstancePerDependency();
         builder.RegisterType<LoopingBackgroundService>().InstancePerDependency();
+        builder.RegisterType<NotifySiblingWhenStoppingBackgroundService>().InstancePerDependency();
+        builder.RegisterType<SlowToStopBackgroundService>().InstancePerDependency();
         builder.RegisterType<LoopingBackgroundServiceWithSleepAndWakeUp>().InstancePerDependency();
         builder.RegisterType<ResetEventDemo>().InstancePerDependency();
         builder.RegisterType<BackgroundServiceWithBadSleep>().InstancePerDependency();
@@ -153,6 +155,110 @@ public class BackgroundServiceManagerTest
         ClassicAssert.True(service.DidDispose);
 
         AssertLogEvents();
+    }
+
+    [Test]
+    public async Task ItShouldRestartServicesAfterStopAll()
+    {
+        // Pausing a tenant relies on this: StopAllAsync must leave the manager usable
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+
+        var first = await manager.StartAsync<LoopingBackgroundService>("service-a");
+        await manager.StartAsync<LoopingBackgroundService>("service-b");
+
+        await manager.StopAllAsync();
+        ClassicAssert.True(first.DidShutdown);
+        ClassicAssert.True(first.DidDispose);
+
+        var second = await manager.StartAsync<LoopingBackgroundService>("service-a");
+        await manager.StartAsync<LoopingBackgroundService>("service-b");
+        await Task.Delay(1);
+        Assert.That(second, Is.Not.SameAs(first));
+        ClassicAssert.True(second.DidInitialize);
+        ClassicAssert.False(second.DidShutdown);
+
+        await manager.StopAllAsync();
+        ClassicAssert.True(second.DidShutdown);
+
+        AssertLogEvents();
+    }
+
+    [Test]
+    public async Task ItShouldNotWaitToNotifyAServiceStoppedByStopAll()
+    {
+        // A paused tenant's services are gone on purpose; notifying one must neither block nor throw
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+        await manager.StartAsync<LoopingBackgroundService>("service-a");
+        await manager.StopAllAsync();
+
+        var sw = Stopwatch.StartNew();
+        await manager.NotifyWorkAvailableAsync("service-a");
+        Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+
+        // Starting again restores the wait-for-startup behaviour
+        await manager.StartAsync<LoopingBackgroundService>("service-a");
+        await manager.NotifyWorkAvailableAsync("service-a");
+        await manager.StopAllAsync();
+    }
+
+    [Test]
+    public async Task ItShouldNotWaitToNotifyWhenStopAllRanBeforeAnythingStarted()
+    {
+        // A node that loads an already paused tenant never starts its services, only marks them stopped
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+        await manager.StopAllAsync();
+
+        var sw = Stopwatch.StartNew();
+        await manager.NotifyWorkAvailableAsync("never-started");
+        Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+    }
+
+    [Test]
+    public async Task ItShouldNotStallStopAllWhenAStoppingServiceNotifiesAStoppedSibling()
+    {
+        // A service finishing in-flight work while being stopped may notify a sibling already removed;
+        // that must not wait for the sibling to come back
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+        var service = await manager.StartAsync<NotifySiblingWhenStoppingBackgroundService>("notifier");
+        await Task.Delay(50);
+
+        var sw = Stopwatch.StartNew();
+        await manager.StopAllAsync();
+        Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)));
+        Assert.That(service.DidNotify, Is.True);
+    }
+
+    [Test]
+    public async Task ItShouldReportRunningUntilEveryStopHasCompleted()
+    {
+        // Pausing a tenant relies on this: "not running" must mean no service is doing work anymore
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+        Assert.That(manager.IsRunning, Is.False, "nothing started");
+
+        var service = await manager.StartAsync<SlowToStopBackgroundService>("slow");
+        Assert.That(manager.IsRunning, Is.True, "started");
+
+        var stopping = manager.StopAllAsync();
+        await service.StopRequested.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.That(manager.IsRunning, Is.True, "still finishing its work");
+
+        service.AllowFinish.SetResult();
+        await stopping;
+        Assert.That(manager.IsRunning, Is.False, "stopped");
+    }
+
+    [Test]
+    public async Task ItShouldRefuseToStartServicesAfterShutdown()
+    {
+        // Why pausing a tenant must not use ShutdownAsync: it cannot be undone
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+        await manager.StartAsync<LoopingBackgroundService>("service-a");
+
+        await manager.ShutdownAsync();
+
+        var exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await manager.StartAsync<LoopingBackgroundService>("service-a"));
+        ClassicAssert.AreEqual("The background service manager is stopping.", exception?.Message);
     }
 
      [Test]
@@ -519,6 +625,48 @@ public class LoopingBackgroundService(ILogger logger) : BaseBackgroundService(lo
         {
             DidFinish = true;
         }
+    }
+}
+
+public class NotifySiblingWhenStoppingBackgroundService(ILogger logger, IBackgroundServiceManager manager)
+    : BaseBackgroundService(logger)
+{
+    public bool DidNotify { get; private set; }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // stopping
+        }
+
+        await manager.NotifyWorkAvailableAsync("already-stopped-sibling");
+        DidNotify = true;
+    }
+}
+
+public class SlowToStopBackgroundService(ILogger logger) : BaseBackgroundService(logger)
+{
+    public TaskCompletionSource StopRequested { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource AllowFinish { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // stopping: finish the "in-flight work" only when the test says so
+        }
+
+        StopRequested.SetResult();
+        await AllowFinish.Task;
     }
 }
 

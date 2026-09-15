@@ -28,6 +28,8 @@ public sealed class TestOwnerWebSocketListener
 
     private OwnerAuthTokenContext _authTokenContext;
 
+    public WebSocketState State => _clientWebSocket.State;
+
     private async Task OnNotificationReceived(TestClientNotification message)
     {
         if (this.NotificationReceived != null)
