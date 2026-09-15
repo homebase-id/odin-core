@@ -6,12 +6,14 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -178,6 +180,77 @@ public class CircleBackfillMigrationTests : V2Fixture
 
         Assert.That(await HoldsAsync(frodo, tom.Identity, BuiltinCircles.RecoveryCircle.Id), Is.False,
             "a reviewed contact who holds no shard gets no shard-drive grant");
+    }
+
+    [Test]
+    public async Task ShardHoldersLandInRecovery_WhenTheStoredCircleStillSaysNone()
+    {
+        // Existing identities store Recovery's GrantOn as None -- it was None in the tree when v13->v14
+        // last wrote these columns.  The migration has to correct the stored circle before the Recovery
+        // pass runs, or every holder is refused.
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var merry = await LoginAsOwner(Identities.Merry);
+        var pippin = await LoginAsOwner(Identities.Pippin);
+
+        foreach (var peer in new[] { sam, merry, pippin })
+        {
+            await ConnectAsync(frodo, peer);
+        }
+
+        var players = new[] { sam, merry, pippin }.Select(p => p.Identity).ToList();
+        await ConfigureShardsAsync(frodo, players);
+
+        var (scope, ctx) = await MigrationContextAsync(frodo);
+        var db = scope.Resolve<IdentityDatabase>();
+        var record = await db.CircleCached.GetAsync(BuiltinCircles.RecoveryCircle.Id);
+        Assert.That(record, Is.Not.Null, "precondition: the Recovery circle is provisioned");
+        record!.GrantOn = (int)CircleGrantOn.None;
+        await db.CircleCached.UpsertAsync(record);
+
+        var migration = scope.Resolve<V17ToV18VersionMigrationService>();
+        await migration.UpgradeAsync(ctx, CancellationToken.None);
+
+        var circle = await scope.Resolve<CircleDefinitionService>().GetCircleAsync(BuiltinCircles.RecoveryCircle.Id);
+        Assert.That(circle!.GrantOn, Is.EqualTo(CircleGrantOn.Review), "the stored circle should now match the tree");
+
+        foreach (var player in players)
+        {
+            Assert.That(await HoldsAsync(frodo, player, BuiltinCircles.RecoveryCircle.Id), Is.True,
+                $"{player} holds a shard and should be in the Recovery circle");
+        }
+
+        await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
+    }
+
+    [Test]
+    public async Task AConnectionThatCannotBeEnrolled_IsSkipped_AndValidationDoesNotFailTheUpgrade()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var merry = await LoginAsOwner(Identities.Merry);
+        await ConnectAsync(frodo, sam);
+        await ConnectAsync(frodo, merry);
+
+        var (scope, ctx) = await MigrationContextAsync(frodo);
+        var storage = scope.Resolve<CircleNetworkStorage>();
+
+        // Make merry's Peer Key unreachable, so any grant for merry throws during enrolment.
+        var broken = await storage.GetAsync(merry.Identity);
+        broken!.PeerKeyStore.MasterKeyEncryptedPeerKey = null!;
+        broken.TempWeakKeyStoreKey = null;
+        await storage.UpsertAsync(broken, ctx);
+
+        var migration = scope.Resolve<V17ToV18VersionMigrationService>();
+        await migration.UpgradeAsync(ctx, CancellationToken.None);
+
+        Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None),
+            "one connection left out must be reported, not fail the upgrade");
+
+        Assert.That(await HoldsAsync(frodo, sam.Identity, BuiltinCircles.ChatCircle.Id), Is.True,
+            "the healthy connection still lands in Chat");
+        Assert.That(await HoldsAsync(frodo, merry.Identity, BuiltinCircles.ChatCircle.Id), Is.False,
+            "the broken connection is skipped");
     }
 
     // ---------------------------------------------------------------------------------------------
