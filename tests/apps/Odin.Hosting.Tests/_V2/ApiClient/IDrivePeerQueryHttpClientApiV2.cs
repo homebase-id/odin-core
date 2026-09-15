@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.Apps;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Query;
 using Refit;
 
@@ -53,6 +55,29 @@ public interface IDrivePeerQueryHttpClientApiV2
         [AliasAs("payloadKey")] string payloadKey,
         [AliasAs("width")] int width,
         [AliasAs("height")] int height);
+
+    // --- Reaction reads on a peer's file (keyed by GlobalTransitId) ---
+
+    [Get(UnifiedApiRouteConstants.PeerReactionsByGtid)]
+    Task<ApiResponse<GetReactionsResponse>> GetPeerReactions(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("gtid:guid")] Guid gtid,
+        [Query] string cursor = null,
+        [Query] int maxRecords = 100);
+
+    [Get(UnifiedApiRouteConstants.PeerReactionsByGtid + "/summary")]
+    Task<ApiResponse<GetReactionCountsResponse>> GetPeerReactionSummary(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("gtid:guid")] Guid gtid);
+
+    [Get(UnifiedApiRouteConstants.PeerReactionsByGtid + "/by-identity")]
+    Task<ApiResponse<List<string>>> GetPeerReactionsByIdentity(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("gtid:guid")] Guid gtid,
+        [Query] string identity);
 
     [Post(UnifiedApiRouteConstants.PeerByDriveId + "/query-batch")]
     Task<ApiResponse<QueryBatchResponse>> QueryBatch(

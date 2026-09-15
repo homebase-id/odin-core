@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -7,6 +8,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Services.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Query;
 using Refit;
 
@@ -94,6 +96,32 @@ public class DrivePeerReaderV2Client(OdinId identity, IApiClientFactory factory)
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
         return await svc.GetThumbnailByGtid(peer.DomainName, driveId, gtid, payloadKey, width, height);
+    }
+
+    // --- Reaction reads on a peer's file (keyed by GlobalTransitId) ---
+
+    public async Task<ApiResponse<GetReactionsResponse>> GetReactionsByGtidAsync(OdinId peer, Guid driveId, Guid gtid,
+        string cursor = null, int maxRecords = 100, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPeerReactions(peer.DomainName, driveId, gtid, cursor, maxRecords);
+    }
+
+    public async Task<ApiResponse<GetReactionCountsResponse>> GetReactionSummaryByGtidAsync(OdinId peer, Guid driveId, Guid gtid,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPeerReactionSummary(peer.DomainName, driveId, gtid);
+    }
+
+    public async Task<ApiResponse<List<string>>> GetReactionsByIdentityAndGtidAsync(OdinId peer, Guid driveId, Guid gtid,
+        OdinId reactingIdentity, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPeerReactionsByIdentity(peer.DomainName, driveId, gtid, reactingIdentity.DomainName);
     }
 
     // --- Temporal (time-boxed) read API ---
