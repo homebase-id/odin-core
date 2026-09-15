@@ -38,6 +38,9 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     private readonly AsyncReaderWriterLock _lock = new();
     private readonly Dictionary<string, ScopedAbstractBackgroundService> _backgroundServices = new();
     private readonly string _correlationId = Guid.NewGuid().ToString();
+    // Set by StopAllAsync, cleared by the next start: every service was stopped on purpose (e.g. a paused
+    // tenant), so a missing service is expected rather than not started yet.
+    private volatile bool _allStopped;
     private readonly ILogger<BackgroundServiceManager> _logger = lifetimeScope.Resolve<ILogger<BackgroundServiceManager>>();
     private bool _disposed;
 
@@ -104,6 +107,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             var correlationContext = scopedService.Scope.Resolve<ICorrelationContext>();
             correlationContext.Id = newCorrelationId;
 
+            _allStopped = false;
             await scopedService.BackgroundService.InternalStartAsync(_stoppingCts.Token);
         }
     }
@@ -151,6 +155,8 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     public async Task StopAllAsync()
     {
+        // Before stopping: a service finishing its work may notify a sibling that is already gone
+        _allStopped = true;
         List<string> identifiers;
         using (await _lock.ReaderLockAsync())
         {
@@ -185,6 +191,12 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             var attempt = 0;
             while (backgroundService == null && attempt < attempts)
             {
+                if (_allStopped)
+                {
+                    // Nothing to wake: the services were stopped on purpose and will catch up when started again
+                    return;
+                }
+
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);

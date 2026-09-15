@@ -62,9 +62,24 @@ namespace Odin.Services.Registry
         public string PlanId { get; set; }
         
         /// <summary>
-        /// Whether the identity is disabled (i.e. paused) or not
+        /// Operational state of the identity, shared by every node
         /// </summary>
-        public bool Disabled { get; set; }
+        public TenantStatus Status { get; set; } = TenantStatus.Active;
+
+        /// <summary>
+        /// Why the identity is disabled; only set when <see cref="Status"/> is <see cref="TenantStatus.Disabled"/>
+        /// </summary>
+        public DisabledReason? DisabledReason { get; set; }
+
+        /// <summary>
+        /// When <see cref="Status"/> last changed, if known
+        /// </summary>
+        public UnixTimeUtc? StatusChangedAt { get; set; }
+
+        /// <summary>
+        /// Whether the identity is disabled
+        /// </summary>
+        public bool Disabled => Status == TenantStatus.Disabled;
 
         /// <summary>
         /// Whether the identity is allowed a public home page (link previews, SEO/SSR content, etc.)

@@ -22,6 +22,7 @@ using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.JobManagement;
+using Odin.Services.Registry;
 
 namespace Odin.Hosting.Tests.AdminApi;
 
@@ -443,6 +444,13 @@ public class AdminControllerTest
 
         Assert.That(jobResponse.JobId, Is.Not.Null);
         Assert.That(exportData?.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud")));
+
+        // The copy pauses the tenant and must hand it back as it found it
+        var registry = (FileSystemIdentityRegistry)_scaffold.Services.GetRequiredService<IIdentityRegistry>();
+        var frodo = await registry.GetAsync("frodo.dotyou.cloud");
+        Assert.That(frodo.Status, Is.EqualTo(TenantStatus.Active));
+        Assert.That(frodo.StatusChangedAt, Is.Not.Null, "it was paused during the copy");
+        Assert.That(registry.AreBackgroundServicesRunning(frodo.Id), Is.True);
 
         var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
 

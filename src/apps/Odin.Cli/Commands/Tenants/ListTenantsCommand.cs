@@ -66,6 +66,7 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         grid.AddColumn(); // Domain
         grid.AddColumn(); // Id
         grid.AddColumn(); // Enabled
+        grid.AddColumn(); // Status
         grid.AddColumn(); // Registration Size
         grid.AddColumn(); // Payload Size
 
@@ -75,6 +76,7 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
                 new Text("Domain", new Style(Color.Blue)).LeftJustified(),
                 new Text("Id", new Style(Color.Blue)).LeftJustified(),
                 new Text("Enabled", new Style(Color.Blue)).LeftJustified(),
+                new Text("Status", new Style(Color.Blue)).LeftJustified(),
                 new Text("Reg. Size", new Style(Color.Blue)).RightJustified(),
                 new Text("Payload Size", new Style(Color.Blue)).RightJustified());
         }
@@ -86,6 +88,7 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
                 new Text(tenant.Domain).LeftJustified(),
                 new Text(tenant.Id).LeftJustified(),
                 new Text(tenant.Enabled ? "yes" : "no").RightJustified(),
+                new Text(Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
                 new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
                 new Text(payLoadSize).RightJustified());
         }
