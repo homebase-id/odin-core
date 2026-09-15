@@ -541,7 +541,7 @@ public class TenantStatusTests
 
     private static long UnixTimeUtcNow() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - 1;
 
-    private static async Task<HttpResponseMessage> SendAdminAsync(HttpMethod method, string path, HttpContent? content = null)
+    private static async Task<HttpResponseMessage> SendAdminAsync(HttpMethod method, string path, HttpContent content = null)
     {
         var client = WebScaffold.HttpClientFactory.CreateClient(AdminHost);
         var request = new HttpRequestMessage(method, $"https://{AdminHost}/api/admin/v1/{path}")
@@ -597,7 +597,7 @@ public class TenantStatusTests
 
     // Changes the row and bumps the registry version the way another node would, then announces it
     // with a foreign node id, so this node reconciles from the database instead of its own write path
-    private async Task WriteRowAsOtherNodeAsync(TestIdentity identity, bool disabled, string? json)
+    private async Task WriteRowAsOtherNodeAsync(TestIdentity identity, bool disabled, string json)
     {
         var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
         long version;
