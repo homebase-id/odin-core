@@ -129,3 +129,59 @@ tasks, which a loaded CI runner can exceed. Verified by reading the test
 (`tests/core/Odin.Core.Tests/Threading/KeyedAsyncLockTest.cs:316`); no fix attempted here — the
 budget would need widening, or the assertion rewritten to measure concurrency rather than
 wall-clock.
+
+---
+
+## `Odin.Hosting.Tests.Kestrel.ProxyProtocolListenerTests`
+
+- `ConnectionThatSendsGarbage_IsStillLoggedAtWarning`
+
+**Where:** CI, seen twice on the same commit (`1d79176e4`, PR #1733, 2026-09-13):
+`windows/sqlite/debug` of run 34766411275 and `ubuntu/sqlite/release` of run 34766545441. The
+same test passed on the other four jobs of that commit (runs 34766413714, 34766416193,
+34766545403, 34766545391) — each OS/db combination both passed and failed at least once.
+
+**Symptom:** `a peer that speaks the wrong protocol must still warn` —
+`Assert.That(events, Is.Not.Empty)` after the test's 10 s wait; no Warning-level PROXY event was
+captured for the connection that sent `GET / HTTP/1.1` instead of a PROXY header.
+
+**Not caused by the change in flight:** the branch only touches
+`HomebaseChannelContentService` and a new `PublicPage` test, nothing under Kestrel or the PROXY
+listener; all three CI workflows passed on `main` at the branch's base (`6df4c4301`). Not
+reproduced on a clean tree locally (port 8443 was occupied at the time).
+
+Failed a third time on `21bc5fa85` (`ubuntu/sqlite/release`, run 34768975917, 2026-09-13).
+
+**Status:** marked `[Explicit]` (2026-09-13) so it no longer runs in CI; tracked in #1734.
+Remove the attribute and this entry once that is fixed.
+
+**Cause (suspected, not reproduced):** the test disposes the socket right after writing, and
+`ProxyProtocolConnectionMiddleware` links `ConnectionClosed` into the read token. If the close is
+observed before the first read returns the buffered bytes, the read is cancelled with
+`bytesReceived == 0` and logged at Verbose instead of Warning. Details and candidate fixes in
+#1734. The test was added by `9d1315b7e` (PR #1732).
+
+---
+
+## `Odin.Hosting.Tests.AppAPI.Transit.TransferFileTests`
+
+- `TransientFileIsDeletedAfterSending`
+
+**Where:** CI, `windows/sqlite/debug` (run 34908631011, attempt 1, commit `125cb622f`, PR #1739,
+2026-09-14). The re-run of that job (attempt 2, same commit) passed. The same commit passed on
+`ubuntu/postgres/release` (run 34908631040) and `ubuntu/sqlite/release` (run 34908630925).
+
+**Symptom:** `Sender should no longer have the file since we used IsTransient` —
+`GetFileHeader` on the sender returned something other than `NotFound` after the outbox and
+inbox were processed for a transient transfer.
+
+**Not caused by the change in flight (evidence, not proof):** the same job passed on re-run
+with no code change, and the test does not appear in the logs of the 8 most recent failed
+`windows/sqlite/debug` runs checked on 2026-09-14. The change (reviewed security tier) only takes
+effect when a tenant enables `UseReviewedSecurityTier`, which this test does not do. Not
+reproduced on a clean tree locally: port 8443 was occupied, so `Odin.Hosting.Tests` could not
+start.
+
+**Cause:** unknown. The assertion runs immediately after the transfer, so a delayed deletion of
+the sender's transient copy on the slower Windows runner is a plausible explanation, but it has
+not been confirmed.
