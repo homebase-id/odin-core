@@ -29,7 +29,8 @@ public interface IBackgroundServiceManager
     Task NotifyWorkAvailableAsync<T>();
 
     /// <summary>
-    /// True while at least one service is registered: started and not stopped since
+    /// True while any service is registered or still stopping. Becomes false only once every
+    /// stop has completed, so no service is doing work anymore.
     /// </summary>
     bool IsRunning { get; }
 }
@@ -46,6 +47,8 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     // Set by StopAllAsync, cleared by the next start: every service was stopped on purpose (e.g. a paused
     // tenant), so a missing service is expected rather than not started yet.
     private volatile bool _allStopped;
+    // Services removed from _backgroundServices whose stop has not completed yet
+    private int _stoppingCount;
     private readonly ILogger<BackgroundServiceManager> _logger = lifetimeScope.Resolve<ILogger<BackgroundServiceManager>>();
     private bool _disposed;
 
@@ -61,7 +64,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         {
             using (_lock.ReaderLock())
             {
-                return _backgroundServices.Count > 0;
+                return _backgroundServices.Count > 0 || Volatile.Read(ref _stoppingCount) > 0;
             }
         }
     }
@@ -151,14 +154,25 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         ScopedAbstractBackgroundService? scopedAbstractBackgroundService;
         using (await _lock.WriterLockAsync())
         {
-            _backgroundServices.Remove(serviceIdentifier, out scopedAbstractBackgroundService);
+            if (_backgroundServices.Remove(serviceIdentifier, out scopedAbstractBackgroundService))
+            {
+                // Counted under the same lock, so IsRunning never sees the service as gone before its stop completes
+                Interlocked.Increment(ref _stoppingCount);
+            }
         }
         if (scopedAbstractBackgroundService != null)
         {
-            _logger.LogInformation("Stopping background service '{serviceIdentifier}'", serviceIdentifier);
-            await scopedAbstractBackgroundService.BackgroundService.InternalStopAsync(_stoppingCts.Token);
-            scopedAbstractBackgroundService.Scope.Dispose();
-            _logger.LogInformation("Stopped background service '{serviceIdentifier}'", serviceIdentifier);
+            try
+            {
+                _logger.LogInformation("Stopping background service '{serviceIdentifier}'", serviceIdentifier);
+                await scopedAbstractBackgroundService.BackgroundService.InternalStopAsync(_stoppingCts.Token);
+                scopedAbstractBackgroundService.Scope.Dispose();
+                _logger.LogInformation("Stopped background service '{serviceIdentifier}'", serviceIdentifier);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _stoppingCount);
+            }
         }
     }
 

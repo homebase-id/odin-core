@@ -41,7 +41,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
             throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
         }
         var json = await response.Content.ReadAsStringAsync();
-        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(json) ?? new TenantModel();
+        var tenant = TenantStatusApi.DeserializeTenants(json).FirstOrDefault() ?? new TenantModel();
 
         var grid = new Grid();
         grid.AddColumn(); // Domain

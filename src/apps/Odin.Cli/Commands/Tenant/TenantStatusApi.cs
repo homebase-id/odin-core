@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json.Nodes;
 using Odin.Core.Serialization;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Registry;
@@ -14,7 +15,30 @@ internal static class TenantStatusApi
         var response = await httpClient.GetAsync($"tenants/{domain}");
         await EnsureSuccessAsync(response, domain);
         var json = await response.Content.ReadAsStringAsync();
-        return OdinSystemSerializer.Deserialize<TenantModel>(json) ?? new TenantModel();
+        return DeserializeTenants(json).FirstOrDefault() ?? new TenantModel();
+    }
+
+    //
+
+    /// <summary>
+    /// Reads one tenant or a list of them. A server older than the status field sends only "enabled",
+    /// and Status would then default to Active, showing a disabled tenant as active; treat those as disabled.
+    /// </summary>
+    public static List<TenantModel> DeserializeTenants(string json)
+    {
+        var node = JsonNode.Parse(json);
+        var objects = node is JsonArray array ? array.OfType<JsonObject>().ToList() : [node as JsonObject];
+        foreach (var tenant in objects.OfType<JsonObject>())
+        {
+            if (!tenant.ContainsKey("status") && tenant["enabled"]?.GetValue<bool>() == false)
+            {
+                tenant["status"] = "disabled";
+            }
+        }
+
+        return node is JsonArray
+            ? OdinSystemSerializer.Deserialize<List<TenantModel>>(node.ToJsonString()) ?? []
+            : [OdinSystemSerializer.Deserialize<TenantModel>(node!.ToJsonString()) ?? new TenantModel()];
     }
 
     //
