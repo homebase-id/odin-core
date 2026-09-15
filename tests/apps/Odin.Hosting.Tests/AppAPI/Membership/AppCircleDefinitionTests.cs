@@ -130,11 +130,9 @@ public class AppCircleDefinitionTests
     {
         var identity = TestIdentities.Merry;
 
-        // The circles have to belong to this app for it to see them at all: an app is shown only
-        // the circles it owns (CircleMembershipService.GetCircleDefinitions), because a circle with
-        // no owning app is the owner's own and nothing an app does can involve one. The list this
-        // test is about is therefore a list of the app's circles, so they are adopted into it here
-        // rather than left unowned.
+        // The circles belong to this app so the test holds whether or not the tenant has
+        // HideOwnerCirclesFromApps on: with it on, an app is shown only app-owned circles
+        // (CircleMembershipService.GetCircleDefinitions).
         var appId = Guid.NewGuid();
         var appClient = await this.CreateAppAndClient(identity, appId, PermissionKeys.ReadCircleMembership);
 
