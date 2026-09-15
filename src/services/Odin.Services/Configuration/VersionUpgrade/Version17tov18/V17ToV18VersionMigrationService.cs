@@ -57,9 +57,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
     /// A single contact in a bad state does not stop a pass -- it is logged and the pass moves on, the way
     /// <see cref="CircleNetworkService.ProcessPendingEnrollmentsForAppAsync"/> does.  One connection whose
     /// key store cannot be read is not the rest of the address book's problem.  Validation then re-derives
-    /// all three populations from storage and logs an error naming anyone who should have landed and did
-    /// not.  It does not fail the upgrade: the passes only add, so a skipped contact keeps everything the
-    /// system circles already give them.
+    /// all three populations from storage and throws if anyone who should have landed did not, so a pass
+    /// that quietly dropped people fails the upgrade rather than reporting success.
     /// </para>
     /// </remarks>
     public class V17ToV18VersionMigrationService(
@@ -69,52 +68,16 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
         ShamirConfigurationService shamirConfigurationService)
     {
         /// <summary>
-        /// The circle refresh and all three passes, in order.  The ladder runs them as separate phases so a
-        /// failure names the step it happened in; this is the same work for a caller that wants one call.
+        /// All three passes, in order.  The ladder runs them as three separate phases so a failure names
+        /// the pass it happened in; this is the same work for a caller that wants it as one call.
         /// </summary>
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            await ApplyTreeCircleDefinitionsAsync(odinContext, cancellationToken);
             await EnrollReviewedContactsInMomentsAsync(odinContext, cancellationToken);
             await EnrollConnectedContactsInChatAsync(odinContext, cancellationToken);
             await EnrollShardHoldersInRecoveryAsync(odinContext, cancellationToken);
-        }
-
-        /// <summary>
-        /// Brings each stored built-in circle's owning app, grant rule and designation in line with the tree.
-        /// </summary>
-        /// <remarks>
-        /// Runs before the passes.  Only v13 -&gt; v14 ever wrote these columns, so existing identities still
-        /// store Recovery as <see cref="CircleGrantOn.None"/>, and the Recovery pass refuses anything that is
-        /// not <see cref="CircleGrantOn.Review"/>.  Circles that already match are left alone.
-        /// </remarks>
-        public async Task<int> ApplyTreeCircleDefinitionsAsync(IOdinContext odinContext,
-            CancellationToken cancellationToken)
-        {
-            odinContext.Caller.AssertHasMasterKey();
-
-            var changed = 0;
-            foreach (var def in BuiltinApps.AllCircles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var appId = def.AppId ?? throw new OdinSystemException(
-                    $"Circle {def.Name} is in the tree with no owning app; every circle must have one");
-
-                var updated = await circleDefinitionService.ApplyTreeDefinitionAsync(def.Id, appId, def.GrantOn,
-                    def.Designation);
-
-                if (updated)
-                {
-                    changed++;
-                    logger.LogDebug("v17->v18: circle {circle} now matches the tree", def.Name);
-                }
-            }
-
-            logger.LogInformation("v17->v18: brought {count} built-in circle(s) in line with the tree", changed);
-            return changed;
         }
 
         /// <summary>
@@ -277,9 +240,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
         /// </summary>
         /// <remarks>
         /// Re-derived from storage rather than compared against what the passes believed they wrote, so a
-        /// contact that was skipped is reported here by name.  Reported as an error, not thrown: one bad
-        /// connection must not fail the upgrade for every other contact.  A circle this identity does not
-        /// have is not checked: there is nothing it could have landed in.
+        /// contact that was logged and skipped is caught here rather than reported as a success.  A circle
+        /// this identity does not have is not checked: there is nothing it could have landed in.
         /// </remarks>
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -288,10 +250,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
 
             var connected = await GetConnectedAsync(odinContext);
 
-            await ReportMissingAsync(BuiltinCircles.MomentsCircle,
+            await AssertAllHoldAsync(BuiltinCircles.MomentsCircle,
                 connected.Where(i => i.ReviewedAt != null).ToList(), cancellationToken);
 
-            await ReportMissingAsync(BuiltinCircles.ChatCircle, connected, cancellationToken);
+            await AssertAllHoldAsync(BuiltinCircles.ChatCircle, connected, cancellationToken);
 
             // Only holders that could have been enrolled: the pass deliberately leaves an unreviewed or
             // disconnected holder out, and validation must not demand what the pass refuses to do.
@@ -300,10 +262,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
                 .Where(i => i.ReviewedAt != null && holders.Any(h => h == i.OdinId))
                 .ToList();
 
-            await ReportMissingAsync(BuiltinCircles.RecoveryCircle, eligibleHolders, cancellationToken);
+            await AssertAllHoldAsync(BuiltinCircles.RecoveryCircle, eligibleHolders, cancellationToken);
         }
 
-        private async Task ReportMissingAsync(CircleDefinition definition,
+        private async Task AssertAllHoldAsync(CircleDefinition definition,
             IReadOnlyCollection<IdentityConnectionRegistration> expected, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -316,8 +278,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
             var missing = expected.Where(i => !HoldsCircle(i, definition.Id)).Select(i => i.OdinId.DomainName).ToList();
             if (missing.Count != 0)
             {
-                logger.LogError("v17->v18 left {count} identity(s) out of the {circle} circle: {identities}",
-                    missing.Count, definition.Name, string.Join(", ", missing));
+                throw new OdinSystemException(
+                    $"v17->v18 left {missing.Count} identity(s) out of the {definition.Name} circle: " +
+                    string.Join(", ", missing));
             }
         }
 

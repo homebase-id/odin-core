@@ -47,12 +47,5 @@ public enum TenantConfigFlagNames
     /// reviewed them.  Temporary -- it is removed with the flag-free recut.
     /// See <see cref="TenantSettings.UseReviewedSecurityTier"/>.
     /// </summary>
-    UseReviewedSecurityTier,
-
-    /// <summary>
-    /// Dark-launch switch for hiding circles that belong to no app from app callers.  Off (the default)
-    /// lists every circle to an app exactly as before; on lists only app-owned circles.
-    /// See <see cref="TenantSettings.HideOwnerCirclesFromApps"/>.
-    /// </summary>
-    HideOwnerCirclesFromApps
+    UseReviewedSecurityTier
 }

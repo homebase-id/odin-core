@@ -10,7 +10,6 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -29,8 +28,7 @@ public class DriveQuery(
     TableDriveMainIndexCached tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
     IdentityDatabase db,
-    OdinIdentity odinIdentity,
-    TenantContext tenantContext
+    OdinIdentity odinIdentity
 ) : IDriveDatabaseManager
 {
     public async Task<(string, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
@@ -42,7 +40,7 @@ public class DriveQuery(
     {
         var callerContext = odinContext.Caller;
 
-        var requiredSecurityGroup = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, callerContext));
+        var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(odinContext);
 
         // TODO TODD - use moreRows
@@ -78,7 +76,7 @@ public class DriveQuery(
         FileQueryParams qp,
         QueryBatchResultOptions options)
     {
-        var securityRange = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, odinContext.Caller));
+        var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 
@@ -122,7 +120,7 @@ public class DriveQuery(
         QueryBatchResultOptions options,
         UnixTimeUtc? modifiedAfter = null)
     {
-        var securityRange = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, odinContext.Caller));
+        var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 

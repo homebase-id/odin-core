@@ -1,24 +1,22 @@
 #nullable enable
 using Odin.Core.Time;
-using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Authorization.Acl;
 
 /// <summary>
-/// Decides the security tier a connection is treated at when content is evaluated.
+/// Decides the security tier a connected caller is admitted at.
 /// </summary>
 /// <remarks>
-/// A connected caller is still admitted at <see cref="SecurityGroupType.Connected"/>, with
-/// <see cref="CallerContext.IsReviewed"/> carrying the review stamp, so everything that asks "is this a
-/// connection" keeps working.  Content evaluation -- the drive query's security range and the connected-ACL
-/// check -- asks this class instead.
+/// One place, called from all three sites that build a connected caller, so the rule cannot drift
+/// between the transit, YouAuth and home paths -- they sit in three different services and a copy of
+/// the ternary in each is exactly how they would diverge.
 /// <para>
 /// The recut it implements: a connection the owner has reviewed is <see cref="SecurityGroupType.Connected"/>,
 /// one they have not is <see cref="SecurityGroupType.Authenticated"/> -- no better placed than any
-/// logged-in stranger, which is what an unreviewed connection is. Off by default, and off means Connected,
-/// exactly as before.
+/// logged-in stranger, which is what an unreviewed connection is. Off by default, and off means the
+/// answer every one of those sites gave before this existed.
 /// </para>
 /// </remarks>
 public static class ReviewedSecurityTier
@@ -41,24 +39,4 @@ public static class ReviewedSecurityTier
     /// <summary>Convenience for callers that hold the registration rather than the timestamp.</summary>
     public static SecurityGroupType For(TenantSettings? settings, IdentityConnectionRegistration? icr)
         => For(settings, icr?.ReviewedAt);
-
-    /// <summary>
-    /// The tier to evaluate content with for this caller: their admitted tier, except that an unreviewed
-    /// connection is treated as <see cref="SecurityGroupType.Authenticated"/> when <b>both</b> identities have the
-    /// setting on -- this one, and the caller's (announced through <see cref="CallerContext.CallerUsesReviewedTier"/>).
-    /// </summary>
-    /// <remarks>
-    /// Both, not just this one, so a dark launch among a few identities never changes anything for anyone else.
-    /// A caller that cannot announce it -- a browser login, an older server -- is never demoted.
-    /// </remarks>
-    public static SecurityGroupType EffectiveLevel(TenantSettings? settings, CallerContext caller)
-    {
-        if (caller.SecurityLevel != SecurityGroupType.Connected || caller.IsReviewed)
-        {
-            return caller.SecurityLevel;
-        }
-
-        var bothUseTheTier = (settings?.UseReviewedSecurityTier ?? false) && caller.CallerUsesReviewedTier;
-        return bothUseTheTier ? SecurityGroupType.Authenticated : SecurityGroupType.Connected;
-    }
 }

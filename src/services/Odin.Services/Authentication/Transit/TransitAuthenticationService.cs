@@ -17,28 +17,25 @@ public class TransitAuthenticationService :
 {
     private readonly OdinContextCache _cache;
     private readonly CircleNetworkService _circleNetworkService;
+    private readonly TenantContext _tenantContext;
 
-    public TransitAuthenticationService(OdinContextCache cache, CircleNetworkService circleNetworkService)
+    public TransitAuthenticationService(OdinContextCache cache, CircleNetworkService circleNetworkService,
+        TenantContext tenantContext)
     {
         _cache = cache;
         _circleNetworkService = circleNetworkService;
+        _tenantContext = tenantContext;
     }
 
     /// <summary>
     /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    /// <param name="callerUsesReviewedTier">
-    /// Whether the calling identity sent <see cref="OdinHeaderNames.UsesReviewedSecurityTier"/>.  Part of the cache
-    /// key, so a caller toggling the tier is never served a context built under the other setting.
-    /// </param>
-    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token,
-        bool callerUsesReviewedTier, IOdinContext odinContext)
+    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var creator = new Func<Task<IOdinContext>>(async () =>
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) =
-                await GetPermissionContextAsync(callerOdinId, token, callerUsesReviewedTier, odinContext);
+            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, token, odinContext);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -51,25 +48,21 @@ public class TransitAuthenticationService :
             return dotYouContext;
         });
 
-        return await _cache.GetOrAddContextAsync(token, creator, keySuffix: callerUsesReviewedTier ? "reviewed-tier" : null);
+        return await _cache.GetOrAddContextAsync(token, creator);
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
-        ClientAuthenticationToken token, bool callerUsesReviewedTier, IOdinContext odinContext)
+        ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var (permissionContext, circleIds, icr) =
             await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
 
-        // Admitted as a connection; the review only matters where content is evaluated (ReviewedSecurityTier).
+        // The peer's own record decides their tier; the setting decides whether that matters at all.
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
-            securityLevel: SecurityGroupType.Connected,
-            circleIds: circleIds)
-        {
-            IsReviewed = icr.ReviewedAt != null,
-            CallerUsesReviewedTier = callerUsesReviewedTier
-        };
+            securityLevel: ReviewedSecurityTier.For(_tenantContext.Settings, icr),
+            circleIds: circleIds);
 
         return (cc, permissionContext);
     }

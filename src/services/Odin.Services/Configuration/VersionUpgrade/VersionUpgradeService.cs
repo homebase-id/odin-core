@@ -618,16 +618,6 @@ public class VersionUpgradeService(
                 //
                 // Placed here, after ensure-system-drives and well after v13->v14 ran
                 // BuiltinProvisioner.EnsureAllAsync, so the built-in circles these fill already exist.
-                //
-                // The stored circles are brought in line with the tree first: the Recovery pass refuses a
-                // circle whose stored GrantOn is not Review, and existing identities still store None.
-                await RunPhaseAsync("v17->v18 apply-tree-circle-definitions", async ct =>
-                {
-                    await using var treeTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
-                    await v18.ApplyTreeCircleDefinitionsAsync(odinContext, ct);
-                    treeTx.Commit();
-                }, cancellationToken);
-
                 await RunPhaseAsync("v17->v18 moments-reviewed-backfill", async ct =>
                 {
                     await using var momentsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);

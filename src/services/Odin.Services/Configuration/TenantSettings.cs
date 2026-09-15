@@ -25,8 +25,7 @@ public class TenantSettings
         DisableAutoAcceptIntroductionsForTests = false,
         DisableAutoAcceptConnectionRequests = false,
         SendMonthlySecurityHealthReport = false,
-        UseReviewedSecurityTier = false,
-        HideOwnerCirclesFromApps = false
+        UseReviewedSecurityTier = false
     };
 
     /// <summary/>
@@ -89,19 +88,6 @@ public class TenantSettings
     /// </para>
     /// </remarks>
     public bool UseReviewedSecurityTier { get; set; }
-
-    /// <summary>
-    /// When true, an app listing circles is shown only circles that belong to an app; circles with no
-    /// owning app (the owner's own, and the system circles) are left out.  Off by default, which is
-    /// today's behaviour -- an app sees every circle it has permission to read.
-    /// </summary>
-    /// <remarks>
-    /// A dark-launch switch.  The filter keeps what an app can offer in step with what the review path lets
-    /// it do (an app cannot enrol anyone into a circle no app owns), but it also changes every existing
-    /// app screen that lists circles, so it is enabled one tenant at a time.  The owner console is never
-    /// filtered.  Reversible by turning it off; nothing is written either way.
-    /// </remarks>
-    public bool HideOwnerCirclesFromApps { get; set; }
 
     public List<int> GetAdditionalPermissionKeysForAuthenticatedIdentities()
     {
