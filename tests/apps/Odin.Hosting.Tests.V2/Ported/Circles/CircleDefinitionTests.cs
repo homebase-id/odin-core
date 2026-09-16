@@ -42,10 +42,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// uses <c>LoginAsOwner</c> only.
 /// </para>
 /// <para>
-/// Carried over unchanged, and both are pre-existing defects rather than port damage:
-/// <see cref="CanDisableCircle"/> re-reads its *first* <c>GetCircleDefinitions</c> response after the
-/// update, so every one of its post-update assertions compares the locally-mutated object against
-/// itself and would pass even if the server ignored the update; and
+/// <see cref="CanDisableCircle"/> re-read its *first* <c>GetCircleDefinitions</c> response after the
+/// update, so every one of its post-update assertions compared the locally-mutated object against
+/// itself. It now re-reads from the server, which exposes a product gap and leaves it <c>[Ignore]</c>d
+/// -- see the reason on the test. Carried over unchanged:
 /// <see cref="FailToUpdateInvalidCircle"/> prints the create response's status in the message for the
 /// update assertion.
 /// </para>
@@ -408,11 +408,12 @@ public class CircleDefinitionTests : V2Fixture
     }
 
     [Test]
-    [Ignore("Fails now that it actually reads back from the server: CircleDefinitionService.UpdateAsync " +
-            "copies Name/Description/DriveGrants/Permissions/GrantOn/Designation/Emoji but not Disabled, " +
-            "so a circle cannot be disabled through the API. IsEnabledAsync reads that flag, so this is a " +
-            "real gap, not a test problem. The original assertion compared the locally-mutated object with " +
-            "itself and so passed regardless. Un-ignore with the one-line service fix.")]
+    [Ignore("Blocked on issue #1760: CircleDefinitionService.UpdateAsync copies " +
+            "Name/Description/DriveGrants/Permissions/GrantOn/Designation/Emoji but not Disabled, so a " +
+            "circle cannot be disabled through the API -- the dedicated disable endpoint returns 200/true " +
+            "and the flag stays false. IsEnabledAsync reads that flag, so this is a product gap, not a " +
+            "test problem. The original assertion compared the locally-mutated object with itself and so " +
+            "passed regardless. Un-ignore when #1760 lands.")]
     public async Task CanDisableCircle()
     {
         var owner = await LoginAsOwner();
