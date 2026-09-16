@@ -15,9 +15,12 @@ namespace Odin.Hosting.Tests.V2.Api;
 /// </summary>
 /// <remarks>
 /// Exists for the <c>_Universal</c> migration: fixtures whose system under test is a V1 endpoint use
-/// these, while their V2 counterparts use <see cref="DriveHandles"/>. That also makes this the
-/// authoritative list of which V1 clients the fast suite still depends on — i.e. the checklist for
-/// retiring V1.
+/// these, while their V2 counterparts use <see cref="DriveHandles"/>.
+///
+/// Not by itself the V1-retirement checklist: the suite also reaches V1 through
+/// <see cref="OwnerAdmin"/> (drive management, apps, circles, YouAuth domains) and, where a refusal
+/// is under test, through raw Refit interfaces via <see cref="OwnerSession.RefitFor{T}"/>. These
+/// handles cover the per-caller drive / reaction / static-file / notification clients only.
 /// </remarks>
 public sealed class V1Handles
 {
