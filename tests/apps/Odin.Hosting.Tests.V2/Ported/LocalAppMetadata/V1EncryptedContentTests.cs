@@ -41,21 +41,15 @@ public class V1EncryptedContentTests : V2Fixture
         yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
     }
 
-    public static IEnumerable<object[]> GuestNotAllowed()
-    {
-        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.MethodNotAllowed];
-    }
-
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
     public async Task CanUpdateLocalAppMetadataContentForEncryptedTargetFile(CallerSpec spec,
         HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "data data data";
@@ -69,7 +63,7 @@ public class V1EncryptedContentTests : V2Fixture
         var targetFile = prepareFileResponse.Content!.File;
 
         // Act - update the local app metadata
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
 
         var localContentIv = ByteArrayUtil.GetRndByteArray(16);
         var content = "some local content here";
@@ -87,8 +81,7 @@ public class V1EncryptedContentTests : V2Fixture
         Assert.That(result!.NewLocalVersionTag, Is.Not.EqualTo(Guid.Empty));
 
         // Assert - getting the file should include the metadata
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         // Get the file and see that it's updated
         var updatedFileResponse = await ownerDriveClient.GetFileHeader(targetFile);
@@ -102,13 +95,12 @@ public class V1EncryptedContentTests : V2Fixture
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
     public async Task FailsWithBadRequestWhenMissingIvOnEncryptedTargetFile(CallerSpec spec,
         HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "data data data";
@@ -122,7 +114,7 @@ public class V1EncryptedContentTests : V2Fixture
         var targetFile = prepareFileResponse.Content!.File;
 
         // Act - update the local app metadata
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
 
         var localContentIv = ByteArrayUtil.GetRndByteArray(16);
         var content = "some local content here";

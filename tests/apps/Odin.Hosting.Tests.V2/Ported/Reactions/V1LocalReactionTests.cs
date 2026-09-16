@@ -53,8 +53,8 @@ public class V1LocalReactionTests : V2Fixture
     public async Task CanAddReaction(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -62,7 +62,7 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(uploadResult, Is.Not.Null);
 
         // Act
-        var callerReactionClient = new UniversalDriveReactionClient(caller.Identity, caller.Factory);
+        var callerReactionClient = caller.V1.Reactions;
         const string reactionContent1 = ":k:";
         var response = await callerReactionClient.AddReaction(new AddReactionRequestRedux
         {
@@ -72,8 +72,7 @@ public class V1LocalReactionTests : V2Fixture
         });
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return;
 
@@ -88,9 +87,9 @@ public class V1LocalReactionTests : V2Fixture
     public async Task CanDeleteReaction(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
-        var ownerReactionClient = new UniversalDriveReactionClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
+        var ownerReactionClient = owner.V1.Reactions;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -108,7 +107,7 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(addReactionResponse.IsSuccessStatusCode, Is.True);
 
         // Act
-        var callerReactionClient = new UniversalDriveReactionClient(caller.Identity, caller.Factory);
+        var callerReactionClient = caller.V1.Reactions;
         var response = await callerReactionClient.DeleteReaction(new DeleteReactionRequestRedux
         {
             File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
@@ -117,8 +116,7 @@ public class V1LocalReactionTests : V2Fixture
         });
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return;
 
@@ -134,9 +132,9 @@ public class V1LocalReactionTests : V2Fixture
     public async Task GetReactionCountsByFile(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
-        var ownerReactionClient = new UniversalDriveReactionClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
+        var ownerReactionClient = owner.V1.Reactions;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -163,15 +161,14 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(addReactionResponse2.IsSuccessStatusCode, Is.True);
 
         // Act
-        var callerReactionClient = new UniversalDriveReactionClient(caller.Identity, caller.Factory);
+        var callerReactionClient = caller.V1.Reactions;
         var response = await callerReactionClient.GetReactionCountsByFile(new GetReactionsRequestRedux
         {
             File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier()
         });
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return;
 
@@ -189,9 +186,9 @@ public class V1LocalReactionTests : V2Fixture
     public async Task CanGetReactionsByIdentity(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
-        var ownerReactionClient = new UniversalDriveReactionClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
+        var ownerReactionClient = owner.V1.Reactions;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -218,7 +215,7 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(addReactionResponse2.IsSuccessStatusCode, Is.True);
 
         // Act
-        var callerReactionClient = new UniversalDriveReactionClient(caller.Identity, caller.Factory);
+        var callerReactionClient = caller.V1.Reactions;
         var response = await callerReactionClient.GetReactionsByIdentity(new GetReactionsByIdentityRequestRedux
         {
             Identity = owner.Identity,
@@ -226,8 +223,7 @@ public class V1LocalReactionTests : V2Fixture
         });
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return;
 
@@ -243,9 +239,9 @@ public class V1LocalReactionTests : V2Fixture
     public async Task CanGetAllReactionsOnFile(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
-        var ownerReactionClient = new UniversalDriveReactionClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
+        var ownerReactionClient = owner.V1.Reactions;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -272,7 +268,7 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(addReactionResponse2.IsSuccessStatusCode, Is.True);
 
         // Act
-        var callerReactionClient = new UniversalDriveReactionClient(caller.Identity, caller.Factory);
+        var callerReactionClient = caller.V1.Reactions;
         var response = await callerReactionClient.GetReactions(new GetReactionsRequestRedux
         {
             File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
@@ -281,8 +277,7 @@ public class V1LocalReactionTests : V2Fixture
         });
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return;
 
@@ -300,7 +295,7 @@ public class V1LocalReactionTests : V2Fixture
 
     private static async Task AssertIdentityDoesNotHaveReactionInPreview(OwnerSession owner, FileIdentifier fileId, string reactionContent)
     {
-        var client = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var client = owner.V1.Drive;
         var getHeaderResponse1 = await client.QueryByGlobalTransitId(fileId.ToGlobalTransitIdFileIdentifier());
 
         var file = getHeaderResponse1.Content.SearchResults.First();
@@ -310,7 +305,7 @@ public class V1LocalReactionTests : V2Fixture
 
     private static async Task AssertIdentityHasReactionInPreview(OwnerSession owner, FileIdentifier fileId, string reactionContent)
     {
-        var client = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var client = owner.V1.Drive;
         var getHeaderResponse1 = await client.QueryByGlobalTransitId(fileId.ToGlobalTransitIdFileIdentifier());
 
         var file = getHeaderResponse1.Content.SearchResults.First();
@@ -318,29 +313,27 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(hasReactionInPreview, Is.True);
     }
 
-    private static async Task AssertIdentityHasReaction(OwnerSession owner, FileIdentifier globalTransitFileId, string reactionContent,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+    private static async Task AssertIdentityHasReaction(OwnerSession owner, FileIdentifier globalTransitFileId, string reactionContent)
     {
-        var client = new UniversalDriveReactionClient(owner.Identity, owner.Factory);
+        var client = owner.V1.Reactions;
         var getReactionsResponse = await client.GetReactions(new GetReactionsRequestRedux
             {
                 File = globalTransitFileId,
             },
-            fileSystemType);
-        var hasReactionInDb = getReactionsResponse.Content.Reactions.Any(r => r.ReactionContent == reactionContent);
-        Assert.That(hasReactionInDb, Is.True);
+            FileSystemType.Standard);
+        Assert.That(getReactionsResponse.Content.Reactions.Select(r => r.ReactionContent),
+            Does.Contain(reactionContent));
     }
 
-    private static async Task AssertIdentityDoesNotHaveReaction(OwnerSession owner, FileIdentifier globalTransitFileId, string reactionContent,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+    private static async Task AssertIdentityDoesNotHaveReaction(OwnerSession owner, FileIdentifier globalTransitFileId, string reactionContent)
     {
-        var client = new UniversalDriveReactionClient(owner.Identity, owner.Factory);
+        var client = owner.V1.Reactions;
         var getReactionsResponse = await client.GetReactions(new GetReactionsRequestRedux
             {
                 File = globalTransitFileId,
             },
-            fileSystemType);
-        var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent);
-        Assert.That(reactionNotInDb, Is.True);
+            FileSystemType.Standard);
+        Assert.That(getReactionsResponse.Content.Reactions.Select(r => r.ReactionContent),
+            Does.Not.Contain(reactionContent));
     }
 }

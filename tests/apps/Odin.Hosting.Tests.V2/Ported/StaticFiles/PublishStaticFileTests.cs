@@ -79,7 +79,7 @@ public class PublishStaticFileTests : V2Fixture
     public async Task CanPublishStaticFileContentWithThumbnails(CallerSpec spec, HttpStatusCode expected)
     {
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var ownerDrive = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var ownerDrive = owner.V1.Drive;
 
         // Only the rows that get as far as querying need the drive seeded; the Guest and
         // no-key App rows are refused at authz before anything reads it.
@@ -102,7 +102,7 @@ public class PublishStaticFileTests : V2Fixture
                 payload: SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1());
         }
 
-        var staticFileClient = new UniversalStaticFileApiClient(caller.Identity, caller.Factory);
+        var staticFileClient = caller.V1.StaticFiles;
 
         var publishRequest = new PublishStaticFileRequest
         {
@@ -143,7 +143,7 @@ public class PublishStaticFileTests : V2Fixture
         };
 
         var response = await staticFileClient.Publish(publishRequest);
-        Assert.That(response.StatusCode, Is.EqualTo(expected), $"Actual status code was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expected));
 
         if (expected != HttpStatusCode.OK) return;
 
@@ -172,7 +172,7 @@ public class PublishStaticFileTests : V2Fixture
     public async Task CanPublishPublicProfileCard(CallerSpec spec, HttpStatusCode expected)
     {
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var staticFileClient = new UniversalStaticFileApiClient(caller.Identity, caller.Factory);
+        var staticFileClient = caller.V1.StaticFiles;
 
         const string expectedJson = "{name:'Sam'}";
         var response = await staticFileClient.PublishPublicProfileCard(new PublishPublicProfileCardRequest
@@ -180,13 +180,13 @@ public class PublishStaticFileTests : V2Fixture
             ProfileCardJson = expectedJson
         });
 
-        Assert.That(response.StatusCode, Is.EqualTo(expected), $"Actual status code was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expected));
 
         if (expected != HttpStatusCode.NoContent) return;
 
         // The original asserted the read-back under `expected == OK`, which this endpoint never
         // returns, so the block never ran. Read it back on the success path that does happen.
-        var ownerStaticFiles = new UniversalStaticFileApiClient(owner.Identity, owner.Factory);
+        var ownerStaticFiles = owner.V1.StaticFiles;
         var getResponse = await ownerStaticFiles.GetPublicProfileCard();
         Assert.That(getResponse.IsSuccessStatusCode, Is.True);
         Assert.That(getResponse.ContentHeaders!.ContentType!.MediaType, Is.EqualTo(MediaTypeNames.Application.Json));
@@ -198,7 +198,7 @@ public class PublishStaticFileTests : V2Fixture
     public async Task CanPublishPublicProfileImage(CallerSpec spec, HttpStatusCode expected)
     {
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var staticFileClient = new UniversalStaticFileApiClient(caller.Identity, caller.Factory);
+        var staticFileClient = caller.V1.StaticFiles;
 
         var expectedImage = TestMedia.ThumbnailBytes300;
         var response = await staticFileClient.PublishPublicProfileImage(new PublishPublicProfileImageRequest
@@ -207,12 +207,12 @@ public class PublishStaticFileTests : V2Fixture
             ContentType = MediaTypeNames.Image.Jpeg
         });
 
-        Assert.That(response.StatusCode, Is.EqualTo(expected), $"Actual status code was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expected));
 
         if (expected != HttpStatusCode.NoContent) return;
 
         // Same as above: the original's read-back was gated on OK and never ran.
-        var ownerStaticFiles = new UniversalStaticFileApiClient(owner.Identity, owner.Factory);
+        var ownerStaticFiles = owner.V1.StaticFiles;
         var getResponse = await ownerStaticFiles.GetPublicProfileImage();
         Assert.That(getResponse.IsSuccessStatusCode, Is.True);
         Assert.That(getResponse.ContentHeaders!.ContentType!.MediaType, Is.EqualTo(MediaTypeNames.Image.Jpeg));

@@ -27,6 +27,7 @@ public sealed class AppSession : IV2Caller
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
+    public V1Handles V1 { get; }
 
     /// <summary>
     /// App-scoped drain hooks. Mirrors <see cref="OwnerSession.Sync"/>: outbox via direct service
@@ -43,6 +44,7 @@ public sealed class AppSession : IV2Caller
             sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        V1 = new V1Handles(Identity, Factory);
         Sync = new AppSync(host.GetTestSync(identity), this);
     }
 

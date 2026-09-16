@@ -49,8 +49,8 @@ public class NotificationListTests : V2Fixture
     public async Task CanGetListOfNotifications(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Sam);
-        var ownerNotifications = new AppNotificationsApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerNotifications = owner.V1.Notifications;
 
         var appId = Guid.NewGuid();
         var options1 = new AppNotificationOptions()
@@ -73,11 +73,11 @@ public class NotificationListTests : V2Fixture
         Assert.That(response2.IsSuccessStatusCode, Is.True);
 
         // Act
-        var client = new AppNotificationsApiClient(caller.Identity, caller.Factory);
+        var client = caller.V1.Notifications;
         var response = await client.GetList(10);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode), $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
@@ -97,8 +97,8 @@ public class NotificationListTests : V2Fixture
     public async Task CanGetCountOfNotificationsPerAppId(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Sam);
-        var ownerNotifications = new AppNotificationsApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerNotifications = owner.V1.Notifications;
 
         var appId = Guid.NewGuid();
         var options1 = new AppNotificationOptions()
@@ -121,12 +121,12 @@ public class NotificationListTests : V2Fixture
         Assert.That(response2.IsSuccessStatusCode, Is.True);
 
         // Act
-        var client = new AppNotificationsApiClient(caller.Identity, caller.Factory);
+        var client = caller.V1.Notifications;
         var response = await client.GetList(10);
 
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode), $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
@@ -146,8 +146,8 @@ public class NotificationListTests : V2Fixture
     public async Task CanMarkNotificationsRead(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Sam);
-        var ownerNotifications = new AppNotificationsApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerNotifications = owner.V1.Notifications;
 
         var options = new AppNotificationOptions()
         {
@@ -161,7 +161,7 @@ public class NotificationListTests : V2Fixture
         var notificationId = response1.Content.NotificationId;
 
         // Act
-        var client = new AppNotificationsApiClient(caller.Identity, caller.Factory);
+        var client = caller.V1.Notifications;
 
         var updates = new List<UpdateNotificationRequest>()
         {
@@ -175,7 +175,7 @@ public class NotificationListTests : V2Fixture
         var response = await client.Update(updates);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode), $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return; //test more
 
@@ -193,8 +193,8 @@ public class NotificationListTests : V2Fixture
     public async Task CanMarkNotificationsReadByAppId(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Sam);
-        var ownerNotifications = new AppNotificationsApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerNotifications = owner.V1.Notifications;
 
         var appIdToBeMarkedAsRead = Guid.NewGuid();
 
@@ -220,11 +220,11 @@ public class NotificationListTests : V2Fixture
         var diffAppNotificationId = notifyDiffAppResponse.Content.NotificationId;
 
         // Act
-        var client = new AppNotificationsApiClient(caller.Identity, caller.Factory);
+        var client = caller.V1.Notifications;
         var response = await client.MarkReadByAppId(appIdToBeMarkedAsRead);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode), $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return; //test more
 
@@ -251,8 +251,8 @@ public class NotificationListTests : V2Fixture
     public async Task CanGetNotificationCountByAppId(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Sam);
-        var ownerNotifications = new AppNotificationsApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerNotifications = owner.V1.Notifications;
 
         var app1Options = new AppNotificationOptions()
         {
@@ -276,11 +276,11 @@ public class NotificationListTests : V2Fixture
         Assert.That(response2.IsSuccessStatusCode, Is.True);
 
         // Act
-        var client = new AppNotificationsApiClient(caller.Identity, caller.Factory);
+        var client = caller.V1.Notifications;
         var response = await client.GetUnreadCounts();
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode), $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return; //test more
 
@@ -298,8 +298,8 @@ public class NotificationListTests : V2Fixture
     public async Task CanMarkNotificationsReadPerApp(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Sam);
-        var ownerNotifications = new AppNotificationsApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerNotifications = owner.V1.Notifications;
 
         var options = new AppNotificationOptions()
         {
@@ -313,7 +313,7 @@ public class NotificationListTests : V2Fixture
         var notificationId = response1.Content.NotificationId;
 
         // Act
-        var client = new AppNotificationsApiClient(caller.Identity, caller.Factory);
+        var client = caller.V1.Notifications;
 
         var updates = new List<UpdateNotificationRequest>()
         {
@@ -327,7 +327,7 @@ public class NotificationListTests : V2Fixture
         var response = await client.Update(updates);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode), $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return; //test more
 
@@ -345,8 +345,8 @@ public class NotificationListTests : V2Fixture
     public async Task CanRemoveNotifications(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Sam);
-        var ownerNotifications = new AppNotificationsApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerNotifications = owner.V1.Notifications;
 
         var options = new AppNotificationOptions()
         {
@@ -359,12 +359,12 @@ public class NotificationListTests : V2Fixture
         var notificationId = response1.Content.NotificationId;
 
         // Act
-        var client = new AppNotificationsApiClient(caller.Identity, caller.Factory);
+        var client = caller.V1.Notifications;
 
         var response = await client.Delete(new List<Guid>() { notificationId });
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode), $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return; //test more
 

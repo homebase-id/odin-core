@@ -61,8 +61,8 @@ public class V1TagTests : V2Fixture
         HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Authenticated;
@@ -72,7 +72,7 @@ public class V1TagTests : V2Fixture
         var targetFile = prepareFileResponse.Content.File;
 
         // Act - update the local app metadata
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
 
         var tag1 = Guid.NewGuid();
         var tag2 = Guid.NewGuid();
@@ -84,8 +84,7 @@ public class V1TagTests : V2Fixture
         };
 
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request);
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         if (expectedStatusCode != HttpStatusCode.OK) return; //continue testing
 
@@ -103,15 +102,14 @@ public class V1TagTests : V2Fixture
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
     public async Task CanUpdateLocalAppMetadataContentWhenSetInTargetFileUsingValidLocalVersionTag(CallerSpec spec,
         HttpStatusCode expectedStatusCode)
     {
         //
         // Setup
         //
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var prepareFileResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -129,8 +127,7 @@ public class V1TagTests : V2Fixture
 
         // first update - just use the owner api so we can prepare a file with a nonempty local version tag
         var prepareLocalMetadataResponse = await ownerDriveClient.UpdateLocalAppMetadataTags(request1);
-        Assert.That(prepareLocalMetadataResponse.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {prepareLocalMetadataResponse.StatusCode}");
+        Assert.That(prepareLocalMetadataResponse.StatusCode, Is.EqualTo(expectedStatusCode));
 
         // get the updated file and read the version tag from there; to ensure a test closer to what the FE would do
         var updatedFileResponse1 = await ownerDriveClient.GetFileHeader(targetFile);
@@ -149,10 +146,9 @@ public class V1TagTests : V2Fixture
             Tags = [tag1r2, tag2r2]
         };
 
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         var result = response.Content;
 
@@ -167,15 +163,14 @@ public class V1TagTests : V2Fixture
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
     public async Task ContentDoesNotChangeWhenUpdatingTags(CallerSpec spec,
         HttpStatusCode expectedStatusCode)
     {
         //
         // Setup
         //
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var prepareFileResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -212,10 +207,9 @@ public class V1TagTests : V2Fixture
             Tags = [tag1, tag2]
         };
 
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         var result = response.Content;
 
@@ -232,15 +226,14 @@ public class V1TagTests : V2Fixture
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
     public async Task FailsWithBadRequestWhenInvalidLocalVersionTagSpecified(CallerSpec spec,
         HttpStatusCode expectedStatusCode)
     {
         //
         // Setup
         //
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var prepareFileResponse = await ownerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
@@ -258,8 +251,7 @@ public class V1TagTests : V2Fixture
 
         // first update - just use the owner api so we can prepare a file with a nonempty local version tag
         var prepareLocalMetadataResponse = await ownerDriveClient.UpdateLocalAppMetadataTags(request1);
-        Assert.That(prepareLocalMetadataResponse.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {prepareLocalMetadataResponse.StatusCode}");
+        Assert.That(prepareLocalMetadataResponse.StatusCode, Is.EqualTo(expectedStatusCode));
 
         var r = prepareLocalMetadataResponse.Content;
         var expectedVersionTag = r.NewLocalVersionTag;
@@ -272,7 +264,7 @@ public class V1TagTests : V2Fixture
             LocalVersionTag = Guid.Empty,
             Tags = [tag1r2, tag2r2]
         };
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "should have failed");
 
@@ -288,13 +280,12 @@ public class V1TagTests : V2Fixture
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
     public async Task FailsWithBadRequestWhenFileDoesNotExist(CallerSpec spec, HttpStatusCode _)
     {
         //
         // Setup
         //
-        var caller = await SetupCaller(spec, Identities.Pippin);
+        var caller = await SetupCaller(spec);
 
         //
         // Act - try to update local metadata for non-existent file
@@ -312,7 +303,7 @@ public class V1TagTests : V2Fixture
             Tags = [tag1, tag2]
         };
 
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "should have failed");
     }
@@ -325,8 +316,8 @@ public class V1TagTests : V2Fixture
         HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
@@ -345,12 +336,11 @@ public class V1TagTests : V2Fixture
         };
 
         var response = await ownerDriveClient.UpdateLocalAppMetadataTags(request);
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         // Act - update the local app metadata
 
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var qbr = new QueryBatchRequest
         {
             QueryParams = new FileQueryParamsV1()
@@ -386,8 +376,8 @@ public class V1TagTests : V2Fixture
         HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
@@ -407,12 +397,11 @@ public class V1TagTests : V2Fixture
         };
 
         var response = await ownerDriveClient.UpdateLocalAppMetadataTags(request);
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         // Act - update the local app metadata
 
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var qbr = new QueryBatchRequest
         {
             QueryParams = new FileQueryParamsV1()
@@ -448,8 +437,8 @@ public class V1TagTests : V2Fixture
         HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
@@ -468,12 +457,11 @@ public class V1TagTests : V2Fixture
         };
 
         var response = await ownerDriveClient.UpdateLocalAppMetadataTags(request);
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         // Act - update the local app metadata
 
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var qmr = new QueryModifiedRequest()
         {
             QueryParams = new FileQueryParamsV1()
@@ -489,7 +477,6 @@ public class V1TagTests : V2Fixture
             }
         };
 
-        await Task.Delay(5);
 
         var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
         Assert.That(queryBatchResponse.StatusCode, Is.EqualTo(expectedStatusCode));
@@ -512,8 +499,8 @@ public class V1TagTests : V2Fixture
         HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var (caller, owner) = await SetupCallerWithOwner(spec, Identities.Pippin);
-        var ownerDriveClient = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var ownerDriveClient = owner.V1.Drive;
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
@@ -533,12 +520,11 @@ public class V1TagTests : V2Fixture
         };
 
         var response = await ownerDriveClient.UpdateLocalAppMetadataTags(request);
-        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode));
 
         // Act - update the local app metadata
 
-        var callerDriveClient = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerDriveClient = caller.V1.Drive;
         var qmr = new QueryModifiedRequest()
         {
             QueryParams = new FileQueryParamsV1()
@@ -554,7 +540,6 @@ public class V1TagTests : V2Fixture
             }
         };
 
-        await Task.Delay(5);
 
         var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
         Assert.That(queryBatchResponse.StatusCode, Is.EqualTo(expectedStatusCode));
