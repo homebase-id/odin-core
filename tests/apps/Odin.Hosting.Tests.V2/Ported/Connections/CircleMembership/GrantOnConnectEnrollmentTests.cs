@@ -88,6 +88,54 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
         });
     }
 
+    /// <summary>
+    /// The owner's own connection: frodo sends, sam accepts by hand, neither names any circles.
+    /// </summary>
+    /// <remarks>
+    /// A Connect circle marks a circle eligible to be granted without a review, not only ambiently
+    /// (docs/connection-defaults.md, "On verify"), and a manual accept is the review.  An owner-approved
+    /// contact holding Chat less than an introduced stranger does would be backwards.
+    /// </remarks>
+    [Test]
+    public async Task AManualConnectionLandsInTheChatCircleOnBothSides()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        var send = await frodo.Connections.SendConnectionRequest(sam.Identity);
+        Assert.That(send.IsSuccessStatusCode, Is.True, $"send failed: {send.StatusCode}");
+
+        var accept = await sam.Connections.AcceptConnectionRequest(frodo.Identity);
+        Assert.That(accept.IsSuccessStatusCode, Is.True, $"accept failed: {accept.StatusCode}");
+
+        var samsViewOfFrodo = await GetIcrAsync(sam, frodo.Identity);
+        var frodosViewOfSam = await GetIcrAsync(frodo, sam.Identity);
+
+        Assert.Multiple(() =>
+        {
+            // Controls: an owner-to-owner connection, reviewed on both sides, holding its system circle.
+            foreach (var (label, icr) in new[] { ("sam's view of frodo", samsViewOfFrodo), ("frodo's view of sam", frodosViewOfSam) })
+            {
+                Assert.That(icr.Status, Is.EqualTo(ConnectionStatus.Connected), label);
+                Assert.That(icr.ConnectionRequestOrigin, Is.EqualTo(ConnectionRequestOrigin.IdentityOwner), label);
+                Assert.That(icr.ReviewedAt, Is.Not.Null, $"{label}: a manual connection is reviewed");
+                Assert.That(icr.PeerKeyStore.CircleGrants.Keys,
+                    Does.Contain(SystemCircleConstants.ConfirmedConnectionsCircleId.Value),
+                    $"{label}: missing the Confirmed Connections grant");
+            }
+
+            // The claim under test.
+            Assert.That(samsViewOfFrodo.PeerKeyStore.CircleGrants.Keys,
+                Does.Contain(BuiltinCircles.ChatCircle.Id.Value),
+                "sam accepted frodo by hand, but frodo is not in sam's Chat circle (GrantOn = Connect). " +
+                $"Granted: [{Describe(samsViewOfFrodo)}]");
+            Assert.That(frodosViewOfSam.PeerKeyStore.CircleGrants.Keys,
+                Does.Contain(BuiltinCircles.ChatCircle.Id.Value),
+                "frodo's request to sam was accepted, but sam is not in frodo's Chat circle (GrantOn = Connect). " +
+                $"Granted: [{Describe(frodosViewOfSam)}]");
+        });
+    }
+
     private async Task<IdentityConnectionRegistration> GetIcrAsync(OwnerSession owner, OdinId target)
     {
         var icr = await Host.GetTenantScope(owner.Identity.DomainName)

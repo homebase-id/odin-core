@@ -834,7 +834,7 @@ namespace Odin.Services.Membership.Connections.Requests
             // No master key (accepting without the owner online) deliberately mints keyless
             // grants; the deferred master-key upgrade re-mints them with real storage keys.
             var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
-            var circles = await WithConnectCirclesAsync(header.CircleIds, incomingRequest.ConnectionRequestOrigin);
+            var circles = await WithConnectCirclesAsync(header.CircleIds);
             accessGrant ??= new PeerKeyStore()
             {
                 MasterKeyEncryptedPeerKey = odinContext.Caller.HasMasterKey
@@ -1665,7 +1665,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 ClientTokenType.IdentityConnectionRegistration);
 
             // The sender's half: this key store is what the sender holds once the connection completes.
-            circles = await WithConnectCirclesAsync(circles, origin);
+            circles = await WithConnectCirclesAsync(circles);
 
             // We allow the master key to be null in the case of connection requests coming due to
             // an introduction; the keyless grants are re-minted by the deferred master-key upgrade.
@@ -1690,14 +1690,16 @@ namespace Odin.Services.Membership.Connections.Requests
 
         /// <summary>
         /// The circles a new connection is granted: the ones named by the caller, plus every
-        /// <see cref="CircleGrantOn.Connect"/> circle when the connection is an ambient one.
+        /// <see cref="CircleGrantOn.Connect"/> circle.
         /// </summary>
         /// <remarks>
-        /// Ambient means the origins that <see cref="CircleNetworkUtils.EnsureSystemCircles"/> routes to the
-        /// Auto Connections circle -- introductions and app-initiated requests -- which is exactly the
-        /// population a Connect circle is declared for (docs/connection-defaults.md, "On auto-connect").
-        /// An owner-sent request is left alone: the owner names its circles, and the review is where a
-        /// Connect circle is offered to them.
+        /// Every origin, deliberately.  <see cref="CircleGrantOn.Connect"/> says the qualifying act is
+        /// connecting, so an owner-approved contact must hold at least what an introduced stranger does --
+        /// the opposite would be backwards.  It is the same rule the enrolment offer and the v17 -&gt; v18
+        /// backfill already apply: connected is the whole test (<see cref="CircleNetworkService"/>'s
+        /// <c>IsEnrollmentCandidate</c>).  The client may still name these circles at review time
+        /// (docs/connection-defaults.md, "On verify"); enrolling here makes that a belt-and-braces
+        /// repeat rather than the only thing standing between a manual accept and a chat that works.
         /// <para>
         /// Safe without the owner present because of what a Connect circle may contain, not because of who
         /// is calling: <see cref="CircleDefinitionService.AssertDepositOnlyIfAmbientAsync"/> holds it to
@@ -1708,14 +1710,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// (docs/connection-review-todo.md).  Returns a new list so the caller's is never mutated.
         /// </para>
         /// </remarks>
-        private async Task<List<GuidId>> WithConnectCirclesAsync(IEnumerable<GuidId> circleIds, ConnectionRequestOrigin origin)
+        private async Task<List<GuidId>> WithConnectCirclesAsync(IEnumerable<GuidId> circleIds)
         {
             var circles = circleIds?.ToList() ?? new List<GuidId>();
-
-            if (origin is not (ConnectionRequestOrigin.Introduction or ConnectionRequestOrigin.IdentityOwnerApp))
-            {
-                return circles;
-            }
 
             foreach (var circle in await circleDefinitionService.GetCirclesByGrantOnAsync(CircleGrantOn.Connect))
             {

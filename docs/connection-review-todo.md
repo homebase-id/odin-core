@@ -26,7 +26,8 @@ Everything else waits on this.
 - Add the per-app owner-console toggle to tenant settings, seeded at app install. Does not exist.
 - ~~Call `CircleDefinitionService.GetCirclesByGrantOnAsync(Connect)` from the auto-connect path and
   enrol.~~ Done: `CircleNetworkRequestService.WithConnectCirclesAsync` adds every enabled Connect
-  circle on both halves (accept and send) for Introduction and IdentityOwnerApp origins, pinned by
+  circle on both halves (accept and send), for every origin — on connect means on connect, so an
+  owner-approved contact is never granted less than an introduced one. Pinned by
   `GrantOnConnectEnrollmentTests`. **Still unfiltered** — wire in the toggle above once it exists.
 - Re-read `ClearReviewAsync`: its ambient carve-out (Connect circles do not block a clear) is now live,
   since auto-connections hold the Chat circle.
