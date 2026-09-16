@@ -54,7 +54,7 @@ not touch; the same job passes on recent `main` runs.
 
 ---
 
-## `Odin.Hosting.Tests.V2.Ported.Drive.DriveReaderTests.InboxDrainOnQueryTests`
+## `Odin.Hosting.Tests.V2.Ported.Peer.InboxDrainOnQueryTests`
 
 - `QuerySmartBatch_DrainsInbox_OnRecipient`
 
@@ -185,3 +185,91 @@ start.
 **Cause:** unknown. The assertion runs immediately after the transfer, so a delayed deletion of
 the sender's transient copy on the slower Windows runner is a plausible explanation, but it has
 not been confirmed.
+
+---
+
+## `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryFinalizationTests`
+
+- `ShardingIsResetAfterPasswordIsRecovered`
+
+**Where:** CI, `windows/sqlite/debug` only (run 35042063948, commit `fea206117`, PR #1751,
+2026-09-16). The test carries `#if !DEBUG [Ignore]`, so the two Release jobs never run it — both
+passed. The same Windows job passed on the two preceding commits of the same branch (`c2f6938b2`,
+`26ad0ae73`).
+
+**Symptom:** `System.TimeoutException : Failed waiting for expected state
+AwaitingOwnerFinalization`, after 48 s. `SecurityApiClient.WaitForShamirStatus` polls every 100 ms
+against a fixed 40 s budget; the dealer never reached that state once the four delegates had
+approved their shard releases.
+
+**Not caused by the change in flight (evidence, not proof):** `fea206117` changes exactly one file
+-- `GrantOnConnectEnrollmentTests.cs` in `Odin.Hosting.Tests.V2` -- so the production code is
+byte-identical to `26ad0ae73`, on which this same Windows job passed. The failing test lives in a
+different assembly and never enrols a Connect circle. The 12 most recent `main`
+`windows/sqlite/debug` runs (2026-09-12 to 2026-09-15) contain one failure, and it was a different,
+already-registered test (`TransientFileIsDeletedAfterSending`). Not reproduced on a clean tree
+locally: port 8443 is held by a local Docker container, so `Odin.Hosting.Tests` cannot start.
+
+**Cause:** unknown. A fixed 40 s budget for a four-peer state machine on the slowest runner in the
+matrix is the obvious suspect. One mechanism specific to this commit, untested: the new tests add a
+third identity and peer traffic to a V2 fixture, and `dotnet test` runs test projects in parallel,
+so they may have raised contention on the Windows runner without changing any behaviour. The failed
+job was re-run on 2026-09-16 to see whether it reproduces.
+
+**Pattern:** the fourth entry in the timing-sensitive peer-delivery family flagged above. Per that
+note, the shared cause is now worth chasing rather than re-running.
+
+---
+
+## `Odin.Services.Tests.JobManagement.JobManagerTests` (second entry)
+
+- `JobShouldHaveInternalChildDiScope(Sqlite)`
+
+**Where:** CI, `ubuntu/postgres/release` (seen on run 35086381896, 2026-09-16, PR #1756).
+
+**Symptom:** `AssertLogEvents` fails -- `Unexpected number of Error log events, Expected: 0, But
+was: 1` -- and the test takes **30 s** rather than its usual sub-second.
+
+**Cause (identified, unusually for this file):** the 30 s is the signature of
+`BackgroundServiceManager.NotifyWorkAvailableAsync`, which polls for the target background service
+`30 x 1s` and then throws `Background service 'JobRunnerBackgroundService' not found` -- that throw
+is the one unexpected Error event. The test calls `StartBackgroundServices()` before
+`ScheduleJobAsync`, so this is a startup race: under CI load the runner had still not registered
+itself when the notify went looking, and the poll window expired.
+
+**Not caused by the change in flight:** PR #1756 deletes tests from `Odin.Hosting.Tests` and edits
+this file; it touches neither `tests/services/` nor `src/services/Odin.Services/Background/`
+(`git diff main --stat` over both paths is empty), and the failing test is in a different assembly.
+Ran 3/3 green locally at ~430 ms each. The two most recent `main` failures on this same workflow
+(runs 34033226377 and 33409597404) were different tests, so this specific method had not been seen
+failing before.
+
+**Pattern worth noting:** same fixture as the `ItShouldDeleteExpiredUnsuccessfulJobsInTheBackground`
+entry above, and the same shape -- an assertion racing a background service. Note that the 30 s poll
+is only correct for a service that is *slow to start*; for one that will never start it is a
+guaranteed 30 s stall plus an error. That distinction is a real defect in
+`BackgroundServiceManager` (it also stalls CLI mode and pre-provisioned-cert hosts, and PR #1757
+works around it in the fast test host); fixing it would likely make this flake impossible too.
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.Peer.DeleteBatchTests`
+
+- `DeleteFileIdBatch_WithSingleRecipient_PropagatesDeleteToRecipient`
+
+**Where:** local, full `Odin.Hosting.Tests.V2` run (2026-09-16), 1 failure in 2 consecutive runs
+of the same build.
+
+**Symptom:** the recipient's copy has not flipped to `Deleted` by the time the assertion runs.
+
+**Not caused by the change in flight:** the change was porting five unrelated `_Universal`
+drive fixtures onto the fast framework; it touches neither this fixture nor the peer outbox. The
+identical build passed the immediately following run, so the failure reproduces on neither the
+change nor its absence.
+
+**Pattern worth noting:** this is the fifth entry in the timing-sensitive peer-delivery family
+(`TransferHistoryTests`, `InboxDrainOnQueryTests`, the Shamir entry, and this). Per the note on
+those, the shared cause is worth chasing rather than re-running -- they all assert on delivery
+they do not deterministically wait for. The fast framework has `Sync.DrainOutboxAsync()` /
+`ProcessInboxAsync()` for exactly this; a port that keeps a V1-style implicit wait inherits the
+flake.

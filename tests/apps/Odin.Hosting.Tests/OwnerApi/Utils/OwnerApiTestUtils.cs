@@ -49,12 +49,12 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
-using Odin.Hosting.Tests.OwnerApi.Drive.Management;
 using Refit;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Services.Security;
 using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
@@ -406,7 +406,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var drives = new List<DriveGrantRequest>();
                 if (createDrive)
                 {
-                    var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+                    var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ownerSharedSecret);
                     var createDriveResponse = await driveSvc.CreateDrive(
                         new CreateDriveRequest()
                         {
@@ -722,7 +722,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ownerSharedSecret);
 
                 if (ownerOnly && allowAnonymousReads)
                 {
@@ -757,7 +757,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 //ensure drive
-                var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ownerSharedSecret);
                 var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
                 ClassicAssert.IsNotNull(getDrivesResponse.Content);
                 var drives = getDrivesResponse.Content.Results;

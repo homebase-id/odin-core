@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
@@ -32,8 +33,16 @@ public sealed class CallerSpec
     public static CallerSpec Owner(DriveSpec drive) =>
         new("Owner", drive, o => Task.FromResult<IV2Caller>(o));
 
-    public static CallerSpec App(DriveSpec drive, DrivePermission perm) =>
-        new($"App[{perm}]", drive, async o => await AppSession.SetupAsync(o, drive.Drive, perm));
+    /// <summary>
+    /// App caller, optionally holding tenant-wide permission keys — needed wherever the endpoint
+    /// gates on a <see cref="Odin.Services.Authorization.Permissions.PermissionKeys"/> value rather
+    /// than on the drive grant (PublishStaticContent, SendPushNotifications). Omit the keys for the
+    /// negative case: an app with the drive grant but no key must still be refused.
+    /// </summary>
+    public static CallerSpec App(DriveSpec drive, DrivePermission perm, IReadOnlyList<int> permissionKeys = null) =>
+        new($"App[{perm}{(permissionKeys is { Count: > 0 } k ? $"+keys:{string.Join('|', k)}" : "")}]",
+            drive,
+            async o => await AppSession.SetupAsync(o, drive.Drive, perm, permissionKeys));
 
     public static CallerSpec Guest(DriveSpec drive, DrivePermission perm) =>
         new($"Guest[{perm}]", drive, async o => await GuestSession.SetupAsync(o, drive.Drive, perm));

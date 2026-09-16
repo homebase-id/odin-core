@@ -3,7 +3,6 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
-using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using System;
 using System.Collections.Generic;
