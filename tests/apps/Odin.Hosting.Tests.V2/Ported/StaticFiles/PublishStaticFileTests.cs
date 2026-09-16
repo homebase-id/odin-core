@@ -53,17 +53,14 @@ public class PublishStaticFileTests : V2Fixture
     /// </summary>
     public static IEnumerable<object[]> PublishCases()
     {
-        var secured = new Func<DriveSpec>(() => new DriveSpec(TargetDrive.NewTargetDrive(), "Some Drive",
-            AllowAnonymousReads: false));
-
-        yield return [CallerSpec.Guest(secured(), DrivePermission.Write), HttpStatusCode.NotFound];
-        yield return [CallerSpec.App(secured(), DrivePermission.ReadWrite, Array.Empty<int>()), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.Guest(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.NotFound];
+        yield return [CallerSpec.App(DriveSpec.Secured(), DrivePermission.ReadWrite), HttpStatusCode.Forbidden];
         yield return
         [
-            CallerSpec.App(secured(), DrivePermission.ReadWrite, [PermissionKeys.PublishStaticContent]),
+            CallerSpec.App(DriveSpec.Secured(), DrivePermission.ReadWrite, [PermissionKeys.PublishStaticContent]),
             HttpStatusCode.OK
         ];
-        yield return [CallerSpec.Owner(secured()), HttpStatusCode.OK];
+        yield return [CallerSpec.Owner(DriveSpec.Secured()), HttpStatusCode.OK];
     }
 
     /// <summary>
@@ -72,12 +69,9 @@ public class PublishStaticFileTests : V2Fixture
     /// </summary>
     public static IEnumerable<object[]> ProfileCases()
     {
-        var secured = new Func<DriveSpec>(() => new DriveSpec(TargetDrive.NewTargetDrive(), "Some Drive",
-            AllowAnonymousReads: false));
-
-        yield return [CallerSpec.Guest(secured(), DrivePermission.Write), HttpStatusCode.NotFound];
-        yield return [CallerSpec.App(secured(), DrivePermission.Write), HttpStatusCode.NotFound];
-        yield return [CallerSpec.Owner(secured()), HttpStatusCode.NoContent];
+        yield return [CallerSpec.Guest(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.NotFound];
+        yield return [CallerSpec.App(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.NotFound];
+        yield return [CallerSpec.Owner(DriveSpec.Secured()), HttpStatusCode.NoContent];
     }
 
     [Test]
@@ -87,24 +81,26 @@ public class PublishStaticFileTests : V2Fixture
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var ownerDrive = new UniversalDriveApiClient(owner.Identity, owner.Factory);
 
+        // Only the rows that get as far as querying need the drive seeded; the Guest and
+        // no-key App rows are refused at authz before anything reads it.
         const int totalFilesInSectionOne = 2;
-        await CreateAnonymousUnEncryptedFile(ownerDrive, spec.TargetDrive,
-            fileType: SectionOneFileType, dataType: 0,
-            jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
-            tags: [Guid.NewGuid(), Guid.NewGuid()],
-            payload: SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2());
+        if (expected == HttpStatusCode.OK)
+        {
+            await CreateAnonymousUnEncryptedFile(ownerDrive, spec.TargetDrive,
+                fileType: SectionOneFileType, dataType: 0,
+                jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
+                payload: SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2());
 
-        await CreateAnonymousUnEncryptedFile(ownerDrive, spec.TargetDrive,
-            fileType: SectionOneFileType, dataType: 0,
-            jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
-            tags: [Guid.NewGuid()],
-            payload: SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1());
+            await CreateAnonymousUnEncryptedFile(ownerDrive, spec.TargetDrive,
+                fileType: SectionOneFileType, dataType: 0,
+                jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
+                payload: SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1());
 
-        await CreateAnonymousUnEncryptedFile(ownerDrive, spec.TargetDrive,
-            fileType: 0, dataType: SectionTwoDataType,
-            jsonContent: OdinSystemSerializer.Serialize(new { content = "stuff" }),
-            tags: [Guid.NewGuid()],
-            payload: SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1());
+            await CreateAnonymousUnEncryptedFile(ownerDrive, spec.TargetDrive,
+                fileType: 0, dataType: SectionTwoDataType,
+                jsonContent: OdinSystemSerializer.Serialize(new { content = "stuff" }),
+                payload: SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1());
+        }
 
         var staticFileClient = new UniversalStaticFileApiClient(caller.Identity, caller.Factory);
 
@@ -149,10 +145,7 @@ public class PublishStaticFileTests : V2Fixture
         var response = await staticFileClient.Publish(publishRequest);
         Assert.That(response.StatusCode, Is.EqualTo(expected), $"Actual status code was {response.StatusCode}");
 
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
+        if (expected != HttpStatusCode.OK) return;
 
         var pubResult = response.Content;
         Assert.That(pubResult, Is.Not.Null);
@@ -189,10 +182,7 @@ public class PublishStaticFileTests : V2Fixture
 
         Assert.That(response.StatusCode, Is.EqualTo(expected), $"Actual status code was {response.StatusCode}");
 
-        if (expected != HttpStatusCode.NoContent)
-        {
-            return;
-        }
+        if (expected != HttpStatusCode.NoContent) return;
 
         // The original asserted the read-back under `expected == OK`, which this endpoint never
         // returns, so the block never ran. Read it back on the success path that does happen.
@@ -219,10 +209,7 @@ public class PublishStaticFileTests : V2Fixture
 
         Assert.That(response.StatusCode, Is.EqualTo(expected), $"Actual status code was {response.StatusCode}");
 
-        if (expected != HttpStatusCode.NoContent)
-        {
-            return;
-        }
+        if (expected != HttpStatusCode.NoContent) return;
 
         // Same as above: the original's read-back was gated on OK and never ran.
         var ownerStaticFiles = new UniversalStaticFileApiClient(owner.Identity, owner.Factory);
@@ -239,7 +226,6 @@ public class PublishStaticFileTests : V2Fixture
         int fileType,
         int dataType,
         string jsonContent,
-        List<Guid> tags,
         TestPayloadDefinition payload)
     {
         var fileMetadata = new UploadFileMetadata
@@ -248,13 +234,12 @@ public class PublishStaticFileTests : V2Fixture
             IsEncrypted = false,
             AppData = new UploadAppFileMetaData
             {
-                Tags = tags,
                 Content = jsonContent,
                 FileType = fileType,
                 DataType = dataType,
                 PreviewThumbnail = payload.PreviewThumbnail
             },
-            AccessControlList = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Anonymous }
+            AccessControlList = AccessControlList.Anonymous
         };
 
         var uploadManifest = new UploadManifest

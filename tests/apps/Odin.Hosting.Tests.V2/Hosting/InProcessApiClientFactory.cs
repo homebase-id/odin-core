@@ -136,15 +136,10 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
     /// prefixes — because the V1 framework encodes that in each factory's <c>BaseAddress</c>. Sending
     /// an app token to <c>/api/owner/v1</c> is an Unauthorized, not a Forbidden, which silently turns
     /// permission-matrix tests into auth tests.
-    ///
-    /// <see cref="AnonymousRoots"/> are genuinely unprefixed public routes (published static files,
-    /// public profile card / image); prefixing those would 404.
     /// </summary>
     private sealed class V1PathNormalizingHandler(HttpMessageHandler inner, string v1BasePath)
         : DelegatingHandler(inner)
     {
-        private static readonly string[] AnonymousRoots = ["/cdn/", "/pub/"];
-
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             if (request.RequestUri is { } uri)
@@ -155,10 +150,7 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
                     path = path[1..];
                 }
 
-                var isAnonymousRoot = Array.Exists(AnonymousRoots,
-                    root => path.StartsWith(root, StringComparison.Ordinal));
-
-                if (!path.StartsWith("/api/", StringComparison.Ordinal) && !isAnonymousRoot)
+                if (!IsAlreadyAbsolute(path))
                 {
                     path = v1BasePath + path;
                 }
@@ -171,5 +163,15 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
 
             return base.SendAsync(request, ct);
         }
+
+        /// <summary>
+        /// Paths that already name their own surface and must not be prefixed: <c>/api/</c> (V2, and
+        /// V1 interfaces that pre-include the prefix), and the unprefixed public CDN routes —
+        /// published static files and the public profile card / image.
+        /// </summary>
+        private static bool IsAlreadyAbsolute(string path) =>
+            path.StartsWith("/api/", StringComparison.Ordinal) ||
+            path.StartsWith("/cdn/", StringComparison.Ordinal) ||
+            path.StartsWith("/pub/", StringComparison.Ordinal);
     }
 }

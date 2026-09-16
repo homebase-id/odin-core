@@ -33,17 +33,14 @@ public sealed class CallerSpec
     public static CallerSpec Owner(DriveSpec drive) =>
         new("Owner", drive, o => Task.FromResult<IV2Caller>(o));
 
-    public static CallerSpec App(DriveSpec drive, DrivePermission perm) =>
-        new($"App[{perm}]", drive, async o => await AppSession.SetupAsync(o, drive.Drive, perm));
-
     /// <summary>
-    /// App caller that also holds tenant-wide permission keys. Needed wherever the endpoint gates on
-    /// a <see cref="Odin.Services.Authorization.Permissions.PermissionKeys"/> value rather than on the
-    /// drive grant — e.g. PublishStaticContent, SendPushNotifications — including the negative case,
-    /// where an app with the drive grant but no key must still be refused.
+    /// App caller, optionally holding tenant-wide permission keys — needed wherever the endpoint
+    /// gates on a <see cref="Odin.Services.Authorization.Permissions.PermissionKeys"/> value rather
+    /// than on the drive grant (PublishStaticContent, SendPushNotifications). Omit the keys for the
+    /// negative case: an app with the drive grant but no key must still be refused.
     /// </summary>
-    public static CallerSpec App(DriveSpec drive, DrivePermission perm, IReadOnlyList<int> permissionKeys) =>
-        new($"App[{perm}+keys:{(permissionKeys.Count == 0 ? "none" : string.Join('|', permissionKeys))}]",
+    public static CallerSpec App(DriveSpec drive, DrivePermission perm, IReadOnlyList<int> permissionKeys = null) =>
+        new($"App[{perm}{(permissionKeys is { Count: > 0 } k ? $"+keys:{string.Join('|', k)}" : "")}]",
             drive,
             async o => await AppSession.SetupAsync(o, drive.Drive, perm, permissionKeys));
 
