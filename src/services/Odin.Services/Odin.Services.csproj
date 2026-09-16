@@ -39,6 +39,9 @@
     <!-- The V2 in-process test framework calls internal members for its test-only drain hooks
          and replacement-factory wiring. Keep this list tight; production never relies on it. -->
     <InternalsVisibleTo Include="Odin.Hosting.Tests.V2" />
+    <!-- V1 tests need the same drain hook: an item deferred by a retry-later answer sits for
+         minutes, which no test can wait out. -->
+    <InternalsVisibleTo Include="Odin.Hosting.Tests" />
   </ItemGroup>
 
 </Project>

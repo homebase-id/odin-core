@@ -21,6 +21,13 @@ public class OdinOutboxProcessingException : OdinException
     public OdinId Recipient { get; set; }
     
     public LatestTransferStatus TransferStatus { get; set; }
+
+    /// <summary>
+    /// Set when the recipient answered "retry later" (503 or 507 with a Retry-After header), e.g. it is
+    /// paused or out of quota. Such an item is rescheduled per the header without spending an attempt;
+    /// see <see cref="OutboxRetryLater"/>.
+    /// </summary>
+    public TimeSpan? RetryAfter { get; set; }
         
     /// <summary>
     /// Indicates the version of the file that was sent

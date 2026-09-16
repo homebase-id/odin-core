@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -44,7 +45,28 @@ public abstract class OutboxWorkerBase(
         }
     }
 
-    protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext,
+    /// <summary>
+    /// Runs <paramref name="send"/> and turns an <see cref="OdinOutboxProcessingException"/> into the
+    /// scheduling decision from <see cref="HandleOutboxProcessingException"/>. Without this, the processor's
+    /// last-resort catch reschedules the item at "now" and it spins through its attempts in seconds; a
+    /// recipient that is paused or out of quota is waited out instead.
+    /// </summary>
+    protected async Task<OutboxProcessingResult> SendHandledAsync(
+        Func<IOdinContext, CancellationToken, Task<OutboxProcessingResult>> send,
+        IOdinContext odinContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await send(odinContext, cancellationToken);
+        }
+        catch (OdinOutboxProcessingException e)
+        {
+            return await HandleOutboxProcessingException(odinContext, e);
+        }
+    }
+
+    protected async Task<OutboxProcessingResult> HandleOutboxProcessingException(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Failed to process outbox item (type: {type}) for recipient: {recipient} " +
@@ -54,29 +76,66 @@ public abstract class OutboxWorkerBase(
             e.GlobalTransitId,
             e.TransferStatus);
 
-
         switch (e.TransferStatus)
         {
             case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
             case LatestTransferStatus.UnknownServerError:
             case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
             case LatestTransferStatus.SendingServerTooManyAttempts:
-                logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
-                PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
-                await HandleUnrecoverableTransferStatus(e, odinContext);
-                return (true, UnixTimeUtc.ZeroTime);
+                return await GiveUpAsync(odinContext, e);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientServerNotResponding:
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
+                if (e.RetryAfter.HasValue)
+                {
+                    return await RetryLaterAsync(odinContext, e, e.RetryAfter.Value);
+                }
+
                 logger.LogDebug(e, "Recoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
                 var nextRun = await HandleRecoverableTransferStatus(odinContext, e);
-                return (false, nextRun);
+                return OutboxProcessingResult.Retry(nextRun);
 
             default:
                 throw new OdinSystemException("Unhandled LatestTransferStatus");
         }
+    }
+
+    /// <summary>
+    /// The recipient is paused or out of quota and told us when to come back. Wait it out instead of
+    /// spending attempts, but not forever: past <see cref="OdinConfiguration.HostSection.OutboxRetryLaterMaxAge"/>
+    /// the item is given up on.
+    /// </summary>
+    private async Task<OutboxProcessingResult> RetryLaterAsync(IOdinContext odinContext, OdinOutboxProcessingException e,
+        TimeSpan retryAfter)
+    {
+        var now = UnixTimeUtc.Now();
+        if (OutboxRetryLater.IsExpired(FileItem.AddedTimestamp, now, Configuration.Host.OutboxRetryLaterMaxAge))
+        {
+            logger.LogInformation(
+                "Recipient {recipient} has been asking us to retry later since {added}; giving up on file {file}",
+                FileItem.Recipient, FileItem.AddedTimestamp, FileItem.File);
+
+            e.TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts;
+            return await GiveUpAsync(odinContext, e);
+        }
+
+        var nextRunTime = OutboxRetryLater.NextRun(retryAfter, now);
+        logger.LogDebug("Recipient {recipient} asked us to retry after {retryAfter}; next attempt at {nextRun}",
+            FileItem.Recipient, retryAfter, nextRunTime);
+
+        PerformanceCounter.IncrementCounter("Outbox Retry Later");
+        await HandleRecoverableTransferStatus(odinContext, e);
+        return OutboxProcessingResult.RetryLater(nextRunTime);
+    }
+
+    private async Task<OutboxProcessingResult> GiveUpAsync(IOdinContext odinContext, OdinOutboxProcessingException e)
+    {
+        logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
+        PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
+        await HandleUnrecoverableTransferStatus(e, odinContext);
+        return OutboxProcessingResult.Complete();
     }
 
     protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,

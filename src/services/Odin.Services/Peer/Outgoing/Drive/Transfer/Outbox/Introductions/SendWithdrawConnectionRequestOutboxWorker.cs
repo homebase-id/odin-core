@@ -25,7 +25,12 @@ public class SendWithdrawConnectionRequestOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        return SendHandledAsync(SendInternalAsync, odinContext, cancellationToken);
+    }
+
+    private async Task<OutboxProcessingResult> SendInternalAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var file = FileItem.File;
         var recipient = FileItem.Recipient;
@@ -52,7 +57,7 @@ public class SendWithdrawConnectionRequestOutboxWorker(
 
             if (response.IsSuccessStatusCode)
             {
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
@@ -61,12 +66,13 @@ public class SendWithdrawConnectionRequestOutboxWorker(
                 // deliver, so drop the item instead of retrying.
                 logger.LogInformation("WithdrawConnectionRequest to {recipient} returned {status}; dropping outbox item.",
                     recipient, response.StatusCode);
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             throw new OdinOutboxProcessingException("Failed while sending withdraw-connection-request notification")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = default,
                 Recipient = recipient,

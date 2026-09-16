@@ -64,6 +64,12 @@ public static class TenantStatusRules
     public const int PausedRetryAfterSeconds = 600;
 
     /// <summary>
+    /// Retry-After sent when an identity is over quota. Longer than <see cref="PausedRetryAfterSeconds"/>,
+    /// because a human has to free space or raise the quota.
+    /// </summary>
+    public const int OutOfQuotaRetryAfterSeconds = 3600;
+
+    /// <summary>
     /// Parses a status name case-insensitively, ignoring '-' and '_' (so "out-of-quota" works). Numbers and
     /// Enum.TryParse's comma-separated flag syntax are refused.
     /// </summary>

@@ -28,6 +28,7 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Registry;
 using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
@@ -44,7 +45,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
         TransitInboxBoxStorage transitInboxBoxStorage,
-        FeedWriter feedWriter
+        FeedWriter feedWriter,
+        TenantQuotaGuard quotaGuard
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
@@ -67,6 +69,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
+            // Refused before any bytes are read, so the sender defers the transfer instead of losing it
+            quotaGuard.AssertCanAddPayloadBytes();
+
             _uploadedKeys.TryAdd(key, new List<string>());
             if (_transferState.IsDirectWrite)
                 await fileSystem.Storage.WriteUploadStream(_transferState.File, fileExtension, data, odinContext);
@@ -79,6 +84,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
             IOdinContext odinContext)
         {
+            quotaGuard.AssertCanAddPayloadBytes();
+
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
             {
                 thumbnailKeys = new List<string>();

@@ -23,7 +23,12 @@ public class SendIntroductionOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        return SendHandledAsync(SendInternalAsync, odinContext, cancellationToken);
+    }
+
+    private async Task<OutboxProcessingResult> SendInternalAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
@@ -54,7 +59,7 @@ public class SendIntroductionOutboxWorker(
 
             if (response.IsSuccessStatusCode)
             {
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -66,12 +71,13 @@ public class SendIntroductionOutboxWorker(
                 logger.LogInformation(
                     "SendIntroduction to {recipient} returned 403; dropping outbox item. body={body}",
                     recipient, body);
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             throw new OdinOutboxProcessingException("Failed while enqueuing notification")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = default,
                 Recipient = recipient,

@@ -11,6 +11,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Registry;
 
 namespace Odin.Services.Drives.FileSystem.Standard;
 
@@ -23,8 +24,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         TenantContext tenantContext,
         PeerOutgoingTransferService peerOutgoingTransferService,
         IDriveManager driveManager,
+        TenantQuotaGuard quotaGuard,
         ILogger<StandardFileStreamWriter> logger)
-        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService, logger)
+        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService, quotaGuard, logger)
     {
     }
 

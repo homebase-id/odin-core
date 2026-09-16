@@ -25,7 +25,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -41,7 +41,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
                 _fileItem.Recipient,
                 _fileItem.Marker);
 
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (OdinOutboxProcessingException e)
         {
@@ -108,6 +108,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 Recipient = recipient,

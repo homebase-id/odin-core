@@ -208,6 +208,7 @@ public static class TenantServices
         cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+        cb.RegisterType<TenantQuotaGuard>().AsSelf().SingleInstance();
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();

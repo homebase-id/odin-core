@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Base;
+using Odin.Services.Registry;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Util;
 
@@ -19,12 +20,15 @@ public abstract class PayloadStreamWriterBase
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard)
     {
         FileSystem = fileSystem;
+        QuotaGuard = quotaGuard;
     }
 
     protected IDriveFileSystem FileSystem { get; }
+
+    protected TenantQuotaGuard QuotaGuard { get; }
 
     public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
@@ -53,6 +57,8 @@ public abstract class PayloadStreamWriterBase
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
+        QuotaGuard.AssertCanAddPayloadBytes();
+
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
         if (null == descriptor)
@@ -76,6 +82,8 @@ public abstract class PayloadStreamWriterBase
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
         IOdinContext odinContext)
     {
+        QuotaGuard.AssertCanAddPayloadBytes();
+
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
         // if you're adding a thumbnail, there must be a manifest

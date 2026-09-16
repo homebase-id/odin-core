@@ -28,10 +28,12 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Refit;
 using Status = Odin.Services.Registry.TenantStatus;
+using static Odin.Hosting.Tests._Universal.TenantStatus.TenantStatusTestSupport;
 
 namespace Odin.Hosting.Tests._Universal.TenantStatus;
 
@@ -41,23 +43,13 @@ namespace Odin.Hosting.Tests._Universal.TenantStatus;
 /// </summary>
 public class TenantStatusTests
 {
-    private const string AdminApiKey = "your-secret-api-key-here";
-    private const string AdminHost = "admin.dotyou.cloud:4444";
-
     private WebScaffold _scaffold = null!;
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         _scaffold = new WebScaffold(GetType().Name);
-        var env = new Dictionary<string, string>
-        {
-            { "Admin__ApiEnabled", "true" },
-            { "Admin__ApiKey", AdminApiKey },
-            { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
-            { "Admin__ApiPort", "4444" },
-            { "Admin__Domain", "admin.dotyou.cloud" },
-        };
+        var env = AdminEnv();
         _scaffold.RunBeforeAnyTests(envOverrides: env,
             testIdentities: [TestIdentities.Frodo, TestIdentities.Samwise, TestIdentities.Pippin]);
     }
@@ -400,6 +392,9 @@ public class TenantStatusTests
 
             await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.Active, null);
 
+            // A paused recipient asks for ten minutes and the sender honours that, so a test has to
+            // bring the item forward rather than wait it out
+            await DrainOutboxAsync(_scaffold, sender.Identity);
             await sender.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromSeconds(90));
             await recipient.DriveRedux.ProcessInbox(targetDrive);
             var received = await recipient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
@@ -436,15 +431,15 @@ public class TenantStatusTests
             await SetStatusViaAdminAsync(sender.OdinId.DomainName, Status.Paused, null);
             await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.Active, null);
 
-            // Wait until the queued item is due, then a while longer: a running outbox would check it out
-            // (bumping checkOutCount) or deliver it; a stopped one leaves the row exactly as it is
-            var queued = await ReadOutboxAsync(sender.Identity);
+            // Make the queued item due right now, then wait a while: a running outbox would check it out
+            // (bumping checkOutCount) or deliver it; a stopped one leaves the row exactly as it is.
+            // (The recipient's 503 defers the item for ten minutes, which a test cannot wait out.)
+            var queued = await ReadOutboxAsync(_scaffold, sender.Identity);
             Assert.That(queued, Has.Count.EqualTo(1));
-            await WaitUntilAsync(() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() > queued[0].nextRunTime.milliseconds,
-                "the queued item to be due", TimeSpan.FromSeconds(60));
+            await BringOutboxForwardAsync(_scaffold, sender.Identity);
             await Task.Delay(TimeSpan.FromSeconds(5));
 
-            var untouched = await ReadOutboxAsync(sender.Identity);
+            var untouched = await ReadOutboxAsync(_scaffold, sender.Identity);
             Assert.That(untouched, Has.Count.EqualTo(1), "a paused sender must not deliver");
             Assert.That(untouched[0].checkOutCount, Is.EqualTo(queued[0].checkOutCount), "a paused sender must not even try");
             Assert.That(untouched[0].checkOutStamp, Is.Null);
@@ -541,28 +536,6 @@ public class TenantStatusTests
 
     private static long UnixTimeUtcNow() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - 1;
 
-    private static async Task<HttpResponseMessage> SendAdminAsync(HttpMethod method, string path, HttpContent content = null)
-    {
-        var client = WebScaffold.HttpClientFactory.CreateClient(AdminHost);
-        var request = new HttpRequestMessage(method, $"https://{AdminHost}/api/admin/v1/{path}")
-        {
-            Headers = { { "Odin-Admin-Api-Key", AdminApiKey } },
-            Content = content
-        };
-        return await client.SendAsync(request);
-    }
-
-    private static Task<HttpResponseMessage> SetStatusViaAdminAsync(string domain, Status status, DisabledReason? reason)
-    {
-        return PatchStatusRawAsync(domain,
-            OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status, DisabledReason = reason }));
-    }
-
-    private static Task<HttpResponseMessage> PatchStatusRawAsync(string domain, string json)
-    {
-        return SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/status", new StringContent(json, Encoding.UTF8, "application/json"));
-    }
-
     private static async Task<TenantModel> GetTenantViaAdminAsync(string domain)
     {
         var response = await SendAdminAsync(HttpMethod.Get, $"tenants/{domain}");
@@ -575,15 +548,6 @@ public class TenantStatusTests
         var host = $"{identity.OdinId.DomainName}:{WebScaffold.HttpsPort}";
         var client = WebScaffold.HttpClientFactory.CreateClient(host);
         return await client.GetAsync($"https://{host}{path}");
-    }
-
-    // Straight from the identity database: a paused identity answers 503 to the drive status API
-    private async Task<List<Odin.Core.Storage.Database.Identity.Table.OutboxRecord>> ReadOutboxAsync(TestIdentity identity)
-    {
-        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
-        await using var scope = container.GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("TenantStatusTests");
-        var (records, _) = await scope.Resolve<Odin.Core.Storage.Database.Identity.IdentityDatabase>().Outbox.PagingByRowIdAsync(100, null);
-        return records;
     }
 
     private async Task<Odin.Core.Storage.Database.System.Table.RegistrationsRecord> ReadRowAsync(TestIdentity identity)
@@ -619,24 +583,6 @@ public class TenantStatusTests
             JsonEnvelope.Create(new RegistryChangeMessage { Version = version, OriginNodeId = Guid.NewGuid() }));
     }
 
-    private static Task WaitUntilAsync(Func<bool> condition, string what, TimeSpan? timeout = null)
-    {
-        return WaitUntilAsync(() => Task.FromResult(condition()), what, timeout);
-    }
-
-    private static async Task WaitUntilAsync(Func<Task<bool>> condition, string what, TimeSpan? timeout = null)
-    {
-        var sw = Stopwatch.StartNew();
-        while (!await condition())
-        {
-            if (sw.Elapsed > (timeout ?? TimeSpan.FromSeconds(30)))
-            {
-                Assert.Fail($"Timed out waiting for {what}");
-            }
-            await Task.Delay(50);
-        }
-    }
-
     private static async Task<UploadResult> UploadAsync(OwnerApiClientRedux sender, TargetDrive targetDrive, OdinId recipient)
     {
         var fileMetadata = new UploadFileMetadata
@@ -655,21 +601,5 @@ public class TenantStatusTests
         ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         Assert.That(response.Content.RecipientStatus[recipient], Is.EqualTo(TransferStatus.Enqueued));
         return response.Content;
-    }
-
-    private static async Task PrepareScenarioAsync(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TargetDrive targetDrive)
-    {
-        ClassicAssert.IsTrue((await recipient.DriveManager.CreateDrive(targetDrive, "Target drive on recipient", "", false, false, false)).IsSuccessStatusCode);
-        ClassicAssert.IsTrue((await sender.DriveManager.CreateDrive(targetDrive, "Target drive on sender", "", false, false, false)).IsSuccessStatusCode);
-
-        var circleId = Guid.NewGuid();
-        var createCircle = await recipient.Network.CreateCircle(circleId, "Circle with drive access", new PermissionSetGrantRequest
-        {
-            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = targetDrive, Permission = DrivePermission.Write } }]
-        });
-        ClassicAssert.IsTrue(createCircle.IsSuccessStatusCode);
-
-        await sender.Connections.SendConnectionRequest(recipient.OdinId, new List<GuidId>());
-        await recipient.Connections.AcceptConnectionRequest(sender.OdinId, new List<GuidId> { circleId });
     }
 }

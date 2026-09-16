@@ -200,12 +200,28 @@ public class TableOutbox(
     /// Cancels the pop of items with the 'checkOutStamp' from a previous pop operation
     /// </summary>
     /// <param name="checkOutStamp"></param>
-    public async Task<int> CheckInAsCancelledAsync(Guid checkOutStamp, UnixTimeUtc nextRunTime)
+    public Task<int> CheckInAsCancelledAsync(Guid checkOutStamp, UnixTimeUtc nextRunTime)
+    {
+        return CheckInAsync(checkOutStamp, nextRunTime, countAttempt: true);
+    }
+
+    /// <summary>
+    /// Checks the item back in for a later attempt <b>without</b> counting an attempt: the recipient
+    /// asked us to retry later (it is paused or out of quota), which is not a failure on its part.
+    /// Unlike <see cref="CheckInAsCancelledAsync"/>, checkOutCount is left alone.
+    /// </summary>
+    public Task<int> CheckInAsDeferredAsync(Guid checkOutStamp, UnixTimeUtc nextRunTime)
+    {
+        return CheckInAsync(checkOutStamp, nextRunTime, countAttempt: false);
+    }
+
+    private async Task<int> CheckInAsync(Guid checkOutStamp, UnixTimeUtc nextRunTime, bool countAttempt)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=@nextRunTime WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp";
+        var bumpAttempt = countAttempt ? "checkOutCount=checkOutCount+1, " : "";
+        cmd.CommandText = $"UPDATE outbox SET checkOutStamp=NULL, {bumpAttempt}nextRunTime=@nextRunTime WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
@@ -225,8 +241,6 @@ public class TableOutbox(
 
         return await cmd.ExecuteNonQueryAsync();
     }
-
-
 
     /// <summary>
     /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
