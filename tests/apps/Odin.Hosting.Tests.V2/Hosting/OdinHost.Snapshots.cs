@@ -92,6 +92,11 @@ public sealed partial class OdinHost
     /// <c>TenantServices.ConfigureTenantServices</c> that buffers mutable state outside DB / cache —
     /// notably the two <c>SharedDeviceSocketCollection&lt;T&gt;</c> registries for app + peer-app
     /// notifications. The current suite doesn't open WebSockets; add a drain helper if/when one does.
+    /// Also: the SYSTEM database. Only identity DBs are snapshotted, so rows written there survive a
+    /// reset — <c>TableJobs</c> in particular, which every TTL'd upload and every scheduled
+    /// notification writes to. A fixture that cares clears them itself; see
+    /// <c>Ported/Notifications/ScheduledNotificationTests.ClearScheduledJobs</c>. Lift that into this
+    /// method if a third fixture ever needs it.
     /// </para>
     /// <para><b>FusionCache clear scope:</b> <see cref="IFusionCache"/> is registered as a true
     /// singleton at the process container; tenant-keyed cache prefixes mean different tenants

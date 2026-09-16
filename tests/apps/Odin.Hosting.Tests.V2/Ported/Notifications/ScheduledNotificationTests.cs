@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -16,6 +15,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive;
+using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.Notifications;
 
@@ -25,17 +25,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Notifications;
 /// and the null-options guard.
 /// </summary>
 /// <remarks>
-/// Two of the original's ten cases stay on <c>WebScaffold</c>, because both turn on a job actually
-/// firing and the in-process framework never starts background services:
-/// <c>FiresAndLandsInNotificationList</c>, and <c>CanBeCancelledBeforeItFires</c>, whose last act is
-/// to poll the notification list asserting the cancelled job never arrived. The cancel contract
-/// itself — cancel succeeds, a second cancel 404s, and the entry leaves the list — is covered here by
-/// <see cref="ScheduledNotification_AppearsInListUntilCancelled"/>.
+/// The two cases that assert on a job actually firing stay on WebScaffold (the fast framework never
+/// starts background services) — see the FLAGGED banner on the original for which and why.
 ///
 /// Scheduled jobs live in the SYSTEM database, which <see cref="V2Fixture.ResetBetweenTests"/> does
-/// not restore (it snapshots the identity DB and payload tree only), so they would leak from test to
-/// test inside this fixture. <see cref="ClearScheduledJobs"/> wipes them per test; the cap tests keep
-/// the original's count-before-fill baselines as belt and braces.
+/// not restore — it snapshots the identity DB and payload tree only — so they would leak from test to
+/// test inside this fixture. <see cref="ClearScheduledJobs"/> wipes them per test, which is also why
+/// no test cancels what it scheduled on the way out.
 /// </remarks>
 [TestFixture]
 public class ScheduledNotificationTests : V2Fixture
@@ -54,11 +50,8 @@ public class ScheduledNotificationTests : V2Fixture
         await jobManager.DeleteJobsByIdentityIdAsync(tenantContext.DotYouRegistryId);
     }
 
-    private static ScheduledNotificationV2Client ScheduleClient(OwnerSession owner) =>
-        new(owner.Identity, owner.Factory);
-
-    private static ScheduledNotificationV2Client ScheduleClient(AppSession app) =>
-        new(app.Identity, app.Factory);
+    private static ScheduledNotificationV2Client ScheduleClient(IV2Caller caller) =>
+        new(caller.Identity, caller.Factory);
 
     private static AppNotificationOptions NewOptions(Guid? appId = null, bool silent = true) => new()
     {
@@ -67,6 +60,32 @@ public class ScheduledNotificationTests : V2Fixture
         TagId = Guid.NewGuid(),
         Silent = silent
     };
+
+    private static void AssertClientError<T>(ApiResponse<T> response, OdinClientErrorCode expected)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(expected));
+    }
+
+    /// <summary>
+    /// Two apps on one tenant, both granted <see cref="PermissionKeys.SendPushNotifications"/>. The
+    /// drive exists only because an app registration needs one to hang its grant on; no test here
+    /// touches it.
+    /// </summary>
+    private async Task<(OwnerSession Owner, ScheduledNotificationV2Client AppA, ScheduledNotificationV2Client AppB)>
+        SetupTwoPushAppsAsync()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await owner.Admin.EnsureDrive(targetDrive, "Test Drive");
+
+        var appA = await AppSession.SetupAsync(owner, targetDrive, DrivePermission.Write,
+            [PermissionKeys.SendPushNotifications]);
+        var appB = await AppSession.SetupAsync(owner, targetDrive, DrivePermission.Write,
+            [PermissionKeys.SendPushNotifications]);
+
+        return (owner, ScheduleClient(appA), ScheduleClient(appB));
+    }
 
     /// <summary>
     /// A notification scheduled for the future shows up in the list endpoint with its job id, options,
@@ -100,7 +119,7 @@ public class ScheduledNotificationTests : V2Fixture
         // The job is gone: it leaves the list, and a second cancel reports nothing to cancel.
         var listAfterCancel = await scheduleClient.List();
         Assert.That(listAfterCancel.IsSuccessStatusCode, Is.True, $"List failed: {listAfterCancel.StatusCode}");
-        Assert.That(listAfterCancel.Content?.Any(s => s.JobId == jobId) ?? false, Is.False,
+        Assert.That(listAfterCancel.Content!.Select(s => s.JobId), Does.Not.Contain(jobId),
             "Cancelled notification should no longer appear in the list");
 
         var cancelAgainResponse = await scheduleClient.Cancel(jobId);
@@ -150,17 +169,7 @@ public class ScheduledNotificationTests : V2Fixture
     [Test]
     public async Task ScheduledNotification_UpdateIsScopedToTheAppThatCreatedIt()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await owner.Admin.EnsureDrive(targetDrive, "Test Drive");
-
-        var appA = await AppSession.SetupAsync(owner, targetDrive, DrivePermission.Write,
-            [PermissionKeys.SendPushNotifications]);
-        var appB = await AppSession.SetupAsync(owner, targetDrive, DrivePermission.Write,
-            [PermissionKeys.SendPushNotifications]);
-
-        var appAScheduleClient = ScheduleClient(appA);
-        var appBScheduleClient = ScheduleClient(appB);
+        var (owner, appAScheduleClient, appBScheduleClient) = await SetupTwoPushAppsAsync();
 
         var options = NewOptions();
 
@@ -194,17 +203,7 @@ public class ScheduledNotificationTests : V2Fixture
     [Test]
     public async Task ScheduledNotification_IsScopedToTheAppThatCreatedIt()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await owner.Admin.EnsureDrive(targetDrive, "Test Drive");
-
-        var appA = await AppSession.SetupAsync(owner, targetDrive, DrivePermission.Write,
-            [PermissionKeys.SendPushNotifications]);
-        var appB = await AppSession.SetupAsync(owner, targetDrive, DrivePermission.Write,
-            [PermissionKeys.SendPushNotifications]);
-
-        var appAScheduleClient = ScheduleClient(appA);
-        var appBScheduleClient = ScheduleClient(appB);
+        var (owner, appAScheduleClient, appBScheduleClient) = await SetupTwoPushAppsAsync();
 
         // App A schedules a notification.
         var scheduleResponse = await appAScheduleClient.Schedule(NewOptions(), UnixTimeUtc.Now().AddHours(1));
@@ -214,7 +213,7 @@ public class ScheduledNotificationTests : V2Fixture
         // App B does not see it in its own list...
         var appBList = await appBScheduleClient.List();
         Assert.That(appBList.IsSuccessStatusCode, Is.True, $"List failed: {appBList.StatusCode}");
-        Assert.That(appBList.Content?.Any(s => s.JobId == jobId) ?? false, Is.False,
+        Assert.That(appBList.Content!.Select(s => s.JobId), Does.Not.Contain(jobId),
             "App B should not see App A's scheduled notification in its list");
 
         // ...and cannot cancel it.
@@ -224,13 +223,13 @@ public class ScheduledNotificationTests : V2Fixture
 
         // App A still sees its own scheduled notification.
         var appAList = await appAScheduleClient.List();
-        Assert.That(appAList.Content?.Any(s => s.JobId == jobId) ?? false, Is.True,
+        Assert.That(appAList.Content!.Select(s => s.JobId), Does.Contain(jobId),
             "App A should still see its own scheduled notification");
 
         // The owner sees every app's scheduled notifications...
         var ownerScheduleClient = ScheduleClient(owner);
         var ownerList = await ownerScheduleClient.List();
-        Assert.That(ownerList.Content?.Any(s => s.JobId == jobId) ?? false, Is.True,
+        Assert.That(ownerList.Content!.Select(s => s.JobId), Does.Contain(jobId),
             "Owner should see App A's scheduled notification");
 
         // ...and can cancel any of them.
@@ -252,38 +251,24 @@ public class ScheduledNotificationTests : V2Fixture
         // Far enough out that nothing fires (and drops off the pending count) during the test.
         var sendAt = UnixTimeUtc.Now().AddHours(6);
 
-        // ClearScheduledJobs should have emptied this, but count rather than assume: the cap is a
-        // const on the service, so it cannot be lowered from config -- this really does fill 100 slots.
+        // ClearScheduledJobs leaves the tenant empty; count rather than assume, so this still holds
+        // if that ever changes. The cap is a const on the service and cannot be lowered from config,
+        // so this really does fill 100 slots.
         var listBefore = await scheduleClient.List();
         Assert.That(listBefore.IsSuccessStatusCode, Is.True, $"List failed: {listBefore.StatusCode}");
         var currentCount = listBefore.Content?.Count ?? 0;
 
-        var scheduledJobIds = new List<Guid>();
-        try
+        // Fill up to (but not over) the cap.
+        for (var i = currentCount; i < ScheduledNotificationService.MaxPendingPerTenant; i++)
         {
-            // Fill up to (but not over) the cap.
-            for (var i = currentCount; i < ScheduledNotificationService.MaxPendingPerTenant; i++)
-            {
-                var response = await scheduleClient.Schedule(NewOptions(), sendAt);
-                Assert.That(response.IsSuccessStatusCode, Is.True,
-                    $"Schedule failed while filling the cap: {response.StatusCode}");
-                scheduledJobIds.Add(response.Content!.JobId);
-            }
+            var response = await scheduleClient.Schedule(NewOptions(), sendAt);
+            Assert.That(response.IsSuccessStatusCode, Is.True,
+                $"Schedule failed while filling the cap: {response.StatusCode}");
+        }
 
-            // One more, past the cap, is rejected.
-            var overCapResponse = await scheduleClient.Schedule(NewOptions(), sendAt);
-            Assert.That(overCapResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-            Assert.That(WebScaffold.GetErrorCode(overCapResponse.Error),
-                Is.EqualTo(OdinClientErrorCode.TooManyScheduledNotifications));
-        }
-        finally
-        {
-            // Don't leave the tenant pinned at the cap for whichever test runs next.
-            foreach (var jobId in scheduledJobIds)
-            {
-                await scheduleClient.Cancel(jobId);
-            }
-        }
+        // One more, past the cap, is rejected.
+        var overCapResponse = await scheduleClient.Schedule(NewOptions(), sendAt);
+        AssertClientError(overCapResponse, OdinClientErrorCode.TooManyScheduledNotifications);
     }
 
     /// <summary>
@@ -303,8 +288,7 @@ public class ScheduledNotificationTests : V2Fixture
 
         // Rejected on Schedule.
         var scheduleResponse = await scheduleClient.Schedule(options, sendAt, tooShortInterval);
-        Assert.That(scheduleResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(WebScaffold.GetErrorCode(scheduleResponse.Error), Is.EqualTo(OdinClientErrorCode.ArgumentError));
+        AssertClientError(scheduleResponse, OdinClientErrorCode.ArgumentError);
 
         // A valid one-shot schedule, then rejected on Update too.
         var validResponse = await scheduleClient.Schedule(options, sendAt);
@@ -312,10 +296,8 @@ public class ScheduledNotificationTests : V2Fixture
         var jobId = validResponse.Content!.JobId;
 
         var updateResponse = await scheduleClient.Update(jobId, options, sendAt, tooShortInterval);
-        Assert.That(updateResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(WebScaffold.GetErrorCode(updateResponse.Error), Is.EqualTo(OdinClientErrorCode.ArgumentError));
+        AssertClientError(updateResponse, OdinClientErrorCode.ArgumentError);
 
-        await scheduleClient.Cancel(jobId);
     }
 
     /// <summary>
@@ -336,43 +318,28 @@ public class ScheduledNotificationTests : V2Fixture
         Assert.That(listBefore.IsSuccessStatusCode, Is.True, $"List failed: {listBefore.StatusCode}");
         var currentWeight = listBefore.Content?.Sum(e => e.RecurrenceInterval != null ? 2 : 1) ?? 0;
 
-        var scheduledJobIds = new List<Guid>();
-        try
+        var recurringResponse = await scheduleClient.Schedule(
+            NewOptions(), sendAt, ScheduledNotificationService.MinRecurrenceInterval);
+        Assert.That(recurringResponse.IsSuccessStatusCode, Is.True, $"Schedule failed: {recurringResponse.StatusCode}");
+        var recurringJobId = recurringResponse.Content!.JobId;
+
+        var listAfterRecurring = await scheduleClient.List();
+        var recurringEntry = listAfterRecurring.Content?.SingleOrDefault(e => e.JobId == recurringJobId);
+        Assert.That(recurringEntry, Is.Not.Null, "Recurring notification did not appear in the list");
+        Assert.That(recurringEntry!.RecurrenceInterval,
+            Is.EqualTo(ScheduledNotificationService.MinRecurrenceInterval));
+
+        // Fill the remaining slots with one-shots (the recurring notification already took 2).
+        for (var i = currentWeight + 2; i < ScheduledNotificationService.MaxPendingPerTenant; i++)
         {
-            var recurringResponse = await scheduleClient.Schedule(
-                NewOptions(), sendAt, ScheduledNotificationService.MinRecurrenceInterval);
-            Assert.That(recurringResponse.IsSuccessStatusCode, Is.True, $"Schedule failed: {recurringResponse.StatusCode}");
-            var recurringJobId = recurringResponse.Content!.JobId;
-            scheduledJobIds.Add(recurringJobId);
-
-            var listAfterRecurring = await scheduleClient.List();
-            var recurringEntry = listAfterRecurring.Content?.SingleOrDefault(e => e.JobId == recurringJobId);
-            Assert.That(recurringEntry, Is.Not.Null, "Recurring notification did not appear in the list");
-            Assert.That(recurringEntry!.RecurrenceInterval,
-                Is.EqualTo(ScheduledNotificationService.MinRecurrenceInterval));
-
-            // Fill the remaining slots with one-shots (the recurring notification already took 2).
-            for (var i = currentWeight + 2; i < ScheduledNotificationService.MaxPendingPerTenant; i++)
-            {
-                var response = await scheduleClient.Schedule(NewOptions(), sendAt);
-                Assert.That(response.IsSuccessStatusCode, Is.True,
-                    $"Schedule failed while filling the cap: {response.StatusCode}");
-                scheduledJobIds.Add(response.Content!.JobId);
-            }
-
-            // One more is rejected -- proving the recurring notification's 2-slot weight was enforced.
-            var overCapResponse = await scheduleClient.Schedule(NewOptions(), sendAt);
-            Assert.That(overCapResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-            Assert.That(WebScaffold.GetErrorCode(overCapResponse.Error),
-                Is.EqualTo(OdinClientErrorCode.TooManyScheduledNotifications));
+            var response = await scheduleClient.Schedule(NewOptions(), sendAt);
+            Assert.That(response.IsSuccessStatusCode, Is.True,
+                $"Schedule failed while filling the cap: {response.StatusCode}");
         }
-        finally
-        {
-            foreach (var jobId in scheduledJobIds)
-            {
-                await scheduleClient.Cancel(jobId);
-            }
-        }
+
+        // One more is rejected -- proving the recurring notification's 2-slot weight was enforced.
+        var overCapResponse = await scheduleClient.Schedule(NewOptions(), sendAt);
+        AssertClientError(overCapResponse, OdinClientErrorCode.TooManyScheduledNotifications);
     }
 
     /// <summary>
@@ -389,8 +356,7 @@ public class ScheduledNotificationTests : V2Fixture
 
         // Schedule with no options is rejected.
         var scheduleResponse = await scheduleClient.Schedule(null, sendAt);
-        Assert.That(scheduleResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(WebScaffold.GetErrorCode(scheduleResponse.Error), Is.EqualTo(OdinClientErrorCode.ArgumentError));
+        AssertClientError(scheduleResponse, OdinClientErrorCode.ArgumentError);
 
         // Schedule a real notification so there's a job id to attempt an update against.
         var validScheduleResponse = await scheduleClient.Schedule(NewOptions(), sendAt);
@@ -400,9 +366,7 @@ public class ScheduledNotificationTests : V2Fixture
 
         // Update with no options is rejected too.
         var updateResponse = await scheduleClient.Update(jobId, null, sendAt);
-        Assert.That(updateResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(WebScaffold.GetErrorCode(updateResponse.Error), Is.EqualTo(OdinClientErrorCode.ArgumentError));
+        AssertClientError(updateResponse, OdinClientErrorCode.ArgumentError);
 
-        await scheduleClient.Cancel(jobId);
     }
 }

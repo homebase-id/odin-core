@@ -163,10 +163,10 @@ public sealed partial class OdinHost : IAsyncDisposable
             {
                 cb.RegisterInstance(serverHolder).SingleInstance();
 
-                // The SYSTEM background service manager is a root singleton (AddSystemBackgroundServices),
-                // so the per-tenant decorator above doesn't reach it. System services are never started
-                // here, so a NotifyWorkAvailableAsync for one of them polls 30 x 1s and then throws —
-                // 30 seconds burnt per scheduled job. Same trade as the tenant one: no-op the notify.
+                // Same trade as the tenant decorator above, for the SYSTEM manager — a separate root
+                // singleton from AddSystemBackgroundServices, which the per-tenant registration cannot
+                // reach. JobRunnerBackgroundService hangs off this one, so without it every scheduled
+                // job pays the full 30s poll.
                 cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
 
                 cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>(), c.Resolve<TenantContext>()))
