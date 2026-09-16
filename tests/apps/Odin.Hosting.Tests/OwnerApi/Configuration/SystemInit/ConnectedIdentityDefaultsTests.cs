@@ -6,7 +6,6 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
-using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 using System.Collections.Generic;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
