@@ -100,8 +100,9 @@ public abstract class V2Fixture
 
     /// <summary>
     /// One-liner for parameterized tests over <see cref="CallerSpec"/>: logs in as owner of
-    /// <paramref name="ownerIdentity"/> (default Frodo), creates the spec's <see cref="CallerSpec.TargetDrive"/>,
-    /// then builds and returns the caller (Owner / App / Guest).
+    /// <paramref name="ownerIdentity"/> (default: the fixture's first <see cref="HostIdentities"/>),
+    /// creates the spec's <see cref="CallerSpec.TargetDrive"/>, then builds and returns the caller
+    /// (Owner / App / Guest).
     /// </summary>
     protected async Task<IV2Caller> SetupCaller(CallerSpec spec, string? ownerIdentity = null)
     {
@@ -119,7 +120,7 @@ public abstract class V2Fixture
         CallerSpec spec,
         string? ownerIdentity = null)
     {
-        var owner = await LoginAsOwner(ownerIdentity ?? Identities.Frodo);
+        var owner = await LoginAsOwner(ownerIdentity ?? HostIdentities[0]);
         var d = spec.DriveSpec;
         await owner.Admin.EnsureDrive(d.Drive, d.Name, d.AllowAnonymousReads, d.OwnerOnly, d.AllowSubscriptions);
         var caller = await spec.Build(owner);

@@ -54,7 +54,7 @@ not touch; the same job passes on recent `main` runs.
 
 ---
 
-## `Odin.Hosting.Tests.V2.Ported.Drive.DriveReaderTests.InboxDrainOnQueryTests`
+## `Odin.Hosting.Tests.V2.Ported.Peer.InboxDrainOnQueryTests`
 
 - `QuerySmartBatch_DrainsInbox_OnRecipient`
 
@@ -218,3 +218,35 @@ job was re-run on 2026-09-16 to see whether it reproduces.
 
 **Pattern:** the fourth entry in the timing-sensitive peer-delivery family flagged above. Per that
 note, the shared cause is now worth chasing rather than re-running.
+
+---
+
+## `Odin.Services.Tests.JobManagement.JobManagerTests` (second entry)
+
+- `JobShouldHaveInternalChildDiScope(Sqlite)`
+
+**Where:** CI, `ubuntu/postgres/release` (seen on run 35086381896, 2026-09-16, PR #1756).
+
+**Symptom:** `AssertLogEvents` fails -- `Unexpected number of Error log events, Expected: 0, But
+was: 1` -- and the test takes **30 s** rather than its usual sub-second.
+
+**Cause (identified, unusually for this file):** the 30 s is the signature of
+`BackgroundServiceManager.NotifyWorkAvailableAsync`, which polls for the target background service
+`30 x 1s` and then throws `Background service 'JobRunnerBackgroundService' not found` -- that throw
+is the one unexpected Error event. The test calls `StartBackgroundServices()` before
+`ScheduleJobAsync`, so this is a startup race: under CI load the runner had still not registered
+itself when the notify went looking, and the poll window expired.
+
+**Not caused by the change in flight:** PR #1756 deletes tests from `Odin.Hosting.Tests` and edits
+this file; it touches neither `tests/services/` nor `src/services/Odin.Services/Background/`
+(`git diff main --stat` over both paths is empty), and the failing test is in a different assembly.
+Ran 3/3 green locally at ~430 ms each. The two most recent `main` failures on this same workflow
+(runs 34033226377 and 33409597404) were different tests, so this specific method had not been seen
+failing before.
+
+**Pattern worth noting:** same fixture as the `ItShouldDeleteExpiredUnsuccessfulJobsInTheBackground`
+entry above, and the same shape -- an assertion racing a background service. Note that the 30 s poll
+is only correct for a service that is *slow to start*; for one that will never start it is a
+guaranteed 30 s stall plus an error. That distinction is a real defect in
+`BackgroundServiceManager` (it also stalls CLI mode and pre-provisioned-cert hosts, and PR #1757
+works around it in the fast test host); fixing it would likely make this flake impossible too.

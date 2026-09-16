@@ -33,6 +33,7 @@ public sealed class OwnerSession : IV2Caller
 
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
+    public V1Handles V1 { get; }
     public OwnerAdmin Admin { get; }
     public ConnectionsHandle Connections { get; }
 
@@ -53,6 +54,7 @@ public sealed class OwnerSession : IV2Caller
         Factory = new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        V1 = new V1Handles(Identity, Factory);
         Admin = new OwnerAdmin(this);
         Connections = new ConnectionsHandle(this);
         Sync = new OwnerSync(host.GetTestSync(identity), this);

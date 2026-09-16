@@ -5,6 +5,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.YouAuth;
@@ -27,6 +28,7 @@ public sealed class GuestSession : IV2Caller
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
+    public V1Handles V1 { get; }
 
     private GuestSession(
         OdinHost host,
@@ -37,9 +39,11 @@ public sealed class GuestSession : IV2Caller
     {
         Identity = identity;
         GuestDomain = guestDomain;
-        Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token, sharedSecret.ToSensitiveByteArray());
+        Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token,
+            sharedSecret.ToSensitiveByteArray(), GuestApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        V1 = new V1Handles(Identity, Factory);
     }
 
     public static async Task<GuestSession> SetupAsync(
