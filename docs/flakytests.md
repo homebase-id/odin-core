@@ -336,3 +336,38 @@ a permanently-failing item still queued, and asserts on exactly that.
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them
 visible, by prompting the repeated full-suite runs that surfaced them.
+
+## `Odin.Hosting.Tests.V2.Ported.Transit` — error-log events cross fixture boundaries
+
+- `Transit.TransitBadCATDetectionTests.CanDetectBadCAT_and_UpdateICR_and_FallbackToPublicAccess`
+- any fixture in `Ported/Transit` that does **not** list issue #1771's message in
+  `ToleratedErrorLogSubstrings`
+
+**Where:** local, `--filter "FullyQualifiedName~Ported.Transit"` under `ParallelScope.Fixtures`,
+2026-09-17, while porting the `AppAPI/Transit` batch. Roughly 1 failing run in 3 of that filter
+before the ported fixtures were given the toleration; the failing test differed run to run.
+
+**Symptom:** a log-event failure, never an assertion failure — `The server logged N error-level
+event(s) during this test`, every one of them
+`Remote identity host failed: Referenced filed and metadata payload encryption do not match`
+with origin `POST /api/peer/v1/host/drives/upload` (issue #1771).
+
+**Cause — measured, not inferred: a fixture's log store receives Error events produced by another
+fixture's host.** The tests that fail this way make no peer call at all. The clean experiment:
+running `Ported.Transit.AppTransitQueryTestsForPublicFiles` (Merry and Pippin are not even connected
+in it; nothing is uploaded over transit) together with `TransitCommentFileRoutingTests` (a known
+#1771 producer) and nothing else reddens the *former* with the latter's error text — 1 failing run in
+5. The same fixture alone passed 6 consecutive runs, and 6 more as part of the four ported
+`AppTransit*` fixtures. So the per-host log isolation asserted in `V2Fixture.AssertNoErrorLogEvents`'
+own remarks ("each `OdinHost` owns its own store, and the sink is bound to that host's store at
+startup") does not hold under `ParallelScope.Fixtures`. Peer *routing* is not the culprit:
+`TestServerHolder` is registered per host, not statically. The likely mechanism is Serilog's static
+`Log.Logger`, which `UseSerilog` replaces on each host boot, but that was not confirmed.
+
+**Worked around, not fixed.** The five fixtures ported in this batch list the #1771 substring in
+`ToleratedErrorLogSubstrings` with a comment; `Ported.Transit` then passed 6 consecutive runs.
+`TransitBadCATDetectionTests` does not carry that toleration and is still exposed — it was left
+untouched because it belongs to an earlier batch and was not part of this one. Note that the
+toleration is what makes the *bleed* survivable; while it is in place, a fixture that tolerates the
+message cannot distinguish its own occurrence of #1771 from a neighbour's. Fixing the isolation
+(or #1771) is what removes the whole class.

@@ -98,14 +98,31 @@ public abstract class V2Fixture
     /// the test itself never looks at.
     /// </summary>
     /// <remarks>
-    /// Safe under <c>ParallelScope.Fixtures</c>: <c>LogEventMemoryStore</c> is registered
-    /// <c>SingleInstance</c> per Autofac container (<c>LoggingAutofacModule</c>), so each
-    /// <see cref="OdinHost"/> owns its own store, and the sink is bound to that host's store at
-    /// startup. The one process-wide vector is static <c>Serilog.Log.*</c>, whose only Error/Fatal
-    /// call sites are host-termination and Let's Encrypt issuance — neither reachable from this
-    /// TLS-less host.
-    ///
+    /// <para>
+    /// <b>Events bleed between fixtures under <c>ParallelScope.Fixtures</c>.</b> An earlier version of
+    /// this note claimed otherwise, on the grounds that <c>LogEventMemoryStore</c> is registered
+    /// <c>SingleInstance</c> per Autofac container so each <see cref="OdinHost"/> owns its own store.
+    /// The registration is per-host, but the store a write lands in is not. Measured: running
+    /// <c>Ported/Transit/AppTransitQueryTestsForPublicFiles</c> beside a fixture known to log the
+    /// #1771 error reddens the *former* with the latter's text, ~1 run in 5, in tests that make no
+    /// peer call at all — while each fixture alone is clean over 6 runs.
+    /// </para>
+    /// <para>
+    /// Mechanism, inferred and not yet confirmed: <c>UseSerilog</c> in <c>Program.cs</c> does not pass
+    /// <c>preserveStaticLogger</c>, so every host boot reassigns the process-wide
+    /// <c>Serilog.Log.Logger</c> — and the last host to boot owns the sink that injected
+    /// <c>ILogger&lt;T&gt;</c> writes reach. Tracked in #1775.
+    /// </para>
+    /// <para>
+    /// What this does and does not cost. The invariant still catches real defects — it found #1770,
+    /// #1771 and #1772 in tests whose own assertions all passed. What it cannot currently do is
+    /// attribute an error to the fixture that caused it, which is why a toleration has to be added to
+    /// every fixture that might run alongside a producer rather than only the producer itself, and
+    /// why this looked like unfixable flakiness the first time it was tried.
+    /// </para>
+    /// <para>
     /// Override to opt out for a fixture that deliberately provokes errors, and say why.
+    /// </para>
     /// </remarks>
     protected virtual bool AssertNoErrorLogEvents => true;
 
