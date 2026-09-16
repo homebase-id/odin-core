@@ -54,7 +54,7 @@ not touch; the same job passes on recent `main` runs.
 
 ---
 
-## `Odin.Hosting.Tests.V2.Ported.Drive.DriveReaderTests.InboxDrainOnQueryTests`
+## `Odin.Hosting.Tests.V2.Ported.Peer.InboxDrainOnQueryTests`
 
 - `QuerySmartBatch_DrainsInbox_OnRecipient`
 
