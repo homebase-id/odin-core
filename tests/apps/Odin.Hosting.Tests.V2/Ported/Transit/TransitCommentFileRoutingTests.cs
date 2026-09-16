@@ -68,6 +68,17 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 [TestFixture]
 public class TransitCommentFileRoutingTests : V2Fixture
 {
+    /// <remarks>
+    /// Issue #1771. Under load the outbox retries a peer upload that trips the S2040 guard in
+    /// <c>PeerFileWriter.GetTargetAcl</c> (a comment whose encryption disagrees with its referenced
+    /// file); it is logged at Error four times — the drain's initial attempt plus its three retry
+    /// passes — and the test's own assertions pass regardless. The V1 originals whitelisted the same
+    /// message via <c>SetAssertLogEventsAction</c>, so this carries that over rather than conceding
+    /// something new. Remove when #1771 is resolved.
+    /// </remarks>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        ["Referenced filed and metadata payload encryption do not match"];
+
     private const string StandardFileContent = "We eagles fly to Mordor, sup w/ that?";
     private const string CommentFileContent = "Srsly!?? =O";
 

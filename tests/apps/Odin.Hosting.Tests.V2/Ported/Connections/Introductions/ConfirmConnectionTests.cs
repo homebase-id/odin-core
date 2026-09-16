@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
@@ -41,6 +42,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 [TestFixture]
 public class ConfirmConnectionTests : V2Fixture
 {
+    /// <summary>These tests drive introductions that are expected to fail delivery.</summary>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        [OutboxDeliveryFailureLogged];
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Merry, Identities.Sam];
 
     [Test]

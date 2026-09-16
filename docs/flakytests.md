@@ -305,3 +305,34 @@ background service; it is a genuine read-during-write race that the fixture's ow
 and the original `_Universal` test has the same shape. The failure message was uninformative because
 the assert was `Is.True` on `IsSuccessStatusCode`, which records no status code; the cleanup converted
 this fixture's asserts to exact-status form, so a recurrence will name the code it got.
+
+## `Odin.Hosting.Tests.V2.Ported.Connections` — the introduction family
+
+- `Introductions.IntroductionTestsAutoAcceptEnabledOnAllIdentities.WillHandleWhenAllWhenConnectionsFailsVerification`
+- `Introductions.ConfirmConnectionTests.CanConfirmConnection`
+- `Introductions.AutoAcceptTests.WillNotAutoAcceptWhenRecipientDisablesIntroductions`
+
+**Where:** local, full fast suite (1231 cases) under `ParallelScope.Fixtures`, 2026-09-16/17.
+3 distinct failures across ~20 full-suite runs; each fixture passes in isolation and on most runs.
+
+**Symptom:** an assertion that a connection exists, not a log-event failure. e.g.
+`sam.dotyou.cloud must hold merry.dotyou.cloud as an introduced connection / Expected: True, But was: False`,
+and `ConnectionStatus / Expected: Connected, But was: None`. The introduction simply never landed.
+
+**Likely cause -- diagnosed, not proven.** These correlate with the outbox logging
+`An outbox worker did not handle the outbox processing exception ... (type: ConnectIntroducee)`,
+which is the same event seen from the other side. `PeerOutboxProcessorBackgroundService.DrainAsync`
+makes `DefaultDrainRetryPasses = 3` passes and then returns, leaving a rescheduled item queued. The
+V1 `WebScaffold` equivalent polled `WaitForEmptyOutbox` against a *running* background service, which
+kept retrying up to `OutboxOperationMaxAttempts = 30`. So a `ConnectIntroducee` item that needs more
+than three passes under load completes on V1 and is abandoned on the fast framework.
+
+**The fix is probably not a retry.** `ITestSync.DrainOutboxAsync` does not surface `maxRetryPasses`
+(the parameter exists on `DrainAsync`). Exposing it and having the introduction fixtures drain harder
+would address the cause rather than the symptom. It cannot simply be raised globally:
+`Ported/Peer/OutboxProcessingSingleRecipientTestsFailureScenario` depends on the drain returning with
+a permanently-failing item still queued, and asserts on exactly that.
+
+**Not caused by the log-event invariant** that was enabled in the same change: these are assertion
+failures about connection state, independent of log assertions. The invariant is what made them
+visible, by prompting the repeated full-suite runs that surfaced them.
