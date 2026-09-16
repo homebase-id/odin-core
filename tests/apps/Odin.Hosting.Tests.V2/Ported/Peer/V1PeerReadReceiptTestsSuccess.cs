@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -8,15 +7,10 @@ using Odin.Core;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Apps;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
-using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
@@ -36,7 +30,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// <list type="bullet">
 ///   <item><description>
 ///     The original's <c>TestCases()</c> had one live row (owner); its guest and app rows were already
-///     commented out. Only the live row is carried, so <c>ReadReceiptCases</c> is a single-row matrix.
+///     commented out. One row is not a matrix, so these are plain <c>[Test]</c> methods acting as the
+///     owner: Sam — the identity that sends the receipt — is the caller throughout.
 ///   </description></item>
 ///   <item><description>
 ///     Every <c>WaitForEmptyOutbox</c> / <c>ProcessInbox</c> became <c>Sync.DrainOutboxAsync</c> /
@@ -52,8 +47,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 ///   </description></item>
 ///   <item><description>
 ///     <c>SetupCallerWithOwner</c> is not used: the drive has to exist on both identities and they have
-///     to be connected before the caller is built. Nothing from the original ran between drive-create
-///     and caller-build.
+///     to be connected before the test runs, which is <see cref="PeerFlow.CreatePeerDriveAsync"/>'s job.
+///     Nothing from the original ran between drive-create and caller-build.
 ///   </description></item>
 /// </list>
 /// </remarks>
@@ -62,53 +57,29 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    public static IEnumerable<object[]> ReadReceiptCases()
+    [Test]
+    public async Task CanSendReadReceipt()
     {
-        yield return [CallerSpec.Owner(DriveSpec.Secured()), HttpStatusCode.OK];
-    }
-
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task CanSendReadReceipt(CallerSpec spec, HttpStatusCode expected)
-    {
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         var transitOptions = new TransitOptions
         {
             Recipients = [recipient.Identity]
         };
 
-        var (uploadResult, recipientFile) =
-            await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
-
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var driveClient = caller.V1.Drive;
+        var (uploadResult, recipientFile, _, _) =
+            await PeerTransferScenario.TransferEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
 
         //
         // Send the read receipt
         //
-        var fileForReadReceipt = new ExternalFileIdentifier
-        {
-            FileId = recipientFile.FileId,
-            TargetDrive = recipientFile.TargetDrive
-        };
-
-        var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt]);
-
-        Assert.That(sendReadReceiptResponse.StatusCode, Is.EqualTo(expected));
-        var sendReadReceiptResult = sendReadReceiptResponse.Content;
-        Assert.That(sendReadReceiptResult, Is.Not.Null);
-        var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
-        Assert.That(item, Is.Not.Null, "no record for file");
-        var statusItem = item.Status.SingleOrDefault(i => i.Recipient == sender.Identity);
-        Assert.That(statusItem, Is.Not.Null);
-        Assert.That(statusItem.Status, Is.EqualTo(SendReadReceiptResultStatus.Enqueued));
+        var fileForReadReceipt = PeerTransferScenario.AsExternalFile(recipientFile);
+        await PeerTransferScenario.SendReadReceiptAsync(sender, recipient, fileForReadReceipt);
 
         //
         // Assert the read receipt was updated on the sender's file
         //
-        await recipient.Sync.DrainOutboxAsync();
-        await sender.Sync.ProcessInboxAsync(targetDrive);
+        await PeerFlow.DistributeAsync(recipient, sender, targetDrive);
 
         var getHistoryResponse = await sender.V1.Drive.GetTransferHistory(uploadResult.File);
         Assert.That(getHistoryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -122,61 +93,42 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
         Assert.That(recipientStatus.LatestSuccessfullyDeliveredVersionTag, Is.EqualTo(uploadResult.NewVersionTag));
     }
 
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task CanSendMultipleReadReceipts(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task CanSendMultipleReadReceipts()
     {
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         // send sam two files
-        var (senderUploadResult1, recipientFile1) = await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive,
+        var (senderUploadResult1, recipientFile1, _, _) = await PeerTransferScenario.TransferEncryptedMetadataAsync(
+            sender, recipient, targetDrive,
             new TransitOptions
             {
                 Recipients = [recipient.Identity]
             });
 
-        var (senderUploadResult2, recipientFile2) = await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive,
+        var (senderUploadResult2, recipientFile2, _, _) = await PeerTransferScenario.TransferEncryptedMetadataAsync(
+            sender, recipient, targetDrive,
             new TransitOptions
             {
                 Recipients = [recipient.Identity]
             });
-
-        var samDriveClient = caller.V1.Drive;
 
         //
         // Sam Sends the read receipt
         //
-        var fileForReadReceipt1 = new ExternalFileIdentifier
-        {
-            FileId = recipientFile1.FileId,
-            TargetDrive = recipientFile1.TargetDrive
-        };
+        var fileForReadReceipt1 = PeerTransferScenario.AsExternalFile(recipientFile1);
+        var fileForReadReceipt2 = PeerTransferScenario.AsExternalFile(recipientFile2);
 
-        var fileForReadReceipt2 = new ExternalFileIdentifier
-        {
-            FileId = recipientFile2.FileId,
-            TargetDrive = recipientFile2.TargetDrive
-        };
-
-        var samSendReadReceiptResponse = await samDriveClient.SendReadReceipt([fileForReadReceipt1, fileForReadReceipt2]);
-
-        Assert.That(samSendReadReceiptResponse.StatusCode, Is.EqualTo(expected));
-        var samSendReadReceiptResult = samSendReadReceiptResponse.Content;
-        Assert.That(samSendReadReceiptResult, Is.Not.Null);
+        var samSendReadReceiptResponse =
+            await recipient.V1.Drive.SendReadReceipt([fileForReadReceipt1, fileForReadReceipt2]);
 
         //
         //Assert both files read-receipt was accepted into the inbox
         //
-        var item1 = samSendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt1);
-        Assert.That(item1, Is.Not.Null, "no record for file 1");
-        var statusItem1 = item1.Status.SingleOrDefault(i => i.Recipient == sender.Identity);
-        Assert.That(statusItem1, Is.Not.Null);
-        Assert.That(statusItem1.Status, Is.EqualTo(SendReadReceiptResultStatus.Enqueued));
-
-        var item2 = samSendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt2);
-        Assert.That(item2, Is.Not.Null, "no record for file 2");
-        var statusItem2 = item2.Status.SingleOrDefault(i => i.Recipient == sender.Identity);
-        Assert.That(statusItem2, Is.Not.Null);
-        Assert.That(statusItem2.Status, Is.EqualTo(SendReadReceiptResultStatus.Enqueued));
+        DriveAsserts.AssertReadReceiptStatus(samSendReadReceiptResponse, fileForReadReceipt1, sender.Identity,
+            SendReadReceiptResultStatus.Enqueued);
+        DriveAsserts.AssertReadReceiptStatus(samSendReadReceiptResponse, fileForReadReceipt2, sender.Identity,
+            SendReadReceiptResultStatus.Enqueued);
 
         await recipient.Sync.DrainOutboxAsync();
 
@@ -210,33 +162,26 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
         Assert.That(samRecipientStatus2.LatestSuccessfullyDeliveredVersionTag, Is.EqualTo(senderUploadResult2.NewVersionTag));
     }
 
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task CanSendReadReceiptWithSpecificTimestamp(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task CanSendReadReceiptWithSpecificTimestamp()
     {
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         var transitOptions = new TransitOptions
         {
             Recipients = [recipient.Identity]
         };
 
-        var (uploadResult, recipientFile) =
-            await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
+        var (_, recipientFile, _, _) =
+            await PeerTransferScenario.TransferEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
 
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var driveClient = caller.V1.Drive;
-
-        var fileForReadReceipt = new ExternalFileIdentifier
-        {
-            FileId = recipientFile.FileId,
-            TargetDrive = recipientFile.TargetDrive
-        };
+        var driveClient = recipient.V1.Drive;
+        var fileForReadReceipt = PeerTransferScenario.AsExternalFile(recipientFile);
 
         // Send read receipt with a specific past timestamp
         var pastTimestamp = UnixTimeUtc.Now().AddSeconds(-30);
         var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt], pastTimestamp);
-        Assert.That(sendReadReceiptResponse.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Verify the local ReadTime matches the supplied timestamp
         var getFileHeaderResponse = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -246,34 +191,27 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
         Assert.That(readTime.Value.milliseconds, Is.EqualTo(pastTimestamp.milliseconds));
     }
 
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task SendReadReceiptWithFutureTimestampGetsClamped(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task SendReadReceiptWithFutureTimestampGetsClamped()
     {
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         var transitOptions = new TransitOptions
         {
             Recipients = [recipient.Identity]
         };
 
-        var (uploadResult, recipientFile) =
-            await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
+        var (_, recipientFile, _, _) =
+            await PeerTransferScenario.TransferEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
 
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var driveClient = caller.V1.Drive;
-
-        var fileForReadReceipt = new ExternalFileIdentifier
-        {
-            FileId = recipientFile.FileId,
-            TargetDrive = recipientFile.TargetDrive
-        };
+        var driveClient = recipient.V1.Drive;
+        var fileForReadReceipt = PeerTransferScenario.AsExternalFile(recipientFile);
 
         // Send read receipt with a future timestamp (1 hour ahead)
         var beforeSend = UnixTimeUtc.Now();
         var futureTimestamp = UnixTimeUtc.Now().AddSeconds(3600);
         var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt], futureTimestamp);
-        Assert.That(sendReadReceiptResponse.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Verify the ReadTime was clamped to approximately now, not the future value
         var getFileHeaderResponse = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -286,32 +224,25 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
             "ReadTime should have been clamped, not set to future value");
     }
 
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task SendReadReceiptDoesNotDowngradeReadTime(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task SendReadReceiptDoesNotDowngradeReadTime()
     {
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         var transitOptions = new TransitOptions
         {
             Recipients = [recipient.Identity]
         };
 
-        var (uploadResult, recipientFile) =
-            await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
+        var (_, recipientFile, _, _) =
+            await PeerTransferScenario.TransferEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
 
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var driveClient = caller.V1.Drive;
-
-        var fileForReadReceipt = new ExternalFileIdentifier
-        {
-            FileId = recipientFile.FileId,
-            TargetDrive = recipientFile.TargetDrive
-        };
+        var driveClient = recipient.V1.Drive;
+        var fileForReadReceipt = PeerTransferScenario.AsExternalFile(recipientFile);
 
         // First read receipt with no timestamp (sets ReadTime to ~now)
         var sendReadReceiptResponse1 = await driveClient.SendReadReceipt([fileForReadReceipt]);
-        Assert.That(sendReadReceiptResponse1.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Capture the ReadTime
         var getFileHeaderResponse1 = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -322,7 +253,7 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
         // Second read receipt with an earlier timestamp — should be rejected
         var olderTimestamp = UnixTimeUtc.Now().AddSeconds(-300);
         var sendReadReceiptResponse2 = await driveClient.SendReadReceipt([fileForReadReceipt], olderTimestamp);
-        Assert.That(sendReadReceiptResponse2.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Verify ReadTime was NOT downgraded
         var getFileHeaderResponse2 = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -333,33 +264,26 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
             "ReadTime should not have been downgraded to the older timestamp");
     }
 
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task SendReadReceiptWithoutTimestampDoesNotOverwriteExisting(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task SendReadReceiptWithoutTimestampDoesNotOverwriteExisting()
     {
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         var transitOptions = new TransitOptions
         {
             Recipients = [recipient.Identity]
         };
 
-        var (uploadResult, recipientFile) =
-            await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
+        var (_, recipientFile, _, _) =
+            await PeerTransferScenario.TransferEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
 
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var driveClient = caller.V1.Drive;
-
-        var fileForReadReceipt = new ExternalFileIdentifier
-        {
-            FileId = recipientFile.FileId,
-            TargetDrive = recipientFile.TargetDrive
-        };
+        var driveClient = recipient.V1.Drive;
+        var fileForReadReceipt = PeerTransferScenario.AsExternalFile(recipientFile);
 
         // First: send read receipt with a specific past timestamp
         var pastTimestamp = UnixTimeUtc.Now().AddSeconds(-60);
         var sendReadReceiptResponse1 = await driveClient.SendReadReceipt([fileForReadReceipt], pastTimestamp);
-        Assert.That(sendReadReceiptResponse1.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Capture the ReadTime
         var getFileHeaderResponse1 = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -370,7 +294,7 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
 
         // Second: send read receipt WITHOUT timestamp — should NOT overwrite
         var sendReadReceiptResponse2 = await driveClient.SendReadReceipt([fileForReadReceipt]);
-        Assert.That(sendReadReceiptResponse2.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Verify ReadTime was NOT overwritten with now()
         var getFileHeaderResponse2 = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -381,33 +305,26 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
             "ReadTime should not have been overwritten by a call without timestamp");
     }
 
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task SendReadReceiptWithNewerTimestampUpgradesReadTime(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task SendReadReceiptWithNewerTimestampUpgradesReadTime()
     {
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         var transitOptions = new TransitOptions
         {
             Recipients = [recipient.Identity]
         };
 
-        var (uploadResult, recipientFile) =
-            await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
+        var (_, recipientFile, _, _) =
+            await PeerTransferScenario.TransferEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
 
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var driveClient = caller.V1.Drive;
-
-        var fileForReadReceipt = new ExternalFileIdentifier
-        {
-            FileId = recipientFile.FileId,
-            TargetDrive = recipientFile.TargetDrive
-        };
+        var driveClient = recipient.V1.Drive;
+        var fileForReadReceipt = PeerTransferScenario.AsExternalFile(recipientFile);
 
         // First: send read receipt with an older past timestamp
         var olderTimestamp = UnixTimeUtc.Now().AddSeconds(-60);
         var sendReadReceiptResponse1 = await driveClient.SendReadReceipt([fileForReadReceipt], olderTimestamp);
-        Assert.That(sendReadReceiptResponse1.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Verify ReadTime == olderTimestamp
         var getFileHeaderResponse1 = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -419,7 +336,7 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
         // Second: send read receipt with a newer (but still past) timestamp
         var newerTimestamp = UnixTimeUtc.Now().AddSeconds(-10);
         var sendReadReceiptResponse2 = await driveClient.SendReadReceipt([fileForReadReceipt], newerTimestamp);
-        Assert.That(sendReadReceiptResponse2.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Verify ReadTime was upgraded to newerTimestamp
         var getFileHeaderResponse2 = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -430,38 +347,31 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
             "ReadTime should have been upgraded to the newer timestamp");
     }
 
-    [Test, TestCaseSource(nameof(ReadReceiptCases))]
-    public async Task UpdatingLocalMetadataTagsOrContentPreservesReadTime(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task UpdatingLocalMetadataTagsOrContentPreservesReadTime()
     {
         // Regression: previously UpdateLocalMetadataTags and UpdateLocalMetadataContent rebuilt
         // LocalAppMetadata without copying ReadTime, silently wiping it back to null on every
         // tag/content edit. ReadTime should be preserved across these updates -- only
         // UpdateLocalReadTime (via SendReadReceipt) should modify it, and only monotonically.
 
-        var (caller, sender, recipient, targetDrive) = await PrepareScenarioAsync(spec);
+        var (sender, recipient, targetDrive) = await PrepareScenarioAsync();
 
         var transitOptions = new TransitOptions
         {
             Recipients = [recipient.Identity]
         };
 
-        var (uploadResult, recipientFile) =
-            await AssertCanUploadEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
+        var (_, recipientFile, _, _) =
+            await PeerTransferScenario.TransferEncryptedMetadataAsync(sender, recipient, targetDrive, transitOptions);
 
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var driveClient = caller.V1.Drive;
-
-        var fileForReadReceipt = new ExternalFileIdentifier
-        {
-            FileId = recipientFile.FileId,
-            TargetDrive = recipientFile.TargetDrive
-        };
+        var driveClient = recipient.V1.Drive;
+        var fileForReadReceipt = PeerTransferScenario.AsExternalFile(recipientFile);
 
         // Set ReadTime via SendReadReceipt with a specific past timestamp
         var pastTimestamp = UnixTimeUtc.Now().AddSeconds(-30);
         var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt], pastTimestamp);
-        Assert.That(sendReadReceiptResponse.StatusCode, Is.EqualTo(expected));
+        Assert.That(sendReadReceiptResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Capture initial ReadTime and the latest local version tag (needed for subsequent updates)
         var headerAfterReadReceipt = await driveClient.GetFileHeader(fileForReadReceipt);
@@ -514,76 +424,21 @@ public class V1PeerReadReceiptTestsSuccess : V2Fixture
 
     // ---------------------------------------------------------------------------------------------
 
-    private static async Task<(UploadResult uploadResult, SharedSecretEncryptedFileHeader recipientFile)>
-        AssertCanUploadEncryptedMetadataAsync(
-            OwnerSession sender,
-            OwnerSession recipient,
-            TargetDrive targetDrive,
-            TransitOptions transitOptions)
-    {
-        const string uploadedContent = "pie";
-
-        var fileMetadata = new UploadFileMetadata
-        {
-            AllowDistribution = true,
-            IsEncrypted = true,
-            AppData = new()
-            {
-                Content = uploadedContent,
-                FileType = default,
-                GroupId = default,
-                Tags = default
-            },
-            AccessControlList = AccessControlList.Connected
-        };
-
-        var storageOptions = new StorageOptions
-        {
-            Drive = targetDrive
-        };
-
-        var (uploadResponse, _) = await sender.V1.Drive.UploadNewEncryptedMetadata(
-            fileMetadata,
-            storageOptions,
-            transitOptions);
-
-        Assert.That(uploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var uploadResult = uploadResponse.Content;
-        Assert.That(uploadResult.RecipientStatus.Count, Is.EqualTo(1));
-        Assert.That(uploadResult.RecipientStatus[transitOptions.Recipients.Single()], Is.EqualTo(TransferStatus.Enqueued));
-
-        await sender.Sync.DrainOutboxAsync();
-
-        // validate recipient got the file
-        await recipient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
-
-        var recipientFileResponse = await recipient.V1.Drive.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-        Assert.That(recipientFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var file = recipientFileResponse.Content.SearchResults.SingleOrDefault();
-        Assert.That(file, Is.Not.Null);
-
-        return (uploadResult, file);
-    }
-
     /// <summary>
     /// Replaces the original's <c>PrepareScenario</c>: the same drive on both identities, connected
     /// with Write in both directions. The reverse grant is what lets Sam's read receipt land — it hits
-    /// <c>AssertCanWriteToDrive</c> on Frodo's drive. The caller is built on the recipient, who is the
-    /// one sending the receipt.
+    /// <c>AssertCanWriteToDrive</c> on Frodo's drive.
     /// </summary>
-    private async Task<(IV2Caller Caller, OwnerSession Sender, OwnerSession Recipient, TargetDrive Drive)>
-        PrepareScenarioAsync(CallerSpec spec)
+    private async Task<(OwnerSession Sender, OwnerSession Recipient, TargetDrive Drive)> PrepareScenarioAsync()
     {
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
 
-        var targetDrive = spec.TargetDrive;
-        await recipient.Admin.CreateDrive(targetDrive, "Target drive on recipient", allowAnonymousReads: false);
-        await sender.Admin.CreateDrive(targetDrive, "Target drive on sender", allowAnonymousReads: false);
+        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, DrivePermission.Write,
+            label: "target drive",
+            recipientPermissionOnSenderDrive: DrivePermission.Write,
+            allowAnonymousReads: false);
 
-        await PeerFlow.ConnectAsync(sender, recipient, targetDrive, DrivePermission.Write, bidirectional: true);
-
-        var caller = await spec.Build(recipient);
-        return (caller, sender, recipient, targetDrive);
+        return (sender, recipient, targetDrive);
     }
 }

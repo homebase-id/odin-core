@@ -1,42 +1,40 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
+using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Update;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests.V2.Ported.Peer;
 
 /// <summary>
-/// The arrange half of the three <c>UpdateBatchWithRecipients*</c> ports, which the originals carried
-/// as a copy of <c>SetupRecipients</c> apiece: every recipient hosts the same drive as the sender and
-/// grants the sender <see cref="DrivePermission.Write"/> on it through a circle.
+/// The parts the three <c>UpdateBatchWithRecipients*</c> ports share, which the originals carried as
+/// a copy apiece: the recipient arrange, the refusal act, and the post-update assert sweep over the
+/// sender and every recipient.
 /// </summary>
 /// <remarks>
-/// Not folded into <see cref="PeerFlow"/> because of the one thing that makes this scenario its own:
-/// the drive must carry <see cref="BuiltInDriveAttributes.IsCollaborativeChannel"/>. On a
-/// collaboration drive <c>PeerFileUpdateWriter.DetermineAclAsync</c> keeps the sending identity's ACL
-/// on the recipient's copy instead of narrowing it to owner-only, which is what makes an update fanned
-/// out to a peer readable there. <see cref="PeerFlow.CreatePeerDriveAsync"/> and
-/// <see cref="OwnerAdmin.EnsureDrive"/> both create drives without attributes, so these fixtures
-/// create theirs here and then hand the already-existing drive to the caller build.
+/// The one thing that makes this scenario its own is the drive: it must carry
+/// <see cref="BuiltInDriveAttributes.IsCollaborativeChannel"/> (<see cref="DriveSpec.Collab"/> /
+/// <see cref="DriveSpec.CollabAttributes"/>). On a collaboration drive
+/// <c>PeerFileUpdateWriter.DetermineAclAsync</c> keeps the sending identity's ACL on the recipient's
+/// copy instead of narrowing it to owner-only, which is what makes an update fanned out to a peer
+/// readable there.
 /// </remarks>
 internal static class UpdateBatchPeerScenario
 {
-    /// <summary>The drive as the originals created it: anonymous-readable and flagged collaborative.</summary>
-    public static async Task CreateCollaborationDrive(OwnerSession owner, TargetDrive drive)
-    {
-        await owner.Admin.CreateDrive(drive, "Test Drive 001", allowAnonymousReads: true,
-            attributes: new Dictionary<string, string>
-            {
-                { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString }
-            });
-    }
-
     /// <summary>
-    /// Logs each recipient in, gives it the same collaboration drive, and connects it to the sender
-    /// with a circle granting the sender Write on it.
+    /// Logs each recipient in, gives it the same collaboration drive as the sender, and connects it
+    /// to the sender with a circle granting the sender <see cref="DrivePermission.Write"/> on it.
     /// </summary>
     public static async Task<List<OwnerSession>> SetupRecipients(
         OdinHost host,
@@ -48,8 +46,8 @@ internal static class UpdateBatchPeerScenario
         foreach (var identity in recipientIdentities)
         {
             var recipient = await OwnerSession.LoginAsync(host, identity);
-            await CreateCollaborationDrive(recipient, drive);
-            await PeerFlow.ConnectAsync(sender, recipient, drive, DrivePermission.Write);
+            await PeerFlow.CreatePeerDriveAsync(sender, recipient, DrivePermission.Write,
+                drive: drive, attributes: DriveSpec.CollabAttributes);
             sessions.Add(recipient);
         }
 
@@ -57,17 +55,111 @@ internal static class UpdateBatchPeerScenario
     }
 
     /// <summary>
-    /// Stands in for the originals' <c>WaitForEmptyOutbox</c>: that is a passive poll of the outbox
-    /// background service, which the fast host registers but never starts. Drains the sender's outbox
-    /// (delivering in-process over <c>TestPeerHttpClientFactory</c>) and then processes each
-    /// recipient's inbox, which the V1 framework's background services did on their own.
+    /// Act + assert for the caller-matrix rows that expect a refusal. Those rows never reach the
+    /// peer half of the flow, so they skip the recipient arrange entirely: the recipients here are
+    /// bare identity strings, with no sessions, drives or connections behind them.
     /// </summary>
-    public static async Task Distribute(OwnerSession sender, IEnumerable<OwnerSession> recipients, TargetDrive drive)
+    /// <remarks>
+    /// The seed upload, however, is <b>not</b> optional, which is where this endpoint departs from
+    /// the "don't seed for rows that early-return" rule in the fixture README. Measured against the
+    /// running server: a Guest holding only Read is refused before the file is touched, but a Guest
+    /// holding Write clears the drive check and is refused further in — with no file to update it
+    /// answers 500 instead of 403. An update with no <c>VersionTag</c> answers 400 for every caller.
+    /// So the row still needs a real file and its version tag; what it does not need is anything
+    /// peer-side.
+    /// </remarks>
+    public static async Task AssertUpdateRefused(
+        IV2Caller caller,
+        OwnerSession sender,
+        TargetDrive drive,
+        IEnumerable<string> recipientIdentities,
+        HttpStatusCode expected)
     {
-        await sender.Sync.DrainOutboxAsync();
+        var seedMetadata = SampleMetadataData.Create(fileType: 100);
+        seedMetadata.AllowDistribution = true;
+        var seedResponse = await sender.V1.Drive.UploadNewMetadata(drive, seedMetadata);
+        Assert.That(seedResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        seedMetadata.VersionTag = seedResponse.Content!.NewVersionTag;
+
+        var instructionSet = new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = seedResponse.Content.File.ToFileIdentifier(),
+            Recipients = recipientIdentities.Select(i => (OdinId)i).ToList(),
+            Manifest = new UploadManifest
+            {
+                PayloadDescriptors = []
+            }
+        };
+
+        var response = await caller.V1.Drive.UpdateFile(instructionSet, seedMetadata, []);
+        Assert.That(response.StatusCode, Is.EqualTo(expected));
+    }
+
+    /// <summary>
+    /// Delivers the update (<see cref="PeerFlow.DistributeAsync(OwnerSession, IEnumerable{OwnerSession}, TargetDrive)"/>),
+    /// then asserts the sender's local copy and every recipient's copy carry the updated content,
+    /// data type and version tag, and that neither has payloads left.
+    /// </summary>
+    /// <param name="deletedPayloadKey">
+    /// When set, each recipient is additionally asked for that payload key and must 404 — the shape
+    /// the "update deletes the seeded payload" cases assert.
+    /// </param>
+    public static async Task AssertUpdateLandedEverywhere(
+        OwnerSession sender,
+        IReadOnlyList<OwnerSession> recipients,
+        TargetDrive drive,
+        ExternalFileIdentifier targetFile,
+        GlobalTransitIdFileIdentifier targetGlobalTransitIdFileIdentifier,
+        UploadFileMetadata updatedFileMetadata,
+        Guid expectedVersionTag,
+        string deletedPayloadKey = null)
+    {
+        await PeerFlow.DistributeAsync(sender, recipients, drive);
+
+        //
+        // ensure the local file exists and is updated correctly
+        //
+        var getHeaderResponse = await sender.V1.Drive.GetFileHeader(targetFile);
+        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var header = getHeaderResponse.Content;
+        Assert.That(header, Is.Not.Null);
+        Assert.That(header!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
+        Assert.That(header.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
+        Assert.That(header.FileMetadata.VersionTag, Is.EqualTo(expectedVersionTag));
+        Assert.That(header.FileMetadata.Payloads, Is.Empty);
+
+        // Ensure we find the file on the recipient
+        //
+        await DriveAsserts.AssertFileFoundByDataType(
+            sender.V1.Drive, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
+
+        // ensure the recipients get the file
+
         foreach (var recipient in recipients)
         {
-            await recipient.Sync.ProcessInboxAsync(drive);
+            var recipientFileResponse = await recipient.V1.Drive.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
+            var remoteFileHeader = recipientFileResponse.Content!.SearchResults.FirstOrDefault();
+
+            Assert.That(remoteFileHeader, Is.Not.Null, $"recipient {recipient.Identity} should have the file");
+            Assert.That(remoteFileHeader!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
+            Assert.That(remoteFileHeader.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
+            Assert.That(remoteFileHeader.FileMetadata.VersionTag, Is.EqualTo(expectedVersionTag));
+            Assert.That(remoteFileHeader.FileMetadata.Payloads, Is.Empty);
+
+            if (deletedPayloadKey == null)
+            {
+                continue;
+            }
+
+            var getPayloadResponse = await recipient.V1.Drive.GetPayload(new ExternalFileIdentifier()
+            {
+                FileId = remoteFileHeader.FileId,
+                TargetDrive = targetGlobalTransitIdFileIdentifier.TargetDrive
+            }, deletedPayloadKey);
+
+            Assert.That(getPayloadResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         }
     }
 }

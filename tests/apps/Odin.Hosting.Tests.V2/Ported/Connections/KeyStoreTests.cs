@@ -18,12 +18,16 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// <see cref="DrivePermission.Read"/>, and does not when it doesn't.
 /// </summary>
 /// <remarks>
-/// Carried defect: the no-read case builds its <c>PermissionedDrive</c> with
+/// The original was two 49-line methods differing only in the drive permission and the expected
+/// <c>HasStorageKey</c>; they are one <see cref="TestCaseSourceAttribute"/> row each here.
+/// <para>
+/// Carried defect: the no-read row builds its <c>PermissionedDrive</c> with
 /// <c>DrivePermission.Write &amp; DrivePermission.WriteReactionsAndComments</c> — a bitwise AND of
-/// 2 and 12, i.e. <see cref="DrivePermission.None"/>, where <c>|</c> was plainly meant. The test
+/// 2 and 12, i.e. <see cref="DrivePermission.None"/>, where <c>|</c> was plainly meant. The row
 /// still demonstrates what its name says (no <c>Read</c> ⇒ no storage key), just with a weaker
-/// grant than intended. Left exactly as written — fixing it inside a port would make the diff
+/// grant than intended. Carried verbatim — fixing it inside a port would make the diff
 /// unreviewable.
+/// </para>
 /// <para>
 /// The original created its circle through <c>client.Membership.CreateCircle</c>, which generates
 /// the circle id itself and hands back the definition; here the id is generated test-side and
@@ -42,59 +46,15 @@ public class KeyStoreTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    [Test]
-    public async Task ExchangeGrantHasNoStorageKey_WhenDrivePermissionRead_IsNot_Granted()
+    public static IEnumerable<object[]> StorageKeyCases()
     {
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        var senderChatDrive = TargetDrive.NewTargetDrive();
-        await sender.Admin.CreateDrive(senderChatDrive, "Chat drive",
-            allowAnonymousReads: false,
-            ownerOnly: false,
-            allowSubscriptions: false);
-
-        var expectedPermissionedDrive = new PermissionedDrive()
-        {
-            Drive = senderChatDrive,
-            Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
-        };
-
-        var senderChatCircleId = Guid.NewGuid();
-        await sender.Admin.CreateCircle(senderChatCircleId, "Chat Participants", new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new()
-                {
-                    PermissionedDrive = expectedPermissionedDrive
-                }
-            }
-        });
-
-        var send = await sender.Connections.SendConnectionRequest(recipient.Identity, new List<GuidId>() { senderChatCircleId });
-        Assert.That(send.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var accept = await recipient.Connections.AcceptConnectionRequest(sender.Identity, new List<GuidId>());
-        Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        // Test
-        // At this point: recipient should have an ICR record on sender's identity that does not have a key
-        //
-
-        var recipientConnectionInfo = await sender.Connections.GetConnectionInfo(recipient.Identity);
-
-        //find the drive grant
-        var actualCircleGrant = recipientConnectionInfo.Content!.AccessGrant.CircleGrants.SingleOrDefault(cg =>
-            cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive));
-        Assert.That(actualCircleGrant, Is.Not.Null);
-        Assert.That(actualCircleGrant!.DriveGrants.Count, Is.EqualTo(1),
-            "There should only be drive grant from the single circle we created");
-        Assert.That(actualCircleGrant.DriveGrants.Single().HasStorageKey, Is.False,
-            "the drive granted should not have a storage key");
+        // No Read in the grant => no storage key. The AND is the original's; see <remarks>.
+        yield return [DrivePermission.Write & DrivePermission.WriteReactionsAndComments, false];
+        yield return [DrivePermission.Read | DrivePermission.Write | DrivePermission.WriteReactionsAndComments, true];
     }
 
-    [Test]
-    public async Task ExchangeGrantIsGivenStorageKey_WhenDrivePermissionRead_IS_Granted()
+    [Test, TestCaseSource(nameof(StorageKeyCases))]
+    public async Task ExchangeGrantStorageKeyFollowsDrivePermissionRead(DrivePermission permission, bool expectStorageKey)
     {
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
@@ -108,7 +68,7 @@ public class KeyStoreTests : V2Fixture
         var expectedPermissionedDrive = new PermissionedDrive()
         {
             Drive = senderChatDrive,
-            Permission = DrivePermission.Read | DrivePermission.Write | DrivePermission.WriteReactionsAndComments
+            Permission = permission
         };
 
         var senderChatCircleId = Guid.NewGuid();
@@ -129,7 +89,8 @@ public class KeyStoreTests : V2Fixture
         Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Test
-        // At this point: recipient should have an ICR record on sender's identity that does not have a key
+        // At this point: recipient should have an ICR record on sender's identity whose storage key
+        // presence follows whether the circle granted Read on the drive.
         //
 
         var recipientConnectionInfo = await sender.Connections.GetConnectionInfo(recipient.Identity);
@@ -140,7 +101,7 @@ public class KeyStoreTests : V2Fixture
         Assert.That(actualCircleGrant, Is.Not.Null);
         Assert.That(actualCircleGrant!.DriveGrants.Count, Is.EqualTo(1),
             "There should only be drive grant from the single circle we created");
-        Assert.That(actualCircleGrant.DriveGrants.Single().HasStorageKey, Is.True,
-            "the drive granted should have storage key");
+        Assert.That(actualCircleGrant.DriveGrants.Single().HasStorageKey, Is.EqualTo(expectStorageKey),
+            $"storage key presence should follow the Read grant for permission {permission}");
     }
 }

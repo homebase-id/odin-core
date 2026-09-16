@@ -188,9 +188,14 @@ re-deriving, which is how the first batches ended up with three spellings of the
   port from an unchecked one.
 - Convert a trailing `if (expected == OK) { … }` to an early `if (expected != OK) return;` — unless
   a statement after the block has to run for every row (a cleanup `Delete`, say). Check first.
-- Don't seed for rows that early-return. Guest and no-permission App rows are refused at authz
-  before anything reads the drive, so uploads for those rows are wasted; gate the seed on
+- Don't seed for rows that early-return. Guest and no-permission App rows are usually refused at
+  authz before anything reads the drive, so uploads for those rows are wasted; gate the seed on
   `expected == HttpStatusCode.OK`.
+  **Verify it per endpoint rather than assuming it** — update-batch is a measured exception. There,
+  an update with no `VersionTag` answers 400 for *every* caller (validation precedes authz), and a
+  `Guest[Write]` row clears the drive check and is refused deep enough in that a non-existent file
+  answers 500. Those rows still need a local seed; what they don't need is the peer arrange
+  (recipient logins, drives, connection handshakes), which is where the time actually goes.
 - `TestIdentities.InitializedIdentities` is **null** here. Only `WebScaffold.RunBeforeAnyTests` calls
   `TestIdentities.SetCurrent`; `V2Fixture` never does, so anything that reaches an identity through
   that dictionary — looking up `ContactData`, say — throws a `NullReferenceException` at run time.

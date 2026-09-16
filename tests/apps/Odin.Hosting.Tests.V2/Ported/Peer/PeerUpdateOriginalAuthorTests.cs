@@ -5,14 +5,11 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Hosting.Tests._Universal.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Configuration;
-using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -32,7 +29,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// <list type="bullet">
 /// <item>The original stacked three <c>[TestCaseSource]</c> attributes per test, two commented out
 /// (<c>AppWithOnlyUseTransitWrite</c>, <c>GuestNotAllowed</c>). Only the live <c>OwnerAllowed</c> row
-/// is ported; the others are kept as comments on <see cref="UpdateCases"/>.</item>
+/// is ported. One row is not a matrix, so these are plain <c>[Test]</c>s and the other two rows are
+/// kept as a comment above the first of them.</item>
 /// <item>Identities are remapped onto the four this framework exposes. The originals used
 /// <c>Collab</c> / <c>TomBombadil</c>, which are structurally identical to the rest — the V2 README's
 /// identity rule says the names are arbitrary. Each test's <i>acting</i> identity is named explicitly
@@ -44,6 +42,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// explicit <c>Sync.DrainOutboxAsync()</c> / <c>Sync.ProcessInboxAsync(drive)</c>; the V1 forms poll
 /// an outbox background service the fast host registers but never starts.</item>
 /// <item>Trailing disconnect / unfollow calls were cleanup only and are dropped.</item>
+/// <item>The drive + circle + connect arrange is <see cref="CollabChannelFlow.SetupAsync"/> (declared
+/// beside <see cref="PeerUpdateFileTests"/>), shared with that fixture. The first test here asserted
+/// all six connect/accept calls and the second asserted none of them; the helper asserts them, so
+/// both now do.</item>
 /// </list>
 /// Carried defects, left alone: in both tests the <c>OriginalAuthor</c> assertion's failure message
 /// printed <c>SenderOdinId</c>, not the original author it was about (in the second test it was
@@ -53,67 +55,37 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 [TestFixture]
 public class PeerUpdateOriginalAuthorTests : V2Fixture
 {
-    private static readonly Dictionary<string, string> IsCollaborativeChannelAttributes = new()
-        { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } };
-
     // Other Tests
     // Bad Requests - fail when missing payload operation type, invalid upload manifest
 
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry, Identities.Pippin];
 
-    public static IEnumerable<object[]> UpdateCases()
-    {
-        // The original also declared, commented out:
-        //   AppPermissionKeysOnly(UseTransitWrite)                -> HttpStatusCode.OK
-        //   ConnectedIdentityLoggedInOnGuestApi(ReadWhoIFollow)   -> HttpStatusCode.MethodNotAllowed
-        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-    }
-
-    [Test, TestCaseSource(nameof(UpdateCases))]
-    public async Task CanUpdateRemoteEncryptedFile_FromIdentityOtherThanOriginalAuthor_AndSeeChangesDistributedToFeed(
-        CallerSpec spec, HttpStatusCode expected)
+    // The original's live row was [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK] — one row, so
+    // these are plain [Test]s. Its two commented-out siblings, kept verbatim so a matrix is one edit away:
+    //   AppPermissionKeysOnly(UseTransitWrite)                -> HttpStatusCode.OK
+    //   ConnectedIdentityLoggedInOnGuestApi(ReadWhoIFollow)   -> HttpStatusCode.MethodNotAllowed
+    [Test]
+    public async Task CanUpdateRemoteEncryptedFile_FromIdentityOtherThanOriginalAuthor_AndSeeChangesDistributedToFeed()
     {
         // The caller (the acting identity) is the secondary author.
-        var (caller, secondaryAuthor_OwnerClient) = await SetupCallerWithOwner(spec, Identities.Merry);
+        var (caller, secondaryAuthor_OwnerClient) =
+            await SetupCallerWithOwner(CallerSpec.Owner(DriveSpec.Anon()), Identities.Merry);
         var collabChannelOwnerClient = await LoginAsOwner(Identities.Frodo);
         var originalAuthor_OwnerClient = await LoginAsOwner(Identities.Pippin);
         var member2_OwnerClient = await LoginAsOwner(Identities.Sam);
 
-        await DisableAutoAcceptIntroductions(collabChannelOwnerClient);
-        await DisableAutoAcceptIntroductions(originalAuthor_OwnerClient);
-        await DisableAutoAcceptIntroductions(member2_OwnerClient);
-        await DisableAutoAcceptIntroductions(secondaryAuthor_OwnerClient);
+        await collabChannelOwnerClient.Admin.DisableAutoAcceptIntroductions();
+        await originalAuthor_OwnerClient.Admin.DisableAutoAcceptIntroductions();
+        await member2_OwnerClient.Admin.DisableAutoAcceptIntroductions();
+        await secondaryAuthor_OwnerClient.Admin.DisableAutoAcceptIntroductions();
 
         var originalAuthor = originalAuthor_OwnerClient.Identity;
         var collabChannel = collabChannelOwnerClient.Identity;
-        var secondaryAuthor = secondaryAuthor_OwnerClient.Identity;
-        var member2 = member2_OwnerClient.Identity;
 
         var collabChannelDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        await collabChannelOwnerClient.Admin.CreateDrive(collabChannelDrive, "Test channel drive 001", allowAnonymousReads: true,
-            allowSubscriptions: true,
-            attributes: IsCollaborativeChannelAttributes);
-
-        //
-        // get everyone connected and in a circle for the collab channel
-        //
-        var collabChannelId = Guid.NewGuid();
-        var permissions = TestUtils.CreatePermissionGrantRequest(collabChannelDrive, DrivePermission.Write);
-        await collabChannelOwnerClient.Admin.CreateCircle(collabChannelId, "circle with some access", permissions);
-
-        Assert.That((await originalAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel)).IsSuccessStatusCode, Is.True);
-        Assert.That((await collabChannelOwnerClient.Connections.AcceptConnectionRequest(originalAuthor, [collabChannelId]))
-            .IsSuccessStatusCode, Is.True);
-
-        Assert.That((await secondaryAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel)).IsSuccessStatusCode, Is.True);
-        Assert.That((await collabChannelOwnerClient.Connections.AcceptConnectionRequest(secondaryAuthor, [collabChannelId]))
-            .IsSuccessStatusCode, Is.True);
-
-        Assert.That((await member2_OwnerClient.Connections.SendConnectionRequest(collabChannel)).IsSuccessStatusCode, Is.True);
-        Assert.That((await collabChannelOwnerClient.Connections.AcceptConnectionRequest(member2, [collabChannelId]))
-            .IsSuccessStatusCode, Is.True);
-
-        await member2_OwnerClient.V1.Follower.FollowIdentity(collabChannel, FollowerNotificationType.AllNotifications);
+        await CollabChannelFlow.SetupAsync(collabChannelOwnerClient, collabChannelDrive,
+            [originalAuthor_OwnerClient, secondaryAuthor_OwnerClient, member2_OwnerClient],
+            follower: member2_OwnerClient);
 
         //
         // original author makes a post (upload metadata)
@@ -149,7 +121,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
             testPayloads, keyHeader: keyHeader);
 
         await originalAuthor_OwnerClient.Sync.DrainOutboxAsync();
-        Assert.That(originalFileUpload.IsSuccessStatusCode, Is.True);
+        Assert.That(originalFileUpload.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         await collabChannelOwnerClient.Sync.ProcessInboxAsync(collabChannelDrive, int.MaxValue);
 
@@ -181,7 +153,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
 
         var member2FileOnFeedBeforeUpdateResponse =
             await member2_OwnerClient.V1.Drive.QueryByGlobalTransitId(globalTransitIdFileIdentifierOnFeed);
-        Assert.That(member2FileOnFeedBeforeUpdateResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(member2FileOnFeedBeforeUpdateResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var theFileOnFeedDriveBeforeUpdate = member2FileOnFeedBeforeUpdateResponse.Content.SearchResults.SingleOrDefault();
         Assert.That(theFileOnFeedDriveBeforeUpdate, Is.Not.Null);
 
@@ -232,17 +204,8 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
             [payloadToAdd],
             keyHeader);
 
-        Assert.That(updateFileResponse.StatusCode, Is.EqualTo(expected));
+        Assert.That(updateFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await secondaryAuthor_OwnerClient.Sync.DrainOutboxAsync();
-
-        // Let's test more
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
-
-        var uploadResult = updateFileResponse.Content;
-        Assert.That(uploadResult, Is.Not.Null);
 
         await collabChannelOwnerClient.Sync.ProcessInboxAsync(collabChannelDrive, int.MaxValue);
         await collabChannelOwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
@@ -263,7 +226,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
 
         var channelOnMembersFeedDrive =
             await member2_OwnerClient.V1.Drive.QueryByGlobalTransitId(globalTransitIdFileIdentifierOnFeed);
-        Assert.That(channelOnMembersFeedDrive.IsSuccessStatusCode, Is.True);
+        Assert.That(channelOnMembersFeedDrive.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var theFileOnFeedDrive = channelOnMembersFeedDrive.Content.SearchResults.SingleOrDefault();
         Assert.That(theFileOnFeedDrive, Is.Not.Null);
 
@@ -273,44 +236,28 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         Assert.That(theFileOnFeedDrive.FileMetadata.OriginalAuthor, Is.EqualTo(originalAuthor));
     }
 
-    [Test, TestCaseSource(nameof(UpdateCases))]
-    public async Task CanUpdateRemoteFile_FromIdentityOtherThanOriginalAuthor_AndSeeChangesDistributedToFeed(
-        CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task CanUpdateRemoteFile_FromIdentityOtherThanOriginalAuthor_AndSeeChangesDistributedToFeed()
     {
         // The caller (the acting identity) is the original author in this variant.
-        var (caller, originalAuthor_OwnerClient) = await SetupCallerWithOwner(spec, Identities.Pippin);
+        var (caller, originalAuthor_OwnerClient) =
+            await SetupCallerWithOwner(CallerSpec.Owner(DriveSpec.Anon()), Identities.Pippin);
         var secondaryAuthor_OwnerClient = await LoginAsOwner(Identities.Merry);
         var collabChannelOwnerClient = await LoginAsOwner(Identities.Frodo);
         var member2_OwnerClient = await LoginAsOwner(Identities.Sam);
 
-        await DisableAutoAcceptIntroductions(collabChannelOwnerClient);
-        await DisableAutoAcceptIntroductions(originalAuthor_OwnerClient);
-        await DisableAutoAcceptIntroductions(member2_OwnerClient);
-        await DisableAutoAcceptIntroductions(secondaryAuthor_OwnerClient);
+        await collabChannelOwnerClient.Admin.DisableAutoAcceptIntroductions();
+        await originalAuthor_OwnerClient.Admin.DisableAutoAcceptIntroductions();
+        await member2_OwnerClient.Admin.DisableAutoAcceptIntroductions();
+        await secondaryAuthor_OwnerClient.Admin.DisableAutoAcceptIntroductions();
 
         var originalAuthor = originalAuthor_OwnerClient.Identity;
         var collabChannel = collabChannelOwnerClient.Identity;
-        var secondaryAuthor = secondaryAuthor_OwnerClient.Identity;
-        var member2 = member2_OwnerClient.Identity;
 
         var collabChannelDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        await collabChannelOwnerClient.Admin.CreateDrive(collabChannelDrive, "Test channel drive 001", allowAnonymousReads: true,
-            allowSubscriptions: true,
-            attributes: IsCollaborativeChannelAttributes);
-
-        var collabChannelId = Guid.NewGuid();
-        var permissions = TestUtils.CreatePermissionGrantRequest(collabChannelDrive, DrivePermission.Write);
-        await collabChannelOwnerClient.Admin.CreateCircle(collabChannelId, "circle with some access", permissions);
-
-        await originalAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel);
-        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(originalAuthor, [collabChannelId]);
-
-        await secondaryAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel);
-        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(secondaryAuthor, [collabChannelId]);
-
-        await member2_OwnerClient.Connections.SendConnectionRequest(collabChannel);
-        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(member2, [collabChannelId]);
-        await member2_OwnerClient.V1.Follower.FollowIdentity(collabChannel, FollowerNotificationType.AllNotifications);
+        await CollabChannelFlow.SetupAsync(collabChannelOwnerClient, collabChannelDrive,
+            [originalAuthor_OwnerClient, secondaryAuthor_OwnerClient, member2_OwnerClient],
+            follower: member2_OwnerClient);
 
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
@@ -337,7 +284,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
             uploadManifest,
             testPayloads);
         await originalAuthor_OwnerClient.Sync.DrainOutboxAsync();
-        Assert.That(response.IsSuccessStatusCode, Is.True);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // wait for the collab channel to distribute feed
         await collabChannelOwnerClient.Sync.ProcessInboxAsync(collabChannelDrive, int.MaxValue);
@@ -346,10 +293,6 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         //
         // Update the file via pippin's identity
         //
-
-        await originalAuthor_OwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive, int.MaxValue);
-        await secondaryAuthor_OwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive, int.MaxValue);
-        await member2_OwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive, int.MaxValue);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
@@ -390,16 +333,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
 
         var updateFileResponse = await caller.V1.Drive.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
         await originalAuthor_OwnerClient.Sync.DrainOutboxAsync();
-        Assert.That(updateFileResponse.StatusCode, Is.EqualTo(expected));
-
-        // Let's test more
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
-
-        var uploadResult = updateFileResponse.Content;
-        Assert.That(uploadResult, Is.Not.Null);
+        Assert.That(updateFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // handle any incoming feed items
         await collabChannelOwnerClient.Sync.ProcessInboxAsync(remoteTargetFile.TargetDrive, int.MaxValue);
@@ -409,7 +343,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         //
         var getHeaderResponse =
             await collabChannelOwnerClient.V1.Drive.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
-        Assert.That(getHeaderResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var header = getHeaderResponse.Content.SearchResults.SingleOrDefault();
         Assert.That(header, Is.Not.Null);
         Assert.That(header.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
@@ -432,7 +366,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         await member2_OwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive, int.MaxValue);
 
         var channelOnMembersFeedDrive = await member2_OwnerClient.V1.Drive.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
-        Assert.That(channelOnMembersFeedDrive.IsSuccessStatusCode, Is.True);
+        Assert.That(channelOnMembersFeedDrive.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var theFileOnFeedDrive = channelOnMembersFeedDrive.Content.SearchResults.SingleOrDefault();
         Assert.That(theFileOnFeedDrive, Is.Not.Null);
 
@@ -441,14 +375,4 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         Assert.That(theFileOnFeedDrive.FileMetadata.SenderOdinId, Is.EqualTo((string)collabChannel));
         Assert.That(theFileOnFeedDrive.FileMetadata.OriginalAuthor, Is.EqualTo(originalAuthor));
     }
-
-    private static Task DisableAutoAcceptIntroductions(OwnerSession owner)
-        => owner.Admin.UpdateTenantSettingsFlag(
-            TenantConfigFlagNames.DisableAutoAcceptIntroductionsForTests, bool.TrueString);
-
-    /// <summary>
-    /// V1 clients not yet bundled on <see cref="V1Handles"/>. Built from one session's own
-    /// identity+factory pair so a caller's identity can never be paired with another's factory.
-    /// </summary>
-
 }

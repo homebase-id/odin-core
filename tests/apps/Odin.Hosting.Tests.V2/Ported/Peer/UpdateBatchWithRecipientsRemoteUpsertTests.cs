@@ -29,9 +29,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// </summary>
 /// <remarks>
 /// See <see cref="UpdateBatchWithRecipientsTests"/> for the framework departures that apply to all
-/// three of these ports (collaboration-drive attribute, <c>WaitForEmptyOutbox</c> to
-/// <see cref="UpdateBatchPeerScenario.Distribute"/>, dropped connection cleanup); the arrange half is
-/// shared through <see cref="UpdateBatchPeerScenario"/>.
+/// three of these ports (collaboration drive, <c>WaitForEmptyOutbox</c> to
+/// <see cref="PeerFlow.DistributeAsync(OwnerSession, IEnumerable{OwnerSession}, TargetDrive)"/>,
+/// dropped connection cleanup, refused rows stopping before the peer arrange); the arrange and the assert
+/// sweep are shared through <see cref="UpdateBatchPeerScenario"/>.
+///
+/// Where the upload carries no recipients there is nothing in the outbox, so — unlike the original,
+/// which polled the outbox unconditionally — no distribute call follows the seed. The only seed
+/// distribute left is the mixed case's, which really does have recipients to deliver to.
 ///
 /// <b>Carried defect:</b> the third case is named
 /// <c>...With1PayloadsAnd1Thumbnails...</c> but seeds
@@ -44,43 +49,51 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
     protected override string[] HostIdentities =>
         [Identities.Frodo, Identities.Sam, Identities.Merry, Identities.Pippin, Identities.TomBombadil];
 
+    private static readonly string[] RecipientIdentities = [Identities.Sam, Identities.Merry];
+
+    private static readonly string[] MixedRecipientIdentities =
+        [Identities.Sam, Identities.TomBombadil, Identities.Merry, Identities.Pippin];
+
     /// <summary>The original's four stacked case sources, inline.</summary>
     public static IEnumerable<object[]> UpdateBatchCases()
     {
-        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write, [PermissionKeys.UseTransitWrite]), HttpStatusCode.OK];
-        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.Forbidden];
-        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.Owner(DriveSpec.Collab()), HttpStatusCode.OK];
+        yield return [CallerSpec.App(DriveSpec.Collab(), DrivePermission.Write, [PermissionKeys.UseTransitWrite]), HttpStatusCode.OK];
+        yield return [CallerSpec.Guest(DriveSpec.Collab(), DrivePermission.Write), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.Guest(DriveSpec.Collab(), DrivePermission.Read), HttpStatusCode.Forbidden];
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
     public async Task CanUpdateBatchAndDistributeToRecipientsWhenTargetFileDoesNotExistOnRemoteServer(
         CallerSpec spec, HttpStatusCode expected)
     {
-        var sender = await LoginAsOwner();
+        var (caller, sender) = await SetupCallerWithOwner(spec);
         var targetDrive = spec.TargetDrive;
-        await UpdateBatchPeerScenario.CreateCollaborationDrive(sender, targetDrive);
+
+        if (expected != HttpStatusCode.OK)
+        {
+            await UpdateBatchPeerScenario.AssertUpdateRefused(caller, sender, targetDrive, RecipientIdentities, expected);
+            return;
+        }
 
         //
-        // Setup - upload a new file with payloads
+        // Setup - upload a new file; no recipient holds it yet
         //
 
-        var recipients = await UpdateBatchPeerScenario.SetupRecipients(Host, sender, [Identities.Sam, Identities.Merry], targetDrive);
+        var recipients = await UpdateBatchPeerScenario.SetupRecipients(Host, sender, RecipientIdentities, targetDrive);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Authenticated);
         uploadedFileMetadata.AllowDistribution = true;
 
         // Note: no transit options on initial upload to ensure
         // the file does not exist on the remote server
-        var transitOptions = new TransitOptions { };
+        var transitOptions = new TransitOptions();
 
         var uploadNewFileResponse = await sender.V1.Drive.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         Assert.That(uploadNewFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await UpdateBatchPeerScenario.Distribute(sender, recipients, targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult!.File;
-        var targetGlobalTransitIdFileIdentifier = uploadResult.GlobalTransitIdFileIdentifier;
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -104,59 +117,30 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
             }
         };
 
-        var caller = await spec.Build(sender);
-
         var updateFileResponse = await caller.V1.Drive.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
         Assert.That(updateFileResponse.StatusCode, Is.EqualTo(expected));
-
-        // Let's test more
-        if (expected != HttpStatusCode.OK) return;
-
         Assert.That(updateFileResponse.Content, Is.Not.Null);
-        await UpdateBatchPeerScenario.Distribute(sender, recipients, targetDrive);
 
-        //
-        // ensure the local file exists and is updated correctly
-        //
-        var getHeaderResponse = await sender.V1.Drive.GetFileHeader(targetFile);
-        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var header = getHeaderResponse.Content;
-        Assert.That(header, Is.Not.Null);
-        Assert.That(header!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
-        Assert.That(header.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
-        Assert.That(header.FileMetadata.VersionTag, Is.EqualTo(updateFileResponse.Content!.NewVersionTag));
-        Assert.That(header.FileMetadata.Payloads, Is.Empty);
-
-        // Ensure we find the file on the recipient
-        //
-        await DriveAsserts.AssertFileFoundByDataType(
-            sender.V1.Drive, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
-
-        // ensure the recipients get the file
-
-        foreach (var recipient in recipients)
-        {
-            var recipientFileResponse = await recipient.V1.Drive.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
-            var remoteFileHeader = recipientFileResponse.Content!.SearchResults.FirstOrDefault();
-
-            Assert.That(remoteFileHeader, Is.Not.Null, $"recipient {recipient.Identity} should have the file");
-            Assert.That(remoteFileHeader!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
-            Assert.That(remoteFileHeader.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
-            Assert.That(remoteFileHeader.FileMetadata.VersionTag, Is.EqualTo(updateFileResponse.Content.NewVersionTag));
-            Assert.That(remoteFileHeader.FileMetadata.Payloads, Is.Empty);
-        }
+        await UpdateBatchPeerScenario.AssertUpdateLandedEverywhere(
+            sender, recipients, targetDrive, targetFile, uploadResult.GlobalTransitIdFileIdentifier,
+            updatedFileMetadata, updateFileResponse.Content!.NewVersionTag);
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
     public async Task CanUpdateBatchAndDistributeToRecipientsWhenTargetFileDoesNotExistOnRemoteServerMixed(
         CallerSpec spec, HttpStatusCode expected)
     {
-        var sender = await LoginAsOwner();
+        var (caller, sender) = await SetupCallerWithOwner(spec);
         var targetDrive = spec.TargetDrive;
-        await UpdateBatchPeerScenario.CreateCollaborationDrive(sender, targetDrive);
+
+        if (expected != HttpStatusCode.OK)
+        {
+            await UpdateBatchPeerScenario.AssertUpdateRefused(caller, sender, targetDrive, MixedRecipientIdentities, expected);
+            return;
+        }
 
         //
-        // Setup - upload a new file with payloads
+        // Setup - upload a new file; only half the recipients are given it up front
         //
 
         var recipientsWithTargetFile = await UpdateBatchPeerScenario.SetupRecipients(
@@ -177,11 +161,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
 
         var uploadNewFileResponse = await sender.V1.Drive.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         Assert.That(uploadNewFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await UpdateBatchPeerScenario.Distribute(sender, allRecipients, targetDrive);
+        await PeerFlow.DistributeAsync(sender, allRecipients, targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult!.File;
-        var targetGlobalTransitIdFileIdentifier = uploadResult.GlobalTransitIdFileIdentifier;
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -205,73 +188,43 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
             }
         };
 
-        var caller = await spec.Build(sender);
-
         var updateFileResponse = await caller.V1.Drive.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
         Assert.That(updateFileResponse.StatusCode, Is.EqualTo(expected));
-
-        // Let's test more
-        if (expected != HttpStatusCode.OK) return;
-
         Assert.That(updateFileResponse.Content, Is.Not.Null);
-        await UpdateBatchPeerScenario.Distribute(sender, allRecipients, targetDrive);
 
-        //
-        // ensure the local file exists and is updated correctly
-        //
-        var getHeaderResponse = await sender.V1.Drive.GetFileHeader(targetFile);
-        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var header = getHeaderResponse.Content;
-        Assert.That(header, Is.Not.Null);
-        Assert.That(header!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
-        Assert.That(header.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
-        Assert.That(header.FileMetadata.VersionTag, Is.EqualTo(updateFileResponse.Content!.NewVersionTag));
-        Assert.That(header.FileMetadata.Payloads, Is.Empty);
-
-        // Ensure we find the file on the recipient
-        //
-        await DriveAsserts.AssertFileFoundByDataType(
-            sender.V1.Drive, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
-
-        // ensure the recipients get the file
-
-        foreach (var recipient in allRecipients)
-        {
-            var recipientFileResponse = await recipient.V1.Drive.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
-            var remoteFileHeader = recipientFileResponse.Content!.SearchResults.FirstOrDefault();
-
-            Assert.That(remoteFileHeader, Is.Not.Null, $"recipient {recipient.Identity} should have the file");
-            Assert.That(remoteFileHeader!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
-            Assert.That(remoteFileHeader.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
-            Assert.That(remoteFileHeader.FileMetadata.VersionTag, Is.EqualTo(updateFileResponse.Content.NewVersionTag));
-            Assert.That(remoteFileHeader.FileMetadata.Payloads, Is.Empty);
-        }
+        await UpdateBatchPeerScenario.AssertUpdateLandedEverywhere(
+            sender, allRecipients, targetDrive, targetFile, uploadResult.GlobalTransitIdFileIdentifier,
+            updatedFileMetadata, updateFileResponse.Content!.NewVersionTag);
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
     public async Task CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1ThumbnailsWhenTargetFileDoesNotExistOnRemoteServer(
         CallerSpec spec, HttpStatusCode expected)
     {
-        var sender = await LoginAsOwner();
+        var (caller, sender) = await SetupCallerWithOwner(spec);
         var targetDrive = spec.TargetDrive;
-        await UpdateBatchPeerScenario.CreateCollaborationDrive(sender, targetDrive);
+
+        if (expected != HttpStatusCode.OK)
+        {
+            await UpdateBatchPeerScenario.AssertUpdateRefused(caller, sender, targetDrive, RecipientIdentities, expected);
+            return;
+        }
 
         //
-        // Setup - upload a new file with payloads
+        // Setup - upload a new file with payloads; no recipient holds it yet
         //
 
-        var recipients = await UpdateBatchPeerScenario.SetupRecipients(Host, sender, [Identities.Sam, Identities.Merry], targetDrive);
+        var recipients = await UpdateBatchPeerScenario.SetupRecipients(Host, sender, RecipientIdentities, targetDrive);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Authenticated);
         uploadedFileMetadata.AllowDistribution = true;
-        var transitOptions = new TransitOptions { }; // Note: no transit options on initial upload to ensure
-        // the file does not exist on the remote server
 
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinition1();
-        var testPayloads = new List<TestPayloadDefinition>()
-        {
-            uploadedPayloadDefinition
-        };
+        // Note: no transit options on initial upload to ensure
+        // the file does not exist on the remote server
+        var transitOptions = new TransitOptions();
+
+        var payloadToBeDeleted = SamplePayloadDefinitions.GetPayloadDefinition1();
+        List<TestPayloadDefinition> testPayloads = [payloadToBeDeleted];
 
         var uploadManifest = new UploadManifest()
         {
@@ -281,11 +234,9 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
         var uploadNewFileResponse =
             await sender.V1.Drive.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads, transitOptions);
         Assert.That(uploadNewFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await UpdateBatchPeerScenario.Distribute(sender, recipients, targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult!.File;
-        var targetGlobalTransitIdFileIdentifier = uploadResult.GlobalTransitIdFileIdentifier;
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -310,60 +261,19 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
                     new UploadManifestPayloadDescriptor
                     {
                         PayloadUpdateOperationType = PayloadUpdateOperationType.DeletePayload,
-                        PayloadKey = testPayloads.Single().Key,
+                        PayloadKey = payloadToBeDeleted.Key,
                     }
                 ]
             }
         };
 
-        var caller = await spec.Build(sender);
-
         var updateFileResponse = await caller.V1.Drive.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
         Assert.That(updateFileResponse.StatusCode, Is.EqualTo(expected));
-
-        // Let's test more
-        if (expected != HttpStatusCode.OK) return;
-
         Assert.That(updateFileResponse.Content, Is.Not.Null);
-        await UpdateBatchPeerScenario.Distribute(sender, recipients, targetDrive);
 
-        //
-        // ensure the local file exists and is updated correctly
-        //
-        var getHeaderResponse = await sender.V1.Drive.GetFileHeader(targetFile);
-        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var header = getHeaderResponse.Content;
-        Assert.That(header, Is.Not.Null);
-        Assert.That(header!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
-        Assert.That(header.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
-        Assert.That(header.FileMetadata.VersionTag, Is.EqualTo(updateFileResponse.Content!.NewVersionTag));
-        Assert.That(header.FileMetadata.Payloads, Is.Empty);
-
-        // Ensure we find the file on the recipient
-        //
-        await DriveAsserts.AssertFileFoundByDataType(
-            sender.V1.Drive, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
-
-        // ensure the recipients get the file
-
-        foreach (var recipient in recipients)
-        {
-            var recipientFileResponse = await recipient.V1.Drive.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
-            var remoteFileHeader = recipientFileResponse.Content!.SearchResults.FirstOrDefault();
-
-            Assert.That(remoteFileHeader, Is.Not.Null, $"recipient {recipient.Identity} should have the file");
-            Assert.That(remoteFileHeader!.FileMetadata.AppData.Content, Is.EqualTo(updatedFileMetadata.AppData.Content));
-            Assert.That(remoteFileHeader.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
-            Assert.That(remoteFileHeader.FileMetadata.VersionTag, Is.EqualTo(updateFileResponse.Content.NewVersionTag));
-            Assert.That(remoteFileHeader.FileMetadata.Payloads, Is.Empty);
-
-            var getPayloadResponse = await recipient.V1.Drive.GetPayload(new ExternalFileIdentifier()
-            {
-                FileId = remoteFileHeader.FileId,
-                TargetDrive = targetGlobalTransitIdFileIdentifier.TargetDrive
-            }, testPayloads.Single().Key);
-
-            Assert.That(getPayloadResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-        }
+        await UpdateBatchPeerScenario.AssertUpdateLandedEverywhere(
+            sender, recipients, targetDrive, targetFile, uploadResult.GlobalTransitIdFileIdentifier,
+            updatedFileMetadata, updateFileResponse.Content!.NewVersionTag,
+            deletedPayloadKey: payloadToBeDeleted.Key);
     }
 }

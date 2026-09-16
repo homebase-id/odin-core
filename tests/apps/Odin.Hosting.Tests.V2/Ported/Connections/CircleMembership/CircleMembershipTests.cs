@@ -86,7 +86,7 @@ public class CircleMembershipTests : V2Fixture
 
         var youAuthDomainRecord = domains.SingleOrDefault(d =>
             d.Domain.DomainName == youAuthDomain && d.DomainType == DomainType.YouAuth);
-        Assert.That(youAuthDomainRecord, Is.Not.Null, "missing identity domain");
+        Assert.That(youAuthDomainRecord, Is.Not.Null, "missing youauth domain");
         Assert.That(youAuthDomainRecord.CircleGrant, Is.Not.Null);
         Assert.That(youAuthDomainRecord.CircleGrant.CircleId.Value, Is.EqualTo(circle1Id));
         Assert.That(youAuthDomainRecord.CircleGrant.DriveGrants?.Count() ?? 0, Is.EqualTo(0));

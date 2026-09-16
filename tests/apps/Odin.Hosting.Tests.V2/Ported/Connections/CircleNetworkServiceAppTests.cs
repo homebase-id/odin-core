@@ -5,11 +5,9 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Hosting.Controllers;
-using Odin.Hosting.Controllers.Base.Membership.Connections;
+using Odin.Core.Identity;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
@@ -18,6 +16,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
+using static Odin.Hosting.Tests.V2.Ported.Connections.ConnectionAsserts;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
 
@@ -28,10 +27,19 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// rewritten, and when a member is revoked from one of those circles.
 /// </summary>
 /// <remarks>
-/// Arrange goes through <c>owner.Admin</c> (drives, circles, app registration); the two
-/// app-management endpoints <c>OwnerAdmin</c> doesn't wrap — update-authorized-circles and
-/// get-registered-app — and circle grant/revoke go through the V1 Refit interfaces via
-/// <see cref="OwnerSession.RefitFor{T}"/>.
+/// Arrange goes through <c>owner.Admin</c> (drives, circles, app registration) and
+/// <c>owner.Connections</c> (send / accept / grant-circle / revoke-circle / connection info); the two
+/// app-management endpoints neither handle wraps — update-authorized-circles and get-registered-app —
+/// go through the V1 Refit interface via <see cref="OwnerSession.RefitFor{T}"/>.
+/// <para>
+/// All five tests opened with the same ~80-line chat-app arrangement (app drive, circle drive, one or
+/// two circles, app registration) and closed on the same app-circle-grant assertions; those are
+/// <see cref="SetupChatAppAsync"/> and <see cref="AssertAppCircleGrant"/> here. Only the circle count
+/// and the ordering of the app registration relative to the connection request ever varied — the
+/// latter is the <c>beforeAppRegistration</c> hook. The second circle's name differed between the two
+/// tests that used one ("Document Sharing Circle" / "Circle for document sharing"); no assertion reads
+/// a circle name, so the helper spells it one way.
+/// </para>
 /// <para>
 /// The original created circles with <c>client.Membership.CreateCircle</c>, which generates the
 /// circle id itself and returns the definition; here the ids are generated test-side. The only
@@ -58,145 +66,26 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
-        #region Firstly, setup a chat app on Frodo's identity with a single circle and 2 drives (one for app, one random drive for circle)
-
-        // Create a drive for the app
-        var appDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(appDrive, "Chat Drive 1", allowAnonymousReads: false);
-
-        // Create a drive for the circle
-        var circleDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(circleDrive, "Random Circle Drive", allowAnonymousReads: false);
-
-        // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(chatFriendsCircleId, "Chat Friends Circle", new PermissionSetGrantRequest()
+        // Note - the app is created *after* the connection request is made, so this exercises the
+        // register-app function's ability to reconcile authorized circles against a live connection.
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 2, beforeAppRegistration: async circleIds =>
         {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
+            // Send Sam a connection request granting him both circles
+            await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(circleIds));
+
+            // Sam must accept the connection request to apply the permissions
+            await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
         });
-
-        var documentSharingCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(documentSharingCircleId, "Document Sharing Circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
-
-        // Send Sam connection request and grant him access to the chat friend's circle
-        var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircleId, documentSharingCircleId };
-        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, circleIdsGrantedToRecipient);
-
-        // Sam must accept the connection request to apply the permissions
-        var circlesGrantedToSender = new List<GuidId>();
-        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, circlesGrantedToSender);
-
-        // Create the app - Note - if you add the app after the connection request is made, you are testing the register app function's ability to reconcile authorized circles
-        var appId = Guid.NewGuid();
-
-        // with app-permissions to the app_drive.  these will be full permissions to the drive and to reading connections
-        var appPermissionsGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.All
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet(PermissionKeys.All)
-        };
-
-        // the chat friends circle can work with the app with the permissions of circle member grant
-        var authorizedCircles = new List<Guid>() { chatFriendsCircleId, documentSharingCircleId };
-
-        // circle member grant (i.e. what circles can do ) on the app_drive. the chat friends circle can write to the chat drive
-        var circleMemberGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.Write
-                    }
-                }
-            },
-            PermissionSet = null
-        };
-
-        var appRegistration = (await frodoOwnerClient.Admin.RegisterApp(appId, appPermissionsGrant, authorizedCircles, circleMemberGrant)).Content;
-
-        #endregion
 
         //
         // Testing
         //
 
-        // Get Sam's connection info on Frodo's identity
-        var samConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(samConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
+        var appGrants = await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity);
+        var chatAppCircleGrants = AppCircleGrantsFor(appGrants, setup.App, expectedCount: 2);
 
-        var appGrants = samConnectionInfo.AccessGrant.AppGrants;
-        var appKey = appRegistration.AppId.Value;
-        Assert.That(appGrants.Count, Is.EqualTo(2), "there should be 2 app grants; chat, and the app created in this test");
-        Assert.That(appGrants.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var chatAppCircleGrants = appGrants[appKey].ToList();
-        Assert.That(chatAppCircleGrants, Is.Not.Null, "chatAppCircleGrants != null");
-
-        Assert.That(chatAppCircleGrants.Count, Is.EqualTo(2), "There should be two app circle grants(chat friends and document sharing");
-        var chatFriendCircleGrant = chatAppCircleGrants.Single(c => c.CircleId == chatFriendsCircleId);
-        Assert.That(chatFriendCircleGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(chatFriendCircleGrant.CircleId.Value, Is.EqualTo(chatFriendsCircleId),
-            "the circle id of the grant should match the chat friends circle");
-        Assert.That(chatFriendCircleGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = chatFriendCircleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
-
-        //Test document sharing circle
-        var documentSharingCircleGrant = chatAppCircleGrants.Single(c => c.CircleId == documentSharingCircleId);
-        Assert.That(documentSharingCircleGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(documentSharingCircleGrant.CircleId.Value, Is.EqualTo(documentSharingCircleId),
-            "the circle id of the grant should match the chat friends circle");
-        Assert.That(documentSharingCircleGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = documentSharingCircleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
+        AssertAppCircleGrant(chatAppCircleGrants, setup.ChatFriendsCircleId, setup.App);
+        AssertAppCircleGrant(chatAppCircleGrants, setup.DocumentSharingCircleId, setup.App);
     }
 
     [Test]
@@ -205,117 +94,23 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
-        #region Firstly, setup a chat app on Frodo's identity with a single circle and 2 drives (one for app, one random drive for circle)
-
-        // Create a drive for the app
-        var appDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(appDrive, "Chat Drive 1", allowAnonymousReads: false);
-
-        // Create a drive for the circle
-        var circleDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(circleDrive, "Random Circle Drive", allowAnonymousReads: false);
-
-        // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(chatFriendsCircleId, "Chat Friends Circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
-
-        // Create the app - Note - this test, we will create the app before a connection request  so we can test updating an app's authorized circles
-        var appId = Guid.NewGuid();
-
-        // with app-permissions to the app_drive.  these will be full permissions to the drive and to reading connections
-        var appPermissionsGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.All
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet(PermissionKeys.All)
-        };
-
-        // the chat friends circle can work with the app with the permissions of circle member grant
-        var authorizedCircles = new List<Guid>() { chatFriendsCircleId };
-
-        // circle member grant (i.e. what circles can do ) on the app_drive. the chat friends circle can write to the chat drive
-        var circleMemberGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.Write
-                    }
-                }
-            },
-            PermissionSet = null
-        };
-
-        //
-        // Create the app before we send a request
-        //
-        var appRegistration = (await frodoOwnerClient.Admin.RegisterApp(appId, appPermissionsGrant, authorizedCircles, circleMemberGrant)).Content;
-
-        #endregion
+        // The app is created before the connection request
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 1);
 
         // Send Sam connection request and grant him access to the chat friend's circle
-        var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircleId };
-        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, circleIdsGrantedToRecipient);
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
 
         // Sam must accept the connection request to apply the permissions
-        var circlesGrantedToSender = new List<GuidId>();
-        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, circlesGrantedToSender);
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
 
         //
         // Testing
         //
 
-        // Get Sam's connection info on Frodo's identity
-        var samConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(samConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
+        var appGrants = await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity);
+        var chatAppCircleGrants = AppCircleGrantsFor(appGrants, setup.App, expectedCount: 1);
 
-        var appGrants = samConnectionInfo.AccessGrant.AppGrants;
-        var appKey = appRegistration.AppId.Value;
-        Assert.That(appGrants.Count, Is.EqualTo(2), "there should be 2 app grants; chat, and the app created in this test");
-        Assert.That(appGrants.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var chatAppCircleGrants = appGrants[appKey].ToList();
-        Assert.That(chatAppCircleGrants, Is.Not.Null, "chatAppCircleGrants != null");
-
-        Assert.That(chatAppCircleGrants.Count, Is.EqualTo(1), "There should be only one circle grant");
-        var singleGrant = chatAppCircleGrants.First();
-        Assert.That(singleGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(singleGrant.CircleId.Value, Is.EqualTo(chatFriendsCircleId),
-            "the circle id of the grant should match the chat friends circle");
-        Assert.That(singleGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = singleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
+        AssertAppCircleGrant(chatAppCircleGrants, setup.ChatFriendsCircleId, setup.App);
 
         //TODO: test circle grants:         samConnectionInfo.AccessGrant.CircleGrants
     }
@@ -326,190 +121,27 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
-        #region Firstly, setup a chat app on Frodo's identity with a single circle and 2 drives (one for app, one random drive for circle)
-
-        // Create a drive for the app
-        var appDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(appDrive, "Chat Drive 1", allowAnonymousReads: false);
-
-        // Create a drive for the circle
-        var circleDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(circleDrive, "Random Circle Drive", allowAnonymousReads: false);
-
-        // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(chatFriendsCircleId, "Chat Friends Circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
-
-        // Create the app - Note - this test, we will create the app before a connection request  so we can test updating an app's authorized circles
-        var appId = Guid.NewGuid();
-
-        // with app-permissions to the app_drive.  these will be full permissions to the drive and to reading connections
-        var appPermissionsGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.All
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet(PermissionKeys.All)
-        };
-
-        // the chat friends circle can work with the app with the permissions of circle member grant
-        var authorizedCircles = new List<Guid>() { chatFriendsCircleId };
-
-        // circle member grant (i.e. what circles can do ) on the app_drive. the chat friends circle can write to the chat drive
-        var circleMemberGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.Write
-                    }
-                }
-            },
-            PermissionSet = null
-        };
-
-        //
-        // Create the app before we send a request
-        //
-        var appRegistration = (await frodoOwnerClient.Admin.RegisterApp(appId, appPermissionsGrant, authorizedCircles, circleMemberGrant)).Content;
-
-        #endregion
+        // The app is created before the connection request, so we can test updating its authorized circles
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 1);
 
         // Send Sam connection request and grant him access to the chat friend's circle
-        var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircleId };
-        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, circleIdsGrantedToRecipient);
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
 
         // Sam must accept the connection request to apply the permissions
-        var circlesGrantedToSender = new List<GuidId>();
-        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, circlesGrantedToSender);
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
 
         //
         // Testing
         //
 
-        // Get Sam's connection info on Frodo's identity
-        var samConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(samConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
+        var appGrants = await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity);
+        var chatAppCircleGrants = AppCircleGrantsFor(appGrants, setup.App, expectedCount: 1);
 
-        var appGrants = samConnectionInfo.AccessGrant.AppGrants;
-        var appKey = appRegistration.AppId.Value;
-        Assert.That(appGrants.Count, Is.EqualTo(2), "there should be 2 app grants; chat, and the app created in this test");
-
-        Assert.That(appGrants.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var chatAppCircleGrants = appGrants[appKey].ToList();
-        Assert.That(chatAppCircleGrants, Is.Not.Null, "chatAppCircleGrants != null");
-
-        Assert.That(chatAppCircleGrants.Count, Is.EqualTo(1), "There should be only one circle grant");
-        var singleGrant = chatAppCircleGrants.First();
-        Assert.That(singleGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(singleGrant.CircleId.Value, Is.EqualTo(chatFriendsCircleId),
-            "the circle id of the grant should match the chat friends circle");
-        Assert.That(singleGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = singleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
+        AssertAppCircleGrant(chatAppCircleGrants, setup.ChatFriendsCircleId, setup.App);
 
         //TODO: test circle grants:         samConnectionInfo.AccessGrant.CircleGrants
 
-        //
-        // Update authorized Circles
-        //
-
-        // Creat a new circle
-        var someNewCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(someNewCircleId, "Another Circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
-
-        //add Sam into the circle;
-        await GrantCircle(frodoOwnerClient, someNewCircleId, samOwnerClient.Identity);
-
-        // Update the app, and only give it the new circle, but keep the same circle member grant
-        var newAuthorizedCircles = new List<Guid>() { someNewCircleId };
-        await UpdateAppAuthorizedCircles(frodoOwnerClient, appRegistration.AppId, newAuthorizedCircles,
-            appRegistration.CircleMemberPermissionSetGrantRequest);
-
-        // Test
-        var updatedApp = await GetAppRegistration(frodoOwnerClient, appRegistration.AppId);
-        Assert.That(updatedApp, Is.Not.Null, $"Could not retrieve the app {appId}");
-
-        Assert.That(updatedApp.AuthorizedCircles, Is.EquivalentTo(newAuthorizedCircles), "Updated authorized circles are incorrect");
-        Assert.That(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet,
-            Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "updated app cirlce grant permission set did not match");
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = updatedApp.CircleMemberPermissionSetGrantRequest.Drives.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the app's circle member granted drive");
-        }
-
-        // Test sam's identity to have new circle
-
-        // Get Sam's connection info on Frodo's identity
-        var updatedSamConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(updatedSamConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
-
-        var appGrants2 = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.That(appGrants2.Count, Is.EqualTo(2), "There should be 2 app grants because we added one and deleted one; plus the built-in chat grant");
-        Assert.That(appGrants2.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var updatedChatAppCircleGrants = appGrants2[appKey].ToList();
-        Assert.That(updatedChatAppCircleGrants, Is.Not.Null, "chatAppCircleGrants2 != null");
-
-        Assert.That(updatedChatAppCircleGrants.Count, Is.EqualTo(1), "There should be only one circle grant");
-        var updatedGrant = updatedChatAppCircleGrants.First();
-        Assert.That(updatedGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(updatedGrant.CircleId.Value, Is.EqualTo(someNewCircleId),
-            "the circle id of the grant should match the 'some new circle' circle");
-        Assert.That(updatedGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = updatedGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
+        await ReplaceAuthorizedCirclesWithNewCircle(frodoOwnerClient, samOwnerClient.Identity, setup);
     }
 
     [Test]
@@ -518,190 +150,28 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
-        #region Firstly, setup a chat app on Frodo's identity with a single circle and 2 drives (one for app, one random drive for circle)
+        // The app is created before the connection request
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 1);
 
-        // Create a drive for the app
-        var appDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(appDrive, "Chat Drive 1", allowAnonymousReads: false);
-
-        // Create a drive for the circle
-        var circleDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(circleDrive, "Random Circle Drive", allowAnonymousReads: false);
-
-        // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(chatFriendsCircleId, "Chat Friends Circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
-
-        // Create the app - Note - this test, we will create the app before a connection request  so we can test updating an app's authorized circles
-        var appId = Guid.NewGuid();
-
-        // with app-permissions to the app_drive.  these will be full permissions to the drive and to reading connections
-        var appPermissionsGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.All
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet(PermissionKeys.All)
-        };
-
-        // the chat friends circle can work with the app with the permissions of circle member grant
-        var authorizedCircles = new List<Guid>() { chatFriendsCircleId };
-
-        // circle member grant (i.e. what circles can do ) on the app_drive. the chat friends circle can write to the chat drive
-        var circleMemberGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive,
-                        Permission = DrivePermission.Write
-                    }
-                }
-            },
-            PermissionSet = null
-        };
-
-        //
-        // Create the app before we send a request
-        //
-        var appRegistration = (await frodoOwnerClient.Admin.RegisterApp(appId, appPermissionsGrant, authorizedCircles, circleMemberGrant)).Content;
-
-        #endregion
-
-        // Sam will send Frodo connection request.  Sam has given no access but frodo will give access to the chat friend's scirlce
-        var circleIdsGrantedToRecipient = new List<GuidId>() { };
-        await SendConnectionRequestTo(samOwnerClient, frodoOwnerClient.Identity, circleIdsGrantedToRecipient);
-
-        // Frodo must accept the connection request.  this Should grant Sam access to the chat friend's circle
-        var circlesGrantedToSender = new List<GuidId>() { chatFriendsCircleId };
-        await AcceptConnectionRequest(frodoOwnerClient, samOwnerClient.Identity, circlesGrantedToSender);
+        // Sam will send Frodo a connection request. Sam grants no access, but Frodo will grant access
+        // to the chat friend's circle when he accepts.
+        await SendConnectionRequestTo(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+        await AcceptConnectionRequest(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
 
         //
         // Testing
         //
 
-        // Get Sam's connection info on Frodo's identity
-        var samConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(samConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
-
-        var appGrants = samConnectionInfo.AccessGrant.AppGrants;
-        var appKey = appRegistration.AppId.Value;
-        Assert.That(appGrants.Count, Is.EqualTo(2), "there should be 2 app grants; chat, and the app created in this test");
+        var appGrants = await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity);
         Assert.That(appGrants.Keys, Does.Contain(SystemAppConstants.ChatAppId));
-        Assert.That(appGrants.Keys, Does.Contain(appId));
-        Assert.That(appGrants.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var chatAppCircleGrants = appGrants[appKey].ToList();
-        Assert.That(chatAppCircleGrants, Is.Not.Null, "chatAppCircleGrants != null");
+        Assert.That(appGrants.Keys, Does.Contain(setup.App.AppId.Value));
 
-        Assert.That(chatAppCircleGrants.Count, Is.EqualTo(1), "There should be only one circle grant");
-        var singleGrant = chatAppCircleGrants.First();
-        Assert.That(singleGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(singleGrant.CircleId.Value, Is.EqualTo(chatFriendsCircleId),
-            "the circle id of the grant should match the chat friends circle");
-        Assert.That(singleGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = singleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
+        var chatAppCircleGrants = AppCircleGrantsFor(appGrants, setup.App, expectedCount: 1);
+        AssertAppCircleGrant(chatAppCircleGrants, setup.ChatFriendsCircleId, setup.App);
 
         //TODO: test circle grants:         samConnectionInfo.AccessGrant.CircleGrants
 
-        //
-        // Update authorized Circles
-        //
-
-        // Creat a new circle
-        var someNewCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(someNewCircleId, "Another Circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
-
-        //add Sam into the circle;
-        await GrantCircle(frodoOwnerClient, someNewCircleId, samOwnerClient.Identity);
-
-        // Update the app, and only give it the new circle, but keep the same circle member grant
-        var newAuthorizedCircles = new List<Guid>() { someNewCircleId };
-        await UpdateAppAuthorizedCircles(frodoOwnerClient, appRegistration.AppId, newAuthorizedCircles,
-            appRegistration.CircleMemberPermissionSetGrantRequest);
-
-        // Test
-        var updatedApp = await GetAppRegistration(frodoOwnerClient, appRegistration.AppId);
-        Assert.That(updatedApp, Is.Not.Null, $"Could not retrieve the app {appId}");
-        Assert.That(updatedApp.AuthorizedCircles, Is.EquivalentTo(newAuthorizedCircles), "Updated authorized circles are incorrect");
-        Assert.That(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet,
-            Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "updated app cirlce grant permission set did not match");
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = updatedApp.CircleMemberPermissionSetGrantRequest.Drives.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the app's circle member granted drive");
-        }
-
-        // Test sam's identity to have new circle
-
-        // Get Sam's connection info on Frodo's identity
-        var updatedSamConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(updatedSamConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
-
-        var appGrants2 = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.That(appGrants2.Count, Is.EqualTo(2), "There should be 2 app grants because we added one and deleted one; and the built-in chat grant");
-        Assert.That(appGrants2.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var updatedChatAppCircleGrants = appGrants2[appKey].ToList();
-        Assert.That(updatedChatAppCircleGrants, Is.Not.Null, "chatAppCircleGrants2 != null");
-
-        Assert.That(updatedChatAppCircleGrants.Count, Is.EqualTo(1), "There should be only one circle grant");
-        var updatedGrant = updatedChatAppCircleGrants.First();
-        Assert.That(updatedGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(updatedGrant.CircleId.Value, Is.EqualTo(someNewCircleId),
-            "the circle id of the grant should match the 'some new circle' circle");
-        Assert.That(updatedGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = updatedGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
+        await ReplaceAuthorizedCirclesWithNewCircle(frodoOwnerClient, samOwnerClient.Identity, setup);
     }
 
     [Test]
@@ -710,55 +180,80 @@ public class CircleNetworkServiceAppTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner(Identities.Frodo);
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
-        #region Firstly, setup a chat app on Frodo's identity with two circles and 2 drives (one for app, one random drive for circle)
+        // The app is created before the connection request
+        var setup = await SetupChatAppAsync(frodoOwnerClient, circleCount: 2);
 
+        // Frodo sends Sam a connection request with access to the two circles
+        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, ToCircleIds(setup.CircleIds));
+        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, new List<GuidId>());
+
+        //
+        // Testing
+        //
+
+        var appGrants = await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity);
+        var chatAppCircleGrants = AppCircleGrantsFor(appGrants, setup.App, expectedCount: 2);
+
+        AssertAppCircleGrant(chatAppCircleGrants, setup.ChatFriendsCircleId, setup.App);
+        AssertAppCircleGrant(chatAppCircleGrants, setup.DocumentSharingCircleId, setup.App);
+
+        //
+        // Revoke sam from the chat friend's circle
+        //
+
+        await RevokeCircle(frodoOwnerClient, setup.ChatFriendsCircleId, samOwnerClient.Identity);
+
+        //
+        // Sam should no longer have the revoked circle's app grant, only the document sharing one
+        //
+
+        var updatedAppGrants = await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity);
+        var updatedChatAppCircleGrants = AppCircleGrantsFor(updatedAppGrants, setup.App, expectedCount: 1);
+
+        AssertAppCircleGrant(updatedChatAppCircleGrants, setup.DocumentSharingCircleId, setup.App);
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Arrange
+    // -------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The chat-app arrangement every test here starts from: a drive for the app, a drive for the
+    /// circles, <paramref name="circleCount"/> circles holding read/write on the circle drive, and an
+    /// app registered with full permission on the app drive, those circles as its authorized circles,
+    /// and write on the app drive as its circle-member grant.
+    /// </summary>
+    /// <param name="beforeAppRegistration">
+    /// Runs after the circles exist but before the app is registered — the one test that connects the
+    /// two identities first (to exercise authorized-circle reconciliation) hangs its handshake here.
+    /// </param>
+    private static async Task<ChatAppSetup> SetupChatAppAsync(OwnerSession owner, int circleCount,
+        Func<List<Guid>, Task> beforeAppRegistration = null)
+    {
         // Create a drive for the app
         var appDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(appDrive, "Chat Drive 1", allowAnonymousReads: false);
+        await owner.Admin.CreateDrive(appDrive, "Chat Drive 1", allowAnonymousReads: false);
 
-        // Create a drive for the circle
+        // Create a drive for the circles
         var circleDrive = TargetDrive.NewTargetDrive();
-        await frodoOwnerClient.Admin.CreateDrive(circleDrive, "Random Circle Drive", allowAnonymousReads: false);
+        await owner.Admin.CreateDrive(circleDrive, "Random Circle Drive", allowAnonymousReads: false);
 
-        // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(chatFriendsCircleId, "Chat Friends Circle", new PermissionSetGrantRequest()
+        // Create the circles and give each read/write to the circle drive
+        var circleNames = new[] { "Chat Friends Circle", "Document Sharing Circle" };
+        var circleIds = new List<Guid>();
+        for (var i = 0; i < circleCount; i++)
         {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
+            var circleId = Guid.NewGuid();
+            await owner.Admin.CreateCircle(circleId, circleNames[i], CircleDriveGrant(circleDrive));
+            circleIds.Add(circleId);
+        }
 
-        var documentShareCircleId = Guid.NewGuid();
-        await frodoOwnerClient.Admin.CreateCircle(documentShareCircleId, "Circle for document sharing", new PermissionSetGrantRequest()
+        if (beforeAppRegistration != null)
         {
-            PermissionSet = new PermissionSet(),
-            Drives = new[]
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = circleDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
+            await beforeAppRegistration(circleIds);
+        }
 
-        // Create the app - Note - this test, we will create the app before a connection request  so we can test updating an app's authorized circles
-        var appId = Guid.NewGuid();
-
-        // with app-permissions to the app_drive.  these will be full permissions to the drive and to reading connections
+        // app-permissions to the app drive: full permissions to the drive and to reading connections
         var appPermissionsGrant = new PermissionSetGrantRequest()
         {
             Drives = new List<DriveGrantRequest>()
@@ -775,10 +270,7 @@ public class CircleNetworkServiceAppTests : V2Fixture
             PermissionSet = new PermissionSet(PermissionKeys.All)
         };
 
-        // the chat friends circle can work with the app with the permissions of circle member grant
-        var authorizedCircles = new List<Guid>() { chatFriendsCircleId, documentShareCircleId };
-
-        // circle member grant (i.e. what circles can do ) on the app_drive. the chat friends circle can write to the chat drive
+        // circle member grant (i.e. what circles can do) on the app drive: the circles can write to it
         var circleMemberGrant = new PermissionSetGrantRequest()
         {
             Drives = new List<DriveGrantRequest>()
@@ -795,102 +287,131 @@ public class CircleNetworkServiceAppTests : V2Fixture
             PermissionSet = null
         };
 
-        //
-        // Create the app before we send a request
-        //
-        var appRegistration = (await frodoOwnerClient.Admin.RegisterApp(appId, appPermissionsGrant, authorizedCircles, circleMemberGrant)).Content;
+        var appRegistration = (await owner.Admin.RegisterApp(Guid.NewGuid(), appPermissionsGrant, circleIds, circleMemberGrant)).Content;
 
-        #endregion
+        return new ChatAppSetup(appDrive, circleDrive, circleIds, appRegistration);
+    }
 
-        // Frodo will send sam connection request with access to the two circles
-        var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircleId, documentShareCircleId };
-        await SendConnectionRequestTo(frodoOwnerClient, samOwnerClient.Identity, circleIdsGrantedToRecipient);
+    /// <summary>What <see cref="SetupChatAppAsync"/> arranged, as the tests read it back.</summary>
+    private sealed record ChatAppSetup(
+        TargetDrive AppDrive,
+        TargetDrive CircleDrive,
+        List<Guid> CircleIds,
+        RedactedAppRegistration App)
+    {
+        public Guid ChatFriendsCircleId => CircleIds[0];
+        public Guid DocumentSharingCircleId => CircleIds[1];
+    }
 
-        // Frodo must accept the connection request.  this Should grant Sam access to the chat friend's circle
-        var circlesGrantedToSender = new List<GuidId>() { };
-        await AcceptConnectionRequest(samOwnerClient, frodoOwnerClient.Identity, circlesGrantedToSender);
-
-        //
-        // Testing
-        //
-
-        // Get Sam's connection info on Frodo's identity
-        var samConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(samConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
-
-        var appGrants = samConnectionInfo.AccessGrant.AppGrants;
-        var appKey = appRegistration.AppId.Value;
-        Assert.That(appGrants.Count, Is.EqualTo(2), "there should be 2 app grants; chat, and the app created in this test");
-
-        Assert.That(appGrants.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var chatAppCircleGrantList = appGrants[appKey];
-        Assert.That(chatAppCircleGrantList, Is.Not.Null, "chatAppCircleGrants != null");
-        var chatAppCircleGrants = chatAppCircleGrantList.ToList();
-
-        Assert.That(chatAppCircleGrants.Count, Is.EqualTo(2), "There should be two circle grant (chat friends and document share)");
-        //Test chat friend's circle
-        var chatFriendsCircleGrant = chatAppCircleGrants.Single(c => c.CircleId == chatFriendsCircleId);
-        Assert.That(chatFriendsCircleGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(chatFriendsCircleGrant.CircleId.Value, Is.EqualTo(chatFriendsCircleId),
-            "the circle id of the grant should match the chat friends circle");
-        Assert.That(chatFriendsCircleGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
+    private static PermissionSetGrantRequest CircleDriveGrant(TargetDrive circleDrive) => new()
+    {
+        PermissionSet = new PermissionSet(),
+        Drives = new[]
         {
-            var shouldBeOnlyOne = chatFriendsCircleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = circleDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
+        }
+    };
+
+    private static List<GuidId> ToCircleIds(IEnumerable<Guid> circleIds) => circleIds.Select(c => (GuidId)c).ToList();
+
+    /// <summary>
+    /// Creates one more circle, puts <paramref name="member"/> in it, rewrites the app's authorized
+    /// circles to that circle alone (keeping the circle-member grant), then asserts both the updated
+    /// registration and the member's single resulting app-circle grant.
+    /// </summary>
+    private static async Task ReplaceAuthorizedCirclesWithNewCircle(OwnerSession owner, OdinId member, ChatAppSetup setup)
+    {
+        // Create a new circle
+        var someNewCircleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(someNewCircleId, "Another Circle", CircleDriveGrant(setup.CircleDrive));
+
+        //add the member into the circle;
+        await GrantCircle(owner, someNewCircleId, member);
+
+        // Update the app, and only give it the new circle, but keep the same circle member grant
+        var newAuthorizedCircles = new List<Guid>() { someNewCircleId };
+        await UpdateAppAuthorizedCircles(owner, setup.App.AppId, newAuthorizedCircles,
+            setup.App.CircleMemberPermissionSetGrantRequest);
+
+        // Test
+        var updatedApp = await GetAppRegistration(owner, setup.App.AppId);
+        Assert.That(updatedApp, Is.Not.Null, $"Could not retrieve the app {setup.App.AppId}");
+
+        Assert.That(updatedApp.AuthorizedCircles, Is.EquivalentTo(newAuthorizedCircles), "Updated authorized circles are incorrect");
+        Assert.That(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet,
+            Is.EqualTo(setup.App.CircleMemberPermissionSetGrantRequest.PermissionSet),
+            "updated app cirlce grant permission set did not match");
+        foreach (var d in setup.App.CircleMemberPermissionSetGrantRequest.Drives)
+        {
+            var shouldBeOnlyOne = updatedApp.CircleMemberPermissionSetGrantRequest.Drives.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
+            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the app's circle member granted drive");
         }
 
-        //Test document sharing circle
-        var documentSharingCircle = chatAppCircleGrants.Single(c => c.CircleId == documentShareCircleId);
-        Assert.That(documentSharingCircle.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(documentSharingCircle.CircleId.Value, Is.EqualTo(documentShareCircleId),
-            "the circle id of the grant should match the chat friends circle");
-        Assert.That(documentSharingCircle.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
+        // The member's identity should now carry the new circle, and only it
+        var updatedAppGrants = await GetConnectedAppGrants(owner, member);
+        var updatedChatAppCircleGrants = AppCircleGrantsFor(updatedAppGrants, setup.App, expectedCount: 1);
+
+        AssertAppCircleGrant(updatedChatAppCircleGrants, someNewCircleId, setup.App);
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Assert
+    // -------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Reads <paramref name="member"/>'s connection info off <paramref name="owner"/>'s identity,
+    /// asserting the two are connected, and hands back the app grants on that ICR.
+    /// </summary>
+    private static async Task<Dictionary<Guid, IEnumerable<RedactedAppCircleGrant>>> GetConnectedAppGrants(
+        OwnerSession owner, OdinId member)
+    {
+        var connectionInfo = await GetConnectionInfo(owner, member);
+        Assert.That(connectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
+
+        var appGrants = connectionInfo.AccessGrant.AppGrants;
+        Assert.That(appGrants.Count, Is.EqualTo(2), "there should be 2 app grants; the built-in chat app and the app created in this test");
+        return appGrants;
+    }
+
+    /// <summary>The app-circle grants one app holds on an ICR, asserted to be <paramref name="expectedCount"/> of them.</summary>
+    private static List<RedactedAppCircleGrant> AppCircleGrantsFor(
+        Dictionary<Guid, IEnumerable<RedactedAppCircleGrant>> appGrants, RedactedAppRegistration app, int expectedCount)
+    {
+        var appKey = app.AppId.Value;
+        Assert.That(appGrants.Keys, Does.Contain(appKey), "the app registered by this test should have a grant");
+
+        var grantsForApp = appGrants[appKey];
+        Assert.That(grantsForApp, Is.Not.Null);
+
+        var grants = grantsForApp.ToList();
+        Assert.That(grants.Count, Is.EqualTo(expectedCount));
+        return grants;
+    }
+
+    /// <summary>
+    /// One app-circle grant for <paramref name="expectedCircleId"/> exists, carrying the app's
+    /// circle-member permission set and one drive grant per drive in it.
+    /// </summary>
+    private static void AssertAppCircleGrant(IEnumerable<RedactedAppCircleGrant> appCircleGrants, Guid expectedCircleId,
+        RedactedAppRegistration app)
+    {
+        var grant = appCircleGrants.SingleOrDefault(c => c.CircleId == expectedCircleId);
+        Assert.That(grant, Is.Not.Null, $"there should be exactly one app circle grant for circle {expectedCircleId}");
+        Assert.That(grant.AppId, Is.EqualTo(app.AppId));
+        Assert.That(grant.PermissionSet, Is.EqualTo(app.CircleMemberPermissionSetGrantRequest.PermissionSet),
             "The circle should be granted the app's circle member grant");
 
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
+        foreach (var d in app.CircleMemberPermissionSetGrantRequest.Drives)
         {
-            var shouldBeOnlyOne = documentSharingCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
-        }
-
-        //
-        // Revoke sam from the chat friend's circle
-        //
-
-        await RevokeCircle(frodoOwnerClient, chatFriendsCircleId, samOwnerClient.Identity);
-
-        //
-        //
-        //
-
-
-        // Test sam's identity to have not have the circle
-
-        // Get Sam's connection info on Frodo's identity
-        var updatedSamConnectionInfo = await GetConnectionInfo(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(updatedSamConnectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
-
-        var updatedAppGrants = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.That(updatedAppGrants.Count, Is.EqualTo(2), "There should still only be 2 app grants");
-        Assert.That(updatedAppGrants.Keys, Does.Contain(appKey), "The single dictionary item's key should match the single registered app");
-        var updatedChatAppCircleGrantList = updatedAppGrants[appKey];
-        Assert.That(updatedChatAppCircleGrantList, Is.Not.Null, "chatAppCircleGrants2 != null");
-        var updatedChatAppCircleGrants = updatedChatAppCircleGrantList.ToList();
-
-        Assert.That(updatedChatAppCircleGrants.Count, Is.EqualTo(1), "There should be one circle grant");
-        var updatedGrant = updatedChatAppCircleGrants.First();
-        Assert.That(updatedGrant.AppId, Is.EqualTo(appRegistration.AppId));
-        Assert.That(updatedGrant.CircleId.Value, Is.EqualTo(documentShareCircleId), "the circle id should be the documentSharing circle");
-        Assert.That(updatedGrant.PermissionSet, Is.EqualTo(appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet),
-            "The circle should be granted the app's circle member grant");
-
-        foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
-        {
-            var shouldBeOnlyOne = updatedGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the ap's circle member granted drive");
+            var shouldBeOnlyOne = grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
+            Assert.That(shouldBeOnlyOne, Is.Not.Null, "there should be one and only one drive matching the app's circle member granted drive");
         }
     }
 
@@ -898,40 +419,27 @@ public class CircleNetworkServiceAppTests : V2Fixture
     // Local stand-ins for the V1 OwnerApiClient.Network / .Apps helpers the original used.
     // -------------------------------------------------------------------------------------------
 
-    private static async Task SendConnectionRequestTo(OwnerSession sender, Odin.Core.Identity.OdinId recipient,
-        List<GuidId> circlesGrantedToRecipient)
+    private static async Task SendConnectionRequestTo(OwnerSession sender, OdinId recipient, List<GuidId> circlesGrantedToRecipient)
     {
         var response = await sender.Connections.SendConnectionRequest(recipient, circlesGrantedToRecipient);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
-    private static async Task AcceptConnectionRequest(OwnerSession recipient, Odin.Core.Identity.OdinId sender,
-        List<GuidId> circleIdsGrantedToSender)
+    private static async Task AcceptConnectionRequest(OwnerSession recipient, OdinId sender, List<GuidId> circleIdsGrantedToSender)
     {
         var response = await recipient.Connections.AcceptConnectionRequest(sender, circleIdsGrantedToSender);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
-    private static async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo(OwnerSession owner,
-        Odin.Core.Identity.OdinId recipient)
+    private static async Task GrantCircle(OwnerSession owner, Guid circleId, OdinId recipient)
     {
-        var response = await owner.Connections.GetConnectionInfo(recipient);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content, Is.Not.Null, $"No status for {recipient} found");
-        return response.Content;
-    }
-
-    private static async Task GrantCircle(OwnerSession owner, Guid circleId, Odin.Core.Identity.OdinId recipient)
-    {
-        var response = await owner.RefitFor<IRefitOwnerCircleNetworkConnections>()
-            .AddCircle(new AddCircleMembershipRequest() { CircleId = circleId, OdinId = recipient });
+        var response = await owner.Connections.GrantCircle(circleId, recipient);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
-    private static async Task RevokeCircle(OwnerSession owner, Guid circleId, Odin.Core.Identity.OdinId recipient)
+    private static async Task RevokeCircle(OwnerSession owner, Guid circleId, OdinId recipient)
     {
-        var response = await owner.RefitFor<IRefitOwnerCircleNetworkConnections>()
-            .RevokeCircle(new RevokeCircleMembershipRequest() { CircleId = circleId, OdinId = recipient });
+        var response = await owner.Connections.RevokeCircle(circleId, recipient);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 

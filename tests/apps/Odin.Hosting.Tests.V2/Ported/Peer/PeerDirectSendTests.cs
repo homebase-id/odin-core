@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage;
@@ -8,6 +9,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
@@ -36,6 +38,19 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// per-test reset covers it.</item>
 /// <item>Every <c>WaitForEmptyOutbox(TransientTempDrive)</c> becomes <c>Sync.DrainOutboxAsync()</c> —
 /// the V1 call is a passive poll on a background service the fast host never starts.</item>
+/// <item>The original's <c>CanTransfer_Unencrypted_Comment</c> and
+/// <c>CanTransfer_Encrypted_Comment_S2110</c> asserted exactly the same things with the encryption
+/// flags flipped, so they are one <c>[TestCase]</c>-per-flag test here. <c>S2110</c> was never
+/// encryption-specific — both originals documented "Should succeed (S2110)" — so it stays in the
+/// collapsed name.</item>
+/// <item>The <c>…_AndUpdate_…</c> pair is <b>not</b> collapsed: the encrypted one passes a
+/// <c>versionTag</c> on the overwrite and the unencrypted one does not, and the encrypted one alone
+/// asserts <c>TransitCreated</c>/<c>TransitUpdated</c>. Collapsing would have to add or drop
+/// coverage, so both survive over the shared arrange helper.</item>
+/// <item>Only <c>CanTransfer_AndUpdate_Unencrypted_Comment</c> skips the <c>OriginalAuthor</c>
+/// assertion on the pre-update comment — the other four make it. That asymmetry is the original's;
+/// it is why the assertion sits at the call sites rather than in
+/// <see cref="TransferCommentToFreshDrive"/>.</item>
 /// </list>
 /// Carried defect: <see cref="UniversalPeerDirectApiClient.DeleteFile"/> discards its
 /// <c>ApiResponse</c>, so <c>CanDelete_Unencrypted_Comment</c> never checks that the delete request
@@ -46,285 +61,55 @@ public class PeerDirectSendTests : V2Fixture
 {
     private const DrivePermission CommentDrivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
 
+    private const string StandardFileContent = "We eagles fly to Mordor, sup w/ that?";
+    private const string CommentFileContent = "Srsly!?? =O";
+    private const string UpdatedCommentFileContent = "Bruh! Srsly!?? =O";
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    [Test]
-    public async Task CanTransfer_Unencrypted_Comment()
+    /*
+     Success Test - Comment
+        Valid ReferencedFile (global transit id)
+        Sender has storage Key (read access)
+        Sender has write access
+        Upload standard file  - encrypted per the test case
+        Upload comment file   - encrypted per the test case
+        Should succeed (S2110)
+            Direct write comment
+            Comment is not distributed
+            ReferencedFile summary updated
+            ReferencedFile is distributed to followers
+     */
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task CanTransfer_Comment_S2110(bool encrypted)
     {
-        /*
-         Success Test - Comment
-            Valid ReferencedFile (global transit id)
-            Sender has storage Key
-            Sender has write access
-            Upload standard file - encrypted = false
-            Upload comment file - encrypted = false
-            Should succeed (S2110)
-                Direct write comment
-                Comment is not distributed
-                ReferencedFile summary updated
-                ReferencedFile is distributed to followers
-         */
-
         var sender = await LoginAsOwner(Identities.Frodo); //sender is the one who sends the comment
         var recipient = await LoginAsOwner(Identities.Sam);
 
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = false;
+        var scenario = await TransferCommentToFreshDrive(sender, recipient, encrypted);
 
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = false;
-
-        var recipientTargetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, CommentDrivePermissions,
-            "comment target", allowAnonymousReads: false);
-
-        var (standardFileUploadResult, _) =
-            await UploadStandardFile(recipient, recipientTargetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGtidResponse = await recipient.V1.Drive.QueryByGlobalTransitId(
-            standardFileUploadResult.GlobalTransitIdFileIdentifier);
-
-        var recipientFileByGlobalTransitId = recipientFileByGtidResponse.Content?.SearchResults.SingleOrDefault();
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(standardFileContent));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
-
-        // Sender replies with a comment
-        var (commentTransitResult, _) = await TransferComment(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
-
-        Assert.That(commentTransitResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
-
-        await sender.Sync.DrainOutboxAsync();
-        //
-        // Test results
-        //
-
-        //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
-        //
-
-        // File should be on recipient server and accessible by global transit id
-        var qp = new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>()
-                {
-                    commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId
-                }
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true,
-                IncludeTransferHistory = false
-            }
-        };
-
-        var batchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
-        var batch = batchResponse.Content;
-
-        Assert.That(batch.SearchResults.Count(), Is.EqualTo(1));
-        var receivedFile = batch.SearchResults.First();
-        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
-        Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(commentFileContent));
-        Assert.That(receivedFile.FileMetadata.GlobalTransitId,
-            Is.EqualTo(commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId));
+        Assert.That(scenario.ReceivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
 
         //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
     }
 
-    [Test]
-    public async Task CanTransfer_Encrypted_Comment_S2110()
-    {
-        /*
-         Success Test - Comment
-            Upload standard file - encrypted = true
-            Upload comment file - encrypted = true
-            Sender has write access
-            Sender has storage Key (read access)
-            Valid ReferencedFile (global transit id)
-            Should succeed (S2110)
-                Direct write comment
-                Comment is not distributed
-                ReferencedFile summary updated
-                ReferencedFile is distributed to followers
-         */
-
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = true;
-
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = true;
-
-        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, CommentDrivePermissions,
-            "comment target", allowAnonymousReads: false);
-
-        var (standardFileUploadResult, encryptedJsonContent64) =
-            await UploadStandardFile(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitIdResponse =
-            await recipient.V1.Drive.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
-
-        var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
-
-        //sender replies with a comment
-        var (commentUploadResult, encryptedCommentJsonContent64) = await TransferComment(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
-
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
-
-        await sender.Sync.DrainOutboxAsync();
-
-        //
-        // Test results
-        //
-
-        //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
-        //
-
-        // File should be on recipient server and accessible by global transit id
-        var qp = new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = commentUploadResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true,
-            }
-        };
-
-        var batchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
-        var batch = batchResponse.Content;
-        Assert.That(batch.SearchResults.Count(), Is.EqualTo(1));
-        var receivedFile = batch.SearchResults.First();
-        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
-        Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-
-        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(encryptedCommentJsonContent64));
-        Assert.That(receivedFile.FileMetadata.GlobalTransitId,
-            Is.EqualTo(commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId));
-
-        //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
-    }
-
+    /// <summary>
+    /// The S2110 flow plus an overwrite of the delivered comment, carrying the version tag the
+    /// recipient reported.
+    /// </summary>
     [Test]
     public async Task CanTransfer_AndUpdate_Encrypted_Comment_S2110()
     {
-        /*
-         Success Test - Comment
-            Upload standard file - encrypted = true
-            Upload comment file - encrypted = true
-            Sender has write access
-            Sender has storage Key (read access)
-            Valid ReferencedFile (global transit id)
-            Should succeed (S2110)
-                Direct write comment
-                Comment is not distributed
-                ReferencedFile summary updated
-                ReferencedFile is distributed to followers
-         */
+        const bool encrypted = true;
 
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
 
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = true;
+        var scenario = await TransferCommentToFreshDrive(sender, recipient, encrypted);
+        var receivedFile = scenario.ReceivedFile;
 
-        const string commentFileContent = "Srsly!?? =O";
-        const string updatedCommentFileContent = "Bruh! Srsly!?? =O";
-        const bool commentIsEncrypted = true;
-
-        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, CommentDrivePermissions,
-            "comment target", allowAnonymousReads: false);
-
-        var (standardFileUploadResult, encryptedJsonContent64) =
-            await UploadStandardFile(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitIdResponse =
-            await recipient.V1.Drive.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
-
-        var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults.SingleOrDefault();
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
-
-        //sender replies with a comment
-        var (commentTransitResult, encryptedCommentJsonContent64) = await TransferComment(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted,
-            recipient);
-
-        Assert.That(commentTransitResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued),
-            $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
-
-        await sender.Sync.DrainOutboxAsync();
-
-        //
-        // Test results
-        //
-
-        //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
-        //
-
-        // File should be on recipient server and accessible by global transit id
-        var qp = new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            }
-        };
-
-        var batchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
-        var batch = batchResponse.Content;
-        Assert.That(batch.SearchResults.Count(), Is.EqualTo(1));
-        var receivedFile = batch.SearchResults.First();
-        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
         Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(encryptedCommentJsonContent64));
-        Assert.That(receivedFile.FileMetadata.GlobalTransitId,
-            Is.EqualTo(commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId));
 
         // UnixTimeUtc is not IComparable — compare .milliseconds (see the V2 README).
         Assert.That(receivedFile.FileMetadata.TransitCreated.milliseconds, Is.GreaterThan(0));
@@ -334,85 +119,128 @@ public class PeerDirectSendTests : V2Fixture
 
         var (_, encryptedUpdatedCommentJsonContent64) = await TransferComment(
             sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: updatedCommentFileContent,
-            encrypted: commentIsEncrypted,
+            scenario.StandardFile.GlobalTransitIdFileIdentifier,
+            uploadedContent: UpdatedCommentFileContent,
+            encrypted: encrypted,
             recipient: recipient,
-            overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+            overwriteFile: scenario.RemoteComment.GlobalTransitId,
             versionTag: receivedFile.FileMetadata.VersionTag);
 
-        var updatedBatchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
-        var updatedBatch = updatedBatchResponse.Content;
-        Assert.That(updatedBatch.SearchResults.Count(), Is.EqualTo(1));
-        var updatedReceivedFile = updatedBatch.SearchResults.First();
-        Assert.That(updatedReceivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(updatedReceivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
+        var updatedReceivedFile = await ReadSingleComment(recipient, scenario.Query);
+        AssertCommentHeader(updatedReceivedFile, sender, encrypted, encryptedUpdatedCommentJsonContent64,
+            scenario.RemoteComment.GlobalTransitId);
         Assert.That(updatedReceivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-        Assert.That(updatedReceivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(updatedReceivedFile.FileMetadata.AppData.Content, Is.EqualTo(encryptedUpdatedCommentJsonContent64));
 
         Assert.That(updatedReceivedFile.FileMetadata.TransitCreated.milliseconds, Is.GreaterThan(0));
         Assert.That(updatedReceivedFile.FileMetadata.TransitUpdated.milliseconds, Is.EqualTo(0));
-
-        Assert.That(updatedReceivedFile.FileMetadata.GlobalTransitId,
-            Is.EqualTo(commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId),
-            "should still match original global transit id");
     }
 
+    /// <summary>
+    /// The S2110 flow plus an overwrite of the delivered comment, without a version tag.
+    /// </summary>
     [Test]
     public async Task CanTransfer_AndUpdate_Unencrypted_Comment()
     {
-        /*
-         Success Test - Comment
-            Valid ReferencedFile (global transit id)
-            Sender has storage Key
-            Sender has write access
-            Upload standard file - encrypted = false
-            Upload comment file - encrypted = false
-            Should succeed (S2110)
-                Direct write comment
-                Comment is not distributed
-                ReferencedFile summary updated
-                ReferencedFile is distributed to followers
-         */
+        const bool encrypted = false;
 
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
 
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = false;
+        var scenario = await TransferCommentToFreshDrive(sender, recipient, encrypted);
 
-        const string commentFileContent = "Srsly!?? =O";
-        const string updatedCommentFileContent = "Bruh! Srsly!?? =O";
-        const bool commentIsEncrypted = false;
+        //Sender updates their comment
 
+        await TransferComment(
+            sender,
+            scenario.StandardFile.GlobalTransitIdFileIdentifier,
+            uploadedContent: UpdatedCommentFileContent,
+            encrypted: encrypted,
+            recipient: recipient,
+            overwriteFile: scenario.RemoteComment.GlobalTransitId);
+
+        var updatedReceivedFile = await ReadSingleComment(recipient, scenario.Query);
+        AssertCommentHeader(updatedReceivedFile, sender, encrypted, UpdatedCommentFileContent,
+            scenario.RemoteComment.GlobalTransitId);
+        Assert.That(updatedReceivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
+    }
+
+    [Test]
+    public async Task CanDelete_Unencrypted_Comment()
+    {
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
+
+        var scenario = await TransferCommentToFreshDrive(sender, recipient, encrypted: false);
+
+        Assert.That(scenario.ReceivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
+
+        //
+        //Delete the comment
+        //
+
+        await sender.V1.PeerDirect.DeleteFile(
+            FileSystemType.Comment,
+            scenario.RemoteComment,
+            [recipient.Identity]);
+
+        await sender.Sync.DrainOutboxAsync();
+
+        //
+        // See the comment is deleted
+        //
+
+        var theDeletedFile = await ReadSingleComment(recipient, scenario.Query);
+        Assert.That(theDeletedFile.FileState, Is.EqualTo(FileState.Deleted));
+        Assert.That(theDeletedFile.FileSystemType, Is.EqualTo(FileSystemType.Comment));
+    }
+
+    /// <summary>
+    /// What <see cref="TransferCommentToFreshDrive"/> leaves behind: the recipient's own post, the
+    /// identifier the comment landed under on the recipient, the query that finds it again, and the
+    /// comment header as the recipient's drive has it.
+    /// </summary>
+    private sealed record CommentScenario(
+        UploadResult StandardFile,
+        GlobalTransitIdFileIdentifier RemoteComment,
+        QueryBatchRequest Query,
+        SharedSecretEncryptedFileHeader ReceivedFile);
+
+    /// <summary>
+    /// The arrange-plus-assert block every test here opens with: connect the two identities on a fresh
+    /// comment drive, have the recipient post a standard file, confirm the recipient has it, then have
+    /// the sender direct-write a comment against it and confirm the comment is on the recipient's
+    /// drive — with no <c>ProcessInboxAsync</c> anywhere, which is the property under test.
+    /// </summary>
+    private static async Task<CommentScenario> TransferCommentToFreshDrive(
+        OwnerSession sender, OwnerSession recipient, bool encrypted)
+    {
         var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, CommentDrivePermissions,
             "comment target", allowAnonymousReads: false);
 
-        var (standardFileUploadResult, _) = await UploadStandardFile(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
+        var (standardFileUploadResult, encryptedStandardJsonContent64) =
+            await UploadStandardFile(recipient, targetDrive, StandardFileContent, encrypted);
 
         //
         // Assert that the recipient server has the file by global transit id
         //
-        var recipientFileByGlobalTransitIdResponse =
-            await recipient.V1.Drive.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
+        var recipientFileByGtidResponse = await recipient.V1.Drive.QueryByGlobalTransitId(
+            standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
-        var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
+        var recipientFileByGlobalTransitId = recipientFileByGtidResponse.Content?.SearchResults.SingleOrDefault();
         Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(standardFileContent));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
+        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content,
+            Is.EqualTo(encryptedStandardJsonContent64 ?? StandardFileContent));
+        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(encrypted));
 
         // Sender replies with a comment
-        var (commentTransitResult, _) = await TransferComment(sender,
+        var (commentTransitResult, encryptedCommentJsonContent64) = await TransferComment(sender,
             standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted,
+            uploadedContent: CommentFileContent,
+            encrypted: encrypted,
             recipient: recipient);
 
         Assert.That(commentTransitResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
         Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
-
-        await sender.Sync.DrainOutboxAsync();
 
         //
         // Test results
@@ -422,152 +250,56 @@ public class PeerDirectSendTests : V2Fixture
         //
 
         // File should be on recipient server and accessible by global transit id
-        var qp = new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            }
-        };
+        var remoteComment = commentTransitResult.RemoteGlobalTransitIdFileIdentifier;
+        var query = CommentQuery(remoteComment);
+        var receivedFile = await ReadSingleComment(recipient, query);
+        AssertCommentHeader(receivedFile, sender, encrypted,
+            encryptedCommentJsonContent64 ?? CommentFileContent, remoteComment.GlobalTransitId);
 
-        var batchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
-        var batch = batchResponse.Content;
-        Assert.That(batch.SearchResults.Count(), Is.EqualTo(1));
-        var receivedFile = batch.SearchResults.First();
-        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
-        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(commentFileContent));
-        Assert.That(receivedFile.FileMetadata.GlobalTransitId,
-            Is.EqualTo(commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId));
-
-        //Sender updates their comment
-
-        var (_, _) = await TransferComment(
-            sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: updatedCommentFileContent,
-            encrypted: commentIsEncrypted,
-            recipient: recipient,
-            overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
-
-        var updatedBatchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
-        var updatedBatch = updatedBatchResponse.Content;
-        Assert.That(updatedBatch.SearchResults.Count(), Is.EqualTo(1));
-        var updatedReceivedFile = updatedBatch.SearchResults.First();
-        Assert.That(updatedReceivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(updatedReceivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
-        Assert.That(updatedReceivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-        Assert.That(updatedReceivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(updatedReceivedFile.FileMetadata.AppData.Content, Is.EqualTo(updatedCommentFileContent));
-
-        Assert.That(updatedReceivedFile.FileMetadata.GlobalTransitId,
-            Is.EqualTo(commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId),
-            "should still match original global transit id");
+        return new CommentScenario(standardFileUploadResult, remoteComment, query, receivedFile);
     }
 
-    [Test]
-    public async Task CanDelete_Unencrypted_Comment()
+    /// <summary>Finds one comment on the recipient's drive by its global transit id.</summary>
+    private static QueryBatchRequest CommentQuery(GlobalTransitIdFileIdentifier remoteComment) => new()
     {
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = false;
-
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = false;
-
-        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, CommentDrivePermissions,
-            "comment target", allowAnonymousReads: false);
-
-        var (standardFileUploadResult, _) = await UploadStandardFile(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitIdResponse = await recipient.V1.Drive.QueryByGlobalTransitId(
-            standardFileUploadResult.GlobalTransitIdFileIdentifier);
-
-        var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(standardFileContent));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
-
-        // Sender replies with a comment
-        var (commentTransitResult, _) = await TransferComment(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
-
-        Assert.That(commentTransitResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued),
-            $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
-
-        await sender.Sync.DrainOutboxAsync();
-
-        //
-        // Test results
-        //
-
-        // File should be on recipient server and accessible by global transit id
-        var qp = new QueryBatchRequest
+        QueryParams = new FileQueryParamsV1
         {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            }
-        };
+            TargetDrive = remoteComment.TargetDrive,
+            GlobalTransitId = [remoteComment.GlobalTransitId]
+        },
+        ResultOptionsRequest = new QueryBatchResultOptionsRequest
+        {
+            MaxRecords = 10,
+            IncludeMetadataHeader = true
+        }
+    };
 
-        var batchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
+    private static async Task<SharedSecretEncryptedFileHeader> ReadSingleComment(
+        OwnerSession recipient, QueryBatchRequest query)
+    {
+        var batchResponse = await recipient.V1.Drive.QueryBatch(query, FileSystemType.Comment);
         var batch = batchResponse.Content;
         Assert.That(batch.SearchResults.Count(), Is.EqualTo(1));
-        var receivedFile = batch.SearchResults.First();
-        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
-        Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(commentFileContent));
-        Assert.That(receivedFile.FileMetadata.GlobalTransitId,
-            Is.EqualTo(commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId));
+        return batch.SearchResults.First();
+    }
 
-        //
-        //Delete the comment
-        //
-
-        await sender.V1.PeerDirect.DeleteFile(
-            FileSystemType.Comment,
-            commentTransitResult.RemoteGlobalTransitIdFileIdentifier,
-            [recipient.Identity]);
-
-        await sender.Sync.DrainOutboxAsync();
-        //
-        // See the comment is deleted
-        //
-
-        var softDeletedBatchResponse = await recipient.V1.Drive.QueryBatch(qp, FileSystemType.Comment);
-        var softDeletedBatch = softDeletedBatchResponse.Content;
-        Assert.That(softDeletedBatch.SearchResults.Count(), Is.EqualTo(1));
-        var theDeletedFile = softDeletedBatch.SearchResults.SingleOrDefault();
-        Assert.That(theDeletedFile, Is.Not.Null);
-        Assert.That(theDeletedFile.FileState, Is.EqualTo(FileState.Deleted));
-        Assert.That(theDeletedFile.FileSystemType, Is.EqualTo(FileSystemType.Comment));
+    private static void AssertCommentHeader(
+        SharedSecretEncryptedFileHeader file,
+        OwnerSession sender,
+        bool encrypted,
+        string expectedContent,
+        Guid expectedGlobalTransitId)
+    {
+        Assert.That(file.FileState, Is.EqualTo(FileState.Active));
+        Assert.That(file.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
+        Assert.That(file.FileMetadata.IsEncrypted, Is.EqualTo(encrypted));
+        Assert.That(file.FileMetadata.AppData.Content, Is.EqualTo(expectedContent));
+        Assert.That(file.FileMetadata.GlobalTransitId, Is.EqualTo(expectedGlobalTransitId));
     }
 
     /// <summary>
-    /// Sends a standard file to a single recipient and performs basic assertions required by all tests
+    /// Sends a comment file to a single recipient and performs basic assertions required by all tests,
+    /// then drains the sender's outbox so the comment has actually gone out.
     /// </summary>
     private static async Task<(TransitResult, string encryptedJsonContent64)> TransferComment(
         OwnerSession sender,
@@ -611,7 +343,7 @@ public class PeerDirectSendTests : V2Fixture
             );
         }
 
-        Assert.That(transitResultResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(transitResultResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var transitResult = transitResultResponse.Content;
 
         //
@@ -644,10 +376,4 @@ public class PeerDirectSendTests : V2Fixture
 
         return (uploadResponse.Content, encryptedJsonContent64);
     }
-
-    /// <summary>
-    /// The peer-direct V1 client for a session. Built from the session's own identity+factory pair so
-    /// one caller's identity can never be paired with another's factory (the reason
-    /// <see cref="V1Handles"/> exists); peer-direct isn't on those handles yet.
-    /// </summary>
 }

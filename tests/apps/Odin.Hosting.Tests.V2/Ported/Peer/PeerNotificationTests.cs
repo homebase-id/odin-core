@@ -25,14 +25,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// <remarks>
 /// Checked port. Carried defects from the original, left alone:
 /// <list type="bullet">
-/// <item>The case source declared <c>HttpStatusCode.NotFound</c> as the expected status, but the test
-/// body never reads the parameter — nothing in the fixture asserts a status code against it. The
-/// row is kept so the expectation stays visible, and the parameter is still unused here.</item>
+/// <item>The original's case source declared <c>HttpStatusCode.NotFound</c> as the expected status,
+/// but the test body never read that parameter — nothing in the fixture asserts a status code
+/// against it. With only one live row the matrix is a plain <c>[Test]</c>; the row and its unasserted
+/// expectation are preserved as comments above the test so the expectation stays visible.</item>
 /// <item>The <c>IApiClientContext</c> was used only as a <c>TargetDrive</c> carrier:
 /// <c>Initialize</c>/<c>GetFactory</c> were never called on it, and the acting client was built from
-/// a hand-made <c>AppApiClientFactory</c>. The port therefore uses <see cref="CallerSpec"/> for the
-/// drive only and builds the acting app caller explicitly, because both identities must share one
-/// <c>appId</c> — which <see cref="AppSession.SetupAsync"/> supports via <c>knownAppId</c>.</item>
+/// a hand-made <c>AppApiClientFactory</c>. The port therefore creates the drive directly and builds
+/// the acting app caller explicitly, because both identities must share one <c>appId</c> — which
+/// <see cref="AppSession.SetupAsync"/> supports via <c>knownAppId</c>.</item>
 /// <item>The original registered an app client for Frodo too, then commented it out; only Sam's app
 /// client is used. Frodo just needs the app registered.</item>
 /// </list>
@@ -44,37 +45,20 @@ public class PeerNotificationTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    public static IEnumerable<object[]> NotificationCases()
+    // The original's single live row was [CallerSpec.Owner(DriveSpec.Secured()), HttpStatusCode.NotFound] —
+    // one row, and the status was never asserted, so this is a plain [Test]. Its two commented-out
+    // siblings, kept verbatim so a matrix is one edit away:
+    //   [CallerSpec.Guest(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.Forbidden]
+    //   [CallerSpec.App(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.NotFound]
+    [Test]
+    public async Task TransitSendsAppNotification()
     {
-        // yield return [CallerSpec.Guest(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.Forbidden];
-        // yield return [CallerSpec.App(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.NotFound];
-        yield return [CallerSpec.Owner(DriveSpec.Secured()), HttpStatusCode.NotFound];
-    }
-
-    [Test, TestCaseSource(nameof(NotificationCases))]
-    public async Task TransitSendsAppNotification(CallerSpec spec, HttpStatusCode expected)
-    {
-        // what is the primary thing being tested here?
-        // when it's all done - the notification exists in frodo's notification list
-
-        /*
-         * I need to connect two hobbits
-         * Both need an app named 'chat'
-         * sam sends a chat to frodo and includes an app notification (done via app)
-         * the notification should be queued in sam's outbox
-         * I call process notifications on sam's owner api
-         * the notification will then exist in frodo's inbox
-         * I call process notifications on frodo's owner api
-         * here we ignore whether the push actually went out (because that's a whole other set of dependencies)
-         * the notification will then exist in frodo's notification's list
-         */
-
         //Create two connected hobbits
 
         var ownerSam = await LoginAsOwner(Identities.Sam);
         var ownerFrodo = await LoginAsOwner(Identities.Frodo);
 
-        var targetDrive = spec.TargetDrive;
+        var targetDrive = TargetDrive.NewTargetDrive();
 
         var appId = Guid.NewGuid();
         var samCircleId = await PrepareDriveAndCircle(ownerSam, targetDrive);
