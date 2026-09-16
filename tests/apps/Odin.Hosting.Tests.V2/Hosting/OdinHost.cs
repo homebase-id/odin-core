@@ -162,6 +162,13 @@ public sealed partial class OdinHost : IAsyncDisposable
             .ConfigureContainer<ContainerBuilder>(cb =>
             {
                 cb.RegisterInstance(serverHolder).SingleInstance();
+
+                // Same trade as the tenant decorator above, for the SYSTEM manager — a separate root
+                // singleton from AddSystemBackgroundServices, which the per-tenant registration cannot
+                // reach. JobRunnerBackgroundService hangs off this one, so without it every scheduled
+                // job pays the full 30s poll.
+                cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
+
                 cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>(), c.Resolve<TenantContext>()))
                     .As<IOdinHttpClientFactory>()
                     .InstancePerLifetimeScope();
