@@ -323,6 +323,7 @@ public static class TenantServices
         cb.RegisterType<AppRegistrationV2Service>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<BundleTokenService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<BundleTokenAuthenticator>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<BundleAuthorizationService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<IcrKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<CircleDefinitionService>().InstancePerLifetimeScope();
 

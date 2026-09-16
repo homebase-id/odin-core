@@ -135,6 +135,60 @@ public class AppRegistrationV2Service(
         return (await GetAsync(appId, odinContext))!;
     }
 
+    /// <summary>
+    /// Makes the app match <paramref name="manifest"/>: registers it when it is new, otherwise creates
+    /// the owned drives and circles it lacks and replaces its permissions and authorized circles.
+    /// </summary>
+    /// <remarks>
+    /// The manifest is the desired state, so access it leaves out is removed -- the same replace semantics
+    /// as the V1 update methods.  Owned drives and circles whose settings differ are refused by validation
+    /// rather than changed; those go through the owned-drive and owned-circle updates.
+    /// </remarks>
+    public async Task<AppRegistrationV2> ApplyAsync(AppManifestV2 manifest, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        OdinValidationUtils.AssertNotNull(manifest, nameof(manifest));
+
+        var outcome = await ValidateCoreAsync(manifest, ValidationMode.InstallOrUpdate, odinContext);
+        outcome.ThrowIfInvalid();
+
+        if (!outcome.IsRegistered)
+        {
+            return await RegisterAsync(manifest, odinContext);
+        }
+
+        var appId = manifest.AppId;
+        var diff = outcome.Diff;
+
+        if (diff.DrivesToCreate.Count > 0 || diff.CirclesToCreate.Count > 0)
+        {
+            await AddOwnedAsync(appId, new AddOwnedResourcesRequest
+            {
+                OwnedDrives = diff.DrivesToCreate,
+                OwnedCircles = diff.CirclesToCreate
+            }, odinContext);
+        }
+
+        if (diff.DriveAccessGained.Count > 0 || diff.DriveAccessLost.Count > 0 ||
+            diff.PermissionKeysGained.Count > 0 || diff.PermissionKeysLost.Count > 0)
+        {
+            await UpdatePermissionsAsync(appId, new UpdateAppPermissionsV2Request
+            {
+                PermissionSet = manifest.PermissionSet,
+                Drives = manifest.Drives
+            }, odinContext);
+        }
+
+        // A no-op when nothing changed.
+        await UpdateAuthorizedCirclesAsync(appId, new UpdateAuthorizedCirclesV2Request
+        {
+            AuthorizedCircles = manifest.AuthorizedCircles,
+            CircleMemberPermissionGrant = manifest.CircleMemberPermissionGrant
+        }, odinContext);
+
+        return (await GetAsync(appId, odinContext))!;
+    }
+
     // ============================================================================================
     // Updates
     // ============================================================================================

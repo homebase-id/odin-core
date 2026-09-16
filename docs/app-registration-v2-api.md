@@ -130,7 +130,9 @@ Problem codes: `appIdRequired`, `reservedApp`, `identityNotUpgraded`, `alreadyRe
 
 | Verb | Path | Auth | Body | Response |
 |---|---|---|---|---|
-| `POST` | `/` | owner | `{ primaryAppId, appIds[], friendlyName, jwkBase64UrlPublicKey, redirectUri? }` | `{ tokenId, exchangePublicKeyJwkBase64Url, exchangeSalt64 }` |
+| `POST` | `/authorize/preview` | owner | `BundleAuthorizationRequest` | `BundleAuthorizationPreview` (writes nothing) |
+| `POST` | `/authorize` | owner | `BundleAuthorizationRequest` | `{ tokenId, exchangePublicKeyJwkBase64Url, exchangeSalt64 }`: installs/updates every app sent with a manifest, then issues the token |
+| `POST` | `/` | owner | `{ primaryAppId, appIds[], friendlyName, jwkBase64UrlPublicKey, redirectUri? }` | same; for apps that are all already registered |
 | `POST` | `/exchange` | anonymous, **not** encrypted | `{ secret_digest }` | `{ base64SharedSecretCipher, base64SharedSecretIv, base64ClientAuthTokenCipher, base64ClientAuthTokenIv }` or 404 |
 | `GET` | `/?appId=` | owner | | `RedactedBundleToken[]` |
 | `POST` | `/{tokenId}/revoke` · `/{tokenId}/allow` | owner | | 204 |
@@ -153,6 +155,41 @@ type RedactedBundleToken = {
 };
 ```
 
+### One-shot authorization
+
+A real client asks for everything at once. It lists every app it wants in one request; apps that may be
+new or changed carry their manifest, and already-registered apps (built-ins such as Chat) go by id alone.
+
+```ts
+type BundleAuthorizationRequest = {
+  primaryAppId: string;
+  apps: { appId: string; manifest?: AppManifestV2 }[];   // the owner may deselect any but the primary
+  friendlyName: string;
+  jwkBase64UrlPublicKey: string;                          // not needed for preview
+  redirectUri?: string;
+};
+
+type BundleAuthorizationPreview = {
+  isValid: boolean;
+  problems: AppRegistrationProblem[];   // request-level: noApps, tooManyApps, friendlyNameRequired,
+                                        // primaryAppMissing, appIdRequired, duplicateApp, redirectNotAllowed
+  apps: {
+    appId: string; name: string; appSlug: string;
+    isPrimary: boolean; isRegistered: boolean; isReserved: boolean; isRevoked: boolean; hasManifest: boolean;
+    action: 'none' | 'install' | 'update';
+    validation?: AppRegistrationValidationResult;   // when a manifest was sent
+    problems: AppRegistrationProblem[];              // manifestAppIdMismatch, appNotRegistered, appRevoked,
+                                                     // and conflicts with other apps in the request
+                                                     // (slugTaken, driveOwnedElsewhere, circleOwnedElsewhere)
+  }[];
+};
+```
+
+The owner console previews, lets the owner deselect apps (never the primary), previews the selection
+again, and on Allow calls `authorize` with only the selected apps. `authorize` re-validates everything
+before it writes anything. Applying an app is retry-safe, so a failure part-way through is recovered by
+authorizing again.
+
 ### The exchange (same crypto as YouAuth)
 
 1. The client makes an ECC P-384 key pair and sends its public key as JWK base64url (js-lib `createEccPair`
@@ -171,9 +208,11 @@ type RedactedBundleToken = {
   then redirects to `return`.
 - Cancel goes to `cancel?error=cancelled-by-user`.
 
-**Bundle consent page:** `https://{identity}/owner/bundle-tokens/authorize?p={base64url(JSON)}` where JSON is
-`{ primaryAppId, appIds[], friendlyName, publicKey, redirectUri, state }`.
-- On Allow: `POST /api/v2/bundle-tokens`, then redirect to
+**Bundle consent page:** `https://{identity}/owner/bundle-tokens/authorize#p={base64url(JSON)}` where JSON is
+`{ primaryAppId, apps: [{appId, manifest?}], friendlyName, publicKey, redirectUri, state }`.
+- The request is in the URL **fragment**, which never reaches the server, so a request carrying several
+  manifests is not limited by server URL-length limits.
+- On Allow: `POST /api/v2/bundle-tokens/authorize` with the selected apps, then redirect to
   `redirectUri?identity={identity}&public_key={exchangePublicKeyJwkBase64Url}&salt={exchangeSalt64}&state={state}`
   (the same parameter names YouAuth uses).
 - Cancel goes to `redirectUri?error=cancelled-by-user&state={state}`.

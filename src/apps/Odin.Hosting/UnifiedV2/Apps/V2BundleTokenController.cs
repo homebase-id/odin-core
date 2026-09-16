@@ -22,8 +22,34 @@ namespace Odin.Hosting.UnifiedV2.Apps;
 [ApiController]
 [Route(UnifiedApiRouteConstants.BundleTokens)]
 [ApiExplorerSettings(GroupName = "v2")]
-public class V2BundleTokenController(BundleTokenService bundleTokenService) : OdinControllerBase
+public class V2BundleTokenController(
+    BundleTokenService bundleTokenService,
+    BundleAuthorizationService bundleAuthorizationService) : OdinControllerBase
 {
+    /// <summary>
+    /// What authorizing this request would do: per app, install / update / nothing, with every problem,
+    /// including conflicts between apps in the request.  Writes nothing.
+    /// </summary>
+    [HttpPost("authorize/preview")]
+    [UnifiedV2Authorize(UnifiedPolicies.Owner)]
+    [SwaggerOperation(Tags = [SwaggerInfo.AppRegistrations])]
+    public async Task<BundleAuthorizationPreview> PreviewAuthorization([FromBody] BundleAuthorizationRequest request)
+    {
+        return await bundleAuthorizationService.PreviewAsync(request, WebOdinContext);
+    }
+
+    /// <summary>
+    /// One consent for several apps: installs or updates each app sent with a manifest, then issues one
+    /// bundle token for all of them.  Response as <c>POST /</c>.
+    /// </summary>
+    [HttpPost("authorize")]
+    [UnifiedV2Authorize(UnifiedPolicies.Owner)]
+    [SwaggerOperation(Tags = [SwaggerInfo.AppRegistrations])]
+    public async Task<BeginBundleTokenExchangeResponse> Authorize([FromBody] BundleAuthorizationRequest request)
+    {
+        return await bundleAuthorizationService.AuthorizeAsync(request, WebOdinContext);
+    }
+
     /// <summary>Issues a bundle token for the client whose public key is in the request.</summary>
     [HttpPost]
     [UnifiedV2Authorize(UnifiedPolicies.Owner)]

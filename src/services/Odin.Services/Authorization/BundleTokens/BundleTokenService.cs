@@ -304,23 +304,30 @@ public class BundleTokenService(
     /// </summary>
     private static void AssertRedirectAllowed(AppRegistration primary, string? redirectUri)
     {
-        if (string.IsNullOrWhiteSpace(redirectUri) || string.IsNullOrWhiteSpace(primary.CorsHostName))
+        var problem = RedirectProblem(primary.CorsHostName, redirectUri);
+        if (problem != null)
         {
-            return;
+            throw new OdinClientException(problem, OdinClientErrorCode.InvalidCorsHostName);
+        }
+    }
+
+    /// <summary>Why <paramref name="redirectUri"/> may not receive a token for an app on <paramref name="corsHostName"/>; null when it may.</summary>
+    public static string? RedirectProblem(string? corsHostName, string? redirectUri)
+    {
+        if (string.IsNullOrWhiteSpace(redirectUri) || string.IsNullOrWhiteSpace(corsHostName))
+        {
+            return null;
         }
 
         if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out var uri))
         {
-            throw new OdinClientException("The redirect is not a valid absolute URI", OdinClientErrorCode.ArgumentError);
+            return "The redirect is not a valid absolute URI";
         }
 
         var authority = uri.IsDefaultPort ? uri.Host : $"{uri.Host}:{uri.Port}";
-        if (!string.Equals(authority, primary.CorsHostName, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new OdinClientException(
-                $"The redirect must go to '{primary.CorsHostName}', the primary app's host",
-                OdinClientErrorCode.InvalidCorsHostName);
-        }
+        return string.Equals(authority, corsHostName, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : $"The redirect must go to '{corsHostName}', the primary app's host";
     }
 
     private static RedactedBundleToken ToRedacted(BundleTokensRecord record, List<BundleTokenAppsRecord> members,
