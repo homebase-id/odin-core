@@ -9,7 +9,7 @@ public class TableBundleTokensMigrationList : MigrationListBase
     public TableBundleTokensMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableBundleTokensMigrationV0(-1),
+            new TableBundleTokensMigrationV202609161738(-1),
             // AUTO-INSERT-MARKER
         };
     }

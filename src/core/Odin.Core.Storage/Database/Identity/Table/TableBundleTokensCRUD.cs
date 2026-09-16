@@ -69,13 +69,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE BundleTokens IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE BundleTokens IS '{ \"Version\": 202609161738 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS BundleTokens( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS BundleTokens( -- { \"Version\": 202609161738 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"tokenId BYTEA NOT NULL, "

@@ -9,7 +9,7 @@ public class TableBundleTokenAppsMigrationList : MigrationListBase
     public TableBundleTokenAppsMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableBundleTokenAppsMigrationV0(-1),
+            new TableBundleTokenAppsMigrationV202609161738(-1),
             // AUTO-INSERT-MARKER
         };
     }
