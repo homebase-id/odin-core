@@ -19,6 +19,7 @@ using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Util;
+using Codes = Odin.Services.Apps.V2.AppRegistrationProblemCodes;
 
 namespace Odin.Services.Apps.V2;
 
@@ -31,15 +32,15 @@ namespace Odin.Services.Apps.V2;
 /// <c>UpdateAppPermissionsAsync</c>, <c>CreateDriveAsync</c>, <c>CreateCircleDefinitionAsync</c>,
 /// <c>UpdateCircleDefinitionAsync</c> -- so V2 has exactly V1's side effects and none of its own.
 /// <para>
-/// All client-caused failures surface before the first write: <see cref="ValidateAsync"/> collects every
-/// problem, and the write paths refuse to start unless it found none.  After that, nothing here is
-/// transactional end to end (drive creation publishes notifications, circle updates rewrite member ICRs
-/// one by one), so each write is safe to retry instead.
+/// Work is split into a <see cref="AppRegistrationPlan"/> (validate against one snapshot of what exists,
+/// collect every problem, compute the resulting grants) and applying plans (the writes).  All
+/// client-caused failures surface in the plan, before the first write.  After that nothing here is
+/// transactional end to end, so each write is safe to retry instead.
 /// </para>
 /// </remarks>
 public class AppRegistrationV2Service(
     IAppRegistrationService appRegistrationService,
-    IDriveManager driveManager,
+    DriveManager driveManager,
     CircleDefinitionService circleDefinitionService,
     CircleMembershipService circleMembershipService,
     CircleNetworkService circleNetworkService,
@@ -67,12 +68,12 @@ public class AppRegistrationV2Service(
         odinContext.Caller.AssertHasMasterKey();
 
         var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
-        var drives = (await driveManager.GetDrivesAsync(PageOptions.All, odinContext)).Results;
-        var circles = await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false);
+        var drives = (await driveManager.GetDrivesAsync(PageOptions.All, odinContext)).Results.ToLookup(d => d.AppId);
+        var circles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false)).ToLookup(c => c.AppId);
 
         return apps
             .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(app => Compose(app, drives, circles))
+            .Select(app => Compose(app, drives[app.AppId.Value], circles[app.AppId.Value]))
             .ToList();
     }
 
@@ -87,12 +88,12 @@ public class AppRegistrationV2Service(
         }
 
         var drives = await driveManager.GetDrivesByAppIdAsync(appId, odinContext);
-        var circles = await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false);
+        var circles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false)).Where(c => c.AppId == appId);
         return Compose(app, drives, circles);
     }
 
     // ============================================================================================
-    // Validate / register
+    // Validate / register / apply
     // ============================================================================================
 
     /// <summary>
@@ -101,38 +102,18 @@ public class AppRegistrationV2Service(
     /// </summary>
     public async Task<AppRegistrationValidationResult> ValidateAsync(AppManifestV2 manifest, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(manifest, nameof(manifest));
-
-        var outcome = await ValidateCoreAsync(manifest, ValidationMode.InstallOrUpdate, odinContext);
-        return outcome.ToResult();
+        return (await PlanAsync([manifest], ValidationMode.InstallOrUpdate, odinContext)).Single().ToResult();
     }
 
     public async Task<AppRegistrationV2> RegisterAsync(AppManifestV2 manifest, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(manifest, nameof(manifest));
+        var plans = await PlanAsync([manifest], ValidationMode.Install, odinContext);
+        AppRegistrationProblem.ThrowIfAny(plans.Single().Problems);
 
-        var outcome = await ValidateCoreAsync(manifest, ValidationMode.Install, odinContext);
-        outcome.ThrowIfInvalid();
-
-        var appId = manifest.AppId;
-        await CreateOwnedDrivesAsync(appId, outcome.DrivesToCreate, odinContext);
-        await CreateOwnedCirclesAsync(appId, outcome.CirclesToCreate, odinContext);
-
-        await appRegistrationService.RegisterAppAsync(new AppRegistrationRequest
-        {
-            AppId = appId,
-            Name = manifest.Name,
-            AppSlug = manifest.AppSlug,
-            CorsHostName = string.IsNullOrWhiteSpace(manifest.CorsHostName) ? null! : manifest.CorsHostName,
-            PermissionSet = manifest.PermissionSet ?? new PermissionSet(),
-            Drives = outcome.FinalGrants,
-            AuthorizedCircles = manifest.AuthorizedCircles ?? [],
-            CircleMemberPermissionGrant = manifest.CircleMemberPermissionGrant ?? new PermissionSetGrantRequest()
-        }, odinContext);
-
-        return (await GetAsync(appId, odinContext))!;
+        await ApplyPlansAsync(plans, odinContext);
+        return (await GetAsync(manifest.AppId, odinContext))!;
     }
 
     /// <summary>
@@ -146,47 +127,84 @@ public class AppRegistrationV2Service(
     /// </remarks>
     public async Task<AppRegistrationV2> ApplyAsync(AppManifestV2 manifest, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(manifest, nameof(manifest));
+        var plans = await PlanAsync([manifest], ValidationMode.InstallOrUpdate, odinContext);
+        AppRegistrationProblem.ThrowIfAny(plans.Single().Problems);
 
-        var outcome = await ValidateCoreAsync(manifest, ValidationMode.InstallOrUpdate, odinContext);
-        outcome.ThrowIfInvalid();
+        await ApplyPlansAsync(plans, odinContext);
+        return (await GetAsync(manifest.AppId, odinContext))!;
+    }
 
-        if (!outcome.IsRegistered)
+    /// <summary>
+    /// Validates several manifests as one request, against one snapshot of what exists.  Each may grant
+    /// drives, and authorize circles, that another manifest in the request declares; claims on the same
+    /// slug, drive or circle by two manifests are problems.  Writes nothing.
+    /// </summary>
+    internal async Task<List<AppRegistrationPlan>> PlanAsync(IReadOnlyList<AppManifestV2> manifests, ValidationMode mode,
+        IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var snapshot = new Snapshot
         {
-            return await RegisterAsync(manifest, odinContext);
+            Drives = (await driveManager.GetDrivesAsync(PageOptions.All, odinContext)).Results.ToDictionary(d => d.Id),
+            Circles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true)).ToDictionary(c => c.Id.Value),
+            Apps = (await appRegistrationService.GetRegisteredAppsAsync(odinContext)).ToDictionary(a => a.AppId.Value),
+            IsPreMove = await legacyStore.IsPreMoveAsync(),
+            Manifests = manifests
+        };
+
+        return manifests.Select(m => Plan(m, mode, snapshot)).ToList();
+    }
+
+    /// <summary>
+    /// Writes validated plans: every plan's drives, then every plan's circles (either may be granted by
+    /// another plan), then each registration.  Callers must have checked the plans have no problems.
+    /// </summary>
+    internal async Task ApplyPlansAsync(IReadOnlyList<AppRegistrationPlan> plans, IOdinContext odinContext)
+    {
+        await CreateOwnedDrivesAsync(plans.SelectMany(p => p.Diff.DrivesToCreate.Select(d => (p.AppId, d))).ToList(), odinContext);
+
+        foreach (var plan in plans)
+        {
+            await CreateOwnedCirclesAsync(plan.AppId, plan.Diff.CirclesToCreate, odinContext);
         }
 
-        var appId = manifest.AppId;
-        var diff = outcome.Diff;
-
-        if (diff.DrivesToCreate.Count > 0 || diff.CirclesToCreate.Count > 0)
+        foreach (var plan in plans)
         {
-            await AddOwnedAsync(appId, new AddOwnedResourcesRequest
+            var m = plan.Manifest;
+            if (plan.Existing == null)
             {
-                OwnedDrives = diff.DrivesToCreate,
-                OwnedCircles = diff.CirclesToCreate
-            }, odinContext);
-        }
+                await appRegistrationService.RegisterAppAsync(new AppRegistrationRequest
+                {
+                    AppId = m.AppId,
+                    Name = m.Name,
+                    AppSlug = m.AppSlug,
+                    CorsHostName = string.IsNullOrWhiteSpace(m.CorsHostName) ? null! : m.CorsHostName,
+                    PermissionSet = m.PermissionSet ?? new PermissionSet(),
+                    Drives = plan.FinalGrants,
+                    AuthorizedCircles = m.AuthorizedCircles ?? [],
+                    CircleMemberPermissionGrant = m.CircleMemberPermissionGrant ?? new PermissionSetGrantRequest()
+                }, odinContext);
+                continue;
+            }
 
-        if (diff.DriveAccessGained.Count > 0 || diff.DriveAccessLost.Count > 0 ||
-            diff.PermissionKeysGained.Count > 0 || diff.PermissionKeysLost.Count > 0)
-        {
-            await UpdatePermissionsAsync(appId, new UpdateAppPermissionsV2Request
+            if (plan.Diff.HasGrantChanges)
             {
-                PermissionSet = manifest.PermissionSet,
-                Drives = manifest.Drives
-            }, odinContext);
+                await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
+                {
+                    AppId = m.AppId,
+                    PermissionSet = plan.PermissionSet ?? new PermissionSet(),
+                    Drives = plan.FinalGrants
+                }, odinContext);
+            }
+
+            if (plan.UpdatesAuthorizedCircles)
+            {
+                await UpdateAuthorizedCirclesIfChangedAsync(plan.Existing, m.AuthorizedCircles, m.CircleMemberPermissionGrant,
+                    odinContext);
+            }
         }
-
-        // A no-op when nothing changed.
-        await UpdateAuthorizedCirclesAsync(appId, new UpdateAuthorizedCirclesV2Request
-        {
-            AuthorizedCircles = manifest.AuthorizedCircles,
-            CircleMemberPermissionGrant = manifest.CircleMemberPermissionGrant
-        }, odinContext);
-
-        return (await GetAsync(appId, odinContext))!;
     }
 
     // ============================================================================================
@@ -198,11 +216,10 @@ public class AppRegistrationV2Service(
     /// </summary>
     public async Task<AppRegistrationV2> AddOwnedAsync(Guid appId, AddOwnedResourcesRequest request, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         var app = await GetUpdatableAppAsync(appId, odinContext);
 
-        var manifest = new AppManifestV2
+        var plans = await PlanAsync([new AppManifestV2
         {
             AppId = appId,
             Name = app.Name,
@@ -210,15 +227,10 @@ public class AppRegistrationV2Service(
             CorsHostName = app.CorsHostName,
             OwnedDrives = request.OwnedDrives,
             OwnedCircles = request.OwnedCircles
-        };
+        }], ValidationMode.AddOwned, odinContext);
+        AppRegistrationProblem.ThrowIfAny(plans.Single().Problems);
 
-        var outcome = await ValidateCoreAsync(manifest, ValidationMode.AddOwned, odinContext);
-        outcome.ThrowIfInvalid();
-
-        await CreateOwnedDrivesAsync(appId, outcome.DrivesToCreate, odinContext);
-        await CreateOwnedCirclesAsync(appId, outcome.CirclesToCreate, odinContext);
-        await RebuildGrantsAsync(app, CurrentGrants(app), app.Grant?.PermissionSet, odinContext);
-
+        await ApplyPlansAsync(plans, odinContext);
         return (await GetAsync(appId, odinContext))!;
     }
 
@@ -228,7 +240,6 @@ public class AppRegistrationV2Service(
     /// </summary>
     public async Task UpdatePermissionsAsync(Guid appId, UpdateAppPermissionsV2Request request, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         var app = await GetUpdatableAppAsync(appId, odinContext);
 
@@ -253,12 +264,10 @@ public class AppRegistrationV2Service(
     public async Task UpdateAuthorizedCirclesAsync(Guid appId, UpdateAuthorizedCirclesV2Request request,
         IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         var app = await GetUpdatableAppAsync(appId, odinContext);
 
-        var circles = request.AuthorizedCircles ?? [];
-        foreach (var circleId in circles)
+        foreach (var circleId in request.AuthorizedCircles ?? [])
         {
             if (circleId == Guid.Empty || await circleDefinitionService.GetCircleAsync(circleId) == null)
             {
@@ -266,31 +275,19 @@ public class AppRegistrationV2Service(
             }
         }
 
-        var grant = request.CircleMemberPermissionGrant ?? new PermissionSetGrantRequest();
-        if (SameCircles(app.AuthorizedCircles, circles) && SameMemberGrant(app.CircleMemberPermissionSetGrantRequest, grant))
-        {
-            return;
-        }
-
-        await appRegistrationService.UpdateAuthorizedCirclesAsync(new UpdateAuthorizedCirclesRequest
-        {
-            AppId = appId,
-            AuthorizedCircles = circles,
-            CircleMemberPermissionGrant = grant
-        }, odinContext);
+        await UpdateAuthorizedCirclesIfChangedAsync(app, request.AuthorizedCircles, request.CircleMemberPermissionGrant,
+            odinContext);
     }
 
     public async Task UpdateOwnedDriveAsync(Guid appId, Guid driveId, UpdateOwnedDriveRequest request, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         await GetUpdatableAppAsync(appId, odinContext);
 
-        var drive = await driveManager.GetDriveAsync(driveId);
-        AssertOwnedBy(drive?.AppId, appId, drive == null, $"Drive {driveId}");
+        var drive = AssertOwnedBy(await driveManager.GetDriveAsync(driveId), d => d.AppId, appId, $"Drive {driveId}");
 
         // Checked up front so no setter refuses after another has already written.
-        if (drive!.OwnerOnly && (request.AllowAnonymousReads == true || request.AllowSubscriptions == true))
+        if (drive.OwnerOnly && (request.AllowAnonymousReads == true || request.AllowSubscriptions == true))
         {
             throw new OdinClientException("An owner-only drive cannot allow anonymous reads or subscriptions",
                 OdinClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
@@ -313,13 +310,7 @@ public class AppRegistrationV2Service(
 
         if (request.IsArchived is { } archived && archived != drive.IsArchived)
         {
-            // Not on IDriveManager; DriveManager is the only implementation.
-            if (driveManager is not DriveManager concrete)
-            {
-                throw new OdinSystemException("Archiving needs DriveManager");
-            }
-
-            await concrete.SetArchiveDriveFlagAsync(driveId, archived, odinContext);
+            await driveManager.SetArchiveDriveFlagAsync(driveId, archived, odinContext);
         }
 
         if (request.Metadata != null && request.Metadata != drive.Metadata)
@@ -339,7 +330,6 @@ public class AppRegistrationV2Service(
     /// </summary>
     public async Task UpdateOwnedCircleAsync(Guid appId, Guid circleId, OwnedCircle circle, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         OdinValidationUtils.AssertNotNull(circle, nameof(circle));
         var app = await GetUpdatableAppAsync(appId, odinContext);
 
@@ -348,35 +338,18 @@ public class AppRegistrationV2Service(
             throw new OdinClientException("The circle id in the body does not match the route", OdinClientErrorCode.ArgumentError);
         }
 
-        var existing = await circleDefinitionService.GetCircleAsync(circleId);
-        AssertOwnedBy(existing?.AppId, appId, existing == null, $"Circle {circleId}");
+        var existing = AssertOwnedBy(await circleDefinitionService.GetCircleAsync(circleId), c => c.AppId, appId, $"Circle {circleId}");
 
         // Validate fully before anything is written.  UpdateCircleDefinitionAsync rewrites member ICRs
         // before its own permission and deposit-only checks run.
-        var manifest = new AppManifestV2
-        {
-            AppId = appId,
-            Name = app.Name,
-            AppSlug = app.AppSlug,
-            OwnedCircles = [new OwnedCircle
-            {
-                Id = circleId,
-                Name = circle.Name,
-                Description = circle.Description,
-                DriveGrants = circle.DriveGrants,
-                Permissions = circle.Permissions,
-                GrantOn = circle.GrantOn,
-                Designation = circle.Designation,
-                Emoji = circle.Emoji
-            }]
-        };
-
-        var outcome = await ValidateCoreAsync(manifest, ValidationMode.UpdateCircle, odinContext);
-        outcome.ThrowIfInvalid();
+        circle.Id = circleId;
+        var plans = await PlanAsync([new AppManifestV2 { AppId = appId, Name = app.Name, AppSlug = app.AppSlug, OwnedCircles = [circle] }],
+            ValidationMode.UpdateCircle, odinContext);
+        AppRegistrationProblem.ThrowIfAny(plans.Single().Problems);
 
         var updated = new CircleDefinition
         {
-            Id = existing!.Id,
+            Id = existing.Id,
             Created = existing.Created,
             LastUpdated = existing.LastUpdated,
             Disabled = existing.Disabled,
@@ -392,10 +365,7 @@ public class AppRegistrationV2Service(
 
         await circleDefinitionService.AssertDepositOnlyIfAmbientAsync(updated);
 
-        var grantsChanged = !SameGrants(existing.DriveGrants, updated.DriveGrants) ||
-                            !SameKeys(existing.Permissions, updated.Permissions);
-
-        if (grantsChanged)
+        if (!SameGrants(existing.DriveGrants, updated.DriveGrants) || !SameKeys(existing.Permissions, updated.Permissions))
         {
             await circleNetworkService.UpdateCircleDefinitionAsync(updated, odinContext);
             await RebuildGrantsAsync(app, CurrentGrants(app), app.Grant?.PermissionSet, odinContext);
@@ -416,11 +386,8 @@ public class AppRegistrationV2Service(
 
     public async Task DeleteOwnedCircleAsync(Guid appId, Guid circleId, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         var app = await GetUpdatableAppAsync(appId, odinContext);
-
-        var existing = await circleDefinitionService.GetCircleAsync(circleId);
-        AssertOwnedBy(existing?.AppId, appId, existing == null, $"Circle {circleId}");
+        AssertOwnedBy(await circleDefinitionService.GetCircleAsync(circleId), c => c.AppId, appId, $"Circle {circleId}");
 
         if (app.AuthorizedCircles?.Contains(circleId) ?? false)
         {
@@ -447,9 +414,9 @@ public class AppRegistrationV2Service(
     /// system circles are given all the new read grants in one update each, and only then are the drives
     /// opened; <c>HandleDriveUpdated</c> finds the grant already there and does nothing.
     /// </remarks>
-    private async Task CreateOwnedDrivesAsync(Guid appId, List<OwnedDrive> drives, IOdinContext odinContext)
+    private async Task CreateOwnedDrivesAsync(List<(Guid appId, OwnedDrive drive)> drives, IOdinContext odinContext)
     {
-        foreach (var d in drives)
+        foreach (var (appId, d) in drives)
         {
             await driveManager.CreateDriveAsync(new CreateDriveRequest
             {
@@ -467,7 +434,7 @@ public class AppRegistrationV2Service(
             }, odinContext);
         }
 
-        var anonymous = drives.Where(d => d.AllowAnonymousReads).ToList();
+        var anonymous = drives.Select(x => x.drive).Where(d => d.AllowAnonymousReads).ToList();
         if (anonymous.Count == 0)
         {
             return;
@@ -482,21 +449,15 @@ public class AppRegistrationV2Service(
             }
 
             var grants = def.DriveGrants?.ToList() ?? [];
-            var added = false;
-            foreach (var d in anonymous.Where(d => grants.All(g => g.PermissionedDrive.Drive != d.TargetDrive)))
+            var missing = anonymous.Where(d => grants.All(g => g.PermissionedDrive.Drive != d.TargetDrive)).ToList();
+            if (missing.Count == 0)
             {
-                grants.Add(new DriveGrantRequest
-                {
-                    PermissionedDrive = new PermissionedDrive { Drive = d.TargetDrive, Permission = DrivePermission.Read }
-                });
-                added = true;
+                continue;
             }
 
-            if (added)
-            {
-                def.DriveGrants = grants;
-                await circleNetworkService.UpdateCircleDefinitionAsync(def, odinContext);
-            }
+            grants.AddRange(missing.Select(d => Grant(d.TargetDrive, DrivePermission.Read)));
+            def.DriveGrants = grants;
+            await circleNetworkService.UpdateCircleDefinitionAsync(def, odinContext);
         }
 
         foreach (var d in anonymous)
@@ -526,8 +487,45 @@ public class AppRegistrationV2Service(
     }
 
     /// <summary>
-    /// The grant rebuild: explicit grants, plus ReadWrite on owned drives, plus whatever the app's owned
-    /// circles grant -- applied through the V1 method, which also adds the transient drive and resets the
+    /// The grant rebuild from current state, for updates that do not go through a plan.  See
+    /// <see cref="BuildGrants"/>.
+    /// </summary>
+    private async Task RebuildGrantsAsync(RedactedAppRegistration app, IEnumerable<DriveGrantRequest> explicitGrants,
+        PermissionSet? permissionSet, IOdinContext odinContext)
+    {
+        var appId = app.AppId.Value;
+        var ownedDrives = await driveManager.GetDrivesByAppIdAsync(appId, odinContext);
+        var ownedCircles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false)).Where(c => c.AppId == appId);
+
+        await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
+        {
+            AppId = appId,
+            PermissionSet = permissionSet ?? new PermissionSet(),
+            Drives = BuildGrants(explicitGrants, ownedDrives.Select(d => d.TargetDriveInfo), ownedCircles.SelectMany(c => c.DriveGrants ?? []))
+        }, odinContext);
+    }
+
+    private async Task UpdateAuthorizedCirclesIfChangedAsync(RedactedAppRegistration app, List<Guid>? circles,
+        PermissionSetGrantRequest? grant, IOdinContext odinContext)
+    {
+        circles ??= [];
+        grant ??= new PermissionSetGrantRequest();
+        if (SameCircles(app.AuthorizedCircles, circles) && SameMemberGrant(app.CircleMemberPermissionSetGrantRequest, grant))
+        {
+            return;
+        }
+
+        await appRegistrationService.UpdateAuthorizedCirclesAsync(new UpdateAuthorizedCirclesRequest
+        {
+            AppId = app.AppId,
+            AuthorizedCircles = circles,
+            CircleMemberPermissionGrant = grant
+        }, odinContext);
+    }
+
+    /// <summary>
+    /// An app's drive grants: explicit grants, plus ReadWrite on owned drives, plus whatever the app's owned
+    /// circles grant.  Applied through the V1 method, which also adds the transient drive and resets the
     /// permission cache.
     /// </summary>
     /// <remarks>
@@ -535,27 +533,6 @@ public class AppRegistrationV2Service(
     /// app's grant (<c>CircleNetworkService.GrantAppTheCirclesDrivesAsync</c>); rebuilding without them
     /// would silently take those away.
     /// </remarks>
-    private async Task RebuildGrantsAsync(RedactedAppRegistration app, IEnumerable<DriveGrantRequest> explicitGrants,
-        PermissionSet? permissionSet, IOdinContext odinContext)
-    {
-        var appId = app.AppId.Value;
-        var ownedDrives = await driveManager.GetDrivesByAppIdAsync(appId, odinContext);
-        var ownedCircles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false))
-            .Where(c => c.AppId == appId);
-
-        var grants = BuildGrants(
-            explicitGrants,
-            ownedDrives.Select(d => d.TargetDriveInfo),
-            ownedCircles.SelectMany(c => c.DriveGrants ?? []));
-
-        await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
-        {
-            AppId = appId,
-            PermissionSet = permissionSet ?? new PermissionSet(),
-            Drives = grants
-        }, odinContext);
-    }
-
     internal static List<DriveGrantRequest> BuildGrants(
         IEnumerable<DriveGrantRequest> explicitGrants,
         IEnumerable<TargetDrive> ownedDrives,
@@ -575,14 +552,14 @@ public class AppRegistrationV2Service(
 
         foreach (var g in ownedCircleGrants.Where(g => g?.PermissionedDrive?.Drive != null))
         {
-            var drive = g.PermissionedDrive.Drive;
-            if (merged.TryGetValue(drive, out var current))
+            if (merged.TryGetValue(g.PermissionedDrive.Drive, out var current))
             {
                 current.Permission |= g.PermissionedDrive.Permission;
+                current.TemporalReadWindowSeconds ??= g.PermissionedDrive.TemporalReadWindowSeconds;
             }
             else
             {
-                merged[drive] = new PermissionedDrive { Drive = drive, Permission = g.PermissionedDrive.Permission };
+                merged[g.PermissionedDrive.Drive] = g.PermissionedDrive.Clone();
             }
         }
 
@@ -590,10 +567,10 @@ public class AppRegistrationV2Service(
     }
 
     // ============================================================================================
-    // Validation
+    // Planning (validation)
     // ============================================================================================
 
-    private enum ValidationMode
+    internal enum ValidationMode
     {
         /// <summary>Install when the app is not registered, update when it is.</summary>
         InstallOrUpdate,
@@ -604,111 +581,72 @@ public class AppRegistrationV2Service(
         /// <summary>Owned drives and circles for a registered app; nothing else in the manifest is read.</summary>
         AddOwned,
 
-        /// <summary>A change to one owned circle, which must already exist.</summary>
+        /// <summary>A change to one owned circle, which the caller has checked exists and is owned.</summary>
         UpdateCircle
     }
 
-    private sealed class DriveFacts
+    /// <summary>What exists, loaded once per request, plus every manifest in the request.</summary>
+    private sealed class Snapshot
     {
-        public required TargetDrive TargetDrive { get; init; }
-        public required string Name { get; init; }
-        public Guid? OwningAppId { get; init; }
-        public bool OwnerOnly { get; init; }
-        public bool AllowAnonymousReads { get; init; }
+        public required Dictionary<Guid, StorageDrive> Drives { get; init; }
+        public required Dictionary<Guid, CircleDefinition> Circles { get; init; }
+        public required Dictionary<Guid, RedactedAppRegistration> Apps { get; init; }
+        public required bool IsPreMove { get; init; }
+        public required IReadOnlyList<AppManifestV2> Manifests { get; init; }
+
+        public string NameOf(Guid appId) =>
+            Apps.TryGetValue(appId, out var app) ? app.Name
+            : Manifests.FirstOrDefault(m => m.AppId == appId)?.Name ?? $"app {appId}";
     }
 
-    private sealed class ValidationOutcome
-    {
-        public bool IsRegistered { get; init; }
-        public List<AppRegistrationProblem> Problems { get; } = [];
-        public List<OwnedDrive> DrivesToCreate { get; } = [];
-        public List<OwnedDrive> DrivesAlreadyOwned { get; } = [];
-        public List<OwnedCircle> CirclesToCreate { get; } = [];
-        public List<OwnedCircle> CirclesAlreadyOwned { get; } = [];
-        public List<DriveGrantRequest> FinalGrants { get; set; } = [];
-        public AppRegistrationDiff Diff { get; set; } = new();
+    private sealed record DriveFacts(TargetDrive TargetDrive, string Name, Guid? OwningAppId, bool OwnerOnly, bool AllowAnonymousReads);
 
-        public void Problem(string code, string subject, string message)
-        {
-            Problems.Add(new AppRegistrationProblem { Code = code, Subject = subject, Message = message });
-        }
-
-        public void ThrowIfInvalid()
-        {
-            if (Problems.Count == 0)
-            {
-                return;
-            }
-
-            var message = string.Join("; ", Problems.Select(p =>
-                string.IsNullOrEmpty(p.Subject) ? p.Message : $"{p.Subject}: {p.Message}"));
-
-            var code = Problems.Any(p => p.Code == "alreadyRegistered")
-                ? OdinClientErrorCode.IdAlreadyExists
-                : OdinClientErrorCode.ArgumentError;
-
-            throw new OdinClientException(message, code);
-        }
-
-        public AppRegistrationValidationResult ToResult() => new()
-        {
-            IsRegistered = IsRegistered,
-            Problems = Problems,
-            Diff = Diff
-        };
-    }
-
-    private async Task<ValidationOutcome> ValidateCoreAsync(AppManifestV2 m, ValidationMode mode, IOdinContext odinContext)
+    private AppRegistrationPlan Plan(AppManifestV2 m, ValidationMode mode, Snapshot snapshot)
     {
         var appId = m.AppId;
-        var existing = appId == Guid.Empty ? null : await appRegistrationService.GetAppRegistration(appId, odinContext);
-        var outcome = new ValidationOutcome { IsRegistered = existing != null };
+        var existing = appId == Guid.Empty ? null : snapshot.Apps.GetValueOrDefault(appId);
+        var plan = new AppRegistrationPlan { Manifest = m, Existing = existing };
+        var problems = plan.Problems;
+        void Problem(string code, string subject, string message) => problems.Add(AppRegistrationProblem.Of(code, subject, message));
+
+        var others = snapshot.Manifests.Where(o => !ReferenceEquals(o, m) && o.AppId != appId).ToList();
+        var readsRegistration = mode is ValidationMode.Install or ValidationMode.InstallOrUpdate;
 
         // ----- the app -------------------------------------------------------------------------
 
         if (appId == Guid.Empty)
         {
-            outcome.Problem("appIdRequired", "appId", "An app id is required");
+            Problem(Codes.AppIdRequired, "appId", "An app id is required");
         }
         else if (IsReserved(appId))
         {
-            outcome.Problem("reservedApp", "appId", "This is a built-in app; it is managed by the identity, not V2");
+            Problem(Codes.ReservedApp, "appId", "This is a built-in app; it is managed by the identity, not V2");
         }
 
-        if (await legacyStore.IsPreMoveAsync())
+        if (snapshot.IsPreMove)
         {
-            outcome.Problem("identityNotUpgraded", "", "This identity has not finished upgrading; try again shortly");
+            Problem(Codes.IdentityNotUpgraded, "", "This identity has not finished upgrading; try again shortly");
         }
 
         if (mode == ValidationMode.Install && existing != null)
         {
-            outcome.Problem("alreadyRegistered", "appId", "This app is already registered");
+            Problem(Codes.AlreadyRegistered, "appId", "This app is already registered");
         }
 
-        var readsRegistration = mode is ValidationMode.Install or ValidationMode.InstallOrUpdate;
         if (readsRegistration)
         {
-            ValidateAppFields(m, existing, outcome);
-            if (existing == null && OdinSlug.IsValid(m.AppSlug))
+            ValidateAppFields(m, existing, Problem);
+            if (existing == null && OdinSlug.IsValid(m.AppSlug) &&
+                (snapshot.Apps.Values.Any(a => a.AppSlug == m.AppSlug && a.AppId.Value != appId) || others.Any(o => o.AppSlug == m.AppSlug)))
             {
-                var holder = await appRegistrationService.GetAppRegistrationBySlugAsync(m.AppSlug, odinContext);
-                if (holder != null && holder.AppId.Value != appId)
-                {
-                    outcome.Problem("slugTaken", "appSlug", $"Another app already holds the slug '{m.AppSlug}'");
-                }
+                Problem(Codes.SlugTaken, "appSlug", $"Another app already holds the slug '{m.AppSlug}'");
             }
         }
 
-        // ----- what exists ---------------------------------------------------------------------
-
-        var allDrives = (await driveManager.GetDrivesAsync(PageOptions.All, odinContext)).Results
-            .ToDictionary(d => d.Id);
-        var allCircles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true))
-            .ToDictionary(c => c.Id.Value);
-        var appNames = (await appRegistrationService.GetRegisteredAppsAsync(odinContext))
-            .ToDictionary(a => a.AppId.Value, a => a.Name);
+        // ----- drive lookup: this manifest, then stored, then the other manifests in the request ---
 
         var declaredDrives = new Dictionary<Guid, OwnedDrive>();
+        var appDrives = snapshot.Drives.Values.Where(x => x.AppId == appId).ToList();
 
         DriveFacts? Facts(TargetDrive? drive)
         {
@@ -719,20 +657,21 @@ public class AppRegistrationV2Service(
 
             if (declaredDrives.TryGetValue(drive.Alias, out var declared) && declared.TargetDrive == drive)
             {
-                return new DriveFacts
-                {
-                    TargetDrive = drive, Name = declared.Name, OwningAppId = appId,
-                    OwnerOnly = declared.OwnerOnly, AllowAnonymousReads = declared.AllowAnonymousReads
-                };
+                return new DriveFacts(drive, declared.Name, appId, declared.OwnerOnly, declared.AllowAnonymousReads);
             }
 
-            if (allDrives.TryGetValue(drive.Alias, out var stored) && stored.TargetDriveInfo == drive)
+            if (snapshot.Drives.TryGetValue(drive.Alias, out var stored) && stored.TargetDriveInfo == drive)
             {
-                return new DriveFacts
+                return new DriveFacts(drive, stored.Name, stored.AppId, stored.OwnerOnly, stored.AllowAnonymousReads);
+            }
+
+            foreach (var other in others)
+            {
+                var d = other.OwnedDrives?.FirstOrDefault(x => x?.TargetDrive == drive);
+                if (d != null)
                 {
-                    TargetDrive = drive, Name = stored.Name, OwningAppId = stored.AppId,
-                    OwnerOnly = stored.OwnerOnly, AllowAnonymousReads = stored.AllowAnonymousReads
-                };
+                    return new DriveFacts(drive, d.Name, other.AppId, d.OwnerOnly, d.AllowAnonymousReads);
+                }
             }
 
             return null;
@@ -740,7 +679,6 @@ public class AppRegistrationV2Service(
 
         // ----- owned drives --------------------------------------------------------------------
 
-        var seenAliases = new HashSet<Guid>();
         var seenSlugs = new HashSet<string>(StringComparer.Ordinal);
         var ownedDrives = m.OwnedDrives ?? [];
 
@@ -750,87 +688,83 @@ public class AppRegistrationV2Service(
             var d = ownedDrives[i];
             if (d?.TargetDrive == null || !d.TargetDrive.IsValid())
             {
-                outcome.Problem("invalidTargetDrive", subject, "A valid target drive (alias and type) is required");
+                Problem(Codes.InvalidTargetDrive, subject, "A valid target drive (alias and type) is required");
                 continue;
             }
 
-            var valid = true;
+            var problemsBefore = problems.Count;
             if (string.IsNullOrWhiteSpace(d.Name))
             {
-                outcome.Problem("nameRequired", subject, "A drive name is required");
-                valid = false;
+                Problem(Codes.NameRequired, subject, "A drive name is required");
             }
 
             if (!OdinSlug.IsValid(d.DriveSlug))
             {
-                outcome.Problem("invalidSlug", $"{subject}.driveSlug", $"'{d.DriveSlug}' is not a valid slug");
-                valid = false;
+                Problem(Codes.InvalidSlug, $"{subject}.driveSlug", $"'{d.DriveSlug}' is not a valid slug");
             }
 
             if (!OdinSlug.IsValid(d.DriveTypeSlug))
             {
-                outcome.Problem("invalidSlug", $"{subject}.driveTypeSlug", $"'{d.DriveTypeSlug}' is not a valid slug");
-                valid = false;
+                Problem(Codes.InvalidSlug, $"{subject}.driveTypeSlug", $"'{d.DriveTypeSlug}' is not a valid slug");
             }
 
             if (d.OwnerOnly && (d.AllowAnonymousReads || d.AllowSubscriptions))
             {
-                outcome.Problem("invalidDriveFlags", subject,
-                    "An owner-only drive cannot allow anonymous reads or subscriptions");
-                valid = false;
+                Problem(Codes.InvalidDriveFlags, subject, "An owner-only drive cannot allow anonymous reads or subscriptions");
             }
 
-            if (!seenAliases.Add(d.TargetDrive.Alias))
+            if (declaredDrives.ContainsKey(d.TargetDrive.Alias))
             {
-                outcome.Problem("duplicateDrive", subject, "This drive is declared more than once");
+                Problem(Codes.DuplicateDrive, subject, "This drive is declared more than once");
                 continue;
             }
 
             if (OdinSlug.IsValid(d.DriveSlug) && !seenSlugs.Add(d.DriveSlug))
             {
-                outcome.Problem("duplicateSlug", $"{subject}.driveSlug", $"The drive slug '{d.DriveSlug}' is declared more than once");
-                valid = false;
+                Problem(Codes.DuplicateSlug, $"{subject}.driveSlug", $"The drive slug '{d.DriveSlug}' is declared more than once");
             }
 
-            if (allDrives.TryGetValue(d.TargetDrive.Alias, out var stored))
+            var otherClaim = others.FirstOrDefault(o => o.OwnedDrives?.Any(x => x?.TargetDrive?.Alias == d.TargetDrive.Alias) ?? false);
+            if (otherClaim != null)
+            {
+                Problem(Codes.DriveOwnedElsewhere, subject, $"'{otherClaim.Name}' in this request also declares this drive");
+            }
+
+            declaredDrives[d.TargetDrive.Alias] = d;
+
+            if (snapshot.Drives.TryGetValue(d.TargetDrive.Alias, out var stored))
             {
                 if (stored.AppId != appId)
                 {
-                    outcome.Problem("driveOwnedElsewhere", subject, stored.AppId == null
+                    Problem(Codes.DriveOwnedElsewhere, subject, stored.AppId == null
                         ? $"The drive '{stored.Name}' already exists and belongs to no app; adopt it from the drive page instead"
-                        : $"The drive '{stored.Name}' already belongs to {NameOf(stored.AppId.Value)}");
+                        : $"The drive '{stored.Name}' already belongs to {snapshot.NameOf(stored.AppId.Value)}");
                 }
                 else if (!DriveMatches(stored, d))
                 {
-                    outcome.Problem("ownedDriveDiffers", subject,
+                    Problem(Codes.OwnedDriveDiffers, subject,
                         $"This app already owns '{stored.Name}' with different settings; update the drive instead");
                 }
                 else
                 {
-                    outcome.DrivesAlreadyOwned.Add(d);
-                    declaredDrives[d.TargetDrive.Alias] = d;
+                    plan.Diff.DrivesAlreadyOwned.Add(d);
                 }
 
                 continue;
             }
 
-            if (valid && allDrives.Values.Any(x => x.AppId == appId && x.DriveSlug == d.DriveSlug))
+            if (OdinSlug.IsValid(d.DriveSlug) && appDrives.Any(x => x.DriveSlug == d.DriveSlug))
             {
-                outcome.Problem("driveSlugTaken", $"{subject}.driveSlug",
-                    $"This app already has another drive with the slug '{d.DriveSlug}'");
-                valid = false;
+                Problem(Codes.DriveSlugTaken, $"{subject}.driveSlug", $"This app already has another drive with the slug '{d.DriveSlug}'");
             }
 
-            declaredDrives[d.TargetDrive.Alias] = d;
-            if (valid)
+            if (problems.Count == problemsBefore)
             {
-                outcome.DrivesToCreate.Add(d);
+                plan.Diff.DrivesToCreate.Add(d);
             }
         }
 
-        bool IsOwned(TargetDrive drive) =>
-            (declaredDrives.TryGetValue(drive.Alias, out var dd) && dd.TargetDrive == drive) ||
-            allDrives.Values.Any(x => x.AppId == appId && x.TargetDriveInfo == drive);
+        var ownedTargets = declaredDrives.Values.Select(d => d.TargetDrive).Concat(appDrives.Select(x => x.TargetDriveInfo)).ToHashSet();
 
         // ----- explicit grants -----------------------------------------------------------------
 
@@ -843,11 +777,11 @@ public class AppRegistrationV2Service(
                 var drive = explicitGrants[i]?.PermissionedDrive?.Drive;
                 if (drive == null || !drive.IsValid())
                 {
-                    outcome.Problem("invalidTargetDrive", $"drives[{i}]", "A valid target drive is required");
+                    Problem(Codes.InvalidTargetDrive, $"drives[{i}]", "A valid target drive is required");
                 }
                 else if (Facts(drive) == null)
                 {
-                    outcome.Problem("driveNotFound", $"drives[{i}]", $"No drive {drive} exists or is declared");
+                    Problem(Codes.DriveNotFound, $"drives[{i}]", $"No drive {drive} exists or is declared");
                 }
             }
         }
@@ -856,14 +790,11 @@ public class AppRegistrationV2Service(
             explicitGrants = existing == null ? [] : CurrentGrants(existing);
         }
 
-        var explicitDrives = explicitGrants
-            .Where(g => g?.PermissionedDrive?.Drive != null)
-            .Select(g => g.PermissionedDrive.Drive)
-            .ToHashSet();
+        var explicitDrives = explicitGrants.Where(g => g?.PermissionedDrive?.Drive != null).Select(g => g.PermissionedDrive.Drive).ToHashSet();
 
         // ----- owned circles -------------------------------------------------------------------
 
-        var seenCircles = new HashSet<Guid>();
+        var declaredCircles = new HashSet<Guid>();
         var ownedCircles = m.OwnedCircles ?? [];
         for (var i = 0; i < ownedCircles.Count; i++)
         {
@@ -871,49 +802,50 @@ public class AppRegistrationV2Service(
             var c = ownedCircles[i];
             if (c == null || c.Id == Guid.Empty)
             {
-                outcome.Problem("circleIdRequired", subject, "A circle id is required");
+                Problem(Codes.CircleIdRequired, subject, "A circle id is required");
                 continue;
             }
 
-            var valid = true;
             if (SystemCircleConstants.IsSystemCircle(c.Id) || BuiltinApps.IsTreeDeclaredCircle(c.Id))
             {
-                outcome.Problem("reservedCircle", subject, "This is a built-in circle");
+                Problem(Codes.ReservedCircle, subject, "This is a built-in circle");
                 continue;
             }
 
-            if (!seenCircles.Add(c.Id))
+            if (!declaredCircles.Add(c.Id))
             {
-                outcome.Problem("duplicateCircle", subject, "This circle is declared more than once");
+                Problem(Codes.DuplicateCircle, subject, "This circle is declared more than once");
                 continue;
             }
 
+            var problemsBefore = problems.Count;
             if (string.IsNullOrWhiteSpace(c.Name))
             {
-                outcome.Problem("nameRequired", subject, "A circle name is required");
-                valid = false;
+                Problem(Codes.NameRequired, subject, "A circle name is required");
+            }
+
+            var otherClaim = others.FirstOrDefault(o => o.OwnedCircles?.Any(x => x?.Id == c.Id) ?? false);
+            if (otherClaim != null)
+            {
+                Problem(Codes.CircleOwnedElsewhere, subject, $"'{otherClaim.Name}' in this request also declares this circle");
             }
 
             var grants = c.DriveGrants ?? [];
             var keys = c.Permissions?.Keys ?? [];
             if (grants.Count == 0 && keys.Count == 0)
             {
-                outcome.Problem("circleGrantsNothing", subject, "A circle must grant at least one drive or one permission");
-                valid = false;
+                Problem(Codes.CircleGrantsNothing, subject, "A circle must grant at least one drive or one permission");
             }
 
             if (keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
             {
-                outcome.Problem("invalidPermissionKey", $"{subject}.permissions", "A permission key is not allowed on circles");
-                valid = false;
+                Problem(Codes.InvalidPermissionKey, $"{subject}.permissions", "A permission key is not allowed on circles");
             }
 
             var ambient = c.GrantOn is CircleGrantOn.Connect or CircleGrantOn.OwnFlowConnect;
             if (ambient && keys.Count > 0)
             {
-                outcome.Problem("keysOnAmbientCircle", $"{subject}.permissions",
-                    "A circle that enrols on connect cannot carry permission keys");
-                valid = false;
+                Problem(Codes.KeysOnAmbientCircle, $"{subject}.permissions", "A circle that enrols on connect cannot carry permission keys");
             }
 
             for (var j = 0; j < grants.Count; j++)
@@ -922,73 +854,60 @@ public class AppRegistrationV2Service(
                 var pd = grants[j]?.PermissionedDrive;
                 if (pd?.Drive == null || !pd.Drive.IsValid())
                 {
-                    outcome.Problem("invalidTargetDrive", grantSubject, "A valid target drive is required");
-                    valid = false;
+                    Problem(Codes.InvalidTargetDrive, grantSubject, "A valid target drive is required");
                     continue;
                 }
 
                 var facts = Facts(pd.Drive);
                 if (facts == null)
                 {
-                    outcome.Problem("driveNotFound", grantSubject, $"No drive {pd.Drive} exists or is declared");
-                    valid = false;
+                    Problem(Codes.DriveNotFound, grantSubject, $"No drive {pd.Drive} exists or is declared");
                     continue;
                 }
 
                 // Confused-deputy rule: a circle may only hand out drives the app owns or is granted.
-                if (!IsOwned(pd.Drive) && !explicitDrives.Contains(pd.Drive))
+                if (!ownedTargets.Contains(pd.Drive) && !explicitDrives.Contains(pd.Drive))
                 {
-                    outcome.Problem("driveNotGrantable", grantSubject,
-                        $"The circle grants '{facts.Name}', which this app neither owns nor is granted");
-                    valid = false;
+                    Problem(Codes.DriveNotGrantable, grantSubject, $"The circle grants '{facts.Name}', which this app neither owns nor is granted");
                 }
 
                 if (facts.OwnerOnly && !(pd.Permission.HasFlag(DrivePermission.Write) || pd.Permission.HasFlag(DrivePermission.React)))
                 {
-                    outcome.Problem("ownerOnlyDrive", grantSubject, $"'{facts.Name}' is owner-only");
-                    valid = false;
+                    Problem(Codes.OwnerOnlyDrive, grantSubject, $"'{facts.Name}' is owner-only");
                 }
 
                 if (ambient && pd.Permission.HasFlag(DrivePermission.Read) && !facts.AllowAnonymousReads)
                 {
-                    outcome.Problem("readOnAmbientCircle", grantSubject,
-                        $"A circle that enrols on connect cannot grant read on '{facts.Name}'");
-                    valid = false;
+                    Problem(Codes.ReadOnAmbientCircle, grantSubject, $"A circle that enrols on connect cannot grant read on '{facts.Name}'");
                 }
             }
 
-            if (!allCircles.TryGetValue(c.Id, out var stored))
+            // An update: the caller has checked the circle exists and is owned, and differing is the point.
+            if (mode == ValidationMode.UpdateCircle)
             {
-                if (mode == ValidationMode.UpdateCircle)
-                {
-                    outcome.Problem("circleNotFound", subject, "The circle does not exist");
-                }
-                else if (valid)
-                {
-                    outcome.CirclesToCreate.Add(c);
-                }
-
                 continue;
             }
 
-            if (stored.AppId != appId)
+            if (!snapshot.Circles.TryGetValue(c.Id, out var storedCircle))
             {
-                outcome.Problem("circleOwnedElsewhere", subject, stored.AppId == null
-                    ? $"The circle '{stored.Name}' already exists and belongs to no app"
-                    : $"The circle '{stored.Name}' already belongs to {NameOf(stored.AppId.Value)}");
+                if (problems.Count == problemsBefore)
+                {
+                    plan.Diff.CirclesToCreate.Add(c);
+                }
             }
-            else if (mode == ValidationMode.UpdateCircle)
+            else if (storedCircle.AppId != appId)
             {
-                // An update: differing from what is stored is the point.
+                Problem(Codes.CircleOwnedElsewhere, subject, storedCircle.AppId == null
+                    ? $"The circle '{storedCircle.Name}' already exists and belongs to no app"
+                    : $"The circle '{storedCircle.Name}' already belongs to {snapshot.NameOf(storedCircle.AppId.Value)}");
             }
-            else if (!CircleMatches(stored, c))
+            else if (!CircleMatches(storedCircle, c))
             {
-                outcome.Problem("ownedCircleDiffers", subject,
-                    $"This app already owns '{stored.Name}' with different grants; update the circle instead");
+                Problem(Codes.OwnedCircleDiffers, subject, $"This app already owns '{storedCircle.Name}' with different grants; update the circle instead");
             }
             else
             {
-                outcome.CirclesAlreadyOwned.Add(c);
+                plan.Diff.CirclesAlreadyOwned.Add(c);
             }
         }
 
@@ -1000,9 +919,10 @@ public class AppRegistrationV2Service(
             for (var i = 0; i < authorized.Count; i++)
             {
                 var id = authorized[i];
-                if (id == Guid.Empty || (!allCircles.ContainsKey(id) && !seenCircles.Contains(id)))
+                var declaredSomewhere = declaredCircles.Contains(id) || others.Any(o => o.OwnedCircles?.Any(x => x?.Id == id) ?? false);
+                if (id == Guid.Empty || (!snapshot.Circles.ContainsKey(id) && !declaredSomewhere))
                 {
-                    outcome.Problem("circleNotFound", $"authorizedCircles[{i}]", $"Circle {id} does not exist or is declared");
+                    Problem(Codes.CircleNotFound, $"authorizedCircles[{i}]", $"Circle {id} does not exist or is declared");
                 }
             }
 
@@ -1013,81 +933,68 @@ public class AppRegistrationV2Service(
                 var drive = memberDrives[i]?.PermissionedDrive?.Drive;
                 if (drive == null || !drive.IsValid() || Facts(drive) == null)
                 {
-                    outcome.Problem("driveNotFound", $"circleMemberPermissionGrant.drives[{i}]",
-                        "No such drive exists or is declared");
+                    Problem(Codes.DriveNotFound, $"circleMemberPermissionGrant.drives[{i}]", "No such drive exists or is declared");
                 }
             }
 
             if (memberGrant?.PermissionSet?.Keys?.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)) ?? false)
             {
-                outcome.Problem("invalidPermissionKey", "circleMemberPermissionGrant.permissionSet",
-                    "A permission key is not allowed on circles");
+                Problem(Codes.InvalidPermissionKey, "circleMemberPermissionGrant.permissionSet", "A permission key is not allowed on circles");
             }
+        }
+
+        if (mode == ValidationMode.UpdateCircle)
+        {
+            return plan;
         }
 
         // ----- the resulting access ------------------------------------------------------------
 
-        var ownedTargets = declaredDrives.Values.Select(d => d.TargetDrive)
-            .Concat(allDrives.Values.Where(x => x.AppId == appId).Select(x => x.TargetDriveInfo))
-            .Distinct()
-            .ToList();
-
         var circleGrants = ownedCircles.Where(c => c != null && c.Id != Guid.Empty).SelectMany(c => c.DriveGrants ?? [])
-            .Concat(allCircles.Values
-                .Where(c => c.AppId == appId && ownedCircles.All(oc => oc?.Id != c.Id.Value))
+            .Concat(snapshot.Circles.Values
+                .Where(c => c.AppId == appId && !declaredCircles.Contains(c.Id.Value))
                 .SelectMany(c => c.DriveGrants ?? []));
 
-        outcome.FinalGrants = BuildGrants(explicitGrants, ownedTargets, circleGrants);
+        plan.FinalGrants = BuildGrants(explicitGrants, ownedTargets, circleGrants);
+        plan.PermissionSet = readsRegistration ? m.PermissionSet : existing?.Grant?.PermissionSet;
+        plan.UpdatesAuthorizedCircles = readsRegistration;
+        FillAccessDiff(plan, snapshot, Facts);
 
-        if (mode != ValidationMode.UpdateCircle)
-        {
-            outcome.Diff = BuildDiff(m, existing, outcome, Facts, NameOf, readsRegistration);
-        }
-
-        return outcome;
-
-        string NameOf(Guid id) => id == appId ? (string.IsNullOrWhiteSpace(m.Name) ? "this app" : m.Name)
-            : appNames.TryGetValue(id, out var n) ? n : $"app {id}";
+        return plan;
     }
 
-    private static void ValidateAppFields(AppManifestV2 m, RedactedAppRegistration? existing, ValidationOutcome outcome)
+    private static void ValidateAppFields(AppManifestV2 m, RedactedAppRegistration? existing, Action<string, string, string> problem)
     {
         if (string.IsNullOrWhiteSpace(m.Name))
         {
-            outcome.Problem("nameRequired", "name", "An app name is required");
+            problem(Codes.NameRequired, "name", "An app name is required");
         }
         else if (existing != null && existing.Name != m.Name)
         {
-            outcome.Problem("immutable", "name", "The app name cannot be changed");
+            problem(Codes.Immutable, "name", "The app name cannot be changed");
         }
 
         if (!OdinSlug.IsValid(m.AppSlug))
         {
-            outcome.Problem("invalidSlug", "appSlug", $"'{m.AppSlug}' is not a valid app slug");
+            problem(Codes.InvalidSlug, "appSlug", $"'{m.AppSlug}' is not a valid app slug");
         }
         else if (existing != null && existing.AppSlug != m.AppSlug)
         {
-            outcome.Problem("immutable", "appSlug", "The app slug cannot be changed");
+            problem(Codes.Immutable, "appSlug", "The app slug cannot be changed");
         }
 
         var cors = string.IsNullOrWhiteSpace(m.CorsHostName) ? null : m.CorsHostName;
         if (cors != null && !AppUtil.IsValidCorsHeader(cors))
         {
-            outcome.Problem("invalidCorsHostName", "corsHostName", "The CORS host must be [host name]:[port number]");
+            problem(Codes.InvalidCorsHostName, "corsHostName", "The CORS host must be [host name]:[port number]");
         }
         else if (existing != null && (existing.CorsHostName ?? "") != (cors ?? ""))
         {
-            outcome.Problem("immutable", "corsHostName", "The CORS host cannot be changed");
+            problem(Codes.Immutable, "corsHostName", "The CORS host cannot be changed");
         }
     }
 
-    private static AppRegistrationDiff BuildDiff(
-        AppManifestV2 m,
-        RedactedAppRegistration? existing,
-        ValidationOutcome outcome,
-        Func<TargetDrive?, DriveFacts?> facts,
-        Func<Guid, string> nameOf,
-        bool readsRegistration)
+    private static void FillAccessDiff(AppRegistrationPlan plan, Snapshot snapshot, Func<TargetDrive?, DriveFacts?> facts)
     {
         DriveAccessEntry Entry(PermissionedDrive pd)
         {
@@ -1098,15 +1005,17 @@ public class AppRegistrationV2Service(
                 Permission = pd.Permission,
                 DriveName = f?.Name,
                 OwningAppId = f?.OwningAppId,
-                OwningAppName = f?.OwningAppId == null ? null : nameOf(f.OwningAppId.Value)
+                OwningAppName = f?.OwningAppId == null ? null : snapshot.NameOf(f.OwningAppId.Value)
             };
         }
 
-        var after = outcome.FinalGrants.Select(g => g.PermissionedDrive).ToDictionary(pd => pd.Drive);
+        var diff = plan.Diff;
+        var existing = plan.Existing;
+        var after = plan.FinalGrants.Select(g => g.PermissionedDrive).ToDictionary(pd => pd.Drive);
 
         // RegisterAppAsync and UpdateAppPermissionsAsync add the transient drive for transit; mirror it so
         // it is not reported as a change.
-        var keysAfter = readsRegistration ? m.PermissionSet?.Keys ?? [] : existing?.Grant?.PermissionSet?.Keys ?? [];
+        var keysAfter = plan.PermissionSet?.Keys ?? [];
         if (keysAfter.Contains(PermissionKeys.UseTransitRead) || keysAfter.Contains(PermissionKeys.UseTransitWrite))
         {
             after.TryAdd(SystemDriveConstants.TransientTempDrive,
@@ -1118,45 +1027,22 @@ public class AppRegistrationV2Service(
             .GroupBy(pd => pd.Drive)
             .ToDictionary(grp => grp.Key, grp => grp.First());
 
-        var gained = new List<DriveAccessEntry>();
-        var lost = new List<DriveAccessEntry>();
-
-        foreach (var (drive, pd) in after)
-        {
-            var old = before.TryGetValue(drive, out var b) ? b.Permission : DrivePermission.None;
-            if ((pd.Permission & ~old) != 0)
-            {
-                gained.Add(Entry(pd));
-            }
-        }
-
-        foreach (var (drive, pd) in before)
-        {
-            var now = after.TryGetValue(drive, out var a) ? a.Permission : DrivePermission.None;
-            if ((pd.Permission & ~now) != 0)
-            {
-                lost.Add(Entry(pd));
-            }
-        }
+        diff.DriveAccess.AddRange(after.Values.Select(Entry));
+        diff.DriveAccessGained.AddRange(after
+            .Where(kv => (kv.Value.Permission & ~(before.GetValueOrDefault(kv.Key)?.Permission ?? DrivePermission.None)) != 0)
+            .Select(kv => Entry(kv.Value)));
+        diff.DriveAccessLost.AddRange(before
+            .Where(kv => (kv.Value.Permission & ~(after.GetValueOrDefault(kv.Key)?.Permission ?? DrivePermission.None)) != 0)
+            .Select(kv => Entry(kv.Value)));
 
         var keysBefore = existing?.Grant?.PermissionSet?.Keys ?? [];
-        var circlesAfter = readsRegistration ? m.AuthorizedCircles ?? [] : existing?.AuthorizedCircles ?? [];
-        var circlesBefore = existing?.AuthorizedCircles ?? [];
+        diff.PermissionKeysGained.AddRange(keysAfter.Except(keysBefore));
+        diff.PermissionKeysLost.AddRange(keysBefore.Except(keysAfter));
 
-        return new AppRegistrationDiff
-        {
-            DrivesToCreate = outcome.DrivesToCreate,
-            DrivesAlreadyOwned = outcome.DrivesAlreadyOwned,
-            CirclesToCreate = outcome.CirclesToCreate,
-            CirclesAlreadyOwned = outcome.CirclesAlreadyOwned,
-            DriveAccess = after.Values.Select(Entry).ToList(),
-            DriveAccessGained = gained,
-            DriveAccessLost = lost,
-            PermissionKeysGained = keysAfter.Except(keysBefore).ToList(),
-            PermissionKeysLost = keysBefore.Except(keysAfter).ToList(),
-            AuthorizedCirclesAdded = circlesAfter.Except(circlesBefore).ToList(),
-            AuthorizedCirclesRemoved = circlesBefore.Except(circlesAfter).ToList()
-        };
+        var circlesAfter = plan.UpdatesAuthorizedCircles ? plan.Manifest.AuthorizedCircles ?? [] : existing?.AuthorizedCircles ?? [];
+        var circlesBefore = existing?.AuthorizedCircles ?? [];
+        diff.AuthorizedCirclesAdded.AddRange(circlesAfter.Except(circlesBefore));
+        diff.AuthorizedCirclesRemoved.AddRange(circlesBefore.Except(circlesAfter));
     }
 
     // ============================================================================================
@@ -1165,50 +1051,49 @@ public class AppRegistrationV2Service(
 
     private async Task<RedactedAppRegistration> GetUpdatableAppAsync(Guid appId, IOdinContext odinContext)
     {
+        odinContext.Caller.AssertHasMasterKey();
+
         if (IsReserved(appId))
         {
             throw new OdinClientException("This is a built-in app; it is managed by the identity, not V2",
                 OdinClientErrorCode.ArgumentError);
         }
 
-        var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
-        if (app == null)
-        {
-            throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
-        }
-
-        return app;
+        return await appRegistrationService.GetAppRegistration(appId, odinContext)
+               ?? throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
     }
 
-    private static void AssertOwnedBy(Guid? owningAppId, Guid appId, bool missing, string what)
+    private static T AssertOwnedBy<T>(T? entity, Func<T, Guid?> owningAppId, Guid appId, string what) where T : class
     {
-        if (missing)
+        if (entity == null)
         {
             throw new OdinClientException($"{what} does not exist", OdinClientErrorCode.UnknownId);
         }
 
-        if (owningAppId != appId)
+        if (owningAppId(entity) != appId)
         {
             throw new OdinClientException($"{what} is not owned by this app", OdinClientErrorCode.ArgumentError);
         }
+
+        return entity;
     }
+
+    private static DriveGrantRequest Grant(TargetDrive drive, DrivePermission permission) =>
+        new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission } };
 
     private static List<DriveGrantRequest> CurrentGrants(RedactedAppRegistration app)
     {
-        return (app.Grant?.DriveGrants ?? [])
-            .Select(g => new DriveGrantRequest { PermissionedDrive = g.PermissionedDrive })
-            .ToList();
+        return (app.Grant?.DriveGrants ?? []).Select(g => new DriveGrantRequest { PermissionedDrive = g.PermissionedDrive }).ToList();
     }
 
     private static AppRegistrationV2 Compose(RedactedAppRegistration app, IEnumerable<StorageDrive> drives,
         IEnumerable<CircleDefinition> circles)
     {
-        var appId = app.AppId.Value;
         return new AppRegistrationV2
         {
             Registration = app,
-            IsReserved = IsReserved(appId),
-            OwnedDrives = drives.Where(d => d.AppId == appId).Select(d => new OwnedDriveInfo
+            IsReserved = IsReserved(app.AppId.Value),
+            OwnedDrives = drives.Select(d => new OwnedDriveInfo
             {
                 DriveId = d.Id,
                 TargetDrive = d.TargetDriveInfo,
@@ -1221,7 +1106,7 @@ public class AppRegistrationV2Service(
                 OwnerOnly = d.OwnerOnly,
                 IsArchived = d.IsArchived
             }).ToList(),
-            OwnedCircles = circles.Where(c => c.AppId == appId).Select(c => c.Redacted()).ToList()
+            OwnedCircles = circles.Select(c => c.Redacted()).ToList()
         };
     }
 
@@ -1244,30 +1129,42 @@ public class AppRegistrationV2Service(
     }
 
     /// <summary>
-    /// Drive and permission both -- <c>DriveGrantRequest</c> equality compares only the drive.
+    /// Same drives, permissions and temporal windows.  <c>DriveGrantRequest</c> equality compares only the
+    /// drive; <c>PermissionedDrive</c>'s <c>==</c> compares all three.
     /// </summary>
     private static bool SameGrants(IEnumerable<DriveGrantRequest>? a, IEnumerable<DriveGrantRequest>? b)
     {
-        static HashSet<(Guid, Guid, DrivePermission)> Set(IEnumerable<DriveGrantRequest>? grants) =>
-            (grants ?? []).Where(g => g?.PermissionedDrive?.Drive != null)
-            .Select(g => (g.PermissionedDrive.Drive.Alias.Value, g.PermissionedDrive.Drive.Type.Value, g.PermissionedDrive.Permission))
-            .ToHashSet();
-
-        return Set(a).SetEquals(Set(b));
+        var left = (a ?? []).Where(g => g?.PermissionedDrive != null).Select(g => g.PermissionedDrive).ToList();
+        var right = (b ?? []).Where(g => g?.PermissionedDrive != null).Select(g => g.PermissionedDrive).ToList();
+        return left.Count == right.Count && left.All(l => right.Any(r => r == l)) && right.All(r => left.Any(l => l == r));
     }
 
-    private static bool SameKeys(PermissionSet? a, PermissionSet? b)
+    private static bool SameKeys(PermissionSet? a, PermissionSet? b) => (a ?? new PermissionSet()) == (b ?? new PermissionSet());
+
+    private static bool SameCircles(IEnumerable<Guid>? a, IEnumerable<Guid>? b) => (a ?? []).ToHashSet().SetEquals(b ?? []);
+
+    private static bool SameMemberGrant(PermissionSetGrantRequest? a, PermissionSetGrantRequest? b) =>
+        SameGrants(a?.Drives, b?.Drives) && SameKeys(a?.PermissionSet, b?.PermissionSet);
+}
+
+/// <summary>A validated manifest: its problems, what applying it changes, and the grants it results in.</summary>
+internal sealed class AppRegistrationPlan
+{
+    public required AppManifestV2 Manifest { get; init; }
+    public RedactedAppRegistration? Existing { get; init; }
+    public Guid AppId => Manifest.AppId;
+    public List<AppRegistrationProblem> Problems { get; } = [];
+    public AppRegistrationDiff Diff { get; } = new();
+    public List<DriveGrantRequest> FinalGrants { get; set; } = [];
+    public PermissionSet? PermissionSet { get; set; }
+
+    /// <summary>False when the manifest carried only owned resources (add-owned), so circles are left alone.</summary>
+    public bool UpdatesAuthorizedCircles { get; set; }
+
+    public AppRegistrationValidationResult ToResult() => new()
     {
-        return (a?.Keys ?? []).ToHashSet().SetEquals(b?.Keys ?? []);
-    }
-
-    private static bool SameCircles(IEnumerable<Guid>? a, IEnumerable<Guid>? b)
-    {
-        return (a ?? []).ToHashSet().SetEquals(b ?? []);
-    }
-
-    private static bool SameMemberGrant(PermissionSetGrantRequest? a, PermissionSetGrantRequest? b)
-    {
-        return SameGrants(a?.Drives, b?.Drives) && SameKeys(a?.PermissionSet, b?.PermissionSet);
-    }
+        IsRegistered = Existing != null,
+        Problems = Problems,
+        Diff = Diff
+    };
 }

@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Services.Apps.V2;
 
 namespace Odin.Services.Authorization.BundleTokens;
@@ -61,7 +62,8 @@ public class BundleAppPreview
 
 public class BundleAuthorizationPreview
 {
-    public bool IsValid { get; init; }
+    public bool IsValid => Problems.Count == 0 && Apps.All(a => a.Problems.Count == 0 && (a.Validation?.IsValid ?? true));
+
     public List<BundleAppPreview> Apps { get; init; } = [];
 
     /// <summary>Problems with the request as a whole: primary app, redirect, friendly name, size.</summary>

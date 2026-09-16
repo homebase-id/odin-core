@@ -27,12 +27,6 @@ public class TableBundleTokens(
         return await base.InsertAsync(item);
     }
 
-    public new async Task<int> UpsertAsync(BundleTokensRecord item)
-    {
-        item.identityId = odinIdentity;
-        return await base.UpsertAsync(item);
-    }
-
     public new async Task<int> UpdateAsync(BundleTokensRecord item)
     {
         item.identityId = odinIdentity;

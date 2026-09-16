@@ -23,9 +23,9 @@ namespace Odin.Services.Authorization.BundleTokens;
 /// each unlocked by that app's own key-store key, so the token reaches the union of the apps' grants.
 /// </summary>
 /// <remarks>
-/// One context is cached per token.  The acting app -- the <c>AppId</c> ownership checks compare against --
-/// is applied per request on a fresh <see cref="CallerContext"/>, so the cached instance is never mutated
-/// and switching apps does not rebuild anything.
+/// A context is cached per (token, acting app) and built with that acting app's <c>AppId</c>, so the
+/// request path is a cache lookup and an expiry comparison -- no database read, no per-request copy.
+/// Revoking, deleting or changing a token resets the cache (see <see cref="BundleTokenService"/>).
 /// </remarks>
 public class BundleTokenAuthenticator(
     IdentityDatabase db,
@@ -35,9 +35,6 @@ public class BundleTokenAuthenticator(
 {
     public const string ActingAppHeader = "X-ODIN-APP-ID";
 
-    private const string AppGroupPrefix = "app:";
-    private static readonly TimeSpan MaxCacheDuration = TimeSpan.FromMinutes(60);
-
     /// <summary>
     /// The authenticated context for <paramref name="token"/>, acting as <paramref name="actingAppId"/>
     /// (the primary app when null or empty).  Null when the token is unknown, revoked, expired, its primary
@@ -46,81 +43,51 @@ public class BundleTokenAuthenticator(
     public async Task<IOdinContext?> AuthenticateAsync(ClientAuthenticationToken token, string? actingAppId,
         IOdinContext odinContext)
     {
-        if (token.ClientTokenType != ClientTokenType.AppBundle)
+        Guid? acting = null;
+        if (!string.IsNullOrWhiteSpace(actingAppId))
         {
-            return null;
+            if (!Guid.TryParse(actingAppId, out var parsed))
+            {
+                return null;
+            }
+
+            acting = parsed;
         }
 
-        var record = await db.BundleTokens.GetAsync(token.Id);
-        if (record == null)
-        {
-            return null;
-        }
+        var context = await contextCache.GetOrAddContextAsync(token,
+            () => BuildAsync(token, acting, odinContext),
+            keySuffix: acting?.ToString("N"));
 
-        var remaining = TimeSpan.FromMilliseconds(record.expiresAt.milliseconds - UnixTimeUtc.Now().milliseconds);
-        if (remaining < TimeSpan.FromSeconds(1))
-        {
-            return null;
-        }
-
-        // Expiry is honoured inside the cache window too.
-        var cached = await contextCache.GetOrAddContextAsync(token,
-            () => BuildAsync(token, odinContext),
-            remaining < MaxCacheDuration ? remaining : MaxCacheDuration);
-
-        if (cached == null)
-        {
-            return null;
-        }
-
-        var primary = cached.Caller.OdinClientContext.AppId.Value;
-        Guid acting;
-        if (string.IsNullOrWhiteSpace(actingAppId))
-        {
-            acting = primary;
-        }
-        else if (!Guid.TryParse(actingAppId, out acting))
-        {
-            return null;
-        }
-
-        if (!cached.PermissionsContext.PermissionGroups.ContainsKey(GroupKey(acting)))
-        {
-            return null;
-        }
-
-        var result = new OdinContext
-        {
-            Tenant = cached.Tenant,
-            AuthTokenCreated = cached.AuthTokenCreated,
-            Caller = new CallerContext(
-                odinId: cached.Caller.OdinId,
-                masterKey: null,
-                securityLevel: SecurityGroupType.Owner,
-                odinClientContext: new OdinClientContext
-                {
-                    ClientIdOrDomain = cached.Caller.OdinClientContext.ClientIdOrDomain,
-                    CorsHostName = cached.Caller.OdinClientContext.CorsHostName,
-                    AccessRegistrationId = cached.Caller.OdinClientContext.AccessRegistrationId,
-                    AppId = acting,
-                    DevicePushNotificationKey = null
-                })
-        };
-
-        result.SetPermissionContext(cached.PermissionsContext);
-        return result;
+        return context is BundleOdinContext bundle && bundle.ExpiresAt.milliseconds > UnixTimeUtc.Now().milliseconds
+            ? bundle
+            : null;
     }
 
-    private async Task<IOdinContext?> BuildAsync(ClientAuthenticationToken token, IOdinContext odinContext)
+    private async Task<IOdinContext?> BuildAsync(ClientAuthenticationToken token, Guid? actingAppId, IOdinContext odinContext)
     {
         var record = await db.BundleTokens.GetAsync(token.Id);
-        if (record == null)
+        if (record == null || record.expiresAt.milliseconds <= UnixTimeUtc.Now().milliseconds)
         {
             return null;
         }
+
+        var acting = actingAppId ?? record.primaryAppId;
 
         var accessRegistration = OdinSystemSerializer.Deserialize<ServerHalfOfClientKey>(record.accessRegistrationJson);
         if (accessRegistration == null || accessRegistration.IsRevoked)
+        {
+            return null;
+        }
+
+        // The primary app first: when it is gone or revoked the token fails, and nothing else is worth loading.
+        var primary = await LoadActiveAppAsync(record.primaryAppId);
+        if (primary == null)
+        {
+            return null;
+        }
+
+        var members = await db.BundleTokenApps.GetByTokenIdAsync(token.Id);
+        if (members.All(m => m.appId != acting))
         {
             return null;
         }
@@ -137,17 +104,9 @@ public class BundleTokenAuthenticator(
             return null;
         }
 
-        var members = await db.BundleTokenApps.GetByTokenIdAsync(token.Id);
-        var registrations = (await db.AppRegistrations.GetAllAsync())
-            .Select(AppRegistrationService.FromRecord)
-            .ToDictionary(r => r.AppId.Value);
-
-        if (!registrations.TryGetValue(record.primaryAppId, out var primary) || primary.AppKeyStore.IsRevoked)
-        {
-            return null;
-        }
-
         var groups = new Dictionary<string, PermissionGroup>();
+        var grantedKeys = new List<int>();
+        var memberIds = new HashSet<Guid>();
         SensitiveByteArray? primaryKeyStoreKey = null;
 
         try
@@ -155,20 +114,23 @@ public class BundleTokenAuthenticator(
             foreach (var member in members)
             {
                 // A revoked or deleted member drops out; the rest of the token keeps working.
-                if (!registrations.TryGetValue(member.appId, out var registration) || registration.AppKeyStore.IsRevoked)
+                var app = member.appId == primary.AppId.Value ? primary : await LoadActiveAppAsync(member.appId);
+                if (app == null)
                 {
                     continue;
                 }
 
-                var encrypted = OdinSystemSerializer.DeserializeOrThrow<SymmetricKeyEncryptedAes>(member.encryptedKeyStoreKeyJson);
-                var keyStoreKey = encrypted.DecryptKeyClone(bundleKey);
+                var keyStoreKey = OdinSystemSerializer.DeserializeOrThrow<SymmetricKeyEncryptedAes>(member.encryptedKeyStoreKeyJson)
+                    .DecryptKeyClone(bundleKey);
 
-                groups[GroupKey(member.appId)] = new PermissionGroup(
-                    registration.AppKeyStore.PermissionSet,
-                    registration.AppKeyStore.DriveGrants,
+                groups[$"app:{member.appId:N}"] = new PermissionGroup(
+                    app.AppKeyStore.PermissionSet,
+                    app.AppKeyStore.DriveGrants,
                     keyStoreKey,
-                    registration.AppKeyStore.KeyStoreKeyEncryptedIcrKey);
+                    app.AppKeyStore.KeyStoreKeyEncryptedIcrKey);
 
+                grantedKeys.AddRange(app.AppKeyStore.PermissionSet?.Keys ?? []);
+                memberIds.Add(member.appId);
                 if (member.appId == record.primaryAppId)
                 {
                     primaryKeyStoreKey = keyStoreKey;
@@ -180,7 +142,7 @@ public class BundleTokenAuthenticator(
             bundleKey.Wipe();
         }
 
-        if (!groups.ContainsKey(GroupKey(record.primaryAppId)))
+        if (!memberIds.Contains(acting))
         {
             return null;
         }
@@ -194,17 +156,15 @@ public class BundleTokenAuthenticator(
             }).ToList(),
             null, null);
 
-        var grantedKeys = members
-            .Where(m => groups.ContainsKey(GroupKey(m.appId)))
-            .SelectMany(m => registrations[m.appId].AppKeyStore.PermissionSet?.Keys ?? []);
         var impliedKeys = PermissionKeyImplications.ResolveImpliedKeys(grantedKeys);
         if (impliedKeys.Count > 0)
         {
             groups["implied_permissions"] = new PermissionGroup(new PermissionSet(impliedKeys), null, null, null);
         }
 
-        var context = new OdinContext
+        var context = new BundleOdinContext
         {
+            ExpiresAt = record.expiresAt,
             Tenant = tenantContext.HostOdinId,
             AuthTokenCreated = accessRegistration.Created,
             Caller = new CallerContext(
@@ -216,7 +176,7 @@ public class BundleTokenAuthenticator(
                     ClientIdOrDomain = record.friendlyName,
                     CorsHostName = primary.CorsHostName,
                     AccessRegistrationId = record.tokenId,
-                    AppId = record.primaryAppId,
+                    AppId = acting,
                     DevicePushNotificationKey = null
                 })
         };
@@ -225,5 +185,21 @@ public class BundleTokenAuthenticator(
         return context;
     }
 
-    private static string GroupKey(Guid appId) => $"{AppGroupPrefix}{appId:N}";
+    private async Task<AppRegistration?> LoadActiveAppAsync(Guid appId)
+    {
+        var record = await db.AppRegistrations.GetAsync(appId);
+        if (record == null)
+        {
+            return null;
+        }
+
+        var app = AppRegistrationService.FromRecord(record);
+        return app.AppKeyStore.IsRevoked ? null : app;
+    }
+
+    /// <summary>A cached bundle context remembers when its token expires, so expiry needs no database read.</summary>
+    private sealed class BundleOdinContext : OdinContext
+    {
+        public UnixTimeUtc ExpiresAt { get; init; }
+    }
 }

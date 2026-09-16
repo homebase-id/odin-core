@@ -146,18 +146,12 @@ public class BundleTokenService(
         IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        OdinValidationUtils.AssertNotNullOrEmpty(request.JwkBase64UrlPublicKey, nameof(request.JwkBase64UrlPublicKey));
+        return await BeginExchangeAsync(request, ParsePublicKey(request.JwkBase64UrlPublicKey), odinContext);
+    }
 
-        EccPublicKeyData remotePublicKey;
-        try
-        {
-            remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(request.JwkBase64UrlPublicKey);
-        }
-        catch (Exception)
-        {
-            throw new OdinClientException("The public key is not a valid JWK", OdinClientErrorCode.ArgumentError);
-        }
-
+    internal async Task<BeginBundleTokenExchangeResponse> BeginExchangeAsync(IssueBundleTokenRequest request,
+        EccPublicKeyData remotePublicKey, IOdinContext odinContext)
+    {
         var token = await IssueAsync(request, odinContext);
 
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
@@ -180,6 +174,19 @@ public class BundleTokenService(
             ExchangePublicKeyJwkBase64Url = keyPair.PublicKeyJwkBase64Url(),
             ExchangeSalt64 = Convert.ToBase64String(exchangeSalt)
         };
+    }
+
+    /// <summary>The client's ECC public key, as YouAuth sends it; a client error when it is not one.</summary>
+    public static EccPublicKeyData ParsePublicKey(string jwkBase64UrlPublicKey)
+    {
+        try
+        {
+            return EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkBase64UrlPublicKey);
+        }
+        catch (Exception)
+        {
+            throw new OdinClientException("The public key is not a valid JWK", OdinClientErrorCode.ArgumentError);
+        }
     }
 
     /// <summary>The sealed token for <paramref name="secretDigest"/>, once; null when unknown or collected.</summary>
@@ -206,14 +213,17 @@ public class BundleTokenService(
         odinContext.Caller.AssertHasMasterKey();
 
         var tokens = await db.BundleTokens.GetAllAsync();
-        var members = await db.BundleTokenApps.GetAllAsync();
+        if (appId != null)
+        {
+            var reaching = (await db.BundleTokenApps.GetByAppIdAsync(appId.Value)).Select(m => m.tokenId).ToHashSet();
+            tokens = tokens.Where(t => reaching.Contains(t.tokenId)).ToList();
+        }
+
+        var members = (await db.BundleTokenApps.GetAllAsync()).ToLookup(m => m.tokenId);
         var apps = (await appRegistrationService.GetRegisteredAppsAsync(odinContext)).ToDictionary(a => a.AppId.Value);
 
-        var byToken = members.GroupBy(m => m.tokenId).ToDictionary(g => g.Key, g => g.ToList());
-
         return tokens
-            .Select(t => ToRedacted(t, byToken.GetValueOrDefault(t.tokenId) ?? [], apps))
-            .Where(t => appId == null || t.Apps.Any(a => a.AppId == appId))
+            .Select(t => ToRedacted(t, members[t.tokenId].ToList(), apps))
             .OrderByDescending(t => t.Created.milliseconds)
             .ToList();
     }

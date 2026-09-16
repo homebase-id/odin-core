@@ -1,6 +1,9 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -111,8 +114,73 @@ public class UpdateOwnedDriveRequest
     public Dictionary<string, string>? Attributes { get; set; }
 }
 
+/// <summary>The problem codes clients see.  One list, so the codes a client handles cannot drift.</summary>
+public static class AppRegistrationProblemCodes
+{
+    public const string AppIdRequired = "appIdRequired";
+    public const string ReservedApp = "reservedApp";
+    public const string IdentityNotUpgraded = "identityNotUpgraded";
+    public const string AlreadyRegistered = "alreadyRegistered";
+    public const string NameRequired = "nameRequired";
+    public const string InvalidSlug = "invalidSlug";
+    public const string SlugTaken = "slugTaken";
+    public const string Immutable = "immutable";
+    public const string InvalidCorsHostName = "invalidCorsHostName";
+    public const string InvalidTargetDrive = "invalidTargetDrive";
+    public const string InvalidDriveFlags = "invalidDriveFlags";
+    public const string DuplicateDrive = "duplicateDrive";
+    public const string DuplicateSlug = "duplicateSlug";
+    public const string DriveOwnedElsewhere = "driveOwnedElsewhere";
+    public const string OwnedDriveDiffers = "ownedDriveDiffers";
+    public const string DriveSlugTaken = "driveSlugTaken";
+    public const string DriveNotFound = "driveNotFound";
+    public const string CircleIdRequired = "circleIdRequired";
+    public const string ReservedCircle = "reservedCircle";
+    public const string DuplicateCircle = "duplicateCircle";
+    public const string CircleGrantsNothing = "circleGrantsNothing";
+    public const string InvalidPermissionKey = "invalidPermissionKey";
+    public const string KeysOnAmbientCircle = "keysOnAmbientCircle";
+    public const string DriveNotGrantable = "driveNotGrantable";
+    public const string OwnerOnlyDrive = "ownerOnlyDrive";
+    public const string ReadOnAmbientCircle = "readOnAmbientCircle";
+    public const string CircleNotFound = "circleNotFound";
+    public const string CircleOwnedElsewhere = "circleOwnedElsewhere";
+    public const string OwnedCircleDiffers = "ownedCircleDiffers";
+
+    // Bundle authorization
+    public const string NoApps = "noApps";
+    public const string TooManyApps = "tooManyApps";
+    public const string FriendlyNameRequired = "friendlyNameRequired";
+    public const string PrimaryAppMissing = "primaryAppMissing";
+    public const string DuplicateApp = "duplicateApp";
+    public const string ManifestAppIdMismatch = "manifestAppIdMismatch";
+    public const string AppNotRegistered = "appNotRegistered";
+    public const string AppRevoked = "appRevoked";
+    public const string RedirectNotAllowed = "redirectNotAllowed";
+}
+
 public class AppRegistrationProblem
 {
+    public static AppRegistrationProblem Of(string code, string subject, string message) =>
+        new() { Code = code, Subject = subject, Message = message };
+
+    /// <summary>Throws one client error naming every problem; does nothing when there are none.</summary>
+    public static void ThrowIfAny(IEnumerable<AppRegistrationProblem> problems)
+    {
+        var list = problems.ToList();
+        if (list.Count == 0)
+        {
+            return;
+        }
+
+        var message = string.Join("; ", list.Select(p => string.IsNullOrEmpty(p.Subject) ? p.Message : $"{p.Subject}: {p.Message}"));
+        var code = list.Any(p => p.Code == AppRegistrationProblemCodes.AlreadyRegistered)
+            ? OdinClientErrorCode.IdAlreadyExists
+            : OdinClientErrorCode.ArgumentError;
+
+        throw new OdinClientException(message, code);
+    }
+
     /// <summary>Stable machine-readable code, e.g. <c>slugTaken</c>.</summary>
     public string Code { get; init; } = "";
 
@@ -153,6 +221,16 @@ public class AppRegistrationDiff
     public List<int> PermissionKeysLost { get; init; } = [];
     public List<Guid> AuthorizedCirclesAdded { get; init; } = [];
     public List<Guid> AuthorizedCirclesRemoved { get; init; } = [];
+
+    /// <summary>Owned resources to create, or a change to drive access or permission keys.</summary>
+    [JsonIgnore]
+    public bool HasGrantChanges =>
+        DrivesToCreate.Count > 0 || CirclesToCreate.Count > 0 ||
+        DriveAccessGained.Count > 0 || DriveAccessLost.Count > 0 ||
+        PermissionKeysGained.Count > 0 || PermissionKeysLost.Count > 0;
+
+    [JsonIgnore]
+    public bool HasChanges => HasGrantChanges || AuthorizedCirclesAdded.Count > 0 || AuthorizedCirclesRemoved.Count > 0;
 }
 
 public class AppRegistrationValidationResult
