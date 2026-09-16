@@ -516,23 +516,28 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var created = (await tblOutbox.GetAsync(driveId, fileId, recipient)).created;
 
-            // Deferred twice: neither spends an attempt, and created is untouched
-            for (var i = 0; i < 2; i++)
-            {
-                var checkedOut = await tblOutbox.CheckOutItemAsync();
-                ClassicAssert.IsNotNull(checkedOut);
+            // Deferred: no attempt is spent, created is untouched, and the item stays out of reach
+            // until its nextRunTime
+            var checkedOut = await tblOutbox.CheckOutItemAsync();
+            ClassicAssert.IsNotNull(checkedOut);
+            await tblOutbox.CheckInAsDeferredAsync((Guid)checkedOut.checkOutStamp, UnixTimeUtc.Now().AddMilliseconds(500));
 
-                await tblOutbox.CheckInAsDeferredAsync((Guid)checkedOut.checkOutStamp, UnixTimeUtc.Now().AddSeconds(2));
+            var record = await tblOutbox.GetAsync(driveId, fileId, recipient);
+            ClassicAssert.AreEqual(0, record.checkOutCount);
+            ClassicAssert.IsNull(record.checkOutStamp);
+            ClassicAssert.AreEqual(created.milliseconds, record.created.milliseconds);
+            ClassicAssert.IsNull(await tblOutbox.CheckOutItemAsync());
 
-                var record = await tblOutbox.GetAsync(driveId, fileId, recipient);
-                ClassicAssert.AreEqual(0, record.checkOutCount);
-                ClassicAssert.IsNull(record.checkOutStamp);
-                ClassicAssert.AreEqual(created.milliseconds, record.created.milliseconds);
+            await Task.Delay(600);
 
-                // ... and it stays out of reach until its nextRunTime
-                ClassicAssert.IsNull(await tblOutbox.CheckOutItemAsync());
-                Thread.Sleep(2500);
-            }
+            // A second deferral (due at once) still spends nothing
+            checkedOut = await tblOutbox.CheckOutItemAsync();
+            ClassicAssert.IsNotNull(checkedOut);
+            await tblOutbox.CheckInAsDeferredAsync((Guid)checkedOut.checkOutStamp, UnixTimeUtc.Now());
+
+            record = await tblOutbox.GetAsync(driveId, fileId, recipient);
+            ClassicAssert.AreEqual(0, record.checkOutCount);
+            ClassicAssert.AreEqual(created.milliseconds, record.created.milliseconds);
 
             // A real failure still counts
             var failed = await tblOutbox.CheckOutItemAsync();

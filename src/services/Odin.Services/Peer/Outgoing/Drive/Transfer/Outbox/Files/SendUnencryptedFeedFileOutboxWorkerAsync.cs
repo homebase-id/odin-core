@@ -130,7 +130,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
-                RetryAfter = RetryAfterFrom(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = versionTag.GetValueOrDefault(),
                 GlobalTransitId = globalTransitId,
                 Recipient = recipient,

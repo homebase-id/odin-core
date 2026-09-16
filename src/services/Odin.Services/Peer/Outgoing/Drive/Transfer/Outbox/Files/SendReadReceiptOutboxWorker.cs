@@ -101,7 +101,7 @@ public class SendReadReceiptOutboxWorker(
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
-                RetryAfter = RetryAfterFrom(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = request.GlobalTransitIdFileIdentifier.GlobalTransitId,
                 Recipient = recipient,
@@ -141,10 +141,10 @@ public class SendReadReceiptOutboxWorker(
         return Task.FromResult(nextRunTime);
     }
 
-    protected override Task<OutboxProcessingResult> HandleUnrecoverableTransferStatus(
+    protected override Task HandleUnrecoverableTransferStatus(
         OdinOutboxProcessingException e,
         IOdinContext odinContext)
     {
-        return Task.FromResult(OutboxProcessingResult.Retry(UnixTimeUtc.ZeroTime));
+        return Task.CompletedTask;
     }
 }
