@@ -19,6 +19,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Registry;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Update;
@@ -36,15 +37,19 @@ public abstract class FileSystemUpdateWriterBase
     /// <summary />
     protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, IDriveManager driveManager,
         PeerOutgoingTransferService peerOutgoingTransferService,
+        TenantQuotaGuard quotaGuard,
         ILogger logger)
     {
         FileSystem = fileSystem;
         _driveManager = driveManager;
         _peerOutgoingTransferService = peerOutgoingTransferService;
+        QuotaGuard = quotaGuard;
         _logger = logger;
     }
 
     protected IDriveFileSystem FileSystem { get; }
+
+    protected TenantQuotaGuard QuotaGuard { get; }
 
     internal FileUpdatePackage Package { get; private set; }
 
@@ -144,6 +149,8 @@ public abstract class FileSystemUpdateWriterBase
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
+        QuotaGuard.AssertCanAddPayloadBytes();
+
         if (Package.Payloads.Any(p => p.KeyEquals(key)))
         {
             throw new OdinClientException($"Duplicate Payload key with key {key} has already been added",
@@ -172,6 +179,8 @@ public abstract class FileSystemUpdateWriterBase
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
     {
+        QuotaGuard.AssertCanAddPayloadBytes();
+
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
         // if you're adding a thumbnail, there must be a manifest

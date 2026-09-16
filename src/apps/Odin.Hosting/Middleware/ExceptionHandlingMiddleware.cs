@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
@@ -41,6 +42,10 @@ namespace Odin.Hosting.Middleware
                 await HandleExceptionAsync(context,
                     new BadRequestException(e.Message, e.ErrorCode, e) { Extensions = e.Extensions });
             }
+            catch (OdinRetryLaterException e) // => the status the service chose, plus Retry-After
+            {
+                await HandleRetryLaterAsync(context, e);
+            }
             catch (OdinRemoteIdentityException e) // => HTTP 503
             {
                 var message = $"Remote identity host failed: {e.Message}";
@@ -61,6 +66,47 @@ namespace Odin.Hosting.Middleware
             {
                 await HandleExceptionAsync(context, ex);
             }
+        }
+
+        //
+
+        /// <summary>
+        /// Handled apart from <see cref="HandleExceptionAsync"/>: this is a refusal the caller can wait
+        /// out, so it carries Retry-After and is not logged as a server error.
+        /// </summary>
+        private Task HandleRetryLaterAsync(HttpContext context, OdinRetryLaterException exception)
+        {
+            logger.LogDebug(exception, "Refused {method} {path} until later: {message}",
+                context.Request.Method,
+                context.Request.Path,
+                exception.Message);
+
+            // Same rule as HandleExceptionAsync: nothing may be written back on a websocket CONNECT
+            if (context.WebSockets.IsWebSocketRequest && context.Request.Method == "CONNECT")
+            {
+                return Task.CompletedTask;
+            }
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = (int)exception.StatusCode,
+                Title = exception.Message,
+                Type = "https://tools.ietf.org/html/rfc7231",
+                Extensions =
+                {
+                    ["correlationId"] = correlationContext.Id
+                }
+            };
+
+            if (!context.Response.HasStarted)
+            {
+                context.Response.ContentType = "application/problem+json";
+                context.Response.StatusCode = problemDetails.Status.Value;
+                context.Response.Headers.RetryAfter =
+                    ((int)Math.Ceiling(exception.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+            }
+
+            return context.Response.WriteAsync(OdinSystemSerializer.Serialize(problemDetails));
         }
 
         //

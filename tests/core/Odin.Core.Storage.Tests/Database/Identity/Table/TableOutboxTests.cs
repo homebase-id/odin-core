@@ -492,6 +492,56 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         }
 
 
+        /// <summary>
+        /// A deferral (the recipient asked us to retry later) reschedules the item without counting an
+        /// attempt, so a paused or out-of-quota recipient cannot exhaust the attempt budget.
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        public async Task CheckInAsDeferredDoesNotCountAnAttempt(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblOutbox = scope.Resolve<TableOutbox>();
+
+            var driveId = SequentialGuid.CreateGuid();
+            var fileId = SequentialGuid.CreateGuid();
+            const string recipient = "frodo.baggins.me";
+
+            await tblOutbox.InsertAsync(new OutboxRecord
+                { driveId = driveId, fileId = fileId, recipient = recipient, priority = 0, value = null });
+
+            var created = (await tblOutbox.GetAsync(driveId, fileId, recipient)).created;
+
+            // Deferred twice: neither spends an attempt, and created is untouched
+            for (var i = 0; i < 2; i++)
+            {
+                var checkedOut = await tblOutbox.CheckOutItemAsync();
+                ClassicAssert.IsNotNull(checkedOut);
+
+                await tblOutbox.CheckInAsDeferredAsync((Guid)checkedOut.checkOutStamp, UnixTimeUtc.Now().AddSeconds(2));
+
+                var record = await tblOutbox.GetAsync(driveId, fileId, recipient);
+                ClassicAssert.AreEqual(0, record.checkOutCount);
+                ClassicAssert.IsNull(record.checkOutStamp);
+                ClassicAssert.AreEqual(created.milliseconds, record.created.milliseconds);
+
+                // ... and it stays out of reach until its nextRunTime
+                ClassicAssert.IsNull(await tblOutbox.CheckOutItemAsync());
+                Thread.Sleep(2500);
+            }
+
+            // A real failure still counts
+            var failed = await tblOutbox.CheckOutItemAsync();
+            ClassicAssert.IsNotNull(failed);
+            await tblOutbox.CheckInAsCancelledAsync((Guid)failed.checkOutStamp, UnixTimeUtc.Now().AddSeconds(2));
+            ClassicAssert.AreEqual(1, (await tblOutbox.GetAsync(driveId, fileId, recipient)).checkOutCount);
+        }
+
+
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS

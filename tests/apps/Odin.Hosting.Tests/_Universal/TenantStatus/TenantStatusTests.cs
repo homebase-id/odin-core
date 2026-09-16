@@ -28,6 +28,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Refit;
@@ -400,6 +401,9 @@ public class TenantStatusTests
 
             await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.Active, null);
 
+            // A paused recipient asks for ten minutes and the sender honours that, so a test has to
+            // bring the item forward rather than wait it out
+            await DrainOutboxAsync(sender.Identity);
             await sender.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromSeconds(90));
             await recipient.DriveRedux.ProcessInbox(targetDrive);
             var received = await recipient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
@@ -436,12 +440,12 @@ public class TenantStatusTests
             await SetStatusViaAdminAsync(sender.OdinId.DomainName, Status.Paused, null);
             await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.Active, null);
 
-            // Wait until the queued item is due, then a while longer: a running outbox would check it out
-            // (bumping checkOutCount) or deliver it; a stopped one leaves the row exactly as it is
+            // Make the queued item due right now, then wait a while: a running outbox would check it out
+            // (bumping checkOutCount) or deliver it; a stopped one leaves the row exactly as it is.
+            // (The recipient's 503 defers the item for ten minutes, which a test cannot wait out.)
             var queued = await ReadOutboxAsync(sender.Identity);
             Assert.That(queued, Has.Count.EqualTo(1));
-            await WaitUntilAsync(() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() > queued[0].nextRunTime.milliseconds,
-                "the queued item to be due", TimeSpan.FromSeconds(60));
+            await BringOutboxForwardAsync(sender.Identity);
             await Task.Delay(TimeSpan.FromSeconds(5));
 
             var untouched = await ReadOutboxAsync(sender.Identity);
@@ -584,6 +588,23 @@ public class TenantStatusTests
         await using var scope = container.GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("TenantStatusTests");
         var (records, _) = await scope.Resolve<Odin.Core.Storage.Database.Identity.IdentityDatabase>().Outbox.PagingByRowIdAsync(100, null);
         return records;
+    }
+
+    // An item deferred by a "retry later" answer is scheduled minutes out; these make it due now
+    private async Task BringOutboxForwardAsync(TestIdentity identity)
+    {
+        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
+        await using var scope = container.GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("TenantStatusTests:bringForward");
+        await scope.Resolve<PeerOutbox>().BringForwardScheduledItemsAsync();
+    }
+
+    // ... and this also processes them, the same drain hook the V2 test framework uses
+    private async Task DrainOutboxAsync(TestIdentity identity)
+    {
+        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
+        await using var scope = container.GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("TenantStatusTests:drain");
+        await scope.Resolve<PeerOutbox>().BringForwardScheduledItemsAsync();
+        await scope.Resolve<PeerOutboxProcessorBackgroundService>().DrainAsync();
     }
 
     private async Task<Odin.Core.Storage.Database.System.Table.RegistrationsRecord> ReadRowAsync(TestIdentity identity)

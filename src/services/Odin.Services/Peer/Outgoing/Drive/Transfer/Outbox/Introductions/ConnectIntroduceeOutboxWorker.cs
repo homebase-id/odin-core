@@ -20,7 +20,7 @@ public class ConnectIntroduceeOutboxWorker(
     OdinConfiguration odinConfiguration,
     CircleNetworkIntroductionService introductionService) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
@@ -38,15 +38,15 @@ public class ConnectIntroduceeOutboxWorker(
         {
             // Recipient blocked us (or otherwise refused at the network edge). Equivalent to the
             // OdinSecurityException case below — retrying won't change the answer, mark complete.
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (OdinClientException)
         {
-            return (false, UnixTimeUtc.Now().AddMinutes(10));
+            return OutboxProcessingResult.Retry(UnixTimeUtc.Now().AddMinutes(10));
         }
         catch (OdinSecurityException)
         {
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (Exception ex)
         {
@@ -64,7 +64,7 @@ public class ConnectIntroduceeOutboxWorker(
             };
         }
 
-        return (true, UnixTimeUtc.ZeroTime);
+        return OutboxProcessingResult.Complete();
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)

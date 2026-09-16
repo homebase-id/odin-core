@@ -7,6 +7,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Registry;
 
 namespace Odin.Services.Drives.FileSystem.Standard.Update;
 
@@ -16,8 +17,10 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
     /// <summary />
     public StandardFileUpdateWriter(StandardFileSystem fileSystem,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        IDriveManager driveManager, ILogger<StandardFileUpdateWriter> logger)
-        : base(fileSystem, driveManager, peerOutgoingTransferService, logger)
+        IDriveManager driveManager,
+        TenantQuotaGuard quotaGuard,
+        ILogger<StandardFileUpdateWriter> logger)
+        : base(fileSystem, driveManager, peerOutgoingTransferService, quotaGuard, logger)
     {
     }
 

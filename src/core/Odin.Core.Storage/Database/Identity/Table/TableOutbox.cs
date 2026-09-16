@@ -229,6 +229,39 @@ public class TableOutbox(
 
 
     /// <summary>
+    /// Checks the item back in for a later attempt <b>without</b> counting an attempt: the recipient
+    /// asked us to retry later (it is paused or out of quota), which is not a failure on its part.
+    /// Unlike <see cref="CheckInAsCancelledAsync"/>, checkOutCount is left alone.
+    /// </summary>
+    public async Task<int> CheckInAsDeferredAsync(Guid checkOutStamp, UnixTimeUtc nextRunTime)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText = "UPDATE outbox SET checkOutStamp=NULL, nextRunTime=@nextRunTime WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp";
+
+        var param1 = cmd.CreateParameter();
+        var param2 = cmd.CreateParameter();
+        var param3 = cmd.CreateParameter();
+
+        param1.ParameterName = "@checkOutStamp";
+        param2.ParameterName = "@nextRunTime";
+        param3.ParameterName = "@identityId";
+
+        cmd.Parameters.Add(param1);
+        cmd.Parameters.Add(param2);
+        cmd.Parameters.Add(param3);
+
+        param1.Value = checkOutStamp.ToByteArray();
+        param2.Value = nextRunTime.milliseconds;
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+
+
+    /// <summary>
     /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
     /// </summary>
     /// <param name="checkOutStamp"></param>
