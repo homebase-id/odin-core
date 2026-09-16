@@ -26,11 +26,10 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveManagement;
 /// and throw on non-2xx. The whole fixture drives <see cref="IRefitDriveManagement"/> via
 /// <see cref="OwnerSession.RefitFor{T}"/>, which keeps each request body verbatim from the original.
 ///
-/// Two names carried over as they were: <c>CanSetSystemDriveReadMode</c> and
-/// <c>CanSetSystemDriveAllowSubscriptionsFlag</c> both operate on a freshly-created ordinary drive,
-/// not a system drive. The behaviour they assert is real and unchanged by the port; only the names
-/// are wrong. <c>FailToSetSystemDriveReadMode</c> is the one that genuinely uses
-/// <see cref="BuiltinDrives.Protected"/>.
+/// <c>CanSetDriveReadMode</c> and <c>CanSetDriveAllowSubscriptionsFlag</c> were called
+/// <c>CanSetSystemDrive*</c> in the original although both operate on a freshly-created ordinary
+/// drive; renamed to match what they do. <c>FailToSetSystemDriveReadMode</c> is the one that
+/// genuinely uses <see cref="BuiltinDrives.Protected"/>.
 ///
 /// <c>SetupCallerWithOwner</c> is not used (no caller matrix — an <c>OwnerApi</c> fixture), so the
 /// create-then-build ordering caveat in the porting rules does not apply.
@@ -220,7 +219,7 @@ public class DriveManagementTests : V2Fixture
     }
 
     [Test]
-    public async Task CanSetSystemDriveReadMode()
+    public async Task CanSetDriveReadMode()
     {
         var owner = await LoginAsOwner();
         var svc = owner.RefitFor<IRefitDriveManagement>();
@@ -268,7 +267,7 @@ public class DriveManagementTests : V2Fixture
     }
 
     [Test]
-    public async Task CanSetSystemDriveAllowSubscriptionsFlag()
+    public async Task CanSetDriveAllowSubscriptionsFlag()
     {
         var owner = await LoginAsOwner();
         var svc = owner.RefitFor<IRefitDriveManagement>();

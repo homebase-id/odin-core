@@ -120,7 +120,7 @@ public class PublishStaticFileTests : V2Fixture
                     },
                     ResultOptions = new SectionResultOptions
                     {
-                        PayloadKeys = [WebScaffold.PAYLOAD_KEY],
+                        PayloadKeys = [SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2().Key],
                         ExcludePreviewThumbnail = false,
                         IncludeHeaderContent = true
                     }

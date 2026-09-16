@@ -130,7 +130,7 @@ public class YouAuthDomainRegistrationTests : V2Fixture
                     PermissionedDrive = new PermissionedDrive
                     {
                         Drive = someDrive,
-                        Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
+                        Permission = DrivePermission.Write | DrivePermission.WriteReactionsAndComments
                     }
                 }
             }
@@ -312,7 +312,7 @@ public class YouAuthDomainRegistrationTests : V2Fixture
                     PermissionedDrive = new PermissionedDrive
                     {
                         Drive = someDrive,
-                        Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
+                        Permission = DrivePermission.Write | DrivePermission.WriteReactionsAndComments
                     }
                 }
             }
@@ -340,10 +340,8 @@ public class YouAuthDomainRegistrationTests : V2Fixture
         });
         Assert.That(grantCircleResponse.IsSuccessStatusCode, Is.True);
 
-        var getUpdatedDomainRegistrationResponse = await GetDomainRegistration(svc, domain);
-        Assert.That(getUpdatedDomainRegistrationResponse.IsSuccessStatusCode, Is.True);
-
         var updatedDomainRegistrationResponse = await GetDomainRegistration(svc, domain);
+        Assert.That(updatedDomainRegistrationResponse.IsSuccessStatusCode, Is.True);
         var updatedDomainRegistration = updatedDomainRegistrationResponse.Content;
         Assert.That(updatedDomainRegistration, Is.Not.Null);
         var someCircleGrant = updatedDomainRegistration.CircleGrants.SingleOrDefault(cg => cg.CircleId == someCircle.Id);
@@ -383,7 +381,7 @@ public class YouAuthDomainRegistrationTests : V2Fixture
                     PermissionedDrive = new PermissionedDrive
                     {
                         Drive = someDrive,
-                        Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
+                        Permission = DrivePermission.Write | DrivePermission.WriteReactionsAndComments
                     }
                 }
             }
@@ -411,10 +409,8 @@ public class YouAuthDomainRegistrationTests : V2Fixture
         });
         Assert.That(grantCircleResponse.IsSuccessStatusCode, Is.True);
 
-        var getUpdatedDomainRegistrationResponse = await GetDomainRegistration(svc, domain);
-        Assert.That(getUpdatedDomainRegistrationResponse.IsSuccessStatusCode, Is.True);
-
         var updatedDomainRegistrationResponse = await GetDomainRegistration(svc, domain);
+        Assert.That(updatedDomainRegistrationResponse.IsSuccessStatusCode, Is.True);
         var updatedDomainRegistration = updatedDomainRegistrationResponse.Content;
         Assert.That(updatedDomainRegistration, Is.Not.Null);
         var circle2Grant = updatedDomainRegistration.CircleGrants.SingleOrDefault(cg => cg.CircleId == someCircle.Id);
@@ -452,7 +448,7 @@ public class YouAuthDomainRegistrationTests : V2Fixture
                     PermissionedDrive = new PermissionedDrive
                     {
                         Drive = someDrive,
-                        Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
+                        Permission = DrivePermission.Write | DrivePermission.WriteReactionsAndComments
                     }
                 }
             }
@@ -660,7 +656,6 @@ public class YouAuthDomainRegistrationTests : V2Fixture
         var circleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(circleId, circleName, grant);
         var definition = await owner.Admin.GetCircleDefinition(circleId);
-        Assert.That(definition.Content, Is.Not.Null);
-        return definition.Content;
+        return definition;
     }
 }
