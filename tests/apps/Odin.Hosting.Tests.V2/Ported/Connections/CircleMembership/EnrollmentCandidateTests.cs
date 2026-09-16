@@ -382,7 +382,7 @@ public class EnrollmentCandidateTests : V2Fixture
         var before = (await frodo.Admin.GetEnrollmentCandidatesForCircle(circleId)).Content!;
         Assert.That(before.Candidates, Is.Empty, "a manual circle implies nobody");
 
-        var definition = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        var definition = await frodo.Admin.GetCircleDefinition(circleId);
         definition.GrantOn = CircleGrantOn.Review;
         var saved = await frodo.Admin.TryUpdateCircleDefinition(definition);
         Assert.That(saved.IsSuccessStatusCode, Is.True, $"update failed: {saved.StatusCode}");
@@ -409,7 +409,7 @@ public class EnrollmentCandidateTests : V2Fixture
         var circleId = await CreateOwnerCircleAsync(frodo, "reader-circle", CircleGrantOn.None,
             DrivePermission.Read);
 
-        var definition = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        var definition = await frodo.Admin.GetCircleDefinition(circleId);
         definition.GrantOn = CircleGrantOn.Connect;
 
         var saved = await frodo.Admin.TryUpdateCircleDefinition(definition);
@@ -417,7 +417,7 @@ public class EnrollmentCandidateTests : V2Fixture
         Assert.That(saved.IsSuccessStatusCode, Is.False,
             $"a read-granting circle must not become ambient, got {saved.StatusCode}");
 
-        var unchanged = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        var unchanged = await frodo.Admin.GetCircleDefinition(circleId);
         Assert.That(unchanged.GrantOn, Is.EqualTo(CircleGrantOn.None), "the refusal must not half-apply");
     }
 
@@ -429,13 +429,13 @@ public class EnrollmentCandidateTests : V2Fixture
         var circleId = await CreateOwnerCircleAsync(frodo, "writer-circle", CircleGrantOn.None,
             DrivePermission.Write | DrivePermission.React);
 
-        var definition = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        var definition = await frodo.Admin.GetCircleDefinition(circleId);
         definition.GrantOn = CircleGrantOn.Connect;
 
         var saved = await frodo.Admin.TryUpdateCircleDefinition(definition);
         Assert.That(saved.IsSuccessStatusCode, Is.True, $"update failed: {saved.StatusCode}");
 
-        var after = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        var after = await frodo.Admin.GetCircleDefinition(circleId);
         Assert.That(after.GrantOn, Is.EqualTo(CircleGrantOn.Connect));
     }
 

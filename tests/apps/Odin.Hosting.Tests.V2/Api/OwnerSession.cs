@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
@@ -75,5 +76,23 @@ public sealed class OwnerSession : IV2Caller
     {
         var http = Factory.CreateHttpClient(Identity, out var ss);
         return (http, ss);
+    }
+
+    /// <summary>
+    /// The Refit surface <typeparamref name="T"/> as this owner, handing back the raw
+    /// <c>ApiResponse</c>. Use this when a refusal is the thing under test.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Admin"/> is arrange-only: its helpers pick opinionated defaults and throw on
+    /// non-2xx, because setup that fails is a broken test rather than an expected outcome. That
+    /// makes it the wrong tool once an admin endpoint becomes the system under test — you need the
+    /// caller's own request shape and the unfiltered response. Reach for this instead of adding a
+    /// non-throwing twin to <see cref="OwnerAdmin"/>; the twin would have to be repeated for
+    /// roughly half the admin surface.
+    /// </remarks>
+    public T RefitFor<T>()
+    {
+        var (client, ss) = NewAdminHttpClient();
+        return RefitCreator.RestServiceFor<T>(client, ss);
     }
 }

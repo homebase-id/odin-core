@@ -530,7 +530,7 @@ public class V1TagTests : V2Fixture
             QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = spec.TargetDrive,
-                LocalTagsMatchAtLeastOne = [tag3]
+                LocalTagsMatchAll = [tag1, tag2]
             },
             ResultOptions = new QueryModifiedResultOptions()
             {

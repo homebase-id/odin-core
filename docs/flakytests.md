@@ -250,3 +250,26 @@ is only correct for a service that is *slow to start*; for one that will never s
 guaranteed 30 s stall plus an error. That distinction is a real defect in
 `BackgroundServiceManager` (it also stalls CLI mode and pre-provisioned-cert hosts, and PR #1757
 works around it in the fast test host); fixing it would likely make this flake impossible too.
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.Peer.DeleteBatchTests`
+
+- `DeleteFileIdBatch_WithSingleRecipient_PropagatesDeleteToRecipient`
+
+**Where:** local, full `Odin.Hosting.Tests.V2` run (2026-09-16), 1 failure in 2 consecutive runs
+of the same build.
+
+**Symptom:** the recipient's copy has not flipped to `Deleted` by the time the assertion runs.
+
+**Not caused by the change in flight:** the change was porting five unrelated `_Universal`
+drive fixtures onto the fast framework; it touches neither this fixture nor the peer outbox. The
+identical build passed the immediately following run, so the failure reproduces on neither the
+change nor its absence.
+
+**Pattern worth noting:** this is the fifth entry in the timing-sensitive peer-delivery family
+(`TransferHistoryTests`, `InboxDrainOnQueryTests`, the Shamir entry, and this). Per the note on
+those, the shared cause is worth chasing rather than re-running -- they all assert on delivery
+they do not deterministically wait for. The fast framework has `Sync.DrainOutboxAsync()` /
+`ProcessInboxAsync()` for exactly this; a port that keeps a V1-style implicit wait inherits the
+flake.
