@@ -19,6 +19,18 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.Notifications;
 
+/// <summary>
+/// Coverage for the V2 scheduled (deferred) push-notification API: schedule, list, cancel, update,
+/// per-app scoping, and the per-tenant pending cap.
+///
+/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>),
+/// but of the ten cases here only <see cref="ScheduledNotification_FiresAndLandsInNotificationList"/>
+/// truly needs it — that one waits on the background job runner, which the fast framework never
+/// starts. <see cref="ScheduledNotification_CanBeCancelledBeforeItFires"/> also closes on a delivery
+/// assertion, though a negative one, so it would need adapting rather than copying. The other eight
+/// are plain REST and could move to a <c>V2Fixture</c>; they were written here only because this file
+/// already existed. Worth porting if anyone is in here anyway.
+/// </summary>
 [TestFixture]
 public class ScheduledNotificationTests
 {
