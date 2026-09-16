@@ -23,7 +23,7 @@ public class AddRemoteReactionOutboxWorker(
     OdinConfiguration odinConfiguration
 ) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -40,7 +40,7 @@ public class AddRemoteReactionOutboxWorker(
                 FileItem.Recipient,
                 FileItem.Marker);
 
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (OdinOutboxProcessingException e)
         {
@@ -101,6 +101,7 @@ public class AddRemoteReactionOutboxWorker(
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = item.File.ToGlobalTransitIdFileIdentifier().GlobalTransitId,
                 Recipient = recipient,
@@ -142,10 +143,10 @@ public class AddRemoteReactionOutboxWorker(
         return Task.FromResult(nextRunTime);
     }
 
-    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(
+    protected override Task<OutboxProcessingResult> HandleUnrecoverableTransferStatus(
         OdinOutboxProcessingException e,
         IOdinContext odinContext)
     {
-        return Task.FromResult((false, UnixTimeUtc.ZeroTime));
+        return Task.FromResult(OutboxProcessingResult.Retry(UnixTimeUtc.ZeroTime));
     }
 }

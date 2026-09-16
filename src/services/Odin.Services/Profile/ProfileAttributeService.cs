@@ -19,6 +19,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Registry;
 using Odin.Services.Util;
 
 namespace Odin.Services.Profile;
@@ -53,7 +54,8 @@ namespace Odin.Services.Profile;
 /// </summary>
 public class ProfileAttributeService(
     ILogger<ProfileAttributeService> logger,
-    StandardFileSystem fileSystem)
+    StandardFileSystem fileSystem,
+    TenantQuotaGuard quotaGuard)
 {
     /// <summary>File type of a profile attribute on the ProfileDrive (odin-js <c>AttributeConfig.AttributeFileType</c>).</summary>
     public const int AttributeFileType = 77;
@@ -143,6 +145,8 @@ public class ProfileAttributeService(
     public async Task<ProfileAttributeWriteResult> SetPhotoAttributeAsync(SetPhotoAttributeRequest request,
         IOdinContext odinContext)
     {
+        quotaGuard.AssertCanAddPayloadBytes();
+
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "Photo content is required");
         if (request.Content.Length > MaxPhotoContentBytes)

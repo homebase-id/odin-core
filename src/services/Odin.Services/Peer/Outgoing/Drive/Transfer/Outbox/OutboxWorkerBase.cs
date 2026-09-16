@@ -44,7 +44,7 @@ public abstract class OutboxWorkerBase(
         }
     }
 
-    protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext,
+    protected async Task<OutboxProcessingResult> HandleOutboxProcessingException(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Failed to process outbox item (type: {type}) for recipient: {recipient} " +
@@ -55,6 +55,31 @@ public abstract class OutboxWorkerBase(
             e.TransferStatus);
 
 
+        // The recipient is paused or out of quota and told us when to come back. Wait it out instead of
+        // spending attempts, but do not wait forever.
+        if (e.RetryAfter.HasValue && !IsUnrecoverable(e.TransferStatus))
+        {
+            var now = UnixTimeUtc.Now();
+            if (OutboxRetryLater.IsExpired(FileItem.AddedTimestamp, now, Configuration.Host.OutboxRetryLaterMaxAge))
+            {
+                logger.LogInformation(
+                    "Recipient {recipient} has been asking us to retry later since {added}; giving up on file {file}",
+                    FileItem.Recipient, FileItem.AddedTimestamp, FileItem.File);
+
+                e.TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts;
+            }
+            else
+            {
+                var nextRunTime = OutboxRetryLater.NextRun(e.RetryAfter.Value, now);
+                logger.LogDebug("Recipient {recipient} asked us to retry after {retryAfter}; next attempt at {nextRun}",
+                    FileItem.Recipient, e.RetryAfter.Value, nextRunTime);
+
+                PerformanceCounter.IncrementCounter("Outbox Retry Later");
+                await HandleRecoverableTransferStatus(odinContext, e);
+                return OutboxProcessingResult.RetryLater(nextRunTime);
+            }
+        }
+
         switch (e.TransferStatus)
         {
             case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
@@ -64,7 +89,7 @@ public abstract class OutboxWorkerBase(
                 logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
                 await HandleUnrecoverableTransferStatus(e, odinContext);
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientServerNotResponding:
@@ -72,11 +97,19 @@ public abstract class OutboxWorkerBase(
                 logger.LogDebug(e, "Recoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
                 var nextRun = await HandleRecoverableTransferStatus(odinContext, e);
-                return (false, nextRun);
+                return OutboxProcessingResult.Retry(nextRun);
 
             default:
                 throw new OdinSystemException("Unhandled LatestTransferStatus");
         }
+    }
+
+    private static bool IsUnrecoverable(LatestTransferStatus status)
+    {
+        return status is LatestTransferStatus.RecipientIdentityReturnedAccessDenied
+            or LatestTransferStatus.UnknownServerError
+            or LatestTransferStatus.RecipientIdentityReturnedBadRequest
+            or LatestTransferStatus.SendingServerTooManyAttempts;
     }
 
     protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
@@ -99,6 +132,37 @@ public abstract class OutboxWorkerBase(
         }
 
         return LatestTransferStatus.RecipientIdentityReturnedServerError;
+    }
+
+    /// <summary>
+    /// The Retry-After the recipient asked for, when it answered "come back later" (503 while paused,
+    /// 507 while out of quota). Null for every other response, including a 503 without the header.
+    /// </summary>
+    protected TimeSpan? RetryAfterFrom<T>(ApiResponse<T> response)
+    {
+        if (response.StatusCode is not (HttpStatusCode.ServiceUnavailable or HttpStatusCode.InsufficientStorage))
+        {
+            return null;
+        }
+
+        var retryAfter = response.Headers?.RetryAfter;
+        if (retryAfter == null)
+        {
+            return null;
+        }
+
+        if (retryAfter.Delta.HasValue)
+        {
+            return retryAfter.Delta.Value;
+        }
+
+        if (retryAfter.Date.HasValue)
+        {
+            var delta = retryAfter.Date.Value - DateTimeOffset.UtcNow;
+            return delta > TimeSpan.Zero ? delta : TimeSpan.Zero;
+        }
+
+        return null;
     }
 
     protected UnixTimeUtc CalculateNextRunTime(LatestTransferStatus transferStatus)

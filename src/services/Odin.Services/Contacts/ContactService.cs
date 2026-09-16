@@ -18,6 +18,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Registry;
 using Odin.Services.Util;
 
 namespace Odin.Services.Contacts;
@@ -36,7 +37,8 @@ namespace Odin.Services.Contacts;
 /// </summary>
 public class ContactService(
     ILogger<ContactService> logger,
-    StandardFileSystem fileSystem)
+    StandardFileSystem fileSystem,
+    TenantQuotaGuard quotaGuard)
 {
     public const int ContactFileType = 100;
 
@@ -257,6 +259,8 @@ public class ContactService(
     /// </summary>
     public async Task<ContactWriteResult> SetImageAsync(Guid uniqueId, SetContactImageRequest request, IOdinContext odinContext)
     {
+        quotaGuard.AssertCanAddPayloadBytes();
+
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "image content is required");

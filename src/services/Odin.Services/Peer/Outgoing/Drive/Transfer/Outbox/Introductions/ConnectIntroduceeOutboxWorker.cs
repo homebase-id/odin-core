@@ -20,7 +20,7 @@ public class ConnectIntroduceeOutboxWorker(
     OdinConfiguration odinConfiguration,
     CircleNetworkIntroductionService introductionService) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
@@ -38,7 +38,7 @@ public class ConnectIntroduceeOutboxWorker(
         {
             // Recipient blocked us (or otherwise refused at the network edge). Equivalent to the
             // OdinSecurityException case below — retrying won't change the answer, mark complete.
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (OdinClientException e)
         {
@@ -46,11 +46,11 @@ public class ConnectIntroduceeOutboxWorker(
             // without saying why, so a stalled introduction could not be diagnosed from the logs (#1778).
             logger.LogWarning(e, "ConnectIntroducee to {recipient} failed with {code} (attempt {attempt}); retrying",
                 recipient, e.ErrorCode, FileItem.AttemptCount);
-            return (false, CalculateBackoffNextRunTime());
+            return OutboxProcessingResult.Retry(CalculateBackoffNextRunTime());
         }
         catch (OdinSecurityException)
         {
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (Exception ex)
         {
@@ -68,7 +68,7 @@ public class ConnectIntroduceeOutboxWorker(
             };
         }
 
-        return (true, UnixTimeUtc.ZeroTime);
+        return OutboxProcessingResult.Complete();
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)

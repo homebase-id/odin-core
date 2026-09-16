@@ -28,7 +28,7 @@ public class SendFileOutboxWorkerAsync(
     IOdinHttpClientFactory odinHttpClientFactory
 ) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -45,7 +45,7 @@ public class SendFileOutboxWorkerAsync(
             await UpdateFileTransferHistory(globalTransitId, versionTag, odinContext);
             logger.LogDebug("Successful transfer of {gtid} to {recipient} - ", globalTransitId, FileItem.Recipient);
 
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (OdinOutboxProcessingException e)
         {
@@ -175,6 +175,7 @@ public class SendFileOutboxWorkerAsync(
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = RetryAfterFrom(response),
                 VersionTag = versionTag,
                 GlobalTransitId = globalTransitId,
                 Recipient = recipient,
