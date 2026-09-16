@@ -178,6 +178,51 @@ public sealed partial class OwnerAdmin
         return response;
     }
 
+    /// <summary>
+    /// Gives a drive that belongs to no app an owning app, and the address that goes with it.
+    /// One way: it fills an empty owner and never moves a set one — use
+    /// <see cref="TryReassignDriveOwningApp"/> for that. Does not throw, so a refusal can be
+    /// asserted on.
+    /// </summary>
+    public Task<ApiResponse<HttpContent>> TrySetDriveOwningApp(
+        TargetDrive drive,
+        Guid appId,
+        string? driveSlug = null,
+        string? driveTypeSlug = null)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
+        return svc.SetDriveOwningApp(new SetDriveOwningAppRequest
+        {
+            TargetDrive = drive,
+            AppId = appId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug,
+        });
+    }
+
+    /// <summary>
+    /// Moves an already-owned drive to another app under a stated address — the escape hatch out of
+    /// <see cref="TrySetDriveOwningApp"/>'s one-way rule. Does not throw, so a refusal can be
+    /// asserted on.
+    /// </summary>
+    public Task<ApiResponse<HttpContent>> TryReassignDriveOwningApp(
+        TargetDrive drive,
+        Guid appId,
+        string? driveSlug = null,
+        string? driveTypeSlug = null)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
+        return svc.ReassignDriveOwningApp(new SetDriveOwningAppRequest
+        {
+            TargetDrive = drive,
+            AppId = appId,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug,
+        });
+    }
+
     // -----------------------------------------------------------------------------------------
     // Tenant configuration flags
     // -----------------------------------------------------------------------------------------
