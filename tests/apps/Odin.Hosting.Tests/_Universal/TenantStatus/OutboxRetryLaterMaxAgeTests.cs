@@ -35,7 +35,7 @@ namespace Odin.Hosting.Tests._Universal.TenantStatus;
 
 /// <summary>
 /// A recipient that keeps saying "retry later" does not hold an item forever: the sender gives up once
-/// the item is older than Host:OutboxRetryLaterMaxAgeSeconds (7 days in production, 1 second here).
+/// the item is older than Host:OutboxRetryLaterMaxAgeSeconds (7 days in production, 10 seconds here).
 /// </summary>
 public class OutboxRetryLaterMaxAgeTests
 {
@@ -46,7 +46,7 @@ public class OutboxRetryLaterMaxAgeTests
     {
         _scaffold = new WebScaffold(GetType().Name);
         var env = AdminEnv();
-        env["Host__OutboxRetryLaterMaxAgeSeconds"] = "1";
+        env["Host__OutboxRetryLaterMaxAgeSeconds"] = "10";
         _scaffold.RunBeforeAnyTests(envOverrides: env, testIdentities: [TestIdentities.Frodo, TestIdentities.Samwise]);
     }
 
@@ -91,8 +91,11 @@ public class OutboxRetryLaterMaxAgeTests
             await DrainOutboxAsync(_scaffold, sender.Identity);
             Assert.That(await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive), Has.Count.EqualTo(1), "still queued after the first refusal");
 
-            // Once it is older than the max age (1s here), the next attempt gives up
-            await Task.Delay(TimeSpan.FromMilliseconds(1100));
+            // Once it is older than the max age (10s here), the next attempt gives up. The window is
+            // generous on purpose: the deadline runs from the outbox row's created, and the first drain
+            // makes several attempts of its own, so a tight window would drop the item too early on a
+            // loaded CI runner and the assertion above would fail instead.
+            await Task.Delay(TimeSpan.FromSeconds(11));
             await DrainOutboxAsync(_scaffold, sender.Identity);
 
             Assert.That(await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive), Is.Empty, "the item is dropped once it is too old");
