@@ -11,7 +11,7 @@ the wire.
 | Per-test cost | ~5–20 ms (snapshot restore + payload wipe) | none (state leaks) |
 | Fixture parallelism | yes (`ParallelScope.Fixtures`) | no (fixed ports) |
 | Peer-to-peer flows | in-process, ~1 s end-to-end | over real loopback HTTPS |
-| Wall clock (full V2 suite) | ~25 s (229 tests) | ~55 s (249 tests on Kestrel + TLS) |
+| Wall clock (full V2 suite) | a couple of minutes, and roughly flat as tests are added | ~20 min, and grows linearly |
 
 Coexists with the V1 framework. V1 controller tests are being migrated here — see **Porting rules** below.
 
@@ -122,7 +122,7 @@ Three test-only seams make this work:
 
 ## Non-goals
 
-- **V1 controller tests are no longer a non-goal.** V1 endpoints work here: the V1-shaped Refit clients from `_Universal` are reused unchanged, and `InProcessApiClientFactory` resolves their relative paths against the caller's own V1 base (`/api/owner/v1`, `/api/apps/v1`, `/api/guest/v1`) so Owner/App/Guest permission matrices behave as they do on Kestrel. See **Porting rules**.
+- **V1 controller tests are no longer a non-goal.** V1 endpoints work here: the V1-shaped Refit clients from `_Universal` are reused as-is, and `InProcessApiClientFactory` resolves their relative paths against the caller's own V1 base (`/api/owner/v1`, `/api/apps/v1`, `/api/guest/v1`) so Owner/App/Guest permission matrices behave as they do on Kestrel. See **Porting rules**.
 - **mTLS-bound paths** — V2 tests run TLS-less; anything that genuinely requires client cert auth has to stay on real Kestrel.
 - **Background-service timer behavior** — services are registered but never started. Anything time-driven (cert renewal, orphan scan, scheduled jobs) needs the V1 framework. Tests drain the peer outbox explicitly via `Sync.DrainOutboxAsync` and process the inbox via `Sync.ProcessInboxAsync`.
 - **WebSocket-driven flows** — the host registers `SharedDeviceSocketCollection` but no V2 test currently opens a socket. The reset path does *not* clear those registries; the first test that holds a socket across the boundary will need to add a drain hook (see the "What this does NOT reset" note on `OdinHost.ResetAsync`).
@@ -183,9 +183,9 @@ re-deriving, which is how the first batches ended up with three spellings of the
 
 **Things that bite**
 - `SetupCallerWithOwner` creates the drive *and* builds the caller in one step. If the original did
-  anything between those two points, it now happens after. This has been hit in four fixtures so
-  far and been inert each time — but check, and record the verdict in the fixture's `<remarks>` so
-  a reviewer can tell a checked port from an unchecked one.
+  anything between those two points, it now happens after. It has been inert every time so far —
+  but check, and record the verdict in the fixture's `<remarks>` so a reviewer can tell a checked
+  port from an unchecked one.
 - Convert a trailing `if (expected == OK) { … }` to an early `if (expected != OK) return;` — unless
   a statement after the block has to run for every row (a cleanup `Delete`, say). Check first.
 - Don't seed for rows that early-return. Guest and no-permission App rows are refused at authz
@@ -193,7 +193,59 @@ re-deriving, which is how the first batches ended up with three spellings of the
   `expected == HttpStatusCode.OK`.
 - A port is a move, not a rewrite. Carry `[Ignore]`s over verbatim. If you find an assertion that
   never ran or a test that doesn't test its own name, leave the behaviour alone and say so in the
-  commit message — three such defects have surfaced this way already.
+  commit message. Several such defects have surfaced this way; finding them is a side benefit of
+  the migration, but fixing them inside a port makes the diff unreviewable.
+
+**Asserting a response**
+- Success and refusal both take the same form: `Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK))`.
+  No message — NUnit prints both codes — and don't also assert `IsSuccessStatusCode`, which is the
+  same claim in a form that prints `Expected: True`.
+- This is the exception to "never pass a precomputed bool": `IsSuccessStatusCode` is one, and it
+  appears hundreds of times in older fixtures. Don't go changing those; do write new ones the form
+  above.
+- Reading one entity back: prefer the single-entity helper (`owner.Admin.GetCircleDefinition`,
+  `GetDrive`) over list-then-`.Single()`. Use the list endpoint only when the list is the SUT.
+
+**Cleanup**
+- Trailing `Delete` / `Cleanup` calls that only restore state go away. Per-test reset already
+  guarantees it, and "a port is a move" doesn't extend to lifecycle, which `V2Fixture` owns.
+  Anything that also *asserts* stays — a delete whose response is checked is a test, not cleanup.
+
+**Refit interfaces**
+- `RefitFor<T>` is not limited to `_Universal` interfaces — the `OwnerApi/ApiClient/…` ones are fair
+  game and are sometimes the only typed option (the `_Universal` circle interface has no
+  `SetCircleOwningApp` at all).
+- **Watch out:** `IRefitOwnerCircleDefinition` exists *twice*, under
+  `OwnerApi/ApiClient/Membership/Circles` and `_Universal/ApiClient/Owner/CircleMembership`, with
+  different members and return types. `owner.RefitFor<IRefitOwnerCircleDefinition>()` reads
+  identically either way — only the `using` decides. Check which one you bound to.
+- Need an endpoint the interface doesn't declare? Add the declaration to the `_Universal` one. That
+  is the surface that survives V1 retirement; its `OwnerApi` twins are being deleted as their last
+  consumers go.
+- When a fixture's SUT *is* the admin surface, "Admin for arrange, RefitFor for the SUT" collapses to
+  RefitFor everywhere. Don't split such a fixture half-and-half — `owner.Admin`'s opinionated
+  defaults (metadata, page size, descriptions) silently change the request the original sent.
+- Moving an arrange step onto an `OwnerAdmin` helper swaps in those defaults. Check every assertion
+  that could read one, and say so in `<remarks>`.
+
+**Stays on WebScaffold**
+- Some fixtures can't move: WebSocket-driven, mTLS, or dependent on background-service timers. They
+  carry a `FLAGGED:` banner in their class doc saying which blocker and what unblocking would cost.
+  `grep -rn FLAGGED tests/apps/Odin.Hosting.Tests/` enumerates them.
+- Check the whole folder, not the fixture: the socket usually lives in a sibling helper, so a
+  fixture can be socket-bound without naming `ClientWebSocket` itself. `_Universal/AppNotifications/`
+  and the LiveRelay fixtures are wholesale out of scope for this reason.
+
+**Keeping this file true**
+- Every ported fixture's class doc starts with `Port of <original path>`. Once the original is
+  deleted, that line is the only record of what the fixture was, and the only way to answer "has X
+  been ported?" without archaeology.
+- Record a carried defect in the fixture's `<remarks>`, not only the commit message. The commit
+  message is where a reviewer won't look in six months, and it's where this batch's two missed
+  defects should have been caught.
+- A batch that establishes a new convention, or breaks a stated one, updates this file in the same
+  commit. This section exists because three batches' worth of conventions lived as prose on whichever
+  fixture happened to invent them.
 
 **Naming**
 - The `V1` class-name prefix means only "a fixture from `_V2/` already owns this class name in this
@@ -225,11 +277,9 @@ Peer/       PeerFlow           ← drive-create + circle + connect helper (+ bid
             FrodoToSamPeerTransferTests, PeerScenarioTests
 Isolation/  PerTestResetTests  ← proves per-test reset isolates state
             SyncHooksTests     ← proves drain hooks + AppSync resolve
-Ported/     Tests ported from _V2/Tests/, organized by concern:
-            Auth/, Ping/, DriveRead/, DriveWrite/, LocalAppMetadata/, Reactions/.
-            (Peer/ Connections/ Cdn/ folders pre-exist for the later phases.)
-            Will rename to flat topical folders under the framework root once all
-            phases land and "Ported" stops being a useful distinction.
+Ported/     Migrated fixtures, in a folder named for the original's subject. Where two source
+            trees collide on a class name, the newer arrival takes a `V1` prefix (see Naming).
+            Flattens into the framework root once the migration lands.
 Smoke/      Ping + multi-tenant routing smokes (ResetBetweenTests = false)
 ```
 

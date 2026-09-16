@@ -49,27 +49,24 @@ public class CircleOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(circleId, "Circle awaiting an owner", ReadCircleMembershipGrant());
 
-        var before = (await owner.Admin.GetCircleDefinition(circleId)).Content;
-        Assert.That(before, Is.Not.Null);
+        var before = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(before.AppId, Is.Null, "a circle created without an app must start unowned");
 
         var adopt = await SetOwningApp(owner, circleId, appId);
         Assert.That(adopt.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {adopt.StatusCode}");
 
-        var after = (await owner.Admin.GetCircleDefinition(circleId)).Content;
-        Assert.That(after, Is.Not.Null);
+        var after = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(after.AppId, Is.EqualTo(appId));
 
         // Adoption names an administrator.  Everything the circle actually grants is untouched.
         Assert.That(after.Name, Is.EqualTo(before.Name));
         Assert.That(after.Description, Is.EqualTo(before.Description));
-        Assert.That(after.Permissions.HasKey(PermissionKeys.ReadCircleMembership), Is.True);
+        Assert.That(after.Permissions.Keys, Does.Contain(PermissionKeys.ReadCircleMembership));
         Assert.That(after.GrantOn, Is.EqualTo(before.GrantOn));
         Assert.That(after.Designation, Is.EqualTo(before.Designation));
         Assert.That(after.Emoji, Is.EqualTo(before.Emoji));
@@ -97,7 +94,7 @@ public class CircleOwningAppTests : V2Fixture
         Assert.That(second.IsSuccessStatusCode, Is.False, "ownership must not be reassignable");
         Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
-        var after = (await owner.Admin.GetCircleDefinition(circleId)).Content;
+        var after = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(after!.AppId, Is.EqualTo(firstAppId), "the refused call must not have moved it");
     }
 
@@ -108,8 +105,7 @@ public class CircleOwningAppTests : V2Fixture
         // circle, and that is the reading worth failing on.
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(circleId, "Circle adopted twice by one app", ReadCircleMembershipGrant());
@@ -117,7 +113,6 @@ public class CircleOwningAppTests : V2Fixture
         Assert.That((await SetOwningApp(owner, circleId, appId)).IsSuccessStatusCode, Is.True);
 
         var again = await SetOwningApp(owner, circleId, appId);
-        Assert.That(again.IsSuccessStatusCode, Is.False);
         Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -133,11 +128,9 @@ public class CircleOwningAppTests : V2Fixture
         await owner.Admin.CreateCircle(circleId, "Circle offered to nobody", ReadCircleMembershipGrant());
 
         var response = await SetOwningApp(owner, circleId, Guid.NewGuid());
-
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
-        var after = (await owner.Admin.GetCircleDefinition(circleId)).Content;
+        var after = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(after!.AppId, Is.Null, "the circle must still be adoptable");
     }
 
@@ -146,12 +139,9 @@ public class CircleOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var response = await SetOwningApp(owner, Guid.NewGuid(), appId);
-
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -182,12 +172,12 @@ public class CircleOwningAppTests : V2Fixture
         Assert.That(response.Content.EnrollmentsRepointed, Is.EqualTo(0),
             "no enrollments were queued against this circle");
 
-        var after = (await owner.Admin.GetCircleDefinition(circleId)).Content;
+        var after = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(after!.AppId, Is.EqualTo(secondAppId));
 
         // Reassignment moves ownership only; it must not disturb what the circle grants.
         Assert.That(after.Name, Is.EqualTo(circleName));
-        Assert.That(after.Permissions.HasKey(PermissionKeys.ReadCircleMembership), Is.True);
+        Assert.That(after.Permissions.Keys, Does.Contain(PermissionKeys.ReadCircleMembership));
     }
 
     [Test]
@@ -197,8 +187,7 @@ public class CircleOwningAppTests : V2Fixture
         // came from, only that the destination is real and the circle is not a system one.
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(circleId, "Never owned", ReadCircleMembershipGrant());
@@ -206,7 +195,7 @@ public class CircleOwningAppTests : V2Fixture
         var response = await ReassignOwningApp(owner, circleId, appId);
 
         Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
-        Assert.That(((await owner.Admin.GetCircleDefinition(circleId)).Content)!.AppId, Is.EqualTo(appId));
+        Assert.That((await owner.Admin.GetCircleDefinition(circleId))!.AppId, Is.EqualTo(appId));
     }
 
     [Test]
@@ -214,13 +203,10 @@ public class CircleOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var response = await ReassignOwningApp(
             owner, SystemCircleConstants.ConfirmedConnectionsCircleId.Value, appId);
-
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -229,8 +215,7 @@ public class CircleOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(circleId, "Going nowhere", ReadCircleMembershipGrant());
@@ -238,10 +223,8 @@ public class CircleOwningAppTests : V2Fixture
         Assert.That((await SetOwningApp(owner, circleId, appId)).IsSuccessStatusCode, Is.True);
 
         var response = await ReassignOwningApp(owner, circleId, Guid.NewGuid());
-
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(((await owner.Admin.GetCircleDefinition(circleId)).Content)!.AppId, Is.EqualTo(appId),
+        Assert.That((await owner.Admin.GetCircleDefinition(circleId))!.AppId, Is.EqualTo(appId),
             "the refused call must not have moved it");
     }
 

@@ -39,7 +39,7 @@ public class TreeDeclaredCircleFlagTests : V2Fixture
 
         var moments = await frodo.Admin.GetCircleDefinition(BuiltinCircles.MomentsCircle.Id);
 
-        Assert.That(moments.Content!.IsTreeDeclared, Is.True,
+        Assert.That(moments.IsTreeDeclared, Is.True,
             "Moments is declared in the app tree, so its rule is re-applied on every upgrade");
     }
 
@@ -52,8 +52,8 @@ public class TreeDeclaredCircleFlagTests : V2Fixture
         var definition = await frodo.Admin.GetCircleDefinition(circleId);
 
         // The point of the flag: app-owned, but declared nowhere, so an owner's edit stands.
-        Assert.That(definition.Content!.AppId, Is.Not.Null);
-        Assert.That(definition.Content!.IsTreeDeclared, Is.False,
+        Assert.That(definition.AppId, Is.Not.Null);
+        Assert.That(definition.IsTreeDeclared, Is.False,
             "a circle minted at runtime is owned by an app but named by no catalogue");
     }
 
@@ -63,14 +63,14 @@ public class TreeDeclaredCircleFlagTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var (circleId, _) = await CreateAppOwnedCircleAsync(frodo);
 
-        var definition = (await frodo.Admin.GetCircleDefinition(circleId)).Content!;
+        var definition = await frodo.Admin.GetCircleDefinition(circleId);
         definition.IsTreeDeclared = true;
         var update = await frodo.Admin.TryUpdateCircleDefinition(definition);
         Assert.That(update.IsSuccessStatusCode, Is.True, "the field is ignored, not rejected");
 
         var reread = await frodo.Admin.GetCircleDefinition(circleId);
 
-        Assert.That(reread.Content!.IsTreeDeclared, Is.False,
+        Assert.That(reread.IsTreeDeclared, Is.False,
             "the answer comes from the build's catalogue, never from the row");
     }
 

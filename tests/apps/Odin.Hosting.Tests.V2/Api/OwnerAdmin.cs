@@ -244,11 +244,11 @@ public sealed partial class OwnerAdmin
     }
 
     /// <summary>Reads a circle definition.</summary>
-    public async Task<ApiResponse<CircleDefinition>> GetCircleDefinition(Guid circleId)
+    public async Task<CircleDefinition> GetCircleDefinition(Guid circleId)
     {
         var response = await _network.GetCircleDefinition(circleId);
         EnsureSuccess(response, nameof(GetCircleDefinition));
-        return response;
+        return response.Content!;
     }
 
     /// <summary>Writes a circle definition back.  Does not throw, so a refusal can be asserted on.</summary>

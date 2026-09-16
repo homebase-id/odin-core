@@ -31,8 +31,7 @@ public class DriveOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Field Notes", allowAnonymousReads: false);
@@ -68,8 +67,7 @@ public class DriveOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Anything", allowAnonymousReads: false);
@@ -89,8 +87,7 @@ public class DriveOwningAppTests : V2Fixture
         // against, so handing back "news-2" would look like success.
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var first = TargetDrive.NewTargetDrive();
         var second = TargetDrive.NewTargetDrive();
@@ -100,7 +97,6 @@ public class DriveOwningAppTests : V2Fixture
         Assert.That((await SetOwningApp(owner, first, appId, "news")).IsSuccessStatusCode, Is.True);
 
         var response = await SetOwningApp(owner, second, appId, "news");
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         var secondAfter = await owner.Admin.GetDrive(second);
@@ -161,13 +157,11 @@ public class DriveOwningAppTests : V2Fixture
         // null AppId wait on provisioning to stamp it, not on the owner to guess.
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var systemDrive = BuiltinDrives.Protected.First();
 
         var response = await SetOwningApp(owner, systemDrive, appId);
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -182,7 +176,6 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Offered to nobody", allowAnonymousReads: false);
 
         var response = await SetOwningApp(owner, drive, Guid.NewGuid());
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         Assert.That((await owner.Admin.GetDrive(drive)).AppId, Is.Null, "the drive must still be adoptable");
@@ -196,8 +189,7 @@ public class DriveOwningAppTests : V2Fixture
         // resolving, so it must not be swapped for a name-derived one on the way past.
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Something Else Entirely", allowAnonymousReads: false, driveSlug: "news");
@@ -221,8 +213,7 @@ public class DriveOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: "news");
@@ -239,14 +230,12 @@ public class DriveOwningAppTests : V2Fixture
         // address is never something adoption does on the way past.
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: "news");
 
         var response = await SetOwningApp(owner, drive, appId, "headlines");
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         var after = await owner.Admin.GetDrive(drive);
@@ -262,8 +251,7 @@ public class DriveOwningAppTests : V2Fixture
         // violation rather than a client error.
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var owned = TargetDrive.NewTargetDrive();
         var orphan = TargetDrive.NewTargetDrive();
@@ -274,7 +262,6 @@ public class DriveOwningAppTests : V2Fixture
 
         // The orphan keeps "news", which the target app now holds.
         var response = await SetOwningApp(owner, orphan, appId);
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -283,8 +270,7 @@ public class DriveOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Anything", allowAnonymousReads: false);
@@ -292,7 +278,6 @@ public class DriveOwningAppTests : V2Fixture
         // Not coerced to "news": a slug is a wire address, so a malformed one is rejected rather
         // than turned into an address the caller did not ask for.
         var response = await SetOwningApp(owner, drive, appId, " News ");
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -338,7 +323,6 @@ public class DriveOwningAppTests : V2Fixture
         Assert.That((await SetOwningApp(owner, drive, firstAppId, "news")).IsSuccessStatusCode, Is.True);
 
         var response = await ReassignOwningApp(owner, drive, secondAppId);
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         var after = await owner.Admin.GetDrive(drive);
@@ -366,7 +350,6 @@ public class DriveOwningAppTests : V2Fixture
             Is.True);
 
         var response = await ReassignOwningApp(owner, mover, secondAppId, "news");
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -398,11 +381,9 @@ public class DriveOwningAppTests : V2Fixture
     {
         var owner = await LoginAsOwner();
 
-        var appId = Guid.NewGuid();
-        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest());
+        var appId = await owner.Admin.RegisterBareApp();
 
         var response = await ReassignOwningApp(owner, BuiltinDrives.Protected.First(), appId, "anything");
-        Assert.That(response.IsSuccessStatusCode, Is.False);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
