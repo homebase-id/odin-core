@@ -25,6 +25,16 @@ public class DeviceSocketCollection
         _sockets.TryAdd(socket.Key, socket);
     }
 
+    /// <summary>
+    /// Closes and removes every socket; returns how many there were
+    /// </summary>
+    public async Task<int> RemoveAllSocketsAsync(WebSocketCloseStatus status, string message)
+    {
+        var keys = _sockets.Keys.ToList();
+        await Task.WhenAll(keys.Select(key => RemoveSocket(key, status, message)));
+        return keys.Count;
+    }
+
     public async Task RemoveSocket(Guid key, WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure, string message = "")
     {
         if (_sockets.TryRemove(key, out var entry))
