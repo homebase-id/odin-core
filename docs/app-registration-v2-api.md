@@ -17,7 +17,8 @@ bundle token.
 - **Bundle-token requests** send `Authorization: Bearer <base64 ClientAuthenticationToken>` and are
   shared-secret encrypted with the token's shared secret. The optional header `X-ODIN-APP-ID: <appId>`
   picks the acting app; the default is the primary app. V2 does **not** read the `bx0900` header.
-- Errors: 400 with the standard Odin error body (`errorCode`, `message`); 401/403 from auth.
+- Errors: 400 as ProblemDetails -- the message is in `title`, the Odin error code in `errorCode` -- and
+  shared-secret encrypted like any other owner response; 401/403 from auth.
 
 ### Shared shapes
 
