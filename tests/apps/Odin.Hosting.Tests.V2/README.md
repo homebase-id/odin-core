@@ -196,10 +196,59 @@ re-deriving, which is how the first batches ended up with three spellings of the
   `Guest[Write]` row clears the drive check and is refused deep enough in that a non-existent file
   answers 500. Those rows still need a local seed; what they don't need is the peer arrange
   (recipient logins, drives, connection handshakes), which is where the time actually goes.
+- **Every passive poll becomes an explicit drain.** `DriveRedux.WaitForEmptyOutbox`,
+  `Connections.AwaitIntroductionsProcessing` (the same poll of the transient-temp-drive outbox under
+  another name) and `DriveRedux.ProcessInbox` all wait on the outbox background service, which the
+  fast host registers but never starts — leaving one in hangs for its full timeout and then throws.
+  They become `owner.Sync.DrainOutboxAsync()` / `owner.Sync.ProcessInboxAsync(drive)`, or
+  `PeerFlow.DistributeAsync` for the pair. On the introduction path this is more than a timing
+  change: draining an *introducee's* outbox is what sends the introductory connection request
+  (`ConnectIntroduceeOutboxWorker`), so the drain has to go on the introducee, not just the
+  introducer.
+- A `Task.Delay` standing in for a poll that can never finish — the shape where the test asserts a
+  *failed, still-queued* outbox item, so the outbox is never empty — has to become
+  `DrainOutboxAsync()` as well, because nothing else moves the items that *do* deliver. **Whether the
+  failed item survives the drain is not a property of the drain; it is what the item's worker
+  returns.** `ProcessItem` marks an item complete (gone) when the worker says the send is resolved,
+  and reschedules it (still queued) when the worker says retry — and `DrainAsync`'s three passes are
+  far below `OutboxOperationMaxAttempts`, so a rescheduled item is still there when the drain
+  returns. Both shapes are in the suite, each measured:
+  - *Still queued* — a recipient who severed the connection answers access-denied, the worker
+    reschedules, and `TotalInOutbox` is what the test asserts on.
+    `Ported/Peer/V1TransferHistoryMultipleRecipientsTests` relies on this, and is now deterministic
+    where the V1 original slept.
+  - *Gone* — an introduction to a blocked recipient resolves permanently, so the worker marks it
+    complete and the item is absent after the drain (probed either side in
+    `Ported/Connections/Introductions/AutoAcceptTests`). For that shape "assert a still-queued failed
+    item" is not expressible today; it would need `ITestSync` to surface `maxRetryPasses`.
+
+  So don't assume either outcome: check what the worker for that `OutboxItemType` returns, and record
+  the verdict in the fixture's `<remarks>`.
+- **There is no log-event assertion here, and its absence is silent.** `WebScaffold` fixtures end with
+  `[TearDown] { _scaffold.AssertLogEvents(); }`, and some use `SetAssertLogEventsAction` to assert the
+  *content* of expected errors or `AssertHasDebugLogEvent` to assert one fired. None of that exists on
+  `V2Fixture`, so a port drops it by deleting the tear-down and nothing goes red. When the log half is
+  load-bearing — the two `S2100` cases in `Ported/Transit/TransitCommentFileRoutingTests` are the clear
+  example — say so in the fixture's `<remarks>` so the lost coverage is findable. Tracked in #1766.
+- `FileMetadata.OriginalAuthor` is an `OdinId`; `FileMetadata.SenderOdinId` is a `string`. Comparing
+  the first against a `(string)` cast fails with the baffling
+  `Expected: "frodo.dotyou.cloud" / But was: frodo.dotyou.cloud`.
+- Several endpoints answer **204 NoContent**, not 200: follow / unfollow, `GET /followers/follower`
+  for a non-follower, and the peer add/delete-reaction calls. The V1 clients asserted
+  `IsSuccessStatusCode`, which hid this; asserting the exact status code surfaces it, which is the
+  point of the rule under **Asserting a response**.
 - `TestIdentities.InitializedIdentities` is **null** here. Only `WebScaffold.RunBeforeAnyTests` calls
   `TestIdentities.SetCurrent`; `V2Fixture` never does, so anything that reaches an identity through
   that dictionary — looking up `ContactData`, say — throws a `NullReferenceException` at run time.
   Use `TestIdentities.Defaults.Single(i => i.OdinId == identity)` instead.
+- **Merging fixtures is allowed only where the difference is already a caller.** Several V1 subtrees
+  hold the same tests once per auth scheme (the follower trio was three fixtures, two of them
+  byte-identical). Where the *only* difference between them is which client issues the reads, they
+  become one fixture with a `CallerSpec` matrix — the `<remarks>` then has to say which original each
+  row came from, and any row-specific divergence gets its own column in the case source rather than
+  being smoothed away (`Ported/Follower/FollowerTests` does both). A difference in assertions,
+  endpoints, or an owner-only capability is not a caller difference: keep those separate, share only
+  the arrange. Never merge where coverage would change.
 - A port is a move, not a rewrite. Carry `[Ignore]`s over verbatim. If you find an assertion that
   never ran or a test that doesn't test its own name, leave the behaviour alone and say so in the
   commit message. Several such defects have surfaced this way; finding them is a side benefit of
@@ -278,6 +327,7 @@ Api/        V2Fixture          ← (in parent dir) the base class
             CallerSpec, DriveSpec
             OwnerAdmin (+ .Apps / .YouAuth partials) ← V1 admin endpoints
             DriveHandles       ← reader + writer + reactions, bundled per caller
+            AppFileUploads     ← the encrypted one-payload app upload the AppAPI ports arrange with
             Identities         ← Frodo/Sam/… constants (derived from TestIdentities)
 Auth/       OwnerLogin         ← ECC + AES-CBC password-set + authenticate dance
 Peer/       PeerFlow           ← drive-create + circle + connect helper (+ bidirectional)

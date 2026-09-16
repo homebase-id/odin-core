@@ -87,6 +87,23 @@ public sealed class AppSession : IV2Caller
             PermissionSet = new PermissionSet(permissionKeys is null ? new List<int>() : new List<int>(permissionKeys))
         };
 
+        return await SetupAsync(owner, permissions, authorizedCircles, circleMemberGrantRequest, appId);
+    }
+
+    /// <summary>
+    /// As the drive-scoped overload, but takes the whole <see cref="PermissionSetGrantRequest"/> —
+    /// for an app whose grant cannot be expressed as one drive plus one permission, e.g. a
+    /// batch-collection query that has to span three drives at once.
+    /// </summary>
+    public static async Task<AppSession> SetupAsync(
+        OwnerSession owner,
+        PermissionSetGrantRequest permissions,
+        List<Guid>? authorizedCircles = null,
+        PermissionSetGrantRequest? circleMemberGrantRequest = null,
+        Guid? knownAppId = null)
+    {
+        var appId = knownAppId ?? Guid.NewGuid();
+
         await owner.Admin.RegisterApp(appId, permissions, authorizedCircles, circleMemberGrantRequest);
         var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);
 
