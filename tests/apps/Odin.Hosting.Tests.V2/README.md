@@ -191,6 +191,10 @@ re-deriving, which is how the first batches ended up with three spellings of the
 - Don't seed for rows that early-return. Guest and no-permission App rows are refused at authz
   before anything reads the drive, so uploads for those rows are wasted; gate the seed on
   `expected == HttpStatusCode.OK`.
+- `TestIdentities.InitializedIdentities` is **null** here. Only `WebScaffold.RunBeforeAnyTests` calls
+  `TestIdentities.SetCurrent`; `V2Fixture` never does, so anything that reaches an identity through
+  that dictionary — looking up `ContactData`, say — throws a `NullReferenceException` at run time.
+  Use `TestIdentities.Defaults.Single(i => i.OdinId == identity)` instead.
 - A port is a move, not a rewrite. Carry `[Ignore]`s over verbatim. If you find an assertion that
   never ran or a test that doesn't test its own name, leave the behaviour alone and say so in the
   commit message. Several such defects have surfaced this way; finding them is a side benefit of
