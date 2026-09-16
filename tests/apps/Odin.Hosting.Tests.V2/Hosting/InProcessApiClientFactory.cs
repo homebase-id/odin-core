@@ -46,17 +46,20 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
     private readonly string _cookieName;
     private readonly ClientAuthenticationToken _token;
     private readonly SensitiveByteArray? _sharedSecret;
+    private readonly string _v1BasePath;
 
     public InProcessApiClientFactory(
         OdinHost host,
         string cookieName,
         ClientAuthenticationToken token,
-        SensitiveByteArray? sharedSecret = null)
+        SensitiveByteArray? sharedSecret = null,
+        string? v1BasePath = null)
     {
         _host = host;
         _cookieName = cookieName;
         _token = token;
         _sharedSecret = sharedSecret;
+        _v1BasePath = v1BasePath ?? OwnerApiPathConstants.BasePathV1;
     }
 
     /// <summary>
@@ -83,7 +86,7 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
         {
             handler = new SharedSecretGetRequestHandler(handler);
         }
-        handler = new V1PathNormalizingHandler(handler);
+        handler = new V1PathNormalizingHandler(handler, _v1BasePath);
 
         var client = new HttpClient(handler, disposeHandler: true);
 
@@ -124,13 +127,24 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
     }
 
     /// <summary>
-    /// Rewrites outgoing request URIs so that V1 admin Refit interfaces (which declare paths like
-    /// <c>/circles/definitions/create</c> relative to <c>/api/owner/v1</c>) work against a root
-    /// <c>BaseAddress</c>. Anything that already starts with <c>/api/</c> (V2 endpoints, V1 owner
+    /// Rewrites outgoing request URIs so that V1 Refit interfaces (which declare paths like
+    /// <c>/circles/definitions/create</c> relative to a V1 base) work against a root
+    /// <c>BaseAddress</c>. Anything that already starts with <c>/api/</c> (V2 endpoints, V1
     /// interfaces that pre-include the prefix) passes through unchanged.
+    ///
+    /// The base is per-caller — owner, app and guest serve the same V1 interfaces under different
+    /// prefixes — because the V1 framework encodes that in each factory's <c>BaseAddress</c>. Sending
+    /// an app token to <c>/api/owner/v1</c> is an Unauthorized, not a Forbidden, which silently turns
+    /// permission-matrix tests into auth tests.
+    ///
+    /// <see cref="AnonymousRoots"/> are genuinely unprefixed public routes (published static files,
+    /// public profile card / image); prefixing those would 404.
     /// </summary>
-    private sealed class V1PathNormalizingHandler(HttpMessageHandler inner) : DelegatingHandler(inner)
+    private sealed class V1PathNormalizingHandler(HttpMessageHandler inner, string v1BasePath)
+        : DelegatingHandler(inner)
     {
+        private static readonly string[] AnonymousRoots = ["/cdn/", "/pub/"];
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             if (request.RequestUri is { } uri)
@@ -141,9 +155,12 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
                     path = path[1..];
                 }
 
-                if (!path.StartsWith("/api/", StringComparison.Ordinal))
+                var isAnonymousRoot = Array.Exists(AnonymousRoots,
+                    root => path.StartsWith(root, StringComparison.Ordinal));
+
+                if (!path.StartsWith("/api/", StringComparison.Ordinal) && !isAnonymousRoot)
                 {
-                    path = OwnerApiPathConstants.BasePathV1 + path;
+                    path = v1BasePath + path;
                 }
 
                 if (path != uri.AbsolutePath)

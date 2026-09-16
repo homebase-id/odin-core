@@ -5,6 +5,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.YouAuth;
@@ -37,7 +38,8 @@ public sealed class GuestSession : IV2Caller
     {
         Identity = identity;
         GuestDomain = guestDomain;
-        Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token, sharedSecret.ToSensitiveByteArray());
+        Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token,
+            sharedSecret.ToSensitiveByteArray(), GuestApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
     }

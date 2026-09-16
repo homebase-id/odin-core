@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -38,7 +39,8 @@ public sealed class AppSession : IV2Caller
     {
         Identity = identity;
         AppId = appId;
-        Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token, sharedSecret.ToSensitiveByteArray());
+        Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token,
+            sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
         Sync = new AppSync(host.GetTestSync(identity), this);
