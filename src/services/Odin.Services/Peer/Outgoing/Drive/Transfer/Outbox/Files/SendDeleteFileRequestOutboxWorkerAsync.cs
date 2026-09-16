@@ -108,7 +108,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
-                RetryAfter = RetryAfterFrom(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 Recipient = recipient,

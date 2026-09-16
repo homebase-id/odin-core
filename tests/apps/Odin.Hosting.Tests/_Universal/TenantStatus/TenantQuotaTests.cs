@@ -30,6 +30,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Status = Odin.Services.Registry.TenantStatus;
+using static Odin.Hosting.Tests._Universal.TenantStatus.TenantStatusTestSupport;
 
 namespace Odin.Hosting.Tests._Universal.TenantStatus;
 
@@ -40,23 +41,13 @@ namespace Odin.Hosting.Tests._Universal.TenantStatus;
 /// </summary>
 public class TenantQuotaTests
 {
-    private const string AdminApiKey = "your-secret-api-key-here";
-    private const string AdminHost = "admin.dotyou.cloud:4444";
-
     private WebScaffold _scaffold = null!;
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         _scaffold = new WebScaffold(GetType().Name);
-        var env = new Dictionary<string, string>
-        {
-            { "Admin__ApiEnabled", "true" },
-            { "Admin__ApiKey", AdminApiKey },
-            { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
-            { "Admin__ApiPort", "4444" },
-            { "Admin__Domain", "admin.dotyou.cloud" },
-        };
+        var env = AdminEnv();
         _scaffold.RunBeforeAnyTests(envOverrides: env, testIdentities: [TestIdentities.Frodo, TestIdentities.Samwise]);
     }
 
@@ -71,7 +62,7 @@ public class TenantQuotaTests
     {
         foreach (var identity in new[] { TestIdentities.Frodo, TestIdentities.Samwise })
         {
-            await SetStatusViaAdminAsync(identity.OdinId.DomainName, Status.Active, null);
+            await SetStatusAsync(identity.OdinId.DomainName, Status.Active);
         }
     }
 
@@ -86,13 +77,13 @@ public class TenantQuotaTests
         var targetDrive = TargetDrive.NewTargetDrive();
         ClassicAssert.IsTrue((await owner.DriveManager.CreateDrive(targetDrive, "quota drive", "", false)).IsSuccessStatusCode);
 
-        await SetStatusViaAdminAsync(owner.OdinId.DomainName, Status.OutOfQuota, null);
+        await SetStatusAsync(owner.OdinId.DomainName, Status.OutOfQuota);
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var response = await owner.DriveRedux.UploadNewFile(
             targetDrive,
             MetadataWith("upload with payload"),
-            new UploadManifest { PayloadDescriptors = new List<TestPayloadDefinition> { payload }.ToPayloadDescriptorList().ToList() },
+            ManifestFor(payload),
             [payload]);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InsufficientStorage));
@@ -107,7 +98,7 @@ public class TenantQuotaTests
         var targetDrive = TargetDrive.NewTargetDrive();
         ClassicAssert.IsTrue((await owner.DriveManager.CreateDrive(targetDrive, "quota drive", "", false)).IsSuccessStatusCode);
 
-        await SetStatusViaAdminAsync(owner.OdinId.DomainName, Status.OutOfQuota, null);
+        await SetStatusAsync(owner.OdinId.DomainName, Status.OutOfQuota);
 
         var payload = new TestPayloadDefinition
         {
@@ -120,7 +111,7 @@ public class TenantQuotaTests
         var response = await owner.DriveRedux.UploadNewFile(
             targetDrive,
             MetadataWith("payload without thumbnails"),
-            new UploadManifest { PayloadDescriptors = new List<TestPayloadDefinition> { payload }.ToPayloadDescriptorList().ToList() },
+            ManifestFor(payload),
             [payload]);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InsufficientStorage));
@@ -133,7 +124,7 @@ public class TenantQuotaTests
         var targetDrive = TargetDrive.NewTargetDrive();
         ClassicAssert.IsTrue((await owner.DriveManager.CreateDrive(targetDrive, "quota drive", "", false)).IsSuccessStatusCode);
 
-        await SetStatusViaAdminAsync(owner.OdinId.DomainName, Status.OutOfQuota, null);
+        await SetStatusAsync(owner.OdinId.DomainName, Status.OutOfQuota);
 
         var upload = await owner.DriveRedux.UploadNewMetadata(targetDrive, MetadataWith("no payload here"));
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), "a file without payloads is still accepted");
@@ -157,13 +148,13 @@ public class TenantQuotaTests
         var upload = await owner.DriveRedux.UploadNewMetadata(targetDrive, MetadataWith("file to attach to"));
         Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        await SetStatusViaAdminAsync(owner.OdinId.DomainName, Status.OutOfQuota, null);
+        await SetStatusAsync(owner.OdinId.DomainName, Status.OutOfQuota);
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var response = await owner.DriveRedux.UploadPayloads(
             upload.Content!.File,
             upload.Content.NewVersionTag,
-            new UploadManifest { PayloadDescriptors = new List<TestPayloadDefinition> { payload }.ToPayloadDescriptorList().ToList() },
+            ManifestFor(payload),
             [payload]);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InsufficientStorage));
@@ -184,7 +175,7 @@ public class TenantQuotaTests
 
         try
         {
-            await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.OutOfQuota, null);
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.OutOfQuota);
 
             var uploadResult = await SendMetadataOnlyAsync(sender, targetDrive, recipient.OdinId);
 
@@ -210,16 +201,16 @@ public class TenantQuotaTests
 
         try
         {
-            await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.OutOfQuota, null);
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.OutOfQuota);
 
             var uploadResult = await SendWithPayloadAsync(sender, targetDrive, recipient.OdinId);
 
             // The recipient answered 507 + Retry-After, so the item is deferred rather than retried
-            await WaitUntilAsync(async () => (await ReadOutboxAsync(sender.Identity))
+            await WaitUntilAsync(async () => (await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive))
                 .Any(r => r.nextRunTime.milliseconds > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 60 * 1000),
                 "the sender to defer the item");
 
-            var deferred = await ReadOutboxAsync(sender.Identity);
+            var deferred = await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive);
             Assert.That(deferred, Has.Count.EqualTo(1));
             Assert.That(deferred[0].checkOutCount, Is.EqualTo(0), "a retry-later must not spend an attempt");
 
@@ -232,8 +223,8 @@ public class TenantQuotaTests
             Assert.That(item?.IsInOutbox, Is.True, "the file still shows as pending delivery");
 
             // Room again: the item is delivered, payload and all
-            await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.Active, null);
-            await DrainOutboxAsync(sender.Identity);
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Active);
+            await DrainOutboxAsync(_scaffold, sender.Identity);
             await recipient.DriveRedux.ProcessInbox(targetDrive);
 
             var received = await recipient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
@@ -257,15 +248,15 @@ public class TenantQuotaTests
 
         try
         {
-            await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.Paused, null);
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Paused);
 
             var uploadResult = await SendMetadataOnlyAsync(sender, targetDrive, recipient.OdinId);
 
-            await WaitUntilAsync(async () => (await ReadOutboxAsync(sender.Identity))
+            await WaitUntilAsync(async () => (await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive))
                 .Any(r => r.nextRunTime.milliseconds > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 60 * 1000),
                 "the sender to defer the item");
 
-            var deferred = await ReadOutboxAsync(sender.Identity);
+            var deferred = await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive);
             Assert.That(deferred, Has.Count.EqualTo(1));
             Assert.That(deferred[0].checkOutCount, Is.EqualTo(0), "a paused recipient must not cost attempts");
 
@@ -273,8 +264,8 @@ public class TenantQuotaTests
             Assert.That(deferred[0].nextRunTime.milliseconds, Is.EqualTo(expected).Within((long)TimeSpan.FromMinutes(2).TotalMilliseconds),
                 "the sender waits the ten minutes a paused identity asks for");
 
-            await SetStatusViaAdminAsync(recipient.OdinId.DomainName, Status.Active, null);
-            await DrainOutboxAsync(sender.Identity);
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Active);
+            await DrainOutboxAsync(_scaffold, sender.Identity);
             await recipient.DriveRedux.ProcessInbox(targetDrive);
 
             var received = await recipient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
@@ -325,83 +316,12 @@ public class TenantQuotaTests
         var response = await sender.DriveRedux.UploadNewFile(
             targetDrive,
             metadata,
-            new UploadManifest { PayloadDescriptors = new List<TestPayloadDefinition> { payload }.ToPayloadDescriptorList().ToList() },
+            ManifestFor(payload),
             [payload],
             new TransitOptions { Recipients = [recipient] });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content!.RecipientStatus[recipient], Is.EqualTo(TransferStatus.Enqueued));
         return response.Content;
-    }
-
-    private static async Task<HttpResponseMessage> SendAdminAsync(HttpMethod method, string path, HttpContent content = null)
-    {
-        var client = WebScaffold.HttpClientFactory.CreateClient(AdminHost);
-        var request = new HttpRequestMessage(method, $"https://{AdminHost}/api/admin/v1/{path}")
-        {
-            Headers = { { "Odin-Admin-Api-Key", AdminApiKey } },
-            Content = content
-        };
-        return await client.SendAsync(request);
-    }
-
-    private static async Task<HttpResponseMessage> SetStatusViaAdminAsync(string domain, Status status, DisabledReason? reason)
-    {
-        var json = OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status, DisabledReason = reason });
-        var response = await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/status",
-            new StringContent(json, Encoding.UTF8, "application/json"));
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"setting {domain} to {status}");
-        return response;
-    }
-
-    private async Task<List<OutboxRecord>> ReadOutboxAsync(TestIdentity identity)
-    {
-        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
-        await using var scope = container.GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("TenantQuotaTests");
-        var (records, _) = await scope.Resolve<Odin.Core.Storage.Database.Identity.IdentityDatabase>().Outbox.PagingByRowIdAsync(100, null);
-        return records;
-    }
-
-    /// <summary>
-    /// A deferred item is scheduled minutes out, which no test can wait for. This is the same drain
-    /// hook the V2 test framework uses: it brings scheduled items forward and processes them.
-    /// </summary>
-    private async Task DrainOutboxAsync(TestIdentity identity)
-    {
-        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
-        await using var scope = container.GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("TenantQuotaTests:drain");
-        await scope.Resolve<PeerOutbox>().BringForwardScheduledItemsAsync();
-        await scope.Resolve<PeerOutboxProcessorBackgroundService>().DrainAsync();
-    }
-
-    private static async Task WaitUntilAsync(Func<Task<bool>> condition, string what, TimeSpan? timeout = null)
-    {
-        var sw = Stopwatch.StartNew();
-        while (!await condition())
-        {
-            if (sw.Elapsed > (timeout ?? TimeSpan.FromSeconds(30)))
-            {
-                Assert.Fail($"Timed out waiting for {what}");
-            }
-            await Task.Delay(50);
-        }
-    }
-
-    private static async Task PrepareScenarioAsync(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TargetDrive targetDrive)
-    {
-        ClassicAssert.IsTrue((await recipient.DriveManager.CreateDrive(targetDrive, "Target drive on recipient", "", false, false, false))
-            .IsSuccessStatusCode);
-        ClassicAssert.IsTrue((await sender.DriveManager.CreateDrive(targetDrive, "Target drive on sender", "", false, false, false))
-            .IsSuccessStatusCode);
-
-        var circleId = Guid.NewGuid();
-        var createCircle = await recipient.Network.CreateCircle(circleId, "Circle with drive access", new PermissionSetGrantRequest
-        {
-            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = targetDrive, Permission = DrivePermission.Write } }]
-        });
-        ClassicAssert.IsTrue(createCircle.IsSuccessStatusCode);
-
-        await sender.Connections.SendConnectionRequest(recipient.OdinId, new List<GuidId>());
-        await recipient.Connections.AcceptConnectionRequest(sender.OdinId, new List<GuidId> { circleId });
     }
 }

@@ -85,7 +85,7 @@ public class SendPeerPushNotificationOutboxWorker(
             throw new OdinOutboxProcessingException("Failed while enqueuing notification")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
-                RetryAfter = RetryAfterFrom(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = default,
                 Recipient = recipient,

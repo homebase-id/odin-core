@@ -1,5 +1,7 @@
 using System;
+using System.Net;
 using Odin.Core.Time;
+using Refit;
 
 #nullable enable
 
@@ -23,10 +25,36 @@ public static class OutboxRetryLater
     /// </summary>
     public static readonly TimeSpan MaxDelay = TimeSpan.FromHours(6);
 
+    /// <summary>
+    /// The Retry-After the recipient asked for, when it answered "come back later" (503 while paused,
+    /// 507 while out of quota). Null for every other response, including a 503 without the header.
+    /// </summary>
+    public static TimeSpan? RetryAfterFrom<T>(ApiResponse<T> response)
+    {
+        if (response.StatusCode is not (HttpStatusCode.ServiceUnavailable or HttpStatusCode.InsufficientStorage))
+        {
+            return null;
+        }
+
+        var retryAfter = response.Headers?.RetryAfter;
+        if (retryAfter?.Delta != null)
+        {
+            return retryAfter.Delta.Value;
+        }
+
+        if (retryAfter?.Date != null)
+        {
+            var delta = retryAfter.Date.Value - DateTimeOffset.UtcNow;
+            return delta > TimeSpan.Zero ? delta : TimeSpan.Zero;
+        }
+
+        return null;
+    }
+
     public static UnixTimeUtc NextRun(TimeSpan retryAfter, UnixTimeUtc now)
     {
         var delay = retryAfter < MinDelay ? MinDelay : retryAfter > MaxDelay ? MaxDelay : retryAfter;
-        return now.AddSeconds((int)delay.TotalSeconds);
+        return now.AddMilliseconds((long)delay.TotalMilliseconds);
     }
 
     /// <summary>
@@ -34,6 +62,6 @@ public static class OutboxRetryLater
     /// </summary>
     public static bool IsExpired(UnixTimeUtc addedTimestamp, UnixTimeUtc now, TimeSpan maxAge)
     {
-        return now.milliseconds - addedTimestamp.milliseconds >= (long)maxAge.TotalMilliseconds;
+        return now - addedTimestamp >= maxAge;
     }
 }

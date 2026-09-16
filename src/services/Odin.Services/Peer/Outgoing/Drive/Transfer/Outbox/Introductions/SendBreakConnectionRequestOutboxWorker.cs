@@ -24,18 +24,9 @@ public class SendBreakConnectionRequestOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        try
-        {
-            return await SendInternalAsync(odinContext, cancellationToken);
-        }
-        catch (OdinOutboxProcessingException e)
-        {
-            // Without this, the item is rescheduled at "now" and spins through its attempts in seconds;
-            // a recipient that is paused or out of quota is waited out instead.
-            return await HandleOutboxProcessingException(odinContext, e);
-        }
+        return SendHandledAsync(SendInternalAsync, odinContext, cancellationToken);
     }
 
     private async Task<OutboxProcessingResult> SendInternalAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -81,7 +72,7 @@ public class SendBreakConnectionRequestOutboxWorker(
             throw new OdinOutboxProcessingException("Failed while sending break-connection notification")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
-                RetryAfter = RetryAfterFrom(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = default,
                 Recipient = recipient,
