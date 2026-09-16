@@ -24,6 +24,11 @@ public static class UnifiedApiRouteConstants
     public const string Mail = BasePath + "/mail";
     public const string Capi = BasePath + "/capi";
 
+    // App registration V2 and bundle tokens (docs/app-registration-v2-plan-simplified.md). Rooted apart
+    // from /apps so neither can collide with /apps/{appSlug}.
+    public const string AppRegistrations = BasePath + "/app-registrations";
+    public const string BundleTokens = BasePath + "/bundle-tokens";
+
     // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/drive-addressing.md). Rooted at
     // /apps rather than nested under /drives, because /drives/feed would read as "the drive named
     // feed" rather than "the feed app's drives".

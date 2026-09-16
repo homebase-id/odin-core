@@ -8,12 +8,14 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.BundleTokens;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
@@ -40,6 +42,10 @@ namespace Odin.Hosting.UnifiedV2.Notifications
         // Prefix on a Sec-WebSocket-Protocol value that carries the base64 ClientAuthenticationToken.
         // Mirrors the kube-apiserver "base64url.bearer.authorization.k8s.io.<token>" pattern.
         private const string BearerProtocolPrefix = "odin.bearer.";
+
+        // Prefix on a Sec-WebSocket-Protocol value naming the acting app of a bundle token. Browsers
+        // cannot set headers on an upgrade, so this stands in for X-ODIN-APP-ID.
+        private const string AppProtocolPrefix = "odin.app.";
 
         // Application-level subprotocol the server commits to. Echoed back to the client so
         // browsers don't reject the 101 response.
@@ -128,7 +134,11 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             IOdinContext? authenticatedContext;
             try
             {
-                authenticatedContext = await ResolveContextAsync(token64);
+                var actingAppId = HttpContext.WebSockets.WebSocketRequestedProtocols
+                    .FirstOrDefault(p => p.StartsWith(AppProtocolPrefix, StringComparison.Ordinal))
+                    ?.Substring(AppProtocolPrefix.Length);
+
+                authenticatedContext = await ResolveContextAsync(token64, actingAppId);
             }
             catch (OdinSecurityException e)
             {
@@ -172,7 +182,7 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             }
         }
 
-        private async Task<IOdinContext?> ResolveContextAsync(string token64)
+        private async Task<IOdinContext?> ResolveContextAsync(string token64, string? actingAppId)
         {
             if (!ClientAuthenticationToken.TryParse(token64, out var clientAuthToken))
             {
@@ -187,6 +197,12 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                 case ClientTokenType.App:
                     ctx = await _appRegistrationService.GetAppPermissionContextAsync(clientAuthToken, WebOdinContext);
                     authContextName = "websocket-app-token";
+                    break;
+
+                case ClientTokenType.AppBundle:
+                    ctx = await HttpContext.RequestServices.GetRequiredService<BundleTokenAuthenticator>()
+                        .AuthenticateAsync(clientAuthToken, actingAppId, WebOdinContext);
+                    authContextName = "websocket-app-bundle-token";
                     break;
 
                 default:

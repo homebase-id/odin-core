@@ -74,6 +74,8 @@ using Odin.Services.PublicPage.Profile;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization;
 using Odin.Core.Storage.PubSub;
+using Odin.Services.Apps.V2;
+using Odin.Services.Authorization.BundleTokens;
 using Odin.Services.Authorization.Capi;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
@@ -316,6 +318,11 @@ public static class TenantServices
             .InstancePerLifetimeScope();
 
         cb.RegisterType<CircleMembershipService>().InstancePerLifetimeScope();
+
+        // App registration V2 and bundle tokens (docs/app-registration-v2-plan-simplified.md)
+        cb.RegisterType<AppRegistrationV2Service>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<BundleTokenService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<BundleTokenAuthenticator>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<IcrKeyService>().InstancePerLifetimeScope();
         cb.RegisterType<CircleDefinitionService>().InstancePerLifetimeScope();
 
