@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -42,29 +42,13 @@ public static class QueryScenario
         var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
         await frodo.Admin.CreateDrive(targetDrive, "Public posts drive", allowAnonymousReads: true);
 
+        var readOnTargetDrive = TestUtils.CreatePermissionGrantRequest(targetDrive, DrivePermission.Read);
+
         var mordorCrewCircle = Guid.NewGuid();
-        await frodo.Admin.CreateCircle(mordorCrewCircle, "Mordor Crew", new PermissionSetGrantRequest()
-        {
-            Drives =
-            [
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new() { Drive = targetDrive, Permission = DrivePermission.Read },
-                },
-            ]
-        });
+        await frodo.Admin.CreateCircle(mordorCrewCircle, "Mordor Crew", readOnTargetDrive);
 
         var hobbitsCircle = Guid.NewGuid();
-        await frodo.Admin.CreateCircle(hobbitsCircle, "Hobbits", new PermissionSetGrantRequest()
-        {
-            Drives =
-            [
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new() { Drive = targetDrive, Permission = DrivePermission.Read },
-                },
-            ]
-        });
+        await frodo.Admin.CreateCircle(hobbitsCircle, "Hobbits", readOnTargetDrive);
 
         // Connect frodo and sam; giving sam hobbits and mordor crew circle
         await frodo.Connections.SendConnectionRequest(sam.Identity, new List<GuidId>() { hobbitsCircle, mordorCrewCircle });

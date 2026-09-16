@@ -35,13 +35,18 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// <b>Carried defect — an assertion that has never run.</b> The original declares a fourth case
 /// source, <c>WhenGuestOnlyHasReadAccess()</c>, yielding a read-only guest expecting
 /// <see cref="HttpStatusCode.Forbidden"/>. No <c>[TestCaseSource]</c> anywhere references it, so that
-/// Forbidden path has never executed. It is carried here as
-/// <see cref="GuestReadOnlyCases"/> — still unreferenced, still dead — so the port is a move rather
-/// than a fix. Wiring it up is a behaviour change and belongs in its own change.
+/// Forbidden path has never executed. It is not carried here: the defect <i>is</i> that nothing
+/// referenced it, and copying an unreferenced source forward preserves no behaviour. Wiring it up is a
+/// behaviour change and belongs in its own change.
 ///
-/// Also note that the <c>expected</c> parameter is never read by any of these tests: every row asserts
-/// <c>BadRequest</c> outright, because validation precedes authorization on all four endpoints, so the
-/// matrix rows differ only in who sends the request. That too is carried verbatim.
+/// The original's rows also carried an <c>expected</c> status code that no test body read: every row
+/// asserts <c>BadRequest</c> outright, because validation precedes authorization on all of these
+/// endpoints, so the rows differ only in who sends the request. The column is dropped here for the
+/// same reason it was never read; the rows themselves are unchanged.
+///
+/// The two oversized-field uploads were one test method each in the original; here they are two rows
+/// of <see cref="FailWithBadRequestWhenAppDataIsTooLarge"/>, which differ only in which field is
+/// overlong.
 ///
 /// The peer test's trailing disconnect / unfollow block is dropped: it only restored state, which
 /// <see cref="V2Fixture"/>'s per-test reset already guarantees. The peer test also now creates the
@@ -64,59 +69,51 @@ public class SizeValidationTests : V2Fixture
     /// The original's three stacked owner/app/guest case sources, inline. Every row expects the
     /// endpoint to be reached; the refusal under test is the size check, not the drive grant.
     /// </summary>
-    public static IEnumerable<object[]> WriteCases()
+    public static IEnumerable<CallerSpec> WriteCases()
     {
-        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
-        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
+        yield return CallerSpec.Owner(DriveSpec.Anon());
+        yield return CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write);
+        yield return CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write);
     }
 
-    /// <summary>
-    /// Carried from the original verbatim, including the fact that nothing consumes it. See the
-    /// fixture's remarks: this Forbidden path has never run.
-    /// </summary>
-    public static IEnumerable<object[]> GuestReadOnlyCases()
+    /// <summary>Which oversized field the upload carries — the only difference between the two rows.</summary>
+    public enum OversizedField
     {
-        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Forbidden];
+        AppDataContent,
+        PreviewThumbnail
     }
 
-    public static IEnumerable<object[]> OwnerOnlyCases()
+    public static IEnumerable<object[]> OversizedWriteCases()
     {
-        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-    }
-
-    [Test, TestCaseSource(nameof(WriteCases))]
-    public async Task FailWithBadRequestWhenAppDataContentIsTooLarge(CallerSpec spec, HttpStatusCode expected)
-    {
-        // Setup
-        var caller = await SetupCaller(spec);
-
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        uploadedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());
-
-        // Act
-        var callerDriveClient = caller.V1.Drive;
-        var response = await callerDriveClient.UploadNewMetadata(spec.TargetDrive, uploadedFileMetadata);
-
-        // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-    }
-
-    [Test, TestCaseSource(nameof(WriteCases))]
-    public async Task FailWithBadRequestWhenPreviewThumbnailIsTooLarge(CallerSpec spec, HttpStatusCode expected)
-    {
-        // Setup
-        var caller = await SetupCaller(spec);
-
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        uploadedFileMetadata.AppData.Content = "123";
-        uploadedFileMetadata.AppData.PreviewThumbnail = new ThumbnailContent
+        foreach (var spec in WriteCases())
         {
-            PixelWidth = 100,
-            PixelHeight = 100,
-            ContentType = "image/png",
-            Content = Enumerable.Repeat((byte)'A', ThumbnailContent.MaxTinyThumbLength + 1).ToArray()
-        };
+            yield return [spec, OversizedField.AppDataContent];
+            yield return [spec, OversizedField.PreviewThumbnail];
+        }
+    }
+
+    [Test, TestCaseSource(nameof(OversizedWriteCases))]
+    public async Task FailWithBadRequestWhenAppDataIsTooLarge(CallerSpec spec, OversizedField oversized)
+    {
+        // Setup
+        var caller = await SetupCaller(spec);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        if (oversized == OversizedField.AppDataContent)
+        {
+            uploadedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());
+        }
+        else
+        {
+            uploadedFileMetadata.AppData.Content = "123";
+            uploadedFileMetadata.AppData.PreviewThumbnail = new ThumbnailContent
+            {
+                PixelWidth = 100,
+                PixelHeight = 100,
+                ContentType = "image/png",
+                Content = Enumerable.Repeat((byte)'A', ThumbnailContent.MaxTinyThumbLength + 1).ToArray()
+            };
+        }
 
         // Act
         var callerDriveClient = caller.V1.Drive;
@@ -127,7 +124,7 @@ public class SizeValidationTests : V2Fixture
     }
 
     [Test, TestCaseSource(nameof(WriteCases))]
-    public async Task CanUpdateEncryptedMetadataWithStorageIntent_MetadataOnly(CallerSpec spec, HttpStatusCode expected)
+    public async Task CanUpdateEncryptedMetadataWithStorageIntent_MetadataOnly(CallerSpec spec)
     {
         // Setup
         var (caller, owner) = await SetupCallerWithOwner(spec);
@@ -139,13 +136,13 @@ public class SizeValidationTests : V2Fixture
 
         var originalKeyHeader = KeyHeader.NewRandom16();
         var (response, _) = await ownerDriveClient.UploadNewEncryptedMetadata(spec.TargetDrive, uploadedFileMetadata, originalKeyHeader);
-        Assert.That(response.IsSuccessStatusCode, Is.True);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Act
 
         var uploadResult = response.Content;
         var getHeaderResponse1 = await ownerDriveClient.GetFileHeader(uploadResult.File);
-        Assert.That(getHeaderResponse1.IsSuccessStatusCode, Is.True);
+        Assert.That(getHeaderResponse1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var uploadedFile1 = getHeaderResponse1.Content;
 
         var callerDriveClient = caller.V1.Drive;
@@ -167,12 +164,10 @@ public class SizeValidationTests : V2Fixture
         Assert.That(updateResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
-    [Test, TestCaseSource(nameof(OwnerOnlyCases))]
-    public async Task FailWithBadRequestWithIdentityOtherThanOriginalAuthorUpdatesAFileUsingUpdateBatch(
-        CallerSpec spec,
-        HttpStatusCode expected)
+    [Test]
+    public async Task FailWithBadRequestWithIdentityOtherThanOriginalAuthorUpdatesAFileUsingUpdateBatch()
     {
-        var (caller, originalAuthorOwner) = await SetupCallerWithOwner(spec, Identities.Pippin);
+        var (caller, originalAuthorOwner) = await SetupCallerWithOwner(CallerSpec.Owner(DriveSpec.Anon()), Identities.Pippin);
 
         var secondaryAuthorOwner = await LoginAsOwner(Identities.Collab);
         var collabChannelOwner = await LoginAsOwner(Identities.Frodo);
@@ -233,7 +228,7 @@ public class SizeValidationTests : V2Fixture
             uploadManifest,
             testPayloads);
         await originalAuthorOwner.Sync.DrainOutboxAsync();
-        Assert.That(response.IsSuccessStatusCode, Is.True);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // wait for the collab channel to distribute feed
         await collabChannelOwner.Sync.ProcessInboxAsync(collabChannelDrive);
@@ -250,9 +245,8 @@ public class SizeValidationTests : V2Fixture
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         var callerDriveClient = caller.V1.Drive;
 
-        var updatedFileMetadata = uploadedFileMetadata;
-        updatedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());
-        updatedFileMetadata.AppData.DataType = 222;
+        uploadedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());
+        uploadedFileMetadata.AppData.DataType = 222;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
         var updateInstructionSet = new FileUpdateInstructionSet
@@ -285,7 +279,7 @@ public class SizeValidationTests : V2Fixture
             }
         };
 
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, uploadedFileMetadata, [payloadToAdd]);
         Assert.That(updateFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 }

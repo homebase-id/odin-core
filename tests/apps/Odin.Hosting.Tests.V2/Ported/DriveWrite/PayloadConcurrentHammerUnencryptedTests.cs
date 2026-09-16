@@ -30,10 +30,10 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// Drives the <b>V1</b> payload endpoints through the in-process host via
 /// <see cref="UniversalDriveApiClient"/>, reached through <c>owner.V1.Drive</c>.
 ///
-/// The concurrency shape is carried over unchanged (<see cref="PerformanceFramework.ThreadedTestAsync"/>,
-/// 2 threads x 100 iterations, with the original's random 5-50 ms inter-iteration delay). Each thread's
-/// work is ordinary HTTP against the test server, so every request gets its own DI scope — the
-/// <c>ScopedConnectionFactory</c> single-scope hazard does not arise.
+/// The concurrency shape is carried over (<see cref="PerformanceFramework.ThreadedTestAsync"/>,
+/// 2 threads x 100 iterations); the original's random 5-50 ms inter-iteration sleep is dropped, as
+/// nothing is pending across it. Each thread's work is ordinary HTTP against the test server, so every
+/// request gets its own DI scope — the <c>ScopedConnectionFactory</c> single-scope hazard does not arise.
 ///
 /// The counters stay plain <c>++</c> as in the original: they are printed, never asserted, so the race
 /// they carry is pre-existing and inert.
@@ -88,7 +88,6 @@ public class PayloadConcurrentHammerUnencryptedTests : V2Fixture
         long[] timers = new long[iterations];
         var sw = new Stopwatch();
         int fileByteLength = 0;
-        Random random = new Random();
 
         Guid newVersionTag = _initialVersionTag;
         //
@@ -150,7 +149,6 @@ public class PayloadConcurrentHammerUnencryptedTests : V2Fixture
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
 
-            await Task.Delay(random.Next(5, 51));
         }
 
         return (fileByteLength, timers);

@@ -34,7 +34,9 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveQuery;
 /// <c>PermissionSet</c>. One live caller, so no matrix and plain <c>[Test]</c> methods; drives are
 /// created through <c>owner.Admin.CreateDrive</c> with the original's
 /// <c>allowAnonymousReads: false</c> and the same names, and files are seeded as the owner exactly
-/// as the original's <c>UploadStandardRandomFileHeadersUsingOwnerApi</c> did.
+/// as the original's <c>UploadStandardRandomFileHeadersUsingOwnerApi</c> did. The first two tests
+/// had identical ninety-line bodies differing only in how many drives the app was granted and in
+/// their last two assertions; that arrange is <c>QueryThreeSectionsAsync</c>.
 ///
 /// The two <c>V1BatchCollection…</c> tests carry their original <c>&lt;summary&gt;</c> docs: they are
 /// guard rails on issue #1629, pinning V1's whole-call failure and per-section record budgets
@@ -46,92 +48,11 @@ public class DriveQueryBatchCollectionTests : V2Fixture
     [Test]
     public async Task CanQueryBatchCollection()
     {
-        var ownerClient = await LoginAsOwner();
+        var (result, fileIds) = await QueryThreeSectionsAsync(grantedDriveCount: 3);
 
-        //
-        // Create 3 drives and grant ReadWrite
-        //
-        var appDrive1 = await CreateDrive(ownerClient, "Some Drive 1");
-        var appDrive2 = await CreateDrive(ownerClient, "Some Drive 2");
-        var appDrive3 = await CreateDrive(ownerClient, "Some Drive 3");
-
-        var client = await SetupAppWithReadWriteOn(ownerClient, appDrive1, appDrive2, appDrive3);
-
-        //
-        // Upload 3 files
-        //
-        var header1 = await UploadStandardRandomFileHeadersUsingOwnerApi(ownerClient, appDrive1);
-        var header2 = await UploadStandardRandomFileHeadersUsingOwnerApi(ownerClient, appDrive2);
-        var header3 = await UploadStandardRandomFileHeadersUsingOwnerApi(ownerClient, appDrive3);
-
-        const string section1Name = "s1";
-        const string section2Name = "s2";
-        const string section3Name = "s3";
-
-        //
-        // QueryBatchCollection
-        //
-        var sections = new List<CollectionQueryParamSection>()
-        {
-            new()
-            {
-                Name = section1Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = appDrive1,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            },
-            new()
-            {
-                Name = section2Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = appDrive2,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            },
-            new()
-            {
-                Name = section3Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = appDrive3,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header3.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            }
-        };
-
-        var queryBatchResponse = await QueryBatchCollection(client, sections);
-        Assert.That(queryBatchResponse.IsSuccessStatusCode, Is.True);
-        var queryResult = queryBatchResponse.Content;
-        Assert.That(queryResult, Is.Not.Null);
-
-        Assert.That(queryResult!.Results.Count, Is.EqualTo(3), "Should be 3 sections");
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section1Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header1.uploadResult.File.FileId) != null), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section1Name &&
-            r.InvalidDrive == false), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section2Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header2.uploadResult.File.FileId) != null), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section2Name &&
-            r.InvalidDrive == false), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section3Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header3.uploadResult.File.FileId) != null), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section3Name &&
-            r.InvalidDrive == false), Is.Not.Null);
+        AssertSectionHasFile(result, Section1Name, fileIds[0]);
+        AssertSectionHasFile(result, Section2Name, fileIds[1]);
+        AssertSectionHasFile(result, Section3Name, fileIds[2]);
     }
 
     [Test]
@@ -141,93 +62,13 @@ public class DriveQueryBatchCollectionTests : V2Fixture
         // his app has access to all 2 drives
         // he receives results for the 2 drives he has access to; the other one returns an error but does not fail.
 
-        var ownerClient = await LoginAsOwner();
+        var (result, fileIds) = await QueryThreeSectionsAsync(grantedDriveCount: 2);
 
-        //
-        // Create 3 drives and grant ReadWrite to 1 and 2 but no access is given to 3.  we will still query it below
-        //
-        var appDrive1 = await CreateDrive(ownerClient, "Some Drive 1");
-        var appDrive2 = await CreateDrive(ownerClient, "Some Drive 2");
-        var appDrive3 = await CreateDrive(ownerClient, "Some Drive 3");
+        AssertSectionHasFile(result, Section1Name, fileIds[0]);
+        AssertSectionHasFile(result, Section2Name, fileIds[1]);
 
-        var client = await SetupAppWithReadWriteOn(ownerClient, appDrive1, appDrive2);
-
-        //
-        // Upload 3 files
-        //
-        var header1 = await UploadStandardRandomFileHeadersUsingOwnerApi(ownerClient, appDrive1);
-        var header2 = await UploadStandardRandomFileHeadersUsingOwnerApi(ownerClient, appDrive2);
-        var header3 = await UploadStandardRandomFileHeadersUsingOwnerApi(ownerClient, appDrive3);
-
-        const string section1Name = "s1";
-        const string section2Name = "s2";
-        const string section3Name = "s3";
-        //
-        // QueryBatchCollection
-        //
-        var sections = new List<CollectionQueryParamSection>()
-        {
-            new()
-            {
-                Name = section1Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = appDrive1,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            },
-            new()
-            {
-                Name = section2Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = appDrive2,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            },
-            new()
-            {
-                Name = section3Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = appDrive3,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header3.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            }
-        };
-
-        var queryBatchResponse = await QueryBatchCollection(client, sections);
-        Assert.That(queryBatchResponse.IsSuccessStatusCode, Is.True);
-        var queryResult = queryBatchResponse.Content;
-        Assert.That(queryResult, Is.Not.Null);
-
-        Assert.That(queryResult!.Results.Count, Is.EqualTo(3), "Should be 3 sections");
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section1Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header1.uploadResult.File.FileId) != null), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section1Name &&
-            r.InvalidDrive == false), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section2Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header2.uploadResult.File.FileId) != null), Is.Not.Null);
-
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section2Name &&
-            r.InvalidDrive == false), Is.Not.Null);
-
-        // query 3 should not return results
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section3Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header3.uploadResult.File.FileId) != null), Is.Null);
-
-        // query 3 should have the invalid drive flag == true
-        Assert.That(queryResult.Results.SingleOrDefault(r =>
-            r.Name == section3Name &&
-            r.InvalidDrive), Is.Not.Null);
+        // query 3 should return no results and should have the invalid drive flag == true
+        AssertSectionIsInvalidDrive(result, Section3Name, fileIds[2]);
     }
 
     /// <summary>
@@ -310,7 +151,7 @@ public class DriveQueryBatchCollectionTests : V2Fixture
         };
 
         var response = await QueryBatchCollection(client, sections);
-        Assert.That(response.IsSuccessStatusCode, Is.True);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var s1 = response.Content!.Results.Single(r => r.Name == "s1");
         var s2 = response.Content.Results.Single(r => r.Name == "s2");
@@ -318,6 +159,77 @@ public class DriveQueryBatchCollectionTests : V2Fixture
         // Each section gets its own budget: the second is not reduced by what the first consumed.
         Assert.That(s1.SearchResults.Count(), Is.EqualTo(2));
         Assert.That(s2.SearchResults.Count(), Is.EqualTo(3));
+    }
+
+    private const string Section1Name = "s1";
+    private const string Section2Name = "s2";
+    private const string Section3Name = "s3";
+
+    /// <summary>
+    /// The arrange both collection tests share: three drives with one file each, an app granted
+    /// ReadWrite on the first <paramref name="grantedDriveCount"/> of them, and a three-section
+    /// collection query naming all three by the unique id of the file on it. Returns the response
+    /// body and the three file ids, in drive order.
+    /// </summary>
+    private async Task<(QueryBatchCollectionResponse Result, Guid[] FileIds)> QueryThreeSectionsAsync(int grantedDriveCount)
+    {
+        var ownerClient = await LoginAsOwner();
+
+        var drives = new[]
+        {
+            await CreateDrive(ownerClient, "Some Drive 1"),
+            await CreateDrive(ownerClient, "Some Drive 2"),
+            await CreateDrive(ownerClient, "Some Drive 3")
+        };
+
+        var client = await SetupAppWithReadWriteOn(ownerClient, drives.Take(grantedDriveCount).ToArray());
+
+        var headers = new List<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)>();
+        foreach (var drive in drives)
+        {
+            headers.Add(await UploadStandardRandomFileHeadersUsingOwnerApi(ownerClient, drive));
+        }
+
+        var sectionNames = new[] { Section1Name, Section2Name, Section3Name };
+        var sections = drives.Select((drive, i) => new CollectionQueryParamSection()
+        {
+            Name = sectionNames[i],
+            QueryParams = new FileQueryParamsV1()
+            {
+                TargetDrive = drive,
+                ClientUniqueIdAtLeastOne = new List<Guid>() { headers[i].uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
+            }
+        }).ToList();
+
+        var queryBatchResponse = await QueryBatchCollection(client, sections);
+        Assert.That(queryBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var queryResult = queryBatchResponse.Content;
+        Assert.That(queryResult, Is.Not.Null);
+        Assert.That(queryResult!.Results.Count, Is.EqualTo(3), "Should be 3 sections");
+
+        return (queryResult, headers.Select(h => h.uploadResult.File.FileId).ToArray());
+    }
+
+    /// <summary>The named section came back for a valid drive and carries exactly that one file.</summary>
+    private static void AssertSectionHasFile(QueryBatchCollectionResponse result, string sectionName, Guid fileId)
+    {
+        Assert.That(result.Results, Has.Exactly(1).Matches<QueryBatchResponse>(
+                r => r.Name == sectionName && r.SearchResults.Count(sr => sr.FileId == fileId) == 1),
+            $"section '{sectionName}' should carry file {fileId}");
+
+        Assert.That(result.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r => r.Name == sectionName && !r.InvalidDrive),
+            $"section '{sectionName}' should be flagged as a valid drive");
+    }
+
+    /// <summary>The named section came back flagged invalid and without the file on that drive.</summary>
+    private static void AssertSectionIsInvalidDrive(QueryBatchCollectionResponse result, string sectionName, Guid withheldFileId)
+    {
+        Assert.That(result.Results, Has.None.Matches<QueryBatchResponse>(
+                r => r.Name == sectionName && r.SearchResults.Count(sr => sr.FileId == withheldFileId) == 1),
+            $"section '{sectionName}' should not carry file {withheldFileId}");
+
+        Assert.That(result.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r => r.Name == sectionName && r.InvalidDrive),
+            $"section '{sectionName}' should be flagged as an invalid drive");
     }
 
     private static Task<Refit.ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(
@@ -373,7 +285,7 @@ public class DriveQueryBatchCollectionTests : V2Fixture
         };
 
         var response = await owner.V1.Drive.UploadNewMetadata(targetDrive, fileMetadata, FileSystemType.Standard);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"upload failed: {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         return (response.Content!, fileMetadata);
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -13,7 +12,6 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 
 namespace Odin.Hosting.Tests.V2.Ported.Feed;
 
@@ -125,19 +123,7 @@ public class Feed_Post_Tests : V2Fixture
         //
         // Validation - check that frodo has 1 file in feed; from sam and he can decrypt it
         //
-        var frodoQueryFeedResponse = await ownerFrodo.V1.Drive.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = WellKnownAppDrives.FeedDrive,
-                FileType = [fileType]
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            }
-        });
+        var frodoQueryFeedResponse = await ownerFrodo.V1.Drive.QueryBatch(FeedScenario.FeedQuery(fileType));
 
         Assert.That(frodoQueryFeedResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
@@ -226,19 +212,8 @@ public class Feed_Post_Tests : V2Fixture
 
         //validate sam can see his file
 
-        var fileOnPublicDriveBatchRequest = new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = WellKnownAppDrives.PublicPostsChannelDrive,
-                FileType = [fileType]
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            }
-        };
+        var fileOnPublicDriveBatchRequest =
+            FeedScenario.DriveQuery(WellKnownAppDrives.PublicPostsChannelDrive, [fileType]);
 
         //
         // First validate sam can see the file on his public drive

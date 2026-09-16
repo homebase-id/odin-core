@@ -2,7 +2,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer;
@@ -172,12 +172,10 @@ public class OutboxProcessingSingleRecipientTestsFailureScenario : V2Fixture
 
         Assert.That(uploadResult.RecipientStatus[recipientOwnerClient.Identity], Is.EqualTo(TransferStatus.Enqueued));
 
-        // The item fails and is rescheduled on purpose, so the outbox never empties. The drain makes a
-        // bounded number of passes and returns with it still queued — which is what IsInOutbox reads.
-        await senderOwnerClient.Sync.DrainOutboxAsync();
-
-        // validate recipient got the file
-        await recipientOwnerClient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
+        // The item fails and is rescheduled on purpose, so the outbox never empties. The drain inside
+        // DistributeAsync makes a bounded number of passes and returns with it still queued — which is
+        // what IsInOutbox reads below. The recipient's inbox is processed either way, to show it got nothing.
+        await PeerFlow.DistributeAsync(senderOwnerClient, recipientOwnerClient, uploadResult.File.TargetDrive);
 
         var recipientFileResponse =
             await recipientOwnerClient.V1.Drive.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);

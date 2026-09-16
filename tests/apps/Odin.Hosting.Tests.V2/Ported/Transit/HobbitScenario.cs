@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -17,9 +18,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 /// side granting the other its own circle.
 /// </summary>
 /// <remarks>
-/// Deliberately local to this folder rather than on <c>Peer/PeerFlow</c>: <c>PeerFlow</c> is shared
-/// framework, and only one ported fixture needs this shape so far. If a second one arrives, promoting
-/// it is the right move.
+/// The mesh connect was promoted to <see cref="PeerFlow.ConnectAllAsync"/> once the consumer count
+/// made the case: seven V1 fixtures still on WebScaffold call <c>CreateConnectedHobbits</c> across 18
+/// call sites. What remains here is the app registration, which stays fixture-side on purpose.
 /// <para>
 /// The original registered an app <i>client</i> per identity as well and carried its token on a
 /// <c>TestAppContext</c>; nothing in the one fixture that uses this reads a token — every call is made
@@ -32,44 +33,21 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 internal static class HobbitScenario
 {
     /// <summary>
-    /// Connects every pair in <paramref name="hobbits"/> over <paramref name="targetDrive"/>. All
-    /// identities get the same <paramref name="targetDrive"/> and the same app id, as the original did.
+    /// Connects every identity to every other over <paramref name="targetDrive"/> and gives each the
+    /// app the V1 original registered. The mesh connect itself lives on
+    /// <see cref="PeerFlow.ConnectAllAsync"/>; what stays here is the app half, which is
+    /// fixture-specific and deliberately not part of a peer-connect helper.
     /// </summary>
     public static async Task ConnectAllAsync(OwnerSession[] hobbits, TargetDrive targetDrive)
     {
         var appId = Guid.NewGuid();
-        var circleIds = new Dictionary<string, Guid>();
 
         foreach (var hobbit in hobbits)
         {
             await SetupTestSampleAppAsync(hobbit, appId, targetDrive);
-
-            var circleId = Guid.NewGuid();
-            await hobbit.Admin.CreateCircle(circleId, $"Sender ({hobbit.Identity}) Circle",
-                TestUtils.CreatePermissionGrantRequest(targetDrive, DrivePermission.ReadWrite));
-            circleIds[hobbit.Identity] = circleId;
         }
 
-        for (var i = 0; i < hobbits.Length; i++)
-        {
-            for (var j = i + 1; j < hobbits.Length; j++)
-            {
-                await ConnectAsync(hobbits[i], hobbits[j], circleIds);
-            }
-        }
-    }
-
-    private static async Task ConnectAsync(OwnerSession sender, OwnerSession recipient, IReadOnlyDictionary<string, Guid> circleIds)
-    {
-        var sendRequest = await sender.Connections.SendConnectionRequest(
-            recipient.Identity, new List<GuidId> { circleIds[sender.Identity] });
-        Assert.That(sendRequest.IsSuccessStatusCode, Is.True,
-            $"SendConnectionRequest from {sender.Identity} to {recipient.Identity} failed: {sendRequest.StatusCode}");
-
-        var accept = await recipient.Connections.AcceptConnectionRequest(
-            sender.Identity, new List<GuidId> { circleIds[recipient.Identity] });
-        Assert.That(accept.IsSuccessStatusCode, Is.True,
-            $"AcceptConnectionRequest on {recipient.Identity} failed: {accept.StatusCode}");
+        await PeerFlow.ConnectAllAsync(hobbits, targetDrive);
     }
 
     /// <summary>The app drive plus an app holding full permission on it, as the original's <c>SetupTestSampleApp</c>.</summary>

@@ -1,18 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.DataSubscription.Follower;
-using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Apps;
+using Odin.Services.DataSubscription.Follower;
 
 namespace Odin.Hosting.Tests.V2.Ported.Feed;
 
@@ -34,7 +28,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Feed;
 /// <c>OwnerClientContext(WellKnownAppDrives.FeedDrive)</c>, with two commented-out siblings
 /// (<c>GuestWriteOnlyAccessToDrive</c> → Forbidden, <c>AppReadOnlyAccessToDrive</c> → NotFound).</item>
 /// <item>Sam's and Frodo's <c>Prepare…IdentityWithChannelsAndPosts</c> helpers were copy-paste twins
-/// differing only in the two content strings; they are one parameterized helper here.</item>
+/// differing only in the two content strings; both, and the twins the other feed fixtures carried,
+/// are <see cref="FeedScenario.PrepareIdentityWithChannelsAndPostsAsync"/>.</item>
 /// <item>Trailing disconnect / unfollow calls were cleanup only and are dropped — per-test reset
 /// covers them. Carried defect worth recording even though the line is gone: the original's last
 /// cleanup call was <c>ownerSam.Follower.UnfollowIdentity(sam.OdinId)</c>, i.e. Sam unfollowing
@@ -55,14 +50,14 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests : V2Fixture
         var ownerFrodo = await LoginAsOwner(Identities.Frodo);
 
         var samFriendsOnlyCircle = Guid.NewGuid();
-        var samPreparedFiles = await PrepareIdentityWithChannelsAndPostsAsync(ownerSam, samFriendsOnlyCircle,
+        var samPreparedFiles = await FeedScenario.PrepareIdentityWithChannelsAndPostsAsync(ownerSam, samFriendsOnlyCircle,
             postFileType: fileType,
-            friendsOnlyContent: "some secured friends only content",
-            publicContent: "some public content");
+            publicPostAcl: AccessControlList.Anonymous);
 
         var frodoFriendsOnlyCircle = Guid.NewGuid();
-        var frodoPreparedFiles = await PrepareIdentityWithChannelsAndPostsAsync(ownerFrodo, frodoFriendsOnlyCircle,
+        var frodoPreparedFiles = await FeedScenario.PrepareIdentityWithChannelsAndPostsAsync(ownerFrodo, frodoFriendsOnlyCircle,
             postFileType: fileType,
+            publicPostAcl: AccessControlList.Anonymous,
             friendsOnlyContent: "some secured friends only content from frodo",
             publicContent: "some public content from frodo");
 
@@ -81,47 +76,11 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests : V2Fixture
         //
         // Validate frodo and Sam have secured files in their feeds
         //
-        await AssertHasAllExpectedFeedFilesAsync(ownerFrodo, fileType, samPreparedFiles);
-        await AssertHasAllExpectedFeedFilesAsync(ownerSam, fileType, frodoPreparedFiles);
+        await FeedScenario.AssertHasAllExpectedFeedFilesAsync(ownerFrodo, FeedScenario.FeedQuery(fileType), samPreparedFiles);
+        await FeedScenario.AssertHasAllExpectedFeedFilesAsync(ownerSam, FeedScenario.FeedQuery(fileType), frodoPreparedFiles);
     }
 
     // ---------------------------------------------------------------------------------------------
-
-    private static QueryBatchRequest FeedQuery(int fileType) => new()
-    {
-        QueryParams = new FileQueryParamsV1
-        {
-            TargetDrive = WellKnownAppDrives.FeedDrive,
-            FileType = [fileType]
-        },
-        ResultOptionsRequest = new QueryBatchResultOptionsRequest
-        {
-            MaxRecords = 10,
-            IncludeMetadataHeader = true
-        }
-    };
-
-    /// <summary>Both posts — the anonymous one and the secured one — are in the follower's feed.</summary>
-    private static async Task AssertHasAllExpectedFeedFilesAsync(
-        OwnerSession follower,
-        int fileType,
-        (string EncryptedFriendsFileContent64, string PublicFileContent) preparedFiles)
-    {
-        var queryFeedResponse = await follower.V1.Drive.QueryBatch(FeedQuery(fileType));
-        Assert.That(queryFeedResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var feedSearchResults = queryFeedResponse.Content?.SearchResults?.ToList();
-        Assert.That(feedSearchResults, Is.Not.Null);
-        Assert.That(feedSearchResults.Count, Is.EqualTo(2));
-
-        Assert.That(feedSearchResults, Has.Exactly(1).Matches<SharedSecretEncryptedFileHeader>(s =>
-            s.FileMetadata.IsEncrypted &&
-            s.FileMetadata.AppData.Content == preparedFiles.EncryptedFriendsFileContent64));
-
-        Assert.That(feedSearchResults, Has.Exactly(1).Matches<SharedSecretEncryptedFileHeader>(s =>
-            s.FileMetadata.IsEncrypted == false &&
-            s.FileMetadata.AppData.Content == preparedFiles.PublicFileContent));
-    }
 
     /// <summary>
     /// <paramref name="follower"/> follows <paramref name="followee"/>; only the anonymous post lands,
@@ -131,13 +90,13 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests : V2Fixture
         OwnerSession follower,
         OwnerSession followee,
         int fileType,
-        (string EncryptedFriendsFileContent64, string PublicFileContent) preparedFiles)
+        FeedScenario.PreparedFiles preparedFiles)
     {
         var followResponse = await follower.V1.Follower.FollowIdentity(followee.Identity,
             FollowerNotificationType.AllNotifications, []);
         Assert.That(followResponse.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
-        var queryFeedResponse = await follower.V1.Drive.QueryBatch(FeedQuery(fileType));
+        var queryFeedResponse = await follower.V1.Drive.QueryBatch(FeedScenario.FeedQuery(fileType));
         Assert.That(queryFeedResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var feedSearchResults = queryFeedResponse.Content?.SearchResults?.ToList();
@@ -147,64 +106,5 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests : V2Fixture
         Assert.That(feedSearchResults, Has.Exactly(1).Matches<SharedSecretEncryptedFileHeader>(s =>
             s.FileMetadata.IsEncrypted == false &&
             s.FileMetadata.AppData.Content == preparedFiles.PublicFileContent));
-    }
-
-    /// <summary>
-    /// The identity creates the circle 'friends' with read access to a secured channel drive, posts one
-    /// encrypted item to it, and posts one anonymous item to a public channel drive.
-    /// </summary>
-    private static async Task<(string EncryptedFriendsFileContent64, string PublicFileContent)>
-        PrepareIdentityWithChannelsAndPostsAsync(
-            OwnerSession owner,
-            Guid circleId,
-            int postFileType,
-            string friendsOnlyContent,
-            string publicContent)
-    {
-        var friendsOnlyTargetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        var publicTargetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-
-        await owner.Admin.CreateDrive(publicTargetDrive, "Public Channel Drive", allowAnonymousReads: true,
-            ownerOnly: false, allowSubscriptions: true);
-        await owner.Admin.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
-
-        await owner.Admin.CreateCircle(circleId, "Friends Only", new PermissionSetGrantRequest
-        {
-            Drives = new List<DriveGrantRequest>
-            {
-                new()
-                {
-                    PermissionedDrive = new()
-                    {
-                        Drive = friendsOnlyTargetDrive,
-                        Permission = DrivePermission.Read
-                    },
-                }
-            },
-            PermissionSet = default
-        });
-
-        //
-        // upload one post to friends target drive
-        //
-        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
-        friendsFile.AllowDistribution = true;
-        var friendsFileUploadResponse = await owner.V1.Drive.UploadNewEncryptedMetadata(
-            friendsOnlyTargetDrive,
-            friendsFile);
-
-        Assert.That(friendsFileUploadResponse.response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        //
-        // upload one post to public target drive
-        //
-        var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Anonymous);
-        publicFile.AllowDistribution = true;
-        var publicFileUploadResult = await owner.V1.Drive.UploadNewMetadata(publicTargetDrive, publicFile);
-
-        Assert.That(publicFileUploadResult.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        return (friendsFileUploadResponse.encryptedJsonContent64, publicContent);
     }
 }

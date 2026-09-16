@@ -32,10 +32,10 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// Drives the <b>V1</b> update-batch endpoint through the in-process host via
 /// <see cref="UniversalDriveApiClient"/>, reached through <c>owner.V1.Drive</c>.
 ///
-/// The concurrency shape is carried over unchanged (<see cref="PerformanceFramework.ThreadedTestAsync"/>,
-/// 2 threads x 100 iterations, with the original's random 5-50 ms inter-iteration delay). Each thread's
-/// work is ordinary HTTP against the test server, so every request gets its own DI scope — the
-/// <c>ScopedConnectionFactory</c> single-scope hazard does not arise.
+/// The concurrency shape is carried over (<see cref="PerformanceFramework.ThreadedTestAsync"/>,
+/// 2 threads x 100 iterations); the original's random 5-50 ms inter-iteration sleep is dropped, as
+/// nothing is pending across it. Each thread's work is ordinary HTTP against the test server, so every
+/// request gets its own DI scope — the <c>ScopedConnectionFactory</c> single-scope hazard does not arise.
 ///
 /// Both threads mutate the single shared <c>_originalFileMetadata</c> / <c>_originalPayload</c>
 /// instances, exactly as the original did. That is a race, and a benign-looking one: the two threads
@@ -54,16 +54,11 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
     private int _successCount;
     private int _conflictCount;
 
-    public static IEnumerable<object[]> OwnerAllowed()
-    {
-        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-    }
-
-    [Test, TestCaseSource(nameof(OwnerAllowed))]
-    public async Task UpdateBatch_HammerTime_WithPayloads(CallerSpec spec, HttpStatusCode expected)
+    [Test]
+    public async Task UpdateBatch_HammerTime_WithPayloads()
     {
         _owner = await LoginAsOwner();
-        var targetDrive = spec.TargetDrive;
+        var targetDrive = TargetDrive.NewTargetDrive();
         await _owner.Admin.CreateDrive(targetDrive, "Test Drive 001", allowAnonymousReads: true);
 
         //
@@ -79,7 +74,7 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         var uploadNewFileResponse = await _owner.V1.Drive.UploadNewFile(targetDrive,
             _originalFileMetadata, uploadManifest, [_originalPayload]);
 
-        Assert.That(uploadNewFileResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(uploadNewFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var uploadResult = uploadNewFileResponse.Content;
         Assert.That(uploadResult, Is.Not.Null);
@@ -100,8 +95,6 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
     {
         long[] timers = new long[iterations];
         var sw = new Stopwatch();
-        int fileByteLength = 0;
-        Random random = new Random();
 
         Guid newVersionTag = _initialVersionTag;
 
@@ -147,11 +140,9 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
 
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
-
-            await Task.Delay(random.Next(5, 51));
         }
 
-        return (fileByteLength, timers);
+        return (0, timers);
     }
 
     private async Task<(HttpStatusCode status, OdinClientErrorCode? oce, Guid? versionTag)> UploadAndValidatePayload(
@@ -189,7 +180,7 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         // Get the updated file and test it
         //
         var getHeaderResponse = await _owner.V1.Drive.GetFileHeader(_targetFile);
-        Assert.That(getHeaderResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var header = getHeaderResponse.Content;
         Assert.That(header, Is.Not.Null);
         Assert.That(header.FileMetadata.AppData.Content, Is.EqualTo(_originalFileMetadata.AppData.Content));
@@ -201,7 +192,7 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         // Ensure payloadToAdd add is added
         //
         var getPayloadToAddResponse = await _owner.V1.Drive.GetPayload(_targetFile, _originalPayload.Key);
-        Assert.That(getPayloadToAddResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(getPayloadToAddResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getPayloadToAddResponse.ContentHeaders!.LastModified.HasValue, Is.True);
         Assert.That(getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault(),
             Is.LessThan(DateTimeOffset.Now.AddSeconds(10)));
@@ -215,7 +206,7 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
             var getThumbnailResponse = await _owner.V1.Drive.GetThumbnail(_targetFile, thumbnail.PixelWidth,
                 thumbnail.PixelHeight, _originalPayload.Key);
 
-            Assert.That(getThumbnailResponse.IsSuccessStatusCode, Is.True);
+            Assert.That(getThumbnailResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(getThumbnailResponse.ContentHeaders!.LastModified.HasValue, Is.True);
             Assert.That(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault(),
                 Is.LessThan(DateTimeOffset.Now.AddSeconds(10)));

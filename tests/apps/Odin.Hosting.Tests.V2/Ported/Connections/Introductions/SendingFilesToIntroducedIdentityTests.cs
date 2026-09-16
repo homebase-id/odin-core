@@ -37,7 +37,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <para>
 /// The trailing <c>Cleanup()</c> (delete introductions, disconnect every pairing, delete stray
 /// requests, unblock) was lifecycle only and asserted nothing; per-test reset owns it. The
-/// <c>DeleteAllIntroductions</c> calls inside <c>Prepare</c> are kept as arrange.
+/// <c>DeleteAllIntroductions</c> calls inside <c>Prepare</c> are kept as arrange, as
+/// <see cref="IntroductionTestUtils.PrepareIntroducerAndClearIntroductionsAsync"/>.
 /// <c>SetupCallerWithOwner</c> is not in play — no caller matrix, <c>LoginAsOwner</c> only.
 /// </para>
 /// </remarks>
@@ -53,7 +54,7 @@ public class SendingFilesToIntroducedIdentityTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var merry = await LoginAsOwner(Identities.Merry);
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         var response = await Requests(frodo).SendIntroductions(new IntroductionGroup
         {
@@ -114,17 +115,5 @@ public class SendingFilesToIntroducedIdentityTests : V2Fixture
         Assert.That(getFileOnMerryResponse.IsSuccessStatusCode, Is.True);
         var fileOnMerry = getFileOnMerryResponse.Content!.SearchResults.SingleOrDefault();
         Assert.That(fileOnMerry, Is.Not.Null);
-    }
-
-    /// <summary>
-    /// You have 3 hobbits. Frodo is connected to Sam and Merry; Sam and Merry are not connected.
-    /// </summary>
-    private static async Task PrepareAsync(OwnerSession frodo, OwnerSession sam, OwnerSession merry)
-    {
-        await PrepareIntroducer(frodo, sam, merry);
-
-        await Requests(frodo).DeleteAllIntroductions();
-        await Requests(sam).DeleteAllIntroductions();
-        await Requests(merry).DeleteAllIntroductions();
     }
 }

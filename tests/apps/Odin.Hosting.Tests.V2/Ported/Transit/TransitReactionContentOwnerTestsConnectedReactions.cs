@@ -8,13 +8,10 @@ using Odin.Core;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Services.Peer.Incoming.Reactions;
 
 namespace Odin.Hosting.Tests.V2.Ported.Transit;
 
@@ -63,24 +60,7 @@ public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
 
         var (pippin, sam, uploadResult) = await PrepareScenarioAsync();
 
-        //
-        // Sam adds reaction from Sam's feed to Pippin's channel
-        //
-        await PeerReactions.AddReactionAsync(sam, pippin.Identity,
-            uploadResult.GlobalTransitIdFileIdentifier,
-            reactionContent);
-
-        var response = await PeerReactions.GetAllReactionsAsync(sam, pippin.Identity, new GetRemoteReactionsRequest
-        {
-            File = uploadResult.GlobalTransitIdFileIdentifier,
-            Cursor = "",
-            MaxRecords = 100
-        });
-
-        Assert.That(response.Reactions.Count, Is.EqualTo(1));
-        var theReaction = response.Reactions.SingleOrDefault();
-        Assert.That(theReaction, Is.Not.Null);
-        Assert.That(theReaction!.ReactionContent, Is.EqualTo(reactionContent));
+        var theReaction = await AddAndReadBackTheReactionAsync(sam, pippin, uploadResult, reactionContent);
         Assert.That(theReaction.GlobalTransitIdFileIdentifier, Is.EqualTo(uploadResult.GlobalTransitIdFileIdentifier));
     }
 
@@ -91,34 +71,13 @@ public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
 
         var (pippin, sam, uploadResult) = await PrepareScenarioAsync();
 
-        //
-        // Sam adds reaction from Sam's feed to Pippin's channel
-        //
-        await PeerReactions.AddReactionAsync(sam, pippin.Identity,
-            uploadResult.GlobalTransitIdFileIdentifier,
-            reactionContent);
-
-        var response = await PeerReactions.GetAllReactionsAsync(sam, pippin.Identity, new GetRemoteReactionsRequest
-        {
-            File = uploadResult.GlobalTransitIdFileIdentifier,
-            Cursor = "",
-            MaxRecords = 100
-        });
-
-        Assert.That(response.Reactions.Count, Is.EqualTo(1));
-        var theReaction = response.Reactions.SingleOrDefault();
-        Assert.That(theReaction, Is.Not.Null);
-        Assert.That(theReaction!.ReactionContent, Is.EqualTo(reactionContent));
+        await AddAndReadBackTheReactionAsync(sam, pippin, uploadResult, reactionContent);
 
         // now delete it
         await PeerReactions.DeleteReactionAsync(sam, pippin.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
 
-        var shouldBeDeletedResponse = await PeerReactions.GetAllReactionsAsync(sam, pippin.Identity, new GetRemoteReactionsRequest
-        {
-            File = uploadResult.GlobalTransitIdFileIdentifier,
-            Cursor = "",
-            MaxRecords = 100
-        });
+        var shouldBeDeletedResponse = await PeerReactions.GetAllReactionsAsync(sam, pippin.Identity,
+            uploadResult.GlobalTransitIdFileIdentifier);
 
         Assert.That(shouldBeDeletedResponse.Reactions, Is.Empty);
     }
@@ -147,6 +106,31 @@ public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
+    /// Sam reacts to Pippin's post over transit and reads the reaction back: there is exactly one, and
+    /// it carries <paramref name="reactionContent"/>. Returns it, for the caller that asserts further.
+    /// </summary>
+    private static async Task<PerimeterReaction> AddAndReadBackTheReactionAsync(
+        OwnerSession sam, OwnerSession pippin, UploadResult uploadResult, string reactionContent)
+    {
+        //
+        // Sam adds reaction from Sam's feed to Pippin's channel
+        //
+        await PeerReactions.AddReactionAsync(sam, pippin.Identity,
+            uploadResult.GlobalTransitIdFileIdentifier,
+            reactionContent);
+
+        var response = await PeerReactions.GetAllReactionsAsync(sam, pippin.Identity,
+            uploadResult.GlobalTransitIdFileIdentifier);
+
+        Assert.That(response.Reactions.Count, Is.EqualTo(1));
+        var theReaction = response.Reactions.SingleOrDefault();
+        Assert.That(theReaction, Is.Not.Null);
+        Assert.That(theReaction!.ReactionContent, Is.EqualTo(reactionContent));
+
+        return theReaction;
+    }
+
+    /// <summary>
     /// The arrange both real tests share: Pippin's channel drive, Sam following and connected with
     /// read/write on it through a circle, and one post of Pippin's to react to.
     /// </summary>
@@ -166,20 +150,8 @@ public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
         await sam.V1.Follower.FollowIdentity(pippin.Identity, FollowerNotificationType.AllNotifications, null);
 
         var targetCircleId = Guid.NewGuid();
-        await pippin.Admin.CreateCircle(targetCircleId, "Garden channel circle", new PermissionSetGrantRequest
-        {
-            Drives = new List<DriveGrantRequest>
-            {
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive
-                    {
-                        Drive = pippinChannelDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                }
-            }
-        });
+        await pippin.Admin.CreateCircle(targetCircleId, "Garden channel circle",
+            TestUtils.CreatePermissionGrantRequest(pippinChannelDrive, DrivePermission.ReadWrite));
 
         var sendRequest = await sam.Connections.SendConnectionRequest(pippin.Identity, new List<GuidId>());
         Assert.That(sendRequest.StatusCode, Is.EqualTo(HttpStatusCode.OK));

@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -51,8 +50,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <item><c>GetOutboxItem</c> returns an <c>ApiResponse</c>, which is never null, so
 /// <c>IsNotNull(samOutboxItem)</c> in <see cref="WillNotAutoAcceptWhenRecipientDisablesIntroductions"/>
 /// asserts nothing about whether the item exists. Carried as a null check on the response.</item>
-/// <item>Both rows of <see cref="CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists"/>
-/// declare an expected status code that the body never reads.</item>
 /// <item>That test's commented-out block asserting the outgoing request to Sam is carried as found.</item>
 /// </list>
 /// </para>
@@ -68,6 +65,12 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <c>Cleanup()</c> were both lifecycle for a shared <c>WebScaffold</c>; per-test reset owns that and
 /// neither asserted.
 /// </para>
+/// <para>
+/// The original's case source carried an expected status code alongside each caller, and
+/// <see cref="CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists"/> took it and never read
+/// it. Both rows declared the same code, so the column distinguished nothing; it is dropped rather
+/// than carried.
+/// </para>
 /// </remarks>
 [TestFixture]
 public class AutoAcceptTests : V2Fixture
@@ -76,12 +79,12 @@ public class AutoAcceptTests : V2Fixture
 
     public static IEnumerable<object[]> ProcessIntroductionsCases()
     {
-        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.None, PermissionKeys.All), HttpStatusCode.OK];
+        yield return [CallerSpec.Owner(DriveSpec.Anon())];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.None, PermissionKeys.All)];
     }
 
     [Test, TestCaseSource(nameof(ProcessIntroductionsCases))]
-    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists(CallerSpec spec, HttpStatusCode expected)
+    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists(CallerSpec spec)
     {
         // Note: for your sanity, remember this is a background process that is
         // automatically accepting introductions that are eligible
@@ -101,7 +104,7 @@ public class AutoAcceptTests : V2Fixture
             Recipients = [sam.Identity, merry.Identity]
         });
 
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"failed: status code was: {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await frodo.Sync.DrainOutboxAsync();
 
         var introResult = response.Content!;
@@ -112,8 +115,8 @@ public class AutoAcceptTests : V2Fixture
         await merry.Sync.DrainOutboxAsync();
 
         // Assert: Sam should have a connection request from Merry and visa/versa
-        var samClient = CallerRequests(caller);
-        var samProcessResponse = await samClient.ProcessIncomingIntroductions();
+        var samProcessResponse = await caller.RefitFor<IRefitUniversalCircleNetworkRequests>()
+            .ProcessIncomingIntroductions();
         Assert.That(samProcessResponse.IsSuccessStatusCode, Is.True);
 
         // var outgoingRequestToSamResponse = await merryOwnerClient.Connections.GetOutgoingSentRequestTo(sam);
@@ -171,8 +174,7 @@ public class AutoAcceptTests : V2Fixture
 
         var samIntroductionsResponse = await Requests(sam).GetReceivedIntroductions();
         Assert.That(samIntroductionsResponse.IsSuccessStatusCode, Is.True);
-        Assert.That(samIntroductionsResponse.Content!.All(intro => intro.Identity != merry.Identity), Is.True,
-            "there should be no introductions to sam");
+        Assert.That(samIntroductionsResponse.Content!.All(intro => intro.Identity != merry.Identity), Is.True);
     }
 
     [Test]
@@ -241,12 +243,5 @@ public class AutoAcceptTests : V2Fixture
         Assert.That(getMerryConnectionInfoResponse.IsSuccessStatusCode, Is.True);
         Assert.That(getMerryConnectionInfoResponse.Content!.Status, Is.EqualTo(ConnectionStatus.None),
             "merry should not be connected to sam");
-    }
-
-    /// <summary>The V1 connection-requests surface as an arbitrary caller (Owner or App).</summary>
-    private static IRefitUniversalCircleNetworkRequests CallerRequests(IV2Caller caller)
-    {
-        var client = caller.Factory.CreateHttpClient(caller.Identity, out var sharedSecret);
-        return RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkRequests>(client, sharedSecret);
     }
 }

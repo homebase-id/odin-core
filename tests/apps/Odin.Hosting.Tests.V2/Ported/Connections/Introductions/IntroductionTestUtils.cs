@@ -24,8 +24,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// test. Nothing in it asserted.
 /// </para>
 /// <para>
-/// Carried as found: <see cref="HasSentIntroducedConnectionRequestToIntroducee"/> has no callers and
-/// never had any — it is dead in the original too.
+/// The original's <c>HasSentIntroducedConnectionRequestToIntroducee</c> is not carried: it had no
+/// callers here and never had any in the original either.
 /// </para>
 /// </remarks>
 internal static class IntroductionTestUtils
@@ -33,19 +33,6 @@ internal static class IntroductionTestUtils
     public static async Task<bool> HasReceivedIntroducedConnectionRequestFromIntroducee(OwnerSession owner, OdinId introducee)
     {
         var response = await owner.Connections.GetIncomingRequestFrom(introducee);
-
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return false;
-        }
-
-        Assert.That(response.IsSuccessStatusCode, Is.True);
-        return response.Content != null && response.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction;
-    }
-
-    public static async Task<bool> HasSentIntroducedConnectionRequestToIntroducee(OwnerSession owner, OdinId introducee)
-    {
-        var response = await owner.Connections.GetOutgoingSentRequestTo(introducee);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -69,10 +56,8 @@ internal static class IntroductionTestUtils
         var getConnectionInfoResponse = await owner.Connections.GetConnectionInfo(introducee);
         Assert.That(getConnectionInfoResponse.IsSuccessStatusCode, Is.True);
 
-        bool isIntroduction = getConnectionInfoResponse.Content!.ConnectionRequestOrigin == expectedOrigin &&
-                              getConnectionInfoResponse.Content.Status == ConnectionStatus.Connected;
-
-        return isIntroduction;
+        return getConnectionInfoResponse.Content!.ConnectionRequestOrigin == expectedOrigin &&
+               getConnectionInfoResponse.Content.Status == ConnectionStatus.Connected;
     }
 
     public static async Task<bool> IsConnected(OwnerSession owner, OdinId introducee)
@@ -80,9 +65,7 @@ internal static class IntroductionTestUtils
         var getConnectionInfoResponse = await owner.Connections.GetConnectionInfo(introducee);
         Assert.That(getConnectionInfoResponse.IsSuccessStatusCode, Is.True);
 
-        bool isIntroduction = getConnectionInfoResponse.Content!.Status == ConnectionStatus.Connected;
-
-        return isIntroduction;
+        return getConnectionInfoResponse.Content!.Status == ConnectionStatus.Connected;
     }
 
     /// <summary>
@@ -96,6 +79,23 @@ internal static class IntroductionTestUtils
 
         await merry.Connections.AcceptConnectionRequest(frodo.Identity);
         await sam.Connections.AcceptConnectionRequest(frodo.Identity);
+
+        return frodo;
+    }
+
+    /// <summary>
+    /// <see cref="PrepareIntroducer"/>, then clear every introduction all three hobbits are holding —
+    /// the arrange for a fixture whose assertions read the introduction lists, which must therefore
+    /// start empty. Returns the introducer.
+    /// </summary>
+    public static async Task<OwnerSession> PrepareIntroducerAndClearIntroductionsAsync(
+        OwnerSession frodo, OwnerSession sam, OwnerSession merry)
+    {
+        await PrepareIntroducer(frodo, sam, merry);
+
+        await Requests(frodo).DeleteAllIntroductions();
+        await Requests(sam).DeleteAllIntroductions();
+        await Requests(merry).DeleteAllIntroductions();
 
         return frodo;
     }

@@ -1,19 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Tests.V2.Ported.Transit;
 
@@ -40,7 +37,12 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///     <c>WaitForEmptyOutbox</c> / <c>WaitForTransferStatus</c> are passive polls that need the outbox
 ///     background service, which this host registers but never starts. Both became
 ///     <c>Sync.DrainOutboxAsync</c> followed, where a status was being waited for, by
-///     <see cref="TransitScenario.AssertTransferStatusAsync"/>.
+///     <see cref="DriveAsserts.AssertTransferStatus"/>.
+///   </description></item>
+///   <item><description>
+///     The four failure tests differed only in the drive permission, the two encryption flags and the
+///     expected <c>LatestTransferStatus</c>, so they are the four rows of
+///     <see cref="FailureCases"/>. The S-codes they exercise are in the row names.
 ///   </description></item>
 ///   <item><description>
 ///     <b>Dropped, and not replaced:</b> the two <c>S2100</c> tests wrapped themselves in
@@ -55,17 +57,20 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///     No caller matrix and no <c>SetupCallerWithOwner</c> — owner-only flows throughout.
 ///   </description></item>
 /// </list>
-/// Carried defect, behaviour left exactly as found:
-/// <see cref="FailsWhenSenderCannotWriteCommentOnRecipientServer"/> asserts
-/// <c>recipientStatus == TransferStatus.Enqueued</c> under the message "Should have been
-/// RecipientReturnedAccessDenied" — the message describes the opposite of what is asserted. The
-/// assertion is right (the upload enqueues; the refusal shows up later in the transfer history, which
-/// the test goes on to check); the message is stale. NUnit prints both sides now, so the message is
-/// gone rather than carried in its misleading form.
+/// Carried defect, behaviour left exactly as found: the
+/// <c>FailsWhenSenderCannotWriteCommentOnRecipientServer</c> row asserts that the comment
+/// upload enqueues, under a message that read "Should have been RecipientReturnedAccessDenied" — the
+/// message described the opposite of what was asserted. The assertion is right (the upload enqueues;
+/// the refusal shows up later in the transfer history, which the row goes on to check); the message
+/// was stale. NUnit prints both sides now, so the message is gone rather than carried in its
+/// misleading form.
 /// </remarks>
 [TestFixture]
 public class TransitCommentFileRoutingTests : V2Fixture
 {
+    private const string StandardFileContent = "We eagles fly to Mordor, sup w/ that?";
+    private const string CommentFileContent = "Srsly!?? =O";
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]
@@ -85,40 +90,21 @@ public class TransitCommentFileRoutingTests : V2Fixture
                 ReferencedFile is distributed to followers
          */
 
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = false;
-
-        const string commentFileContent = "Srsly!?? =O";
         const bool commentIsEncrypted = false;
 
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
-
-        var (standardFileUploadResult, _) =
-            await UploadStandardFileAsync(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitId = await GetByGlobalTransitIdAsync(recipient, standardFileUploadResult);
-
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(standardFileContent));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
+        var scenario = await ArrangeAsync(
+            DrivePermission.Read | DrivePermission.WriteReactionsAndComments,
+            standardFileIsEncrypted: false);
 
         //sender replies with a comment
-        var (commentUploadResult, _) = await TransferCommentAsync(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
+        var (commentUploadResult, _) = await TransferCommentAsync(scenario.Sender,
+            scenario.StandardFile.GlobalTransitIdFileIdentifier,
+            uploadedContent: CommentFileContent,
+            encrypted: commentIsEncrypted, scenario.Recipient);
 
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
+        AssertEnqueuedFor(commentUploadResult, scenario.Recipient);
 
-        await sender.Sync.DrainOutboxAsync();
+        await scenario.Sender.Sync.DrainOutboxAsync();
 
         //
         // Test results
@@ -129,16 +115,7 @@ public class TransitCommentFileRoutingTests : V2Fixture
         //
 
         // File should be on recipient server and accessible by global transit id
-        var searchResults = await TransitScenario.QueryByGlobalTransitIdAsync(recipient,
-            commentUploadResult.GlobalTransitIdFileIdentifier, FileSystemType.Comment);
-        Assert.That(searchResults.Count, Is.EqualTo(1));
-        var receivedFile = searchResults.First();
-        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
-        Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(commentFileContent));
-        Assert.That(receivedFile.FileMetadata.GlobalTransitId, Is.EqualTo(commentUploadResult.GlobalTransitId));
+        await AssertCommentLandedAsync(scenario, commentUploadResult, CommentFileContent, commentIsEncrypted);
 
         //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
     }
@@ -160,40 +137,21 @@ public class TransitCommentFileRoutingTests : V2Fixture
                 ReferencedFile is distributed to followers
          */
 
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = true;
-
-        const string commentFileContent = "Srsly!?? =O";
         const bool commentIsEncrypted = true;
 
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
-
-        var (standardFileUploadResult, encryptedJsonContent64) =
-            await UploadStandardFileAsync(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitId = await GetByGlobalTransitIdAsync(recipient, standardFileUploadResult);
-
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
+        var scenario = await ArrangeAsync(
+            DrivePermission.Read | DrivePermission.WriteReactionsAndComments,
+            standardFileIsEncrypted: true);
 
         //sender replies with a comment
-        var (commentUploadResult, encryptedCommentJsonContent64) = await TransferCommentAsync(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
+        var (commentUploadResult, encryptedCommentJsonContent64) = await TransferCommentAsync(scenario.Sender,
+            scenario.StandardFile.GlobalTransitIdFileIdentifier,
+            uploadedContent: CommentFileContent,
+            encrypted: commentIsEncrypted, scenario.Recipient);
 
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
+        AssertEnqueuedFor(commentUploadResult, scenario.Recipient);
 
-        await sender.Sync.DrainOutboxAsync();
+        await scenario.Sender.Sync.DrainOutboxAsync();
 
         //
         // Test results
@@ -204,75 +162,9 @@ public class TransitCommentFileRoutingTests : V2Fixture
         //
 
         // File should be on recipient server and accessible by global transit id
-        var searchResults = await TransitScenario.QueryByGlobalTransitIdAsync(recipient,
-            commentUploadResult.GlobalTransitIdFileIdentifier, FileSystemType.Comment);
-        Assert.That(searchResults.Count, Is.EqualTo(1));
-        var receivedFile = searchResults.First();
-        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
-        Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
-        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
-        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(encryptedCommentJsonContent64));
-        Assert.That(receivedFile.FileMetadata.GlobalTransitId, Is.EqualTo(commentUploadResult.GlobalTransitId));
+        await AssertCommentLandedAsync(scenario, commentUploadResult, encryptedCommentJsonContent64, commentIsEncrypted);
 
         //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
-    }
-
-    [Test]
-    public async Task FailsWhenSenderCannotWriteCommentOnRecipientServer()
-    {
-        /*
-         Failure Test - Comment
-            Fails when sender cannot write to target drive on recipients server
-            Upload standard file - encrypted = true
-            Upload comment file - encrypted = true
-            Sender does not have write access (S2000)
-            Sender has storage Key (read access)
-            Valid ReferencedFile (global transit id)
-            Should fail
-            throws 403 - S2010
-         */
-
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const DrivePermission drivePermissions = DrivePermission.Read;
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = true;
-
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = true;
-
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
-
-        var (standardFileUploadResult, encryptedJsonContent64) =
-            await UploadStandardFileAsync(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitId = await GetByGlobalTransitIdAsync(recipient, standardFileUploadResult);
-
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
-
-        //sender replies with a comment
-        var (commentUploadResult, _) = await TransferCommentAsync(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
-
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
-
-        //
-        // Validate the transfer history was updated correctly
-        //
-        await sender.Sync.DrainOutboxAsync();
-        await TransitScenario.AssertTransferStatusAsync(sender, commentUploadResult.File, recipient.Identity,
-            LatestTransferStatus.RecipientIdentityReturnedAccessDenied,
-            FileSystemType.Comment);
     }
 
     [Test]
@@ -292,16 +184,13 @@ public class TransitCommentFileRoutingTests : V2Fixture
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
 
-        const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = true;
+        // Unlike the other tests, this one never reads the standard file back: the comment deliberately
+        // references a file that does not exist, so nothing is asserted about the one that does.
+        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient,
+            DrivePermission.Read | DrivePermission.WriteReactionsAndComments,
+            label: "Target drive", allowAnonymousReads: false);
 
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = true;
-
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
-
-        await UploadStandardFileAsync(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
+        await UploadStandardFileAsync(recipient, targetDrive, StandardFileContent, encrypted: true);
 
         var invalidReferencedFile = new GlobalTransitIdFileIdentifier
         {
@@ -312,24 +201,41 @@ public class TransitCommentFileRoutingTests : V2Fixture
         //sender replies with a comment
         var (commentUploadResult, _) = await TransferCommentAsync(sender,
             invalidReferencedFile,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
+            uploadedContent: CommentFileContent,
+            encrypted: true, recipient);
 
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
+        AssertEnqueuedFor(commentUploadResult, recipient);
 
         //
         // Validate the transfer history was updated correctly
         //
         await sender.Sync.DrainOutboxAsync();
-        await TransitScenario.AssertTransferStatusAsync(sender, commentUploadResult.File, recipient.Identity,
+        await DriveAsserts.AssertTransferStatus(sender, commentUploadResult.File, recipient.Identity,
             LatestTransferStatus.RecipientIdentityReturnedBadRequest,
             FileSystemType.Comment);
     }
 
-    [Test]
-    public async Task FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test1()
+    /// <summary>
+    /// The four ways a comment transfer is refused. Each row sends one comment on a valid referenced
+    /// file and asserts the settled <see cref="LatestTransferStatus"/> in the sender's history.
+    /// </summary>
+    private static IEnumerable<TestCaseData> FailureCases()
     {
+        /*
+         Failure Test - Comment
+            Fails when sender cannot write to target drive on recipients server
+            Upload standard file - encrypted = true
+            Upload comment file - encrypted = true
+            Sender does not have write access (S2000)
+            Sender has storage Key (read access)
+            Valid ReferencedFile (global transit id)
+            Should fail
+            throws 403 - S2010
+         */
+        yield return new TestCaseData(DrivePermission.Read, true, true,
+                LatestTransferStatus.RecipientIdentityReturnedAccessDenied)
+            .SetName("FailsWhenSenderCannotWriteCommentOnRecipientServer");
+
         /*
          Fails when encryption do not match between from a comment to its ReferencedFile
             Test 1
@@ -341,55 +247,12 @@ public class TransitCommentFileRoutingTests : V2Fixture
             Should fail
             Bad Request (S2100)
          */
+        yield return new TestCaseData(DrivePermission.Read | DrivePermission.WriteReactionsAndComments, true, false,
+                LatestTransferStatus.RecipientIdentityReturnedServerError)
+            .SetName("FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test1");
 
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = true;
-
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = false;
-
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
-
-        var (standardFileUploadResult, encryptedJsonContent64) =
-            await UploadStandardFileAsync(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitId = await GetByGlobalTransitIdAsync(recipient, standardFileUploadResult);
-
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
-
-        //sender replies with a comment
-        var (commentUploadResult, _) = await TransferCommentAsync(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
-
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
-
-        //
-        // Validate the transfer history was updated correctly
-        //
-        await sender.Sync.DrainOutboxAsync();
-        await TransitScenario.AssertTransferStatusAsync(sender, commentUploadResult.File, recipient.Identity,
-            LatestTransferStatus.RecipientIdentityReturnedServerError,
-            FileSystemType.Comment);
-    }
-
-    [Test]
-    public async Task FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test2()
-    {
         /*
           Fails when encryption do not match between from a comment to its ReferencedFile
-
             Test 2
             Upload standard file - encrypted = false
             Upload comment file - encrypted = true
@@ -399,52 +262,10 @@ public class TransitCommentFileRoutingTests : V2Fixture
             Should fail
             Bad Request (S2100)
          */
+        yield return new TestCaseData(DrivePermission.Read | DrivePermission.WriteReactionsAndComments, false, true,
+                LatestTransferStatus.RecipientIdentityReturnedServerError)
+            .SetName("FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test2");
 
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = false;
-
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = true;
-
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
-
-        var (standardFileUploadResult, _) =
-            await UploadStandardFileAsync(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitId = await GetByGlobalTransitIdAsync(recipient, standardFileUploadResult);
-
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(standardFileContent));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
-
-        //sender replies with a comment
-        var (commentUploadResult, _) = await TransferCommentAsync(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
-
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
-
-        //
-        // Validate the transfer history was updated correctly
-        //
-        await sender.Sync.DrainOutboxAsync();
-        await TransitScenario.AssertTransferStatusAsync(sender, commentUploadResult.File, recipient.Identity,
-            LatestTransferStatus.RecipientIdentityReturnedServerError,
-            FileSystemType.Comment);
-    }
-
-    [Test]
-    public async Task FailsWhenCommentFileIsEncryptedAndSenderHasNoDriveStorageKeyOnRecipientServer_S2210()
-    {
         /*
          Fails when file is encrypted and there is no drive storage key
             Comment:
@@ -457,50 +278,97 @@ public class TransitCommentFileRoutingTests : V2Fixture
             Should fail
             403
          */
+        yield return new TestCaseData(DrivePermission.WriteReactionsAndComments, true, true,
+                LatestTransferStatus.RecipientIdentityReturnedAccessDenied)
+            .SetName("FailsWhenCommentFileIsEncryptedAndSenderHasNoDriveStorageKeyOnRecipientServer_S2210");
+    }
 
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        const DrivePermission drivePermissions = DrivePermission.WriteReactionsAndComments;
-        const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-        const bool standardFileIsEncrypted = true;
-
-        const string commentFileContent = "Srsly!?? =O";
-        const bool commentIsEncrypted = true;
-
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
-
-        var (standardFileUploadResult, encryptedJsonContent64) =
-            await UploadStandardFileAsync(recipient, targetDrive, standardFileContent, standardFileIsEncrypted);
-
-        //
-        // Assert that the recipient server has the file by global transit id
-        //
-        var recipientFileByGlobalTransitId = await GetByGlobalTransitIdAsync(recipient, standardFileUploadResult);
-
-        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
+    [TestCaseSource(nameof(FailureCases))]
+    public async Task CommentTransferIsRefused(
+        DrivePermission drivePermissions,
+        bool standardFileIsEncrypted,
+        bool commentIsEncrypted,
+        LatestTransferStatus expectedStatus)
+    {
+        var scenario = await ArrangeAsync(drivePermissions, standardFileIsEncrypted);
 
         //sender replies with a comment
-        var (commentUploadResult, _) = await TransferCommentAsync(sender,
-            standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            uploadedContent: commentFileContent,
-            encrypted: commentIsEncrypted, recipient);
+        var (commentUploadResult, _) = await TransferCommentAsync(scenario.Sender,
+            scenario.StandardFile.GlobalTransitIdFileIdentifier,
+            uploadedContent: CommentFileContent,
+            encrypted: commentIsEncrypted, scenario.Recipient);
 
-        Assert.That(commentUploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var transferStatus), Is.True);
-        Assert.That(transferStatus, Is.EqualTo(TransferStatus.Enqueued));
+        AssertEnqueuedFor(commentUploadResult, scenario.Recipient);
 
         //
         // Validate the transfer history was updated correctly
         //
-        await sender.Sync.DrainOutboxAsync();
-        await TransitScenario.AssertTransferStatusAsync(sender, commentUploadResult.File, recipient.Identity,
-            LatestTransferStatus.RecipientIdentityReturnedAccessDenied,
+        await scenario.Sender.Sync.DrainOutboxAsync();
+        await DriveAsserts.AssertTransferStatus(scenario.Sender, commentUploadResult.File, scenario.Recipient.Identity,
+            expectedStatus,
             FileSystemType.Comment);
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    private sealed record CommentScenario(
+        OwnerSession Sender,
+        OwnerSession Recipient,
+        UploadResult StandardFile);
+
+    /// <summary>
+    /// Frodo and Sam connected over one drive on which Frodo holds <paramref name="drivePermissions"/>,
+    /// with one standard file of Sam's on it that Sam can find by its global transit id.
+    /// </summary>
+    private async Task<CommentScenario> ArrangeAsync(DrivePermission drivePermissions, bool standardFileIsEncrypted)
+    {
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
+
+        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, drivePermissions,
+            label: "Target drive", allowAnonymousReads: false);
+
+        var (standardFileUploadResult, encryptedJsonContent64) =
+            await UploadStandardFileAsync(recipient, targetDrive, StandardFileContent, standardFileIsEncrypted);
+
+        //
+        // Assert that the recipient server has the file by global transit id
+        //
+        var recipientFileByGlobalTransitId = await TransitScenario.SingleByGlobalTransitIdAsync(
+            recipient, standardFileUploadResult.GlobalTransitIdFileIdentifier);
+
+        Assert.That(recipientFileByGlobalTransitId, Is.Not.Null);
+        Assert.That(recipientFileByGlobalTransitId.FileMetadata.AppData.Content,
+            Is.EqualTo(encryptedJsonContent64 ?? StandardFileContent));
+        Assert.That(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted, Is.EqualTo(standardFileIsEncrypted));
+
+        return new CommentScenario(sender, recipient, standardFileUploadResult);
+    }
+
+    /// <summary>The upload enqueued one item, for <paramref name="recipient"/>.</summary>
+    private static void AssertEnqueuedFor(UploadResult uploadResult, OwnerSession recipient)
+    {
+        Assert.That(uploadResult.RecipientStatus, Does.ContainKey((string)recipient.Identity));
+        Assert.That(uploadResult.RecipientStatus[recipient.Identity], Is.EqualTo(TransferStatus.Enqueued));
+    }
+
+    /// <summary>
+    /// The comment is on the recipient's drive, authored by the sender, carrying
+    /// <paramref name="expectedContent"/>.
+    /// </summary>
+    private static async Task AssertCommentLandedAsync(
+        CommentScenario scenario, UploadResult commentUploadResult, string expectedContent, bool commentIsEncrypted)
+    {
+        var receivedFile = await TransitScenario.SingleByGlobalTransitIdAsync(scenario.Recipient,
+            commentUploadResult.GlobalTransitIdFileIdentifier, FileSystemType.Comment);
+
+        Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
+        Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)scenario.Sender.Identity));
+        Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(scenario.Sender.Identity));
+        Assert.That(receivedFile.FileMetadata.IsEncrypted, Is.EqualTo(commentIsEncrypted));
+        Assert.That(receivedFile.FileMetadata.AppData.Content, Is.EqualTo(expectedContent));
+        Assert.That(receivedFile.FileMetadata.GlobalTransitId, Is.EqualTo(commentUploadResult.GlobalTransitId));
+    }
 
     /// <summary>
     /// Sends a comment file to a single recipient and performs basic assertions required by all tests
@@ -569,11 +437,6 @@ public class TransitCommentFileRoutingTests : V2Fixture
         return (uploadResult, encryptedJsonContent64);
     }
 
-    private static Task<TargetDrive> PrepareScenarioAsync(
-        OwnerSession sender, OwnerSession recipient, DrivePermission drivePermissions) =>
-        PeerFlow.CreatePeerDriveAsync(sender, recipient, drivePermissions,
-            label: "Target drive", allowAnonymousReads: false);
-
     private static async Task<(UploadResult UploadResult, string EncryptedJsonContent64)> UploadStandardFileAsync(
         OwnerSession owner, TargetDrive targetDrive, string uploadedContent, bool encrypted)
     {
@@ -600,14 +463,5 @@ public class TransitCommentFileRoutingTests : V2Fixture
 
         var response = await owner.V1.Drive.UploadNewMetadata(targetDrive, fileMetadata);
         return (response.Content, null);
-    }
-
-    /// <summary>The single file on <paramref name="owner"/>'s drive with that global transit id.</summary>
-    private static async Task<SharedSecretEncryptedFileHeader> GetByGlobalTransitIdAsync(
-        OwnerSession owner, UploadResult uploadResult)
-    {
-        var searchResults = await TransitScenario.QueryByGlobalTransitIdAsync(
-            owner, uploadResult.GlobalTransitIdFileIdentifier);
-        return searchResults.SingleOrDefault();
     }
 }

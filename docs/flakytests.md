@@ -273,3 +273,35 @@ those, the shared cause is worth chasing rather than re-running -- they all asse
 they do not deterministically wait for. The fast framework has `Sync.DrainOutboxAsync()` /
 `ProcessInboxAsync()` for exactly this; a port that keeps a V1-style implicit wait inherits the
 flake.
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.DriveWrite.HammerTimeLocalUpdateBatchTests`
+
+- `UpdateBatch_HammerTime_WithPayloads`
+
+**Where:** local, `--filter "FullyQualifiedName~Ported.DriveWrite"` (2026-09-16), 1 failure in the
+first of 8 runs of that filter on the same day.
+
+**Almost certainly the same flake seen earlier the same day on the full suite** (PR #1768): 1 failure
+in 8 full-suite runs, on the first run after a rebase, never reproduced. That one went unidentified
+because the failing run's output was truncated before the test name — which is the practical argument
+for the assertion rule below, and for not piping a red test run through `tail`.
+
+**Symptom:** `Assert.That(getThumbnailResponse.IsSuccessStatusCode, Is.True)` in
+`UploadAndValidatePayload` -- the thumbnail GET comes back unsuccessful. Two threads hammer
+update-batch against one shared file for 100 iterations each, so a reader can hit the payload/thumbnail
+of a version another thread is in the middle of replacing.
+
+**Not caused by the change in flight:** the failure was observed on the *baseline* run, before any
+edit to this fixture (the change that followed was a `/simplify` cleanup of the batch-6 DriveWrite
+ports). It could not be confirmed with `git stash`: the worktree was shared with other agents at the
+time, so stashing was not available. After the cleanup -- which also removed this fixture's carried
+5-50 ms inter-iteration sleep -- the fixture passed 6 consecutive runs (1 full DriveWrite filter plus
+5 hammer-only runs).
+
+**Pattern worth noting:** unlike the peer-delivery family above, nothing here is waiting on a
+background service; it is a genuine read-during-write race that the fixture's own two writers create,
+and the original `_Universal` test has the same shape. The failure message was uninformative because
+the assert was `Is.True` on `IsSuccessStatusCode`, which records no status code; the cleanup converted
+this fixture's asserts to exact-status form, so a recurrence will name the code it got.

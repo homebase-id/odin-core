@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -62,7 +62,7 @@ public class MultipleQueryConsumersTest : V2Fixture
 
         var standardUploadResponse =
             await frodoOwnerClient.V1.Drive.UploadNewMetadata(targetDrive, standardFile, FileSystemType.Standard);
-        Assert.That(standardUploadResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(standardUploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var standardFileUploadResult = standardUploadResponse.Content!;
 
         var commentFile = new UploadFileMetadata()
@@ -107,7 +107,7 @@ public class MultipleQueryConsumersTest : V2Fixture
 
         var commentUploadResponse = await frodoOwnerClient.V1.Drive.UploadNewFile(targetDrive, commentFile, commentManifest,
             commentPayloads, fileSystemType: FileSystemType.Comment);
-        Assert.That(commentUploadResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(commentUploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var commentFileUploadResult = commentUploadResponse.Content!;
 
         var standardFileResults = await QueryBatch(frodoOwnerClient, FileSystemType.Standard, new FileQueryParamsV1()
@@ -146,7 +146,7 @@ public class MultipleQueryConsumersTest : V2Fixture
             }
         }, fileSystemType);
 
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed status code.  Value was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content, Is.Not.Null);
         return response.Content!;
     }

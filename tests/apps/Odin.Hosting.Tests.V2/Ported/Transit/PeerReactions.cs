@@ -5,7 +5,6 @@ using Odin.Core.Identity;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
-using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Refit;
@@ -45,6 +44,19 @@ internal static class PeerReactions
         // which covered both; the exact code is asserted here so a failure prints what came back.
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
+
+    /// <summary>
+    /// Every reaction on <paramref name="file"/>, from the start of the list. The fixtures that call
+    /// this all want the same whole-list request, so it is built here rather than at each call site.
+    /// </summary>
+    public static Task<GetReactionsPerimeterResponse> GetAllReactionsAsync(
+        OwnerSession caller, OdinId remoteIdentity, GlobalTransitIdFileIdentifier file, int maxRecords = 100)
+        => GetAllReactionsAsync(caller, remoteIdentity, new GetRemoteReactionsRequest
+        {
+            File = file,
+            Cursor = "",
+            MaxRecords = maxRecords
+        });
 
     public static async Task<GetReactionsPerimeterResponse> GetAllReactionsAsync(
         OwnerSession caller, OdinId remoteIdentity, GetRemoteReactionsRequest request)

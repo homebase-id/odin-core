@@ -1,17 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.DataSubscription.Follower;
-using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Apps;
 
 namespace Odin.Hosting.Tests.V2.Ported.Feed;
@@ -31,6 +24,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Feed;
 /// <c>if (expectedStatusCode == OK)</c> guard is gone.</item>
 /// <item>Trailing disconnect / unfollow calls were cleanup only and are dropped — per-test reset
 /// covers them.</item>
+/// <item><c>PrepareSamIdentityWithChannelsAndPosts</c> was the friends-only half of the helper the
+/// three other feed fixtures carried whole; it is
+/// <see cref="FeedScenario.PrepareFriendsOnlyChannelAsync"/>, which creates the secured channel drive
+/// itself — the original took one in only to have its caller create it and never look at it
+/// again.</item>
 /// <item>Carried defects, all left exactly as found:
 /// the test never comments on anything, despite "Frodo Comments" in its own plan comment and
 /// <c>Commenting…</c> in its name, and never reads a reaction preview;
@@ -66,11 +64,9 @@ public class Feed_Comment_Tests : V2Fixture
         var ownerSam = await LoginAsOwner(Identities.Sam);
         var ownerFrodo = await LoginAsOwner(Identities.Frodo);
 
-        var samFriendsOnlyTargetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-
         var samFriendsOnlyCircle = Guid.NewGuid();
-        var encryptedFriendsFileContent64 = await PrepareSamIdentityWithChannelsAndPostsAsync(ownerSam,
-            samFriendsOnlyCircle, samFriendsOnlyTargetDrive, postFileType: fileType);
+        var encryptedFriendsFileContent64 = await FeedScenario.PrepareFriendsOnlyChannelAsync(ownerSam,
+            samFriendsOnlyCircle, postFileType: fileType);
 
         var followSamResponse1 = await ownerFrodo.V1.Follower.FollowIdentity(ownerSam.Identity,
             FollowerNotificationType.AllNotifications,
@@ -93,19 +89,7 @@ public class Feed_Comment_Tests : V2Fixture
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
         //
-        var frodoQueryFeedResponse = await ownerFrodo.V1.Drive.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = WellKnownAppDrives.FeedDrive,
-                FileType = [fileType]
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            }
-        });
+        var frodoQueryFeedResponse = await ownerFrodo.V1.Drive.QueryBatch(FeedScenario.FeedQuery(fileType));
 
         Assert.That(frodoQueryFeedResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
@@ -120,19 +104,7 @@ public class Feed_Comment_Tests : V2Fixture
         //
         // Validation - check that SAM has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
         //
-        var samQueryFeedResponse = await ownerSam.V1.Drive.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = WellKnownAppDrives.FeedDrive,
-                FileType = []
-            },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest
-            {
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            }
-        });
+        var samQueryFeedResponse = await ownerSam.V1.Drive.QueryBatch(FeedScenario.FeedQuery([]));
 
         Assert.That(samQueryFeedResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var samFeedSearchResults = samQueryFeedResponse.Content?.SearchResults?.ToList();
@@ -148,46 +120,5 @@ public class Feed_Comment_Tests : V2Fixture
         //     s.FileMetadata.IsEncrypted == false &&
         //     s.FileMetadata.AppData.Content == frodoPreparedFiles.publicFileContent);
         // ClassicAssert.IsNotNull(samExpectedPublicFile);
-    }
-
-    private static async Task<string> PrepareSamIdentityWithChannelsAndPostsAsync(
-        OwnerSession samOwnerClient, Guid circleId, TargetDrive friendsOnlyTargetDrive, int postFileType)
-    {
-        // Sam's identity creates the circle 'friends' with read access to a channel drive.
-        // Sam's posts 1 item to this friends channel drive
-        // sam posts 1 item to a public channel drive
-
-        await samOwnerClient.Admin.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive",
-            allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
-
-        await samOwnerClient.Admin.CreateCircle(circleId, "Friends Only", new PermissionSetGrantRequest
-        {
-            Drives = new List<DriveGrantRequest>
-            {
-                new()
-                {
-                    PermissionedDrive = new()
-                    {
-                        Drive = friendsOnlyTargetDrive,
-                        Permission = DrivePermission.Read
-                    },
-                }
-            },
-            PermissionSet = default
-        });
-
-        //
-        // upload one post to friends target drive
-        //
-        const string friendsOnlyContent = "some secured friends only content";
-        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
-        friendsFile.AllowDistribution = true;
-        var (friendsFileUploadResponse, encryptedJsonContent64) = await samOwnerClient.V1.Drive.UploadNewEncryptedMetadata(
-            friendsOnlyTargetDrive,
-            friendsFile);
-
-        Assert.That(friendsFileUploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        return encryptedJsonContent64;
     }
 }

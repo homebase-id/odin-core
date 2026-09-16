@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -36,9 +35,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// <item>The original's <c>PrepareScenario</c> sent the connection request before the recipient had
 /// created its drive and circle; <see cref="OutboxScenario.PrepareAsync"/> creates both first. Same
 /// end state, and nothing asserts on the intermediate one.</item>
-/// <item>Carried defect: both tests re-assert the single <c>uploadResponse</c> — status code,
-/// recipient count, per-recipient status — once per recipient inside the <c>foreach</c>, which only
-/// the <c>RecipientStatus[recipient]</c> lookup varies with. Left as written.</item>
+/// <item>Both originals re-asserted the single <c>uploadResponse</c> — status code, recipient count,
+/// per-recipient status — once per recipient inside the <c>foreach</c>, though only the
+/// <c>RecipientStatus[recipient]</c> lookup varies with it. The two invariant assertions are hoisted
+/// out of the loop here; the per-recipient one stays inside it.</item>
 /// <item>Trailing <c>DeleteScenario</c> calls were cleanup only and are dropped — per-test reset
 /// covers them.</item>
 /// </list>
@@ -98,11 +98,12 @@ public class OutboxProcessingTestsMultipleRecipients : V2Fixture
 
         await senderOwnerClient.Sync.DrainOutboxAsync();
 
+        Assert.That(uploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uploadResult = uploadResponse.Content;
+        Assert.That(uploadResult.RecipientStatus.Count, Is.EqualTo(recipients.Count));
+
         foreach (var recipient in recipients)
         {
-            Assert.That(uploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var uploadResult = uploadResponse.Content;
-            Assert.That(uploadResult.RecipientStatus.Count, Is.EqualTo(recipients.Count));
             Assert.That(uploadResult.RecipientStatus[recipient.Identity], Is.EqualTo(TransferStatus.Enqueued));
 
             // Assert: file that was sent has peer transfer status updated
@@ -167,11 +168,12 @@ public class OutboxProcessingTestsMultipleRecipients : V2Fixture
 
         await senderOwnerClient.Sync.DrainOutboxAsync();
 
+        Assert.That(uploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uploadResult = uploadResponse.Content;
+        Assert.That(uploadResult.RecipientStatus.Count, Is.EqualTo(recipients.Count));
+
         foreach (var recipient in recipients)
         {
-            Assert.That(uploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var uploadResult = uploadResponse.Content;
-            Assert.That(uploadResult.RecipientStatus.Count, Is.EqualTo(recipients.Count));
             Assert.That(uploadResult.RecipientStatus[recipient.Identity], Is.EqualTo(TransferStatus.Enqueued));
 
             //Get modified to results ensure it will show up after a transfer
