@@ -91,10 +91,7 @@ public class V1PayloadTests : V2Fixture
 
         Assert.That(getPayloadKey1Response.StatusCode, Is.EqualTo(expected));
 
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
+        if (expected != HttpStatusCode.OK) return;
 
         //test more
         Assert.That(getPayloadKey1Response.ContentHeaders, Is.Not.Null);
@@ -159,10 +156,7 @@ public class V1PayloadTests : V2Fixture
         var uploadPayloadResponse = await callerDriveClient.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
         Assert.That(uploadPayloadResponse.StatusCode, Is.EqualTo(expected));
 
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
+        if (expected != HttpStatusCode.OK) return;
 
         //test more
         Assert.That(uploadPayloadResponse.Content!.NewVersionTag, Is.Not.EqualTo(targetVersionTag), "Version tag should have changed");
@@ -246,10 +240,7 @@ public class V1PayloadTests : V2Fixture
         Assert.That(deletePayloadResponse.StatusCode, Is.EqualTo(expected));
 
         // Test More
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
+        if (expected != HttpStatusCode.OK) return;
 
         var deletePayloadResult = deletePayloadResponse.Content;
         Assert.That(deletePayloadResult, Is.Not.Null);

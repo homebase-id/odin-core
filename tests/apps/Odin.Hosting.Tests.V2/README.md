@@ -13,7 +13,7 @@ the wire.
 | Peer-to-peer flows | in-process, ~1 s end-to-end | over real loopback HTTPS |
 | Wall clock (full V2 suite) | ~25 s (229 tests) | ~55 s (249 tests on Kestrel + TLS) |
 
-Coexists with the V1 framework — V1 controller tests stay there.
+Coexists with the V1 framework. V1 controller tests are being migrated here — see **Porting rules** below.
 
 ---
 
@@ -122,12 +122,83 @@ Three test-only seams make this work:
 
 ## Non-goals
 
-- ~~**V1 controller tests**~~ — no longer a non-goal. V1 endpoints work here: the V1-shaped Refit clients from `_Universal` are reused unchanged, and `InProcessApiClientFactory` resolves their relative paths against the caller's own V1 base (`/api/owner/v1`, `/api/apps/v1`, `/api/guest/v1`) so Owner/App/Guest permission matrices behave as they do on Kestrel. `Ported/StaticFiles/` is the first such fixture; migrating the rest of `_Universal` and `OwnerApi` off `WebScaffold` is in progress. V1 admin endpoints remain the fixture-seeding surface (drives, apps, circles, YouAuth domains) and back caller-scoped inbox processing (`OwnerSync` / `AppSync`).
+- **V1 controller tests are no longer a non-goal.** V1 endpoints work here: the V1-shaped Refit clients from `_Universal` are reused unchanged, and `InProcessApiClientFactory` resolves their relative paths against the caller's own V1 base (`/api/owner/v1`, `/api/apps/v1`, `/api/guest/v1`) so Owner/App/Guest permission matrices behave as they do on Kestrel. See **Porting rules**.
 - **mTLS-bound paths** — V2 tests run TLS-less; anything that genuinely requires client cert auth has to stay on real Kestrel.
 - **Background-service timer behavior** — services are registered but never started. Anything time-driven (cert renewal, orphan scan, scheduled jobs) needs the V1 framework. Tests drain the peer outbox explicitly via `Sync.DrainOutboxAsync` and process the inbox via `Sync.ProcessInboxAsync`.
 - **WebSocket-driven flows** — the host registers `SharedDeviceSocketCollection` but no V2 test currently opens a socket. The reset path does *not* clear those registries; the first test that holds a socket across the boundary will need to add a drain hook (see the "What this does NOT reset" note on `OdinHost.ResetAsync`).
 
 ---
+
+## Porting rules
+
+Migrating a `WebScaffold` fixture here. These are decisions already made — follow them rather than
+re-deriving, which is how the first batches ended up with three spellings of the same thing.
+
+**Shape**
+- Delete the whole `WebScaffold` block (`_scaffold`, `[OneTimeSetUp]`, `[OneTimeTearDown]`,
+  `[SetUp]`, `[TearDown]`). `V2Fixture` owns the lifecycle.
+- One `IEnumerable<object[]> <Thing>Cases()` per distinct matrix, rows inline, consumed by a
+  one-line `[Test, TestCaseSource(nameof(XCases))]`. Not one source per caller with stacked
+  attributes. Never call it `TestCases`.
+- Parameter is `expected`, not `expectedStatusCode`.
+- `_Universal` context types map to `CallerSpec`: `OwnerClientContext` → `CallerSpec.Owner`,
+  `AppWriteOnlyAccessToDrive` → `CallerSpec.App(..., Write)`, `AppSpecifyDriveAccess` with a
+  `TestPermissionKeyList` → the three-argument `CallerSpec.App`, guests likewise. Call
+  `DriveSpec.Anon()` / `.Secured()` per row so each case gets a fresh drive.
+- A fixture from `OwnerApi/` usually has no caller matrix at all. Plain `[Test]` methods are correct
+  — don't invent one.
+
+**Clients**
+- V1 clients come from the handles: `caller.V1.Drive`, `owner.V1.Reactions`, … Never
+  `new UniversalXApiClient(identity, factory)` — that spelling makes it easy to pair one caller's
+  identity with another's factory.
+- `owner.Admin` is **arrange-only**: opinionated defaults, throws on non-2xx. When an admin endpoint
+  is itself the system under test — including every test that asserts a refusal — call the Refit
+  interface through `owner.RefitFor<T>()` instead. Do not add a non-throwing `Try*` twin to
+  `OwnerAdmin`; roughly half the admin surface would need one.
+- `OwnerAdmin` earns a new method only when two or more fixtures need it *as arrange*. A
+  one-fixture need goes through `RefitFor<T>()`.
+
+**Identity**
+- Prefer the fixture default. The V1 originals pinned identities because `WebScaffold` shared them
+  process-wide; here every fixture boots its own host, so the name is usually arbitrary.
+- Need a specific acting identity? Override `PrimaryIdentity`. Do **not** convey it by ordering
+  `HostIdentities` — that fails silently, because the identities are structurally identical and the
+  tests usually still pass while exercising the wrong one.
+- Only list an identity in `HostIdentities` if the server actually resolves it. An identity that is
+  merely *named* in metadata costs a tenant materialisation plus a reset per test for nothing.
+
+**Assertions**
+- `Assert.That(actual, Is.EqualTo(expected))` — note the argument order flips from
+  `ClassicAssert.AreEqual`.
+- Never pass a precomputed `bool` to `Assert.That`; pass the value and a constraint
+  (`Does.Contain`, `Is.EquivalentTo`, `Has.Exactly(1).Matches(...)`, `Is.Empty`, `Is.LessThan`), so
+  a failure prints the value instead of `Expected: True`.
+- Drop messages that restate the comparison — NUnit prints both sides. Keep messages that name
+  something it can't, such as which loop iteration failed.
+- `UnixTimeUtc` is not `IComparable`: `Is.GreaterThan` compiles and throws at run time. Compare
+  `.milliseconds`.
+- Recurring drive assertions live in `Api/DriveAsserts.cs`. Add to it rather than inlining a fourth
+  copy.
+
+**Things that bite**
+- `SetupCallerWithOwner` creates the drive *and* builds the caller in one step. If the original did
+  anything between those two points, it now happens after. This has been hit in four fixtures so
+  far and been inert each time — but check, and record the verdict in the fixture's `<remarks>` so
+  a reviewer can tell a checked port from an unchecked one.
+- Convert a trailing `if (expected == OK) { … }` to an early `if (expected != OK) return;` — unless
+  a statement after the block has to run for every row (a cleanup `Delete`, say). Check first.
+- Don't seed for rows that early-return. Guest and no-permission App rows are refused at authz
+  before anything reads the drive, so uploads for those rows are wasted; gate the seed on
+  `expected == HttpStatusCode.OK`.
+- A port is a move, not a rewrite. Carry `[Ignore]`s over verbatim. If you find an assertion that
+  never ran or a test that doesn't test its own name, leave the behaviour alone and say so in the
+  commit message — three such defects have surfaced this way already.
+
+**Naming**
+- The `V1` class-name prefix means only "a fixture from `_V2/` already owns this class name in this
+  folder". It says nothing about which endpoints the fixture calls — `UpdateBatchTests` drives V1
+  endpoints and has no prefix. Don't infer the rule from neighbours.
 
 ## Where things live
 

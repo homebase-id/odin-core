@@ -31,6 +31,18 @@ public abstract class V2Fixture
     protected virtual bool ResetBetweenTests => true;
 
     /// <summary>
+    /// The identity <see cref="SetupCaller"/> / <see cref="SetupCallerWithOwner"/> act as when the
+    /// test doesn't name one. Defaults to the first entry of <see cref="HostIdentities"/>.
+    /// </summary>
+    /// <remarks>
+    /// Override this rather than reordering <see cref="HostIdentities"/>. Ordering carries no
+    /// meaning of its own, and relying on it fails silently: the identities a fixture boots are
+    /// structurally identical, so acting as the wrong one usually still passes while testing
+    /// something other than what was intended.
+    /// </remarks>
+    protected virtual string PrimaryIdentity => HostIdentities[0];
+
+    /// <summary>
     /// Configuration this fixture needs the host booted with, merged over the per-host defaults.
     /// Override for settings that must be in place before startup — e.g. a mail fixture turning on
     /// <c>Email:TenantMail:Enabled</c>. Prefer this over environment variables: fixtures run in
@@ -98,6 +110,9 @@ public abstract class V2Fixture
     /// </summary>
     protected Task<OwnerSession> LoginAsOwner(string identity) => OwnerSession.LoginAsync(Host, identity);
 
+    /// <summary>Logs in as <see cref="PrimaryIdentity"/> — the common case for single-identity fixtures.</summary>
+    protected Task<OwnerSession> LoginAsOwner() => LoginAsOwner(PrimaryIdentity);
+
     /// <summary>
     /// One-liner for parameterized tests over <see cref="CallerSpec"/>: logs in as owner of
     /// <paramref name="ownerIdentity"/> (default: the fixture's first <see cref="HostIdentities"/>),
@@ -120,7 +135,7 @@ public abstract class V2Fixture
         CallerSpec spec,
         string? ownerIdentity = null)
     {
-        var owner = await LoginAsOwner(ownerIdentity ?? HostIdentities[0]);
+        var owner = await LoginAsOwner(ownerIdentity ?? PrimaryIdentity);
         var d = spec.DriveSpec;
         await owner.Admin.EnsureDrive(d.Drive, d.Name, d.AllowAnonymousReads, d.OwnerOnly, d.AllowSubscriptions);
         var caller = await spec.Build(owner);

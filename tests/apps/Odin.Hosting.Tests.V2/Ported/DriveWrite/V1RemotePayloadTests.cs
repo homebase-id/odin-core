@@ -51,7 +51,12 @@ public class V1RemotePayloadTests : V2Fixture
     /// because the original hosted him; he is named as the remote data-source identity but never
     /// contacted.
     /// </summary>
-    protected override string[] HostIdentities => [Identities.Sam, Identities.Frodo];
+    /// <summary>
+    /// Only Sam is booted. Frodo is named as the remote data source but never resolved: DataSource
+    /// is validated structurally (identity present, drive id non-empty) and nothing looks the
+    /// identity up, so hosting him would be a tenant materialised and reset per test for nothing.
+    /// </summary>
+    protected override string[] HostIdentities => [Identities.Sam];
 
     /// <summary>
     /// The original's single case source, inline. Writing to the drive needs a write grant, which both
@@ -207,9 +212,6 @@ public class V1RemotePayloadTests : V2Fixture
 
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
-
-        uploadedFileMetadata.DataSource = null;
-
         var uploadManifest = new UploadManifest()
         {
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
@@ -242,8 +244,7 @@ public class V1RemotePayloadTests : V2Fixture
 
         var response = await callerDriveClient.UpdateFile(updateInstructionSet, uploadedFileMetadata, payloads: []);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        var errorCode = WebScaffold.GetErrorCode(response.Error);
-        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
+        Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
     }
 
     [Test, TestCaseSource(nameof(RemotePayloadCases))]
@@ -255,9 +256,6 @@ public class V1RemotePayloadTests : V2Fixture
 
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
-
-        uploadedFileMetadata.DataSource = null;
-
         var uploadManifest = new UploadManifest()
         {
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
@@ -285,8 +283,7 @@ public class V1RemotePayloadTests : V2Fixture
 
         var response = await callerDriveClient.UpdateExistingMetadata(uploadedFile.File, uploadedFile.NewVersionTag, uploadedFileMetadata);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        var errorCode = WebScaffold.GetErrorCode(response.Error);
-        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
+        Assert.That(WebScaffold.GetErrorCode(response.Error), Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
     }
 
     [Test, TestCaseSource(nameof(RemotePayloadCases))]

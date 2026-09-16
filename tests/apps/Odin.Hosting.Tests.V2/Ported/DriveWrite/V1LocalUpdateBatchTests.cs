@@ -110,20 +110,8 @@ public class V1LocalUpdateBatchTests : V2Fixture
 
         // Ensure we find the file on the recipient
         //
-        var searchResponse = await ownerDriveClient.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = targetFile.TargetDrive,
-                DataType = [updatedFileMetadata.AppData.DataType]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        Assert.That(searchResponse.IsSuccessStatusCode, Is.True);
-        var theFileSearchResult = searchResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFileSearchResult, Is.Not.Null);
-        Assert.That(theFileSearchResult!.FileId, Is.EqualTo(targetFile.FileId));
+        await DriveAsserts.AssertFileFoundByDataType(
+            ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
@@ -159,7 +147,7 @@ public class V1LocalUpdateBatchTests : V2Fixture
         updatedFileMetadata.AppData.DataType = 777;
         updatedFileMetadata.VersionTag = uploadResult!.NewVersionTag;
 
-        var targetFile = uploadNewFileResponse.Content!.File;
+        var targetFile = uploadResult.File;
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition2();
 
         // create instruction set
@@ -174,16 +162,7 @@ public class V1LocalUpdateBatchTests : V2Fixture
             {
                 PayloadDescriptors =
                 [
-                    new UploadManifestPayloadDescriptor
-                    {
-                        PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
-                        Iv = Guid.Empty.ToByteArray(),
-                        PayloadKey = payloadToAdd.Key,
-                        DescriptorContent = null,
-                        ContentType = payloadToAdd.ContentType,
-                        PreviewThumbnail = default,
-                        Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
-                    },
+                    payloadToAdd.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite),
                     new UploadManifestPayloadDescriptor()
                     {
                         PayloadUpdateOperationType = PayloadUpdateOperationType.DeletePayload,
@@ -251,20 +230,8 @@ public class V1LocalUpdateBatchTests : V2Fixture
         //
         // Ensure we find the file on the recipient
         //
-        var searchResponse = await ownerDriveClient.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = targetFile.TargetDrive,
-                DataType = [updatedFileMetadata.AppData.DataType]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        Assert.That(searchResponse.IsSuccessStatusCode, Is.True);
-        var theFileSearchResult = searchResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFileSearchResult, Is.Not.Null);
-        Assert.That(theFileSearchResult!.FileId, Is.EqualTo(targetFile.FileId));
+        await DriveAsserts.AssertFileFoundByDataType(
+            ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
@@ -310,7 +277,7 @@ public class V1LocalUpdateBatchTests : V2Fixture
         updatedFileMetadata.AppData.DataType = 777;
         updatedFileMetadata.VersionTag = uploadResult!.NewVersionTag;
 
-        var targetFile = uploadNewFileResponse.Content!.File;
+        var targetFile = uploadResult.File;
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition2();
 
 
@@ -330,16 +297,7 @@ public class V1LocalUpdateBatchTests : V2Fixture
             {
                 PayloadDescriptors =
                 [
-                    new UploadManifestPayloadDescriptor
-                    {
-                        PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
-                        Iv = Guid.Empty.ToByteArray(),
-                        PayloadKey = payloadToAdd.Key,
-                        DescriptorContent = null,
-                        ContentType = payloadToAdd.ContentType,
-                        PreviewThumbnail = default,
-                        Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
-                    },
+                    payloadToAdd.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite),
                     new UploadManifestPayloadDescriptor()
                     {
                         PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
@@ -455,20 +413,8 @@ public class V1LocalUpdateBatchTests : V2Fixture
         //
         // Ensure we find the file on the recipient
         //
-        var searchResponse = await ownerDriveClient.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = targetFile.TargetDrive,
-                DataType = [updatedFileMetadata.AppData.DataType]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        Assert.That(searchResponse.IsSuccessStatusCode, Is.True);
-        var theFileSearchResult = searchResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFileSearchResult, Is.Not.Null);
-        Assert.That(theFileSearchResult!.FileId, Is.EqualTo(targetFile.FileId));
+        await DriveAsserts.AssertFileFoundByDataType(
+            ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
@@ -535,20 +481,8 @@ public class V1LocalUpdateBatchTests : V2Fixture
 
         // Ensure we find the file on the recipient
         //
-        var searchResponse = await ownerDriveClient.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = targetFile.TargetDrive,
-                DataType = [updatedFileMetadata.AppData.DataType]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        Assert.That(searchResponse.IsSuccessStatusCode, Is.True);
-        var theFileSearchResult = searchResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFileSearchResult, Is.Not.Null);
-        Assert.That(theFileSearchResult!.FileId, Is.EqualTo(targetFile.FileId));
+        await DriveAsserts.AssertFileFoundByDataType(
+            ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
@@ -615,19 +549,7 @@ public class V1LocalUpdateBatchTests : V2Fixture
 
         // Ensure we find the file on the recipient
         //
-        var searchResponse = await ownerDriveClient.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = targetFile.TargetDrive,
-                DataType = [updatedFileMetadata.AppData.DataType]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        Assert.That(searchResponse.IsSuccessStatusCode, Is.True);
-        var theFileSearchResult = searchResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFileSearchResult, Is.Not.Null);
-        Assert.That(theFileSearchResult!.FileId, Is.EqualTo(targetFile.FileId));
+        await DriveAsserts.AssertFileFoundByDataType(
+            ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
     }
 }

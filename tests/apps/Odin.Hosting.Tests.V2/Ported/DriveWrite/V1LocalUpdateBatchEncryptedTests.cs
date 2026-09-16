@@ -8,7 +8,6 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -113,20 +112,8 @@ public class V1LocalUpdateBatchEncryptedTests : V2Fixture
         Assert.That(header.FileMetadata.AppData.DataType, Is.EqualTo(updatedFileMetadata.AppData.DataType));
         Assert.That(header.FileMetadata.Payloads.Any(), Is.False);
 
-        var searchResponse = await ownerDriveClient.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = targetFile.TargetDrive,
-                DataType = [updatedFileMetadata.AppData.DataType]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        Assert.That(searchResponse.IsSuccessStatusCode, Is.True);
-        var theFileSearchResult = searchResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFileSearchResult, Is.Not.Null);
-        Assert.That(theFileSearchResult!.FileId, Is.EqualTo(targetFile.FileId));
+        await DriveAsserts.AssertFileFoundByDataType(
+            ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
@@ -250,19 +237,7 @@ public class V1LocalUpdateBatchEncryptedTests : V2Fixture
         var getPayload1Response = await ownerDriveClient.GetPayload(targetFile, payloadThatWillBeDeleted.Key);
         Assert.That(getPayload1Response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
-        var searchResponse = await ownerDriveClient.QueryBatch(new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1()
-            {
-                TargetDrive = targetFile.TargetDrive,
-                DataType = [updatedFileMetadata.AppData.DataType]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        Assert.That(searchResponse.IsSuccessStatusCode, Is.True);
-        var theFileSearchResult = searchResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFileSearchResult, Is.Not.Null);
-        Assert.That(theFileSearchResult!.FileId, Is.EqualTo(targetFile.FileId));
+        await DriveAsserts.AssertFileFoundByDataType(
+            ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
     }
 }

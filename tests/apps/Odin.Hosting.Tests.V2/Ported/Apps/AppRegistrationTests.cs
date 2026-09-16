@@ -43,16 +43,16 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RegisterNewApp()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         await AddSampleAppNoDrive(owner, Guid.NewGuid(), "API Tests Sample App-register", "photos.odin.earth");
     }
 
     [Test]
     public async Task RegisterNewAppWith_UseTransitWrite_HasReadWriteOnTransientTempDrive_and_ICR_Key()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
@@ -82,9 +82,9 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RegisterNewAppWith_UseTransitRead_HasReadWriteOnTransientTempDrive_and_ICR_Key()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
@@ -114,9 +114,9 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RegisterNewApp_Without_UseTransitWrite_HasNoIcrKey_AndDoesNotHavePermissionOn_TransientTempDrive()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
@@ -146,9 +146,9 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RegisterNewApp_Without_UseTransitRead_HasNoIcrKey_AndDoesNotHavePermissionOn_TransientTempDrive()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
@@ -178,7 +178,7 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task AppPermissionUpdate_Keeps_TransientDriveWhen_UseTransitWrite_IsGranted()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var appPermissionsGrant = new PermissionSetGrantRequest
         {
@@ -214,7 +214,7 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task AppPermissionUpdate_Keeps_TransientDriveWhen_UseTransitRead_IsGranted()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var appPermissionsGrant = new PermissionSetGrantRequest
         {
@@ -250,7 +250,7 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RevokingUseTransitWrite_RemovesIcrKey_And_TransientTempDrive()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var appPermissionsGrant = new PermissionSetGrantRequest
         {
@@ -279,7 +279,7 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RevokingUseTransitRead_RemovesIcrKey_And_TransientTempDrive()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var appPermissionsGrant = new PermissionSetGrantRequest
         {
@@ -308,9 +308,9 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task FailToRegisterNewAppWithInvalidCorsHostName()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
@@ -332,10 +332,10 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RegisterNewAppWithCorsHostNameAndPort()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var corsHostName = "somewhere.odin.earth:444";
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
@@ -357,9 +357,9 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task FailToRegisterNewAppWithCorsHostNameAndInvalidPort()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
@@ -380,7 +380,7 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RegisterNewAppWithDriveAndPermissions()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var name = "API TestApp";
 
@@ -409,7 +409,7 @@ public class AppRegistrationTests : V2Fixture
             [PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections],
             [new PermissionedDrive { Drive = targetDrive1, Permission = DrivePermission.Read }]);
 
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
@@ -449,12 +449,12 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RevokeAppRegistration()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var appId = Guid.NewGuid();
 
         await AddSampleAppNoDrive(owner, appId, "API Tests Sample App-revoke", "photos.odin.earth");
 
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
         var revokeResponse = await svc.RevokeApp(new GetAppRequest { AppId = appId });
 
         Assert.That(revokeResponse.IsSuccessStatusCode, Is.True);
@@ -467,11 +467,11 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task RegisterAppOnClient()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var appId = Guid.NewGuid();
         await AddSampleAppNoDrive(owner, appId, "API Tests Sample App-reg-app-device", "app.somewhere.org");
 
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
 
         var clientPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccKeySize.P384, 1);
@@ -539,7 +539,7 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task UpdateAppPermissions()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var name = "API TestApp";
 
@@ -577,7 +577,7 @@ public class AppRegistrationTests : V2Fixture
             [PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections],
             [new PermissionedDrive { Drive = targetDrive1, Permission = DrivePermission.Read }]);
 
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
@@ -639,7 +639,7 @@ public class AppRegistrationTests : V2Fixture
     [Test]
     public async Task UpdateAuthorizedCircles()
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
+        var owner = await LoginAsOwner();
         var applicationId = Guid.NewGuid();
         var name = "API TestApp";
 
@@ -681,7 +681,7 @@ public class AppRegistrationTests : V2Fixture
             [PermissionKeys.ReadConnections],
             [new PermissionedDrive { Drive = targetDrive1, Permission = DrivePermission.Write }]);
 
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
@@ -752,16 +752,11 @@ public class AppRegistrationTests : V2Fixture
     /// The V1 app-management Refit surface as the logged-in owner. Unlike <c>owner.Admin</c>, this
     /// hands back the raw <c>ApiResponse</c>, which the refusal tests here need.
     /// </summary>
-    private static IRefitOwnerAppRegistration AppsApi(OwnerSession owner)
-    {
-        var (client, ss) = owner.NewAdminHttpClient();
-        return RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);
-    }
 
     private static async Task<RedactedAppRegistration> AddSampleAppNoDrive(
         OwnerSession owner, Guid applicationId, string name, string corsHostName)
     {
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
@@ -787,7 +782,7 @@ public class AppRegistrationTests : V2Fixture
 
     private static async Task<RedactedAppRegistration> GetSampleApp(OwnerSession owner, Guid appId)
     {
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
         var appResponse = await svc.GetRegisteredApp(new GetAppRequest { AppId = appId });
         Assert.That(appResponse.IsSuccessStatusCode, Is.True, $"Could not retrieve the app {appId}");
         Assert.That(appResponse.Content, Is.Not.Null, $"Could not retrieve the app {appId}");
@@ -796,7 +791,7 @@ public class AppRegistrationTests : V2Fixture
 
     private static async Task UpdateAppPermissions(OwnerSession owner, Guid appId, PermissionSetGrantRequest grant)
     {
-        var svc = AppsApi(owner);
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
         await svc.UpdateAppPermissions(new UpdateAppPermissionsRequest
         {
             AppId = appId,
