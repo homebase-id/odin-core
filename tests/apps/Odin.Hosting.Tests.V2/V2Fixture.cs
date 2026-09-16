@@ -1,9 +1,13 @@
 #nullable enable
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
+using Odin.Test.Helpers.Logging;
+using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2;
 
@@ -74,6 +78,32 @@ public abstract class V2Fixture
         }
     }
 
+    /// <summary>
+    /// When true (default), a test fails if the server logged an Error or Fatal during it, even when
+    /// every explicit assertion passed — the invariant the V1 <c>WebScaffold</c> fixtures enforced via
+    /// <c>AssertLogEvents</c>. It is what catches swallowed exceptions and error-level noise on paths
+    /// the test itself never looks at.
+    /// </summary>
+    /// <remarks>
+    /// Safe under <c>ParallelScope.Fixtures</c>: <c>LogEventMemoryStore</c> is registered
+    /// <c>SingleInstance</c> per Autofac container (<c>LoggingAutofacModule</c>), so each
+    /// <see cref="OdinHost"/> owns its own store, and the sink is bound to that host's store at
+    /// startup. The one process-wide vector is static <c>Serilog.Log.*</c>, whose only Error/Fatal
+    /// call sites are host-termination and Let's Encrypt issuance — neither reachable from this
+    /// TLS-less host.
+    ///
+    /// Override to opt out for a fixture that deliberately provokes errors, and say why.
+    /// </remarks>
+    protected virtual bool AssertNoErrorLogEvents => true;
+
+    /// <summary>
+    /// Hook for fixtures that expect specific errors: override to inspect the events and assert
+    /// whatever is right for that fixture. Mirrors the V1 <c>SetAssertLogEventsAction</c> escape
+    /// hatch. Only called when <see cref="AssertNoErrorLogEvents"/> is true.
+    /// </summary>
+    protected virtual void AssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents) =>
+        LogEvents.AssertEvents(logEvents);
+
     [SetUp]
     public async Task V2FixturePerTestSetUp()
     {
@@ -81,7 +111,25 @@ public abstract class V2Fixture
         {
             await Host.ResetAsync();
         }
+
+        // Clear AFTER the reset — restoring the DB and wiping the payload tree can itself log.
+        // One host serves the whole fixture, so without this an error in test #1 fails test #2.
+        LogStore?.Clear();
     }
+
+    [TearDown]
+    public void V2FixturePerTestTearDown()
+    {
+        if (!AssertNoErrorLogEvents || LogStore == null)
+        {
+            return;
+        }
+
+        AssertLogEvents(LogStore.GetLogEvents());
+    }
+
+    private ILogEventMemoryStore? LogStore =>
+        Host?.Server.Services.GetService<ILogEventMemoryStore>();
 
     [OneTimeTearDown]
     public async Task V2FixtureTearDown()
