@@ -15,10 +15,10 @@ namespace Odin.Hosting.Tests.V2.Peer;
 
 /// <summary>
 /// Connect two V2 in-process identities for peer flows. <see cref="ConnectAsync"/> grants the
-/// sender drive permission on the recipient's copy; pass <c>bidirectional: true</c> to also grant
-/// the recipient the same permission on the sender's copy (required for callbacks like the
-/// read-receipt path, which hits <c>AssertCanWriteToDrive</c> on the sender's drive when the
-/// recipient calls back).
+/// sender drive permission on the recipient's copy; pass
+/// <c>recipientPermissionOnSenderDrive</c> to also grant the recipient access on the sender's copy
+/// (required for callbacks like the read-receipt path, which hits <c>AssertCanWriteToDrive</c> on
+/// the sender's drive when the recipient calls back).
 /// </summary>
 /// <remarks>
 /// All HTTP between the two identities flows through the in-process
@@ -28,33 +28,45 @@ public static class PeerFlow
 {
     /// <summary>
     /// One-shot setup for peer-transfer tests: creates the drive on both sides and connects them.
-    /// Returns the created drive so callers can inline it.
+    /// Returns the drive so callers can inline it.
     /// </summary>
+    /// <param name="drive">
+    /// The drive to create on both sides. Omit for a fresh one; pass <c>spec.TargetDrive</c> when the
+    /// drive identity comes from a <see cref="CallerSpec"/>, so the caller's grant lands on the same
+    /// drive the test then writes to.
+    /// </param>
     public static async Task<TargetDrive> CreatePeerDriveAsync(
         OwnerSession sender,
         OwnerSession recipient,
         DrivePermission senderPermissionOnRecipientDrive,
         string label = "shared",
-        bool bidirectional = false,
-        bool allowAnonymousReads = true)
+        DrivePermission? recipientPermissionOnSenderDrive = null,
+        bool allowAnonymousReads = true,
+        TargetDrive? drive = null,
+        Dictionary<string, string>? attributes = null)
     {
-        var drive = TargetDrive.NewTargetDrive();
-        await sender.Admin.CreateDrive(drive, $"{sender.Identity} {label}", allowAnonymousReads: allowAnonymousReads);
-        await recipient.Admin.CreateDrive(drive, $"{recipient.Identity} {label}", allowAnonymousReads: allowAnonymousReads);
-        await ConnectAsync(sender, recipient, drive, senderPermissionOnRecipientDrive, bidirectional);
+        drive ??= TargetDrive.NewTargetDrive();
+        await sender.Admin.EnsureDrive(drive, $"{sender.Identity} {label}",
+            allowAnonymousReads: allowAnonymousReads, attributes: attributes);
+        await recipient.Admin.EnsureDrive(drive, $"{recipient.Identity} {label}",
+            allowAnonymousReads: allowAnonymousReads, attributes: attributes);
+        await ConnectAsync(sender, recipient, drive, senderPermissionOnRecipientDrive,
+            recipientPermissionOnSenderDrive);
         return drive;
     }
 
     /// <summary>
-    /// Connect two identities. <paramref name="bidirectional"/>=false (default) grants only the
-    /// sender; =true grants both sides equivalent permission on each other's drive.
+    /// Connect two identities. By default only the sender is granted, on the recipient's drive.
+    /// Pass <paramref name="recipientPermissionOnSenderDrive"/> to also grant the recipient on the
+    /// sender's drive — the same value for a symmetric connection, a different one where the two
+    /// directions genuinely differ (the read-receipt refusal tests need Read one way, Write the other).
     /// </summary>
     public static async Task ConnectAsync(
         OwnerSession sender,
         OwnerSession recipient,
         TargetDrive sharedDrive,
         DrivePermission senderPermissionOnRecipientDrive,
-        bool bidirectional = false)
+        DrivePermission? recipientPermissionOnSenderDrive = null)
     {
         // Circle the recipient creates: grants the sender access on the recipient's drive.
         var recipientCircleId = Guid.NewGuid();
@@ -64,11 +76,11 @@ public static class PeerFlow
         // Optional reverse: circle the sender creates and includes when sending the request,
         // so the recipient gets access on the sender's drive once the request lands.
         GuidId[]? senderGrantedCircles = null;
-        if (bidirectional)
+        if (recipientPermissionOnSenderDrive is { } reversePermission)
         {
             var senderCircleId = Guid.NewGuid();
             await EnsureCircleAsync(sender, senderCircleId, $"peer-send-{senderCircleId:N}",
-                sharedDrive, senderPermissionOnRecipientDrive);
+                sharedDrive, reversePermission);
             senderGrantedCircles = new GuidId[] { senderCircleId };
         }
 
@@ -83,20 +95,29 @@ public static class PeerFlow
             $"AcceptConnectionRequest on {recipient.Identity} failed: {accept.StatusCode}");
     }
 
+    /// <summary>
+    /// Deliver what the sender has queued: drain the sender's outbox, then process each recipient's
+    /// inbox for <paramref name="drive"/>. The universal peer-delivery idiom — the fast host registers
+    /// the outbox background service but never starts it, so nothing moves without this.
+    /// </summary>
+    public static async Task DistributeAsync(
+        OwnerSession sender, IEnumerable<OwnerSession> recipients, TargetDrive drive)
+    {
+        await sender.Sync.DrainOutboxAsync();
+        foreach (var recipient in recipients)
+        {
+            await recipient.Sync.ProcessInboxAsync(drive);
+        }
+    }
+
+    /// <inheritdoc cref="DistributeAsync(OwnerSession, IEnumerable{OwnerSession}, TargetDrive)"/>
+    public static Task DistributeAsync(OwnerSession sender, OwnerSession recipient, TargetDrive drive) =>
+        DistributeAsync(sender, [recipient], drive);
+
     private static async Task EnsureCircleAsync(
         OwnerSession owner, Guid circleId, string name, TargetDrive drive, DrivePermission permission)
     {
-        var grant = new PermissionSetGrantRequest
-        {
-            Drives = new List<DriveGrantRequest>
-            {
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = permission }
-                }
-            },
-            PermissionSet = new PermissionSet(new List<int>())
-        };
+        var grant = TestUtils.CreatePermissionGrantRequest(drive, permission);
         var resp = await owner.Admin.CreateCircle(circleId, name, grant);
         Assert.That(resp.IsSuccessStatusCode, Is.True,
             $"CreateCircle on {owner.Identity} failed: {resp.StatusCode}");

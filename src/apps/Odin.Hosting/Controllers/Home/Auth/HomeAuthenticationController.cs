@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using System;
+using System.Net;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Web;
@@ -17,6 +18,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Tenant;
+using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Home.Service;
@@ -100,6 +102,14 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken!.ToAuthenticationToken());
 
                 var url = GetFinalUrl(odinId, clientAccessToken, authState);
+                return Redirect(url);
+            }
+            catch (RemoteIdentityUpgradingException)
+            {
+                // Not a failure the user should be sent away over: the identity they are signing in
+                // with is finishing a version upgrade and will accept this in a few seconds. Its own
+                // error code so the client can say that, rather than the generic "call failed".
+                string url = $"{authState.FinalUrl}?error=remoteIdentityUpgrading";
                 return Redirect(url);
             }
             catch (OdinClientException)
@@ -197,6 +207,21 @@ namespace Odin.Hosting.Controllers.Home.Auth
             if (response.IsSuccessStatusCode && response.Content != null)
             {
                 return response.Content;
+            }
+
+            // An identity running its version upgrade 503s nearly everything (VersionUpgradeMiddleware),
+            // and this exchange is one of them. Told apart from a real failure because the far side says
+            // so in a header -- the same signal CircleNetworkIntroductionService reads on its preflight.
+            // Worth telling apart: the login is fine and will work in a few seconds, whereas
+            // "remoteValidationCallFailed" sends the user away believing something is broken.
+            if (response.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                response.Headers.IsTrue(OdinHeaderNames.UpgradeIsRunning))
+            {
+                _logger.LogInformation(
+                    "YouAuth token exchange with {odinId} refused: that identity is running a version upgrade",
+                    odinId);
+
+                throw new RemoteIdentityUpgradingException();
             }
 
             return null;
