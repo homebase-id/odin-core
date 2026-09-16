@@ -15,7 +15,6 @@ using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.ClientToken.App.Membership.Connections;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
-using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 

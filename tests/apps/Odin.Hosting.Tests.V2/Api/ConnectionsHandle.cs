@@ -91,5 +91,6 @@ public sealed class ConnectionsHandle
 
     public Task<ApiResponse<HttpContent>> BlockConnection(OdinId odinId) => _network.BlockConnection(odinId);
     public Task<ApiResponse<HttpContent>> UnblockConnection(OdinId odinId) => _network.UnblockConnection(odinId);
+    public Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, OdinId odinId) => _network.GrantCircle(circleId, odinId);
     public Task<ApiResponse<HttpContent>> RevokeCircle(Guid circleId, OdinId odinId) => _network.RevokeCircle(circleId, odinId);
 }

@@ -129,7 +129,8 @@ public sealed partial class OwnerAdmin
         string name,
         bool allowAnonymousReads = true,
         bool ownerOnly = false,
-        bool allowSubscriptions = false)
+        bool allowSubscriptions = false,
+        System.Collections.Generic.Dictionary<string, string>? attributes = null)
     {
         var existing = await GetDrives();
         if (existing.Any(d => d.TargetDriveInfo == drive))
@@ -137,7 +138,7 @@ public sealed partial class OwnerAdmin
             return;
         }
 
-        await CreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions);
+        await CreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions, attributes);
     }
 
     /// <summary>
@@ -218,6 +219,15 @@ public sealed partial class OwnerAdmin
         EnsureSuccess(response, nameof(UpdateTenantSettingsFlag));
         return response;
     }
+
+    /// <summary>
+    /// Stops the identity auto-accepting introductions, so a test can drive the connection handshake
+    /// itself. Arrange-only: every fixture that needs it wants the flag set, not the response.
+    /// </summary>
+    public Task<ApiResponse<bool>> DisableAutoAcceptIntroductions() =>
+        UpdateTenantSettingsFlag(
+            Odin.Services.Configuration.TenantConfigFlagNames.DisableAutoAcceptIntroductionsForTests,
+            bool.TrueString);
 
     // -----------------------------------------------------------------------------------------
     // Circles (delegated to the existing new-style client; works with our factory unchanged)

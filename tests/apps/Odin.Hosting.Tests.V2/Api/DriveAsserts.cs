@@ -1,10 +1,14 @@
 using System;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Refit;
 
 namespace Odin.Hosting.Tests.V2.Api;
 
@@ -55,5 +59,43 @@ public static class DriveAsserts
         var hit = search.Content!.SearchResults.SingleOrDefault();
         Assert.That(hit, Is.Not.Null);
         Assert.That(hit!.FileId, Is.EqualTo(expectedFileId));
+    }
+
+    /// <summary>
+    /// One file's outcome in a <c>SendReadReceipt</c> response: the call returned
+    /// <paramref name="expectedHttpStatus"/>, the response carries a record for
+    /// <paramref name="file"/>, and that record's entry for <paramref name="expectedRecipient"/>
+    /// reports <paramref name="expectedStatus"/>.
+    /// </summary>
+    /// <param name="expectedRecipient">
+    /// The original sender the receipt is addressed to. Pass <c>null</c> for the self-receipt case,
+    /// where the server answers with a single recipient-less row.
+    /// </param>
+    public static void AssertReadReceiptStatus(
+        ApiResponse<SendReadReceiptResult> response,
+        ExternalFileIdentifier file,
+        OdinId? expectedRecipient,
+        SendReadReceiptResultStatus expectedStatus,
+        HttpStatusCode expectedHttpStatus = HttpStatusCode.OK)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(expectedHttpStatus));
+        var result = response.Content;
+        Assert.That(result, Is.Not.Null);
+
+        var item = result!.Results.SingleOrDefault(d => d.File == file);
+        Assert.That(item, Is.Not.Null, "no record for file");
+
+        if (expectedRecipient is { } recipient)
+        {
+            var statusItem = item!.Status.SingleOrDefault(i => i.Recipient == recipient);
+            Assert.That(statusItem, Is.Not.Null);
+            Assert.That(statusItem!.Status, Is.EqualTo(expectedStatus));
+        }
+        else
+        {
+            var statusItem = item!.Status.Single();
+            Assert.That(statusItem.Recipient, Is.Null);
+            Assert.That(statusItem.Status, Is.EqualTo(expectedStatus));
+        }
     }
 }
