@@ -33,12 +33,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class CircleBackfillMigrationTests : V2Fixture
 {
-    /// <summary>
-    /// This fixture drives connections that deliberately cannot be enrolled or upgraded; the backfill
-    /// logs those at Error and then skips them, which is the behaviour under test.
-    /// </summary>
-    protected override bool AssertNoErrorLogEvents => false;
-
     protected override string[] HostIdentities =>
         [Identities.Frodo, Identities.Sam, Identities.Merry, Identities.Pippin, Identities.TomBombadil];
 

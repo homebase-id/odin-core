@@ -23,12 +23,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class WriteOnlyKeyPairBackfillTests : V2Fixture
 {
-    /// <summary>
-    /// This fixture deliberately exercises connections with no recoverable temp key; the backfill logs
-    /// that at Error and leaves the keypair untouched, which is the behaviour under test.
-    /// </summary>
-    protected override bool AssertNoErrorLogEvents => false;
-
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]
