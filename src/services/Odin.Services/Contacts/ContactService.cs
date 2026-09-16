@@ -466,6 +466,10 @@ public class ContactService(
         OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
         OdinValidationUtils.AssertNotNullOrEmpty(content, nameof(content), "use DELETE to clear an app's bulk blob");
         AssertAppExtBlobWithinCap(content);
+
+        // An app writing its bulk blob is a caller-driven payload write, so it is refused while out of
+        // quota - unlike the merge-log bookkeeping, which keeps connection flows working
+        quotaGuard.AssertCanAddPayloadBytes();
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         return await MutateAppExtDataAsync(uniqueId, appId, expectedVersionTag, odinContext,

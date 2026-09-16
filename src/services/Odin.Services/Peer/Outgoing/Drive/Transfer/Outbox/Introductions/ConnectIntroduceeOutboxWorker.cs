@@ -20,7 +20,12 @@ public class ConnectIntroduceeOutboxWorker(
     OdinConfiguration odinConfiguration,
     CircleNetworkIntroductionService introductionService) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        return SendHandledAsync(SendInternalAsync, odinContext, cancellationToken);
+    }
+
+    private async Task<OutboxProcessingResult> SendInternalAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
