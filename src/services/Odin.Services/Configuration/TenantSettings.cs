@@ -26,7 +26,8 @@ public class TenantSettings
         DisableAutoAcceptConnectionRequests = false,
         SendMonthlySecurityHealthReport = false,
         UseReviewedSecurityTier = false,
-        HideOwnerCirclesFromApps = false
+        HideOwnerCirclesFromApps = false,
+        DisableAllowIntroductions = false
     };
 
     /// <summary/>
@@ -64,6 +65,14 @@ public class TenantSettings
     /// Defaults to true so existing identities preserve current (manual-accept) behavior.
     /// </summary>
     public bool DisableAutoAcceptConnectionRequests { get; set; } = false;
+
+    /// <summary>
+    /// When true, nobody may introduce the owner to anyone: every incoming introduction is refused, and the
+    /// introduction preflight reports it as not permitted.  When false (the default) any connection may
+    /// introduce, reviewed or not.  Replaces the
+    /// <see cref="PermissionKeys.AllowIntroductions"/> circle permission as the check that decides it.
+    /// </summary>
+    public bool DisableAllowIntroductions { get; set; }
 
     public bool ConnectedIdentitiesCanCommentOnAnonymousDrives { get; set; }
 

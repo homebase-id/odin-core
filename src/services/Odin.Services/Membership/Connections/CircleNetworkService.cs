@@ -1305,8 +1305,9 @@ namespace Odin.Services.Membership.Connections
         /// delegates rather than reimplementing, so the grant and deposit behaviour stays in one place.
         /// </para>
         /// <para>
-        /// Expected to die.  Once ambient granting is implemented at connection establishment -- which
-        /// <see cref="CircleGrantOn.Connect"/> describes and nothing yet does -- this has no callers.
+        /// New connections are now granted Connect circles when they are established
+        /// (<c>CircleNetworkRequestService.WithConnectCirclesAsync</c>), so this only serves connections
+        /// that predate that: the v17 -&gt; v18 backfill and the owner's bulk enrol.
         /// </para>
         /// </remarks>
         internal async Task ApplyAmbientCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)

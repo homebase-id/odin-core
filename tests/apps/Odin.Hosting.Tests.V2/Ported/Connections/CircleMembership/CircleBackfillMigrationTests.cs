@@ -78,6 +78,7 @@ public class CircleBackfillMigrationTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         await ConnectAsync(frodo, sam);
         await ClearReviewAsync(frodo, sam.Identity);
+        await MakeLegacyAsync(frodo, sam.Identity);
 
         var enrolled = await RunChatAsync(frodo);
 
@@ -231,6 +232,8 @@ public class CircleBackfillMigrationTests : V2Fixture
         var merry = await LoginAsOwner(Identities.Merry);
         await ConnectAsync(frodo, sam);
         await ConnectAsync(frodo, merry);
+        await MakeLegacyAsync(frodo, sam.Identity);
+        await MakeLegacyAsync(frodo, merry.Identity);
 
         var (scope, ctx) = await MigrationContextAsync(frodo);
         var storage = scope.Resolve<CircleNetworkStorage>();
@@ -305,6 +308,23 @@ public class CircleBackfillMigrationTests : V2Fixture
         var icr = await owner.Connections.GetConnectionInfo(peer.Identity);
         Assert.That(icr.Content!.Status, Is.EqualTo(ConnectionStatus.Connected),
             $"{owner.Identity} is {icr.Content.Status} with {peer.Identity}");
+    }
+
+    /// <summary>
+    /// Puts a freshly-made connection back into the state this backfill exists for: connected, but not in
+    /// the Chat circle.
+    /// </summary>
+    /// <remarks>
+    /// Connecting now enrols every <see cref="CircleGrantOn.Connect"/> circle outright
+    /// (<c>CircleNetworkRequestService.WithConnectCirclesAsync</c>), so a connection made by these tests
+    /// already holds Chat and the pass has nobody to move.  The population the backfill is for -- everyone
+    /// who connected before that existed -- cannot be made any other way here.
+    /// </remarks>
+    private static async Task MakeLegacyAsync(OwnerSession owner, OdinId target)
+    {
+        var revoked = await new V2ConnectionNetworkClient(owner.Identity, owner.Factory)
+            .RevokeCircleAsync(BuiltinCircles.ChatCircle.Id.Value, target);
+        Assert.That(revoked.IsSuccessStatusCode, Is.True, $"revoking Chat failed: {revoked.StatusCode}");
     }
 
     private static async Task ClearReviewAsync(OwnerSession owner, OdinId target)

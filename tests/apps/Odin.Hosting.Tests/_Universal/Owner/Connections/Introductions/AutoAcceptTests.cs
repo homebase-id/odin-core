@@ -169,7 +169,7 @@ public class AutoAcceptTests
     }
 
     [Test]
-    public async Task WillNotAutoAcceptWhenIntroducerDoesNotHaveAllowIntroductionsPermission()
+    public async Task WillNotAutoAcceptWhenRecipientDisablesIntroductions()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -177,8 +177,8 @@ public class AutoAcceptTests
 
         await Prepare();
 
-        //removing frodo from Confirmed connections removes the allow introductions permission
-        await samOwnerClient.Network.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, TestIdentities.Frodo.OdinId);
+        // sam turns introductions off, so sam refuses the introduction from frodo
+        await samOwnerClient.Configuration.DisableAllowIntroductions(true);
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
         {
@@ -243,6 +243,11 @@ public class AutoAcceptTests
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+
+        // A test that turns introductions off must not leave them off for the next one.
+        await frodo.Configuration.DisableAllowIntroductions(false);
+        await sam.Configuration.DisableAllowIntroductions(false);
+        await merry.Configuration.DisableAllowIntroductions(false);
 
         await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
         await frodo.Connections.SendConnectionRequest(merry.OdinId, []);
