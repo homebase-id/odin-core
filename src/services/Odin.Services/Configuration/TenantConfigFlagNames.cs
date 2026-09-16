@@ -54,5 +54,10 @@ public enum TenantConfigFlagNames
     /// lists every circle to an app exactly as before; on lists only app-owned circles.
     /// See <see cref="TenantSettings.HideOwnerCirclesFromApps"/>.
     /// </summary>
-    HideOwnerCirclesFromApps
+    HideOwnerCirclesFromApps,
+
+    /// <summary>
+    /// When on, nobody may introduce the owner to anyone.  See <see cref="TenantSettings.DisableAllowIntroductions"/>.
+    /// </summary>
+    DisableAllowIntroductions
 }

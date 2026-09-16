@@ -353,7 +353,7 @@ public class SendingIntroductionsTests
     }
 
     [Test]
-    public async Task WhenAllowIntroductionPermissionNotGivenDuringIntroduction_OneRecipientGetConnectionRequest_SecondRecipientDoesNot()
+    public async Task WhenRecipientDisablesIntroductions_OneRecipientGetConnectionRequest_SecondRecipientDoesNot()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -361,8 +361,8 @@ public class SendingIntroductionsTests
 
         await Prepare();
 
-        //removing frodo from Confirmed connections removes the allow introductions permission
-        await samOwnerClient.Network.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, TestIdentities.Frodo.OdinId);
+        // sam turns introductions off, so sam refuses the introduction from frodo
+        await samOwnerClient.Configuration.DisableAllowIntroductions(true);
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
         {
@@ -484,7 +484,12 @@ public class SendingIntroductionsTests
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        var sendToSam = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        // A test that turns introductions off must not leave them off for the next one.
+        await frodo.Configuration.DisableAllowIntroductions(false);
+        await sam.Configuration.DisableAllowIntroductions(false);
+        await merry.Configuration.DisableAllowIntroductions(false);
+
+        var sendToSam =await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
         ClassicAssert.IsTrue(sendToSam.IsSuccessStatusCode,
             $"Prepare: frodo->sam SendConnectionRequest failed: {sendToSam.StatusCode}");
         var sendToMerry = await frodo.Connections.SendConnectionRequest(merry.OdinId, []);

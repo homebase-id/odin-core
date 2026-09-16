@@ -185,3 +185,36 @@ start.
 **Cause:** unknown. The assertion runs immediately after the transfer, so a delayed deletion of
 the sender's transient copy on the slower Windows runner is a plausible explanation, but it has
 not been confirmed.
+
+---
+
+## `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryFinalizationTests`
+
+- `ShardingIsResetAfterPasswordIsRecovered`
+
+**Where:** CI, `windows/sqlite/debug` only (run 35042063948, commit `fea206117`, PR #1751,
+2026-09-16). The test carries `#if !DEBUG [Ignore]`, so the two Release jobs never run it — both
+passed. The same Windows job passed on the two preceding commits of the same branch (`c2f6938b2`,
+`26ad0ae73`).
+
+**Symptom:** `System.TimeoutException : Failed waiting for expected state
+AwaitingOwnerFinalization`, after 48 s. `SecurityApiClient.WaitForShamirStatus` polls every 100 ms
+against a fixed 40 s budget; the dealer never reached that state once the four delegates had
+approved their shard releases.
+
+**Not caused by the change in flight (evidence, not proof):** `fea206117` changes exactly one file
+-- `GrantOnConnectEnrollmentTests.cs` in `Odin.Hosting.Tests.V2` -- so the production code is
+byte-identical to `26ad0ae73`, on which this same Windows job passed. The failing test lives in a
+different assembly and never enrols a Connect circle. The 12 most recent `main`
+`windows/sqlite/debug` runs (2026-09-12 to 2026-09-15) contain one failure, and it was a different,
+already-registered test (`TransientFileIsDeletedAfterSending`). Not reproduced on a clean tree
+locally: port 8443 is held by a local Docker container, so `Odin.Hosting.Tests` cannot start.
+
+**Cause:** unknown. A fixed 40 s budget for a four-peer state machine on the slowest runner in the
+matrix is the obvious suspect. One mechanism specific to this commit, untested: the new tests add a
+third identity and peer traffic to a V2 fixture, and `dotnet test` runs test projects in parallel,
+so they may have raised contention on the Windows runner without changing any behaviour. The failed
+job was re-run on 2026-09-16 to see whether it reproduces.
+
+**Pattern:** the fourth entry in the timing-sensitive peer-delivery family flagged above. Per that
+note, the shared cause is now worth chasing rather than re-running.
