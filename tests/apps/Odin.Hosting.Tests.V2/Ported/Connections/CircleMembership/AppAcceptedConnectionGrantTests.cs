@@ -35,7 +35,7 @@ public class AppAcceptedConnectionGrantTests : V2Fixture
     /// <remarks>
     /// Surfaced only once #1775 made attribution correct: accepting a connection runs a best-effort
     /// channel sync whose failure is swallowed and logged (<c>CircleNetworkRequestService</c>, the
-    /// same catch-all shape as the two sites in #1770). Until that is fixed the error is not
+    /// same catch-all shape as the two sites in #1770; now tracked on its own as #1784). Until that is fixed the error is not
     /// something this fixture can avoid provoking.
     /// </remarks>
     protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
