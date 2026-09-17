@@ -419,14 +419,66 @@ the status, so the next occurrence names the code. This is the third time in one
 precomputed-bool assertion hid a diagnosis -- see also #1772 (a 500 behind `IsSuccessStatusCode`) and
 the log-event invariant (three product bugs behind `Expected: 0`).
 
-**Probably the same contention as #1777, but not yet established.** The sibling fixture
-`PayloadConcurrentHammerEncryptedTests` is already `[Explicit]` with a comment naming exactly this --
-"the 9-thread hammer exhausts SQLite's busy timeout on the Windows CI runner". This fixture runs
-*twice* that concurrency and is not `[Explicit]`, so it runs. `V1PeerReadReceiptTestsSuccess` logs
-`SQLite Error 5` locally under the same pressure. Three tests, one family. But the assertion above
-gave no status code, so attributing this specific failure to lock contention is inference -- re-run
-once the improved assertion is in CI before treating it as settled.
+**CORRECTED 2026-09-17 -- it is not #1777, and the first guess here was wrong.** The paragraph that
+stood here attributed this to the SQLite busy-timeout contention of #1777, reasoning from the
+`[Explicit]` sibling `PayloadConcurrentHammerEncryptedTests`, whose comment names exactly that. The
+improved assertion then produced the actual evidence and it does not support that: the uploads
+answer **`InternalServerError`** on six named iterations, and the failing run's log contains **no**
+`database is locked` anywhere in the `Odin.Hosting.Tests.V2` section. Reasoning from a neighbour's
+comment is not evidence. Now tracked on its own as **#1780**.
+
+What the evidence does say: each thread overwrites *its own* file, so this is twenty concurrent
+writers against one **drive**, not several writers racing one file. The server-side exception behind
+the 500 did not reach the CI output, so the cause is still unknown; the fixture now captures the
+first 500's response body into the assertion message so the next run names it.
+
+**Status:** `[Ignore]`d against #1780 -- it had failed on two separate commits on
+`windows/sqlite/debug`, and it is the last of three fixtures in this family still running in CI. The
+fixture's claim is that a losing writer is refused cleanly rather than blowing up, so the assertion
+is right and weakening it would delete the only coverage of that claim.
 
 **Not confirmed pre-existing.** The port carries the `_Universal` original's concurrency shape
 unchanged and the `[Explicit]` sibling's comment predates this work, which argues it is not new --
 but I could not run Windows locally, and both Linux matrices pass, so `main` has not been checked.
+
+---
+
+## `Odin.SetupHelper.Tests.TcpProbeTests`
+
+- `ItShouldConnectToHttpPortAndGetExpectedResponse`
+
+**Where:** CI, `ubuntu/sqlite/release` on PR #1776 (run 35187682935, 2026-09-17), 1 failure in a
+project of 11 tests. `Assert.That(connected, Is.True) / Expected: True, But was: False`.
+
+**Not caused by the change in flight, and this one is easy to be sure of:** `git diff
+origin/main...HEAD` is *empty* for `tests/apps/Odin.SetupHelper.Tests/` and for `TcpProbe` /
+`DockerSetup`. The PR is a test migration in `Odin.Hosting.Tests.V2`; it cannot reach a TCP probe
+in another project. Stated precisely: the recent `main` runs of this workflow are all green, so I
+am *not* claiming this has been observed on `main` -- only that the PR does not touch the code
+involved.
+
+**Confirmed flaky on the identical commit:** re-running only the failed job, with no code change,
+passed. That is the strongest available evidence -- the same build both failed and passed.
+
+**Does not reproduce locally:** 12 consecutive runs of the fixture, all green, on an idle machine.
+That fits a race that needs a loaded runner to lose.
+
+**The race, read from the source** (`TcpProbeTests.cs:26-33`):
+
+```csharp
+var listenTask = DockerSetup.TcpListen(38080, cts.Token);   // not awaited to "bound"
+var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "38080");
+await cts.CancelAsync();
+var (connected, error) = await listenTask;
+```
+
+Nothing synchronises the probe with the listener actually being bound and accepting. On a loaded
+runner the probe can run before the listener is ready, or the cancel can arrive before the accept
+completes, and `connected` comes back false. Two further hazards in the same shape: the port
+**38080 is hard-coded**, so two jobs or fixtures on one runner collide; and the assertion is on a
+precomputed bool, so the failure prints `Expected: True` and never says which of the two happened.
+
+**Tracked as #1779. Fix, not done there** (out of scope for a test-migration PR): have `TcpListen` expose a
+"listening" signal to await before probing, take an ephemeral port instead of 38080, and assert on
+`error` before `connected` so the message survives. Note the file already carries a retry for
+external flakiness (`843ab7f64`, #1328), so this area has a history.
