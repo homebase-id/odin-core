@@ -66,8 +66,18 @@ internal static class ContactProfileAttributes
     /// <summary>Attribute types stored verbatim (keyed by type id) in the ext_data payload.</summary>
     public static readonly Guid[] ExtDataTypes = [Experience, Bio];
 
-    /// <summary>Everything the enrichment ProfileDrive query pulls in one shot.</summary>
-    public static readonly Guid[] QueryTypes = [.. TextTypes, .. ExtDataTypes, .. SocialTypes, Link];
+    /// <summary>
+    /// Everything the enrichment ProfileDrive query pulls in one shot. <see cref="Photo"/> is included
+    /// but is deliberately not in <see cref="TextTypes"/> — its value is a drive payload, not a content
+    /// field, so it is handled separately (see <c>ContactEnrichmentService.TryFetchPeerImageAsync</c>).
+    /// </summary>
+    public static readonly Guid[] QueryTypes = [.. TextTypes, .. ExtDataTypes, .. SocialTypes, Link, Photo];
+
+    /// <summary>
+    /// The Photo attribute's data field naming the payload key its image is stored under (the attribute
+    /// header carries the pointer, never the bytes).
+    /// </summary>
+    public const string ProfileImageKeyField = ProfileAttributeFields.ProfileImageKey;
 
     // Field keys within an attribute's Data dictionary — aliases to the shared source of truth
     // (ProfileAttributeFields), so the reader here and the writer (ProfileAttributeService) cannot drift.

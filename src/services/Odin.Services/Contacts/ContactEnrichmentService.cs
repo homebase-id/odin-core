@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -15,7 +16,9 @@ using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Query;
 
 namespace Odin.Services.Contacts;
@@ -68,11 +71,18 @@ public class ContactEnrichmentService(
 
         PeerContactContent content;
         ContactExtData extData = null;
+
+        // The peer's own photo. Null means "determined nothing this run" (leave the stored one alone);
+        // PeerContactImage.None means "no photo we can see" and drops it. Losing visibility — not
+        // connected, or a 403 — is a removal: we must not keep showing a gated photo we can no longer
+        // read. It never touches the user's own prfl_pic choice for this contact.
+        PeerContactImage peerImage = PeerContactImage.None;
+
         if (connected)
         {
             try
             {
-                (content, extData) = await BuildFromPeerProfileAsync(odinId, odinContext);
+                (content, extData, peerImage) = await BuildFromPeerProfileAsync(odinId, odinContext);
             }
             catch (OdinSecurityException)
             {
@@ -80,6 +90,7 @@ public class ContactEnrichmentService(
                 // due to an ICR-issue. Either way, fall back to the public profile.
                 logger.LogDebug("Enrich: 403 querying {odinId} ProfileDrive; falling back to public profile", odinId);
                 content = await TryBuildFromPublicProfileAsync(odinId);
+                peerImage = PeerContactImage.None;
             }
             catch (Exception e)
             {
@@ -95,20 +106,25 @@ public class ContactEnrichmentService(
         }
 
         var hasExtData = extData is { IsEmpty: false };
-        if (content == null && !hasExtData)
+        var hasImage = peerImage is { IsRemoval: false };
+        if (content == null && !hasExtData && !hasImage)
         {
+            // Nothing usable at all — don't merge, so we never conjure an empty contact for an identity
+            // that published nothing. Consequence: a peer who clears their *entire* profile keeps any
+            // peer photo we already hold; one who clears only the photo (still has a name) drops it on
+            // this same run.
             logger.LogDebug("Enrich: no profile data found for {odinId}; nothing to merge", odinId);
             return;
         }
 
-        // ext_data may be present even when no flat content fields were found; merge it onto a (possibly
-        // bare) content carrying just the odinId.
+        // ext_data / the photo may be present even when no flat content fields were found; merge onto a
+        // (possibly bare) content carrying just the odinId.
         content ??= new PeerContactContent();
         content.OdinId = odinId.DomainName;
-        await contactService.MergeAsync(content, ContactMergeSource.Enrichment, odinContext, extData);
+        await contactService.MergeAsync(content, ContactMergeSource.Enrichment, odinContext, extData, peerImage);
     }
 
-    private async Task<(PeerContactContent content, ContactExtData extData)> BuildFromPeerProfileAsync(
+    private async Task<(PeerContactContent content, ContactExtData extData, PeerContactImage peerImage)> BuildFromPeerProfileAsync(
         OdinId odinId, IOdinContext odinContext)
     {
         var request = new QueryBatchRequest
@@ -129,24 +145,35 @@ public class ContactEnrichmentService(
         var result = await peerDriveQueryService.GetBatchAsync(odinId, request, FileSystemType.Standard, odinContext);
         if (result?.SearchResults == null)
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         // A peer can publish several attributes of the same type (e.g. a primary and a secondary
         // phone). Each carries an authored Priority (lower = preferred, matching odin-js); process in
         // ascending Priority order and keep the first non-empty value per field, so a higher-priority
         // attribute that happens to be empty never shadows a populated lower-priority one.
+        // The header rides along so the Photo attribute can be resolved to its payload afterwards.
         var attributes = result.SearchResults
-            .Select(h => (Tags: h.FileMetadata.AppData.Tags ?? new List<Guid>(), Block: TryGetAttributeBlock(h, odinContext)))
+            .Select(h => (Tags: h.FileMetadata.AppData.Tags ?? new List<Guid>(), Block: TryGetAttributeBlock(h, odinContext),
+                Header: h))
             .Where(x => x.Block?.Data != null)
             .OrderBy(x => x.Block.Priority ?? int.MaxValue)
             .ToList();
+
+        // The Photo attribute's image is a payload, not a content field — fetch it separately. The
+        // highest-priority photo the peer lets us see wins; a peer publishing both a public avatar and a
+        // richer connected-only one therefore gives us whichever their ACLs admit us to.
+        var peerImage = await TryFetchPeerImageAsync(odinId,
+            attributes.Where(x => x.Tags.Contains(ContactProfileAttributes.Photo))
+                .Select(x => (x.Block, x.Header))
+                .FirstOrDefault(),
+            odinContext);
 
         var content = new PeerContactContent();
         ContactExtData extData = null;
         var found = false;
 
-        foreach (var (tags, block) in attributes)
+        foreach (var (tags, block, _) in attributes)
         {
             var data = block.Data;
 
@@ -289,7 +316,169 @@ public class ContactEnrichmentService(
             }
         }
 
-        return (found ? content : null, extData);
+        return (found ? content : null, extData, peerImage);
+    }
+
+    /// <summary>
+    /// Resolves the peer's Photo attribute to its actual image bytes: the attribute header only carries a
+    /// pointer (<c>data.profileImageKey</c>) at a payload on the same file, so the payload — and every
+    /// thumbnail the peer published for it — is fetched over transit and decrypted with our shared
+    /// secret. Returns <see cref="PeerContactImage.None"/> when the peer publishes no photo we can see
+    /// (so a stale one gets cleared), and <c>null</c> when a fetch failed midway and the stored photo
+    /// should simply be left alone.
+    /// </summary>
+    private async Task<PeerContactImage> TryFetchPeerImageAsync(OdinId odinId,
+        (ProfileAttribute Block, SharedSecretEncryptedFileHeader Header) photo, IOdinContext odinContext)
+    {
+        if (photo.Block == null || photo.Header == null)
+        {
+            return PeerContactImage.None;
+        }
+
+        var payloadKey = Str(photo.Block.Data, ContactProfileAttributes.ProfileImageKeyField);
+        if (payloadKey == null)
+        {
+            logger.LogDebug("Enrich: {odinId} photo attribute has no {field}; treating as no photo",
+                odinId, ContactProfileAttributes.ProfileImageKeyField);
+            return PeerContactImage.None;
+        }
+
+        var descriptor = photo.Header.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(payloadKey));
+        if (descriptor == null)
+        {
+            logger.LogDebug("Enrich: {odinId} photo attribute points at payload {key} which isn't on the file",
+                odinId, payloadKey);
+            return PeerContactImage.None;
+        }
+
+        if (descriptor.BytesWritten > ContactService.MaxPeerImageBytes)
+        {
+            logger.LogDebug("Enrich: {odinId} photo payload is {size} bytes, over the {cap} cap; skipping",
+                odinId, descriptor.BytesWritten, ContactService.MaxPeerImageBytes);
+            return PeerContactImage.None;
+        }
+
+        var file = new ExternalFileIdentifier
+        {
+            TargetDrive = SystemDriveConstants.ProfileDrive,
+            FileId = photo.Header.FileId
+        };
+
+        try
+        {
+            var (keyHeader, isEncrypted, payloadStream) = await peerDriveQueryService.GetPayloadStreamAsync(
+                odinId, file, payloadKey, null, FileSystemType.Standard, odinContext);
+
+            if (payloadStream == null)
+            {
+                return PeerContactImage.None;
+            }
+
+            byte[] image;
+            using (payloadStream)
+            {
+                image = await DecryptPeerPayloadAsync(payloadStream.Stream, keyHeader, isEncrypted, odinContext);
+            }
+
+            if (image is not { Length: > 0 })
+            {
+                return PeerContactImage.None;
+            }
+
+            if (image.Length > ContactService.MaxPeerImageBytes)
+            {
+                // The descriptor's BytesWritten is the *ciphertext* length; re-check the plaintext.
+                logger.LogDebug("Enrich: {odinId} decrypted photo is over the {cap} byte cap; skipping",
+                    odinId, ContactService.MaxPeerImageBytes);
+                return PeerContactImage.None;
+            }
+
+            var thumbnails = new List<PeerContactImageThumbnail>();
+            foreach (var thumb in descriptor.Thumbnails ?? [])
+            {
+                var bytes = await TryFetchPeerThumbnailAsync(odinId, file, payloadKey, thumb, odinContext);
+                if (bytes is { Length: > 0 })
+                {
+                    thumbnails.Add(new PeerContactImageThumbnail
+                    {
+                        PixelWidth = thumb.PixelWidth,
+                        PixelHeight = thumb.PixelHeight,
+                        ContentType = thumb.ContentType,
+                        Content = bytes
+                    });
+                }
+            }
+
+            return new PeerContactImage
+            {
+                Content = image,
+                ContentType = descriptor.ContentType,
+                Thumbnails = thumbnails
+            };
+        }
+        catch (OdinSecurityException)
+        {
+            // The attribute header was readable but the payload isn't — treat as no photo rather than
+            // failing the whole enrichment.
+            logger.LogDebug("Enrich: 403 fetching {odinId} photo payload; treating as no photo", odinId);
+            return PeerContactImage.None;
+        }
+        catch (Exception e)
+        {
+            // Transit hiccup partway through: leave whatever photo we already hold alone.
+            logger.LogInformation(e, "Enrich: could not fetch photo for {odinId}; leaving the stored photo unchanged", odinId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Best-effort fetch of one published thumbnail rendition. A rendition that fails is skipped — the
+    /// full-size image alone is still a usable result.
+    /// </summary>
+    private async Task<byte[]> TryFetchPeerThumbnailAsync(OdinId odinId, ExternalFileIdentifier file, string payloadKey,
+        ThumbnailDescriptor thumb, IOdinContext odinContext)
+    {
+        try
+        {
+            var (keyHeader, isEncrypted, _, _, stream) = await peerDriveQueryService.GetThumbnailAsync(
+                odinId, file, thumb.PixelWidth, thumb.PixelHeight, payloadKey, FileSystemType.Standard, odinContext);
+
+            if (stream == null)
+            {
+                return null;
+            }
+
+            await using (stream)
+            {
+                return await DecryptPeerPayloadAsync(stream, keyHeader, isEncrypted, odinContext);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogDebug(e, "Enrich: skipping {w}x{h} thumbnail for {odinId}", thumb.PixelWidth, thumb.PixelHeight, odinId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Reads a peer payload/thumbnail stream and decrypts it. The peer query re-encrypts the payload's
+    /// key header to our shared secret and bakes the payload's own IV into it, so this is a straight
+    /// decrypt; an unencrypted (anonymous-tier) payload comes back as plaintext.
+    /// </summary>
+    private static async Task<byte[]> DecryptPeerPayloadAsync(Stream stream, EncryptedKeyHeader keyHeader,
+        bool isEncrypted, IOdinContext odinContext)
+    {
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+
+        if (!isEncrypted || bytes.Length == 0)
+        {
+            return bytes;
+        }
+
+        var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
+        return keyHeader.DecryptAesToKeyHeader(ref sharedSecret).Decrypt(bytes);
     }
 
     private static bool HasAnyValue(ContactName name)
