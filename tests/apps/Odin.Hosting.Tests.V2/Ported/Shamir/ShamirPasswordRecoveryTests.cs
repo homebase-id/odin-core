@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
@@ -58,18 +61,18 @@ public class ShamirPasswordRecoveryTests : ShamirFixture
 #endif
     public async Task CanEnterAndExitRecoveryMode()
     {
-        var (frodo, peers) = await LoginCastAsync();
+        var (frodo, players) = Cast();
 
         //
         // Setup - enter recovery mode
         //
-        await PrepareConnectionsAsync(frodo, peers);
+        await PrepareConnectionsAsync(frodo, players);
 
-        await DistributeAndVerifyShardsAsync(frodo, peers, PlayerType.Automatic, minMatchingShards: 3);
+        await DistributeAndVerifyShardsAsync(frodo, players, PlayerType.Automatic, minMatchingShards: 3);
 
         // Carried from the original's DistributeAndVerifyAutomaticShards, which severed every
         // connection before returning. See the class remarks.
-        await CleanupConnectionsAsync(frodo, peers);
+        await CleanupConnectionsAsync(frodo, players);
 
         // enter recovery mode
         await EnterRecoveryModeAsync(frodo);
@@ -77,5 +80,22 @@ public class ShamirPasswordRecoveryTests : ShamirFixture
         // Act - exit recovery mode
         // Assert
         await ExitRecoveryModeAsync(frodo);
+    }
+
+    /// <summary>
+    /// Severs both sides of the dealer/player connections. Note: no circles.
+    /// </summary>
+    /// <remarks>
+    /// Private to this fixture rather than shared on <see cref="ShamirFixture"/>: this is the only
+    /// test that severs anything, and it does so mid-test as a carried defect (see the class remarks),
+    /// not as cleanup. The four <i>trailing</i> calls the other originals carried were dropped as
+    /// state restoration, which <c>V2Fixture</c>'s per-test reset owns.
+    /// </remarks>
+    private static async Task CleanupConnectionsAsync(OwnerSession dealer, IEnumerable<OwnerSession> players)
+    {
+        foreach (var player in players)
+        {
+            await PeerFlow.DisconnectAsync(dealer, player);
+        }
     }
 }

@@ -4,16 +4,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
-using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 
@@ -26,11 +24,26 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <para>
 /// A base fixture rather than a static helper in the shape of
 /// <c>Ported/Concepts/CollabScenario</c>, because all five originals carried byte-identical copies
-/// of <c>PrepareConnections</c> / <c>CleanupConnections</c> / <c>DistributeAndVerify*Shards</c> /
-/// <c>EnterRecoveryMode</c> / <c>ExitRecoveryMode</c>, and half of those need the host itself
-/// (<see cref="V2Fixture.LoginAsOwner(string)"/> is protected, and the recovery nonces are read out
-/// of the host's log store). Nothing here is per-fixture: the identity list, the drain points and
-/// the assertions are the same in all five originals.
+/// of <c>PrepareConnections</c> / <c>DistributeAndVerify*Shards</c> / <c>EnterRecoveryMode</c> /
+/// <c>ExitRecoveryMode</c>, and half of those need the host itself (the recovery nonces are read out
+/// of the host's log store, and the cast is logged in once for the whole fixture — see below).
+/// Nothing here is per-fixture: the identity list, the drain points and the assertions are the same
+/// in all five originals.
+/// </para>
+/// <para>
+/// <b>The cast is logged in once, in <see cref="WarmTenantBaselineAsync"/>.</b> Five owner logins
+/// each pay PBKDF2 — three client-side 100k-iteration passes plus a server-side fourth — which is
+/// pure CPU no test here is measuring, and all twelve tests want the same five sessions. The base
+/// already logs every identity in before <c>TakeBaselineAsync</c> (it has to: the login is what sets
+/// the password the snapshot needs) and throws the sessions away; this override keeps them. The
+/// tokens are issued <i>before</i> the baseline is taken, so they live in the snapshotted identity DB
+/// and every per-test <c>ResetAsync</c> restores them rather than invalidating them. Same trick, same
+/// reason, as <c>Ported/Transit/AppTransitQueryTestsForPublicFiles</c>.
+/// </para>
+/// <para>
+/// Nothing that <i>asserts</i> moves into the baseline with it: <see cref="PrepareConnectionsAsync"/>
+/// and <see cref="DistributeAndVerifyShardsAsync"/> both carry assertions and so stay in the tests,
+/// where a failure is a failed test rather than a broken fixture.
 /// </para>
 /// <para>
 /// <b>Recovery nonces come out of the log, as they did in V1.</b> <c>RecoveryNotifier</c> writes the
@@ -80,10 +93,18 @@ public abstract class ShamirFixture : V2Fixture
     /// <summary>Frodo is the dealer in all five originals; the players follow.</summary>
     protected override string[] HostIdentities => [Identities.Frodo, .. PlayerIdentities];
 
-    /// <summary>Logs in the dealer and all four players.</summary>
-    protected async Task<(OwnerSession Dealer, IReadOnlyList<OwnerSession> Players)> LoginCastAsync()
+    private OwnerSession _dealer = null!;
+    private IReadOnlyList<OwnerSession> _players = null!;
+
+    /// <summary>
+    /// Logs the dealer and all four players in once, before the baseline snapshot is taken, so
+    /// <see cref="Cast"/> can hand the same sessions to every test. See the class remarks.
+    /// </summary>
+    protected override async Task WarmTenantBaselineAsync()
     {
-        var dealer = await LoginAsOwner(Identities.Frodo);
+        await base.WarmTenantBaselineAsync();
+
+        _dealer = await LoginAsOwner(Identities.Frodo);
 
         var players = new List<OwnerSession>();
         foreach (var identity in PlayerIdentities)
@@ -91,7 +112,30 @@ public abstract class ShamirFixture : V2Fixture
             players.Add(await LoginAsOwner(identity));
         }
 
-        return (dealer, players);
+        _players = players;
+    }
+
+    /// <summary>The dealer and the four players, logged in by <see cref="WarmTenantBaselineAsync"/>.</summary>
+    protected (OwnerSession Dealer, IReadOnlyList<OwnerSession> Players) Cast() => (_dealer, _players);
+
+    /// <summary>
+    /// The arrange the five delegate fixtures open with, byte-identical in all six of their tests:
+    /// connect the cast, distribute delegate shards at the minimum allowed count, and read back the
+    /// dealer's published configuration.
+    /// </summary>
+    protected async Task<(OwnerSession Dealer, IReadOnlyList<OwnerSession> Players, DealerShardConfig Config)>
+        ArrangeDelegateShardsAsync()
+    {
+        var (dealer, players) = Cast();
+
+        await PrepareConnectionsAsync(dealer, players);
+
+        await DistributeAndVerifyShardsAsync(dealer, players, PlayerType.Delegate,
+            minMatchingShards: ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
+
+        var config = await GetDealerShardConfigAsync(dealer);
+
+        return (dealer, players, config);
     }
 
     /// <summary>
@@ -116,26 +160,24 @@ public abstract class ShamirFixture : V2Fixture
         // ConfirmedConnections circle, which the handshake grants on its own.
         foreach (var player in players)
         {
-            var send = await dealer.Connections.SendConnectionRequest(player.Identity);
-            Assert.That(send.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-            var accept = await player.Connections.AcceptConnectionRequest(dealer.Identity);
-            Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            await PeerFlow.ConnectAsync(dealer, player);
         }
     }
 
-    /// <summary>Severs both sides of the dealer/player connections. Note: no circles.</summary>
-    protected static async Task CleanupConnectionsAsync(OwnerSession dealer, IEnumerable<OwnerSession> players)
+    /// <summary>
+    /// The request <c>configure-shards</c> takes: one <see cref="ShamiraPlayer"/> per session, all of
+    /// <paramref name="type"/>.
+    /// </summary>
+    protected static ConfigureShardsRequest ShardRequest(
+        IReadOnlyList<OwnerSession> players, PlayerType type, int minMatchingShards) => new()
     {
-        foreach (var player in players)
+        Players = players.Select(p => new ShamiraPlayer
         {
-            var dealerSide = await dealer.Connections.DisconnectFrom(player.Identity);
-            Assert.That(dealerSide.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-            var playerSide = await player.Connections.DisconnectFrom(dealer.Identity);
-            Assert.That(playerSide.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-    }
+            OdinId = p.Identity,
+            Type = type
+        }).ToList(),
+        MinMatchingShards = minMatchingShards
+    };
 
     /// <summary>
     /// Configures shards for <paramref name="players"/>, drains the dealer's outbox so they are
@@ -149,17 +191,8 @@ public abstract class ShamirFixture : V2Fixture
     {
         var security = SecurityOf(dealer);
 
-        var shardRequest = new ConfigureShardsRequest
-        {
-            Players = players.Select(p => new ShamiraPlayer
-            {
-                OdinId = p.Identity,
-                Type = playerType
-            }).ToList(),
-            MinMatchingShards = minMatchingShards
-        };
-
-        var configureShardsResponse = await security.ConfigureShards(shardRequest);
+        var configureShardsResponse =
+            await security.ConfigureShards(ShardRequest(players, playerType, minMatchingShards));
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         await dealer.Sync.DrainOutboxAsync();
@@ -170,7 +203,7 @@ public abstract class ShamirFixture : V2Fixture
         var results = verifyShardsResponse.Content;
         Assert.That(results, Is.Not.Null);
         Assert.That(results!.Players, Is.Not.Null);
-        Assert.That(results.Players.Count, Is.EqualTo(shardRequest.Players.Count),
+        Assert.That(results.Players.Count, Is.EqualTo(players.Count),
             "mismatch number of shards in verified results");
         // Names the players that failed rather than printing "Expected: True".
         Assert.That(results.Players.Where(p => !p.Value.IsValid).Select(p => p.Key), Is.Empty,
@@ -214,6 +247,19 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
+    /// Reads the dealer's recovery status and asserts it sits at <paramref name="expected"/>. A
+    /// straight read, not a poll: an approval or rejection is delivered synchronously inside the
+    /// request the caller has already awaited — see <see cref="ShamirPasswordRecoveryTestForDelegates"/>'s
+    /// remarks for why there is nothing to wait for.
+    /// </summary>
+    protected async Task AssertRecoveryStateAsync(OwnerSession dealer, ShamirRecoveryState expected)
+    {
+        var getRecoveryStatusResponse = await AnonymousSecurityOf(dealer).GetShamirRecoverStatus();
+        Assert.That(getRecoveryStatusResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(getRecoveryStatusResponse.Content!.State, Is.EqualTo(expected));
+    }
+
+    /// <summary>
     /// The pending release request a player holds for the shard the dealer gave it, or null when the
     /// player has none.
     /// </summary>
@@ -238,43 +284,87 @@ public abstract class ShamirFixture : V2Fixture
         return getConfigResponse.Content!;
     }
 
+    /// <summary>Asserts every player is holding the dealer's release request, and nothing more.</summary>
+    protected static async Task AssertEveryPlayerHasRequestAsync(
+        DealerShardConfig config, IEnumerable<OwnerSession> players)
+    {
+        foreach (var player in players)
+        {
+            var item = await GetPlayerShardRequestAsync(config, player);
+            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+        }
+    }
+
+    /// <summary>Each player finds the dealer's release request in its list and approves it.</summary>
+    protected static async Task ApproveEveryShardRequestAsync(
+        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config)
+    {
+        foreach (var player in players)
+        {
+            var item = await GetPlayerShardRequestAsync(config, player);
+            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+
+            // now release the shard
+            var approveResponse = await SecurityOf(player).ApproveShardRequest(new ApproveShardRequest
+            {
+                OdinId = dealer.Identity,
+                ShardId = item!.ShardId
+            });
+
+            Assert.That(approveResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+    }
+
+    /// <summary>
+    /// The refusing twin of <see cref="ApproveEveryShardRequestAsync"/>: every player finds the
+    /// dealer's release request and rejects it.
+    /// </summary>
+    protected static async Task RejectEveryShardRequestAsync(
+        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config)
+    {
+        foreach (var player in players)
+        {
+            var item = await GetPlayerShardRequestAsync(config, player);
+            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+
+            // now release the shard
+            var rejectResponse = await SecurityOf(player).RejectShardRequest(new RejectShardRequest
+            {
+                OdinId = dealer.Identity,
+                ShardId = item!.ShardId
+            });
+
+            Assert.That(rejectResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+    }
+
     /// <summary>
     /// Newest-first lookup of a named log property — the V2 stand-in for
     /// <c>WebScaffold.WaitForLogPropertyValue</c>. Throws rather than returning null so a missing
     /// nonce reads as a broken arrange, exactly as V1's <c>TimeoutException</c> did.
     /// </summary>
-    protected string ReadLogPropertyValue(string propertyName, LogEventLevel level = LogEventLevel.Information)
+    /// <remarks>
+    /// Every level is scanned, not just <c>Information</c>. These property names are unique to a
+    /// single <c>RecoveryNotifier</c> call site, so there is nothing to disambiguate by level — while
+    /// pinning the level means a product change from <c>LogInformation</c> to <c>LogDebug</c> would
+    /// turn five tests into a confusing "broken arrange" throw instead of a clean pass.
+    /// </remarks>
+    protected string ReadLogPropertyValue(string propertyName)
     {
-        var store = Host.Server.Services.GetRequiredService<ILogEventMemoryStore>();
-        var events = store.GetLogEvents()[level];
-
         // Newest-first: the resubmit test enters recovery mode twice and needs the second nonce.
-        // GetLogEvents() hands back a copy, so unlike V1's in-place Reverse() this does not mutate
-        // the store's own list.
-        for (var i = events.Count - 1; i >= 0; i--)
+        // Each level's list is chronological and GetLogEvents() hands back a copy, so unlike V1's
+        // in-place Reverse() this does not mutate the store's own list.
+        var match = Host.LogStore.GetLogEvents().Values
+            .SelectMany(events => events)
+            .LastOrDefault(e => e.Properties.ContainsKey(propertyName));
+
+        if (match == null)
         {
-            if (events[i].Properties.TryGetValue(propertyName, out var value))
-            {
-                return value?.ToString() ?? string.Empty;
-            }
+            throw new InvalidOperationException(
+                $"No log event carried the property '{propertyName}'. " +
+                "These nonces are only logged under #if DEBUG — see RecoveryNotifier.");
         }
 
-        throw new InvalidOperationException(
-            $"No {level} log event carried the property '{propertyName}'. " +
-            "These nonces are only logged under #if DEBUG — see RecoveryNotifier.");
-    }
-
-    /// <summary>
-    /// <c>WebScaffold.AssertHasDebugLogEvent</c>: exactly <paramref name="count"/> Debug events whose
-    /// rendered message equals <paramref name="message"/>.
-    /// </summary>
-    protected void AssertHasDebugLogEvent(string message, int count)
-    {
-        var store = Host.Server.Services.GetRequiredService<ILogEventMemoryStore>();
-        var matching = store.GetLogEvents()[LogEventLevel.Debug]
-            .Where(l => l.RenderMessage() == message)
-            .ToList();
-
-        Assert.That(matching, Has.Count.EqualTo(count), $"Debug log events matching '{message}'");
+        return match.Properties[propertyName]?.ToString() ?? string.Empty;
     }
 }

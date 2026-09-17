@@ -25,9 +25,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <item>No caller matrix in the original and none added; the <c>#if !DEBUG [Ignore]</c> guard and
 /// the <c>[Description]</c> are carried verbatim.</item>
 /// <item>The original inlined the shard-request lookup in the test body <i>and</i> carried a private
-/// <c>GetPlayerShardRequest</c> copy that nothing called. The inline lookup asserts exactly what
-/// <see cref="ShamirFixture.GetPlayerShardRequestAsync"/> asserts, so it uses the shared helper; the
-/// dead private copy is dropped.</item>
+/// <c>GetPlayerShardRequest</c> copy that nothing called. The inline loop asserts exactly what
+/// <see cref="ShamirFixture.AssertEveryPlayerHasRequestAsync"/> asserts, so it uses the shared
+/// helper; the dead private copy is dropped.</item>
 /// <item>The trailing <c>CleanupConnections</c> call is dropped as state restoration.</item>
 /// </list>
 /// </para>
@@ -43,17 +43,10 @@ public class ShamirPasswordRecoveryTestForDelegates2 : ShamirFixture
 #endif
     public async Task DelegatePlayersCanSeeShardReleaseRequests()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
-
         //
         // Setup - distribute delegate shards
         //
-        await PrepareConnectionsAsync(frodo, peerIdentities);
-
-        await DistributeAndVerifyShardsAsync(frodo, peerIdentities, PlayerType.Delegate,
-            minMatchingShards: ShamirConfigurationService.CalculateMinAllowedShardCount(peerIdentities.Count));
-
-        var config = await GetDealerShardConfigAsync(frodo);
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
 
         //
         // Act - enter recovery mode
@@ -63,11 +56,7 @@ public class ShamirPasswordRecoveryTestForDelegates2 : ShamirFixture
         //
         // Assert - all player delegates have a request in their list
         //
-        foreach (var peer in peerIdentities)
-        {
-            var item = await GetPlayerShardRequestAsync(config, peer);
-            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-        }
+        await AssertEveryPlayerHasRequestAsync(config, players);
 
         await ExitRecoveryModeAsync(frodo);
     }

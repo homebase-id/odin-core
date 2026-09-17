@@ -80,6 +80,20 @@ internal static class OwnerPasswordFlow
         return PasswordDataManager.CalculatePasswordReply(password, saltyNonce, clientEccFullKey);
     }
 
+    /// <summary>
+    /// <see cref="CalculatePasswordReplyAsync(HttpClient,string,EccFullKeyData)"/> for a caller that
+    /// holds only the host: opens the anonymous client and mints the throwaway client ECC key itself,
+    /// exactly as <see cref="BuildResetPasswordRequestAsync"/> and
+    /// <see cref="ResetPasswordUsingRecoveryKeyAsync"/> already do internally.
+    /// </summary>
+    public static async Task<PasswordReply> CalculatePasswordReplyAsync(
+        OdinHost host, string identity, string password)
+    {
+        using var authClient = host.CreateAnonymousClient(identity);
+        var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+        return await CalculatePasswordReplyAsync(authClient, password, clientEccFullKey);
+    }
+
     /// <summary>Logs in as owner with <paramref name="password"/>, returning the raw response.</summary>
     public static async Task<ApiResponse<OwnerAuthenticationResult>> LoginAsync(
         OdinHost host, string identity, string password, EccFullKeyData clientEccFullKey)

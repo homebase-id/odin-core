@@ -18,6 +18,7 @@ using Autofac;
 using Autofac.Builder;
 using Odin.Core.Http;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Background;
@@ -69,6 +70,13 @@ public sealed partial class OdinHost : IAsyncDisposable
     public TestServer Server { get; }
     public string[] Identities { get; }
     public string DataRoot { get; }
+
+    /// <summary>
+    /// This host's in-memory Serilog sink — the store behind <c>V2Fixture</c>'s no-error-log
+    /// invariant, and the only place the <c>#if DEBUG</c> recovery nonces surface. Saves every
+    /// consumer digging it out of <see cref="Server"/>'s service provider by hand.
+    /// </summary>
+    public ILogEventMemoryStore LogStore => Server.Services.GetRequiredService<ILogEventMemoryStore>();
 
     private OdinHost(IHost host, string[] identities, string dataRoot)
     {

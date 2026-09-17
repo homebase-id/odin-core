@@ -13,6 +13,7 @@ using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Admin.Tenants.Jobs;
@@ -54,7 +55,18 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 /// configuration that makes the two agree. <see cref="CreateAdminClient"/> therefore stamps the port
 /// onto the context through <c>TestServer.CreateHandler(Action&lt;HttpContext&gt;)</c>. That is the
 /// in-process stand-in for the second Kestrel listener the original talked to, and it is the only
-/// part of the admin gate this framework cannot exercise for real.</item>
+/// part of the admin gate this framework cannot exercise for real.
+/// <para>
+/// Note the shape is "force the check to pass", not "make <c>LocalPort</c> true", which is why the
+/// gate itself stays untested. The unblocking change, if a second admin fixture ever arrives, is to
+/// derive the port from the request instead — <c>context.Connection.LocalPort = context.Request.Host.Port ?? 443</c>,
+/// in <see cref="OdinHost"/> rather than here. It is cheap and safe: <c>Connection.LocalPort</c> is
+/// read in exactly one place in the whole product (<c>AdminApiRestrictedAttribute</c>), and these
+/// URLs already carry <c>:4444</c>, so no test body would change. The payoff is that
+/// <c>AdminApiRestrictedAttributeTest.PingShouldReturn404IfWrongPort</c> becomes portable — point a
+/// client at <c>:443</c> and get the 404 — leaving only its genuinely connection-refused case on
+/// WebScaffold. Deliberately not done here: one fixture does not meet the promotion bar.
+/// </para></item>
 ///
 /// <item><b>The two job-polling loops become one explicit run.</b> The original slept 100 ms up to
 /// 20 times waiting for <c>JobRunnerBackgroundService</c> to pick the export job up. Background
@@ -134,6 +146,12 @@ public class AdminControllerTest : V2Fixture
 
     private readonly string _exportTargetPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("n"));
 
+    // null! rather than nullable: both are assigned in WarmTenantBaselineAsync, which the fixture
+    // runs before any test. The file is #nullable enable, so without this the CI Release build --
+    // which uses --warnaserror -- fails on CS8618 before a test runs.
+    private OwnerSession _frodo = null!;
+    private TargetDrive _payloadDrive = null!;
+
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
         new Dictionary<string, string?>
         {
@@ -149,6 +167,22 @@ public class AdminControllerTest : V2Fixture
     /// The export target sits outside the host's data root, so <see cref="OdinHost"/> does not clean
     /// it up. This is the original's <c>[TearDown]</c> delete, moved to the end of the fixture.
     /// </summary>
+    /// <summary>
+    /// The enable/disable flags live in the identity registry, which the per-test reset does not
+    /// restore (see <c>OdinHost.ResetAsync</c>). Both toggle tests re-enable what they turned off as
+    /// their last step, exactly as the original did — but if one fails midway, the tenant stays
+    /// disabled and every later test in the fixture fails for an unrelated reason. This is idempotent
+    /// lifecycle restoration, which <see cref="V2Fixture"/> owns; the asserted toggles in the test
+    /// bodies are untouched.
+    /// </summary>
+    [TearDown]
+    public async Task RestoreTenantFlags()
+    {
+        using var apiClient = CreateAdminClient();
+        await SendAsync(apiClient, HttpMethod.Patch, $"tenants/{Identities.Frodo}/enable");
+        await SendAsync(apiClient, HttpMethod.Patch, $"tenants/{Identities.Frodo}/public-web-presence/enable");
+    }
+
     [OneTimeTearDown]
     public void DeleteExportTarget()
     {
@@ -156,6 +190,25 @@ public class AdminControllerTest : V2Fixture
         {
             Directory.Delete(_exportTargetPath, true);
         }
+    }
+
+    /// <summary>
+    /// Baked into the baseline: Frodo's owner session and the channel drive the payload tests upload
+    /// to. Both survive the per-test DB restore, so the five tests that seed a payload no longer pay
+    /// a login (three client-side PBKDF2 passes at 100k iterations, plus a fourth server-side) and a
+    /// drive create each. The upload itself stays in <see cref="CreatePayload"/> — the payload tree
+    /// is wiped between tests, unlike the drive record. Same shape as
+    /// <c>Ported/Transit/AppTransitQueryTestsForPublicFiles</c>.
+    /// </summary>
+    protected override async Task WarmTenantBaselineAsync()
+    {
+        await base.WarmTenantBaselineAsync();
+
+        _frodo = await LoginAsOwner(Identities.Frodo);
+
+        _payloadDrive = new TargetDrive { Alias = Guid.NewGuid(), Type = SystemDriveConstants.ChannelDriveType };
+        await _frodo.Admin.CreateDrive(_payloadDrive, "A Channel Drive", allowAnonymousReads: false,
+            ownerOnly: false);
     }
 
     private OdinConfiguration Config => Host.Server.Services.GetRequiredService<OdinConfiguration>();
@@ -174,8 +227,13 @@ public class AdminControllerTest : V2Fixture
             BaseAddress = new Uri($"https://{AdminDomain}:{AdminPort}/")
         };
 
-    private static string AdminUrl(string relativePath) =>
-        $"https://{AdminDomain}:{AdminPort}/api/admin/v1/{relativePath}";
+    /// <summary>
+    /// Relative on purpose: <see cref="CreateAdminClient"/> already carries the admin origin as its
+    /// <c>BaseAddress</c>, and spelling the absolute prefix here too meant a reader had to work out
+    /// which of the two was load-bearing for <c>MapWhen</c>'s host match. It is the request URI, so
+    /// the origin now appears in exactly one place.
+    /// </summary>
+    private static string AdminUrl(string relativePath) => $"api/admin/v1/{relativePath}";
 
     private static HttpRequestMessage NewRequestMessage(HttpMethod method, string uri)
     {
@@ -183,6 +241,21 @@ public class AdminControllerTest : V2Fixture
         {
             Headers = { { AdminApiKeyHeaderName, AdminApiKey } }
         };
+    }
+
+    private static Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method, string relativePath) =>
+        client.SendAsync(NewRequestMessage(method, AdminUrl(relativePath)));
+
+    /// <summary>
+    /// The request/assert-OK/deserialize triplet that ran to three lines at roughly a dozen call
+    /// sites. Folding it keeps the route under test visible at the call site and puts the status
+    /// assertion somewhere it cannot be forgotten.
+    /// </summary>
+    private static async Task<T> GetOkAsync<T>(HttpClient client, string relativePath)
+    {
+        var response = await SendAsync(client, HttpMethod.Get, relativePath);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        return await ReadAsync<T>(response);
     }
 
     private static async Task<T> ReadAsync<T>(HttpResponseMessage response) =>
@@ -194,11 +267,7 @@ public class AdminControllerTest : V2Fixture
     public async Task ItShouldGetAllTenants()
     {
         using var apiClient = CreateAdminClient();
-        var request = NewRequestMessage(HttpMethod.Get, AdminUrl("tenants"));
-        var response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var tenants = await ReadAsync<List<TenantModel>>(response);
+        var tenants = await GetOkAsync<List<TenantModel>>(apiClient, "tenants");
         Assert.That(tenants.Count, Is.GreaterThan(1));
         Assert.That(tenants, Has.Some.Matches<TenantModel>(t => t.Domain == Identities.Frodo));
     }
@@ -209,11 +278,7 @@ public class AdminControllerTest : V2Fixture
     public async Task ItShouldGetTenantMetrics()
     {
         using var apiClient = CreateAdminClient();
-        var request = NewRequestMessage(HttpMethod.Get, AdminUrl("tenants/metrics"));
-        var response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var metrics = await ReadAsync<TenantMetricsResponse>(response);
+        var metrics = await GetOkAsync<TenantMetricsResponse>(apiClient, "tenants/metrics");
 
         Assert.That(metrics.GeneratedAt.milliseconds, Is.GreaterThan(0));
         Assert.That(metrics.DatabaseType, Is.EqualTo(Config.Database.Type.ToString().ToLowerInvariant()));
@@ -233,9 +298,9 @@ public class AdminControllerTest : V2Fixture
         // The id must be a canonical UUID string, and the same one the tenant list reports.
         Assert.That(Guid.TryParse(frodo.Id, out _), Is.True, $"not a canonical UUID: {frodo.Id}");
 
-        var tenantRequest = NewRequestMessage(HttpMethod.Get, AdminUrl($"tenants/{Identities.Frodo}"));
-        var tenantResponse = await apiClient.SendAsync(tenantRequest);
-        var tenant = await ReadAsync<TenantModel>(tenantResponse);
+        // Unasserted status, as in the original: the deserialize below is what would fail.
+        var tenant = await ReadAsync<TenantModel>(
+            await SendAsync(apiClient, HttpMethod.Get, $"tenants/{Identities.Frodo}"));
         Assert.That(frodo.Id, Is.EqualTo(tenant.Id));
 
         // Every row carries a canonical id, registered or not - that is the whole point for a
@@ -258,10 +323,7 @@ public class AdminControllerTest : V2Fixture
 
         using var apiClient = CreateAdminClient();
 
-        var response = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get, AdminUrl("tenants/metrics")));
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var metrics = await ReadAsync<TenantMetricsResponse>(response);
+        var metrics = await GetOkAsync<TenantMetricsResponse>(apiClient, "tenants/metrics");
         var frodo = metrics.Tenants.Single(t => t.Domain == Identities.Frodo);
 
         Assert.That(frodo.Files, Is.Not.Null.And.GreaterThan(0));
@@ -273,9 +335,8 @@ public class AdminControllerTest : V2Fixture
         Assert.That(frodo.ActiveBytes, Is.EqualTo(frodo.TotalBytes));
 
         // Same figure the existing endpoint reports: both sum byteCount over every file state.
-        var payloadResponse = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
-            AdminUrl($"tenants/{Identities.Frodo}?include-payload=true")));
-        var tenant = await ReadAsync<TenantModel>(payloadResponse);
+        var tenant = await ReadAsync<TenantModel>(
+            await SendAsync(apiClient, HttpMethod.Get, $"tenants/{Identities.Frodo}?include-payload=true"));
         Assert.That(frodo.TotalBytes, Is.EqualTo(tenant.PayloadSize));
     }
 
@@ -293,12 +354,11 @@ public class AdminControllerTest : V2Fixture
         using var apiClient = CreateAdminClient();
 
         var metrics = await ReadAsync<TenantMetricsResponse>(
-            await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get, AdminUrl("tenants/metrics"))));
+            await SendAsync(apiClient, HttpMethod.Get, "tenants/metrics"));
         var frodoMetrics = metrics.Tenants.Single(t => t.Domain == Identities.Frodo);
 
         var tenant = await ReadAsync<TenantModel>(
-            await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
-                AdminUrl($"tenants/{Identities.Frodo}?include-payload=true"))));
+            await SendAsync(apiClient, HttpMethod.Get, $"tenants/{Identities.Frodo}?include-payload=true"));
 
         // Every field the old endpoint carries has an equivalent here.
         Assert.That(frodoMetrics.Id, Is.EqualTo(tenant.Id));
@@ -321,15 +381,10 @@ public class AdminControllerTest : V2Fixture
     {
         using var apiClient = CreateAdminClient();
 
-        var metricsResponse = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get, AdminUrl("tenants/metrics")));
-        Assert.That(metricsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var metrics = await ReadAsync<TenantMetricsResponse>(metricsResponse);
+        var metrics = await GetOkAsync<TenantMetricsResponse>(apiClient, "tenants/metrics");
         Assert.That(metrics.Tenants, Is.Not.Empty);
 
-        var tenantResponse = await apiClient.SendAsync(NewRequestMessage(HttpMethod.Get,
-            AdminUrl($"tenants/{Identities.Frodo}")));
-        Assert.That(tenantResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var tenant = await ReadAsync<TenantModel>(tenantResponse);
+        var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}");
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
     }
 
@@ -339,11 +394,7 @@ public class AdminControllerTest : V2Fixture
     public async Task ItShouldGetSpecificTenant()
     {
         using var apiClient = CreateAdminClient();
-        var request = NewRequestMessage(HttpMethod.Get, AdminUrl($"tenants/{Identities.Frodo}"));
-        var response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var tenant = await ReadAsync<TenantModel>(response);
+        var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}");
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
         Assert.That(tenant.RegistrationPath, Does.StartWith(TenantDataRootPath));
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
@@ -364,15 +415,9 @@ public class AdminControllerTest : V2Fixture
     public async Task ItShouldGetSpecificTenantWithNonExistingPayloads()
     {
         using var apiClient = CreateAdminClient();
-        var request = NewRequestMessage(HttpMethod.Get, AdminUrl($"tenants/{Identities.Frodo}?include-payload=true"));
-        var response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var tenant = await ReadAsync<TenantModel>(response);
+        var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}?include-payload=true");
         Assert.That(tenant.Id, Is.Not.Null);
         Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
-
-        var pm = new TenantPathManager(Config, Guid.Parse(tenant.Id));
 
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
         Assert.That(tenant.RegistrationPath, Does.StartWith(TenantDataRootPath));
@@ -389,6 +434,9 @@ public class AdminControllerTest : V2Fixture
         var bucketName = Environment.GetEnvironmentVariable("S3Payload__BucketName") ?? "";
         Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
 #else
+        // Declared here rather than above: it is read only on this branch, so a RUN_S3_TESTS build
+        // was carrying an unused local.
+        var pm = new TenantPathManager(Config, Guid.Parse(tenant.Id));
         Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
 #endif
 
@@ -403,16 +451,10 @@ public class AdminControllerTest : V2Fixture
         await CreatePayload();
 
         using var apiClient = CreateAdminClient();
-        var request = NewRequestMessage(HttpMethod.Get, AdminUrl($"tenants/{Identities.Frodo}?include-payload=true"));
-        var response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var tenant = await ReadAsync<TenantModel>(response);
+        var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}?include-payload=true");
 
         Assert.That(tenant.Id, Is.Not.Null);
         Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
-
-        var pm = new TenantPathManager(Config, Guid.Parse(tenant.Id));
 
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
         Assert.That(tenant.RegistrationPath, Does.StartWith(TenantDataRootPath));
@@ -428,6 +470,9 @@ public class AdminControllerTest : V2Fixture
         var bucketName = Environment.GetEnvironmentVariable("S3Payload__BucketName") ?? "";
         Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
 #else
+        // Declared here rather than above: it is read only on this branch, so a RUN_S3_TESTS build
+        // was carrying an unused local.
+        var pm = new TenantPathManager(Config, Guid.Parse(tenant.Id));
         Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
         Assert.That(tenant.PayloadPath, Does.StartWith(TenantDataRootPath));
 #endif
@@ -450,10 +495,11 @@ public class AdminControllerTest : V2Fixture
         var request = NewRequestMessage(HttpMethod.Delete, url);
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
-        Assert.That(response.Headers.TryGetValues("Location", out var locations), Is.True,
-            "could not find Location header");
-        var location = locations!.First();
-        Assert.That(location, Does.StartWith($"https://{AdminDomain}:{AdminPort}/api/job/v1/"));
+        // Asserting the header itself rather than a TryGetValues bool: a missing or reshaped
+        // Location now prints the value (or null) instead of "Expected: True".
+        Assert.That(response.Headers.Location?.ToString(),
+            Does.StartWith($"https://{AdminDomain}:{AdminPort}/api/job/v1/"));
+        var location = response.Headers.Location!.ToString();
 
         var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
         var jobId = JobIdFrom(location);
@@ -467,15 +513,10 @@ public class AdminControllerTest : V2Fixture
         Assert.That(jobResponse.State, Is.EqualTo(JobState.Succeeded));
         Assert.That(jobResponse.JobId, Is.Not.Null);
 
-        var exists = await jobManager.JobExistsAsync(jobId);
-        Assert.That(exists, Is.True);
-        var deleted = await jobManager.DeleteJobByIdAsync(jobId);
-        Assert.That(deleted, Is.True);
-
-        exists = await jobManager.JobExistsAsync(jobId);
-        Assert.That(exists, Is.False);
-        deleted = await jobManager.DeleteJobByIdAsync(jobId);
-        Assert.That(deleted, Is.False);
+        Assert.That(await jobManager.JobExistsAsync(jobId), Is.True);
+        Assert.That(await jobManager.DeleteJobByIdAsync(jobId), Is.True);
+        Assert.That(await jobManager.JobExistsAsync(jobId), Is.False);
+        Assert.That(await jobManager.DeleteJobByIdAsync(jobId), Is.False);
 
         request = NewRequestMessage(HttpMethod.Get, location);
         response = await apiClient.SendAsync(request);
@@ -497,10 +538,11 @@ public class AdminControllerTest : V2Fixture
         var request = NewRequestMessage(HttpMethod.Post, url);
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
-        Assert.That(response.Headers.TryGetValues("Location", out var locations), Is.True,
-            "could not find Location header");
-        var location = locations!.First();
-        Assert.That(location, Does.StartWith($"https://{AdminDomain}:{AdminPort}/api/job/v1/"));
+        // Asserting the header itself rather than a TryGetValues bool: a missing or reshaped
+        // Location now prints the value (or null) instead of "Expected: True".
+        Assert.That(response.Headers.Location?.ToString(),
+            Does.StartWith($"https://{AdminDomain}:{AdminPort}/api/job/v1/"));
+        var location = response.Headers.Location!.ToString();
 
         var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
         var jobId = JobIdFrom(location);
@@ -519,15 +561,10 @@ public class AdminControllerTest : V2Fixture
         Assert.That(jobResponse.JobId, Is.Not.Null);
         Assert.That(exportData?.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, Identities.Frodo)));
 
-        var exists = await jobManager.JobExistsAsync(jobId);
-        Assert.That(exists, Is.True);
-        var deleted = await jobManager.DeleteJobByIdAsync(jobId);
-        Assert.That(deleted, Is.True);
-
-        exists = await jobManager.JobExistsAsync(jobId);
-        Assert.That(exists, Is.False);
-        deleted = await jobManager.DeleteJobByIdAsync(jobId);
-        Assert.That(deleted, Is.False);
+        Assert.That(await jobManager.JobExistsAsync(jobId), Is.True);
+        Assert.That(await jobManager.DeleteJobByIdAsync(jobId), Is.True);
+        Assert.That(await jobManager.JobExistsAsync(jobId), Is.False);
+        Assert.That(await jobManager.DeleteJobByIdAsync(jobId), Is.False);
 
         request = NewRequestMessage(HttpMethod.Get, location);
         response = await apiClient.SendAsync(request);
@@ -546,60 +583,30 @@ public class AdminControllerTest : V2Fixture
         using var adminClient = CreateAdminClient();
         using var tenantClient = Host.CreateAnonymousClient(Identities.Frodo);
 
-        // Verify enabled
-        {
-            var response = await tenantClient.GetAsync("api/owner/v1/authentication/verifyToken");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
+        // The original wrapped each step in a bare { } block so it could redeclare request/response.
+        // Two local functions say the same thing and let the test read as the script it is.
+        async Task AssertTenantAnswers(HttpStatusCode expected) =>
+            Assert.That((await tenantClient.GetAsync("api/owner/v1/authentication/verifyToken")).StatusCode,
+                Is.EqualTo(expected));
 
-        // Enable
-        {
-            var request = NewRequestMessage(HttpMethod.Patch, AdminUrl($"tenants/{Identities.Frodo}/enable"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
+        async Task AssertAdminPatchOk(string relativePath) =>
+            Assert.That((await SendAsync(adminClient, HttpMethod.Patch, relativePath)).StatusCode,
+                Is.EqualTo(HttpStatusCode.OK));
 
-        // Verify still enabled
-        {
-            var response = await tenantClient.GetAsync("api/owner/v1/authentication/verifyToken");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
+        await AssertTenantAnswers(HttpStatusCode.OK);
 
-        // Disable
-        {
-            var request = NewRequestMessage(HttpMethod.Patch, AdminUrl($"tenants/{Identities.Frodo}/disable"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
+        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/enable");
+        await AssertTenantAnswers(HttpStatusCode.OK);
 
-        // Verify disabled
-        {
-            var response = await tenantClient.GetAsync("api/owner/v1/authentication/verifyToken");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
-        }
+        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/disable");
+        await AssertTenantAnswers(HttpStatusCode.Conflict);
 
-        // Disabled tenants should still be returned in the tenant list
-        {
-            var request = NewRequestMessage(HttpMethod.Get, AdminUrl("tenants"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        // Disabled tenants are still returned in the tenant list.
+        var tenants = await GetOkAsync<List<TenantModel>>(adminClient, "tenants");
+        Assert.That(tenants, Has.Some.Matches<TenantModel>(t => t.Domain == Identities.Frodo));
 
-            var tenants = await ReadAsync<List<TenantModel>>(response);
-            Assert.That(tenants, Has.Some.Matches<TenantModel>(t => t.Domain == Identities.Frodo));
-        }
-
-        // Enable
-        {
-            var request = NewRequestMessage(HttpMethod.Patch, AdminUrl($"tenants/{Identities.Frodo}/enable"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-
-        // Verify enabled
-        {
-            var response = await tenantClient.GetAsync("api/owner/v1/authentication/verifyToken");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
+        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/enable");
+        await AssertTenantAnswers(HttpStatusCode.OK);
     }
 
     //
@@ -610,80 +617,46 @@ public class AdminControllerTest : V2Fixture
         using var adminClient = CreateAdminClient();
         using var tenantClient = Host.CreateAnonymousClient(Identities.Frodo);
 
-        // Verify enabled by default
+        // Same treatment as the sibling test: the original's bare { } blocks existed only to
+        // redeclare request/response, and hid an eight-step script behind 80 lines.
+        async Task<string> BodyOf(string path, HttpStatusCode expected)
         {
-            var request = NewRequestMessage(HttpMethod.Get, AdminUrl($"tenants/{Identities.Frodo}"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-            var tenant = await ReadAsync<TenantModel>(response);
-            Assert.That(tenant.EnablePublicWebPresence, Is.True);
+            var response = await tenantClient.GetAsync(path);
+            Assert.That(response.StatusCode, Is.EqualTo(expected), $"GET {path}");
+            return await response.Content.ReadAsStringAsync();
         }
 
-        // Public pages render normally
-        {
-            var response = await tenantClient.GetAsync("/ssr/home");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var body = await response.Content.ReadAsStringAsync();
-            Assert.That(body, Does.Not.Contain("This is a Homebase ID."));
+        async Task AssertWebPresenceFlag(bool expected) =>
+            Assert.That((await GetOkAsync<TenantModel>(adminClient, $"tenants/{Identities.Frodo}"))
+                .EnablePublicWebPresence, Is.EqualTo(expected));
 
-            response = await tenantClient.GetAsync("/robots.txt");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            body = await response.Content.ReadAsStringAsync();
-            Assert.That(body, Does.Contain("Sitemap:"));
+        async Task AssertAdminPatchOk(string relativePath) =>
+            Assert.That((await SendAsync(adminClient, HttpMethod.Patch, relativePath)).StatusCode,
+                Is.EqualTo(HttpStatusCode.OK));
 
-            response = await tenantClient.GetAsync("/sitemap.xml");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
+        // Enabled by default: public pages render normally.
+        await AssertWebPresenceFlag(true);
+        Assert.That(await BodyOf("/ssr/home", HttpStatusCode.OK), Does.Not.Contain("This is a Homebase ID."));
+        Assert.That(await BodyOf("/robots.txt", HttpStatusCode.OK), Does.Contain("Sitemap:"));
+        await BodyOf("/sitemap.xml", HttpStatusCode.OK);
 
-        // Disable public web presence
-        {
-            var request = NewRequestMessage(HttpMethod.Patch,
-                AdminUrl($"tenants/{Identities.Frodo}/public-web-presence/disable"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
+        // Disabled: the pages are gated.
+        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/public-web-presence/disable");
+        await AssertWebPresenceFlag(false);
 
-        // Verify flag is off
-        {
-            var request = NewRequestMessage(HttpMethod.Get, AdminUrl($"tenants/{Identities.Frodo}"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var gatedHome = await BodyOf("/ssr/home", HttpStatusCode.OK);
+        Assert.That(gatedHome, Does.Contain("This is a Homebase ID."));
+        Assert.That(gatedHome, Does.Contain("noindex"));
 
-            var tenant = await ReadAsync<TenantModel>(response);
-            Assert.That(tenant.EnablePublicWebPresence, Is.False);
-        }
+        var gatedRobots = await BodyOf("/robots.txt", HttpStatusCode.OK);
+        Assert.That(gatedRobots, Does.Contain("Disallow: /"));
+        Assert.That(gatedRobots, Does.Not.Contain("Sitemap:"));
 
-        // Public pages are gated
-        {
-            var response = await tenantClient.GetAsync("/ssr/home");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var body = await response.Content.ReadAsStringAsync();
-            Assert.That(body, Does.Contain("This is a Homebase ID."));
-            Assert.That(body, Does.Contain("noindex"));
+        await BodyOf("/sitemap.xml", HttpStatusCode.NotFound);
 
-            response = await tenantClient.GetAsync("/robots.txt");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            body = await response.Content.ReadAsStringAsync();
-            Assert.That(body, Does.Contain("Disallow: /"));
-            Assert.That(body, Does.Not.Contain("Sitemap:"));
-
-            response = await tenantClient.GetAsync("/sitemap.xml");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-        }
-
-        // Re-enable and verify pages are back
-        {
-            var request = NewRequestMessage(HttpMethod.Patch,
-                AdminUrl($"tenants/{Identities.Frodo}/public-web-presence/enable"));
-            var response = await adminClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-            var pageResponse = await tenantClient.GetAsync("/ssr/home");
-            Assert.That(pageResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var body = await pageResponse.Content.ReadAsStringAsync();
-            Assert.That(body, Does.Not.Contain("This is a Homebase ID."));
-        }
+        // Re-enabled: the pages are back.
+        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/public-web-presence/enable");
+        Assert.That(await BodyOf("/ssr/home", HttpStatusCode.OK), Does.Not.Contain("This is a Homebase ID."));
     }
 
     //
@@ -708,32 +681,17 @@ public class AdminControllerTest : V2Fixture
     /// <summary>
     /// A channel drive holding one file with a payload, so the storage figures are non-zero.
     /// </summary>
-    private async Task CreatePayload()
-    {
-        var owner = await LoginAsOwner(Identities.Frodo);
-
-        var drive = new TargetDrive
-        {
-            Alias = Guid.NewGuid(),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-        await owner.Admin.CreateDrive(drive, "A Channel Drive", allowAnonymousReads: false, ownerOnly: false);
-
-        const string uploadedPayload = "What is happening with the encoding!?";
-
-        // Lifted from Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem.DrivePayloadTests
-        var fileMetadata = new UploadFileMetadata
-        {
-            AllowDistribution = true,
-            AppData = new()
-            {
-                FileType = 200,
-                GroupId = default,
-                Tags = default
-            },
-            AccessControlList = AccessControlList.OwnerOnly
-        };
-
-        await AppFileUploads.UploadEncryptedAsync(owner, drive, fileMetadata, uploadedPayload);
-    }
+    /// <summary>
+    /// Uploads one encrypted payload for Frodo. Only the upload is per-test: <see cref="ResetBetweenTests"/>
+    /// wipes the payload tree, so the file genuinely has to be re-uploaded, but the session and the
+    /// drive it uploads to come from the baseline.
+    /// </summary>
+    private Task CreatePayload() =>
+        // The literal this replaced was copied from DrivePayloadTests and is exactly what
+        // SampleMetadataData.Create(200, allowDistribution: true) builds -- same FileType, null
+        // GroupId and Tags, OwnerOnly ACL. The empty AppData.Content the remarks note is preserved:
+        // Create leaves it empty, unlike CreateWithContent.
+        AppFileUploads.UploadEncryptedAsync(_frodo, _payloadDrive,
+            SampleMetadataData.Create(fileType: 200, allowDistribution: true),
+            "What is happening with the encoding!?");
 }

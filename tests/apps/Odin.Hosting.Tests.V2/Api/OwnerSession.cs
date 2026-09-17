@@ -61,9 +61,16 @@ public sealed class OwnerSession : IV2Caller
         Sync = new OwnerSync(host.GetTestSync(identity), this);
     }
 
-    public static async Task<OwnerSession> LoginAsync(OdinHost host, string identity)
+    /// <param name="password">
+    /// Defaults to <see cref="OwnerLogin.DefaultPassword"/>, which the baseline set for every
+    /// preconfigured identity. Pass an explicit one for a test that has just <i>changed</i> the
+    /// password out from under that default — the Shamir recovery-finalization flow — so the new
+    /// session comes back as a full <see cref="OwnerSession"/> rather than a hand-built factory.
+    /// </param>
+    public static async Task<OwnerSession> LoginAsync(
+        OdinHost host, string identity, string password = OwnerLogin.DefaultPassword)
     {
-        var (token, secret) = await OwnerLogin.RunAsync(host, identity);
+        var (token, secret) = await OwnerLogin.RunAsync(host, identity, password);
         return new OwnerSession(host, identity, token, secret);
     }
 

@@ -1,11 +1,8 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
-using Odin.Hosting.Controllers.OwnerToken.Security;
-using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Util;
 
@@ -53,11 +50,11 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
     [Test]
     public async Task CanDistributeShardsToDelegatePeersAndVerify()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
+        var (frodo, players) = Cast();
 
-        await PrepareConnectionsAsync(frodo, peerIdentities);
+        await PrepareConnectionsAsync(frodo, players);
 
-        await DistributeAndVerifyShardsAsync(frodo, peerIdentities, PlayerType.Delegate,
+        await DistributeAndVerifyShardsAsync(frodo, players, PlayerType.Delegate,
             minMatchingShards: ShamirConfigurationService.MinimumPlayerCount);
     }
 
@@ -65,12 +62,12 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
     [Ignore("work in progress, need to setup testing so we have no recovery email")]
     public async Task FailShardDistributionWhenNoRecoveryEmailConfigured()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
+        var (frodo, players) = Cast();
 
-        await PrepareConnectionsAsync(frodo, peerIdentities);
+        await PrepareConnectionsAsync(frodo, players);
 
         var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            DelegateShardRequest(peerIdentities, minMatchingShards: peerIdentities.Count));
+            ShardRequest(players, PlayerType.Delegate, minMatchingShards: players.Count));
 
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
@@ -82,13 +79,14 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
     [Test]
     public async Task FailShardDistributionWhenPlayerCountTooLow()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
+        var (frodo, players) = Cast();
 
-        await PrepareConnectionsAsync(frodo, peerIdentities);
+        await PrepareConnectionsAsync(frodo, players);
 
-        var tooFew = peerIdentities.Take(ShamirConfigurationService.MinimumPlayerCount - 1).ToList();
+        var tooFew = players.Take(ShamirConfigurationService.MinimumPlayerCount - 1).ToList();
         var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            DelegateShardRequest(tooFew, minMatchingShards: ShamirConfigurationService.MinimumPlayerCount - 1));
+            ShardRequest(tooFew, PlayerType.Delegate,
+                minMatchingShards: ShamirConfigurationService.MinimumPlayerCount - 1));
 
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -97,13 +95,13 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
     [Ignore("Removed rule")]
     public async Task FailShardDistributionWhenMinMatchingShardsTooLow()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
+        var (frodo, players) = Cast();
 
-        await PrepareConnectionsAsync(frodo, peerIdentities);
+        await PrepareConnectionsAsync(frodo, players);
 
         var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            DelegateShardRequest(peerIdentities,
-                minMatchingShards: peerIdentities.Count - (ShamirConfigurationService.MinimumMatchingShardsOffset + 1)));
+            ShardRequest(players, PlayerType.Delegate,
+                minMatchingShards: players.Count - (ShamirConfigurationService.MinimumMatchingShardsOffset + 1)));
 
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -116,28 +114,16 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
         // starting "Failed while creating outbox item". See the class remarks for why it is not
         // carried and what has to be restored alongside this [Ignore].
 
-        var (frodo, allPeers) = await LoginCastAsync();
+        var (frodo, players) = Cast();
 
-        var connectedIdentities = allPeers.Take(3).ToList();
+        var connectedIdentities = players.Take(3).ToList();
         await PrepareConnectionsAsync(frodo, connectedIdentities);
 
-        // add one who is not connected
-        var peerIdentities = allPeers.ToList();
-
         var configureShardsResponse = await SecurityOf(frodo).ConfigureShards(
-            DelegateShardRequest(peerIdentities, minMatchingShards: peerIdentities.Count));
+            // the full cast, which adds one who is not connected
+            ShardRequest(players, PlayerType.Delegate, minMatchingShards: players.Count));
 
-        Assert.That(configureShardsResponse.IsSuccessful, Is.False);
+        // Exactly !IsSuccessStatusCode, but a failure prints the code it got.
+        Assert.That((int)configureShardsResponse.StatusCode, Is.Not.InRange(200, 299));
     }
-
-    private static ConfigureShardsRequest DelegateShardRequest(
-        IReadOnlyList<OwnerSession> players, int minMatchingShards) => new()
-    {
-        Players = players.Select(p => new ShamiraPlayer
-        {
-            OdinId = p.Identity,
-            Type = PlayerType.Delegate
-        }).ToList(),
-        MinMatchingShards = minMatchingShards
-    };
 }

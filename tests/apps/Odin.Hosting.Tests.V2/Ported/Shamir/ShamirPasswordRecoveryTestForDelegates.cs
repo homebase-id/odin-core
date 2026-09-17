@@ -1,7 +1,5 @@
-using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
@@ -23,12 +21,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <item>No caller matrix in the original and none added; the <c>#if !DEBUG [Ignore]</c> guards and
 /// the <c>[Description]</c> are carried verbatim.</item>
 /// <item><c>Security.WaitForShamirStatus(AwaitingOwnerFinalization)</c> was a passive poll (40 s
-/// budget, 100 ms ticks) and becomes a straight <c>GetShamirRecoverStatus()</c> read. Nothing here
-/// is asynchronous to wait for: <c>ShamirRecoveryService.ApproveShardRequest</c> posts the shard to
-/// the dealer over a <i>direct</i> peer call — <c>SendPlayerShard</c>, not the outbox — so by the
-/// time the last approval returns, the dealer has already collected its quorum and flipped the
-/// state. The two sibling tests in the same file read the status directly for exactly this reason;
-/// this makes the third match them. Measured stable over the runs in the batch report.</item>
+/// budget, 100 ms ticks) and becomes a straight <c>GetShamirRecoverStatus()</c> read
+/// (<see cref="ShamirFixture.AssertRecoveryStateAsync"/>). Nothing here is asynchronous to wait for:
+/// <c>ShamirRecoveryService.ApproveShardRequest</c> posts the shard to the dealer over a
+/// <i>direct</i> peer call — <c>SendPlayerShard</c>, not the outbox — so by the time the last
+/// approval returns, the dealer has already collected its quorum and flipped the state. The two
+/// sibling tests in the same file read the status directly for exactly this reason; this makes the
+/// third match them. Measured stable over the runs in the batch report.</item>
 /// <item>Ported straight, <c>WaitForShamirStatus</c> would still have returned on its first tick —
 /// but it is a poll of a value the fast host can never change on its own, which is the shape the
 /// README rules out.</item>
@@ -56,17 +55,10 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
 #endif
     public async Task DelegatePlayersCanApproveShardRequests()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
-
         //
         // Setup - distribute delegate shards
         //
-        await PrepareConnectionsAsync(frodo, peerIdentities);
-
-        await DistributeAndVerifyShardsAsync(frodo, peerIdentities, PlayerType.Delegate,
-            minMatchingShards: ShamirConfigurationService.CalculateMinAllowedShardCount(peerIdentities.Count));
-
-        var config = await GetDealerShardConfigAsync(frodo);
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
 
         //
         // Act - enter recovery mode
@@ -76,29 +68,10 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
         //
         // Assert - all player delegates have a request in their list
         //
-        foreach (var peer in peerIdentities)
-        {
-            var item = await GetPlayerShardRequestAsync(config, peer);
-            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-            var shardId = item!.ShardId;
-
-            // now release the shard
-            var approveResponse = await SecurityOf(peer).ApproveShardRequest(new ApproveShardRequest
-            {
-                OdinId = frodo.Identity,
-                ShardId = shardId
-            });
-
-            Assert.That(approveResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-
-        // Read the status: the approvals above delivered synchronously (see class remarks).
-        var getRecoveryStatusResponse = await AnonymousSecurityOf(frodo).GetShamirRecoverStatus();
-        Assert.That(getRecoveryStatusResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var recoverStatus = getRecoveryStatusResponse.Content;
+        await ApproveEveryShardRequestAsync(frodo, players, config);
 
         // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
-        Assert.That(recoverStatus!.State, Is.EqualTo(ShamirRecoveryState.AwaitingOwnerFinalization));
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingOwnerFinalization);
 
         await ExitRecoveryModeAsync(frodo);
     }
@@ -109,17 +82,10 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
 #endif
     public async Task DelegatePlayersCanRejectRequestsAndRecoveryFails()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
-
         //
         // Setup - distribute delegate shards
         //
-        await PrepareConnectionsAsync(frodo, peerIdentities);
-
-        await DistributeAndVerifyShardsAsync(frodo, peerIdentities, PlayerType.Delegate,
-            minMatchingShards: ShamirConfigurationService.CalculateMinAllowedShardCount(peerIdentities.Count));
-
-        var config = await GetDealerShardConfigAsync(frodo);
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
 
         //
         // Act - enter recovery mode
@@ -129,27 +95,9 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
         //
         // Assert - all player delegates have a request in their list
         //
-        foreach (var peer in peerIdentities)
-        {
-            var item = await GetPlayerShardRequestAsync(config, peer);
-            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-            var shardId = item!.ShardId;
+        await RejectEveryShardRequestAsync(frodo, players, config);
 
-            // now release the shard
-            var rejectResponse = await SecurityOf(peer).RejectShardRequest(new RejectShardRequest
-            {
-                OdinId = frodo.Identity,
-                ShardId = shardId
-            });
-
-            Assert.That(rejectResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-
-        // Wait for status
-        var getRecoveryStatusResponse = await AnonymousSecurityOf(frodo).GetShamirRecoverStatus();
-        Assert.That(getRecoveryStatusResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var recoverStatus = getRecoveryStatusResponse.Content;
-        Assert.That(recoverStatus!.State, Is.EqualTo(ShamirRecoveryState.AwaitingSufficientDelegateConfirmation));
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
 
         await ExitRecoveryModeAsync(frodo);
     }
@@ -160,17 +108,10 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
 #endif
     public async Task DelegatePlayersCanRejectRequestsAndRecoveryFailsThenResubmitRecoveryModeASecondTime()
     {
-        var (frodo, peerIdentities) = await LoginCastAsync();
-
         //
         // Setup - distribute delegate shards
         //
-        await PrepareConnectionsAsync(frodo, peerIdentities);
-
-        await DistributeAndVerifyShardsAsync(frodo, peerIdentities, PlayerType.Delegate,
-            minMatchingShards: ShamirConfigurationService.CalculateMinAllowedShardCount(peerIdentities.Count));
-
-        var config = await GetDealerShardConfigAsync(frodo);
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
 
         //
         // Act - enter recovery mode
@@ -180,27 +121,9 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
         //
         // Assert - all player delegates have a request in their list
         //
-        foreach (var peer in peerIdentities)
-        {
-            var item = await GetPlayerShardRequestAsync(config, peer);
-            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-            var shardId = item!.ShardId;
+        await RejectEveryShardRequestAsync(frodo, players, config);
 
-            // now release the shard
-            var rejectResponse = await SecurityOf(peer).RejectShardRequest(new RejectShardRequest
-            {
-                OdinId = frodo.Identity,
-                ShardId = shardId
-            });
-
-            Assert.That(rejectResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-
-        // Wait for status
-        var getRecoveryStatusResponse = await AnonymousSecurityOf(frodo).GetShamirRecoverStatus();
-        Assert.That(getRecoveryStatusResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var recoverStatus = getRecoveryStatusResponse.Content;
-        Assert.That(recoverStatus!.State, Is.EqualTo(ShamirRecoveryState.AwaitingSufficientDelegateConfirmation));
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
 
         //
         // If I don't get sufficient responses, i need to restart.
@@ -210,10 +133,6 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
         // re-enter recovery mode and validate delegates got a new request
         await EnterRecoveryModeAsync(frodo);
 
-        foreach (var peer in peerIdentities)
-        {
-            var item = await GetPlayerShardRequestAsync(config, peer);
-            Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-        }
+        await AssertEveryPlayerHasRequestAsync(config, players);
     }
 }
