@@ -178,6 +178,35 @@ observed before the first read returns the buffered bytes, the read is cancelled
 `bytesReceived == 0` and logged at Verbose instead of Warning. Details and candidate fixes in
 #1734. The test was added by `9d1315b7e` (PR #1732).
 
+### A second method in the same fixture, 2026-09-17
+
+- `HeaderFromUntrustedPeer_IsRejected`
+
+**Where:** CI, `ubuntu/sqlite/release` on PR #1781 (run 35198…, job 105131700664). One failure in
+that project's 156 tests; the fast suite in the same job was green at 1388.
+
+**Symptom:** a different failure mode from the entry above — not a missing log event, but the
+listener never came up:
+
+```
+listener on port 8445 is not accepting connections (ConnectionReset); a rejection cannot be asserted
+    at ProxyProtocolListenerTests.ConnectOrFail(Int32 port, Byte[] proxyHeader):167
+```
+
+Worth noting the assertion message is a good one: it says what it could not do and why, rather
+than printing a bare failure. That is why this entry can state the failure mode at all.
+
+**Not caused by the change in flight:** PR #1781 is a test migration in `Odin.Hosting.Tests.V2`;
+`git diff origin/main...HEAD` is empty for `*Kestrel*`, `*ProxyProtocol*` and `Startup.cs`. It
+cannot reach a real TCP listener on port 8445.
+
+**Pattern:** this fixture binds fixed ports (8443, 8445) on a shared CI runner, and both of its
+recorded failures are port/timing-shaped rather than logic-shaped. #1734 covers the sibling; the
+same "fixed port on a shared runner" hazard is the one #1779 records for
+`Odin.SetupHelper.Tests.TcpProbeTests`. Three fixtures, one root cause worth fixing once: bind port
+0 and read back the assigned port, and expose a "listening" signal to await instead of racing the
+bind.
+
 ---
 
 ## `Odin.Hosting.Tests.AppAPI.Transit.TransferFileTests`
