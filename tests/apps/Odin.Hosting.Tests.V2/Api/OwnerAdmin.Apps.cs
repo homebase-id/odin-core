@@ -24,6 +24,17 @@ public sealed partial class OwnerAdmin
     /// Registers an app with the given permissions. Failure here means the rest of the test setup
     /// is broken, so we throw (see <see cref="EnsureSuccess{T}"/>).
     /// </summary>
+    /// <summary>
+    /// Registers an app with no permissions and hands back its id — for tests that need an app the
+    /// server will accept and nothing more. Two "owning app" fixtures did this 32 times between them.
+    /// </summary>
+    public async Task<Guid> RegisterBareApp()
+    {
+        var appId = Guid.NewGuid();
+        await RegisterApp(appId, new PermissionSetGrantRequest());
+        return appId;
+    }
+
     public async Task<ApiResponse<RedactedAppRegistration>> RegisterApp(
         Guid appId,
         PermissionSetGrantRequest appPermissions,

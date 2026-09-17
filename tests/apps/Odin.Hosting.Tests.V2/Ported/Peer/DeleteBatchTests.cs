@@ -28,7 +28,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// suite also covers App/Guest callers, disconnected-recipient error paths, and a series of
 /// <c>InboxDrainOnQuery</c> background-drain scenarios — those depend on production behaviours
 /// (auto-drain via background services, V1 Disconnect helper) that the in-process framework
-/// deliberately doesn't run. They stay on the V1 framework; see SUPERSEDED banner on the original.
+/// deliberately doesn't run. They stay on the V1 framework; see the class banner on the original.
 /// </summary>
 [TestFixture]
 public class DeleteBatchTests : V2Fixture

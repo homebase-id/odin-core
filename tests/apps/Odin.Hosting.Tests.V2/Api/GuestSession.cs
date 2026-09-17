@@ -5,6 +5,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.YouAuth;
@@ -24,58 +25,96 @@ public sealed class GuestSession : IV2Caller
 {
     public OdinId Identity { get; }
     public AsciiDomainName GuestDomain { get; }
+
+    /// <summary>
+    /// The circle this guest was granted. Surfaced because a fixture may have to name the same circle
+    /// twice — once here and once in a file's <c>CircleIdList</c> — and without it the only way to do
+    /// that was to re-implement this class's factory construction fixture-side. Mirrors
+    /// <see cref="AppSession"/>'s <c>knownAppId</c>, which exists for the same reason in the other
+    /// direction.
+    /// </summary>
+    public Guid CircleId { get; }
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
+    public V1Handles V1 { get; }
 
     private GuestSession(
         OdinHost host,
         OdinId identity,
         AsciiDomainName guestDomain,
+        Guid circleId,
         ClientAuthenticationToken token,
         byte[] sharedSecret)
     {
         Identity = identity;
         GuestDomain = guestDomain;
-        Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token, sharedSecret.ToSensitiveByteArray());
+        CircleId = circleId;
+        Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token,
+            sharedSecret.ToSensitiveByteArray(), GuestApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        V1 = new V1Handles(Identity, Factory);
     }
 
-    public static async Task<GuestSession> SetupAsync(
+    /// <summary>
+    /// The common case: a throwaway guest domain granted one drive permission.
+    /// </summary>
+    public static Task<GuestSession> SetupAsync(
         OwnerSession owner,
         TargetDrive targetDrive,
         DrivePermission drivePermission)
+        => SetupAsync(owner, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = targetDrive,
+                        Permission = drivePermission
+                    }
+                }
+            },
+            PermissionSet = default!
+        });
+
+    /// <summary>
+    /// The general form, mirroring <see cref="AppSession.SetupAsync(OwnerSession, PermissionSetGrantRequest, string)"/>:
+    /// the caller supplies the whole grant, so a guest can hold permission keys, several drives, or
+    /// keys with no drive at all — none of which the drive-scoped overload can express.
+    /// </summary>
+    /// <param name="domain">
+    /// Omit for a throwaway domain. Pass one to model "this identity browsing in as a guest", which
+    /// is what the collaboration-channel fixtures need — the author's own identity is the domain.
+    /// </param>
+    /// <remarks>
+    /// Porting note: V1's <c>GuestSpecifyAccessToDrive</c> accepts a <c>TestPermissionKeyList</c> and
+    /// then silently drops it (its <c>_keys</c> field is never read and the circle is built with
+    /// <c>PermissionSet = default</c>). A port that faithfully passes those keys through here would be
+    /// *granting more* than the original did — a coverage change wearing a port's clothes. Keep the
+    /// keys off when porting a fixture that used that context.
+    /// </remarks>
+    public static async Task<GuestSession> SetupAsync(
+        OwnerSession owner,
+        PermissionSetGrantRequest grant,
+        AsciiDomainName? domain = null)
     {
-        var domain = NewGuestDomain();
+        var guestDomain = domain ?? NewGuestDomain();
 
         var circleId = Guid.NewGuid();
-        var circleResp = await owner.Admin.CreateCircle(circleId, "Circle with valid permissions",
-            new PermissionSetGrantRequest
-            {
-                Drives = new List<DriveGrantRequest>
-                {
-                    new()
-                    {
-                        PermissionedDrive = new PermissionedDrive
-                        {
-                            Drive = targetDrive,
-                            Permission = drivePermission
-                        }
-                    }
-                },
-                PermissionSet = default!
-            });
+        var circleResp = await owner.Admin.CreateCircle(circleId, "Circle with valid permissions", grant);
         if (!circleResp.IsSuccessStatusCode)
         {
             throw new InvalidOperationException($"CreateCircle failed: {circleResp.StatusCode}");
         }
 
-        await owner.Admin.RegisterYouAuthDomain(domain, [circleId]);
-        var clientReg = await owner.Admin.RegisterYouAuthClient(domain);
+        await owner.Admin.RegisterYouAuthDomain(guestDomain, [circleId]);
+        var clientReg = await owner.Admin.RegisterYouAuthClient(guestDomain);
 
         var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);
-        return new GuestSession(owner.Host, owner.Identity, domain, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
+        return new GuestSession(owner.Host, owner.Identity, guestDomain, circleId, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
     }
 
     private static AsciiDomainName NewGuestDomain() =>

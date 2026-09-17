@@ -25,7 +25,9 @@ public class TenantSettings
         DisableAutoAcceptIntroductionsForTests = false,
         DisableAutoAcceptConnectionRequests = false,
         SendMonthlySecurityHealthReport = false,
-        UseReviewedSecurityTier = false
+        UseReviewedSecurityTier = false,
+        HideOwnerCirclesFromApps = false,
+        DisableAllowIntroductions = false
     };
 
     /// <summary/>
@@ -64,6 +66,14 @@ public class TenantSettings
     /// </summary>
     public bool DisableAutoAcceptConnectionRequests { get; set; } = false;
 
+    /// <summary>
+    /// When true, nobody may introduce the owner to anyone: every incoming introduction is refused, and the
+    /// introduction preflight reports it as not permitted.  When false (the default) any connection may
+    /// introduce, reviewed or not.  Replaces the
+    /// <see cref="PermissionKeys.AllowIntroductions"/> circle permission as the check that decides it.
+    /// </summary>
+    public bool DisableAllowIntroductions { get; set; }
+
     public bool ConnectedIdentitiesCanCommentOnAnonymousDrives { get; set; }
 
     /// <summary>
@@ -88,6 +98,19 @@ public class TenantSettings
     /// </para>
     /// </remarks>
     public bool UseReviewedSecurityTier { get; set; }
+
+    /// <summary>
+    /// When true, an app listing circles is shown only circles that belong to an app; circles with no
+    /// owning app (the owner's own, and the system circles) are left out.  Off by default, which is
+    /// today's behaviour -- an app sees every circle it has permission to read.
+    /// </summary>
+    /// <remarks>
+    /// A dark-launch switch.  The filter keeps what an app can offer in step with what the review path lets
+    /// it do (an app cannot enrol anyone into a circle no app owns), but it also changes every existing
+    /// app screen that lists circles, so it is enabled one tenant at a time.  The owner console is never
+    /// filtered.  Reversible by turning it off; nothing is written either way.
+    /// </remarks>
+    public bool HideOwnerCirclesFromApps { get; set; }
 
     public List<int> GetAdditionalPermissionKeysForAuthenticatedIdentities()
     {

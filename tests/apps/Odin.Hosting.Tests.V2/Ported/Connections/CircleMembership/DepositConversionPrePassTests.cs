@@ -28,6 +28,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class DepositConversionPrePassTests : V2Fixture
 {
+    /// <remarks>
+    /// Deposit conversion for a connection that cannot be converted is what this fixture tests; the
+    /// production code logs and swallows it (#1770). Narrowed from a whole-fixture opt-out once
+    /// attribution (#1775) made it possible to say which error this fixture actually causes.
+    /// </remarks>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        ["Could not convert deposited grants for"];
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
 
     [Test]
@@ -138,6 +146,50 @@ public class DepositConversionPrePassTests : V2Fixture
         var after = await storage.GetAsync(sam.Identity);
         Assert.That(after!.PeerKeyStore.HasPendingDeposits, Is.True,
             "the deposit should still be pending, waiting for the connection to become reachable");
+    }
+
+    [Test]
+    public async Task ConnectionWhoseDepositFailsToConvert_IsSkipped_AndTheRestAreDrained()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var merry = await LoginAsOwner(Identities.Merry);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline-sam");
+        await PeerFlow.CreatePeerDriveAsync(frodo, merry, DrivePermission.Read, "baseline-merry");
+
+        var (_, circle, app) = await SetupAppWithReadCircleAsync(frodo);
+        var client = new V2ConnectionNetworkClient(app.Identity, app.Factory);
+
+        foreach (var target in new[] { sam.Identity, merry.Identity })
+        {
+            var deposit = await client.GrantCircleAsync(circle, target);
+            Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit for {target} failed: {deposit.StatusCode}");
+        }
+
+        var scope = Host.GetTenantScope(frodo.Identity.DomainName);
+        var storage = scope.Resolve<CircleNetworkStorage>();
+        var ctx = await BuildOwnerContextAsync(scope, frodo);
+
+        // Corrupt merry's sealed storage key so unsealing it throws during conversion.
+        var broken = await storage.GetAsync(merry.Identity);
+        var sealedKey = broken!.PeerKeyStore.DepositedGrants.Single().DriveGrants
+            .Single(dg => dg.SealedStorageKey != null).SealedStorageKey!;
+        sealedKey.EncryptedData = sealedKey.EncryptedData.Select(b => (byte)~b).ToArray();
+        await storage.UpsertAsync(broken, ctx);
+
+        var (connectionsDrained, grantsConverted) = await scope.Resolve<CircleNetworkService>()
+            .ConvertDepositedGrantsForConnectedIdentitiesAsync(ctx, CancellationToken.None);
+
+        Assert.That(connectionsDrained, Is.EqualTo(1), "only the healthy connection should have been drained");
+        Assert.That(grantsConverted, Is.EqualTo(1));
+
+        var samIcr = await storage.GetAsync(sam.Identity);
+        Assert.That(samIcr!.PeerKeyStore.CircleGrants.ContainsKey(circle), Is.True, "sam should now hold a real grant");
+        Assert.That(samIcr.PeerKeyStore.HasPendingDeposits, Is.False);
+
+        var merryIcr = await storage.GetAsync(merry.Identity);
+        Assert.That(merryIcr!.PeerKeyStore.CircleGrants.ContainsKey(circle), Is.False);
+        Assert.That(merryIcr.PeerKeyStore.HasPendingDeposits, Is.True, "merry's deposit should be left pending");
     }
 
     [Test]

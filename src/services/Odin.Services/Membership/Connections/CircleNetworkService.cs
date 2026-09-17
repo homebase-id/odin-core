@@ -157,8 +157,11 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: ReviewedSecurityTier.For(tenantContext.Settings, icr),
+                        securityLevel: SecurityGroupType.Connected,
                         circleIds: enabledCircles)
+                    {
+                        IsReviewed = icr.ReviewedAt != null
+                    }
                 };
 
                 context.SetPermissionContext(permissionContext);
@@ -1302,8 +1305,9 @@ namespace Odin.Services.Membership.Connections
         /// delegates rather than reimplementing, so the grant and deposit behaviour stays in one place.
         /// </para>
         /// <para>
-        /// Expected to die.  Once ambient granting is implemented at connection establishment -- which
-        /// <see cref="CircleGrantOn.Connect"/> describes and nothing yet does -- this has no callers.
+        /// New connections are now granted Connect circles when they are established
+        /// (<c>CircleNetworkRequestService.WithConnectCirclesAsync</c>), so this only serves connections
+        /// that predate that: the v17 -&gt; v18 backfill and the owner's bulk enrol.
         /// </para>
         /// </remarks>
         internal async Task ApplyAmbientCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
@@ -3270,6 +3274,14 @@ namespace Odin.Services.Membership.Connections
                             Change = ConnectionChangeType.CircleGranted,
                         });
                     }
+                }
+                catch (Exception e)
+                {
+                    // One connection whose deposits cannot be converted must not fail the upgrade for the
+                    // rest.  Its deposits stay pending and convert on the contact's next call or the owner's
+                    // next touch of that connection.
+                    logger.LogError(e, "Could not convert deposited grants for {odinId}; leaving them pending",
+                        identity.OdinId);
                 }
                 finally
                 {

@@ -14,4 +14,5 @@ public static class Identities
     public static readonly string Merry = TestIdentities.Merry.OdinId.DomainName;
     public static readonly string Pippin = TestIdentities.Pippin.OdinId.DomainName;
     public static readonly string TomBombadil = TestIdentities.TomBombadil.OdinId.DomainName;
+    public static readonly string Collab = TestIdentities.Collab.OdinId.DomainName;
 }
