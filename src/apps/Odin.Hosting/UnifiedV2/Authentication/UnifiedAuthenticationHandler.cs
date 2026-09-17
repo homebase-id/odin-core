@@ -44,6 +44,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         private static readonly IAuthPathHandler BuiltInHandler = new BuiltInBrowserAppHandler();
         private static readonly IAuthPathHandler AppHandler = new AppAuthPathHandler();
         private static readonly IAuthPathHandler CdnHandler = new CdnAuthPathHandler();
+        private static readonly IAuthPathHandler BundleHandler = new BundleAuthPathHandler();
 
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory loggerFactory,
@@ -326,6 +327,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
                 case ClientTokenType.Cdn:
                     return CdnHandler;
+
+                case ClientTokenType.AppBundle:
+                    return BundleHandler;
 
                 default:
                     return null;

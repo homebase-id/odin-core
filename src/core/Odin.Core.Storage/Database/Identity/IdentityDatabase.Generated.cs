@@ -20,6 +20,8 @@ public partial class IdentityDatabase
             typeof(TableAppNotifications),
             typeof(TableClientRegistrations),
             typeof(TableAppRegistrations),
+            typeof(TableBundleTokens),
+            typeof(TableBundleTokenApps),
             typeof(TableCircle),
             typeof(TableCircleMember),
             typeof(TableConnections),
@@ -64,6 +66,12 @@ public partial class IdentityDatabase
 
     private Lazy<TableAppRegistrations> _appRegistrations;
     public TableAppRegistrations AppRegistrations => LazyResolve(ref _appRegistrations);
+
+    private Lazy<TableBundleTokens> _bundleTokens;
+    public TableBundleTokens BundleTokens => LazyResolve(ref _bundleTokens);
+
+    private Lazy<TableBundleTokenApps> _bundleTokenApps;
+    public TableBundleTokenApps BundleTokenApps => LazyResolve(ref _bundleTokenApps);
 
     private Lazy<TableCircle> _circle;
     public TableCircle Circle => LazyResolve(ref _circle);

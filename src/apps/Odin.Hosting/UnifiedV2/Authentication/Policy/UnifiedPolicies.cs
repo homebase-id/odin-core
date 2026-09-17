@@ -43,7 +43,8 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
                 policy.RequireClaim(UnifiedClaimTypes.ClientTokenType,
                     [
                         AsClaimValue(ClientTokenType.Owner),
-                        AsClaimValue(ClientTokenType.App)
+                        AsClaimValue(ClientTokenType.App),
+                        AsClaimValue(ClientTokenType.AppBundle)
                     ]
                 );
 
@@ -57,6 +58,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
                     [
                         AsClaimValue(ClientTokenType.Owner),
                         AsClaimValue(ClientTokenType.App),
+                        AsClaimValue(ClientTokenType.AppBundle),
                         AsClaimValue(ClientTokenType.YouAuth)
                     ]
                 );
