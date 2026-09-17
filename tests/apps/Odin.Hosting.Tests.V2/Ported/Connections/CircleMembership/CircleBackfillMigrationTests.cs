@@ -35,7 +35,7 @@ public class CircleBackfillMigrationTests : V2Fixture
 {
     /// <remarks>
     /// This fixture's subject is the v17->v18 backfill, whose error paths it drives deliberately: an
-    /// identity left out of a circle, and the swallowed key-upgrade failure tracked in #1770. Narrow
+    /// identity left out of a circle (#1785), and the swallowed key-upgrade failure tracked in #1770. Narrow
     /// tolerations rather than a whole-fixture opt-out, so the invariant still covers the rest.
     /// </remarks>
     protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
