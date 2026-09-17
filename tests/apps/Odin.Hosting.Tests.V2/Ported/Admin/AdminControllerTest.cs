@@ -84,11 +84,26 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 /// it. Listing a second identity in <c>HostIdentities</c> would buy nothing and cost a tenant
 /// materialisation plus a reset per test.</item>
 ///
-/// <item><b>Carried as-is:</b> the <c>#if RUN_S3_TESTS</c> payload-path branches, the
-/// <c>#if !RUN_S3_TESTS</c> guard on the export test, and the <c>#if false</c> delete-tenant test
-/// with its "disabled until we figure out a way to do this without racing the rest of the system"
-/// note. That block does not compile in either framework, so its V2 spelling is untested; it is kept
-/// because deleting it would erase the only record that tenant deletion is deliberately uncovered.</item>
+/// <item><b>The <c>RUN_S3_TESTS</c> branches are dropped, and that loses coverage — read this
+/// before re-adding them.</b> The V1 original asserted the payload path against
+/// <c>Path.Combine(S3Storage__ServiceUrl, S3Payload__BucketName, tenant.Id)</c> under
+/// <c>#if RUN_S3_TESTS</c>, and skipped the export test under <c>#if !RUN_S3_TESTS</c>. That works
+/// on <c>WebScaffold</c>, which configures S3 when the constant is defined. It cannot work here:
+/// <see cref="OdinHost"/> hard-sets <c>S3PayloadStorage__Enabled=false</c> and stores payloads
+/// locally whatever the constant says. Carried verbatim, the S3 branch compiled on CI (which does
+/// define <c>RUN_S3_TESTS</c>) and compared a local path against a bare tenant id — two failures
+/// that no Debug run reproduces, because Debug takes the <c>#else</c>. So both fixtures now always
+/// assert the local path, and the export test always runs.
+/// <para>
+/// The consequence, stated plainly: <b>the S3 payload-path assertion does not survive the move.</b>
+/// It was real coverage on <c>WebScaffold</c> and there is no equivalent here until the fast host
+/// can be pointed at S3. Tracked in #1782 rather than left as a comment.
+/// </para></item>
+///
+/// <item><b>Carried as-is:</b> the <c>#if false</c> delete-tenant test with its "disabled until we
+/// figure out a way to do this without racing the rest of the system" note. That block does not
+/// compile in either framework, so its V2 spelling is untested; it is kept because deleting it would
+/// erase the only record that tenant deletion is deliberately uncovered.</item>
 ///
 /// <item><b>Not carried:</b> the original's <c>[SetUp]</c> assertions that
 /// <c>Host__TenantDataRootPath</c> was non-empty and existed. They checked the V1 env-var plumbing
@@ -429,16 +444,10 @@ public class AdminControllerTest : V2Fixture
             Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
         }
 
-#if RUN_S3_TESTS
-        var serviceUrl = Environment.GetEnvironmentVariable("S3Storage__ServiceUrl") ?? "";
-        var bucketName = Environment.GetEnvironmentVariable("S3Payload__BucketName") ?? "";
-        Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
-#else
-        // Declared here rather than above: it is read only on this branch, so a RUN_S3_TESTS build
-        // was carrying an unused local.
+        // No #if RUN_S3_TESTS branch here, unlike the V1 original -- see the class remarks. This
+        // host always stores payloads locally, so the S3 path assertion could never hold.
         var pm = new TenantPathManager(Config, Guid.Parse(tenant.Id));
         Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
-#endif
 
         Assert.That(tenant.PayloadSize, Is.Not.Null.And.EqualTo(0));
     }
@@ -465,17 +474,10 @@ public class AdminControllerTest : V2Fixture
             Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
         }
 
-#if RUN_S3_TESTS
-        var serviceUrl = Environment.GetEnvironmentVariable("S3Storage__ServiceUrl") ?? "";
-        var bucketName = Environment.GetEnvironmentVariable("S3Payload__BucketName") ?? "";
-        Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
-#else
-        // Declared here rather than above: it is read only on this branch, so a RUN_S3_TESTS build
-        // was carrying an unused local.
+        // No #if RUN_S3_TESTS branch here, unlike the V1 original -- see the class remarks.
         var pm = new TenantPathManager(Config, Guid.Parse(tenant.Id));
         Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
         Assert.That(tenant.PayloadPath, Does.StartWith(TenantDataRootPath));
-#endif
 
         Assert.That(tenant.PayloadSize, Is.Not.Null.And.GreaterThan(0));
     }
@@ -526,7 +528,6 @@ public class AdminControllerTest : V2Fixture
 
     //
 
-#if !RUN_S3_TESTS
     // SEB:TODO update for S3 payloads
     [Test]
     public async Task ItShouldExportTenant()
@@ -573,7 +574,6 @@ public class AdminControllerTest : V2Fixture
         Assert.That(Path.Combine(_exportTargetPath, Identities.Frodo, "registrations"), Does.Exist);
         Assert.That(Path.Combine(_exportTargetPath, Identities.Frodo, "payloads"), Does.Exist);
     }
-#endif
 
     //
 
