@@ -74,7 +74,7 @@ the shared cause is probably worth chasing rather than re-running.
 
 ---
 
-## `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryTests`
+## `Odin.Hosting.Tests.V2.Ported.Shamir.ShamirPasswordRecoveryTests`
 
 - `CanEnterAndExitRecoveryMode`
 
@@ -83,6 +83,23 @@ the shared cause is probably worth chasing rather than re-running.
 **Symptom:** expects a `Redirect`, gets `Forbidden`.
 
 **Not caused by the change in flight:** same run and reasoning as the entry above.
+
+**Moved 2026-09-17.** Was `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryTests`; the
+fixture is now ported to the fast framework and the V1 original is deleted. The recovery logic is
+unchanged by the port, so if the flake is real it is still reachable -- and it is now far cheaper to
+chase, because the whole fixture runs in about 2 s instead of 18 s.
+
+**Still not reproduced, and a green local run does not clear it.** 8/8 green after the port (3 batch
+runs plus 5 focused), and the V1 original also passed on the same tree -- but that was Linux/sqlite,
+filtered and unloaded, whereas the recorded failure is Windows CI under parallel load. Those are not
+the same experiment.
+
+**Where to look, from reading the code rather than from a measurement:** a `Forbidden` on
+`verify-enter` means an `OdinSecurityException` escaping `ShamirRecoveryService.EnterRecoveryMode`.
+Two places on that path can raise one -- `HandleReleaseShardRequest` on a *player*
+(`sender != requester`, or a `RecoveryEmailHash` mismatch) and the dealer-side collect. A player's
+non-2xx is swallowed by the `if (response.IsSuccessStatusCode)` guard, so it would have to be raised
+dealer-side. Unconfirmed: this is analysis, not a reproduction.
 
 ---
 

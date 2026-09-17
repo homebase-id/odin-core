@@ -170,6 +170,20 @@ re-deriving, which is how the first batches ended up with three spellings of the
   access the original didn't. `Ported/Concepts/CollabScenario.cs` shows the shape: a local
   `record`-based spec carrying a `Func<OwnerSession, Task<IV2Caller>>`, named for the V1 context so
   failures read the same.
+- **Sharing arrange across a family of fixtures: static helper, or base class?** Two shapes are in
+  use, and the choice is not stylistic.
+  - A **static scenario helper** (`Ported/Concepts/CollabScenario.cs`,
+    `Ported/Transit/TransitScenario.cs`) when the arrange only needs things it can be handed —
+    sessions, drives, metadata. This is the default; prefer it.
+  - A **shared base fixture** deriving from `V2Fixture` (`Ported/Shamir/ShamirFixture.cs`) when the
+    helpers need the fixture *itself* — `LoginAsOwner` is `protected`, and anything reading the host's
+    `ILogEventMemoryStore` (recovery nonces, say) has no other way in. Five Shamir fixtures carried
+    byte-identical copies of six helpers; a base class collapsed them where a static helper could not
+    have reached `LoginAsOwner`.
+
+  A base class is the heavier tool: it fixes `HostIdentities` for every fixture that derives from it,
+  so a derived fixture needing a different identity set has to override and diverge. Reach for it only
+  when the static form genuinely cannot express the arrange.
 
 **Identity**
 - Prefer the fixture default. The V1 originals pinned identities because `WebScaffold` shared them
@@ -179,6 +193,18 @@ re-deriving, which is how the first batches ended up with three spellings of the
   tests usually still pass while exercising the wrong one.
 - Only list an identity in `HostIdentities` if the server actually resolves it. An identity that is
   merely *named* in metadata costs a tenant materialisation plus a reset per test for nothing.
+- **`HostIdentities` controls what is *materialised*, not what is *registered*.** Every host registers
+  **six** tenants (frodo, sam, merry, pippin, tom, collab) no matter what you list. The registry comes
+  from `Development:PreconfiguredDomains`, whose six entries live in `appsettings.development.json`
+  (the host sets `ASPNETCORE_ENVIRONMENT=Development`); `OdinHost.BuildPerHostConfig` then writes
+  `Development:PreconfiguredDomains:0…N-1` for your N identities, which *replaces the leading N
+  entries and leaves the tail standing*. The `Development__PreconfiguredDomains=[]` env baseline does
+  not clear them either — a scalar and its `:0…:5` children coexist in .NET configuration, and
+  binding a `List` reads the children. Only the identities you list are materialised and snapshotted,
+  so the cost note above still holds; but **a test that asserts on a tenant count or enumerates
+  tenants will see six**, not the number you listed. Verified structurally and empirically —
+  `Ported/Admin/AdminControllerTest.ItShouldGetAllTenants` asserts `Count > 1` and passes on a
+  single-identity fixture.
 
 **Assertions**
 - `Assert.That(actual, Is.EqualTo(expected))` — note the argument order flips from
@@ -262,9 +288,13 @@ re-deriving, which is how the first batches ended up with three spellings of the
     assertions passed.
   - turn `AssertNoErrorLogEvents` off only if the whole fixture is about error paths.
 
-  Two framework-level lists sit alongside the per-fixture one, and the distinction matters:
-  `KnownProductNoise` (filed defects, deleted when fixed) and `ParallelLoadArtefacts` (SQLite lock
-  contention from running many hosts in one process — not a defect, not expected to shrink).
+  **There is no global toleration list, and that is deliberate.** Two once existed
+  (`KnownProductNoise`, `ParallelLoadArtefacts`); both are gone. A global list absorbs a *neighbour's*
+  error as readily as your own, so it hides exactly the cross-fixture bleed it looks like it is
+  managing — and it did: re-deriving the tolerations after #1775 was fixed took 24 fixtures with
+  opt-outs down to 11 with none, because 13 of them had been tolerating errors that were never
+  theirs. Tolerate on the fixture that provokes the error, so the toleration dies with the test that
+  needs it.
 - **`Is.EqualTo` across `GuidId` and `Guid` compiles and then fails at run time.** NUnit compares the
   boxed objects and never reaches the `==` operator, so you get
   `Expected: bb2683fa-402a-… / But was: <bb2683fa402aff…>`. Cast *both* sides to `Guid`.
