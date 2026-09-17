@@ -518,7 +518,13 @@ writers against one **drive**, not several writers racing one file. The server-s
 the 500 did not reach the CI output, so the cause is still unknown; the fixture now captures the
 first 500's response body into the assertion message so the next run names it.
 
-**Status: left RUNNING and RED on `windows/sqlite/debug`, on purpose (decision 2026-09-17).** It was
+**Frequency: roughly two failures in three Windows runs — it is intermittent, not deterministic.**
+It passed the full 20x50 run on `windows/sqlite/debug` for PR #1781 (job 105144168218) after failing
+on two earlier commits. So a green Windows run does not clear it, and the response-body capture added
+for diagnosis has not fired yet — the cause still rests on the six
+`Expected: OK, But was: InternalServerError` iterations from the failing runs.
+
+**Status: left RUNNING on `windows/sqlite/debug`, on purpose (decision 2026-09-17).** It was
 briefly `[Ignore]`d against #1780; that was reverted. Unlike its two siblings
 (`PayloadConcurrentHammerEncryptedTests`, `[Explicit]`, and `UpdateBatch_HammerTime_WithPayloads`,
 `[Ignore]` under #1772), this one stays in CI. The failure is a real product defect rather than a
