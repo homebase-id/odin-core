@@ -263,9 +263,9 @@ public class ReviewedSecurityTierPeerTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
 
-        // Bidirectional: the receipt lands on Frodo's drive, so Sam needs write there too.
+        // The receipt lands on Frodo's drive, so Sam needs write there too.
         var drive = await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Write, "unreviewed-receipt",
-            bidirectional: true);
+            recipientPermissionOnSenderDrive: DrivePermission.Write);
 
         var metadata = SampleMetadataData.Create(fileType: 400, acl: AccessControlList.Connected);
         metadata.AllowDistribution = true;

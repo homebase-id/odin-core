@@ -3,7 +3,6 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -31,25 +30,19 @@ public class V1LocalReactionTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Pippin];
 
-    public static IEnumerable<object[]> OwnerAllowed()
+    /// <summary>
+    /// The original's three contexts: the owner and a React-only app are allowed; the write-only guest
+    /// does not see the drive at all.
+    /// </summary>
+    public static IEnumerable<object[]> ReactionCases()
     {
         yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-    }
-
-    public static IEnumerable<object[]> AppAllowedReactOnly()
-    {
         yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.React), HttpStatusCode.OK];
-    }
-
-    public static IEnumerable<object[]> GuestNotFound()
-    {
         yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.NotFound];
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestNotFound))]
+    [TestCaseSource(nameof(ReactionCases))]
     public async Task CanAddReaction(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -76,14 +69,13 @@ public class V1LocalReactionTests : V2Fixture
 
         if (expectedStatusCode != HttpStatusCode.OK) return;
 
-        await AssertIdentityHasReactionInPreview(owner, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
-        await AssertIdentityHasReaction(owner, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
+        var file = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier();
+        await ReactionAsserts.AssertHasReactionInPreview(owner, file, reactionContent1);
+        await ReactionAsserts.AssertHasReaction(owner, file, reactionContent1);
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestNotFound))]
+    [TestCaseSource(nameof(ReactionCases))]
     public async Task CanDeleteReaction(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -120,15 +112,13 @@ public class V1LocalReactionTests : V2Fixture
 
         if (expectedStatusCode != HttpStatusCode.OK) return;
 
-        await AssertIdentityDoesNotHaveReactionInPreview(owner, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
-            reactionContent1);
-        await AssertIdentityDoesNotHaveReaction(owner, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
+        var file = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier();
+        await ReactionAsserts.AssertDoesNotHaveReactionInPreview(owner, file, reactionContent1);
+        await ReactionAsserts.AssertDoesNotHaveReaction(owner, file, reactionContent1);
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestNotFound))]
+    [TestCaseSource(nameof(ReactionCases))]
     public async Task GetReactionCountsByFile(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -180,9 +170,7 @@ public class V1LocalReactionTests : V2Fixture
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestNotFound))]
+    [TestCaseSource(nameof(ReactionCases))]
     public async Task CanGetReactionsByIdentity(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -233,9 +221,7 @@ public class V1LocalReactionTests : V2Fixture
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestNotFound))]
+    [TestCaseSource(nameof(ReactionCases))]
     public async Task CanGetAllReactionsOnFile(CallerSpec spec, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -291,49 +277,5 @@ public class V1LocalReactionTests : V2Fixture
         Assert.That(allReactions.Reactions.SingleOrDefault(r =>
             r.ReactionContent == reactionContent2 && r.OdinId == owner.Identity && r.FileId.FileId == uploadResult.File.FileId),
             Is.Not.Null);
-    }
-
-    private static async Task AssertIdentityDoesNotHaveReactionInPreview(OwnerSession owner, FileIdentifier fileId, string reactionContent)
-    {
-        var client = owner.V1.Drive;
-        var getHeaderResponse1 = await client.QueryByGlobalTransitId(fileId.ToGlobalTransitIdFileIdentifier());
-
-        var file = getHeaderResponse1.Content.SearchResults.First();
-        var noMatchingInReactionPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
-        Assert.That(noMatchingInReactionPreview, Is.True);
-    }
-
-    private static async Task AssertIdentityHasReactionInPreview(OwnerSession owner, FileIdentifier fileId, string reactionContent)
-    {
-        var client = owner.V1.Drive;
-        var getHeaderResponse1 = await client.QueryByGlobalTransitId(fileId.ToGlobalTransitIdFileIdentifier());
-
-        var file = getHeaderResponse1.Content.SearchResults.First();
-        var hasReactionInPreview = file.FileMetadata.ReactionPreview.Reactions.Any(pair => pair.Value.ReactionContent == reactionContent);
-        Assert.That(hasReactionInPreview, Is.True);
-    }
-
-    private static async Task AssertIdentityHasReaction(OwnerSession owner, FileIdentifier globalTransitFileId, string reactionContent)
-    {
-        var client = owner.V1.Reactions;
-        var getReactionsResponse = await client.GetReactions(new GetReactionsRequestRedux
-            {
-                File = globalTransitFileId,
-            },
-            FileSystemType.Standard);
-        Assert.That(getReactionsResponse.Content.Reactions.Select(r => r.ReactionContent),
-            Does.Contain(reactionContent));
-    }
-
-    private static async Task AssertIdentityDoesNotHaveReaction(OwnerSession owner, FileIdentifier globalTransitFileId, string reactionContent)
-    {
-        var client = owner.V1.Reactions;
-        var getReactionsResponse = await client.GetReactions(new GetReactionsRequestRedux
-            {
-                File = globalTransitFileId,
-            },
-            FileSystemType.Standard);
-        Assert.That(getReactionsResponse.Content.Reactions.Select(r => r.ReactionContent),
-            Does.Not.Contain(reactionContent));
     }
 }

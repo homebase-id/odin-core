@@ -831,9 +831,10 @@ namespace Odin.Services.Membership.Connections.Requests
                 sharedSecret: remoteClientAccessToken.SharedSecret);
 
             SensitiveByteArray masterKey = odinContext.Caller.HasMasterKey ? odinContext.Caller.GetMasterKey() : null;
-            // No master key (accepting without the owner online) deliberately mints keyless
-            // grants; the deferred master-key upgrade re-mints them with real storage keys.
-            var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
+            // No master key (an app or introduction accepting without the owner online): source storage
+            // keys from the caller's own drive access. Drives it cannot read still mint keyless, and
+            // nothing re-mints those later -- the master-key upgrade only re-encrypts the Peer Key.
+            var storageKeySource = StorageKeySource.FromMasterKeyOrCaller(masterKey, odinContext);
             var circles = await WithConnectCirclesAsync(header.CircleIds);
             accessGrant ??= new PeerKeyStore()
             {
@@ -1667,9 +1668,10 @@ namespace Odin.Services.Membership.Connections.Requests
             // The sender's half: this key store is what the sender holds once the connection completes.
             circles = await WithConnectCirclesAsync(circles);
 
-            // We allow the master key to be null in the case of connection requests coming due to
-            // an introduction; the keyless grants are re-minted by the deferred master-key upgrade.
-            var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
+            // The master key is null for requests sent by an app or an introduction: source storage keys
+            // from the caller's own drive access. Drives it cannot read still mint keyless, and nothing
+            // re-mints those later -- the master-key upgrade only re-encrypts the Peer Key.
+            var storageKeySource = StorageKeySource.FromMasterKeyOrCaller(masterKey, odinContext);
             var grant = new PeerKeyStore()
             {
                 MasterKeyEncryptedPeerKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),

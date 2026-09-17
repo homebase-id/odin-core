@@ -1,7 +1,9 @@
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
+using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 
 namespace Odin.Hosting.Tests.V2.Api;
 
@@ -28,6 +30,8 @@ public sealed class V1Handles
     public UniversalDriveReactionClient Reactions { get; }
     public UniversalStaticFileApiClient StaticFiles { get; }
     public AppNotificationsApiClient Notifications { get; }
+    public UniversalPeerDirectApiClient PeerDirect { get; }
+    public UniversalFollowerApiClient Follower { get; }
 
     public V1Handles(OdinId identity, IApiClientFactory factory)
     {
@@ -35,5 +39,7 @@ public sealed class V1Handles
         Reactions = new UniversalDriveReactionClient(identity, factory);
         StaticFiles = new UniversalStaticFileApiClient(identity, factory);
         Notifications = new AppNotificationsApiClient(identity, factory);
+        PeerDirect = new UniversalPeerDirectApiClient(identity, factory);
+        Follower = new UniversalFollowerApiClient(identity, factory);
     }
 }
