@@ -158,6 +158,32 @@ re-deriving, which is how the first batches ended up with three spellings of the
   `OwnerAdmin`; roughly half the admin surface would need one.
 - `OwnerAdmin` earns a new method only when two or more fixtures need it *as arrange*. A
   one-fixture need goes through `RefitFor<T>()`.
+- Unauthenticated callers use `Host.CreateAnonymousClient(identity)` (`Api/AnonymousHttp.cs`) — the
+  counterpart of V1's `WebScaffold.CreateAnonymousApiHttpClient`. It is `Host.CreateClient()` plus a
+  tenant `BaseAddress` and the file-system-type header, so well-known / SSR / swagger GETs and
+  `RestService.For<T>` against an anonymous surface both work. Bare `Host.CreateClient()` stays
+  correct where the test spells out an absolute URL (`Ported/Ping`).
+- **A `_Universal` context that grants permission *keys only* has no `CallerSpec` equivalent.**
+  `AppPermissionsKeysOnly` and `ConnectedIdentityLoggedInOnGuestApi` register an app / YouAuth domain
+  with a `PermissionSet` and *no* `Drives` at all, whereas `CallerSpec.App` / `.Guest` always attach a
+  `DriveGrantRequest`. Porting one through `CallerSpec` therefore either invents a drive or grants
+  access the original didn't. `Ported/Concepts/CollabScenario.cs` shows the shape: a local
+  `record`-based spec carrying a `Func<OwnerSession, Task<IV2Caller>>`, named for the V1 context so
+  failures read the same.
+- **Sharing arrange across a family of fixtures: static helper, or base class?** Two shapes are in
+  use, and the choice is not stylistic.
+  - A **static scenario helper** (`Ported/Concepts/CollabScenario.cs`,
+    `Ported/Transit/TransitScenario.cs`) when the arrange only needs things it can be handed —
+    sessions, drives, metadata. This is the default; prefer it.
+  - A **shared base fixture** deriving from `V2Fixture` (`Ported/Shamir/ShamirFixture.cs`) when the
+    helpers need the fixture *itself* — `LoginAsOwner` is `protected`, and anything reading the host's
+    `ILogEventMemoryStore` (recovery nonces, say) has no other way in. Five Shamir fixtures carried
+    byte-identical copies of six helpers; a base class collapsed them where a static helper could not
+    have reached `LoginAsOwner`.
+
+  A base class is the heavier tool: it fixes `HostIdentities` for every fixture that derives from it,
+  so a derived fixture needing a different identity set has to override and diverge. Reach for it only
+  when the static form genuinely cannot express the arrange.
 
 **Identity**
 - Prefer the fixture default. The V1 originals pinned identities because `WebScaffold` shared them
@@ -167,6 +193,18 @@ re-deriving, which is how the first batches ended up with three spellings of the
   tests usually still pass while exercising the wrong one.
 - Only list an identity in `HostIdentities` if the server actually resolves it. An identity that is
   merely *named* in metadata costs a tenant materialisation plus a reset per test for nothing.
+- **`HostIdentities` controls what is *materialised*, not what is *registered*.** Every host registers
+  **six** tenants (frodo, sam, merry, pippin, tom, collab) no matter what you list. The registry comes
+  from `Development:PreconfiguredDomains`, whose six entries live in `appsettings.development.json`
+  (the host sets `ASPNETCORE_ENVIRONMENT=Development`); `OdinHost.BuildPerHostConfig` then writes
+  `Development:PreconfiguredDomains:0…N-1` for your N identities, which *replaces the leading N
+  entries and leaves the tail standing*. The `Development__PreconfiguredDomains=[]` env baseline does
+  not clear them either — a scalar and its `:0…:5` children coexist in .NET configuration, and
+  binding a `List` reads the children. Only the identities you list are materialised and snapshotted,
+  so the cost note above still holds; but **a test that asserts on a tenant count or enumerates
+  tenants will see six**, not the number you listed. Verified structurally and empirically —
+  `Ported/Admin/AdminControllerTest.ItShouldGetAllTenants` asserts `Count > 1` and passes on a
+  single-identity fixture.
 
 **Assertions**
 - `Assert.That(actual, Is.EqualTo(expected))` — note the argument order flips from
@@ -196,10 +234,89 @@ re-deriving, which is how the first batches ended up with three spellings of the
   `Guest[Write]` row clears the drive check and is refused deep enough in that a non-existent file
   answers 500. Those rows still need a local seed; what they don't need is the peer arrange
   (recipient logins, drives, connection handshakes), which is where the time actually goes.
+- **Every passive poll becomes an explicit drain.** `DriveRedux.WaitForEmptyOutbox`,
+  `Connections.AwaitIntroductionsProcessing` (the same poll of the transient-temp-drive outbox under
+  another name) and `DriveRedux.ProcessInbox` all wait on the outbox background service, which the
+  fast host registers but never starts — leaving one in hangs for its full timeout and then throws.
+  They become `owner.Sync.DrainOutboxAsync()` / `owner.Sync.ProcessInboxAsync(drive)`, or
+  `PeerFlow.DistributeAsync` for the pair. On the introduction path this is more than a timing
+  change: draining an *introducee's* outbox is what sends the introductory connection request
+  (`ConnectIntroduceeOutboxWorker`), so the drain has to go on the introducee, not just the
+  introducer.
+- A `Task.Delay` standing in for a poll that can never finish — the shape where the test asserts a
+  *failed, still-queued* outbox item, so the outbox is never empty — has to become
+  `DrainOutboxAsync()` as well, because nothing else moves the items that *do* deliver. **Whether the
+  failed item survives the drain is not a property of the drain; it is what the item's worker
+  returns.** `ProcessItem` marks an item complete (gone) when the worker says the send is resolved,
+  and reschedules it (still queued) when the worker says retry — and `DrainAsync`'s three passes are
+  far below `OutboxOperationMaxAttempts`, so a rescheduled item is still there when the drain
+  returns. Both shapes are in the suite, each measured:
+  - *Still queued* — a recipient who severed the connection answers access-denied, the worker
+    reschedules, and `TotalInOutbox` is what the test asserts on.
+    `Ported/Peer/V1TransferHistoryMultipleRecipientsTests` relies on this, and is now deterministic
+    where the V1 original slept.
+  - *Gone* — an introduction to a blocked recipient resolves permanently, so the worker marks it
+    complete and the item is absent after the drain (probed either side in
+    `Ported/Connections/Introductions/AutoAcceptTests`). For that shape "assert a still-queued failed
+    item" is not expressible today; it would need `ITestSync` to surface `maxRetryPasses`.
+
+  So don't assume either outcome: check what the worker for that `OutboxItemType` returns, and record
+  the verdict in the fixture's `<remarks>`.
+- **A fixture whose subject is initial setup overrides `WarmTenantBaselineAsync`.** The baseline runs
+  `Admin.InitializeIdentity()` before the snapshot, so `isconfigured` is already true and "system
+  circles do not exist yet" is unreachable. Override it to keep the owner login — that sets the
+  password `TakeBaselineAsync` needs — and drop only the `InitializeIdentity` call.
+  `Ported/DriveManagement/HandleDriveAddedRegressionTests` and the two
+  `Ported/Configuration/SystemInitializeConfig*` fixtures do exactly this. Only do it where the
+  pre-init state is actually asserted: the other `SystemInit` ports call `InitializeIdentity` inside
+  the test, which is idempotent on the server, so they keep the default baseline.
+- **`RunBeforeAnyTests(envOverrides:)` becomes `ConfigOverrides`, and the tear-down that undid it
+  goes away.** Env vars are process-wide, so the V1 fixtures that set one had to clear it again or
+  leak the flag into every later fixture (`OwnerApi/Mail/MailActivationTests` said so in a comment).
+  `ConfigOverrides` is per host, so the cleanup has nothing to do — and the flag-off sibling fixture
+  no longer depends on the flag-on one having tidied up first. List settings bind by index
+  (`Email:TenantMail:MxNodes:0`), not `__0`.
+- **The log-event assertion is ON, and it will catch things your test never looks at.** A test fails
+  if the server logged an Error or Fatal during it, even when every explicit assertion passed — the
+  invariant `WebScaffold` enforced via `AssertLogEvents`. When a port trips it, **read the message it
+  prints** (it renders every event and exception) before deciding what to do:
+  - the error is the behaviour under test → add its text to `ToleratedErrorLogSubstrings` on that
+    fixture, with a comment saying why. For an outbox delivery that is *meant* to fail, use the shared
+    `OutboxDeliveryFailureLogged` constant.
+  - it looks like a real defect → file it, and tolerate it with the issue number attached. Three of
+    the first four things this caught were product bugs (#1770, #1771, #1772), all in tests whose own
+    assertions passed.
+  - turn `AssertNoErrorLogEvents` off only if the whole fixture is about error paths.
+
+  **There is no global toleration list, and that is deliberate.** Two once existed
+  (`KnownProductNoise`, `ParallelLoadArtefacts`); both are gone. A global list absorbs a *neighbour's*
+  error as readily as your own, so it hides exactly the cross-fixture bleed it looks like it is
+  managing — and it did: re-deriving the tolerations after #1775 was fixed took 24 fixtures with
+  opt-outs down to 11 with none, because 13 of them had been tolerating errors that were never
+  theirs. Tolerate on the fixture that provokes the error, so the toleration dies with the test that
+  needs it.
+- **`Is.EqualTo` across `GuidId` and `Guid` compiles and then fails at run time.** NUnit compares the
+  boxed objects and never reaches the `==` operator, so you get
+  `Expected: bb2683fa-402a-… / But was: <bb2683fa402aff…>`. Cast *both* sides to `Guid`.
+- `FileMetadata.OriginalAuthor` is an `OdinId`; `FileMetadata.SenderOdinId` is a `string`. Comparing
+  the first against a `(string)` cast fails with the baffling
+  `Expected: "frodo.dotyou.cloud" / But was: frodo.dotyou.cloud`.
+- Several endpoints answer **204 NoContent**, not 200: follow / unfollow, `GET /followers/follower`
+  for a non-follower, and the peer add/delete-reaction calls. The V1 clients asserted
+  `IsSuccessStatusCode`, which hid this; asserting the exact status code surfaces it, which is the
+  point of the rule under **Asserting a response**.
 - `TestIdentities.InitializedIdentities` is **null** here. Only `WebScaffold.RunBeforeAnyTests` calls
   `TestIdentities.SetCurrent`; `V2Fixture` never does, so anything that reaches an identity through
   that dictionary — looking up `ContactData`, say — throws a `NullReferenceException` at run time.
   Use `TestIdentities.Defaults.Single(i => i.OdinId == identity)` instead.
+- **Merging fixtures is allowed only where the difference is already a caller.** Several V1 subtrees
+  hold the same tests once per auth scheme (the follower trio was three fixtures, two of them
+  byte-identical). Where the *only* difference between them is which client issues the reads, they
+  become one fixture with a `CallerSpec` matrix — the `<remarks>` then has to say which original each
+  row came from, and any row-specific divergence gets its own column in the case source rather than
+  being smoothed away (`Ported/Follower/FollowerTests` does both). A difference in assertions,
+  endpoints, or an owner-only capability is not a caller difference: keep those separate, share only
+  the arrange. Never merge where coverage would change.
 - A port is a move, not a rewrite. Carry `[Ignore]`s over verbatim. If you find an assertion that
   never ran or a test that doesn't test its own name, leave the behaviour alone and say so in the
   commit message. Several such defects have surfaced this way; finding them is a side benefit of
@@ -278,6 +395,8 @@ Api/        V2Fixture          ← (in parent dir) the base class
             CallerSpec, DriveSpec
             OwnerAdmin (+ .Apps / .YouAuth partials) ← V1 admin endpoints
             DriveHandles       ← reader + writer + reactions, bundled per caller
+            AppFileUploads     ← the encrypted multipart upload the V1 drive ports arrange with
+            AnonymousHttp      ← Host.CreateAnonymousClient(identity): unauthenticated, tenant-bound
             Identities         ← Frodo/Sam/… constants (derived from TestIdentities)
 Auth/       OwnerLogin         ← ECC + AES-CBC password-set + authenticate dance
 Peer/       PeerFlow           ← drive-create + circle + connect helper (+ bidirectional)

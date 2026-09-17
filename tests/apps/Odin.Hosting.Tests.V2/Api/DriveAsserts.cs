@@ -1,11 +1,14 @@
 using System;
-using System.Linq;
 using System.Net;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Core.Storage;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Peer;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Refit;
@@ -97,5 +100,29 @@ public static class DriveAsserts
             Assert.That(statusItem.Recipient, Is.Null);
             Assert.That(statusItem.Status, Is.EqualTo(expectedStatus));
         }
+    }
+
+    /// <summary>
+    /// The sender's transfer history for <paramref name="file"/> reports <paramref name="expected"/>
+    /// for <paramref name="recipient"/>. Drain the sender's outbox first.
+    /// </summary>
+    /// <remarks>
+    /// Lives here rather than in a Ported folder because nine fixtures across Peer, Transit and
+    /// Connections assert this same shape; only three of them shared a copy, and only because it
+    /// happened to sit in a folder they already imported.
+    /// </remarks>
+    public static async Task AssertTransferStatus(
+        OwnerSession sender,
+        ExternalFileIdentifier file,
+        OdinId recipient,
+        LatestTransferStatus expected,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var response = await sender.V1.Drive.GetTransferHistory(file, fileSystemType);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var item = response.Content!.GetHistoryItem(recipient);
+        Assert.That(item, Is.Not.Null, $"no transfer-history item for {recipient}");
+        Assert.That(item!.LatestTransferStatus, Is.EqualTo(expected));
     }
 }

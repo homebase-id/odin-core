@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -93,6 +94,98 @@ public static class PeerFlow
         var accept = await recipientConnections.AcceptConnectionRequest(sender.Identity, new GuidId[] { recipientCircleId });
         Assert.That(accept.IsSuccessStatusCode, Is.True,
             $"AcceptConnectionRequest on {recipient.Identity} failed: {accept.StatusCode}");
+    }
+
+    /// <summary>
+    /// Connect two identities with <b>no circles and no shared drive</b> — just the request/accept
+    /// handshake, which grants the builtin <c>ConfirmedConnections</c> circle on its own.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from the <paramref name="a"/>/<paramref name="b"/>-plus-drive overloads above, none of
+    /// which can serve a caller that wants the bare handshake: they all mint a circle over a drive.
+    /// Callers that need only the connection — the Shamir shard flows, whose write grant rides
+    /// <c>ConfirmedConnections</c> — get it here instead of open-coding the two calls.
+    /// <para>
+    /// Asserts the exact <see cref="HttpStatusCode.OK"/> its one caller asserted, rather than this
+    /// class's usual <c>IsSuccessStatusCode</c>; this is a move of that caller's code, not a rewrite
+    /// of what it checks.
+    /// </para>
+    /// </remarks>
+    public static async Task ConnectAsync(OwnerSession a, OwnerSession b)
+    {
+        var send = await a.Connections.SendConnectionRequest(b.Identity);
+        Assert.That(send.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var accept = await b.Connections.AcceptConnectionRequest(a.Identity);
+        Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    /// <summary>
+    /// The counterpart to <see cref="ConnectAsync(OwnerSession, OwnerSession)"/>: severs both sides.
+    /// <c>DisconnectFrom</c> is one-sided by default, so each identity has to sever its own.
+    /// </summary>
+    public static async Task DisconnectAsync(OwnerSession a, OwnerSession b)
+    {
+        var aSide = await a.Connections.DisconnectFrom(b.Identity);
+        Assert.That(aSide.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var bSide = await b.Connections.DisconnectFrom(a.Identity);
+        Assert.That(bSide.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    /// <summary>
+    /// Connect every pair in <paramref name="identities"/> over one shared drive — the V2 equivalent of
+    /// V1's <c>ScenarioBootstrapper.CreateConnectedHobbits</c>. Each identity creates the drive and one
+    /// circle granting <paramref name="permission"/> on it, and grants that circle to every peer.
+    /// </summary>
+    /// <remarks>
+    /// This is the mesh shape, distinct from <see cref="ConnectAsync"/>'s pairwise-with-fresh-circles:
+    /// here each identity holds <em>one</em> circle it grants to all the others, which is what the
+    /// scenarios that need four mutually-connected identities assume.
+    /// <para>
+    /// Deliberately does not register apps. V1's helper did, and carried the tokens on a
+    /// <c>TestAppContext</c>, but no consumer reads them — every call is made as the owner — and app
+    /// registration inside a peer-connect helper is the wrong composition. A fixture that needs the app
+    /// registers it itself.
+    /// </para>
+    /// </remarks>
+    public static async Task ConnectAllAsync(
+        IReadOnlyList<OwnerSession> identities,
+        TargetDrive sharedDrive,
+        DrivePermission permission = DrivePermission.ReadWrite,
+        bool allowAnonymousReads = false)
+    {
+        var circleIds = new Dictionary<string, Guid>();
+
+        foreach (var identity in identities)
+        {
+            await identity.Admin.EnsureDrive(sharedDrive, $"{identity.Identity} shared",
+                allowAnonymousReads: allowAnonymousReads);
+
+            var circleId = Guid.NewGuid();
+            await identity.Admin.CreateCircle(circleId, $"peer-mesh-{circleId:N}",
+                TestUtils.CreatePermissionGrantRequest(sharedDrive, permission));
+            circleIds[identity.Identity] = circleId;
+        }
+
+        for (var i = 0; i < identities.Count; i++)
+        {
+            for (var j = i + 1; j < identities.Count; j++)
+            {
+                var sender = identities[i];
+                var recipient = identities[j];
+
+                var sendReq = await sender.Connections.SendConnectionRequest(
+                    recipient.Identity, [(GuidId)circleIds[sender.Identity]]);
+                Assert.That(sendReq.IsSuccessStatusCode, Is.True,
+                    $"SendConnectionRequest from {sender.Identity} to {recipient.Identity} failed: {sendReq.StatusCode}");
+
+                var accept = await recipient.Connections.AcceptConnectionRequest(
+                    sender.Identity, [(GuidId)circleIds[recipient.Identity]]);
+                Assert.That(accept.IsSuccessStatusCode, Is.True,
+                    $"AcceptConnectionRequest on {recipient.Identity} failed: {accept.StatusCode}");
+            }
+        }
     }
 
     /// <summary>

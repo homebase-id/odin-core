@@ -8,7 +8,6 @@ using System.Web;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Cryptography.Login;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
@@ -64,25 +63,11 @@ public static class OwnerLogin
 
         if (_passwordsSet.TryAdd((host, identity), true))
         {
-            var saltsResp = await svc.GenerateNewSalts();
-            EnsureSuccess(saltsResp, "GenerateNewSalts");
-            var salts = saltsResp.Content!;
-            var saltNonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, salts.PublicJwk, salts.CRC)
-            {
-                Nonce64 = salts.Nonce64
-            };
-            var setReply = PasswordDataManager.CalculatePasswordReply(password, saltNonce, eccKey);
+            var setReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(client, password, eccKey);
             EnsureSuccess(await svc.SetNewPassword(setReply), "SetNewPassword");
         }
 
-        var nonceResp = await svc.GenerateAuthenticationNonce();
-        EnsureSuccess(nonceResp, "GenerateAuthenticationNonce");
-        var clientNonce = nonceResp.Content!;
-        var authNonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicJwk, clientNonce.CRC)
-        {
-            Nonce64 = clientNonce.Nonce64
-        };
-        var authReply = PasswordDataManager.CalculatePasswordReply(password, authNonce, eccKey);
+        var authReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(client, password, eccKey);
 
         var authResp = await svc.Authenticate(authReply);
         EnsureSuccess(authResp, "Authenticate");

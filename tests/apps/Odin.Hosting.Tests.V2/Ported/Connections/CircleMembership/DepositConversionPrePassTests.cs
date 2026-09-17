@@ -28,6 +28,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class DepositConversionPrePassTests : V2Fixture
 {
+    /// <remarks>
+    /// Deposit conversion for a connection that cannot be converted is what this fixture tests; the
+    /// production code logs and swallows it (#1770). Narrowed from a whole-fixture opt-out once
+    /// attribution (#1775) made it possible to say which error this fixture actually causes.
+    /// </remarks>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        ["Could not convert deposited grants for"];
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
 
     [Test]
