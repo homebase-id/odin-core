@@ -432,10 +432,15 @@ writers against one **drive**, not several writers racing one file. The server-s
 the 500 did not reach the CI output, so the cause is still unknown; the fixture now captures the
 first 500's response body into the assertion message so the next run names it.
 
-**Status:** `[Ignore]`d against #1780 -- it had failed on two separate commits on
-`windows/sqlite/debug`, and it is the last of three fixtures in this family still running in CI. The
-fixture's claim is that a losing writer is refused cleanly rather than blowing up, so the assertion
-is right and weakening it would delete the only coverage of that claim.
+**Status: left RUNNING and RED on `windows/sqlite/debug`, on purpose (decision 2026-09-17).** It was
+briefly `[Ignore]`d against #1780; that was reverted. Unlike its two siblings
+(`PayloadConcurrentHammerEncryptedTests`, `[Explicit]`, and `UpdateBatch_HammerTime_WithPayloads`,
+`[Ignore]` under #1772), this one stays in CI. The failure is a real product defect rather than a
+timing artefact, and ignoring it would buy a green board at the price of the signal. #1780 is marked
+high priority. **Do not "fix" this by ignoring or weakening the assertion** -- the claim it makes,
+that a losing writer is refused cleanly rather than blowing up, is the only coverage of that claim
+in the suite. The fixture captures the first 500's response body into the assertion message, so each
+red run should name the exception behind it.
 
 **Not confirmed pre-existing.** The port carries the `_Universal` original's concurrency shape
 unchanged and the `[Explicit]` sibling's comment predates this work, which argues it is not new --

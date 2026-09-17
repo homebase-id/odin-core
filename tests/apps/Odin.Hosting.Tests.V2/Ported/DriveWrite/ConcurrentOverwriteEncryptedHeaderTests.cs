@@ -44,13 +44,13 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
     private int _serverErrorCount;
     private string _firstServerErrorBody;
 
+    // Deliberately NOT [Ignore]d, unlike its two siblings. Twenty concurrent writers against one
+    // drive make the V1 upload endpoint answer 500 on a small fraction of requests (#1780, high
+    // priority). The fixture's claim is that a losing writer is refused cleanly rather than blowing
+    // up, so the assertion is right and the product is what is wrong. windows/sqlite/debug is left
+    // red on purpose: the failure is a real product defect, and hiding it behind [Ignore] would buy
+    // a green board at the price of the signal. See docs/flakytests.md and #1780.
     [Test]
-    [Ignore("Blocked on issue #1780: twenty concurrent writers against one drive make the V1 upload " +
-            "endpoint answer 500 on a small fraction of requests. The fixture's whole claim is that a " +
-            "losing writer is refused cleanly rather than blowing up, so the assertion is right and the " +
-            "product is what is wrong -- weakening it would delete the only coverage of that claim. " +
-            "Ignored rather than left to redden windows/sqlite/debug, where it has now failed on two " +
-            "separate commits. See docs/flakytests.md. Un-ignore when #1780 lands.")]
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {
         _owner = await LoginAsOwner();
