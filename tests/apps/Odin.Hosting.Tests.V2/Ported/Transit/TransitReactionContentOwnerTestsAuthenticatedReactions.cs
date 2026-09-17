@@ -5,13 +5,13 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 
 namespace Odin.Hosting.Tests.V2.Ported.Transit;
@@ -28,11 +28,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 /// Port notes:
 /// <list type="bullet">
 ///   <item><description>
-///     Every <c>WaitForEmptyOutbox</c> became <c>Sync.DrainOutboxAsync</c> (a passive poll needing the
-///     outbox background service, which this host never starts) <em>plus</em> a
-///     <c>Sync.ProcessInboxAsync(FeedDrive)</c> on Sam. The V1 original relied on the recipient's
-///     background inbox service to move the feed item the rest of the way; here that step is explicit.
-///     This is the same idiom the ported <c>Peer/PeerUpdateFileTests</c> uses for feed distribution.
+///     Every <c>WaitForEmptyOutbox</c> became <see cref="PeerFlow.DistributeAsync(OwnerSession, OwnerSession, TargetDrive)"/>:
+///     <c>Sync.DrainOutboxAsync</c> (a passive poll needing the outbox background service, which this
+///     host never starts) <em>plus</em> a <c>Sync.ProcessInboxAsync(FeedDrive)</c> on Sam. The V1
+///     original relied on the recipient's background inbox service to move the feed item the rest of
+///     the way; here that step is explicit.
 ///   </description></item>
 ///   <item><description>
 ///     Transit reaction calls go through <see cref="PeerReactions"/> — see that class for why the V1
@@ -86,7 +86,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions : V2Fixture
         var uploadResult = await UploadUnencryptedContentToChannelAsync(pippin, pippinChannelDrive, uploadedContent,
             acl: AccessControlList.Anonymous);
 
-        await DistributeToFeedAsync(pippin, sam);
+        await PeerFlow.DistributeAsync(pippin, sam, WellKnownAppDrives.FeedDrive);
 
         //
         // Get the post from Sam's feed drive, validate we got it
@@ -101,7 +101,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions : V2Fixture
             uploadResult.GlobalTransitIdFileIdentifier,
             reactionContent);
 
-        await DistributeToFeedAsync(pippin, sam);
+        await PeerFlow.DistributeAsync(pippin, sam, WellKnownAppDrives.FeedDrive);
 
         //
         // Sam queries across Transit to get all reactions
@@ -134,7 +134,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions : V2Fixture
         // The original asserted IsSuccessStatusCode here; the endpoint answers 204.
         Assert.That(deleteReactionResponse.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
-        await DistributeToFeedAsync(pippin, sam);
+        await PeerFlow.DistributeAsync(pippin, sam, WellKnownAppDrives.FeedDrive);
 
         //
         // Get the post from sam's feed drive again, it should have the header updated
@@ -144,16 +144,6 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions : V2Fixture
     }
 
     // ---------------------------------------------------------------------------------------------
-
-    /// <summary>
-    /// Push what the channel owner has queued out to the follower's feed drive: drain the owner's
-    /// outbox, then process the follower's feed inbox.
-    /// </summary>
-    private static async Task DistributeToFeedAsync(OwnerSession channelOwner, OwnerSession follower)
-    {
-        await channelOwner.Sync.DrainOutboxAsync();
-        await follower.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
-    }
 
     private static async Task<UploadResult> UploadUnencryptedContentToChannelAsync(
         OwnerSession owner,
@@ -181,17 +171,16 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions : V2Fixture
         return response.Content;
     }
 
+    /// <summary>The post as it landed on <paramref name="owner"/>'s feed drive.</summary>
     private static async Task<SharedSecretEncryptedFileHeader> GetHeaderFromFeedDriveAsync(
         OwnerSession owner, UploadResult uploadResult)
     {
-        var searchResults = await TransitScenario.QueryByGlobalTransitIdAsync(owner, new GlobalTransitIdFileIdentifier
+        var header = await TransitScenario.SingleByGlobalTransitIdAsync(owner, new GlobalTransitIdFileIdentifier
         {
             TargetDrive = WellKnownAppDrives.FeedDrive,
             GlobalTransitId = uploadResult.GlobalTransitId.GetValueOrDefault()
         });
 
-        Assert.That(searchResults.Count, Is.EqualTo(1));
-        var header = searchResults.First();
         Assert.That(header.FileState, Is.EqualTo(FileState.Active));
         Assert.That(header.FileMetadata.GlobalTransitId, Is.EqualTo(uploadResult.GlobalTransitId));
 

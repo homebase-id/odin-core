@@ -1,12 +1,9 @@
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests.V2.Ported.Reactions;
 
@@ -21,7 +18,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Reactions;
 /// <c>LoginAsOwner</c>; the <c>SetupCallerWithOwner</c> ordering caveat does not apply. The V1
 /// <c>OwnerApiClient.Drive</c> calls become <c>owner.V1.Drive</c> against the same V1 endpoints;
 /// drive creation moves to <c>owner.Admin.CreateDrive</c>, whose <c>Metadata</c> default
-/// (<c>string.Empty</c>) matches the original's <c>""</c> and which no assertion here reads.
+/// (<c>string.Empty</c>) matches the original's <c>""</c> and which no assertion here reads. The
+/// channel drive and the post/comment uploads are <see cref="ChannelPosts"/>, shared with
+/// <see cref="ReactionPreviewTests"/>.
 /// <para>
 /// Despite the fixture's name nothing here posts an emoji reaction; every test posts a
 /// <see cref="FileSystemType.Comment"/> file. Name kept as the original's.
@@ -41,17 +40,11 @@ public class ReactionTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner();
 
         //create a channel drive
-        var frodoChannelDrive = new TargetDrive()
-        {
-            Alias = Guid.NewGuid(),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false);
+        var frodoChannelDrive = await ChannelPosts.CreateChannelDriveAsync(frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uploadResult = await UploadToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
+        var uploadResult = await ChannelPosts.UploadPostAsync(frodoOwnerClient, frodoChannelDrive, uploadedContent);
 
         //
         // Frodo posts feedback to his post
@@ -64,7 +57,8 @@ public class ReactionTests : V2Fixture
             TargetDrive = uploadResult.File.TargetDrive
         };
 
-        var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, comment, false);
+        var commentUploadResult =
+            await ChannelPosts.UploadCommentAsync(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, comment);
 
         Assert.That(commentUploadResult.File.TargetDrive, Is.EqualTo(uploadResult.File.TargetDrive));
 
@@ -84,24 +78,18 @@ public class ReactionTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner();
 
         //create a channel drive
-        var frodoChannelDrive = new TargetDrive()
-        {
-            Alias = Guid.NewGuid(),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false);
+        var frodoChannelDrive = await ChannelPosts.CreateChannelDriveAsync(frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uploadedContentResult = await UploadToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
+        var uploadedContentResult = await ChannelPosts.UploadPostAsync(frodoOwnerClient, frodoChannelDrive, uploadedContent);
 
         //
         // Frodo posts feedback to his post
         //
         var comment = "Indeed, Indeed I am Mr. Underhill";
-        var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive,
-            uploadedContentResult.GlobalTransitIdFileIdentifier, comment, false);
+        var commentUploadResult = await ChannelPosts.UploadCommentAsync(frodoOwnerClient, frodoChannelDrive,
+            uploadedContentResult.GlobalTransitIdFileIdentifier, comment);
 
         Assert.That(commentUploadResult.File.TargetDrive, Is.EqualTo(uploadedContentResult.File.TargetDrive),
             "Drive for content file and reaction must match");
@@ -132,17 +120,11 @@ public class ReactionTests : V2Fixture
         var frodoOwnerClient = await LoginAsOwner();
 
         //create a channel drive
-        var frodoChannelDrive = new TargetDrive()
-        {
-            Alias = Guid.NewGuid(),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false);
+        var frodoChannelDrive = await ChannelPosts.CreateChannelDriveAsync(frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uploadResult = await UploadToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
+        var uploadResult = await ChannelPosts.UploadPostAsync(frodoOwnerClient, frodoChannelDrive, uploadedContent);
 
         var targetReferenceFile = uploadResult.GlobalTransitIdFileIdentifier;
 
@@ -150,14 +132,16 @@ public class ReactionTests : V2Fixture
         // Frodo posts the first comment
         //
         var commentContent1 = "Indeed, Indeed I am Mr. Underhill";
-        var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, commentContent1, false);
+        var commentUploadResult =
+            await ChannelPosts.UploadCommentAsync(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, commentContent1);
         Assert.That(commentUploadResult.File.TargetDrive, Is.EqualTo(uploadResult.File.TargetDrive));
 
         //
         // Frodo posts the second
         //
         var commentContent2 = "Totes agreeing with myself";
-        var commentUploadResult2 = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, commentContent2, false);
+        var commentUploadResult2 =
+            await ChannelPosts.UploadCommentAsync(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, commentContent2);
         Assert.That(commentUploadResult2.File.TargetDrive, Is.EqualTo(uploadResult.File.TargetDrive));
 
         //
@@ -174,53 +158,5 @@ public class ReactionTests : V2Fixture
         // ClassicAssert.IsTrue(feedbackSearchResults.SearchResults.Count() == 2);
         // ClassicAssert.IsNotNull(feedbackSearchResults.SearchResults.SingleOrDefault(fb => fb.FileMetadata.AppData.JsonContent == feedbackContent1));
         // ClassicAssert.IsNotNull(feedbackSearchResults.SearchResults.SingleOrDefault(fb => fb.FileMetadata.AppData.JsonContent == feedbackContent2));
-    }
-
-    private static async Task<UploadResult> UploadToChannel(OwnerSession client, TargetDrive targetDrive, string uploadedContent,
-        bool allowDistribution = true)
-    {
-        var fileMetadata = new UploadFileMetadata()
-        {
-            AllowDistribution = allowDistribution,
-            IsEncrypted = false,
-            AppData = new()
-            {
-                Content = uploadedContent,
-                FileType = default,
-                GroupId = default,
-                Tags = default
-            },
-            AccessControlList = AccessControlList.OwnerOnly
-        };
-
-        var response = await client.V1.Drive.UploadNewMetadata(targetDrive, fileMetadata, FileSystemType.Standard);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"upload failed: {response.StatusCode}");
-        return response.Content!;
-    }
-
-    private static async Task<UploadResult> UploadComment(OwnerSession client, TargetDrive targetDrive,
-        GlobalTransitIdFileIdentifier referencedFile, string commentContent, bool allowDistribution)
-    {
-        var fileMetadata = new UploadFileMetadata()
-        {
-            AllowDistribution = allowDistribution,
-            IsEncrypted = false,
-
-            //indicates the file about which this file is giving feed back
-            ReferencedFile = referencedFile,
-
-            AppData = new()
-            {
-                Content = commentContent,
-                FileType = default,
-                GroupId = default,
-                Tags = default
-            },
-            AccessControlList = AccessControlList.OwnerOnly
-        };
-
-        var response = await client.V1.Drive.UploadNewMetadata(targetDrive, fileMetadata, FileSystemType.Comment);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"upload failed: {response.StatusCode}");
-        return response.Content!;
     }
 }

@@ -1,23 +1,15 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Serialization;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Outgoing.Drive;
-using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 
@@ -29,30 +21,28 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// <remarks>
 /// The original registered its app by hand (drive with anonymous reads off,
 /// <see cref="DrivePermission.All"/> on it, <c>new PermissionSet(PermissionKeys.All)</c>), which is
-/// <see cref="CallerSpec.App(DriveSpec, DrivePermission, IReadOnlyList{int})"/>. One live caller, so
-/// no matrix and plain <c>[Test]</c> methods.
+/// <see cref="CallerSpec.SampleAppWithAllKeys"/>. One live caller, so no matrix and plain
+/// <c>[Test]</c> methods.
 /// <para>
 /// <c>AppDriveApiClient.UploadFile(drive, metadata, payload: "")</c> means "no payload", so the
-/// first upload becomes <c>UploadNewMetadata</c>. The stale-tag overwrite keeps its own multipart
-/// body (<see cref="UploadOverwriteAsync"/>) because it is the one request in the fixture that
-/// combines <c>OverwriteFileId</c> with the default (not metadata-only) storage intent — the shape
-/// <c>UploadRaw</c> sent and the one the version-tag check rejects. It goes through
+/// first upload becomes <c>UploadNewMetadata</c>. The stale-tag overwrite is the one request in the
+/// fixture that combines <c>OverwriteFileId</c> with the default (not metadata-only) storage intent —
+/// the shape <c>UploadRaw</c> sent and the one the version-tag check rejects — and it goes through
+/// <see cref="AppFileUploads.TryUploadEncryptedAsync"/> with no payload, which posts to
 /// <see cref="IUniversalDriveHttpClientApi"/>, the same V1 endpoint the original's
-/// <c>IDriveTestHttpClientForApps</c> addressed.
+/// <c>IDriveTestHttpClientForApps</c> addressed. One difference from the original: that helper marks
+/// the metadata <c>IsEncrypted = true</c> where <c>UploadRaw</c> forced it false. With no payload on
+/// the request the version-tag check is reached either way, and the refusal asserted here is
+/// unchanged.
 /// </para>
 /// </remarks>
 [TestFixture]
 public class FileVersionTagTests : V2Fixture
 {
-    /// <summary>The app the original registered: all drive permissions, all permission keys, non-anonymous drive.</summary>
-    private static CallerSpec SampleApp() =>
-        CallerSpec.App(new DriveSpec(TargetDrive.NewTargetDrive(), "Chat Drive 1", AllowAnonymousReads: false),
-            DrivePermission.All, PermissionKeys.All);
-
     [Test]
     public async Task NewVersionTagSetWhenFileUploaded()
     {
-        var spec = SampleApp();
+        var spec = CallerSpec.SampleAppWithAllKeys("Chat Drive 1");
         var appApiClient = await SetupCaller(spec);
 
         var fileMetadata = new UploadFileMetadata()
@@ -72,7 +62,7 @@ public class FileVersionTagTests : V2Fixture
 
         //upload a new file
         var uploadResponse = await appApiClient.V1.Drive.UploadNewMetadata(spec.TargetDrive, fileMetadata);
-        Assert.That(uploadResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(uploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var uploadResult = uploadResponse.Content!;
 
         //get the uploaded file
@@ -85,7 +75,7 @@ public class FileVersionTagTests : V2Fixture
     [Test]
     public async Task UploadStaleVersionTagFails_AndReturns_BadRequest_VersionTagMismatch()
     {
-        var spec = SampleApp();
+        var spec = CallerSpec.SampleAppWithAllKeys("Chat Drive 1");
         var appApiClient = await SetupCaller(spec);
 
         var fileMetadata = new UploadFileMetadata()
@@ -105,7 +95,7 @@ public class FileVersionTagTests : V2Fixture
 
         //upload a new file
         var uploadResponse = await appApiClient.V1.Drive.UploadNewMetadata(spec.TargetDrive, fileMetadata);
-        Assert.That(uploadResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(uploadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var uploadResult = uploadResponse.Content!;
 
         //get the uploaded file
@@ -117,61 +107,14 @@ public class FileVersionTagTests : V2Fixture
         //just send a random token
         fileMetadata.VersionTag = Guid.Parse("7215bd54-c832-4f08-84fc-ebfb6193ee52");
 
-        var apiResponse = await UploadOverwriteAsync(appApiClient, spec.TargetDrive, fileMetadata,
-            overwriteFileId: uploadResult.File.FileId);
+        var ctx = await AppFileUploads.TryUploadEncryptedAsync(appApiClient, spec.TargetDrive, fileMetadata,
+            payloadData: null, overwriteFileId: uploadResult.File.FileId);
 
-        Assert.That(apiResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(ctx.Response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
-        var code = TestUtils.ParseProblemDetails(apiResponse!.Error!);
+        var code = TestUtils.ParseProblemDetails(ctx.Response.Error!);
         Assert.That(code, Is.EqualTo(OdinClientErrorCode.VersionTagMismatch));
-    }
 
-    /// <summary>
-    /// The original's <c>AppDriveApiClient.UploadRaw</c> with no payload: a full (not metadata-only)
-    /// upload that names an existing file id to overwrite.
-    /// </summary>
-    private static async Task<ApiResponse<UploadResult>> UploadOverwriteAsync(
-        IV2Caller caller, TargetDrive targetDrive, UploadFileMetadata fileMetadata, Guid overwriteFileId)
-    {
-        var transferIv = ByteArrayUtil.GetRndByteArray(16);
-        var keyHeader = KeyHeader.NewRandom16();
-
-        var instructionSet = new UploadInstructionSet()
-        {
-            TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                Drive = targetDrive,
-                OverwriteFileId = overwriteFileId
-            },
-            TransitOptions = new TransitOptions()
-            {
-            },
-            Manifest = new UploadManifest()
-        };
-
-        var client = caller.Factory.CreateHttpClient(caller.Identity, out var sharedSecret);
-
-        var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-        fileMetadata.IsEncrypted = false;
-
-        var descriptor = new UploadFileDescriptor()
-        {
-            EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
-            FileMetadata = fileMetadata
-        };
-
-        var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-
-        var parts = new List<StreamPart>
-        {
-            new(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-            new(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-        };
-
-        var driveSvc = RestService.For<IUniversalDriveHttpClientApi>(client);
-        var response = await driveSvc.UploadStream(parts.ToArray());
-        keyHeader.AesKey.Wipe();
-        return response;
+        ctx.KeyHeader.AesKey.Wipe();
     }
 }

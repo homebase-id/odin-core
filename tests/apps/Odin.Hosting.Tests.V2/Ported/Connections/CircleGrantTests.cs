@@ -1,14 +1,15 @@
 #nullable enable
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using static Odin.Hosting.Tests.V2.Ported.Connections.Introductions.IntroductionTestUtils;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
 
@@ -56,7 +57,7 @@ public class CircleGrantTests : V2Fixture
         await sam.Admin.DisableAutoAcceptIntroductions();
         await merry.Admin.DisableAutoAcceptIntroductions();
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducer(frodo, sam, merry);
 
         var targetCircle = Guid.NewGuid();
         var merryCreatesCircleResponse = await merry.Admin.CreateCircle(targetCircle, "some circle",
@@ -99,7 +100,7 @@ public class CircleGrantTests : V2Fixture
 
         // Try to grant before confirming connection
         var grantCircleResponse = await merry.Connections.GrantCircle(targetCircle, sam.Identity);
-        Assert.That(grantCircleResponse.IsSuccessStatusCode, Is.False);
+        Assert.That(grantCircleResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]
@@ -113,7 +114,7 @@ public class CircleGrantTests : V2Fixture
         await sam.Admin.DisableAutoAcceptIntroductions();
         await merry.Admin.DisableAutoAcceptIntroductions();
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducer(frodo, sam, merry);
 
         var targetCircle = Guid.NewGuid();
         var merryCreatesCircleResponse = await merry.Admin.CreateCircle(targetCircle, "some circle",
@@ -156,7 +157,7 @@ public class CircleGrantTests : V2Fixture
 
         // Try to grant before confirming connection
         var grantCircleResponse = await merry.Connections.GrantCircle(targetCircle, sam.Identity);
-        Assert.That(grantCircleResponse.IsSuccessStatusCode, Is.False);
+        Assert.That(grantCircleResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         //merry confirms - now sam should be in confirmed circle
         var merryConfirmationResponse = await merry.Connections.ConfirmConnection(sam.Identity);
@@ -173,19 +174,4 @@ public class CircleGrantTests : V2Fixture
         var grantCircleResponse2 = await merry.Connections.GrantCircle(targetCircle, sam.Identity);
         Assert.That(grantCircleResponse2.IsSuccessStatusCode, Is.True);
     }
-
-    /// <summary>
-    /// You have 3 hobbits. Frodo is connected to Sam and Merry; Sam and Merry are not connected.
-    /// </summary>
-    private static async Task PrepareAsync(OwnerSession frodo, OwnerSession sam, OwnerSession merry)
-    {
-        await frodo.Connections.SendConnectionRequest(sam.Identity, []);
-        await frodo.Connections.SendConnectionRequest(merry.Identity, []);
-
-        await merry.Connections.AcceptConnectionRequest(frodo.Identity);
-        await sam.Connections.AcceptConnectionRequest(frodo.Identity);
-    }
-
-    private static IRefitUniversalCircleNetworkRequests Requests(OwnerSession owner) =>
-        owner.RefitFor<IRefitUniversalCircleNetworkRequests>();
 }

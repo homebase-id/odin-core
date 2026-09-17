@@ -3,7 +3,6 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;

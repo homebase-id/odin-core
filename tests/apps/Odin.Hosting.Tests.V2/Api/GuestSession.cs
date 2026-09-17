@@ -46,40 +46,64 @@ public sealed class GuestSession : IV2Caller
         V1 = new V1Handles(Identity, Factory);
     }
 
-    public static async Task<GuestSession> SetupAsync(
+    /// <summary>
+    /// The common case: a throwaway guest domain granted one drive permission.
+    /// </summary>
+    public static Task<GuestSession> SetupAsync(
         OwnerSession owner,
         TargetDrive targetDrive,
         DrivePermission drivePermission)
+        => SetupAsync(owner, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = targetDrive,
+                        Permission = drivePermission
+                    }
+                }
+            },
+            PermissionSet = default!
+        });
+
+    /// <summary>
+    /// The general form, mirroring <see cref="AppSession.SetupAsync(OwnerSession, PermissionSetGrantRequest, string)"/>:
+    /// the caller supplies the whole grant, so a guest can hold permission keys, several drives, or
+    /// keys with no drive at all — none of which the drive-scoped overload can express.
+    /// </summary>
+    /// <param name="domain">
+    /// Omit for a throwaway domain. Pass one to model "this identity browsing in as a guest", which
+    /// is what the collaboration-channel fixtures need — the author's own identity is the domain.
+    /// </param>
+    /// <remarks>
+    /// Porting note: V1's <c>GuestSpecifyAccessToDrive</c> accepts a <c>TestPermissionKeyList</c> and
+    /// then silently drops it (its <c>_keys</c> field is never read and the circle is built with
+    /// <c>PermissionSet = default</c>). A port that faithfully passes those keys through here would be
+    /// *granting more* than the original did — a coverage change wearing a port's clothes. Keep the
+    /// keys off when porting a fixture that used that context.
+    /// </remarks>
+    public static async Task<GuestSession> SetupAsync(
+        OwnerSession owner,
+        PermissionSetGrantRequest grant,
+        AsciiDomainName? domain = null)
     {
-        var domain = NewGuestDomain();
+        var guestDomain = domain ?? NewGuestDomain();
 
         var circleId = Guid.NewGuid();
-        var circleResp = await owner.Admin.CreateCircle(circleId, "Circle with valid permissions",
-            new PermissionSetGrantRequest
-            {
-                Drives = new List<DriveGrantRequest>
-                {
-                    new()
-                    {
-                        PermissionedDrive = new PermissionedDrive
-                        {
-                            Drive = targetDrive,
-                            Permission = drivePermission
-                        }
-                    }
-                },
-                PermissionSet = default!
-            });
+        var circleResp = await owner.Admin.CreateCircle(circleId, "Circle with valid permissions", grant);
         if (!circleResp.IsSuccessStatusCode)
         {
             throw new InvalidOperationException($"CreateCircle failed: {circleResp.StatusCode}");
         }
 
-        await owner.Admin.RegisterYouAuthDomain(domain, [circleId]);
-        var clientReg = await owner.Admin.RegisterYouAuthClient(domain);
+        await owner.Admin.RegisterYouAuthDomain(guestDomain, [circleId]);
+        var clientReg = await owner.Admin.RegisterYouAuthClient(guestDomain);
 
         var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);
-        return new GuestSession(owner.Host, owner.Identity, domain, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
+        return new GuestSession(owner.Host, owner.Identity, guestDomain, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
     }
 
     private static AsciiDomainName NewGuestDomain() =>

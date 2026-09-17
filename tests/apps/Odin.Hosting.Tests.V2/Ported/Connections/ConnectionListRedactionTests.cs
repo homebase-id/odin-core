@@ -1,16 +1,10 @@
 #nullable enable
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Util;
-using Odin.Hosting.Authentication.YouAuth;
-using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.Tests.V2.Hosting;
-using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -27,9 +21,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// <para>
 /// <c>ConnectedIdentityLoggedInOnGuestApi</c> does not connect anything despite its name — it
 /// creates a circle carrying the permission keys, registers the named domain as a YouAuth domain
-/// granted that circle, and registers a client under it. <see cref="LoginAsGuestAsync"/> is that
-/// same sequence against <see cref="OwnerAdmin"/>. <see cref="GuestSession"/> is not used because it
-/// mints a random throwaway domain, and this test needs the viewer to be Merry by name.
+/// granted that circle, and registers a client under it. That is exactly
+/// <see cref="GuestSession.SetupAsync(OwnerSession, PermissionSetGrantRequest, AsciiDomainName?)"/>,
+/// whose <c>domain</c> parameter supplies the one thing this test needs beyond the common case: the
+/// viewer has to be Merry by name, not a throwaway domain. The only difference is the YouAuth
+/// client's friendly name, which nothing reads.
 /// </para>
 /// <para>
 /// Merry is therefore not in <c>HostIdentities</c>: she is only ever a domain name on a registration,
@@ -63,15 +59,15 @@ public class ConnectionListRedactionTests : V2Fixture
         Assert.That(ownerView.Content.AccessGrant, Is.Not.Null);
 
         // Merry logs in to Sam's identity over YouAuth, holding nothing but ReadConnections.
-        var guestFactory = await LoginAsGuestAsync(sam, new AsciiDomainName(Identities.Merry),
-            PermissionKeys.ReadConnections);
+        var guest = await GuestSession.SetupAsync(sam, new PermissionSetGrantRequest
+        {
+            PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
+        }, new AsciiDomainName(Identities.Merry));
 
-        // The factory's identity is the host being called -- Sam -- not the guest doing the calling.
-        var client = guestFactory.CreateHttpClient(sam.Identity, out var sharedSecret);
-        var svc = RefitCreator.RestServiceFor<IRefitGuestCircleNetworkConnections>(client, sharedSecret);
-
-        var guestView = await svc.GetConnectedIdentities(100, null);
-        Assert.That(guestView.IsSuccessStatusCode, Is.True, $"guest list failed: {guestView.StatusCode}");
+        // The guest session's identity is the host being called -- Sam -- not the guest doing the calling.
+        var guestView = await guest.RefitFor<IRefitGuestCircleNetworkConnections>()
+            .GetConnectedIdentities(100, null);
+        Assert.That(guestView.IsSuccessStatusCode, Is.True);
 
         var frodosEntry = guestView.Content!.Results.SingleOrDefault(r => r.OdinId == frodo.Identity);
         Assert.That(frodosEntry, Is.Not.Null, "the guest must still see who Sam is connected to");
@@ -82,28 +78,5 @@ public class ConnectionListRedactionTests : V2Fixture
         Assert.That(frodosEntry.IntroducerOdinId, Is.Null);
         Assert.That(frodosEntry.ConnectionRequestOrigin, Is.EqualTo(ConnectionRequestOrigin.None));
         Assert.That(frodosEntry.HasVerificationHash, Is.False);
-    }
-
-    /// <summary>
-    /// Registers <paramref name="guestDomain"/> as a YouAuth domain on <paramref name="owner"/>,
-    /// granted a circle carrying nothing but <paramref name="permissionKeys"/>, and hands back a
-    /// factory authenticated as a client of that domain.
-    /// </summary>
-    private async Task<InProcessApiClientFactory> LoginAsGuestAsync(
-        OwnerSession owner, AsciiDomainName guestDomain, params int[] permissionKeys)
-    {
-        var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Circle with valid permissions",
-            new PermissionSetGrantRequest
-            {
-                PermissionSet = new PermissionSet(permissionKeys)
-            });
-
-        await owner.Admin.RegisterYouAuthDomain(guestDomain, [circleId]);
-        var clientReg = await owner.Admin.RegisterYouAuthClient(guestDomain, "test scenario client");
-
-        var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);
-        return new InProcessApiClientFactory(Host, YouAuthDefaults.XTokenCookieName,
-            cat.ToAuthenticationToken(), cat.SharedSecret, GuestApiPathConstantsV1.BasePathV1);
     }
 }

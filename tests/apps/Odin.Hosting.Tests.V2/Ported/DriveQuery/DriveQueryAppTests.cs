@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -26,7 +24,7 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveQuery;
 /// options)</c>: owner creates a drive (anonymous reads off), registers an app holding
 /// <see cref="DrivePermission.All"/> on it plus the connection-read and transit-write permission
 /// keys, and the app uploads one encrypted file with a payload. That is
-/// <see cref="CallerSpec.App(DriveSpec, DrivePermission, IReadOnlyList{int})"/> plus
+/// <see cref="CallerSpec.SampleAppWithConnectionReads"/> plus
 /// <see cref="AppFileUploads.UploadEncryptedAsync"/> here. One live caller, so no matrix and plain
 /// <c>[Test]</c> methods. The circle-with-drive the original also created is dropped — nothing
 /// reads it without transit recipients — as is
@@ -49,12 +47,6 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveQuery;
 [TestFixture]
 public class DriveQueryAppTests : V2Fixture
 {
-    /// <summary>The app <c>CreateAppAndUploadFileMetadata</c> built for these tests.</summary>
-    private static CallerSpec SampleApp() =>
-        CallerSpec.App(new DriveSpec(TargetDrive.NewTargetDrive(), AllowAnonymousReads: false),
-            DrivePermission.All,
-            [PermissionKeys.ReadConnections, PermissionKeys.ReadConnectionRequests, PermissionKeys.UseTransitWrite]);
-
     [Test]
     public async Task CanQueryBatchByOneTag()
     {
@@ -75,7 +67,7 @@ public class DriveQueryAppTests : V2Fixture
             }
         };
 
-        var spec = SampleApp();
+        var spec = CallerSpec.SampleAppWithConnectionReads();
         var caller = await SetupCaller(spec);
         await AppFileUploads.UploadEncryptedAsync(caller, spec.TargetDrive, uploadFileMetadata,
             payloadData: "some payload data for good measure");
@@ -97,7 +89,7 @@ public class DriveQueryAppTests : V2Fixture
         };
 
         var response = await caller.V1.Drive.QueryBatch(request);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed status code.  Value was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
 
         Assert.That(batch, Is.Not.Null);
@@ -122,7 +114,7 @@ public class DriveQueryAppTests : V2Fixture
             }
         };
 
-        var spec = SampleApp();
+        var spec = CallerSpec.SampleAppWithConnectionReads();
         var caller = await SetupCaller(spec);
         await AppFileUploads.UploadEncryptedAsync(caller, spec.TargetDrive, uploadFileMetadata,
             payloadData: "some payload data for good measure");
@@ -144,7 +136,7 @@ public class DriveQueryAppTests : V2Fixture
         };
 
         var response = await caller.V1.Drive.QueryBatch(request);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed status code.  Value was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
 
         Assert.That(batch, Is.Not.Null);
@@ -167,7 +159,7 @@ public class DriveQueryAppTests : V2Fixture
             }
         };
 
-        var spec = SampleApp();
+        var spec = CallerSpec.SampleAppWithConnectionReads();
         var caller = await SetupCaller(spec);
         await AppFileUploads.UploadEncryptedAsync(caller, spec.TargetDrive, uploadFileMetadata,
             payloadData: "some payload data for good measure");
@@ -191,7 +183,7 @@ public class DriveQueryAppTests : V2Fixture
         };
 
         var response = await caller.V1.Drive.QueryBatch(request);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed status code.  Value was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
         Assert.That(batch, Is.Not.Null);
 
@@ -235,7 +227,7 @@ public class DriveQueryAppTests : V2Fixture
             }
         };
 
-        var notArchivedSpec = SampleApp();
+        var notArchivedSpec = CallerSpec.SampleAppWithConnectionReads();
         var notArchivedCaller = await SetupCaller(notArchivedSpec);
         await AppFileUploads.UploadEncryptedAsync(notArchivedCaller, notArchivedSpec.TargetDrive, uploadFileMetadata_not_archived,
             payloadData: "some payload data for good measure");
@@ -254,7 +246,7 @@ public class DriveQueryAppTests : V2Fixture
             }
         };
 
-        var spec = SampleApp();
+        var spec = CallerSpec.SampleAppWithConnectionReads();
         var caller = await SetupCaller(spec);
         await AppFileUploads.UploadEncryptedAsync(caller, spec.TargetDrive, uploadFileMetadata_archived,
             payloadData: "some payload data for good measure");
@@ -279,7 +271,7 @@ public class DriveQueryAppTests : V2Fixture
         };
 
         var response = await caller.V1.Drive.QueryBatch(request);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed status code.  Value was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
         Assert.That(batch, Is.Not.Null);
 
@@ -321,7 +313,7 @@ public class DriveQueryAppTests : V2Fixture
             }
         };
 
-        var spec = SampleApp();
+        var spec = CallerSpec.SampleAppWithConnectionReads();
         var caller = await SetupCaller(spec);
         await AppFileUploads.UploadEncryptedAsync(caller, spec.TargetDrive, uploadFileMetadata,
             payloadData: "some payload data for good measure");
@@ -344,7 +336,7 @@ public class DriveQueryAppTests : V2Fixture
         };
 
         var response = await caller.V1.Drive.QueryBatch(request);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed status code.  Value was {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
         Assert.That(batch, Is.Not.Null);
         Assert.That(batch!.SearchResults, Is.Not.Empty, "No items returned");

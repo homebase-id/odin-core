@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage;
@@ -12,7 +10,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Tests.V2.Ported.Transit;
 
@@ -39,7 +36,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///     <c>WaitForEmptyOutbox</c> became <c>Sync.DrainOutboxAsync</c> — the V1 call is a passive poll
 ///     that needs the outbox background service, which this host registers but never starts.
 ///     <c>WaitForTransferStatus</c> polls the same way, so <see cref="S1010"/> now drains and then
-///     asserts the settled status once (see <see cref="TransitScenario.AssertTransferStatusAsync"/>).
+///     asserts the settled status once (see <see cref="DriveAsserts.AssertTransferStatus"/>).
 ///   </description></item>
 ///   <item><description>
 ///     The trailing <c>DeleteScenario</c> (disconnect the two identities) is gone: per-test reset
@@ -76,11 +73,12 @@ public class TransitStandardFileRoutingTests : V2Fixture
         const string uploadedContent = "We eagles fly to Mordor, sup w/ that?";
         const bool isEncrypted = false;
 
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
+        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, drivePermissions,
+            label: "Target drive", allowAnonymousReads: false);
         var (uploadResult, _) = await SendStandardFileAsync(sender, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
-        Assert.That(uploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
+        Assert.That(uploadResult.RecipientStatus, Does.ContainKey((string)recipient.Identity));
+        Assert.That(uploadResult.RecipientStatus[recipient.Identity], Is.EqualTo(TransferStatus.Enqueued));
         await sender.Sync.DrainOutboxAsync();
         //
         // Test results
@@ -91,9 +89,7 @@ public class TransitStandardFileRoutingTests : V2Fixture
         //
 
         // File should be on recipient server and accessible by global transit id
-        var searchResults = await TransitScenario.QueryByGlobalTransitIdAsync(recipient, uploadResult.GlobalTransitIdFileIdentifier);
-        Assert.That(searchResults.Count, Is.EqualTo(1));
-        var receivedFile = searchResults.First();
+        var receivedFile = await TransitScenario.SingleByGlobalTransitIdAsync(recipient, uploadResult.GlobalTransitIdFileIdentifier);
         Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
         Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
         Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
@@ -124,12 +120,13 @@ public class TransitStandardFileRoutingTests : V2Fixture
         const string uploadedContent = "Three of us eagles, coming to save Frodo, Sam, and Smegol";
         const bool isEncrypted = true;
 
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
+        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, drivePermissions,
+            label: "Target drive", allowAnonymousReads: false);
         var (uploadResult, encryptedJsonContent64) = await SendStandardFileAsync(sender,
             targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
-        Assert.That(uploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
+        Assert.That(uploadResult.RecipientStatus, Does.ContainKey((string)recipient.Identity));
+        Assert.That(uploadResult.RecipientStatus[recipient.Identity], Is.EqualTo(TransferStatus.Enqueued));
 
         await sender.Sync.DrainOutboxAsync();
 
@@ -144,9 +141,7 @@ public class TransitStandardFileRoutingTests : V2Fixture
         //
 
         // Now the File should be on recipient server and accessible by global transit id
-        var searchResults = await TransitScenario.QueryByGlobalTransitIdAsync(recipient, uploadResult.GlobalTransitIdFileIdentifier);
-        Assert.That(searchResults.Count, Is.EqualTo(1));
-        var receivedFile = searchResults.First();
+        var receivedFile = await TransitScenario.SingleByGlobalTransitIdAsync(recipient, uploadResult.GlobalTransitIdFileIdentifier);
         Assert.That(receivedFile.FileState, Is.EqualTo(FileState.Active));
         Assert.That(receivedFile.FileMetadata.SenderOdinId, Is.EqualTo((string)sender.Identity));
         Assert.That(receivedFile.FileMetadata.OriginalAuthor, Is.EqualTo(sender.Identity));
@@ -177,11 +172,12 @@ public class TransitStandardFileRoutingTests : V2Fixture
         const string uploadedContent = "But we only got Frodo and Sam, thank you Smegol";
         const bool isEncrypted = false;
 
-        var targetDrive = await PrepareScenarioAsync(sender, recipient, drivePermissions);
+        var targetDrive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, drivePermissions,
+            label: "Target drive", allowAnonymousReads: false);
         var (uploadResult, _) = await SendStandardFileAsync(sender, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
-        Assert.That(uploadResult.RecipientStatus.TryGetValue(recipient.Identity, out var recipientStatus), Is.True);
-        Assert.That(recipientStatus, Is.EqualTo(TransferStatus.Enqueued));
+        Assert.That(uploadResult.RecipientStatus, Does.ContainKey((string)recipient.Identity));
+        Assert.That(uploadResult.RecipientStatus[recipient.Identity], Is.EqualTo(TransferStatus.Enqueued));
 
         //
         // Test results
@@ -191,7 +187,7 @@ public class TransitStandardFileRoutingTests : V2Fixture
         // Validate the transfer history was updated correctly
         //
         await sender.Sync.DrainOutboxAsync();
-        await TransitScenario.AssertTransferStatusAsync(sender, uploadResult.File, recipient.Identity,
+        await DriveAsserts.AssertTransferStatus(sender, uploadResult.File, recipient.Identity,
             LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
 
         //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
@@ -270,13 +266,4 @@ public class TransitStandardFileRoutingTests : V2Fixture
 
         return (uploadResult, encryptedJsonContent64);
     }
-
-    /// <summary>
-    /// The recipient's drive, which the sender also has and holds <paramref name="drivePermissions"/>
-    /// on, with the two connected.
-    /// </summary>
-    private static Task<TargetDrive> PrepareScenarioAsync(
-        OwnerSession sender, OwnerSession recipient, DrivePermission drivePermissions) =>
-        PeerFlow.CreatePeerDriveAsync(sender, recipient, drivePermissions,
-            label: "Target drive", allowAnonymousReads: false);
 }

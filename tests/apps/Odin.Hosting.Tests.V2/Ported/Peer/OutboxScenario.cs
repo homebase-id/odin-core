@@ -1,12 +1,7 @@
-using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
-using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Tests.V2.Ported.Peer;
 
@@ -48,22 +43,10 @@ internal static class OutboxScenario
     /// The originals' closing check on <c>PrepareScenario</c>: the recipient holds an ICR for the
     /// sender carrying exactly one circle grant for the drive at that permission.
     /// </summary>
-    public static async Task AssertRecipientGrantedSenderAsync(
+    public static Task AssertRecipientGrantedSenderAsync(
         OwnerSession sender,
         OwnerSession recipient,
         TargetDrive targetDrive,
-        DrivePermission drivePermission)
-    {
-        var expectedPermissionedDrive = new PermissionedDrive
-        {
-            Drive = targetDrive,
-            Permission = drivePermission
-        };
-
-        var response = await recipient.Connections.GetConnectionInfo(sender.Identity);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content.AccessGrant.CircleGrants,
-            Has.Exactly(1).Matches<RedactedCircleGrant>(
-                cg => cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
-    }
+        DrivePermission drivePermission) =>
+        ConnectionAsserts.AssertHasCircleGrantForDrive(recipient, sender.Identity, targetDrive, drivePermission);
 }

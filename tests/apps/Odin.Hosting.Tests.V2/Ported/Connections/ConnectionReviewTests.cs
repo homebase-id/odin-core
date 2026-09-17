@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -19,6 +20,7 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Refit;
+using static Odin.Hosting.Tests.V2.Ported.Connections.Introductions.IntroductionTestUtils;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
 
@@ -98,7 +100,7 @@ public class ConnectionReviewTests : V2Fixture
         Assert.That(createCircle.IsSuccessStatusCode, Is.True);
 
         var grant = await sam.Connections.GrantCircle(circleId, frodo.Identity);
-        Assert.That(grant.IsSuccessStatusCode, Is.True, $"grant failed: {grant.StatusCode}");
+        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var after = await sam.Connections.GetConnectionInfo(frodo.Identity);
         Assert.That(after.Content!.ReviewedAt, Is.EqualTo(stamped), "the review was lost by a later write");
@@ -124,7 +126,7 @@ public class ConnectionReviewTests : V2Fixture
 
         // A second review may enroll more circles, but must not move the date the owner first vouched.
         var review = await MarkReviewed(sam, frodo.Identity, [circleId]);
-        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+        Assert.That(review.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var after = await sam.Connections.GetConnectionInfo(frodo.Identity);
         Assert.That(after.Content!.ReviewedAt, Is.EqualTo(first), "the stamp is set once and must not move");
@@ -159,11 +161,12 @@ public class ConnectionReviewTests : V2Fixture
         }
 
         var review = await MarkReviewed(sam, frodo.Identity, [familyCircleId, workCircleId]);
-        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+        Assert.That(review.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // circleIdList ACLs check membership, not tier, so a personal-circle member must stay reviewed.
         var rejected = await ClearReview(sam, frodo.Identity);
-        Assert.That(rejected.IsSuccessStatusCode, Is.False, "clearing must be refused while a personal circle is held");
+        Assert.That(rejected.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
+            "clearing must be refused while a personal circle is held");
         Assert.That(TestUtils.ParseProblemDetails(rejected.Error!),
             Is.EqualTo(OdinClientErrorCode.CannotClearReviewWhilePersonalCircleMember));
 
@@ -180,14 +183,14 @@ public class ConnectionReviewTests : V2Fixture
         await sam.Connections.RevokeCircle(familyCircleId, frodo.Identity);
 
         var stillRejected = await ClearReview(sam, frodo.Identity);
-        Assert.That(stillRejected.IsSuccessStatusCode, Is.False);
+        Assert.That(stillRejected.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(ReadBlockingCircles(stillRejected.Error?.Content), Has.Count.EqualTo(1));
 
         // Remove the last membership and the clear goes through.
         await sam.Connections.RevokeCircle(workCircleId, frodo.Identity);
 
         var cleared = await ClearReview(sam, frodo.Identity);
-        Assert.That(cleared.IsSuccessStatusCode, Is.True, $"clear failed: {cleared.StatusCode}");
+        Assert.That(cleared.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var after = await sam.Connections.GetConnectionInfo(frodo.Identity);
         Assert.That(after.Content!.ReviewedAt, Is.Null, "clearing returns the connection to New");
@@ -241,7 +244,7 @@ public class ConnectionReviewTests : V2Fixture
 
         // The review with every toggle declined: it still stamps, and takes nothing away.
         var review = await MarkReviewed(merry, sam.Identity);
-        Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
+        Assert.That(review.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var afterReview = await merry.Connections.GetConnectionInfo(sam.Identity);
         Assert.That(afterReview.Content!.ReviewedAt, Is.Not.Null);
@@ -266,7 +269,4 @@ public class ConnectionReviewTests : V2Fixture
 
     private static Task<ApiResponse<HttpContent>> ClearReview(OwnerSession owner, OdinId recipient) =>
         owner.RefitFor<IRefitUniversalCircleNetworkConnections>().ClearReview(new OdinIdRequest { OdinId = recipient });
-
-    private static IRefitUniversalCircleNetworkRequests Requests(OwnerSession owner) =>
-        owner.RefitFor<IRefitUniversalCircleNetworkRequests>();
 }

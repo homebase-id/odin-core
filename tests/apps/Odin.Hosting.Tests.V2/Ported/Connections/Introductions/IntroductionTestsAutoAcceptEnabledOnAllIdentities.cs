@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections.Requests;
@@ -47,8 +46,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <c>Cleanup</c> is not carried into the moved <see cref="IntroductionTestUtils"/>.
 /// </para>
 /// <para>
-/// Carried defect, behaviour left as found: all five methods declare an expected status code that no
-/// body ever reads.
+/// The original's case source carried an expected status code alongside each caller, and all five
+/// method bodies took it and never read it. Every row declared the same code, so the column
+/// distinguished nothing; it is dropped rather than carried. The one status the bodies do care
+/// about — the introducer's <c>send-introductions</c> always succeeding — is asserted in
+/// <see cref="SendIntroductionsAndDrainAsync"/>.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -58,13 +60,13 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
 
     public static IEnumerable<object[]> IntroducerCases()
     {
-        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
-        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.None, PermissionKeys.All), HttpStatusCode.OK];
+        yield return [CallerSpec.Owner(DriveSpec.Anon())];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.None, PermissionKeys.All)];
     }
 
     [Test, TestCaseSource(nameof(IntroducerCases))]
     [Ignore("stupid unreliable test >:=[")]
-    public async Task WillAutoAcceptWhenIdentitiesAreNotConnected(CallerSpec spec, HttpStatusCode expected)
+    public async Task WillAutoAcceptWhenIdentitiesAreNotConnected(CallerSpec spec)
     {
         var (caller, introducer) = await SetupCallerWithOwner(spec, Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -75,39 +77,27 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
         //
         // Note: Sam and Merry are not connected
         //
-        var response = await CallerRequests(caller).SendIntroductions(new IntroductionGroup
-        {
-            Message = "test message from frodo",
-            Recipients = [sam.Identity, merry.Identity]
-        });
-
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"failed: status code was: {response.StatusCode}");
-        await introducer.Sync.DrainOutboxAsync();
-
-        var introResult = response.Content!;
-        Assert.That(introResult.RecipientStatus[sam.Identity], Is.True);
-        Assert.That(introResult.RecipientStatus[merry.Identity], Is.True);
-
-        await sam.Sync.DrainOutboxAsync();
-        await merry.Sync.DrainOutboxAsync();
+        await SendIntroductionsAndDrainAsync(caller, introducer, sam, merry);
 
         //
         // Validate Sam is connected on merry's identity
         //
-        Assert.That(await IsConnectedWithExpectedOrigin(merry, sam.Identity, ConnectionRequestOrigin.Introduction), Is.True);
+        Assert.That(await IsConnectedWithExpectedOrigin(merry, sam.Identity, ConnectionRequestOrigin.Introduction), Is.True,
+            $"{merry.Identity} must hold {sam.Identity} as an introduced connection");
         Assert.That(await HasIntroductionFromIdentity(merry, sam.Identity), Is.False,
-            "there should be no introductions to sam");
+            $"{merry.Identity} must hold no introduction to {sam.Identity}");
 
         //
         // Validate Merry is connected on Sam's identity
         //
-        Assert.That(await IsConnectedWithExpectedOrigin(sam, merry.Identity, ConnectionRequestOrigin.Introduction), Is.True);
+        Assert.That(await IsConnectedWithExpectedOrigin(sam, merry.Identity, ConnectionRequestOrigin.Introduction), Is.True,
+            $"{sam.Identity} must hold {merry.Identity} as an introduced connection");
         Assert.That(await HasIntroductionFromIdentity(sam, merry.Identity), Is.False,
-            "there should be no introductions to merry");
+            $"{sam.Identity} must hold no introduction to {merry.Identity}");
     }
 
     [Test, TestCaseSource(nameof(IntroducerCases))]
-    public async Task WillNotSendOrReceiveConnectionRequestWhenOneIntroduceeBlocksAnother(CallerSpec spec, HttpStatusCode expected)
+    public async Task WillNotSendOrReceiveConnectionRequestWhenOneIntroduceeBlocksAnother(CallerSpec spec)
     {
         var (caller, introducer) = await SetupCallerWithOwner(spec, Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -120,37 +110,27 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
         //
         await sam.Connections.BlockConnection(merry.Identity);
 
-        var response = await CallerRequests(caller).SendIntroductions(new IntroductionGroup
-        {
-            Message = "test message from frodo",
-            Recipients = [sam.Identity, merry.Identity]
-        });
-
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"failed: status code was: {response.StatusCode}");
-        await introducer.Sync.DrainOutboxAsync();
-
-        var introResult = response.Content!;
-        Assert.That(introResult.RecipientStatus[sam.Identity], Is.True);
-        Assert.That(introResult.RecipientStatus[merry.Identity], Is.True);
-
-        await sam.Sync.DrainOutboxAsync();
-        await merry.Sync.DrainOutboxAsync();
+        await SendIntroductionsAndDrainAsync(caller, introducer, sam, merry);
 
         // Assert: Sam does not have a connection from Merry
-        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(sam, merry.Identity), Is.False);
+        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(sam, merry.Identity), Is.False,
+            $"{sam.Identity} must hold no introduced request from {merry.Identity}");
 
         // Assert: Merry does not have a connection from Sam
-        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(merry, sam.Identity), Is.False);
+        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(merry, sam.Identity), Is.False,
+            $"{merry.Identity} must hold no introduced request from {sam.Identity}");
 
         // Assert: Sam does not have an introduction
-        Assert.That(await HasIntroductionFromIdentity(sam, merry.Identity), Is.False);
+        Assert.That(await HasIntroductionFromIdentity(sam, merry.Identity), Is.False,
+            $"{sam.Identity} must hold no introduction to {merry.Identity}");
 
         // Assert: Merry has an introduction
-        Assert.That(await HasIntroductionFromIdentity(merry, sam.Identity), Is.True);
+        Assert.That(await HasIntroductionFromIdentity(merry, sam.Identity), Is.True,
+            $"{merry.Identity} must hold an introduction to {sam.Identity}");
     }
 
     [Test, TestCaseSource(nameof(IntroducerCases))]
-    public async Task WillHandleWhenIntroduceesAreAlreadyConnectedAndVerifiable(CallerSpec spec, HttpStatusCode expected)
+    public async Task WillHandleWhenIntroduceesAreAlreadyConnectedAndVerifiable(CallerSpec spec)
     {
         var (caller, introducer) = await SetupCallerWithOwner(spec, Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -164,45 +144,35 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
         await sam.Connections.SendConnectionRequest(merry.Identity);
         await merry.Connections.AcceptConnectionRequest(sam.Identity);
 
-        var response = await CallerRequests(caller).SendIntroductions(new IntroductionGroup
-        {
-            Message = "test message from frodo",
-            Recipients = [sam.Identity, merry.Identity]
-        });
-
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"failed: status code was: {response.StatusCode}");
-        await introducer.Sync.DrainOutboxAsync();
-
-        var introResult = response.Content!;
-        Assert.That(introResult.RecipientStatus[sam.Identity], Is.True);
-        Assert.That(introResult.RecipientStatus[merry.Identity], Is.True);
-
-        await sam.Sync.DrainOutboxAsync();
-        await merry.Sync.DrainOutboxAsync();
+        await SendIntroductionsAndDrainAsync(caller, introducer, sam, merry);
 
         //
         // Assert: sam should have merry has a normal connection
         //
-        Assert.That(await IsConnectedWithExpectedOrigin(sam, merry.Identity, ConnectionRequestOrigin.IdentityOwner), Is.True);
+        Assert.That(await IsConnectedWithExpectedOrigin(sam, merry.Identity, ConnectionRequestOrigin.IdentityOwner), Is.True,
+            $"{sam.Identity} must still hold {merry.Identity} as an owner-made connection");
 
         //
         // Assert: merry should have sam as a normal connection
         //
-        Assert.That(await IsConnectedWithExpectedOrigin(merry, sam.Identity, ConnectionRequestOrigin.IdentityOwner), Is.True);
+        Assert.That(await IsConnectedWithExpectedOrigin(merry, sam.Identity, ConnectionRequestOrigin.IdentityOwner), Is.True,
+            $"{merry.Identity} must still hold {sam.Identity} as an owner-made connection");
 
         //
         // Assert: Sam does not have an introduction
         //
-        Assert.That(await HasIntroductionFromIdentity(sam, merry.Identity), Is.False);
+        Assert.That(await HasIntroductionFromIdentity(sam, merry.Identity), Is.False,
+            $"{sam.Identity} must hold no introduction to {merry.Identity}");
 
         //
         // Assert: Merry does not have an introduction
         //
-        Assert.That(await HasIntroductionFromIdentity(merry, sam.Identity), Is.False);
+        Assert.That(await HasIntroductionFromIdentity(merry, sam.Identity), Is.False,
+            $"{merry.Identity} must hold no introduction to {sam.Identity}");
     }
 
     [Test, TestCaseSource(nameof(IntroducerCases))]
-    public async Task WillHandleWithAllIntroduceesBlockEachOther(CallerSpec spec, HttpStatusCode expected)
+    public async Task WillHandleWithAllIntroduceesBlockEachOther(CallerSpec spec)
     {
         var (caller, introducer) = await SetupCallerWithOwner(spec, Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -216,42 +186,34 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
         await sam.Connections.BlockConnection(merry.Identity);
         await merry.Connections.BlockConnection(sam.Identity);
 
-        var response = await CallerRequests(caller).SendIntroductions(new IntroductionGroup
-        {
-            Message = "test message from frodo",
-            Recipients = [sam.Identity, merry.Identity]
-        });
-
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"failed: status code was: {response.StatusCode}");
-        await introducer.Sync.DrainOutboxAsync();
-
-        var introResult = response.Content!;
-        Assert.That(introResult.RecipientStatus[sam.Identity], Is.True);
-        Assert.That(introResult.RecipientStatus[merry.Identity], Is.True);
-
-        await sam.Sync.DrainOutboxAsync();
-        await merry.Sync.DrainOutboxAsync();
+        await SendIntroductionsAndDrainAsync(caller, introducer, sam, merry);
 
         //
         // Assert there are no introductions
         //
-        Assert.That(await HasIntroductionFromIdentity(sam, merry.Identity), Is.False);
-        Assert.That(await HasIntroductionFromIdentity(merry, sam.Identity), Is.False);
+        Assert.That(await HasIntroductionFromIdentity(sam, merry.Identity), Is.False,
+            $"{sam.Identity} must hold no introduction to {merry.Identity}");
+        Assert.That(await HasIntroductionFromIdentity(merry, sam.Identity), Is.False,
+            $"{merry.Identity} must hold no introduction to {sam.Identity}");
 
         //
         // Assert: there are no connection requests
-        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(sam, merry.Identity), Is.False);
-        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(merry, sam.Identity), Is.False);
+        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(sam, merry.Identity), Is.False,
+            $"{sam.Identity} must hold no introduced request from {merry.Identity}");
+        Assert.That(await HasReceivedIntroducedConnectionRequestFromIntroducee(merry, sam.Identity), Is.False,
+            $"{merry.Identity} must hold no introduced request from {sam.Identity}");
 
         //
         // Assert: no one is connected
         //
-        Assert.That(await IsConnected(sam, merry.Identity), Is.False);
-        Assert.That(await IsConnected(merry, sam.Identity), Is.False);
+        Assert.That(await IsConnected(sam, merry.Identity), Is.False,
+            $"{sam.Identity} must not be connected to {merry.Identity}");
+        Assert.That(await IsConnected(merry, sam.Identity), Is.False,
+            $"{merry.Identity} must not be connected to {sam.Identity}");
     }
 
     [Test, TestCaseSource(nameof(IntroducerCases))]
-    public async Task WillHandleWhenAllWhenConnectionsFailsVerification(CallerSpec spec, HttpStatusCode expected)
+    public async Task WillHandleWhenAllWhenConnectionsFailsVerification(CallerSpec spec)
     {
         var (caller, introducer) = await SetupCallerWithOwner(spec, Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -266,13 +228,35 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
         await merry.Connections.AcceptConnectionRequest(sam.Identity);
         await merry.Connections.DisconnectFrom(sam.Identity);
 
-        var response = await CallerRequests(caller).SendIntroductions(new IntroductionGroup
-        {
-            Message = "test message from frodo",
-            Recipients = [sam.Identity, merry.Identity]
-        });
+        await SendIntroductionsAndDrainAsync(caller, introducer, sam, merry);
 
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"failed: status code was: {response.StatusCode}");
+        // both send connection request; identities get connected
+        // R3's ICR record on R2's identity must be reset to an auto-connection because we won't
+        // have master key and the shared secret get reset.  This means all circles also get reset.  "
+
+        Assert.That(await IsConnectedWithExpectedOrigin(sam, merry.Identity, ConnectionRequestOrigin.Introduction), Is.True,
+            $"{sam.Identity} must hold {merry.Identity} as an introduced connection");
+
+        Assert.That(await IsConnectedWithExpectedOrigin(merry, sam.Identity, ConnectionRequestOrigin.Introduction), Is.True,
+            $"{merry.Identity} must hold {sam.Identity} as an introduced connection");
+    }
+
+    /// <summary>
+    /// The act every test in this fixture shares: the introducer introduces Sam and Merry to each
+    /// other, hears success for both, and all three outboxes are drained — the introducer's to deliver
+    /// the introductions, each introducee's to send the connection request it produced.
+    /// </summary>
+    private static async Task SendIntroductionsAndDrainAsync(
+        IV2Caller caller, OwnerSession introducer, OwnerSession sam, OwnerSession merry)
+    {
+        var response = await caller.RefitFor<IRefitUniversalCircleNetworkRequests>()
+            .SendIntroductions(new IntroductionGroup
+            {
+                Message = "test message from frodo",
+                Recipients = [sam.Identity, merry.Identity]
+            });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await introducer.Sync.DrainOutboxAsync();
 
         var introResult = response.Content!;
@@ -281,20 +265,5 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
 
         await sam.Sync.DrainOutboxAsync();
         await merry.Sync.DrainOutboxAsync();
-
-        // both send connection request; identities get connected
-        // R3's ICR record on R2's identity must be reset to an auto-connection because we won't
-        // have master key and the shared secret get reset.  This means all circles also get reset.  "
-
-        Assert.That(await IsConnectedWithExpectedOrigin(sam, merry.Identity, ConnectionRequestOrigin.Introduction), Is.True);
-
-        Assert.That(await IsConnectedWithExpectedOrigin(merry, sam.Identity, ConnectionRequestOrigin.Introduction), Is.True);
-    }
-
-    /// <summary>The V1 connection-requests surface as an arbitrary caller (Owner or App).</summary>
-    private static IRefitUniversalCircleNetworkRequests CallerRequests(IV2Caller caller)
-    {
-        var client = caller.Factory.CreateHttpClient(caller.Identity, out var sharedSecret);
-        return RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkRequests>(client, sharedSecret);
     }
 }

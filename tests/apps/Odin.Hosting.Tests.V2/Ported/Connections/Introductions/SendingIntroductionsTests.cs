@@ -65,7 +65,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <see cref="WillFailToSendConnectionRequestViaIntroductionWhenRecipientIsBlocked"/> and
 /// <see cref="WillFailToSendConnectionRequestWhenRecipientIsBlocked"/> is <b>kept</b>: both assert
 /// their response, so they are tests rather than cleanup. The <c>DeleteAllIntroductions</c> calls at
-/// the end of <c>Prepare</c> are kept as arrange.
+/// the end of <c>Prepare</c> are kept as arrange, as
+/// <see cref="IntroductionTestUtils.PrepareIntroducerAndClearIntroductionsAsync"/>.
 /// </para>
 /// <para>No caller matrix in the original and none added; <c>SetupCallerWithOwner</c> is not in play.</para>
 /// </remarks>
@@ -84,7 +85,7 @@ public class SendingIntroductionsTests : V2Fixture
         await merry.Admin.DisableAutoAcceptIntroductions();
         await sam.Admin.DisableAutoAcceptIntroductions();
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         // block errrrrbody
         await merry.Connections.BlockConnection(sam.Identity);
@@ -136,7 +137,7 @@ public class SendingIntroductionsTests : V2Fixture
         await merry.Admin.DisableAutoAcceptIntroductions();
         await sam.Admin.DisableAutoAcceptIntroductions();
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         // connect merry and sam
         await merry.Connections.SendConnectionRequest(sam.Identity);
@@ -188,7 +189,7 @@ public class SendingIntroductionsTests : V2Fixture
         await merry.Admin.DisableAutoAcceptIntroductions();
         await sam.Admin.DisableAutoAcceptIntroductions();
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         var response = await Requests(frodo).SendIntroductions(new IntroductionGroup
         {
@@ -261,7 +262,7 @@ public class SendingIntroductionsTests : V2Fixture
         var merry = await LoginAsOwner(Identities.Merry);
         var sam = await LoginAsOwner(Identities.Sam);
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         var sendConnectionRequestResponse = await sam.Connections.SendConnectionRequest(frodo.Identity);
         Assert.That(sendConnectionRequestResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -286,11 +287,11 @@ public class SendingIntroductionsTests : V2Fixture
         Assert.That(samInfoResponse.IsSuccessStatusCode, Is.True);
         Assert.That(samInfoResponse.Content!.Status, Is.EqualTo(ConnectionStatus.Blocked));
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         var samRequestFromMerryResponse2 = await sam.Connections.GetIncomingRequestFrom(merry.Identity);
         var firstRequestFromMerry2 = samRequestFromMerryResponse2.Content;
-        Assert.That(firstRequestFromMerry2, Is.Null, "xx merry already has a request from sam");
+        Assert.That(firstRequestFromMerry2, Is.Null);
 
         var firstIntroductionResponse = await Requests(frodo).SendIntroductions(new IntroductionGroup
         {
@@ -349,7 +350,7 @@ public class SendingIntroductionsTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var merry = await LoginAsOwner(Identities.Merry);
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         // sam turns introductions off, so sam refuses the introduction from frodo
         await sam.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.DisableAllowIntroductions, bool.TrueString);
@@ -419,7 +420,7 @@ public class SendingIntroductionsTests : V2Fixture
         await merry.Admin.DisableAutoAcceptIntroductions();
         await sam.Admin.DisableAutoAcceptIntroductions();
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         var response = await Requests(frodo).SendIntroductions(new IntroductionGroup
         {
@@ -457,42 +458,5 @@ public class SendingIntroductionsTests : V2Fixture
         var samIntroductionsResponse2 = await Requests(sam).GetReceivedIntroductions();
         Assert.That(samIntroductionsResponse2.IsSuccessStatusCode, Is.True);
         Assert.That(samIntroductionsResponse2.Content!.Any(intro => intro.Identity == merry.Identity), Is.False);
-    }
-
-    /// <summary>
-    /// You have 3 hobbits. Frodo is connected to Sam and Merry; Sam and Merry are not connected.
-    /// </summary>
-    private static async Task PrepareAsync(OwnerSession frodo, OwnerSession sam, OwnerSession merry)
-    {
-        var sendToSam = await frodo.Connections.SendConnectionRequest(sam.Identity, []);
-        Assert.That(sendToSam.IsSuccessStatusCode, Is.True,
-            $"Prepare: frodo->sam SendConnectionRequest failed: {sendToSam.StatusCode}");
-        var sendToMerry = await frodo.Connections.SendConnectionRequest(merry.Identity, []);
-        Assert.That(sendToMerry.IsSuccessStatusCode, Is.True,
-            $"Prepare: frodo->merry SendConnectionRequest failed: {sendToMerry.StatusCode}");
-
-        var merryAccept = await merry.Connections.AcceptConnectionRequest(frodo.Identity);
-        Assert.That(merryAccept.IsSuccessStatusCode, Is.True,
-            $"Prepare: merry.AcceptConnectionRequest(frodo) failed: {merryAccept.StatusCode}");
-        var samAccept = await sam.Connections.AcceptConnectionRequest(frodo.Identity);
-        Assert.That(samAccept.IsSuccessStatusCode, Is.True,
-            $"Prepare: sam.AcceptConnectionRequest(frodo) failed: {samAccept.StatusCode}");
-
-        // Verify both sides actually have the connection on frodo's tenant. If these fail in CI we
-        // know Prepare did not establish state, even though the API calls returned OK.
-        var frodoSeesSam = await frodo.Connections.GetConnectionInfo(sam.Identity);
-        Assert.That(frodoSeesSam.IsSuccessStatusCode, Is.True,
-            $"Prepare: frodo.GetConnectionInfo(sam) failed: {frodoSeesSam.StatusCode}");
-        Assert.That(frodoSeesSam.Content!.Status, Is.EqualTo(ConnectionStatus.Connected),
-            "Prepare: frodo's view of sam");
-        var frodoSeesMerry = await frodo.Connections.GetConnectionInfo(merry.Identity);
-        Assert.That(frodoSeesMerry.IsSuccessStatusCode, Is.True,
-            $"Prepare: frodo.GetConnectionInfo(merry) failed: {frodoSeesMerry.StatusCode}");
-        Assert.That(frodoSeesMerry.Content!.Status, Is.EqualTo(ConnectionStatus.Connected),
-            "Prepare: frodo's view of merry");
-
-        await Requests(frodo).DeleteAllIntroductions();
-        await Requests(sam).DeleteAllIntroductions();
-        await Requests(merry).DeleteAllIntroductions();
     }
 }

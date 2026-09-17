@@ -26,7 +26,8 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// Drives the <b>V1</b> payload endpoints through the in-process host via
 /// <see cref="UniversalDriveApiClient"/>, reached through <c>owner.V1.Drive</c>. Single-threaded by
 /// construction (<see cref="PerformanceFramework.ThreadedTestAsync"/> with <c>maxThreads: 1</c>) and
-/// kept that way, 100 ms per-iteration delay included.
+/// kept that way; the original's 100 ms per-iteration sleep is dropped, as nothing is pending across
+/// iterations.
 /// </remarks>
 [TestFixture]
 public class PayloadSequentialHammerUnencryptedTests : V2Fixture
@@ -105,7 +106,6 @@ public class PayloadSequentialHammerUnencryptedTests : V2Fixture
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
 
-            await Task.Delay(100);
         }
 
         return (fileByteLength, timers);

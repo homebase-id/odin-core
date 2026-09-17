@@ -4,13 +4,9 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Util;
-using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Services.Authentication.YouAuth;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -34,11 +30,12 @@ namespace Odin.Hosting.Tests.V2.Ported.Feed.GroupChannel;
 /// <list type="bullet">
 /// <item>No caller matrix in the original and none here.</item>
 /// <item>The guest who posts needs <c>PermissionKeys.SendOnBehalfOfOwner</c>, which
-/// <see cref="GuestSession.SetupAsync"/> (and so <see cref="CallerSpec.Guest"/>) cannot express — it
-/// grants a drive permission and no permission keys. The YouAuth domain is registered here directly
-/// so the key can be included, which also keeps the original's use of the author's own identity as
-/// the domain name rather than a generated one. The test does not run, so none of this has been
-/// exercised.</item>
+/// <see cref="CallerSpec.Guest"/> cannot express — it grants a drive permission and no permission
+/// keys. The guest is built from
+/// <see cref="GuestSession.SetupAsync(OwnerSession, Odin.Services.Base.PermissionSetGrantRequest, AsciiDomainName?)"/>
+/// instead, which takes the whole grant and the domain — keeping the original's use of the author's
+/// own identity as the domain name rather than a generated one. The test does not run, so none of
+/// this has been exercised.</item>
 /// <item>The original's only distribution step was a commented-out <c>WaitForEmptyOutbox</c>, with
 /// "Feed distribution should happen here" beside it — so as written the test asserts on a feed that
 /// nothing was ever asked to deliver to. Carried verbatim, commented-out line included; whoever
@@ -173,26 +170,16 @@ public class GroupChannelFeedDistributionTests : V2Fixture
             }
         };
 
-        // GuestSession.SetupAsync (and so CallerSpec.Guest) grants a drive permission and no permission
-        // keys, and names the domain itself; the original needs SendOnBehalfOfOwner and the author's own
-        // identity as the domain, so the YouAuth registration is done here by hand.
-        var guestCircleId = Guid.NewGuid();
-        await groupOwnerClient.Admin.CreateCircle(guestCircleId, "guest access for the author",
-            new PermissionSetGrantRequest
-            {
-                Drives = driveGrants,
-                PermissionSet = new PermissionSet(PermissionKeys.SendOnBehalfOfOwner)
-            });
+        // CallerSpec.Guest grants a drive permission and no permission keys, and names the domain
+        // itself; the original needs SendOnBehalfOfOwner and the author's own identity as the domain,
+        // which is what GuestSession's grant + domain overload takes.
+        var guest = await GuestSession.SetupAsync(groupOwnerClient, new PermissionSetGrantRequest
+        {
+            Drives = driveGrants,
+            PermissionSet = new PermissionSet(PermissionKeys.SendOnBehalfOfOwner)
+        }, new AsciiDomainName(author.Identity.DomainName));
 
-        var guestDomain = new AsciiDomainName(author.Identity.DomainName);
-        await groupOwnerClient.Admin.RegisterYouAuthDomain(guestDomain, [guestCircleId]);
-        var clientReg = await groupOwnerClient.Admin.RegisterYouAuthClient(guestDomain);
-
-        var cat = ClientAccessToken.FromPortableBytes(clientReg.Content.Data);
-        var guestFactory = new InProcessApiClientFactory(groupOwnerClient.Host, YouAuthDefaults.XTokenCookieName,
-            cat.ToAuthenticationToken(), cat.SharedSecret.GetKey().ToSensitiveByteArray(),
-            GuestApiPathConstantsV1.BasePathV1);
-        var guestDriveClient = new V1Handles(groupOwnerClient.Identity, guestFactory).Drive;
+        var guestDriveClient = guest.V1.Drive;
 
         //
         // Post a file as guest

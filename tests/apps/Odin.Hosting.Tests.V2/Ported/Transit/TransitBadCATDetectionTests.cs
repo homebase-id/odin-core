@@ -1,25 +1,25 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers;
-using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
-using Odin.Hosting.Tests._Universal.ApiClient.Connections;
-using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Peer.Outgoing.Drive;
+using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.Transit;
 
@@ -33,17 +33,16 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 /// </summary>
 /// <remarks>
 /// Framework gap worked around: <c>_scaffold.Scenarios.CreateConnectedHobbits</c> has no V2
-/// counterpart. It is reproduced as <see cref="HobbitScenario.ConnectAllAsync"/>, local to this
-/// folder — see that class for what it does and does not carry over. It should probably be promoted
-/// to shared framework once a second fixture needs it.
+/// counterpart. Its mesh connect is <see cref="Peer.PeerFlow.ConnectAllAsync"/>; the app registration
+/// the V1 helper also did stays in <see cref="HobbitScenario.ConnectAllAsync"/>, local to this folder
+/// — see that class for what it does and does not carry over.
 /// <para>
 /// Other port notes: the transit payload read goes through the V1
 /// <see cref="IRefitOwnerTransitQuery"/> via <c>owner.RefitFor</c> (there is no <c>_Universal</c>
-/// client on the V1 handles for it, and its routes are already absolute). The disconnect likewise goes
-/// through <see cref="IRefitUniversalCircleNetworkConnections"/> rather than
-/// <c>owner.Connections.DisconnectFrom</c>, which does not expose <c>notifyRemote</c> — and
-/// <c>notifyRemote: false</c> is the whole point of the scenario. The V1 client's own two assertions
-/// on disconnect (call succeeded; the caller's connection status is then <c>None</c>) are carried
+/// client on the V1 handles for it, and its routes are already absolute). The disconnect passes
+/// <c>notifyRemote: false</c> — the whole point of the scenario — which
+/// <see cref="ConnectionsHandle.DisconnectFrom"/> takes. The V1 client's own two assertions on
+/// disconnect (call succeeded; the caller's connection status is then <c>None</c>) are carried
 /// inline. File uploads use <c>UploadNewFile</c> with a one-payload manifest, the <c>_Universal</c>
 /// spelling of the original's <c>UploadFile(..., payloadData:, payloadKey:)</c>.
 /// </para>
@@ -104,8 +103,7 @@ public class TransitBadCATDetectionTests : V2Fixture
         // notifyRemote:false -- this scenario specifically requires Pippin to still *think* he's
         // connected so his next call carries a now-stale CAT, exercising bad-CAT detection below.
         //
-        var disconnect = await merry.RefitFor<IRefitUniversalCircleNetworkConnections>()
-            .Disconnect(new OdinIdRequest { OdinId = pippin.Identity }, notifyRemote: false);
+        var disconnect = await merry.Connections.DisconnectFrom(pippin.Identity, notifyRemote: false);
         Assert.That(disconnect.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var pippinConnectionOnMerry = await merry.Connections.GetConnectionInfo(pippin.Identity);
@@ -141,7 +139,7 @@ public class TransitBadCATDetectionTests : V2Fixture
 
     // ---------------------------------------------------------------------------------------------
 
-    private static async Task<Refit.ApiResponse<System.Net.Http.HttpContent>> GetPayloadOverTransitAsync(
+    private static async Task<ApiResponse<HttpContent>> GetPayloadOverTransitAsync(
         OwnerSession caller, OdinId remoteIdentity, ExternalFileIdentifier file)
     {
         var svc = caller.RefitFor<IRefitOwnerTransitQuery>();
@@ -160,10 +158,10 @@ public class TransitBadCATDetectionTests : V2Fixture
         await merry.Admin.CreateDrive(merrySecuredDrive, "a private blog",
             allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
 
-        var canAccessSecureDriveCircleId = System.Guid.NewGuid();
+        var canAccessSecureDriveCircleId = Guid.NewGuid();
         await merry.Admin.CreateCircle(canAccessSecureDriveCircleId, "CanAccessSecureDrive", new PermissionSetGrantRequest
         {
-            PermissionSet = new Odin.Services.Authorization.Permissions.PermissionSet(),
+            PermissionSet = new PermissionSet(),
             Drives = new List<DriveGrantRequest>
             {
                 new()

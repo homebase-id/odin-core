@@ -33,7 +33,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <para>
 /// The trailing <c>Cleanup()</c> (delete every introduction, disconnect every pairing) was lifecycle
 /// only and asserted nothing; per-test reset owns it. The <c>DeleteAllIntroductions</c> calls inside
-/// <c>Prepare</c> are kept — they are part of the arrange the assertions read against.
+/// <c>Prepare</c> are kept — they are part of the arrange the assertions read against — as
+/// <see cref="IntroductionTestUtils.PrepareIntroducerAndClearIntroductionsAsync"/>.
 /// <c>SetupCallerWithOwner</c> is not in play — no caller matrix, <c>LoginAsOwner</c> only.
 /// </para>
 /// </remarks>
@@ -49,7 +50,7 @@ public class ConfirmConnectionTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
         var merry = await LoginAsOwner(Identities.Merry);
 
-        await PrepareAsync(frodo, sam, merry);
+        await PrepareIntroducerAndClearIntroductionsAsync(frodo, sam, merry);
 
         var response = await Requests(frodo).SendIntroductions(new IntroductionGroup
         {
@@ -96,17 +97,5 @@ public class ConfirmConnectionTests : V2Fixture
             Has.None.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.That(merryConnectionInfo.Content.AccessGrant.CircleGrants,
             Has.Some.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
-    }
-
-    /// <summary>
-    /// You have 3 hobbits. Frodo is connected to Sam and Merry; Sam and Merry are not connected.
-    /// </summary>
-    private static async Task PrepareAsync(OwnerSession frodo, OwnerSession sam, OwnerSession merry)
-    {
-        await PrepareIntroducer(frodo, sam, merry);
-
-        await Requests(frodo).DeleteAllIntroductions();
-        await Requests(sam).DeleteAllIntroductions();
-        await Requests(merry).DeleteAllIntroductions();
     }
 }

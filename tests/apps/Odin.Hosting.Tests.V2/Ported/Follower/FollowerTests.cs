@@ -330,20 +330,6 @@ public class FollowerTests : V2Fixture
         Assert.That(pippinAsFollower, Is.Null, "Pippin cannot follow himself");
     }
 
-    // [Test]
-    // public async Task FailToFollowNonChannelDrive()
-    // {
-    //     var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-    //     var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-    //
-    //     // All done
-    //     await frodoOwnerClient.Follower.UnfollowIdentity(samOwnerClient.Identity);
-    //     await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
-    // }
-
-    //Test Permissions for Tenant Settings
-    //Test that following only works for drives of type channel
-
     // -------------------------------------------------------------------------------------------
     // Arrange
     // -------------------------------------------------------------------------------------------

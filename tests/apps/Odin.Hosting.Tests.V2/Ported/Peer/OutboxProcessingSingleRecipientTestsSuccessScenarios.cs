@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -80,10 +80,8 @@ public class OutboxProcessingSingleRecipientTestsSuccessScenarios : V2Fixture
         Assert.That(uploadResult.RecipientStatus.Count, Is.EqualTo(1));
         Assert.That(uploadResult.RecipientStatus[recipientOwnerClient.Identity], Is.EqualTo(TransferStatus.Enqueued));
 
-        await senderOwnerClient.Sync.DrainOutboxAsync();
-
         // validate recipient got the file
-        await recipientOwnerClient.Sync.ProcessInboxAsync(uploadResult.File.TargetDrive);
+        await PeerFlow.DistributeAsync(senderOwnerClient, recipientOwnerClient, uploadResult.File.TargetDrive);
 
         var recipientFileResponse =
             await recipientOwnerClient.V1.Drive.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);

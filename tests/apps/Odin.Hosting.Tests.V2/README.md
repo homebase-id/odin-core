@@ -327,7 +327,7 @@ Api/        V2Fixture          ← (in parent dir) the base class
             CallerSpec, DriveSpec
             OwnerAdmin (+ .Apps / .YouAuth partials) ← V1 admin endpoints
             DriveHandles       ← reader + writer + reactions, bundled per caller
-            AppFileUploads     ← the encrypted one-payload app upload the AppAPI ports arrange with
+            AppFileUploads     ← the encrypted multipart upload the V1 drive ports arrange with
             Identities         ← Frodo/Sam/… constants (derived from TestIdentities)
 Auth/       OwnerLogin         ← ECC + AES-CBC password-set + authenticate dance
 Peer/       PeerFlow           ← drive-create + circle + connect helper (+ bidirectional)

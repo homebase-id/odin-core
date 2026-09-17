@@ -68,8 +68,15 @@ public sealed class ConnectionsHandle
     public Task<ApiResponse<HttpContent>> AcceptConnectionRequest(OdinId sender, IEnumerable<GuidId>? circleIdsGrantedToSender = null)
         => _requests.AcceptConnectionRequest(sender, circleIdsGrantedToSender);
 
-    public Task<ApiResponse<HttpContent>> DisconnectFrom(OdinId recipient)
-        => _requests.DisconnectFrom(recipient);
+    /// <summary>
+    /// Severs this identity's side of the connection. <paramref name="notifyRemote"/> defaults to
+    /// <c>false</c> — a one-sided disconnect, which is what the underlying V1 route has always done
+    /// here (<c>IRefitUniversalCircleNetworkConnections.Disconnect</c> declares the same default, and
+    /// this handle used to omit the parameter entirely). Pass <c>true</c> to have the peer told to
+    /// sever its side too; the bad-CAT and reciprocal-disconnect fixtures depend on the distinction.
+    /// </summary>
+    public Task<ApiResponse<HttpContent>> DisconnectFrom(OdinId recipient, bool notifyRemote = false)
+        => _requests.DisconnectFrom(recipient, notifyRemote);
 
     public Task<ApiResponse<ConnectionRequestResponse>> GetIncomingRequestFrom(OdinId sender)
         => _requests.GetIncomingRequestFrom(sender);

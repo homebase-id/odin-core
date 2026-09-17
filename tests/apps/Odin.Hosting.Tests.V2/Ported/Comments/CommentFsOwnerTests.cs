@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -222,7 +222,7 @@ public class CommentFsOwnerTests : V2Fixture
         var response = await owner.V1.Drive.UploadNewFile(targetDrive, fileMetadata, manifest, payloads,
             fileSystemType: fileSystemType);
 
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"upload failed: {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content, Is.Not.Null);
         return response.Content!;
     }

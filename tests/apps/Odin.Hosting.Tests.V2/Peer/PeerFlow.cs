@@ -96,6 +96,61 @@ public static class PeerFlow
     }
 
     /// <summary>
+    /// Connect every pair in <paramref name="identities"/> over one shared drive — the V2 equivalent of
+    /// V1's <c>ScenarioBootstrapper.CreateConnectedHobbits</c>. Each identity creates the drive and one
+    /// circle granting <paramref name="permission"/> on it, and grants that circle to every peer.
+    /// </summary>
+    /// <remarks>
+    /// This is the mesh shape, distinct from <see cref="ConnectAsync"/>'s pairwise-with-fresh-circles:
+    /// here each identity holds <em>one</em> circle it grants to all the others, which is what the
+    /// scenarios that need four mutually-connected identities assume.
+    /// <para>
+    /// Deliberately does not register apps. V1's helper did, and carried the tokens on a
+    /// <c>TestAppContext</c>, but no consumer reads them — every call is made as the owner — and app
+    /// registration inside a peer-connect helper is the wrong composition. A fixture that needs the app
+    /// registers it itself.
+    /// </para>
+    /// </remarks>
+    public static async Task ConnectAllAsync(
+        IReadOnlyList<OwnerSession> identities,
+        TargetDrive sharedDrive,
+        DrivePermission permission = DrivePermission.ReadWrite,
+        bool allowAnonymousReads = false)
+    {
+        var circleIds = new Dictionary<string, Guid>();
+
+        foreach (var identity in identities)
+        {
+            await identity.Admin.EnsureDrive(sharedDrive, $"{identity.Identity} shared",
+                allowAnonymousReads: allowAnonymousReads);
+
+            var circleId = Guid.NewGuid();
+            await identity.Admin.CreateCircle(circleId, $"peer-mesh-{circleId:N}",
+                TestUtils.CreatePermissionGrantRequest(sharedDrive, permission));
+            circleIds[identity.Identity] = circleId;
+        }
+
+        for (var i = 0; i < identities.Count; i++)
+        {
+            for (var j = i + 1; j < identities.Count; j++)
+            {
+                var sender = identities[i];
+                var recipient = identities[j];
+
+                var sendReq = await sender.Connections.SendConnectionRequest(
+                    recipient.Identity, [(GuidId)circleIds[sender.Identity]]);
+                Assert.That(sendReq.IsSuccessStatusCode, Is.True,
+                    $"SendConnectionRequest from {sender.Identity} to {recipient.Identity} failed: {sendReq.StatusCode}");
+
+                var accept = await recipient.Connections.AcceptConnectionRequest(
+                    sender.Identity, [(GuidId)circleIds[recipient.Identity]]);
+                Assert.That(accept.IsSuccessStatusCode, Is.True,
+                    $"AcceptConnectionRequest on {recipient.Identity} failed: {accept.StatusCode}");
+            }
+        }
+    }
+
+    /// <summary>
     /// Deliver what the sender has queued: drain the sender's outbox, then process each recipient's
     /// inbox for <paramref name="drive"/>. The universal peer-delivery idiom — the fast host registers
     /// the outbox background service but never starts it, so nothing moves without this.

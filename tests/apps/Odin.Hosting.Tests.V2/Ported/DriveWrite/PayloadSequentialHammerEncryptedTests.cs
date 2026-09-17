@@ -28,8 +28,8 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 /// <see cref="UniversalDriveApiClient"/>, reached through <c>owner.V1.Drive</c>.
 ///
 /// Single-threaded by construction (<see cref="PerformanceFramework.ThreadedTestAsync"/> with
-/// <c>maxThreads: 1</c>), kept as such — the original's shape, including its 100 ms per-iteration
-/// delay, is unchanged.
+/// <c>maxThreads: 1</c>), kept as such. The original's 100 ms per-iteration sleep is dropped: one
+/// thread, nothing pending across iterations.
 ///
 /// <c>_ownerApiClient.GetTokenContext().SharedSecret</c> becomes <see cref="OwnerSession.SharedSecret"/>;
 /// it is the same owner shared secret, read off the session rather than the client wrapper.
@@ -117,7 +117,6 @@ public class PayloadSequentialHammerEncryptedTests : V2Fixture
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
 
-            await Task.Delay(100);
         }
 
         return (fileByteLength, timers);
