@@ -7,7 +7,6 @@ using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
-using Odin.Test.Helpers.Logging;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2;
@@ -149,40 +148,7 @@ public abstract class V2Fixture
     protected const string OutboxDeliveryFailureLogged =
         "An outbox worker did not handle the outbox processing exception";
 
-    /// <summary>
-    /// Known product defects, tolerated for every fixture. Each has an issue open, fires from shared
-    /// machinery almost any fixture can reach, and is logged-and-swallowed by design so no test can
-    /// assert on it.
-    /// </summary>
-    /// <remarks>
-    /// A concession that should only ever shrink. Both entries are the two
-    /// <c>catch (Exception) { LogError(...) }</c> blocks in <c>CircleNetworkService</c> tracked by
-    /// issue #1770. Suppressing them here rather than in whichever fixtures happened to trip them
-    /// keeps the invariant usable: they surface from any connection handshake, so per-fixture entries
-    /// would be found one red CI run at a time, and an invariant that reddens randomly gets switched
-    /// off — which is exactly how it was lost the first time. Delete both when #1770 lands.
-    /// </remarks>
-    private static readonly string[] KnownProductNoise =
-    [
-        "Failed to upgrade KSK Encryption",
-        "Could not convert deposited grants for"
-    ];
 
-    /// <summary>
-    /// Artefacts of running many hosts in one process, rather than defects. Not something a product
-    /// fix removes, so unlike <see cref="KnownProductNoise"/> these are expected to stay.
-    /// </summary>
-    /// <remarks>
-    /// Fixtures run under <c>ParallelScope.Fixtures</c>, each with its own SQLite file, but they
-    /// share a machine. Under load a writer can hold a lock long enough for a concurrent request to
-    /// log <c>SQLite Error 5</c> — observed on a peer <c>mark-file-read</c> call. It says nothing
-    /// about the code under test, and it will be commoner on CI hardware than locally, so leaving it
-    /// unsuppressed would redden random fixtures.
-    /// </remarks>
-    private static readonly string[] ParallelLoadArtefacts =
-    [
-        "SQLite Error 5: 'database is locked'"
-    ];
 
     /// <summary>
     /// Hook for fixtures that expect specific errors: override to inspect the events and assert
@@ -192,24 +158,15 @@ public abstract class V2Fixture
     /// </summary>
     protected virtual void AssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
     {
-        // Not LogEvents.AssertEvents: that asserts on a count and prints "Expected: 0, But was: 1",
-        // which tells you a test logged an error but not which one or why — and the whole value of
-        // this invariant is that it fires on paths the test never looks at. Print the events.
-        var errors = new List<LogEvent>();
-        if (logEvents.TryGetValue(LogEventLevel.Error, out var e)) errors.AddRange(e);
-        if (logEvents.TryGetValue(LogEventLevel.Fatal, out var f)) errors.AddRange(f);
-
-        var tolerated = ToleratedErrorLogSubstrings.Concat(KnownProductNoise).Concat(ParallelLoadArtefacts).ToList();
-        if (tolerated.Count > 0)
-        {
-            errors = errors
-                .Where(evt =>
-                {
-                    var text = evt.RenderMessage() + " " + (evt.Exception?.Message ?? "");
-                    return !tolerated.Any(t => text.Contains(t, System.StringComparison.Ordinal));
-                })
-                .ToList();
-        }
+        // Deliberately not LogEvents.AssertEvents: that asserts on a count and prints
+        // "Expected: 0, But was: 1", which says a test logged an error but not which one or why.
+        // The whole value of this invariant is that it fires on paths the test never looks at, so the
+        // message has to carry the event. Two of the three product bugs it has found so far were
+        // diagnosed straight out of this text.
+        var errors = ErrorsIn(logEvents, LogEventLevel.Error)
+            .Concat(ErrorsIn(logEvents, LogEventLevel.Fatal))
+            .Where(NotTolerated)
+            .ToList();
 
         if (errors.Count == 0)
         {
@@ -224,6 +181,20 @@ public abstract class V2Fixture
             $"The server logged {errors.Count} error-level event(s) during this test.\n{rendered}\n\n" +
             "If an error here is the behaviour under test, add its text to ToleratedErrorLogSubstrings " +
             "with a reason. Turn AssertNoErrorLogEvents off only if the whole fixture is about error paths.");
+
+        static IEnumerable<LogEvent> ErrorsIn(Dictionary<LogEventLevel, List<LogEvent>> events, LogEventLevel level)
+            => events.TryGetValue(level, out var found) ? found : [];
+
+        bool NotTolerated(LogEvent evt)
+        {
+            if (ToleratedErrorLogSubstrings.Count == 0)
+            {
+                return true;
+            }
+
+            var text = evt.RenderMessage() + " " + (evt.Exception?.Message ?? "");
+            return !ToleratedErrorLogSubstrings.Any(text.Contains);
+        }
     }
 
     [SetUp]

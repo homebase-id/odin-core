@@ -31,11 +31,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class DepositGrantTests : V2Fixture
 {
-    /// <summary>
-    /// Deposit paths here deliberately hit states the production code reports at Error before falling
-    /// back to a pending grant, which is the behaviour under test.
-    /// </summary>
-    protected override bool AssertNoErrorLogEvents => false;
 
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 

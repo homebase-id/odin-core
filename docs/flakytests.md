@@ -319,19 +319,24 @@ this fixture's asserts to exact-status form, so a recurrence will name the code 
 `sam.dotyou.cloud must hold merry.dotyou.cloud as an introduced connection / Expected: True, But was: False`,
 and `ConnectionStatus / Expected: Connected, But was: None`. The introduction simply never landed.
 
-**Likely cause -- diagnosed, not proven.** These correlate with the outbox logging
-`An outbox worker did not handle the outbox processing exception ... (type: ConnectIntroducee)`,
-which is the same event seen from the other side. `PeerOutboxProcessorBackgroundService.DrainAsync`
-makes `DefaultDrainRetryPasses = 3` passes and then returns, leaving a rescheduled item queued. The
-V1 `WebScaffold` equivalent polled `WaitForEmptyOutbox` against a *running* background service, which
-kept retrying up to `OutboxOperationMaxAttempts = 30`. So a `ConnectIntroducee` item that needs more
-than three passes under load completes on V1 and is abandoned on the fast framework.
+**Cause -- corrected 2026-09-17, the first diagnosis was wrong.**
 
-**The fix is probably not a retry.** `ITestSync.DrainOutboxAsync` does not surface `maxRetryPasses`
-(the parameter exists on `DrainAsync`). Exposing it and having the introduction fixtures drain harder
-would address the cause rather than the symptom. It cannot simply be raised globally:
-`Ported/Peer/OutboxProcessingSingleRecipientTestsFailureScenario` depends on the drain returning with
-a permanently-failing item still queued, and asserts on exactly that.
+The original entry blamed the test framework: `DrainAsync` makes `DefaultDrainRetryPasses = 3` passes
+where V1's running background service retried up to `OutboxOperationMaxAttempts = 30`, so an item
+needing more than three was said to be abandoned here and delivered there.
+
+That is not what happens. `DrainAsync` calls `BringForwardScheduledItemsAsync()` between passes
+(`PeerOutboxProcessorBackgroundService.cs:134`), which pulls a deferred item's `nextRun` forward and
+retries it. The retry budget is not the constraint. **The introduction send genuinely fails, several
+times in a row, under concurrency** -- the test is reporting a real defect, not a framework shortfall.
+
+Do not "fix" this by draining harder. Tracked as a product issue: **#1778**.
+
+Worth knowing the production asymmetry while reading these failures: a failed `ConnectIntroducee`
+item reschedules for **+10 minutes**, hardcoded in two places
+(`ConnectIntroduceeOutboxWorker.cs:45` and `:73`, the latter carrying `//TODO: change to calculated`).
+Tests bring that forward; production waits it out. So a transient introduction failure costs a real
+user ten minutes, which matches the product's reputation for flaky introductions.
 
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them

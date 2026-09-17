@@ -56,20 +56,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 [TestFixture]
 public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 {
-    /// <remarks>
-    /// Issue #1771: a peer upload whose comment encryption disagrees with its referenced file trips
-    /// the S2040 guard in <c>PeerFileWriter.GetTargetAcl</c>, is logged at Error, and is retried by the
-    /// outbox — the four sibling fixtures in this folder that provoke it already tolerate exactly this
-    /// message. It is listed here for a second reason, measured while porting this batch: under
-    /// <c>ParallelScope.Fixtures</c> these events reach <em>this</em> fixture's log store even though
-    /// none of its tests performs a peer upload. Running this fixture alone is clean over repeated
-    /// runs; running it beside <see cref="TransitCommentFileRoutingTests"/> reddens tests here that
-    /// make no peer call at all, with that fixture's error text. So the per-host log isolation
-    /// <see cref="V2Fixture.AssertNoErrorLogEvents"/> documents does not hold under load. Remove when
-    /// #1771 is resolved; the isolation gap is reported separately.
-    /// </remarks>
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Referenced filed and metadata payload encryption do not match"];
 
     protected override string[] HostIdentities =>
         [Identities.Merry, Identities.Pippin, Identities.Frodo, Identities.Sam];

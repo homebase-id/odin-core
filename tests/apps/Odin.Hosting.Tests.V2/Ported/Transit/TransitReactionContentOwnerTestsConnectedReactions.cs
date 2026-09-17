@@ -51,15 +51,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 [TestFixture]
 public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
 {
-    /// <remarks>
-    /// The V1 original whitelisted exactly this message via <c>SetAssertLogEventsAction</c>, so
-    /// tolerating it here is what the port carries over rather than a new concession. Issue #1771
-    /// asks whether the peer upload should be failing at all — it is logged at Error and retried,
-    /// and the test's own assertions pass regardless, which is why it went unnoticed.
-    /// (The message's "Referenced filed" is a typo in production code, not here.)
-    /// </remarks>
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Referenced filed and metadata payload encryption do not match"];
 
     protected override string[] HostIdentities => [Identities.Pippin, Identities.Sam];
 

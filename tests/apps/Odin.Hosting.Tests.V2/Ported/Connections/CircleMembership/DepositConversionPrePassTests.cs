@@ -28,18 +28,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class DepositConversionPrePassTests : V2Fixture
 {
-    /// <summary>
-    /// The pre-pass under test deliberately drives deposits that cannot be converted and connections
-    /// that must be skipped; the production code reports those at Error before moving on, which is
-    /// the behaviour being asserted.
-    /// </summary>
     /// <remarks>
-    /// Note: this fixture passed the log-event assertion under light load and failed it under a
-    /// fuller parallel run, which suggests some of that Error logging lands asynchronously, after
-    /// the test that caused it has finished. Worth chasing -- it would make the invariant
-    /// load-sensitive for any fixture, not just this one.
+    /// Deposit conversion for a connection that cannot be converted is what this fixture tests; the
+    /// production code logs and swallows it (#1770). Narrowed from a whole-fixture opt-out once
+    /// attribution (#1775) made it possible to say which error this fixture actually causes.
     /// </remarks>
-    protected override bool AssertNoErrorLogEvents => false;
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        ["Could not convert deposited grants for"];
 
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
 

@@ -45,15 +45,6 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 [TestFixture]
 public class HammerTimeLocalUpdateBatchTests : V2Fixture
 {
-    /// <remarks>
-    /// Issue #1772, and the cause of this fixture's entry in <c>docs/flakytests.md</c>: two writers
-    /// hammer one file while a reader fetches its thumbnail, so the reader can resolve a header and
-    /// then find the payload file already replaced. The server answers that with an
-    /// <c>OdinSystemException</c> and a 500 where a 404 belongs. Tolerated so the invariant stays on
-    /// for the rest of the fixture; the 500 itself is the product question.
-    /// </remarks>
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Failed to get thumbnail stream for file"];
 
     private OwnerSession _owner;
     private Guid _initialVersionTag;
