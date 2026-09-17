@@ -436,6 +436,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 {
                     Name = $"Test_{appId}",
                     AppId = appId,
+
+                    // A slug is required at registration, and one derived from the app id is unique
+                    // without a test having to pick one. Tests that address an app by slug pass their
+                    // own, so nothing here asserts against a derivation rule.
+                    AppSlug = $"app-{appId:N}"[..14],
                     PermissionSet = permissionSet,
                     Drives = drives,
                     AuthorizedCircles = authorizedCircles,

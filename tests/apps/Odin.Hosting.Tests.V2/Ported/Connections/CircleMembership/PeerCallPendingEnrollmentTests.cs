@@ -78,7 +78,7 @@ public class PeerCallPendingEnrollmentTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        }, appId: Guid.NewGuid());
+        }, appId: await frodo.Admin.RegisterBareApp());
 
         var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [awaitingCircle]);

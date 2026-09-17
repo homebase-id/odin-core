@@ -178,6 +178,10 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
             {
                 Name = $"Test_{appId}",
                 AppId = appId,
+
+                // A slug is required at registration; derived from the app id so it is unique without
+                // a test having to pick one.
+                AppSlug = $"app-{appId:N}"[..14],
                 PermissionSet = appPermissions.PermissionSet,
                 Drives = appPermissions.Drives?.ToList(),
                 AuthorizedCircles = authorizedCircles,

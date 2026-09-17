@@ -8,9 +8,11 @@ using Refit;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.Tests.V2.Ported.DriveManagement;
 
@@ -27,7 +29,7 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveManagement;
 public class DriveOwningAppTests : V2Fixture
 {
     [Test]
-    public async Task AdoptingAnUnownedDriveSetsTheAppAndDerivesASlug()
+    public async Task AdoptingAnOwnerConsoleDriveSetsTheAppAndKeepsItAddressed()
     {
         var owner = await LoginAsOwner();
 
@@ -37,8 +39,9 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Field Notes", allowAnonymousReads: false);
 
         var before = await owner.Admin.GetDrive(drive);
-        Assert.That(before.AppId, Is.Null, "a drive created without an app must start unowned");
-        Assert.That(before.DriveSlug, Is.Null, "AppId and DriveSlug are set together or both null");
+        Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "a drive created without an app belongs to the owner console");
+        Assert.That(before.DriveSlug, Is.Not.Null.And.Not.Empty, "and is addressed from the start");
 
         var response = await SetOwningApp(owner, drive, appId);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
@@ -50,10 +53,8 @@ public class DriveOwningAppTests : V2Fixture
         // row with no slug would sit outside the constraint entirely.
         Assert.That(after.DriveSlug, Is.Not.Null.And.Not.Empty);
 
-        // DriveTypeSlug is deliberately NOT asserted non-null. TypeSlugFor returns null for a drive
-        // type it does not recognise, and this drive has a random one -- a type slug is a readable
-        // category, not an address, so having none is a correct answer rather than a gap.
-        Assert.That(after.DriveTypeSlug, Is.Null);
+        // A drive of a type nothing recognises still gets a readable category: "drive".
+        Assert.That(after.DriveTypeSlug, Is.EqualTo(DriveSlugGenerator.DefaultTypeSlug));
 
         // Adoption is an addressing change; it must not touch what the drive is or holds.
         Assert.That(after.Name, Is.EqualTo(before.Name));
@@ -100,7 +101,8 @@ public class DriveOwningAppTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         var secondAfter = await owner.Admin.GetDrive(second);
-        Assert.That(secondAfter.AppId, Is.Null, "the refused call must leave the drive adoptable");
+        Assert.That(secondAfter.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "the refused call must leave the drive with the owner, and so still adoptable");
     }
 
     [Test]
@@ -178,7 +180,8 @@ public class DriveOwningAppTests : V2Fixture
         var response = await SetOwningApp(owner, drive, Guid.NewGuid());
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
-        Assert.That((await owner.Admin.GetDrive(drive)).AppId, Is.Null, "the drive must still be adoptable");
+        Assert.That((await owner.Admin.GetDrive(drive)).AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "the drive must still be the owner's, and so still adoptable");
     }
 
     [Test]
@@ -195,7 +198,7 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Something Else Entirely", allowAnonymousReads: false, driveSlug: "news");
 
         var before = await owner.Admin.GetDrive(drive);
-        Assert.That(before.AppId, Is.Null);
+        Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId));
         Assert.That(before.DriveSlug, Is.EqualTo("news"), "precondition: the drive carries a slug already");
 
         // No slug supplied -- the pre-existing one must survive rather than being derived from
@@ -224,10 +227,11 @@ public class DriveOwningAppTests : V2Fixture
     }
 
     [Test]
-    public async Task AdoptingWithADifferentSlugThanTheDriveCarriesIsRefused()
+    public async Task AdoptingWithADifferentSlugTakesTheSuppliedOne()
     {
-        // Two explicit answers that disagree. Refused rather than picking one, so renaming an
-        // address is never something adoption does on the way past.
+        // The slug the drive carries is an owner-console address, and adoption changes the app half
+        // anyway -- so nothing the caller can reach today is being renamed underneath them, and the
+        // app taking the drive gets to say what it is called.
         var owner = await LoginAsOwner();
 
         var appId = await owner.Admin.RegisterBareApp();
@@ -236,11 +240,11 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: "news");
 
         var response = await SetOwningApp(owner, drive, appId, "headlines");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
 
         var after = await owner.Admin.GetDrive(drive);
-        Assert.That(after.AppId, Is.Null, "the refused call must leave the drive adoptable");
-        Assert.That(after.DriveSlug, Is.EqualTo("news"), "and must leave its slug alone");
+        Assert.That(after.AppId, Is.EqualTo(appId));
+        Assert.That(after.DriveSlug, Is.EqualTo("headlines"));
     }
 
     [Test]

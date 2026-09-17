@@ -16,6 +16,7 @@ using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.SystemNotifications;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -512,7 +513,9 @@ namespace Odin.Services.Membership.Connections
                     // loaded here anyway.
                     awaiting.AppId = circle?.AppId;
 
-                    if (!awaiting.AppId.HasValue)
+                    // An owner-console circle waits on the owner, not on an app, so there is no app name
+                    // to render beside it.
+                    if (SystemAppConstants.IsOwnerConsole(awaiting.AppId))
                     {
                         continue;
                     }
@@ -779,11 +782,11 @@ namespace Odin.Services.Membership.Connections
 
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
 
-            // A circle with no owning app is the owner's own, and an app has no business putting anyone
+            // An owner-console circle is the owner's own, and an app has no business putting anyone
             // into one: nothing an app does should leave the contact waiting on the owner opening their
             // console. Apps are not shown these circles either
             // (CircleMembershipService.GetCircleDefinitions), so a well-behaved client never asks.
-            if (!circleDefinition.AppId.HasValue && odinContext.Caller.OdinClientContext?.AppId != null)
+            if (SystemAppConstants.IsOwnerConsole(circleDefinition.AppId) && odinContext.Caller.OdinClientContext?.AppId != null)
             {
                 throw new OdinSecurityException(
                     $"An app cannot add {odinId} to circle {circleId}; it belongs to the owner, not to an app");
@@ -1069,13 +1072,14 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Hands a circle that belongs to no app to one that exists, so its enrollments have someone to
+        /// Hands one of the owner's own circles to an app that exists, so its enrollments have someone to
         /// claim them.
         /// </summary>
         /// <remarks>
-        /// Circles predating app ownership carry no AppId, which reads as "the owner's own".  That is the
-        /// right default and wrong for the ones that were always meant to be an app's: an app is refused
-        /// them (<see cref="EnrollInCircleInternalAsync"/>) and never offered them
+        /// A circle the owner made in the console belongs to the owner console, and one predating that
+        /// rule names no app at all; both read as "the owner's own".  That is the right default and wrong
+        /// for the ones that were always meant to be an app's: an app is refused them
+        /// (<see cref="EnrollInCircleInternalAsync"/>) and never offered them
         /// (<c>CircleMembershipService.GetCircleDefinitions</c>), so nothing an app does can ever involve
         /// them.  Adoption is how the owner corrects that.
         /// <para>
@@ -1128,10 +1132,16 @@ namespace Odin.Services.Membership.Connections
             // is an app named on a circle it cannot grant, which is the state this exists to prevent.
             var granted = await GrantAppTheCirclesDrivesAsync(appId, circle, odinContext);
 
+            // Entries queued while the circle was the owner's name the owner console (or, before it was
+            // stamped, nobody). The circle is an app's now, so they are the app's to complete.
+            var entriesRepointed = await RepointPendingEnrollmentsAsync(circleId, appId, odinContext);
+
             tx.Commit();
 
-            logger.LogInformation("Circle {circleId} adopted by app {appName} ({appId}); {granted} drive grant(s) added",
-                circleId, app.Name, appId, granted.Count);
+            logger.LogInformation(
+                "Circle {circleId} adopted by app {appName} ({appId}); {granted} drive grant(s) added, " +
+                "{entriesRepointed} pending enrollment(s) re-pointed",
+                circleId, app.Name, appId, granted.Count, entriesRepointed);
 
             await mediator.Publish(new CircleDefinitionChangedNotification
             {
@@ -1481,14 +1491,17 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.CircleNotFound);
             }
 
-            if (circle.AppId.HasValue)
+            if (SystemAppConstants.IsOwnerConsole(circle.AppId))
             {
-                AssertCallerMayAskAboutApp(circle.AppId.Value, odinContext);
+                if (odinContext.Caller.OdinClientContext?.AppId != null)
+                {
+                    throw new OdinSecurityException(
+                        $"An app cannot ask about circle {circleId}; it belongs to the owner, not to an app");
+                }
             }
-            else if (odinContext.Caller.OdinClientContext?.AppId != null)
+            else
             {
-                throw new OdinSecurityException(
-                    $"An app cannot ask about circle {circleId}; it belongs to the owner, not to an app");
+                AssertCallerMayAskAboutApp(circle.AppId!.Value, odinContext);
             }
 
             var result = await GetEnrollmentCandidatesAsync([circle], odinContext);
@@ -1579,16 +1592,19 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.CircleNotFound);
             }
 
-            if (circle.AppId.HasValue)
+            if (SystemAppConstants.IsOwnerConsole(circle.AppId))
             {
-                AssertCallerMayAskAboutApp(circle.AppId.Value, odinContext);
+                if (odinContext.Caller.OdinClientContext?.AppId != null)
+                {
+                    // Consistent with EnrollInCircleInternalAsync: an owner-console circle is the
+                    // owner's own, and an app has no business putting anyone into one.
+                    throw new OdinSecurityException(
+                        $"An app cannot enrol identities into circle {circleId}; it belongs to the owner, not to an app");
+                }
             }
-            else if (odinContext.Caller.OdinClientContext?.AppId != null)
+            else
             {
-                // Consistent with EnrollInCircleInternalAsync: a circle owned by no app is the
-                // owner's own, and an app has no business putting anyone into one.
-                throw new OdinSecurityException(
-                    $"An app cannot enrol identities into circle {circleId}; it belongs to the owner, not to an app");
+                AssertCallerMayAskAboutApp(circle.AppId!.Value, odinContext);
             }
 
             var result = new EnrollmentResult();
@@ -1730,6 +1746,41 @@ namespace Odin.Services.Membership.Connections
             // this circle, and guessing which grants existed only to serve it would be exactly that.
             await GrantAppTheCirclesDrivesAsync(appId, circle, odinContext);
 
+            var entriesRepointed = await RepointPendingEnrollmentsAsync(circleId, appId, odinContext);
+
+            tx.Commit();
+
+            logger.LogInformation(
+                "Circle {circleId} moved from app {previousAppId} to {appName} ({appId}); " +
+                "{entriesRepointed} pending enrollment(s) re-pointed",
+                circleId, previousAppId, app.Name, appId, entriesRepointed);
+
+            await mediator.Publish(new CircleDefinitionChangedNotification
+            {
+                OdinContext = odinContext,
+                CircleId = circleId.Value,
+                Change = CircleDefinitionChangeType.Updated,
+            });
+
+            return entriesRepointed;
+        }
+
+        /// <summary>
+        /// Points every queued enrollment for a circle at the app that now owns it.
+        /// </summary>
+        /// <remarks>
+        /// <c>PendingEnrollment.OwningAppId</c> is a copy of the definition's, and
+        /// <see cref="ProcessPendingEnrollmentsForAppAsync"/> filters on the copy -- so an entry left
+        /// naming the previous owner is looked at only by the previous owner, who no longer has the
+        /// circle and skips it.  Nobody else ever sees it.  Both moves an owner can make need this: an
+        /// adoption out of the owner console, and a move between two apps.
+        /// <para>
+        /// Caller's transaction, deliberately.  Half of either operation -- the definition moved with the
+        /// copies left behind -- is the stranded state this exists to prevent.
+        /// </para>
+        /// </remarks>
+        private async Task<int> RepointPendingEnrollmentsAsync(GuidId circleId, Guid appId, IOdinContext odinContext)
+        {
             var entriesRepointed = 0;
             string cursor = null;
             do
@@ -1763,20 +1814,6 @@ namespace Odin.Services.Membership.Connections
                     await SaveIcrAsync(icr, odinContext);
                 }
             } while (!string.IsNullOrEmpty(cursor));
-
-            tx.Commit();
-
-            logger.LogInformation(
-                "Circle {circleId} moved from app {previousAppId} to {appName} ({appId}); " +
-                "{entriesRepointed} pending enrollment(s) re-pointed",
-                circleId, previousAppId, app.Name, appId, entriesRepointed);
-
-            await mediator.Publish(new CircleDefinitionChangedNotification
-            {
-                OdinContext = odinContext,
-                CircleId = circleId.Value,
-                Change = CircleDefinitionChangeType.Updated,
-            });
 
             return entriesRepointed;
         }
@@ -2153,7 +2190,7 @@ namespace Odin.Services.Membership.Connections
 
             foreach (var entry in icr?.PeerKeyStore?.PendingEnrollments ?? [])
             {
-                if (!entry.OwningAppId.HasValue || alreadyQueued.Contains(entry.CircleId.Value))
+                if (SystemAppConstants.IsOwnerConsole(entry.OwningAppId) || alreadyQueued.Contains(entry.CircleId.Value))
                 {
                     continue;
                 }

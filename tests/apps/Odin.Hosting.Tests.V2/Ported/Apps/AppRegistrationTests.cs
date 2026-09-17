@@ -57,6 +57,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = "App with Use Transit Read Access",
             PermissionSet = new PermissionSet(new List<int> { PermissionKeys.UseTransitWrite }),
             Drives = null,
@@ -89,6 +90,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = "App with Use Transit Read Access",
             PermissionSet = new PermissionSet(new List<int> { PermissionKeys.UseTransitRead }),
             Drives = null,
@@ -121,6 +123,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = "App with Use Transit Access",
             PermissionSet = new PermissionSet(new List<int>()),
             Drives = null,
@@ -153,6 +156,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = "App with Use Transit Access",
             PermissionSet = new PermissionSet(new List<int>()),
             Drives = null,
@@ -315,6 +319,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = "API Tests Sample App-register",
             PermissionSet = null,
             Drives = null,
@@ -340,6 +345,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = "API Tests Sample App-register",
             PermissionSet = null,
             Drives = null,
@@ -364,6 +370,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = "API Tests Sample App-register",
             PermissionSet = null,
             Drives = null,
@@ -413,6 +420,7 @@ public class AppRegistrationTests : V2Fixture
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = name,
             Drives = new List<DriveGrantRequest> { dgr1, dgr2 },
             PermissionSet = new PermissionSet(new List<int>
@@ -581,6 +589,7 @@ public class AppRegistrationTests : V2Fixture
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = name,
             Drives = new List<DriveGrantRequest> { dgr1, dgr2 },
             PermissionSet = new PermissionSet(new List<int>
@@ -685,6 +694,7 @@ public class AppRegistrationTests : V2Fixture
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = name,
             Drives = new List<DriveGrantRequest> { dgr1, dgr2 },
             PermissionSet = new PermissionSet(new List<int>
@@ -760,6 +770,7 @@ public class AppRegistrationTests : V2Fixture
         var request = new AppRegistrationRequest
         {
             AppId = applicationId,
+            AppSlug = $"app-{applicationId:N}"[..14],
             Name = name,
             PermissionSet = null,
             Drives = null,
