@@ -141,7 +141,7 @@ public class AppReviewTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        }, appId: await frodo.Admin.RegisterBareApp());
+        }, appId: Guid.NewGuid());
 
         var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [reachableCircle, outOfReachCircle]);
@@ -191,7 +191,7 @@ public class AppReviewTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = otherDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        }, appId: await frodo.Admin.RegisterBareApp());
+        }, appId: Guid.NewGuid());
 
         await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [reachableCircle, outOfReachCircle]);
@@ -419,10 +419,10 @@ public class AppReviewTests : V2Fixture
     /// ticked from this one's review dialog.
     /// </summary>
     /// <param name="owningAppId">
-    /// The app this circle belongs to.  It has to belong to one that exists, and it must not be the
-    /// owner console: a circle the owner keeps for themselves can never be queued, because no app's
-    /// queue would claim it.  Defaults to a freshly registered app standing in for some other installed
-    /// one -- the reviewing app is not it, which is the point.
+    /// The app this circle belongs to.  It must not be the owner console: a circle the owner keeps for
+    /// themselves can never be queued, because no app's queue would claim it.  Defaults to a fresh id
+    /// standing in for some other installed app -- the reviewing app is not it, which is the point.
+    /// <c>OwnerAdmin.CreateCircle</c> registers whatever id it is given, so it need not exist yet.
     /// </param>
     private static async Task<(Guid circle, TargetDrive drive)> CreateOutOfReachCircleAsync(
         OwnerSession frodo, string name, Guid? owningAppId = null)
@@ -438,7 +438,7 @@ public class AppReviewTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        }, appId: owningAppId ?? await frodo.Admin.RegisterBareApp());
+        }, appId: owningAppId ?? Guid.NewGuid());
 
         return (circle, drive);
     }
@@ -449,8 +449,9 @@ public class AppReviewTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "readDrive", allowAnonymousReads: false);
 
-        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. The app is
-        // registered first because a circle cannot be handed to one that does not exist yet.
+        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. Registered
+        // before the circle so the app carries its real permissions rather than the bare registration
+        // OwnerAdmin.CreateCircle would otherwise coin for the id.
         var appId = Guid.NewGuid();
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
             permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);

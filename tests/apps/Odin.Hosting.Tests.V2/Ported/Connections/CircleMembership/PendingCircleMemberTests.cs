@@ -151,8 +151,9 @@ public class PendingCircleMemberTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "readDrive", allowAnonymousReads: false);
 
-        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. The app is
-        // registered first because a circle cannot be handed to one that does not exist yet.
+        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. Registered
+        // before the circle so the app carries its real permissions rather than the bare registration
+        // OwnerAdmin.CreateCircle would otherwise coin for the id.
         var appId = Guid.NewGuid();
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
             permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
@@ -170,20 +171,4 @@ public class PendingCircleMemberTests : V2Fixture
         return (drive, circle, app);
     }
 
-    private async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext { Tenant = default, AuthTokenCreated = null, Caller = null };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }

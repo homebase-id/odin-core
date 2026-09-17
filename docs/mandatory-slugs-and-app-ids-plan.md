@@ -1,6 +1,9 @@
 # Plan: mandatory app slugs, drive slugs, and AppId everywhere
 
-Status: **plan**, 2026-09-17.
+Status: **backend done** (odin-core PR #1787), **clients done** (odin-js #935, chat-kmp #1564), 2026-09-17.
+
+The "where things stand" table below described the code *before* those PRs and has been removed rather
+than left to mislead; what remains is the rules, and the items still outstanding.
 
 ## The rules
 
@@ -10,17 +13,6 @@ Status: **plan**, 2026-09-17.
 4. **Owner-console drives and circles are owned by the System app** (`SystemAppConstants.SystemAppId`).
    That covers the wallet drive, ad-hoc drives the owner creates, user circles, and the two system circles.
 5. **An app registration must carry an app slug.** No deriving one from the name.
-
-## Where things stand (read in the code)
-
-| Area | Today |
-|---|---|
-| App slug | Optional. `AppRegistrationService.AssignSlugAsync:608-612` derives one from `Name` when missing. The column is already `NOT NULL`, so every stored app has one. Built-in slugs are not reserved: a caller can take `chat` first-come. |
-| Drive create | Owner only (master key); apps cannot create drives. `AppId`, `DriveSlug`, `DriveTypeSlug` all optional (`CreateDriveRequest.cs:24-42`). Slugs are derived only when `AppId` is set; with no `AppId` a supplied slug is stored as-is. `TypeSlugFor` can return null. Callers: owner `POST drive/mgmt/create`, the setup wizard, and `BuiltinProvisioner` (which already requires all three). |
-| Circle create | Owner only (master key); **no app creates circles** anywhere — server, odin-js or chat-kmp. `AppId` is copied from the request body, with no check that the app exists (`CircleDefinitionService.cs:552`). |
-| Null `AppId` today | Wizard/console drives, `WalletDrive`, anything `StampRemainingDrivesAsync` left, user circles, and the two system circles. |
-| odin-js | chat/mail/feed/community send an app slug and slugs for their fixed drives. Runtime drives (feed channels, communities, profiles) send `appId` + type slug, no drive slug. Two extend URLs send no slugs. The owner console never sends `appId` when creating a circle, and has no create-drive UI. |
-| chat-kmp | Sends no app slug and no drive slugs. Creates nothing itself; every drive it asks for already exists server-side (GUIDs match `BuiltinDrives`; its "placeholder" comments are stale). |
 
 ## Backend changes (odin-core)
 
@@ -108,12 +100,14 @@ Extend the existing fixtures:
    rules tighten on membership later.
 4. Drop the stale "placeholder" comments on the Vault and Location drives.
 
-## Order
+## Still outstanding
 
-1. Clients send slugs (odin-js, chat-kmp) — backward compatible, no server change yet.
-2. Migration stamps the System app id on every null `AppId`; switch the "owner's own" checks to compare
-   against it.
-3. Require `AppId` and both slugs on create, defaulting to the System app for owner callers.
-4. Require the app slug at registration; reserve built-in slugs.
-5. Later: clients name runtime drive slugs; decide what adoption (`set-owner`) means now that nothing is
-   unowned.
+1. Clients naming runtime drive slugs (feed channels, communities, profiles). Server-derived today,
+   because only the server knows which slugs the owning app already holds.
+2. Whether adoption (`set-owner`) and reassignment (`reassign-owner`) should collapse into one
+   operation. Nothing is unowned any more, so adoption is "take from the owner console" and the two
+   paths differ only in which source state they refuse.
+3. Whether the owner console should get its own app id rather than sharing `SystemAppId`. Doing it later
+   means a second data migration, since v19 writes the shared id into every row.
+4. Vault and Contacts still share a drive *type* GUID, so clients send two different type slugs for one
+   type.

@@ -169,8 +169,9 @@ public class WriteOnlyCircleGrantTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "chat-shaped", allowAnonymousReads: false);
 
-        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. The app is
-        // registered first because a circle cannot be handed to one that does not exist yet.
+        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. Registered
+        // before the circle so the app carries its real permissions rather than the bare registration
+        // OwnerAdmin.CreateCircle would otherwise coin for the id.
         var appId = Guid.NewGuid();
         var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Write | DrivePermission.React,
             permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);

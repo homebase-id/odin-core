@@ -299,12 +299,6 @@ public class CircleBackfillMigrationTests : V2Fixture
         await shamir.ConfigureShards(list, ShamirConfigurationService.MinimumPlayerCount, ctx);
     }
 
-    private async Task<(ILifetimeScope scope, IOdinContext ctx)> MigrationContextAsync(OwnerSession owner)
-    {
-        var scope = Host.GetTenantScope(owner.Identity.DomainName);
-        return (scope, await BuildOwnerContextAsync(scope, owner));
-    }
-
     private static async Task ConnectAsync(OwnerSession owner, OwnerSession peer)
     {
         var send = await owner.Connections.SendConnectionRequest(peer.Identity);
@@ -359,24 +353,4 @@ public class CircleBackfillMigrationTests : V2Fixture
         return icr!;
     }
 
-    /// <summary>
-    /// An owner context carrying the master key, built the way <c>VersionUpgradeService</c> builds one,
-    /// so a phase can be replayed by calling the service directly.
-    /// </summary>
-    private static async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext { Tenant = default, AuthTokenCreated = null, Caller = null };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }

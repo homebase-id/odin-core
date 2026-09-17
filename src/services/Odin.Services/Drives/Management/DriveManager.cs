@@ -16,6 +16,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
@@ -128,14 +129,13 @@ public class DriveManager : IDriveManager
 
         // Every drive has an owner. A request that names no app is the owner acting as themselves -- the
         // wallet drive, an ad-hoc drive from the console -- and those belong to the owner-console app.
-        // Nothing is stored ownerless: UNIQUE(identityId, AppId, DriveSlug) does not constrain a NULL
-        // AppId row, so an ownerless drive's slug would be unconstrained and two could claim the same one.
+        // Nothing is stored ownerless; see SystemAppConstants.OwnerConsoleAppId for why that matters.
         //
         // The caller's values win; only a missing one is derived. A supplied slug is never replaced --
         // it is an address, so handing back a different one would be worse than refusing.
         var appId = request.AppId ?? SystemAppConstants.OwnerConsoleAppId;
 
-        await AssertOwningAppExistsAsync(appId);
+        await OwningApp.AssertExistsAsync(_tableAppRegistrations, appId);
         var driveSlug = requestedSlug;
 
         // Scope the taken set to this app: the constraint is per app, so feed/news and chat/news
@@ -395,36 +395,6 @@ public class DriveManager : IDriveManager
     }
 
     /// <summary>
-    /// Refuses a drive handed to an app that does not exist.
-    /// </summary>
-    /// <remarks>
-    /// The same rule circles get (<c>CircleDefinitionService.AssertOwningAppExistsAsync</c>), and for the
-    /// same reason: the owning app is half the drive's wire address and is not changeable afterwards, so
-    /// a drive written against an app nobody registered is stuck at an address that resolves to nothing.
-    /// <para>
-    /// The apps the platform coins in <see cref="SystemAppConstants"/> pass whether or not they are
-    /// registered.  Provisioning creates their drives before it registers them
-    /// (<c>BuiltinProvisioner.EnsureAllAsync</c>, apps last, because a registration is granted drives and
-    /// a grant cannot be issued for a drive that is not there), so requiring a registration here would
-    /// invert that order and break identity setup.  Some are never registered at all: Lists owns a drive
-    /// while its entry in the tree is still commented out.
-    /// </para>
-    /// </remarks>
-    private async Task AssertOwningAppExistsAsync(Guid appId)
-    {
-        if (SystemAppConstants.IsOwnerConsole(appId) || SystemAppConstants.IsPlatformApp(appId))
-        {
-            return;
-        }
-
-        if (await _tableAppRegistrations.GetAsync(appId) == null)
-        {
-            throw new OdinClientException($"No app is registered with id {appId}",
-                OdinClientErrorCode.AppNotRegistered);
-        }
-    }
-
-    /// <summary>
     /// Sets a drive's owning app and address.  Migration only.
     /// </summary>
     /// <remarks>
@@ -575,7 +545,7 @@ public class DriveManager : IDriveManager
         if (!SystemAppConstants.IsOwnerConsole(storageDrive.AppId))
         {
             throw new OdinClientException(
-                $"Drive {driveId} already belongs to app {storageDrive.AppId!.Value}; ownership cannot be reassigned",
+                $"Drive {driveId} already belongs to app {storageDrive.AppId}; ownership cannot be reassigned",
                 OdinClientErrorCode.DriveAlreadyHasOwningApp);
         }
 
@@ -626,10 +596,10 @@ public class DriveManager : IDriveManager
         storageDrive.DriveSlug = resolvedSlug;
 
         // Same order of preference, for the same reason -- though a type slug is a category rather
-        // than an address, so nothing resolves against it.
+        // than an address, so nothing resolves against it. Never left null: every drive carries one.
         storageDrive.DriveTypeSlug = requestedTypeSlug
                                      ?? existingTypeSlug
-                                     ?? DriveSlugGenerator.TypeSlugFor(storageDrive.TargetDriveInfo.Alias.Value,
+                                     ?? DriveSlugGenerator.TypeSlugOrDefault(storageDrive.TargetDriveInfo.Alias.Value,
                                          storageDrive.TargetDriveInfo.Type.Value);
 
         var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
@@ -728,7 +698,7 @@ public class DriveManager : IDriveManager
         storageDrive.DriveSlug = driveSlug;
         storageDrive.DriveTypeSlug = requestedTypeSlug
                                      ?? storageDrive.DriveTypeSlug
-                                     ?? DriveSlugGenerator.TypeSlugFor(storageDrive.TargetDriveInfo.Alias.Value,
+                                     ?? DriveSlugGenerator.TypeSlugOrDefault(storageDrive.TargetDriveInfo.Alias.Value,
                                          storageDrive.TargetDriveInfo.Type.Value);
 
         var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));

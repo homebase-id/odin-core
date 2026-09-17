@@ -125,11 +125,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// on <c>IDriveManager</c>, so resolving it down there is a cycle.
         /// </para>
         /// <para>
-        /// It is checked at all, unlike in <c>CreateDriveAsync</c> where AppId is taken on trust.  That
-        /// exemption exists because provisioning creates drives before it registers apps and validating
-        /// would invert the dependency -- an ordering that cannot arise here, where the caller is a
-        /// person at a console adopting a drive that already exists.  Left unchecked, a mistyped id
-        /// would strand the drive: owned by nothing real, and no longer adoptable.
+        /// Stricter than <c>OwningApp.AssertExistsAsync</c>, which <c>CreateDriveAsync</c> uses: that one
+        /// passes an app the platform ships whether or not it is registered, because provisioning creates
+        /// drives before it registers apps.  That ordering cannot arise here, where the caller is a person
+        /// at a console adopting a drive that already exists, so a registration is required.  Left
+        /// unchecked, a mistyped id would strand the drive: owned by nothing real, and no longer
+        /// adoptable.
         /// </para>
         /// </remarks>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]

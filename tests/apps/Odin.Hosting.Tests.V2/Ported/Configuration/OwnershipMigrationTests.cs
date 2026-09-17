@@ -9,7 +9,6 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
@@ -194,26 +193,4 @@ public class OwnershipMigrationTests : V2Fixture
         await db.CircleCached.UpsertAsync(record);
     }
 
-    private async Task<(ILifetimeScope scope, IOdinContext ctx)> MigrationContextAsync(OwnerSession owner)
-    {
-        var scope = Host.GetTenantScope(owner.Identity.DomainName);
-        return (scope, await BuildOwnerContextAsync(scope, owner));
-    }
-
-    private static async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext { Tenant = default, AuthTokenCreated = null, Caller = null };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }

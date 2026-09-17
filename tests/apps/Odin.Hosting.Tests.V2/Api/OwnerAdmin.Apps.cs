@@ -31,9 +31,18 @@ public sealed partial class OwnerAdmin
     public async Task<Guid> RegisterBareApp()
     {
         var appId = Guid.NewGuid();
-        await RegisterApp(appId, new PermissionSetGrantRequest());
+        await EnsureAppRegistered(appId);
         return appId;
     }
+
+    /// <summary>
+    /// A slug for a test app, derived from its id so it is unique without the test having to pick one.
+    /// </summary>
+    /// <remarks>
+    /// The generator rather than a hand-rolled substring: it owns the length and format rules, and it
+    /// returns the tree's slug for a built-in id, which a hand-rolled one would collide with.
+    /// </remarks>
+    public static string SlugFor(Guid appId) => AppSlugGenerator.Generate(appId, null, new HashSet<string>());
 
     /// <summary>
     /// Registers a bare app under an id the caller has already chosen, unless something is registered
@@ -69,9 +78,8 @@ public sealed partial class OwnerAdmin
             Name = $"Test_{appId}",
             AppId = appId,
 
-            // Required at registration, so a caller that names none gets one derived from the app id:
-            // unique per app, and tests that address the app by slug still pass their own.
-            AppSlug = appSlug ?? $"app-{appId:N}"[..14],
+            // Required at registration, so a caller that names none gets one derived from the app id.
+            AppSlug = appSlug ?? SlugFor(appId),
             PermissionSet = appPermissions.PermissionSet,
             Drives = appPermissions.Drives?.ToList(),
             AuthorizedCircles = authorizedCircles ?? new List<Guid>(),

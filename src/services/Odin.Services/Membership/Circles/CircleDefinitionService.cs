@@ -9,6 +9,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Apps;
@@ -166,12 +167,11 @@ namespace Odin.Services.Membership.Circles
         /// belongs to no app -- so this refuses a circle that already has an owner rather than moving it,
         /// and the second rule still holds everywhere.
         /// <para>
-        /// That distinction is what keeps <c>PendingEnrollment.OwningAppId</c> honest.  It denormalises
-        /// this field on the reasoning that ownership never changes; a null-to-value transition cannot
-        /// make an existing copy wrong, because an entry queued against an unowned circle was recorded
-        /// with a null owner and stays claimable by exactly who it always was -- the owner.  A
-        /// value-to-value move would strand those copies pointing at the previous app, which is the
-        /// second reason not to allow one here.
+        /// <c>PendingEnrollment.OwningAppId</c> denormalises this field, so any change to it strands the
+        /// copies unless they move too.  <c>CircleNetworkService.SetCircleOwningAppAsync</c> re-points
+        /// them for exactly that reason -- the same loop the app-to-app move uses.  What stays refused
+        /// here is taking a circle from another app, which is a different operation with its own
+        /// endpoint.
         /// </para>
         /// <para>
         /// Caller checks the caller; this checks the circle.  Permission and app-existence live in
@@ -193,7 +193,7 @@ namespace Odin.Services.Membership.Circles
                 // adoption is indistinguishable from one racing another app for the circle, and the
                 // second reading is the one worth failing loudly on.
                 throw new OdinClientException(
-                    $"Circle {circleId} already belongs to app {circle.AppId!.Value}; ownership cannot be reassigned",
+                    $"Circle {circleId} already belongs to app {circle.AppId}; ownership cannot be reassigned",
                     OdinClientErrorCode.CircleAlreadyHasOwningApp);
             }
 
@@ -554,36 +554,6 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
-        /// <summary>
-        /// Refuses a circle handed to an app that does not exist.
-        /// </summary>
-        /// <remarks>
-        /// Checked at creation rather than trusted, because ownership is not reassignable through a PUT:
-        /// a circle written against an unregistered app would be stuck naming something that can never
-        /// come back for it, and only an adoption -- which such a circle is no longer eligible for --
-        /// could correct it.
-        /// <para>
-        /// A null passes: it means the owner acting as themselves, and becomes the owner-console app.  So
-        /// do the apps the platform coins in <c>SystemAppConstants</c>, registered or not.  Provisioning
-        /// creates their circles before it registers them (see <c>BuiltinProvisioner.EnsureAllAsync</c>,
-        /// apps last), and some own a circle without ever being registered.
-        /// </para>
-        /// </remarks>
-        private async Task AssertOwningAppExistsAsync(Guid? appId)
-        {
-            if (appId == null || SystemAppConstants.IsOwnerConsole(appId) ||
-                SystemAppConstants.IsPlatformApp(appId.Value))
-            {
-                return;
-            }
-
-            if (await db.AppRegistrations.GetAsync(appId.Value) == null)
-            {
-                throw new OdinClientException($"No app is registered with id {appId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
-        }
-
         private void AssertValidPermissionSet(PermissionSet permissionSet)
         {
             if (permissionSet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
@@ -597,7 +567,7 @@ namespace Odin.Services.Membership.Circles
             if (!skipValidation)
             {
                 await AssertValidAsync(request.Permissions, request.DriveGrants?.ToList());
-                await AssertOwningAppExistsAsync(request.AppId);
+                await OwningApp.AssertExistsAsync(db.AppRegistrations, request.AppId);
             }
 
             if (null != await GetCircleAsync(request.Id))

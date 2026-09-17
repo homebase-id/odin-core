@@ -348,6 +348,18 @@ of the same build.
 
 **Symptom:** the recipient's copy has not flipped to `Deleted` by the time the assertion runs.
 
+**Second symptom, same test (2026-09-17):** the test fails on the error-log assertion instead --
+`The server logged 1 error-level event(s)`, `SQLite Error 5: 'database is locked'`, origin
+`POST /api/peer/v1/host/drives/deletelinkedfile`. Same family (peer delivery racing the assertion),
+different failure surface: the write contends rather than arriving late.
+
+**Not caused by the change in flight (2026-09-17):** seen failing on the `mandatory-slugs-and-app-ids`
+branch both *before* the `/simplify` cleanup (full V2 run at commit `152c0d65d`, alongside 15 other
+failures that were real and since fixed) and after it, while the run in between -- the same build,
+same branch -- passed 1319/1319. So it reproduces on neither the presence nor the absence of that
+cleanup. The branch touches drive/circle ownership and slugs, not the peer outbox or SQLite
+concurrency.
+
 **Not caused by the change in flight:** the change was porting five unrelated `_Universal`
 drive fixtures onto the fast framework; it touches neither this fixture nor the peer outbox. The
 identical build passed the immediately following run, so the failure reproduces on neither the

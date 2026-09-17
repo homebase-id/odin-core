@@ -22,12 +22,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
     /// owner console, <see cref="SystemAppConstants.OwnerConsoleAppId"/>, rather than to nobody.
     ///
     /// <para>
-    /// The point is <c>UNIQUE(identityId, AppId, DriveSlug)</c>.  NULLs do not collide in a unique index
-    /// in either dialect, so the slug of an ownerless drive is constrained by nothing: two drives could
-    /// hold the same one and the database would not object.  Stamping a real owner is what puts every
-    /// slug inside the constraint.  It also removes an ambiguity the code had to keep re-deciding -- a
-    /// null <c>AppId</c> was the test for "the owner's own" in half a dozen places, and each had to be
-    /// read carefully to see whether the absence meant the owner or meant unknown.
+    /// Why it matters is on <see cref="SystemAppConstants.OwnerConsoleAppId"/>: an ownerless row's slug
+    /// sits outside <c>UNIQUE(identityId, AppId, DriveSlug)</c> entirely.  Stamping a real owner is what
+    /// puts every slug inside the constraint.  It also removes an ambiguity the code had to keep
+    /// re-deciding -- a null <c>AppId</c> was the test for "the owner's own" in half a dozen places, and
+    /// each had to be read carefully to see whether the absence meant the owner or meant unknown.
     /// </para>
     ///
     /// <para>
@@ -84,7 +83,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
 
             var taken = new HashSet<string>(
                 everyDrive.Results
-                    .Where(d => SystemAppConstants.IsOwnerConsole(d.AppId) && d.AppId != null &&
+                    .Where(d => d.AppId == SystemAppConstants.OwnerConsoleAppId &&
                                 !string.IsNullOrWhiteSpace(d.DriveSlug))
                     .Select(d => d.DriveSlug),
                 StringComparer.Ordinal);
@@ -99,21 +98,21 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
                     continue;
                 }
 
-                var slug = string.IsNullOrWhiteSpace(drive.DriveSlug)
-                    ? DriveSlugGenerator.Generate(drive.Id, drive.Name, taken)
-                    : drive.DriveSlug;
-
                 // A slug carried over from the ownerless era was unconstrained, so it may be one the
-                // owner console already holds. Re-derived in that case: the address resolved to nothing
-                // before this (the wire address needs the app's half too), so nothing is being moved.
-                if (taken.Contains(slug))
+                // owner console already holds. Dropped in that case and re-derived below: the address
+                // resolved to nothing before this (the wire address needs the app's half too), so
+                // nothing anyone can reach is being moved.
+                var carried = string.IsNullOrWhiteSpace(drive.DriveSlug) ? null : drive.DriveSlug;
+                if (carried != null && taken.Contains(carried))
                 {
                     logger.LogInformation(
                         "v18->v19: drive {name} carried the slug {slug}, which the owner console already " +
-                        "holds; deriving another", drive.Name, slug);
-                    slug = DriveSlugGenerator.Generate(drive.Id, drive.Name, taken);
+                        "holds; deriving another", drive.Name, carried);
+                    carried = null;
                 }
 
+                // Generate never returns a slug already in the set, so one call is enough.
+                var slug = carried ?? DriveSlugGenerator.Generate(drive.Id, drive.Name, taken);
                 taken.Add(slug);
 
                 var typeSlug = string.IsNullOrWhiteSpace(drive.DriveTypeSlug)
@@ -154,16 +153,15 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (circle.AppId != null)
+                // The "is it already owned?" test lives in StampOwningAppIfUnsetAsync, which answers it
+                // against the stored row; asking it again here from the loop's copy would be a second
+                // place to keep in step.
+                if (await circleDefinitionService.StampOwningAppIfUnsetAsync(circle.Id,
+                        SystemAppConstants.OwnerConsoleAppId))
                 {
-                    continue;
+                    stamped++;
+                    logger.LogDebug("v18->v19: circle {name} is now the owner console's", circle.Name);
                 }
-
-                await circleDefinitionService.StampOwningAppIfUnsetAsync(circle.Id,
-                    SystemAppConstants.OwnerConsoleAppId);
-
-                stamped++;
-                logger.LogDebug("v18->v19: circle {name} is now the owner console's", circle.Name);
             }
 
             logger.LogInformation("v18->v19: gave {count} circle(s) to the owner console", stamped);

@@ -80,7 +80,7 @@ namespace Odin.Services.Authorization.Apps
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
-                AppSlug = await AssignSlugAsync(request.AppId, request.Name, request.AppSlug),
+                AppSlug = await AssignSlugAsync(request.AppId, request.AppSlug),
                 Name = request.Name,
                 AppKeyStore = appGrant,
 
@@ -557,12 +557,6 @@ namespace Odin.Services.Authorization.Apps
         }
 
         /// <summary>
-        /// Empties the cache and creates a new instance that can be built
-        /// </summary>
-        /// <summary>
-        /// Picks a slug for a newly registered app, unique against those already registered.
-        /// </summary>
-        /// <summary>
         /// The slug the app will hold: the one it asked for, or the one the tree names for a built-in.
         /// </summary>
         /// <remarks>
@@ -574,37 +568,13 @@ namespace Odin.Services.Authorization.Apps
         /// <para>
         /// A requested slug is taken verbatim or refused -- never quietly replaced with a derived one.
         /// It is an address other identities resolve against, so handing back a different one would be
-        /// worse than saying no.  Registration is first-come (<c>docs/drive-addressing.md</c>), and
+        /// worse than saying no.  Registration is first-come, and
         /// <c>UNIQUE(identityId, AppSlug)</c> would refuse it at the database anyway; this only makes the
         /// refusal a clear client error rather than a constraint violation.
         /// </para>
         /// </remarks>
-        private async Task<string> AssignSlugAsync(Guid appId, string name, string requestedSlug)
+        private async Task<string> AssignSlugAsync(Guid appId, string requestedSlug)
         {
-            var existing = await db.AppRegistrations.GetAllAsync();
-
-            // Seed with the slugs actually stored, not re-derived ones -- an app holding "acme-2" still
-            // holds it whatever its name slugifies to today.
-            var taken = new HashSet<string>(
-                existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
-                StringComparer.Ordinal);
-
-            // Pre-v13 the table holds only what was registered during the window, so it is not the whole
-            // picture: a slug free here could still be one the move is about to coin for a blob app, and
-            // the move would then fail on UNIQUE(identityId, AppSlug). The legacy slugs are resolved by
-            // the same generator the move uses, so reserving them here is reserving exactly what it
-            // will want.
-            if (await legacyStore.IsPreMoveAsync())
-            {
-                foreach (var reg in await legacyStore.ReadAppRegistrationsAsync())
-                {
-                    if ((Guid)reg.AppId != (Guid)appId)
-                    {
-                        taken.Add(reg.AppSlug);
-                    }
-                }
-            }
-
             // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
             // unset field as "" or " " routinely, and without this the three spellings diverge. Not
             // coercion of a real slug -- there is no address inside "   " to preserve. Anything with
@@ -638,6 +608,32 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException(
                     $"The app slug '{requestedSlug}' is reserved for {reservedBy.Name} ({reservedBy.AppId}).",
                     OdinClientErrorCode.IdAlreadyExists);
+            }
+
+            // Read here rather than at the top: the branches above return or throw without consulting
+            // it, and this is a full table read plus, on a pre-v13 identity, a full legacy blob read.
+            var existing = await db.AppRegistrations.GetAllAsync();
+
+            // Seed with the slugs actually stored, not re-derived ones -- an app holding "acme-2" still
+            // holds it whatever its name slugifies to today.
+            var taken = new HashSet<string>(
+                existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
+                StringComparer.Ordinal);
+
+            // Pre-v13 the table holds only what was registered during the window, so it is not the whole
+            // picture: a slug free here could still be one the move is about to coin for a blob app, and
+            // the move would then fail on UNIQUE(identityId, AppSlug). The legacy slugs are resolved by
+            // the same generator the move uses, so reserving them here is reserving exactly what it
+            // will want.
+            if (await legacyStore.IsPreMoveAsync())
+            {
+                foreach (var reg in await legacyStore.ReadAppRegistrationsAsync())
+                {
+                    if ((Guid)reg.AppId != (Guid)appId)
+                    {
+                        taken.Add(reg.AppSlug);
+                    }
+                }
             }
 
             if (taken.Contains(requestedSlug))

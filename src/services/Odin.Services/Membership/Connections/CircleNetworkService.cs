@@ -1437,6 +1437,31 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Refuses an app acting on a circle that is not its own.
+        /// </summary>
+        /// <remarks>
+        /// Two cases, one rule.  An owner-console circle is the owner's own and no app's business
+        /// (<c>CircleMembershipService.GetCircleDefinitions</c> does not even show it to them); any other
+        /// circle belongs to an app, and only that app may act on it.  <paramref name="verb"/> is what
+        /// the caller was trying to do, so the refusal says which call was refused.
+        /// </remarks>
+        private static void AssertCallerMayActOnCircle(CircleDefinition circle, string verb,
+            IOdinContext odinContext)
+        {
+            if (!SystemAppConstants.IsOwnerConsole(circle.AppId))
+            {
+                AssertCallerMayAskAboutApp(circle.AppId.Value, odinContext);
+                return;
+            }
+
+            if (odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot {verb} circle {circle.Id}; it belongs to the owner, not to an app");
+            }
+        }
+
+        /// <summary>
         /// Per circle owned by <paramref name="appId"/>, the connections that could be added to it.
         /// </summary>
         /// <remarks>
@@ -1491,18 +1516,7 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.CircleNotFound);
             }
 
-            if (SystemAppConstants.IsOwnerConsole(circle.AppId))
-            {
-                if (odinContext.Caller.OdinClientContext?.AppId != null)
-                {
-                    throw new OdinSecurityException(
-                        $"An app cannot ask about circle {circleId}; it belongs to the owner, not to an app");
-                }
-            }
-            else
-            {
-                AssertCallerMayAskAboutApp(circle.AppId!.Value, odinContext);
-            }
+            AssertCallerMayActOnCircle(circle, "ask about", odinContext);
 
             var result = await GetEnrollmentCandidatesAsync([circle], odinContext);
 
@@ -1592,20 +1606,9 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.CircleNotFound);
             }
 
-            if (SystemAppConstants.IsOwnerConsole(circle.AppId))
-            {
-                if (odinContext.Caller.OdinClientContext?.AppId != null)
-                {
-                    // Consistent with EnrollInCircleInternalAsync: an owner-console circle is the
-                    // owner's own, and an app has no business putting anyone into one.
-                    throw new OdinSecurityException(
-                        $"An app cannot enrol identities into circle {circleId}; it belongs to the owner, not to an app");
-                }
-            }
-            else
-            {
-                AssertCallerMayAskAboutApp(circle.AppId!.Value, odinContext);
-            }
+            // Consistent with EnrollInCircleInternalAsync: an owner-console circle is the owner's own,
+            // and an app has no business putting anyone into one.
+            AssertCallerMayActOnCircle(circle, "enrol identities into", odinContext);
 
             var result = new EnrollmentResult();
 

@@ -153,9 +153,9 @@ public class AppsApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
                 Name = $"Test_{appId}",
                 AppId = appId,
 
-                // A slug is required at registration; derived from the app id so it is unique without
-                // a test having to pick one.
-                AppSlug = $"app-{appId:N}"[..14],
+                // A slug is required at registration. The generator owns the length and format
+                // rules, so no test hard-codes them.
+                AppSlug = AppSlugGenerator.Generate(appId, null, new HashSet<string>()),
                 PermissionSet = appPermissions.PermissionSet,
                 Drives = appPermissions.Drives?.ToList(),
                 AuthorizedCircles = authorizedCircles,
