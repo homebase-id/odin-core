@@ -58,6 +58,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 [TestFixture]
 public class ConnectionReviewTests : V2Fixture
 {
+    /// <summary>These tests drive introductions that are expected to fail delivery.</summary>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        [OutboxDeliveryFailureLogged];
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Merry, Identities.Sam];
 
     [Test]

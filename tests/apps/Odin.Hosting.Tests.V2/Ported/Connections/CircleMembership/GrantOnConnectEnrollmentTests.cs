@@ -35,6 +35,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class GrantOnConnectEnrollmentTests : V2Fixture
 {
+    /// <summary>These tests drive introductions that are expected to fail delivery.</summary>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        [OutboxDeliveryFailureLogged];
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
 
     // Both values: the reviewed tier governs content evaluation, not enrolment, so it must not change the outcome.

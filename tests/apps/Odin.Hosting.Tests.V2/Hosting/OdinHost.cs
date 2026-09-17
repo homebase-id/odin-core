@@ -112,7 +112,12 @@ public sealed partial class OdinHost : IAsyncDisposable
         // long as no peer call fires during host startup.
         var serverHolder = new TestServerHolder();
 
-        var builder = Program.CreateHostBuilder([])
+        // preserveStaticLogger: fixtures run in parallel, and without this every host boot repoints
+        // Serilog's process-wide Log.Logger -- which is what an injected ILogger<T> resolves at write
+        // time in that mode -- so all hosts' events funnel into the newest host's in-memory sink.
+        // That made the log-event invariant both noisy (a fixture failing on a neighbour's error) and
+        // lossy (a neighbour's per-test Clear() discarding evidence before it was asserted on). #1775.
+        var builder = Program.CreateHostBuilder([], preserveStaticLogger: true)
             .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
             // Match production: SystemServices.cs sets AllowSynchronousIO=true on Kestrel for the
             // upload/payload streaming pipeline. TestServer's default rejects sync IO, so without

@@ -58,6 +58,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 [TestFixture]
 public class CircleNetworkServiceAppTests : V2Fixture
 {
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]

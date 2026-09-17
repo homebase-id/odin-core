@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System;
 using System.Net;
 using System.Threading.Tasks;
@@ -44,6 +45,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 [TestFixture]
 public class CircleGrantTests : V2Fixture
 {
+    /// <summary>These tests drive introductions that are expected to fail delivery.</summary>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        [OutboxDeliveryFailureLogged];
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Merry, Identities.Sam];
 
     [Test]
