@@ -9,6 +9,8 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Reactions;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.Acl;
@@ -35,9 +37,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 /// <list type="bullet">
 ///   <item><description>
 ///     <c>CreateAppAndClient</c> is <see cref="AppTransitClients.CreateAppAsync"/>; the app's
-///     <c>TransitReactionSender</c> and <c>TransitFileSender</c> clients are
-///     <see cref="AppTransitClients.ReactionsFor"/> and
+///     <c>TransitReactionSender</c> client is
+///     <c>app.RefitFor&lt;IRefitAppTransitReactionSender&gt;()</c> and its <c>TransitFileSender</c> is
 ///     <see cref="AppTransitClients.TransferFileAsync"/>.
+///   </description></item>
+///   <item><description>
+///     Each test registered its own app and its own anonymous drive on Pippin; both are now built
+///     once in <see cref="WarmTenantBaselineAsync"/> and restored by the per-test reset. The two
+///     permission variants the originals used (read-only, and read plus write) are one field each.
+///     The uploads, the connection handshake and the tenant-flag flips stay per test.
 ///   </description></item>
 ///   <item><description>
 ///     The add-reaction endpoint answers <b>204 NoContent</b>, not 200. The original asserted
@@ -64,27 +72,45 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 public class AppTransitReactionSenderPublicFiles : V2Fixture
 {
 
+    private OwnerSession _pippin;
+    private AppSession _merryReadApp;
+    private AppSession _merryReadWriteApp;
+    private TargetDrive _remoteDrive;
+
     protected override string[] HostIdentities => [Identities.Merry, Identities.Pippin];
+
+    /// <summary>
+    /// Baked into the baseline: Pippin's anonymous drive and Merry's two apps — one holding
+    /// <see cref="PermissionKeys.UseTransitRead"/>, one also holding
+    /// <see cref="PermissionKeys.UseTransitWrite"/>. Neither app declares an authorized circle, so
+    /// registering them before the connection a later test makes changes nothing that test sees.
+    /// </summary>
+    protected override async Task WarmTenantBaselineAsync()
+    {
+        await base.WarmTenantBaselineAsync();
+
+        _pippin = await LoginAsOwner(Identities.Pippin);
+        var merry = await LoginAsOwner(Identities.Merry);
+
+        _remoteDrive = TargetDrive.NewTargetDrive();
+        await _pippin.Admin.CreateDrive(_remoteDrive, "Some target drive", allowAnonymousReads: true);
+
+        _merryReadApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
+        _merryReadWriteApp = await AppTransitClients.CreateAppAsync(merry,
+            PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
+    }
 
     [Test]
     public async Task AppCan_SendAndGet_Public_ReactionContent()
     {
-        // Prep
-        var pippin = await LoginAsOwner(Identities.Pippin);
-        var merry = await LoginAsOwner(Identities.Merry);
-        var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
-
-        var remoteDrive = TargetDrive.NewTargetDrive();
-        await pippin.Admin.CreateDrive(remoteDrive, "Some target drive", allowAnonymousReads: true);
-
         // Pippin uploads file
-        var targetFile = await UploadStandardRandomPublicFileHeader(pippin, remoteDrive);
+        var targetFile = await UploadStandardRandomPublicFileHeader(_pippin, _remoteDrive);
 
         const string reactionContent = ":k:";
 
         var request = new PeerAddReactionRequest
         {
-            OdinId = pippin.Identity,
+            OdinId = _pippin.Identity,
             Request = new AddRemoteReactionRequest
             {
                 File = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
@@ -95,15 +121,15 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
         //
         // Send the reaction - TODO: this fails because there's no default access to WriteReactionsAndComments for anonymous drives
         //
-        var addReactionResponse = await AppTransitClients.ReactionsFor(merryApp).AddReaction(request);
+        var addReactionResponse = await _merryReadApp.RefitFor<IRefitAppTransitReactionSender>().AddReaction(request);
         Assert.That(addReactionResponse.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
         //
         // Validate reaction exists
         //
-        var getReactionsResponse = await AppTransitClients.ReactionsFor(merryApp).GetAllReactions(new PeerGetReactionsRequest
+        var getReactionsResponse = await _merryReadApp.RefitFor<IRefitAppTransitReactionSender>().GetAllReactions(new PeerGetReactionsRequest
         {
-            OdinId = pippin.Identity,
+            OdinId = _pippin.Identity,
             Request = new GetRemoteReactionsRequest
             {
                 File = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
@@ -124,27 +150,19 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
     [Test]
     public async Task AppFails_SendReactionContent_ToAnonymousDriveWithout_ReactPermission()
     {
-        // Prep
-        var pippin = await LoginAsOwner(Identities.Pippin);
-        var merry = await LoginAsOwner(Identities.Merry);
-        var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
-
-        var remoteDrive = TargetDrive.NewTargetDrive();
-        await pippin.Admin.CreateDrive(remoteDrive, "Some target drive", allowAnonymousReads: true);
-
         // Pippin uploads file
-        var targetFile = await UploadStandardRandomPublicFileHeader(pippin, remoteDrive);
+        var targetFile = await UploadStandardRandomPublicFileHeader(_pippin, _remoteDrive);
 
         //
         // Turn off the flag that allows authenticated identities to react
         //
-        await pippin.Admin.UpdateTenantSettingsFlag(
+        await _pippin.Admin.UpdateTenantSettingsFlag(
             TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives, false.ToString());
 
         const string reactionContent = ":k:";
         var request = new PeerAddReactionRequest
         {
-            OdinId = pippin.Identity,
+            OdinId = _pippin.Identity,
             Request = new AddRemoteReactionRequest
             {
                 File = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
@@ -155,34 +173,26 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
         //
         // Send the reaction
         //
-        var addReactionResponse = await AppTransitClients.ReactionsFor(merryApp).AddReaction(request);
+        var addReactionResponse = await _merryReadApp.RefitFor<IRefitAppTransitReactionSender>().AddReaction(request);
         Assert.That(addReactionResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
     [Test]
     public async Task AppCan_SendReactionContent_ToAnonymousDrive_With_ReactPermission()
     {
-        // Prep
-        var pippin = await LoginAsOwner(Identities.Pippin);
-        var merry = await LoginAsOwner(Identities.Merry);
-        var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
-
-        var remoteDrive = TargetDrive.NewTargetDrive();
-        await pippin.Admin.CreateDrive(remoteDrive, "Some target drive", allowAnonymousReads: true);
-
         // Pippin uploads file
-        var targetFile = await UploadStandardRandomPublicFileHeader(pippin, remoteDrive);
+        var targetFile = await UploadStandardRandomPublicFileHeader(_pippin, _remoteDrive);
 
         //
         // Ensure the flag that allows authenticated identities to react is true
         //
-        await pippin.Admin.UpdateTenantSettingsFlag(
+        await _pippin.Admin.UpdateTenantSettingsFlag(
             TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives, true.ToString());
 
         const string reactionContent = ":k:";
         var request = new PeerAddReactionRequest
         {
-            OdinId = pippin.Identity,
+            OdinId = _pippin.Identity,
             Request = new AddRemoteReactionRequest
             {
                 File = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
@@ -193,7 +203,7 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
         //
         // Send the reaction
         //
-        var addReactionResponse = await AppTransitClients.ReactionsFor(merryApp).AddReaction(request);
+        var addReactionResponse = await _merryReadApp.RefitFor<IRefitAppTransitReactionSender>().AddReaction(request);
         Assert.That(addReactionResponse.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 
@@ -201,24 +211,18 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
     [Ignore("this test cannot be finalized until we decide to support allowing authenticated identities to send data over transit")]
     public async Task AppCan_AddCommentOn_AnonymousDrive_With_CommentPermission()
     {
-        // Prep
-        var pippin = await LoginAsOwner(Identities.Pippin);
         var merry = await LoginAsOwner(Identities.Merry);
-        var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
-
-        var remoteDrive = TargetDrive.NewTargetDrive();
-        await pippin.Admin.CreateDrive(remoteDrive, "Some target drive", allowAnonymousReads: true);
 
         // Pippin uploads file
-        var targetFile = await UploadStandardRandomPublicFileHeader(pippin, remoteDrive);
+        var targetFile = await UploadStandardRandomPublicFileHeader(_pippin, _remoteDrive);
 
         //
         // Ensure the flag that allows authenticated identities to comment is true
         //
-        await pippin.Admin.UpdateTenantSettingsFlag(
+        await _pippin.Admin.UpdateTenantSettingsFlag(
             TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives, true.ToString());
 
-        var recipients = new List<string> { pippin.Identity };
+        var recipients = new List<string> { _pippin.Identity };
         var commentFileMetadata = new UploadFileMetadata
         {
             ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
@@ -235,22 +239,23 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
         //
         // Upload the comment via transit
         //
-        var response = await AppTransitClients.TransferFileAsync(merryApp, commentFileMetadata, recipients,
+        var response = await AppTransitClients.TransferFileAsync(_merryReadWriteApp, commentFileMetadata, recipients,
             targetFile.uploadResult.File.TargetDrive, fileSystemType: FileSystemType.Comment);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        await PeerFlow.DistributeAsync(merry, pippin, targetFile.uploadResult.File.TargetDrive);
+        await PeerFlow.DistributeAsync(merry, _pippin, targetFile.uploadResult.File.TargetDrive);
 
         //
         // Get the comment on pippin's identity and test it
         //
         var remoteFile = new TransitExternalFileIdentifier
         {
-            OdinId = pippin.Identity,
+            OdinId = _pippin.Identity,
             File = targetFile.uploadResult.File
         };
 
-        var getTransitFileHeaderResponse = await AppTransitClients.QueryFor(merryApp, FileSystemType.Comment).GetFileHeader(remoteFile);
+        var getTransitFileHeaderResponse =
+            await _merryReadWriteApp.RefitFor<IRefitAppTransitQuery>(FileSystemType.Comment).GetFileHeader(remoteFile);
         Assert.That(getTransitFileHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getTransitFileHeaderResponse.Content!.FileMetadata.AppData.Content, Is.EqualTo(commentFileMetadata.AppData.Content));
     }
@@ -259,29 +264,25 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
     public async Task AppCan_AddCommentOn_AnonymousDrive_With_CommentPermission_and_ConnectedIdentity()
     {
         // Prep
-        var pippin = await LoginAsOwner(Identities.Pippin);
         var merry = await LoginAsOwner(Identities.Merry);
 
         //Notice: no circles since we're only testing what can be done by connected identities on an anonymous drive
-        var sendRequest = await pippin.Connections.SendConnectionRequest(merry.Identity, new List<GuidId>());
+        var sendRequest = await _pippin.Connections.SendConnectionRequest(merry.Identity, new List<GuidId>());
         Assert.That(sendRequest.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var accept = await merry.Connections.AcceptConnectionRequest(pippin.Identity, new List<GuidId>());
+        var accept = await merry.Connections.AcceptConnectionRequest(_pippin.Identity, new List<GuidId>());
         Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var remoteDrive = TargetDrive.NewTargetDrive();
-        await pippin.Admin.CreateDrive(remoteDrive, "Some target drive", allowAnonymousReads: true);
-
         // Pippin uploads file
-        var targetFile = await UploadStandardRandomPublicFileHeader(pippin, remoteDrive);
+        var targetFile = await UploadStandardRandomPublicFileHeader(_pippin, _remoteDrive);
 
         //
         // Ensure the flag that allows authenticated identities to comment is true
         //
-        await pippin.Admin.UpdateTenantSettingsFlag(
+        await _pippin.Admin.UpdateTenantSettingsFlag(
             TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives, true.ToString());
 
-        var recipients = new List<string> { pippin.Identity };
+        var recipients = new List<string> { _pippin.Identity };
         var commentFileMetadata = new UploadFileMetadata
         {
             ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
@@ -300,22 +301,21 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
         // Upload the comment via transit
         //
         var remoteTargetDrive = targetFile.uploadResult.File.TargetDrive;
-        var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
-        var response = await AppTransitClients.TransferFileAsync(merryApp, commentFileMetadata, recipients, remoteTargetDrive,
-            fileSystemType: FileSystemType.Comment);
+        var response = await AppTransitClients.TransferFileAsync(_merryReadWriteApp, commentFileMetadata, recipients,
+            remoteTargetDrive, fileSystemType: FileSystemType.Comment);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var transitResult = response.Content;
         Assert.That(transitResult, Is.Not.Null);
-        Assert.That(transitResult!.RecipientStatus[pippin.Identity], Is.EqualTo(TransferStatus.Enqueued));
+        Assert.That(transitResult!.RecipientStatus[_pippin.Identity], Is.EqualTo(TransferStatus.Enqueued));
 
-        await PeerFlow.DistributeAsync(merry, pippin, remoteTargetDrive);
+        await PeerFlow.DistributeAsync(merry, _pippin, remoteTargetDrive);
 
         //
         // Merry uses transit query to get all files of that file type
         //
         var request = new PeerQueryBatchRequest
         {
-            OdinId = pippin.Identity,
+            OdinId = _pippin.Identity,
             QueryParams = new FileQueryParamsV1
             {
                 TargetDrive = remoteTargetDrive,
@@ -330,7 +330,8 @@ public class AppTransitReactionSenderPublicFiles : V2Fixture
             }
         };
 
-        var getTransitBatchResponse = await AppTransitClients.QueryFor(merryApp, FileSystemType.Comment).GetBatch(request);
+        var getTransitBatchResponse =
+            await _merryReadWriteApp.RefitFor<IRefitAppTransitQuery>(FileSystemType.Comment).GetBatch(request);
         Assert.That(getTransitBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getTransitBatchResponse.Content, Is.Not.Null);
 

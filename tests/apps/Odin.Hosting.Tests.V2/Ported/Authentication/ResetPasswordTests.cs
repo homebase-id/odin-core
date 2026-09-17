@@ -34,9 +34,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Authentication;
 /// <item><c>VerifyTokenReturnsFalseForStaleCookieAfterPasswordReset</c> hand-rolled an
 /// <see cref="HttpClientHandler"/> with <c>ServerCertificateCustomValidationCallback</c>,
 /// <c>UseCookies</c> and its own <c>CookieContainer</c>. All of that existed only to reach the
-/// loopback TLS listener and keep one cookie across calls. There is no TLS here, so the browser is a
-/// plain client over <c>Host.Server.CreateHandler()</c> carrying the issued cookie on its default
-/// headers — the same single-cookie jar, minus the transport plumbing.</item>
+/// loopback TLS listener and keep one cookie across calls. There is no TLS here, so the browser is
+/// <c>Host.CreateAnonymousClient()</c> carrying the issued cookie on its default headers — the same
+/// single-cookie jar, minus the transport plumbing.</item>
 /// <item>The tenant <c>OdinContextCache</c> reset reaches the container through
 /// <c>Host.GetTenantScope</c> rather than <c>_scaffold.Services.GetRequiredService&lt;IMultiTenantContainer&gt;()</c>.
 /// Same object, one hop shorter.</item>
@@ -71,7 +71,8 @@ public class ResetPasswordTests : V2Fixture
 
         //fail to login with the old password
         var thirdLogin = await OwnerPasswordFlow.LoginAsync(Host, PrimaryIdentity, Password, clientEccFullKey);
-        Assert.That(thirdLogin.IsSuccessStatusCode, Is.False, "Should have failed to login with old password");
+        Assert.That(thirdLogin.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
+            "Should have failed to login with old password");
 
         // Additional tests
         // Test that I can access data in drives as owner; this shows the master key is the same
@@ -88,7 +89,7 @@ public class ResetPasswordTests : V2Fixture
     public async Task VerifyTokenReturnsFalseForStaleCookieAfterPasswordReset()
     {
         // Keep our own cookie jar so the cookie survives the later password-reset call.
-        using var browserClient = OwnerPasswordFlow.AnonymousClient(Host, PrimaryIdentity);
+        using var browserClient = Host.CreateAnonymousClient(PrimaryIdentity);
 
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
         var reply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
@@ -104,12 +105,7 @@ public class ResetPasswordTests : V2Fixture
         browserClient.DefaultRequestHeaders.Add("Cookie", setCookie!.Split(';')[0]);
 
         // Fresh cookie: verifyToken must accept it.
-        {
-            using var resp = await browserClient.GetAsync("/api/owner/v1/authentication/verifyToken");
-            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var body = await resp.Content.ReadAsStringAsync();
-            Assert.That(body, Is.EqualTo("true"), "verifyToken should accept a fresh cookie");
-        }
+        await AssertVerifyToken(browserClient, "true", "verifyToken should accept a fresh cookie");
 
         // Rewrite PasswordData via a separate owner session. The registration that
         // browserClient is holding now has TokenEncryptedKek wrapping the old KEK
@@ -126,13 +122,21 @@ public class ResetPasswordTests : V2Fixture
         await Host.GetTenantScope(PrimaryIdentity).Resolve<OdinContextCache>().ResetAsync();
 
         // Stale cookie: verifyToken must reject it.
-        {
-            using var resp = await browserClient.GetAsync("/api/owner/v1/authentication/verifyToken");
-            Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var body = await resp.Content.ReadAsStringAsync();
-            Assert.That(body, Is.EqualTo("false"),
-                "verifyToken must reject a stale-KEK cookie; otherwise the login page redirect-loops");
-        }
+        await AssertVerifyToken(browserClient, "false",
+            "verifyToken must reject a stale-KEK cookie; otherwise the login page redirect-loops");
+    }
+
+    /// <summary>
+    /// <c>verifyToken</c> answers 200 with a bare <c>true</c>/<c>false</c> body either way — the
+    /// verdict is the body, not the status — so both halves of the stale-cookie regression assert the
+    /// same two things about the same call.
+    /// </summary>
+    private static async Task AssertVerifyToken(HttpClient browserClient, string expectedBody, string because)
+    {
+        using var resp = await browserClient.GetAsync("/api/owner/v1/authentication/verifyToken");
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var body = await resp.Content.ReadAsStringAsync();
+        Assert.That(body, Is.EqualTo(expectedBody), because);
     }
 
     [Test]
@@ -149,7 +153,7 @@ public class ResetPasswordTests : V2Fixture
 
         var resetPasswordResponse = await owner.RefitFor<ITestSecurityContextOwnerClient>().ResetPassword(
             await OwnerPasswordFlow.BuildResetPasswordRequestAsync(Host, PrimaryIdentity, invalidOldPassword, NewPassword));
-        Assert.That(resetPasswordResponse.IsSuccessStatusCode, Is.False,
+        Assert.That(resetPasswordResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
             "Should have failed to reset password using invalid old password");
 
         //Ensure we can still login using the first password

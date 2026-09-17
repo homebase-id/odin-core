@@ -10,9 +10,11 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Query;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.Feed;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -23,14 +25,18 @@ namespace Odin.Hosting.Tests.V2.Ported.DataSubscription;
 
 /// <summary>
 /// The arrange and the feed-drive assertions the four <c>OwnerApi/DataSubscription</c> fixtures share:
-/// a channel drive, the two post shapes they publish to it (unencrypted / encrypted, with or without a
-/// payload), and the "is it in the follower's feed" checks.
+/// the channel drive, the connect and follow steps, the two post shapes they publish (unencrypted /
+/// encrypted, with or without a payload), and the "is it in the follower's feed" checks.
 /// </summary>
 /// <remarks>
 /// Each V1 original carried its own private copies of these — <c>UploadStandardUnencryptedFileToChannel</c>,
 /// <c>UploadStandardEncryptedFileToChannel</c>, <c>OverwriteStandardFile</c>,
 /// <c>AssertFeedDriveHasFile</c>, <c>AssertFeedDrive_HasDeletedFile</c> and the four payload assertions —
 /// line-for-line identical across the files that had them, so they are parameters here instead.
+/// <para>
+/// <see cref="ConnectAsync"/> is deliberately not <c>PeerFlow.ConnectAsync</c>: that one mints a circle on
+/// each side, whereas these fixtures grant one caller-supplied circle in one direction and nothing back.
+/// </para>
 /// <para>
 /// Two carried quirks worth naming, because both look like bugs and neither is changed:
 /// <list type="bullet">
@@ -44,23 +50,49 @@ namespace Odin.Hosting.Tests.V2.Ported.DataSubscription;
 /// </remarks>
 internal static class DataSubscriptionScenario
 {
-    /// <summary>Attributes marking a channel drive as a collaborative ("group") channel.</summary>
-    public static readonly Dictionary<string, string> IsGroupChannelAttributes =
-        new() { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } };
-
-    /// <summary>A fresh channel drive — <c>Alias = Guid.NewGuid()</c>, <c>Type = ChannelDriveType</c>.</summary>
-    public static TargetDrive NewChannelDrive() => new()
+    /// <summary>
+    /// Creates the channel drive these fixtures publish to — a fresh
+    /// <see cref="SystemDriveConstants.ChannelDriveType"/> drive with subscriptions on — and hands it back.
+    /// </summary>
+    public static async Task<TargetDrive> CreateChannelDriveAsync(
+        OwnerSession owner,
+        bool allowAnonymousReads = false,
+        string name = "A Channel Drive",
+        Dictionary<string, string> attributes = null)
     {
-        Alias = Guid.NewGuid(),
-        Type = SystemDriveConstants.ChannelDriveType
-    };
+        var channelDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        await owner.Admin.CreateDrive(channelDrive, name, allowAnonymousReads: allowAnonymousReads,
+            ownerOnly: false, allowSubscriptions: true, attributes: attributes);
+        return channelDrive;
+    }
 
-    /// <summary>A feed-drive query filtered on <paramref name="fileType"/>.</summary>
-    public static QueryBatchRequest FeedQueryByFileType(int fileType) => FeedQuery(new FileQueryParamsV1
+    /// <summary>Sends and accepts a connection request, optionally granting <paramref name="circleId"/>.</summary>
+    public static async Task ConnectAsync(OwnerSession sender, OwnerSession recipient, Guid? circleId = null)
     {
-        TargetDrive = WellKnownAppDrives.FeedDrive,
-        FileType = [fileType]
-    });
+        var sendResponse = await sender.Connections.SendConnectionRequest(recipient.Identity,
+            circleId.HasValue ? [circleId.Value] : []);
+        Assert.That(sendResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var acceptResponse = await recipient.Connections.AcceptConnectionRequest(sender.Identity, []);
+        Assert.That(acceptResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    /// <summary><paramref name="follower"/> subscribes to <paramref name="followee"/>. Answers 204, not 200.</summary>
+    public static async Task FollowAsync(OwnerSession follower, OwnerSession followee,
+        FollowerNotificationType notificationType = FollowerNotificationType.AllNotifications,
+        List<TargetDrive> channels = null)
+    {
+        var response = await follower.V1.Follower.FollowIdentity(followee.Identity, notificationType, channels);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+    }
+
+    /// <summary>
+    /// A feed-drive query filtered on <paramref name="fileType"/> — the same request
+    /// <see cref="FeedScenario.FeedQuery(int, int)"/> builds. Its <c>CursorState</c> is left null rather
+    /// than set to the originals' <c>""</c>; <c>QueryBatchResultOptionsRequest.ToQueryBatchResultOptions</c>
+    /// tests it with <c>string.IsNullOrEmpty</c>, so the two are the same query.
+    /// </summary>
+    public static QueryBatchRequest FeedQueryByFileType(int fileType) => FeedScenario.FeedQuery(fileType);
 
     /// <summary>A feed-drive query filtered on one upload's global transit id.</summary>
     public static QueryBatchRequest FeedQueryByGlobalTransitId(UploadResult uploadResult) => FeedQuery(
@@ -214,8 +246,11 @@ internal static class DataSubscriptionScenario
         return response.Content!;
     }
 
-    /// <summary>The follower's feed holds exactly one matching file, active, with the expected content.</summary>
-    public static async Task AssertFeedDriveHasFileAsync(
+    /// <summary>
+    /// The follower's feed holds exactly one matching file, active, with the expected content. Answers
+    /// that file, for the callers that go on to read the rest of its header.
+    /// </summary>
+    public static async Task<SharedSecretEncryptedFileHeader> AssertFeedDriveHasFileAsync(
         OwnerSession follower, QueryBatchRequest request, string expectedContent, UploadResult expectedUploadResult)
     {
         var searchResults = await QueryBatchAsync(follower, request);
@@ -225,6 +260,7 @@ internal static class DataSubscriptionScenario
         Assert.That(theFile.FileState, Is.EqualTo(FileState.Active));
         Assert.That(theFile.FileMetadata.AppData.Content, Is.EqualTo(expectedContent));
         Assert.That(theFile.FileMetadata.GlobalTransitId, Is.EqualTo(expectedUploadResult.GlobalTransitId));
+        return theFile;
     }
 
     /// <summary>The follower's feed holds the file, marked deleted.</summary>

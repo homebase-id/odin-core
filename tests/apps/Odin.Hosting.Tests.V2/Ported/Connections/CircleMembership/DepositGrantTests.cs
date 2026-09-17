@@ -31,7 +31,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class DepositGrantTests : V2Fixture
 {
-
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]

@@ -4,11 +4,11 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -60,25 +60,7 @@ public class DriveQueryTests : V2Fixture
         var (anonymousFileUploadResult, _) = await UploadFile2(owner, targetDrive, null, tag, AccessControlList.Anonymous);
 
         var svc = Host.AnonymousRefitFor<IRefitGuestDriveQuery>(owner.Identity);
-        var qp = new FileQueryParamsV1()
-        {
-            TargetDrive = targetDrive,
-            TagsMatchAtLeastOne = new List<Guid>() { tag }
-        };
-
-        var resultOptions = new QueryBatchResultOptionsRequest()
-        {
-            MaxRecords = 10,
-            IncludeMetadataHeader = false
-        };
-
-        var request = new QueryBatchRequest()
-        {
-            QueryParams = qp,
-            ResultOptionsRequest = resultOptions
-        };
-
-        var response = await svc.GetBatch(request);
+        var response = await svc.GetBatch(BatchRequest(targetDrive, tag));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
 
@@ -113,26 +95,8 @@ public class DriveQueryTests : V2Fixture
         var (anonymousFileUploadResult, _) = await UploadFile2(owner, targetDrive, null, tag, AccessControlList.Anonymous);
         await UploadFile2(owner, targetDrive, null, tag, circleSecuredAcl);
 
-        var qp = new FileQueryParamsV1()
-        {
-            TargetDrive = targetDrive,
-            TagsMatchAtLeastOne = new List<Guid>() { tag }
-        };
-
-        var resultOptions = new QueryBatchResultOptionsRequest()
-        {
-            MaxRecords = 10,
-            IncludeMetadataHeader = false
-        };
-
-        var request = new QueryBatchRequest()
-        {
-            QueryParams = qp,
-            ResultOptionsRequest = resultOptions
-        };
-
         var svc = Host.AnonymousRefitFor<IRefitGuestDriveQuery>(owner.Identity);
-        var response = await svc.GetBatch(request);
+        var response = await svc.GetBatch(BatchRequest(targetDrive, tag));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
 
@@ -205,29 +169,10 @@ public class DriveQueryTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var tag = Guid.NewGuid();
-        var (uploadResult, _) = await UploadFile(owner, tag, SecurityGroupType.Anonymous);
-
-        var qp = new FileQueryParamsV1()
-        {
-            TargetDrive = uploadResult.File.TargetDrive,
-            TagsMatchAtLeastOne = new List<Guid>() { tag }
-        };
-
-        var resultOptions = new QueryBatchResultOptionsRequest()
-        {
-            CursorState = "",
-            MaxRecords = 10,
-            IncludeMetadataHeader = false
-        };
+        var (uploadResult, _) = await UploadFile(owner, tag);
 
         var svc = Host.AnonymousRefitFor<IRefitGuestDriveQuery>(owner.Identity);
-        var request = new QueryBatchRequest()
-        {
-            QueryParams = qp,
-            ResultOptionsRequest = resultOptions
-        };
-
-        var response = await svc.GetBatch(request);
+        var response = await svc.GetBatch(BatchRequest(uploadResult.File.TargetDrive, tag));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
 
@@ -241,28 +186,11 @@ public class DriveQueryTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var tag = Guid.NewGuid();
-        var (uploadResult, uploadFileMetadata) = await UploadFile(owner, tag, SecurityGroupType.Anonymous);
-
-        var qp = new FileQueryParamsV1()
-        {
-            TargetDrive = uploadResult.File.TargetDrive,
-        };
-
-        var resultOptions = new QueryBatchResultOptionsRequest()
-        {
-            CursorState = "",
-            MaxRecords = 10,
-            IncludeMetadataHeader = true
-        };
+        var (uploadResult, uploadFileMetadata) = await UploadFile(owner, tag);
 
         var svc = Host.AnonymousRefitFor<IRefitGuestDriveQuery>(owner.Identity);
-        var request = new QueryBatchRequest()
-        {
-            QueryParams = qp,
-            ResultOptionsRequest = resultOptions
-        };
-
-        var response = await svc.GetBatch(request);
+        var response = await svc.GetBatch(
+            BatchRequest(uploadResult.File.TargetDrive, tag: null, includeMetadataHeader: true));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
@@ -294,65 +222,51 @@ public class DriveQueryTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var tag = Guid.NewGuid();
-        var (uploadResult, _) = await UploadFile(owner, tag, SecurityGroupType.Anonymous);
-
-        var qp = new FileQueryParamsV1()
-        {
-            TargetDrive = uploadResult.File.TargetDrive,
-        };
-
-        var resultOptions = new QueryBatchResultOptionsRequest()
-        {
-            CursorState = "",
-            MaxRecords = 10,
-            IncludeMetadataHeader = false
-        };
+        var (uploadResult, _) = await UploadFile(owner, tag);
 
         var svc = Host.AnonymousRefitFor<IRefitGuestDriveQuery>(owner.Identity);
-        var request = new QueryBatchRequest()
-        {
-            QueryParams = qp,
-            ResultOptionsRequest = resultOptions
-        };
-
-        var response = await svc.GetBatch(request);
+        var response = await svc.GetBatch(BatchRequest(uploadResult.File.TargetDrive, tag: null));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var batch = response.Content;
         Assert.That(batch, Is.Not.Null);
-        Assert.That(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)),
-            Is.True, "One or more items had content");
+        Assert.That(batch.SearchResults,
+            Has.All.Matches<SharedSecretEncryptedFileHeader>(
+                item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)),
+            "One or more items had content");
     }
 
-    /// <summary>Creates a fresh anonymous-readable drive and puts one file on it.</summary>
-    private static async Task<(UploadResult uploadResult, UploadFileMetadata uploadedFileMetadata)> UploadFile(
-        OwnerSession owner, Guid tag, SecurityGroupType requiredSecurityGroup)
-    {
-        List<Guid> tags = new List<Guid>() { tag };
-
-        var uploadFileMetadata = new UploadFileMetadata()
+    /// <summary>
+    /// A <c>query/batch</c> request over <paramref name="drive"/>, optionally filtered to
+    /// <paramref name="tag"/>. Every batch call in this fixture is this request; they differed only in
+    /// the tag filter and <paramref name="includeMetadataHeader"/>. (Two of the originals also set
+    /// <c>CursorState = ""</c> and three left it null — <c>QueryBatchResultOptionsRequest.ToQueryBatch</c>
+    /// tests <c>string.IsNullOrEmpty</c>, so the two spellings are the same request.)
+    /// </summary>
+    private static QueryBatchRequest BatchRequest(TargetDrive drive, Guid? tag, bool includeMetadataHeader = false) =>
+        new()
         {
-            AllowDistribution = false,
-            IsEncrypted = false,
-            AppData = new()
+            QueryParams = new FileQueryParamsV1
             {
-                Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
-                FileType = 100,
-                DataType = 202,
-                UserDate = new UnixTimeUtc(0),
-                Tags = tags
+                TargetDrive = drive,
+                TagsMatchAtLeastOne = tag.HasValue ? new List<Guid> { tag.Value } : null
             },
-            AccessControlList = new AccessControlList()
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest
             {
-                RequiredSecurityGroup = requiredSecurityGroup
+                MaxRecords = 10,
+                IncludeMetadataHeader = includeMetadataHeader
             }
         };
 
-        var td = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(td, "a drive", allowAnonymousReads: true);
-        var response = await owner.V1.Drive.UploadNewMetadata(td, uploadFileMetadata);
-        return (response.Content, uploadFileMetadata);
-    }
+    /// <summary>
+    /// Creates a fresh anonymous-readable drive and puts one anonymous-readable file on it. The
+    /// original took a <c>requiredSecurityGroup</c>, but all three call sites passed
+    /// <see cref="SecurityGroupType.Anonymous"/> — these tests are about what a no-credential caller
+    /// sees, so a secured file here would not be readable by the caller under test.
+    /// </summary>
+    private static Task<(UploadResult UploadResult, UploadFileMetadata UploadedFileMetadata)> UploadFile(
+        OwnerSession owner, Guid tag)
+        => AnonymousDriveUploads.UploadToNewDriveAsync(owner, tag, SecurityGroupType.Anonymous);
 
     /// <summary>Puts a file on an existing drive, or overwrites one that is already there.</summary>
     private static async Task<(UploadResult uploadResult, UploadFileMetadata uploadedFileMetadata)> UploadFile2(
@@ -363,21 +277,7 @@ public class DriveQueryTests : V2Fixture
         AccessControlList acl,
         Guid? versionTag = null)
     {
-        var uploadFileMetadata = new UploadFileMetadata()
-        {
-            AllowDistribution = false,
-            IsEncrypted = false,
-            VersionTag = versionTag,
-            AppData = new()
-            {
-                Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
-                FileType = 100,
-                DataType = 202,
-                UserDate = new UnixTimeUtc(0),
-                Tags = new List<Guid>() { tag }
-            },
-            AccessControlList = acl
-        };
+        var uploadFileMetadata = AnonymousDriveUploads.Metadata(tag, acl, versionTag);
 
         if (overwriteFileId.HasValue)
         {

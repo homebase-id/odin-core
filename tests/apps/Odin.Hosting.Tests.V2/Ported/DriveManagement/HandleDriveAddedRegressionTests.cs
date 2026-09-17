@@ -37,18 +37,8 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveManagement;
 [TestFixture]
 public class HandleDriveAddedRegressionTests : V2Fixture
 {
-    /// <summary>
-    /// Logs each identity's owner in (to set the password the snapshot baseline needs) and stops
-    /// there. Overriding away <c>InitializeIdentity</c> is the whole point of this fixture: the
-    /// regression only reproduces on a tenant whose system circles have not been created.
-    /// </summary>
-    protected override async Task WarmTenantBaselineAsync()
-    {
-        foreach (var identity in HostIdentities)
-        {
-            await LoginAsOwner(identity);
-        }
-    }
+    /// <summary>The system under test is initial setup itself, so the tenants must not be initialized.</summary>
+    protected override bool InitializeIdentities => false;
 
     [Test]
     public async Task CanCreateAnonymousReadableDriveBeforeInitializeIdentity()

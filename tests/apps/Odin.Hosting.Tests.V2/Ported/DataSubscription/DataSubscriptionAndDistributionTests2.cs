@@ -6,7 +6,6 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests.V2.Ported.DataSubscription;
@@ -25,7 +24,7 @@ namespace Odin.Hosting.Tests.V2.Ported.DataSubscription;
 /// <item><c>_scaffold.Scenarios.CreateConnectedHobbits</c> becomes
 /// <see cref="PeerFlow.ConnectAllAsync"/>. The V1 helper also registered an app per identity and
 /// carried its token on a <c>TestAppContext</c>; nothing here reads a token — every call is made as an
-/// owner — so that half is dropped, the same decision <c>Ported/Transit/HobbitScenario</c> records.</item>
+/// owner — so that half is dropped.</item>
 /// <item><c>Membership.CreateCircle(name, drive, permission)</c> becomes
 /// <c>Admin.CreateCircle</c> over <c>TestUtils.CreatePermissionGrantRequest</c>, which builds the same
 /// grant (one drive, empty permission set). The V1 client also read the definition back and asserted
@@ -37,7 +36,8 @@ namespace Odin.Hosting.Tests.V2.Ported.DataSubscription;
 /// per-tenant here, so one call replaces the three and the comment is kept.</item>
 /// <item>The <c>TransitQuery.GetPayload</c> assertions are
 /// <see cref="DataSubscriptionScenario.AssertCanGetPayloadAsync"/> and friends, which reach the same
-/// endpoint through <c>IUniversalRefitPeerQuery</c>.</item>
+/// endpoint through <c>IUniversalRefitPeerQuery</c>. The channel-drive create and the follow call come
+/// from the same place, so the drive name is the only thing this fixture still spells out.</item>
 /// <item>Trailing unfollow / disconnect calls were cleanup only and are dropped — per-test reset covers
 /// them. That leaves Merry and Pippin unused in the delete test beyond the mesh connect, exactly as in
 /// the original, where their only other appearance was in that cleanup.</item>
@@ -66,15 +66,13 @@ public class DataSubscriptionAndDistributionTests2 : V2Fixture
         //
         // Sam, Merry, and Pippin follow Frodo
         //
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
-        await FollowAsync(merryOwnerClient, frodoOwnerClient);
-        await FollowAsync(pippinOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(merryOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(pippinOwnerClient, frodoOwnerClient);
 
         //create a channel drive
-        var frodoSecureChannel = DataSubscriptionScenario.NewChannelDrive();
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoSecureChannel, "A Secured channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
+        var frodoSecureChannel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient,
+            name: "A Secured channel Drive");
 
         //
         // Frodo creates a circle named Mordor and puts Sam in it
@@ -139,13 +137,11 @@ public class DataSubscriptionAndDistributionTests2 : V2Fixture
         //
         // Sam follows Frodo
         //
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         //create a channel drive
-        var frodoSecureChannel = DataSubscriptionScenario.NewChannelDrive();
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoSecureChannel, "A Secured channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
+        var frodoSecureChannel = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient,
+            name: "A Secured channel Drive");
 
         //
         // Frodo creates a circle named Mordor and puts Sam in it
@@ -196,12 +192,5 @@ public class DataSubscriptionAndDistributionTests2 : V2Fixture
         await samOwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
         await DataSubscriptionScenario.AssertFeedDriveHasDeletedFileAsync(samOwnerClient, uploadResult);
         await DataSubscriptionScenario.AssertPayloadIs404Async(samOwnerClient, frodoOwnerClient, uploadResult);
-    }
-
-    private static async Task FollowAsync(OwnerSession follower, OwnerSession followee)
-    {
-        var response = await follower.V1.Follower.FollowIdentity(followee.Identity,
-            FollowerNotificationType.AllNotifications);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 }

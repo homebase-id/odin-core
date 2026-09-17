@@ -89,9 +89,13 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
             sw.Restart();
 
             var prevTag = newVersionTag;
-            var tag = await UploadAndValidateHeader(targetFile, newVersionTag);
+            var (tag, status) = await UploadAndValidateHeader(targetFile, newVersionTag);
 
-            Assert.That(tag.HasValue, Is.True);
+            // Assert on the status, not on tag.HasValue: a bare "Expected: True, But was: False"
+            // says an upload failed but not how, and this fixture's failures are exactly the ones
+            // worth diagnosing -- see #1777 for the SQLite write contention this shape provokes.
+            Assert.That(status, Is.EqualTo(HttpStatusCode.OK),
+                $"upload failed on iteration {count} of thread body");
             newVersionTag = tag.GetValueOrDefault();
             Assert.That(newVersionTag, Is.Not.EqualTo(prevTag), $"version tag did not change on iteration {count}");
 
@@ -102,7 +106,8 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
         return (fileByteLength, timers);
     }
 
-    private async Task<Guid?> UploadAndValidateHeader(ExternalFileIdentifier targetFile, Guid targetVersionTag)
+    private async Task<(Guid? Tag, HttpStatusCode Status)> UploadAndValidateHeader(
+        ExternalFileIdentifier targetFile, Guid targetVersionTag)
     {
         var fileMetadata = new UploadFileMetadata()
         {
@@ -128,7 +133,7 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
             Interlocked.Increment(ref _successCount);
             Assert.That(uploadPayloadResponse.Content!.NewVersionTag, Is.Not.EqualTo(targetVersionTag),
                 "Version tag should have changed");
-            return uploadPayloadResponse.Content!.NewVersionTag;
+            return (uploadPayloadResponse.Content!.NewVersionTag, uploadPayloadResponse.StatusCode);
         }
 
         if (uploadPayloadResponse.StatusCode == HttpStatusCode.InternalServerError)
@@ -136,7 +141,7 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
             Interlocked.Increment(ref _serverErrorCount);
         }
 
-        return null;
+        return (null, uploadPayloadResponse.StatusCode);
     }
 
     private async Task<(UploadResult, KeyHeader keyHeader)> PrepareEncryptedFile(TargetDrive targetDrive)

@@ -28,8 +28,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 [TestFixture]
 public class PreflightIntroductionsTests : V2Fixture
 {
-    /// <summary>These tests drive introductions that are expected to fail delivery.</summary>
-
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
 
     // Mirrors the private storage handle that TenantConfigService uses internally so we can poke

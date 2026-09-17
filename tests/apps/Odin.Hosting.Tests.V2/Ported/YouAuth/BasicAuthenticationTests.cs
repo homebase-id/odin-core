@@ -3,15 +3,11 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
-using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -27,18 +23,21 @@ namespace Odin.Hosting.Tests.V2.Ported.YouAuth;
 /// file's ACL.
 /// </summary>
 /// <remarks>
-/// <c>GuestSession.SetupAsync</c> is not used: it generates the circle id internally and keeps it
-/// private, and this test has to name the same circle twice — once in the grant and once in the
-/// uploaded file's <c>CircleIdList</c>. The domain + client registration is therefore done here
-/// against a circle the test created, via the same two <c>owner.Admin</c> helpers
-/// <c>GuestSession</c> itself calls. See <see cref="YouAuthDomainCaller"/>.
+/// <c>GuestSession.SetupAsync</c> does the whole of the setup: it creates the circle from the grant
+/// it is handed, registers the domain against it, and registers a client under the domain. This test
+/// has to name that circle a second time, in the uploaded file's <c>CircleIdList</c>, which is what
+/// <c>GuestSession.CircleId</c> is for.
 /// <para>
-/// Request-shape notes, none of them read by an assertion: <c>owner.Admin.RegisterYouAuthDomain</c>
-/// sends the identical body the original's <c>YouAuth.RegisterDomain</c> did (<c>Name =
-/// "Test_{domain}"</c>, <c>ConsentRequirementType.Never</c>, zero expiration);
-/// <c>owner.Admin.RegisterYouAuthClient</c> sends a different friendly name ("test in-process guest
-/// client" rather than "some friendly name"); <c>owner.Admin.CreateCircle</c> supplies its own
-/// description.
+/// Request-shape notes, none of them read by an assertion: <c>GuestSession</c> registers the domain
+/// with the identical body the original's <c>YouAuth.RegisterDomain</c> sent (<c>Name =
+/// "Test_{domain}"</c>, <c>ConsentRequirementType.Never</c>, zero expiration) and registers the
+/// client with a different friendly name ("test in-process guest client" rather than "some friendly
+/// name"); its <c>CreateCircle</c> supplies its own description.
+/// </para>
+/// <para>
+/// Ordering note: <c>GuestSession.SetupAsync</c> registers the domain <i>before</i> the file is
+/// uploaded, where the original registered it after. Harmless — the ACL is evaluated when the guest
+/// reads, not when the domain is registered — and confirmed by running.
 /// </para>
 /// <para>
 /// The original pinned <c>TestIdentities.Merry</c>; nothing here reads the identity, so the fixture
@@ -51,7 +50,6 @@ public class BasicAuthenticationTests : V2Fixture
     [Test]
     public async Task YouAuthDomainCanAccessAuthorizedContentViaCircle()
     {
-        const string domain = "amazoom.org";
         const string jsonContent = "some content";
 
         var owner = await LoginAsOwner();
@@ -60,9 +58,8 @@ public class BasicAuthenticationTests : V2Fixture
         var targetDrive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(targetDrive, "A secured Drive", allowAnonymousReads: false, ownerOnly: false);
 
-        // Create a circle
-        var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "A circle", new PermissionSetGrantRequest()
+        // A guest domain granted Read on that drive, via a circle whose id the file's ACL names too.
+        var guest = await GuestSession.SetupAsync(owner, new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new List<DriveGrantRequest>()
@@ -76,12 +73,11 @@ public class BasicAuthenticationTests : V2Fixture
                     }
                 }
             }
-        });
+        }, new AsciiDomainName("amazoom.org"));
 
-        var uploadResult = await UploadFile(owner, targetDrive, circleId, jsonContent);
-        await AddYouAuthDomain(owner, domain, new List<GuidId>() { circleId });
+        var uploadResult = await UploadFile(owner, targetDrive, guest.CircleId, jsonContent);
 
-        var svc = await YouAuthDomainCaller.RefitForAsync<IRefitGuestDriveQuery>(owner, new AsciiDomainName(domain));
+        var svc = guest.RefitFor<IRefitGuestDriveQuery>();
 
         var getFileHeaderResponse = await svc.GetFileHeader(uploadResult.File);
         Assert.That(getFileHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -119,44 +115,5 @@ public class BasicAuthenticationTests : V2Fixture
     public void ConnectedIdentityCanAccessAuthorizedContent()
     {
         Assert.Inconclusive("todo");
-    }
-
-    private static async Task AddYouAuthDomain(OwnerSession owner, string domainName, List<GuidId> circleIds)
-    {
-        var domain = new AsciiDomainName(domainName);
-
-        var response = await owner.Admin.RegisterYouAuthDomain(domain, circleIds);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content, Is.Not.Null);
-    }
-}
-
-/// <summary>
-/// A YouAuth-domain caller for a domain the test registered itself, with circles the test chose.
-/// </summary>
-/// <remarks>
-/// <c>GuestSession</c> owns the common case — throwaway domain, circle it creates — but its circle id
-/// never escapes, so a fixture that has to reference the same circle elsewhere (a file ACL, say)
-/// cannot use it. This does the remaining half: register a client under the already-registered
-/// domain and wrap its access token in the same in-process factory <c>GuestSession</c> builds.
-/// Local to this folder; promote it if a second fixture needs the shape.
-/// </remarks>
-internal static class YouAuthDomainCaller
-{
-    public static async Task<T> RefitForAsync<T>(OwnerSession owner, AsciiDomainName domain)
-    {
-        var clientReg = await owner.Admin.RegisterYouAuthClient(domain);
-        var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);
-
-        var factory = new InProcessApiClientFactory(
-            owner.Host,
-            YouAuthDefaults.XTokenCookieName,
-            cat.ToAuthenticationToken(),
-            cat.SharedSecret.GetKey().ToSensitiveByteArray(),
-            GuestApiPathConstantsV1.BasePathV1);
-
-        var client = factory.CreateHttpClient(owner.Identity, out var sharedSecret);
-        return RefitCreator.RestServiceFor<T>(client, sharedSecret);
     }
 }

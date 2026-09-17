@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -16,9 +18,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 /// </summary>
 /// <remarks>
 /// As with <see cref="AuthenticatedDefaultsTests"/>, the original started from an un-initialized
-/// tenant and called <c>InitializeIdentity</c> per test; the fast fixture already initializes in its
-/// baseline and the call is idempotent, so the in-test call is carried rather than dropped. Nothing
-/// here asserts on the pre-init state, so no <see cref="V2Fixture.WarmTenantBaselineAsync"/> override.
+/// tenant and called <c>InitializeIdentity</c> per test. The fast fixture already initializes in its
+/// baseline, so <see cref="V2Fixture.InitializeIdentities"/> is left true and the redundant in-test
+/// call is dropped everywhere its response was not asserted — nothing here asserts on the pre-init
+/// state. <see cref="SystemCircleUpdatedWhenConnectedFlagChanges"/> keeps it, because there the
+/// response <i>is</i> asserted and a call whose response is checked is a test step.
 ///
 /// Two deviations, both checked:
 /// <list type="bullet">
@@ -31,11 +35,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 /// is the flag endpoint's side effect.</item>
 /// </list>
 ///
-/// Carried verbatim, including the defect: <c>SystemDefault_TenantSettings_AutoAcceptIntroductions_IsTrue</c>
-/// does not assert anything about auto-accept — it asserts
-/// <c>ConnectedIdentitiesCanReactOnAnonymousDrives</c>, exactly as the test above it does. It is a
-/// duplicate under a misleading name. Left alone: fixing behaviour inside a port makes the diff
-/// unreviewable (see #1767).
+/// Carried verbatim, including the defect: the <c>AutoAcceptIntroductions</c> row of
+/// <see cref="SystemDefault_TenantSettings_IsExpected"/> does not assert anything about auto-accept —
+/// it reads <c>ConnectedIdentitiesCanReactOnAnonymousDrives</c>, exactly as the row above it does. It
+/// is a duplicate under a misleading name, and it keeps its own row precisely so that stays visible.
+/// Left alone: fixing behaviour inside a port makes the diff unreviewable (see #1767).
 ///
 /// The three <c>[Ignore]</c>d YouAuth tests move as-is. No caller matrix in the original and none added.
 /// </remarks>
@@ -95,45 +99,37 @@ public class ConnectedIdentityDefaultsTests : V2Fixture
         Assert.That(systemCircle.Permissions.Keys, Does.Not.Contain(PermissionKeys.ReadConnections));
     }
 
+    /// <summary>
+    /// The three system-default rows. <c>AutoAcceptIntroductions</c> stays its own row even though it
+    /// reads the same flag as the row above it: that is the carried defect described on the fixture,
+    /// and collapsing it into the other would erase the record of it.
+    /// </summary>
     [Test]
-    public async Task SystemDefault_TenantSettings_ConnectedIdentitiesCanReactOnAnonymousDrives_IsTrue()
+    [TestCase("ConnectedIdentitiesCanReactOnAnonymousDrives", true)]
+    [TestCase("AutoAcceptIntroductions", true)]
+    [TestCase("ConnectedIdentitiesCanCommentOnAnonymousDrives", true)]
+    public async Task SystemDefault_TenantSettings_IsExpected(string setting, bool expected)
     {
+        var read = Readers[setting];
+
         var owner = await LoginAsOwner();
         var svc = owner.RefitFor<IRefitOwnerConfiguration>();
 
-        await svc.InitializeIdentity(new InitialSetupRequest());
-
         var getSettingsResponse = await svc.GetTenantSettings();
         Assert.That(getSettingsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(getSettingsResponse.Content!.ConnectedIdentitiesCanReactOnAnonymousDrives, Is.True);
+        Assert.That(read(getSettingsResponse.Content!), Is.EqualTo(expected));
     }
 
-    [Test]
-    public async Task SystemDefault_TenantSettings_AutoAcceptIntroductions_IsTrue()
+    /// <summary>
+    /// Keyed by the name each row carries, because the <c>[TestCase]</c> label is what a failure
+    /// prints. Note <c>AutoAcceptIntroductions</c> reads
+    /// <c>ConnectedIdentitiesCanReactOnAnonymousDrives</c> — the carried defect, verbatim from the
+    /// original, see the fixture remarks and #1767.
+    /// </summary>
+    private static readonly Dictionary<string, Func<TenantSettings, bool>> Readers = new()
     {
-        var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerConfiguration>();
-
-        await svc.InitializeIdentity(new InitialSetupRequest());
-
-        var getSettingsResponse = await svc.GetTenantSettings();
-        Assert.That(getSettingsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        // Carried defect: the name says auto-accept-introductions, the assertion reads the
-        // react-on-anonymous-drives flag. Verbatim from the original.
-        Assert.That(getSettingsResponse.Content!.ConnectedIdentitiesCanReactOnAnonymousDrives, Is.True);
-    }
-
-    [Test]
-    public async Task SystemDefault_TenantSettings_ConnectedIdentitiesCanCommentOnAnonymousDrives_IsTrue()
-    {
-        var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerConfiguration>();
-
-        await svc.InitializeIdentity(new InitialSetupRequest());
-
-        var getSettingsResponse = await svc.GetTenantSettings();
-        Assert.That(getSettingsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(getSettingsResponse.Content!.ConnectedIdentitiesCanCommentOnAnonymousDrives, Is.True);
-    }
+        ["ConnectedIdentitiesCanReactOnAnonymousDrives"] = s => s.ConnectedIdentitiesCanReactOnAnonymousDrives,
+        ["AutoAcceptIntroductions"] = s => s.ConnectedIdentitiesCanReactOnAnonymousDrives,
+        ["ConnectedIdentitiesCanCommentOnAnonymousDrives"] = s => s.ConnectedIdentitiesCanCommentOnAnonymousDrives
+    };
 }

@@ -5,21 +5,17 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.AppNotifications;
-using Odin.Hosting.Tests._Universal.DriveTests;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.Transit;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
-using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.Concepts;
 
@@ -57,6 +53,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Concepts;
 /// inbox background service, which the fast host registers but never starts.</item>
 /// <item><c>TestIdentities.InitializedIdentities</c> is null here, so recipients are mapped to their
 /// owner sessions through a local dictionary instead.</item>
+/// <item>The original's <c>SetupScenario</c> — drive, circle, two handshakes, three app
+/// registrations, three push subscriptions — ran per test case, four times over. All of it is
+/// identity-DB state that the baseline snapshot carries, so it is baked in once by
+/// <see cref="WarmTenantBaselineAsync"/> under fixed ids. The uploads stay per-test: the payload tree
+/// is wiped on reset, so a file baked into the baseline would have a header and no payloads.</item>
 /// <item>Trailing <c>CleanupScenario</c> disconnects were cleanup only and are dropped — per-test
 /// reset covers them.</item>
 /// </list>
@@ -65,6 +66,50 @@ namespace Odin.Hosting.Tests.V2.Ported.Concepts;
 public class CollaborationChatPushNotificationTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Collab, Identities.Merry, Identities.Pippin];
+
+    // Fixed rather than minted per test: the whole scenario below — drive, circle, two handshakes,
+    // three app registrations, three push subscriptions — is baseline state, so it is baked in once
+    // (see WarmTenantBaselineAsync) instead of being rebuilt for each of the four executions. Only
+    // the file uploads stay per-test: the payload tree is wiped on reset.
+    private static readonly TargetDrive CollabChatDrive = new()
+    {
+        Alias = Guid.Parse("c0111ab0-c8a7-4000-8000-000000000001"),
+        Type = Guid.Parse("c0111ab0-c8a7-4000-8000-000000000002")
+    };
+
+    private static readonly Guid CollabChatAppId = Guid.Parse("c0111ab0-c8a7-4000-8000-000000000003");
+    private static readonly Guid PeerSubscriptionId = Guid.Parse("c0111ab0-c8a7-4000-8000-000000000004");
+    private static readonly Guid ChatCircleId = Guid.Parse("c0111ab0-c8a7-4000-8000-000000000005");
+
+    /// <summary>The ACL every post here carries: connected, and narrowed to the chat circle.</summary>
+    private static AccessControlList ChatAcl => new()
+    {
+        RequiredSecurityGroup = SecurityGroupType.Connected,
+        CircleIdList = [ChatCircleId]
+    };
+
+    protected override async Task WarmTenantBaselineAsync()
+    {
+        await base.WarmTenantBaselineAsync();
+
+        var collabChat = await LoginAsOwner(Identities.Collab);
+        var member1 = await LoginAsOwner(Identities.Merry);
+        var member2 = await LoginAsOwner(Identities.Pippin);
+
+        await CollabScenario.PrepareScenarioAsync(
+            collabChat,
+            [member1, member2],
+            CollabChatDrive,
+            DrivePermission.ReadWrite,
+            "Test collab chat drive 001",
+            allowAnonymousReads: false,
+            circleId: ChatCircleId);
+
+        foreach (var owner in new[] { member1, member2, collabChat })
+        {
+            await SubscribeToPushNotifications(owner, collabChat.Identity);
+        }
+    }
 
     public static IEnumerable<object[]> PushNotificationCases()
     {
@@ -88,17 +133,10 @@ public class CollaborationChatPushNotificationTests : V2Fixture
         var member1 = await LoginAsOwner(Identities.Merry);
         var member2 = await LoginAsOwner(Identities.Pippin);
 
-        var collabChatDrive = TargetDrive.NewTargetDrive();
-        var collabChatAppId = Guid.NewGuid();
-        var peerSubscriptionId = Guid.NewGuid();
-
-        var chatCircleId = await SetupScenario(collabChatIdentity, member1, member2, collabChatDrive,
-            collabChatAppId, peerSubscriptionId);
-
         var notificationOptions = new AppNotificationOptions
         {
-            AppId = collabChatAppId,
-            PeerSubscriptionId = peerSubscriptionId,
+            AppId = CollabChatAppId,
+            PeerSubscriptionId = PeerSubscriptionId,
             Recipients = [member2.Identity, member1.Identity]
 
             // TypeId = default,
@@ -107,10 +145,10 @@ public class CollaborationChatPushNotificationTests : V2Fixture
             // UnEncryptedMessage = null
         };
 
-        var (response, _, _) = await AwaitNewEncryptedFileUpload(
+        var response = await CollabScenario.UploadNewEncryptedFileAsync(
             collabChatIdentity,
-            collabChatDrive,
-            chatCircleId,
+            CollabChatDrive,
+            ChatAcl,
             notificationOptions);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
@@ -124,27 +162,8 @@ public class CollaborationChatPushNotificationTests : V2Fixture
         // the chat drive the V1 original polled separately
         await collabChatIdentity.Sync.DrainOutboxAsync();
 
-        //
-        // Assert: all notification recipients received a notification in their list
-        //
-        var sessions = new Dictionary<OdinId, OwnerSession>
-        {
-            [member1.Identity] = member1,
-            [member2.Identity] = member2,
-            [collabChatIdentity.Identity] = collabChatIdentity
-        };
-
-        foreach (var recipient in notificationOptions.Recipients)
-        {
-            var getNotificationResponse = await sessions[recipient].V1.Notifications.GetList(1000);
-            Assert.That(getNotificationResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-            //TODO: determine who the sender should actually be?
-            Assert.That(getNotificationResponse.Content!.Results,
-                Has.Some.Matches<AppNotification>(n => n.SenderId == collabChatIdentity.Identity.DomainName),
-                $"{recipient} has no notification from the collab chat identity");
-            //TODO: where do we check this? in the notifications or the log?
-        }
+        await AssertNotificationFrom(collabChatIdentity, notificationOptions.Recipients,
+            [member1, member2, collabChatIdentity]);
     }
 
     [Test, TestCaseSource(nameof(PushNotificationCases))]
@@ -158,33 +177,25 @@ public class CollaborationChatPushNotificationTests : V2Fixture
         var member1 = await LoginAsOwner(Identities.Merry);
         var member2 = await LoginAsOwner(Identities.Pippin);
 
-        var collabChatDrive = TargetDrive.NewTargetDrive();
-        var collabChatAppId = Guid.NewGuid();
-        var peerSubscriptionId = Guid.NewGuid();
-
-        var chatCircleId = await SetupScenario(collabChatIdentity, member1, member2, collabChatDrive,
-            collabChatAppId, peerSubscriptionId);
-
         var notificationOptions = new AppNotificationOptions
         {
-            AppId = collabChatAppId,
-            PeerSubscriptionId = peerSubscriptionId,
+            AppId = CollabChatAppId,
+            PeerSubscriptionId = PeerSubscriptionId,
             Recipients = [collabChatIdentity.Identity, member2.Identity],
             UnEncryptedMessage = "unencrypted message from unit test"
             // TypeId = default,
             // TagId = default,
             // Silent = false,
-            // UnEncryptedMessage = null
         };
 
         var keyHeader = KeyHeader.NewRandom16();
-        var (response, uploadedFileMetadata, _) = await AwaitPostNewEncryptedFileOverPeerDirect(
+        var (response, uploadedFileMetadata, _) = await CollabScenario.PostNewEncryptedFileOverPeerDirectAsync(
             member1,
-            collabChatDrive,
+            CollabChatDrive,
             collabChatIdentity,
-            chatCircleId,
-            notificationOptions,
-            keyHeader);
+            keyHeader,
+            ChatAcl,
+            notificationOptions);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var remoteTargetFile = response.Content!.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
@@ -196,160 +207,52 @@ public class CollaborationChatPushNotificationTests : V2Fixture
 
         // The collab chat identity has to take the file off its inbox before it can redistribute the
         // push notifications; V1 leaned on the inbox background service for this.
-        await collabChatIdentity.Sync.ProcessInboxAsync(collabChatDrive);
+        await collabChatIdentity.Sync.ProcessInboxAsync(CollabChatDrive);
         await collabChatIdentity.Sync.DrainOutboxAsync();
 
         //
         // Assert collab channel has the file
         //
-        var byGlobalTransitIdResponse =
-            await collabChatIdentity.V1.Drive.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
-        Assert.That(byGlobalTransitIdResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var theFile = byGlobalTransitIdResponse.Content!.SearchResults.SingleOrDefault();
-        Assert.That(theFile, Is.Not.Null);
-        Assert.That(theFile!.FileMetadata.AppData.FileType, Is.EqualTo(uploadedFileMetadata.AppData.FileType));
+        var theFile = await TransitScenario.SingleByGlobalTransitIdAsync(
+            collabChatIdentity, remoteTargetFile.ToGlobalTransitIdFileIdentifier());
+        Assert.That(theFile.FileMetadata.AppData.FileType, Is.EqualTo(uploadedFileMetadata.AppData.FileType));
 
-        //
-        // Assert: all notification recipients received a notification in their list
-        //
-        var sessions = new Dictionary<OdinId, OwnerSession>
-        {
-            [member1.Identity] = member1,
-            [member2.Identity] = member2,
-            [collabChatIdentity.Identity] = collabChatIdentity
-        };
+        await AssertNotificationFrom(member1, notificationOptions.Recipients,
+            [member1, member2, collabChatIdentity]);
+    }
 
-        foreach (var recipient in notificationOptions.Recipients)
+    /// <summary>
+    /// Asserts every one of <paramref name="recipients"/> holds a notification whose sender is
+    /// <paramref name="sender"/>. <c>TestIdentities.InitializedIdentities</c> is null here, so the
+    /// recipient <see cref="OdinId"/>s are mapped back to their sessions through
+    /// <paramref name="sessions"/>.
+    /// </summary>
+    private static async Task AssertNotificationFrom(
+        OwnerSession sender,
+        IEnumerable<OdinId> recipients,
+        IReadOnlyList<OwnerSession> sessions)
+    {
+        var byIdentity = sessions.ToDictionary(s => s.Identity);
+
+        foreach (var recipient in recipients)
         {
-            var getNotificationResponse = await sessions[recipient].V1.Notifications.GetList(1000);
+            var getNotificationResponse = await byIdentity[recipient].V1.Notifications.GetList(1000);
             Assert.That(getNotificationResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
             //TODO: determine who the sender should actually be?
             Assert.That(getNotificationResponse.Content!.Results,
-                Has.Some.Matches<AppNotification>(n => n.SenderId == member1.Identity.DomainName),
-                $"{recipient} has no notification from member1");
+                Has.Some.Matches<AppNotification>(n => n.SenderId == sender.Identity.DomainName),
+                $"{recipient} has no notification from {sender.Identity}");
             //TODO: where do we check this? in the notifications or the log?
         }
     }
 
-    private static async Task<(ApiResponse<TransitResult> response, UploadFileMetadata uploadedMetadata, TestPayloadDefinition payload1)>
-        AwaitPostNewEncryptedFileOverPeerDirect(
-            OwnerSession sender,
-            TargetDrive collabChannelDrive,
-            OwnerSession collabChannel,
-            Guid chatCircleId,
-            AppNotificationOptions notificationOptions,
-            KeyHeader keyHeader)
-    {
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        uploadedFileMetadata.AppData.Content = "some content here";
-        uploadedFileMetadata.AllowDistribution = true;
-        uploadedFileMetadata.AppData.DataType = 7779;
-        uploadedFileMetadata.AccessControlList = new AccessControlList
-        {
-            RequiredSecurityGroup = SecurityGroupType.Connected,
-            CircleIdList = [chatCircleId]
-        };
-        var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
-
-        payload1.Iv = ByteArrayUtil.GetRndByteArray(16);
-        var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
-        payload2.Iv = ByteArrayUtil.GetRndByteArray(16);
-
-        var testPayloads = new List<TestPayloadDefinition>()
-        {
-            payload1,
-            payload2
-        };
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        //member1 sends a file to the recipient
-        var (response, _) = await sender.V1.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
-            uploadedFileMetadata, [collabChannel.Identity], null, uploadManifest,
-            testPayloads, notificationOptions, keyHeader: keyHeader);
-
-        await sender.Sync.DrainOutboxAsync();
-
-        return (response, uploadedFileMetadata, payload1);
-    }
-
-    private static async Task<(ApiResponse<UploadResult> response, UploadFileMetadata uploadedMetadata, TestPayloadDefinition payload1)>
-        AwaitNewEncryptedFileUpload(
-            OwnerSession sender,
-            TargetDrive collabChannelDrive,
-            Guid chatCircleId,
-            AppNotificationOptions notificationOptions)
-    {
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        uploadedFileMetadata.AppData.Content = "some content here";
-        uploadedFileMetadata.AllowDistribution = true;
-        uploadedFileMetadata.AppData.DataType = 7779;
-        uploadedFileMetadata.AccessControlList = new AccessControlList
-        {
-            RequiredSecurityGroup = SecurityGroupType.Connected,
-            CircleIdList = [chatCircleId]
-        };
-        var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
-
-        payload1.Iv = ByteArrayUtil.GetRndByteArray(16);
-        var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
-        payload2.Iv = ByteArrayUtil.GetRndByteArray(16);
-
-        var testPayloads = new List<TestPayloadDefinition>()
-        {
-            payload1,
-            payload2
-        };
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        var originalKeyHeader = KeyHeader.NewRandom16();
-        var (response, _, _, _) = await sender.V1.Drive.UploadNewEncryptedFile(
-            collabChannelDrive,
-            originalKeyHeader,
-            uploadedFileMetadata,
-            uploadManifest,
-            testPayloads,
-            notificationOptions);
-
-        await sender.Sync.DrainOutboxAsync();
-
-        return (response, uploadedFileMetadata, payload1);
-    }
-
-    private static async Task<Guid> SetupScenario(
-        OwnerSession collabChat,
-        OwnerSession member1,
-        OwnerSession member2,
-        TargetDrive collabChannelDrive,
-        Guid collabChatAppId,
-        Guid peerSubscriptionId)
-    {
-        var collabChatCircleId = await CollabScenario.PrepareScenarioAsync(
-            collabChat,
-            [member1, member2],
-            collabChannelDrive,
-            DrivePermission.ReadWrite,
-            "Test collab chat drive 001",
-            allowAnonymousReads: false);
-
-        var collabIdentity = collabChat.Identity;
-        await SubscribeToPushNotifications(member1, collabChatAppId, collabIdentity, peerSubscriptionId);
-        await SubscribeToPushNotifications(member2, collabChatAppId, collabIdentity, peerSubscriptionId);
-        await SubscribeToPushNotifications(collabChat, collabChatAppId, collabIdentity, peerSubscriptionId);
-
-        return collabChatCircleId;
-    }
-
-    private static async Task SubscribeToPushNotifications(
-        OwnerSession owner, Guid appId, OdinId collabIdentity, Guid peerSubscriptionId)
+    /// <summary>
+    /// Registers the push-capable app on <paramref name="owner"/> and subscribes it to
+    /// <paramref name="collabIdentity"/>'s notifications, under the fixture's fixed app and
+    /// subscription ids.
+    /// </summary>
+    private static async Task SubscribeToPushNotifications(OwnerSession owner, OdinId collabIdentity)
     {
         var appPermissions = new PermissionSetGrantRequest
         {
@@ -358,9 +261,9 @@ public class CollaborationChatPushNotificationTests : V2Fixture
                 PermissionKeys.SendPushNotifications)
         };
 
-        var app = await AppSession.SetupAsync(owner, appPermissions, knownAppId: appId);
+        var app = await AppSession.SetupAsync(owner, appPermissions, knownAppId: CollabChatAppId);
         var peerNotifications = new UniversalPeerAppNotificationApiClient(app.Identity, app.Factory);
-        var subscribe = await peerNotifications.Subscribe(collabIdentity, peerSubscriptionId);
+        var subscribe = await peerNotifications.Subscribe(collabIdentity, PeerSubscriptionId);
         // 204, not 200 — the peer subscribe endpoint is one of the NoContent responders the README
         // lists. The original asserted nothing here at all; this is arrange validation.
         Assert.That(subscribe.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));

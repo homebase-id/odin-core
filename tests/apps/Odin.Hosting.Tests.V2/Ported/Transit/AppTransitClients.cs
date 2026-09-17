@@ -6,8 +6,6 @@ using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files;
-using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query;
-using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Reactions;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -20,22 +18,26 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 
 /// <summary>
 /// What the four ported <c>AppAPI/Transit</c> fixtures shared through <c>AppApiClient</c>: an app
-/// registered over a fresh drive, and the app-scoped transit query / reaction / file-sender Refit
-/// surfaces reached as that app.
+/// registered over a fresh drive, and the one transit call whose wire shape has to be hand-built.
 /// </summary>
 /// <remarks>
 /// The V1 originals each carried a private <c>CreateAppAndClient(identity, params int[] permissionKeys)</c>
 /// — four byte-identical copies — and then went through <c>AppApiClient.TransitQuery</c> /
 /// <c>.TransitReactionSender</c> / <c>.TransitFileSender</c>. Those client classes are built on
 /// <c>OwnerApiTestUtils</c> and cannot be reached from the fast host, so the Refit interfaces they
-/// wrap are used directly here. Their routes are absolute (<c>/api/apps/v1/transit/...</c>), so they
-/// pass through the factory's path normalizer untouched.
+/// wrap are used directly here.
 /// <para>
-/// <see cref="QueryFor"/> and <see cref="SenderFor"/> take a <see cref="FileSystemType"/> because the
-/// V1 clients set it per call as a request header, which
-/// <see cref="V2CallerExtensions.RefitFor{T}"/> has no parameter for — the one framework gap this
-/// batch hit. Kept local rather than widening <c>RefitFor</c>, since nothing outside this folder
-/// needs it yet.
+/// The query and reaction surfaces need no wrapper at all: the fixtures reach them as
+/// <c>app.RefitFor&lt;IRefitAppTransitQuery&gt;(fileSystemType)</c> /
+/// <c>app.RefitFor&lt;IRefitAppTransitReactionSender&gt;()</c>. Their routes are absolute
+/// (<c>/api/apps/v1/transit/...</c>), so they pass through the factory's path normalizer untouched,
+/// and <see cref="V2CallerExtensions.RefitFor{T}"/> now takes the <see cref="FileSystemType"/> the V1
+/// clients set per call as a request header — which is what a local <c>QueryFor</c> wrapper existed
+/// for before that parameter did.
+/// </para>
+/// <para>
+/// <see cref="TransferFileAsync"/> stays, because it is not a client lookup: it builds the multipart
+/// upload, and needs the shared secret alongside the <c>HttpClient</c> to encrypt the descriptor.
 /// </para>
 /// </remarks>
 internal static class AppTransitClients
@@ -49,20 +51,6 @@ internal static class AppTransitClients
         var appDrive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(appDrive, "Some Drive 1", allowAnonymousReads: false);
         return await AppSession.SetupAsync(owner, appDrive, DrivePermission.All, permissionKeys);
-    }
-
-    /// <summary>The app's transit-query surface, scoped to <paramref name="fileSystemType"/>.</summary>
-    public static IRefitAppTransitQuery QueryFor(AppSession app, FileSystemType fileSystemType = FileSystemType.Standard)
-    {
-        var http = app.Factory.CreateHttpClient(app.Identity, out var sharedSecret, fileSystemType);
-        return RefitCreator.RestServiceFor<IRefitAppTransitQuery>(http, sharedSecret);
-    }
-
-    /// <summary>The app's transit reaction-sender surface.</summary>
-    public static IRefitAppTransitReactionSender ReactionsFor(AppSession app)
-    {
-        var http = app.Factory.CreateHttpClient(app.Identity, out var sharedSecret);
-        return RefitCreator.RestServiceFor<IRefitAppTransitReactionSender>(http, sharedSecret);
     }
 
     /// <summary>

@@ -1,17 +1,25 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Util;
 using Odin.Hosting.Tests;
+using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
+using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.Concepts;
 
@@ -59,9 +67,10 @@ public sealed record CollabCallerSpec(string Name, Func<OwnerSession, Task<IV2Ca
 }
 
 /// <summary>
-/// The arrange both <c>_Universal/Concepts</c> ports share: a collaboration-channel drive on one
-/// identity, a circle granting members access to it, and the connection handshake that puts them in
-/// that circle.
+/// What both <c>_Universal/Concepts</c> ports share: the arrange — a collaboration-channel drive on
+/// one identity, a circle granting members access to it, and the connection handshake that puts them
+/// in that circle — and the encrypted post they send over it, either straight to the channel's own
+/// drive or over peer-direct.
 /// </summary>
 /// <remarks>
 /// The <c>IsCollaborativeChannel</c> attribute is load-bearing rather than cosmetic:
@@ -86,13 +95,18 @@ public static class CollabScenario
     /// members are granted on connect, then runs the request/accept handshake for each member.
     /// Returns the circle id, which the fixtures also use as a file ACL.
     /// </summary>
+    /// <param name="circleId">
+    /// Fixed circle id, for a fixture that bakes this scenario into its baseline snapshot and so
+    /// cannot read a freshly-minted one back out. Omit for a new one.
+    /// </param>
     public static async Task<Guid> PrepareScenarioAsync(
         OwnerSession collabChannel,
         IReadOnlyList<OwnerSession> members,
         TargetDrive collabChannelDrive,
         DrivePermission memberPermission,
         string driveName,
-        bool allowAnonymousReads)
+        bool allowAnonymousReads,
+        Guid? circleId = null)
     {
         await DisableAutoAcceptIntroductionsAsync([collabChannel, .. members]);
 
@@ -102,9 +116,9 @@ public static class CollabScenario
             attributes: DriveSpec.CollabAttributes);
         Assert.That(createDriveResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var circleId = Guid.NewGuid();
+        var theCircleId = circleId ?? Guid.NewGuid();
         var permissions = TestUtils.CreatePermissionGrantRequest(collabChannelDrive, memberPermission);
-        await collabChannel.Admin.CreateCircle(circleId, "circle with some access", permissions);
+        await collabChannel.Admin.CreateCircle(theCircleId, "circle with some access", permissions);
 
         foreach (var member in members)
         {
@@ -112,10 +126,93 @@ public static class CollabScenario
             Assert.That(send.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
             var accept = await collabChannel.Connections.AcceptConnectionRequest(
-                member.Identity, [(GuidId)circleId]);
+                member.Identity, [(GuidId)theCircleId]);
             Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
 
-        return circleId;
+        return theCircleId;
+    }
+
+    /// <summary>
+    /// The encrypted post both fixtures send: file type 100, data type 7779, distribution allowed,
+    /// under <paramref name="acl"/>, carrying the two thumbnailed sample payloads each under its own
+    /// fresh IV, plus the manifest describing them.
+    /// </summary>
+    /// <remarks>
+    /// Payload IVs have to be set explicitly. <c>SamplePayloadDefinitions</c> hands back definitions
+    /// with no IV, and an encrypted upload needs one per payload — which is why both originals did
+    /// this by hand, three times over, before it moved here.
+    /// </remarks>
+    private static (UploadFileMetadata Metadata, UploadManifest Manifest, List<TestPayloadDefinition> Payloads)
+        NewEncryptedPost(AccessControlList acl)
+    {
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AppData.Content = "some content here";
+        uploadedFileMetadata.AllowDistribution = true;
+        uploadedFileMetadata.AppData.DataType = 7779;
+        uploadedFileMetadata.AccessControlList = acl;
+
+        var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        payload1.Iv = ByteArrayUtil.GetRndByteArray(16);
+        var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
+        payload2.Iv = ByteArrayUtil.GetRndByteArray(16);
+
+        var payloads = new List<TestPayloadDefinition> { payload1, payload2 };
+        var manifest = new UploadManifest
+        {
+            PayloadDescriptors = payloads.ToPayloadDescriptorList().ToList()
+        };
+
+        return (uploadedFileMetadata, manifest, payloads);
+    }
+
+    /// <summary>
+    /// Sends <see cref="NewEncryptedPost"/> to <paramref name="collabChannel"/> over peer-direct and
+    /// drains the sender's outbox. Returns the transfer response, the metadata as sent, and the first
+    /// payload — the one the update tests go on to delete.
+    /// </summary>
+    public static async Task<(ApiResponse<TransitResult> Response, UploadFileMetadata Metadata, TestPayloadDefinition Payload1)>
+        PostNewEncryptedFileOverPeerDirectAsync(
+            OwnerSession sender,
+            TargetDrive collabChannelDrive,
+            OwnerSession collabChannel,
+            KeyHeader keyHeader,
+            AccessControlList acl,
+            AppNotificationOptions? notificationOptions = null)
+    {
+        var (metadata, manifest, payloads) = NewEncryptedPost(acl);
+
+        var (response, _) = await sender.V1.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
+            metadata, [collabChannel.Identity], null, manifest, payloads, notificationOptions,
+            keyHeader: keyHeader);
+
+        await sender.Sync.DrainOutboxAsync();
+
+        return (response, metadata, payloads[0]);
+    }
+
+    /// <summary>
+    /// Uploads <see cref="NewEncryptedPost"/> straight to <paramref name="sender"/>'s own drive — the
+    /// same post, no peer hop — and drains the outbox the push notifications ride.
+    /// </summary>
+    public static async Task<ApiResponse<UploadResult>> UploadNewEncryptedFileAsync(
+        OwnerSession sender,
+        TargetDrive targetDrive,
+        AccessControlList acl,
+        AppNotificationOptions notificationOptions)
+    {
+        var (metadata, manifest, payloads) = NewEncryptedPost(acl);
+
+        var (response, _, _, _) = await sender.V1.Drive.UploadNewEncryptedFile(
+            targetDrive,
+            KeyHeader.NewRandom16(),
+            metadata,
+            manifest,
+            payloads,
+            notificationOptions);
+
+        await sender.Sync.DrainOutboxAsync();
+
+        return response;
     }
 }

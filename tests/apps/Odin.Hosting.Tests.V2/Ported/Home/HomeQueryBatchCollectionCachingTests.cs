@@ -10,6 +10,7 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Hosting.Tests.BuiltIn.Home;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -49,141 +50,50 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
     public async Task CanQueryHomeDataEndPoint()
     {
         var owner = await LoginAsOwner();
+        var seeded = await UploadData(owner);
 
         //
-        // Create 3 drives and grant ReadWrite
+        // QueryBatchCollection, one section per seeded drive, each pinned to that drive's file
         //
-        var channelDrive1 = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        var channelDrive2 = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        var channelDrive3 = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(channelDrive1, "Channel Drive 1", allowAnonymousReads: true);
-        await owner.Admin.CreateDrive(channelDrive2, "Channel Drive 2", allowAnonymousReads: true);
-        await owner.Admin.CreateDrive(channelDrive3, "Another Drive 3", allowAnonymousReads: true);
-
-        //
-        // Upload 3 files
-        //
-        var header1 = await UploadStandardRandomFileHeadersUsingOwnerApi(owner, channelDrive1, AccessControlList.Anonymous);
-        var header2 = await UploadStandardRandomFileHeadersUsingOwnerApi(owner, channelDrive2, AccessControlList.Anonymous);
-        var header3 = await UploadStandardRandomFileHeadersUsingOwnerApi(owner, channelDrive3, AccessControlList.Anonymous);
-
-        const string section1Name = "s1";
-        const string section2Name = "s2";
-        const string section3Name = "s3";
-
-        //
-        // QueryBatchCollection
-        //
-        var sections = new List<CollectionQueryParamSection>()
+        var sections = seeded.Select((s, i) => new CollectionQueryParamSection()
         {
-            new()
+            Name = $"s{i + 1}",
+            QueryParams = new FileQueryParamsV1()
             {
-                Name = section1Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = channelDrive1,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            },
-            new()
-            {
-                Name = section2Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = channelDrive2,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
-            },
-            new()
-            {
-                Name = section3Name,
-                QueryParams = new FileQueryParamsV1()
-                {
-                    TargetDrive = channelDrive3,
-                    ClientUniqueIdAtLeastOne = new List<Guid>() { header3.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
-                }
+                TargetDrive = s.Drive,
+                ClientUniqueIdAtLeastOne = new List<Guid>() { s.Metadata.AppData.UniqueId.GetValueOrDefault() }
             }
-        };
+        }).ToList();
 
-        using var anonClient = Host.CreateAnonymousClient(PrimaryIdentity);
-        var svc = RestService.For<IRefitHomeDriveQuery>(anonClient);
+        var queryResult = await QueryBatchCollectionAsync(sections);
 
-        var queryBatchResponse = await svc.QueryBatchCollection(new QueryBatchCollectionRequest()
-        {
-            Queries = sections
-        });
-
-        Assert.That(queryBatchResponse.Headers.Contains("Cache-Control"), Is.True);
-        Assert.That(queryBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var queryResult = queryBatchResponse.Content;
-        Assert.That(queryResult, Is.Not.Null);
-
-        Assert.That(queryResult!.Results.Count, Is.EqualTo(3), "Should be 3 sections");
-
-        Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>
-            r.Name == section1Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header1.uploadResult.File.FileId) != null));
-
-        Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>
-            r.Name == section1Name &&
-            r.InvalidDrive == false));
-
-        Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>
-            r.Name == section2Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header2.uploadResult.File.FileId) != null));
-
-        Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>
-            r.Name == section2Name &&
-            r.InvalidDrive == false));
-
-        Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>
-            r.Name == section3Name &&
-            r.SearchResults.SingleOrDefault(r2 => r2.FileId == header3.uploadResult.File.FileId) != null));
-
-        Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>
-            r.Name == section3Name &&
-            r.InvalidDrive == false));
+        AssertOneSectionEach(queryResult, sections,
+            (section, i) => header => header.FileId == seeded[i].UploadResult.File.FileId);
     }
 
     [Test]
-    public async Task CanInvalidateCache()
+    public Task CanInvalidateCache() => AssertQueryIsCachedUntilAsync(async (_, _) =>
     {
-        var owner = await LoginAsOwner();
-
         using var anonClient = Host.CreateAnonymousClient(PrimaryIdentity);
         var svc = RestService.For<IRefitHomeDriveQuery>(anonClient);
 
-        var drives = await UploadData(owner);
-
-        HomeCachingService.ResetCacheStats();
-        Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(0));
-
-        await QueryData(drives.ToArray());
-        Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(1), "Cache should have not been used");
-
-        await QueryData(drives.ToArray());
-        Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(1), "cache misses should not have changed.");
-
-        //
-        // Invalidate and query again
-        //
         var invalidateCacheResponse = await svc.InvalidateCache();
         Assert.That(invalidateCacheResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        await QueryData(drives.ToArray());
-
-        Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(2), "cache miss should have increased");
-
-        HomeCachingService.ResetCacheStats();
-    }
+    });
 
     [Test]
-    public async Task CanInvalidateCache_ByAddingFileToChannel()
+    public Task CanInvalidateCache_ByAddingFileToChannel() => AssertQueryIsCachedUntilAsync(
+        (owner, drives) => UploadStandardRandomFileHeadersUsingOwnerApi(
+            owner, drives[0], AccessControlList.Anonymous, HomeCachingService.ChannelFileType));
+
+    /// <summary>
+    /// The shape both invalidation tests share: seed three drives, query twice (one miss, then a
+    /// hit), run <paramref name="invalidate"/>, and query once more expecting a fresh miss.
+    /// </summary>
+    private async Task AssertQueryIsCachedUntilAsync(Func<OwnerSession, List<TargetDrive>, Task> invalidate)
     {
         var owner = await LoginAsOwner();
-
-        var drives = await UploadData(owner);
+        var drives = (await UploadData(owner)).Select(s => s.Drive).ToList();
 
         HomeCachingService.ResetCacheStats();
         Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(0));
@@ -194,17 +104,13 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
         await QueryData(drives.ToArray());
         Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(1), "cache misses should not have changed.");
 
-        //
-        // Add a new channel
-        //
-        await UploadStandardRandomFileHeadersUsingOwnerApi(owner, drives[0], AccessControlList.Anonymous,
-            HomeCachingService.ChannelFileType);
+        await invalidate(owner, drives);
 
         await QueryData(drives.ToArray());
         Assert.That(HomeCachingService.CacheMiss, Is.EqualTo(2), "cache miss should have increased");
-
-        HomeCachingService.ResetCacheStats();
     }
+
+    private sealed record SeededDrive(TargetDrive Drive, UploadResult UploadResult, UploadFileMetadata Metadata);
 
     private static async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)>
         UploadStandardRandomFileHeadersUsingOwnerApi(
@@ -231,31 +137,29 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
         return (response.Content!, fileMetadata);
     }
 
-    private static async Task<List<TargetDrive>> UploadData(OwnerSession owner)
+    /// <summary>
+    /// Creates the three anonymously-readable drives every test here queries (two channel drives and
+    /// one ordinary drive) and puts one post on each.
+    /// </summary>
+    private static async Task<List<SeededDrive>> UploadData(OwnerSession owner)
     {
-        //
-        // Create 3 drives and grant ReadWrite
-        //
-        var channelDrive1 = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        var channelDrive2 = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        var channelDrive3 = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(channelDrive1, "Channel Drive 1", allowAnonymousReads: true);
-        await owner.Admin.CreateDrive(channelDrive2, "Channel Drive 2", allowAnonymousReads: true);
-        await owner.Admin.CreateDrive(channelDrive3, "Another Drive 3", allowAnonymousReads: true);
-
-        //
-        // Upload 3 files
-        //
-        await UploadStandardRandomFileHeadersUsingOwnerApi(owner, channelDrive1, AccessControlList.Anonymous);
-        await UploadStandardRandomFileHeadersUsingOwnerApi(owner, channelDrive2, AccessControlList.Anonymous);
-        await UploadStandardRandomFileHeadersUsingOwnerApi(owner, channelDrive3, AccessControlList.Anonymous);
-
-        return new List<TargetDrive>()
+        var drives = new[]
         {
-            channelDrive1,
-            channelDrive2,
-            channelDrive3
+            (Drive: TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType), Name: "Channel Drive 1"),
+            (Drive: TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType), Name: "Channel Drive 2"),
+            (Drive: TargetDrive.NewTargetDrive(), Name: "Another Drive 3")
         };
+
+        var seeded = new List<SeededDrive>();
+        foreach (var (drive, name) in drives)
+        {
+            await owner.Admin.CreateDrive(drive, name, allowAnonymousReads: true);
+            var (uploadResult, metadata) =
+                await UploadStandardRandomFileHeadersUsingOwnerApi(owner, drive, AccessControlList.Anonymous);
+            seeded.Add(new SeededDrive(drive, uploadResult, metadata));
+        }
+
+        return seeded;
     }
 
     private async Task QueryData(params TargetDrive[] drives)
@@ -270,6 +174,19 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
             }
         }).ToList();
 
+        var queryResult = await QueryBatchCollectionAsync(sections);
+
+        AssertOneSectionEach(queryResult, sections,
+            (section, i) => header => header.FileMetadata.AppData.FileType == HomeCachingService.PostFileType);
+    }
+
+    /// <summary>
+    /// POSTs <paramref name="sections"/> to the anonymous home query-batch-collection endpoint and
+    /// asserts the response shape both tests rely on: cacheable, OK, and one result per section.
+    /// </summary>
+    private async Task<QueryBatchCollectionResponse> QueryBatchCollectionAsync(
+        List<CollectionQueryParamSection> sections)
+    {
         using var anonClient = Host.CreateAnonymousClient(PrimaryIdentity);
         var svc = RestService.For<IRefitHomeDriveQuery>(anonClient);
 
@@ -278,20 +195,36 @@ public class HomeQueryBatchCollectionCachingTests : V2Fixture
             Queries = sections
         });
 
-        Assert.That(queryBatchResponse.Headers.Contains("Cache-Control"), Is.True);
+        Assert.That(queryBatchResponse.Headers.Contains("Cache-Control"), Is.True,
+            "the home query-batch-collection response should carry a Cache-Control header");
         Assert.That(queryBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var queryResult = queryBatchResponse.Content;
         Assert.That(queryResult, Is.Not.Null);
+        Assert.That(queryResult!.Results.Count, Is.EqualTo(sections.Count),
+            $"Should be {sections.Count} sections");
 
-        Assert.That(queryResult!.Results.Count, Is.EqualTo(3), "Should be 3 sections");
+        return queryResult;
+    }
 
+    /// <summary>
+    /// For each submitted section, asserts exactly one result carries that name and holds exactly one
+    /// file matching <paramref name="matchFile"/>, and exactly one carries that name with
+    /// <c>InvalidDrive == false</c>.
+    /// </summary>
+    private static void AssertOneSectionEach(
+        QueryBatchCollectionResponse queryResult,
+        List<CollectionQueryParamSection> sections,
+        Func<CollectionQueryParamSection, int, Func<SharedSecretEncryptedFileHeader, bool>> matchFile)
+    {
         for (var i = 0; i < sections.Count; i++)
         {
             var sectionName = sections[i].Name;
+            var isExpectedFile = matchFile(sections[i], i);
+
             Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>
                     r.Name == sectionName &&
-                    r.SearchResults.SingleOrDefault(r2 => r2.FileMetadata.AppData.FileType == HomeCachingService.PostFileType) != null),
+                    r.SearchResults.SingleOrDefault(isExpectedFile) != null),
                 $"section {i} is missing its post");
 
             Assert.That(queryResult.Results, Has.Exactly(1).Matches<QueryBatchResponse>(r =>

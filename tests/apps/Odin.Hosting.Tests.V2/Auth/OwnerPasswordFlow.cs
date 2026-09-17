@@ -1,5 +1,5 @@
 #nullable enable
-using System;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -10,14 +10,14 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
-using Odin.Hosting.Tests.V2.Auth;
+using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security;
 using Refit;
 
-namespace Odin.Hosting.Tests.V2.Ported.Authentication;
+namespace Odin.Hosting.Tests.V2.Auth;
 
 /// <summary>
 /// The anonymous half of the owner password dance against an in-process <see cref="OdinHost"/>:
@@ -29,22 +29,17 @@ namespace Odin.Hosting.Tests.V2.Ported.Authentication;
 /// <c>ResetPasswordUsingRecoveryKey</c>), minus the loopback-TLS plumbing: the V1 originals each
 /// hand-rolled an <see cref="HttpClientHandler"/> with a
 /// <c>ServerCertificateCustomValidationCallback</c> purely to reach the Kestrel listener on
-/// <c>WebScaffold.HttpsPort</c>. There is no TLS here, so a client built on
-/// <c>Host.Server.CreateHandler()</c> replaces all of it.
+/// <c>WebScaffold.HttpsPort</c>. There is no TLS here, so
+/// <see cref="AnonymousHttp.CreateAnonymousClient"/> replaces all of it.
 ///
-/// Lives next to its consumers rather than on <see cref="OwnerSession"/>: every call here is made
-/// <i>without</i> owner credentials, which is the point — these are the endpoints a browser reaches
-/// before it holds a token, and after a password change has invalidated the one it held.
+/// Lives beside <see cref="OwnerLogin"/> rather than on <see cref="Api.OwnerSession"/>: every call
+/// here is made <i>without</i> owner credentials, which is the point — these are the endpoints a
+/// browser reaches before it holds a token, and after a password change has invalidated the one it
+/// held. It is under <c>Auth/</c> rather than folder-local to a port because its consumers span
+/// three folders, <see cref="OwnerLogin"/> included.
 /// </remarks>
 internal static class OwnerPasswordFlow
 {
-    /// <summary>A raw, credential-free client bound to one identity's host header.</summary>
-    public static HttpClient AnonymousClient(OdinHost host, string identity) =>
-        new(host.Server.CreateHandler())
-        {
-            BaseAddress = new Uri($"https://{identity}/")
-        };
-
     /// <summary>
     /// A password reply for <i>authenticating</i> — folded into a fresh authentication nonce.
     /// </summary>
@@ -54,7 +49,7 @@ internal static class OwnerPasswordFlow
         var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
         var nonceResponse = await svc.GenerateAuthenticationNonce();
-        Assert.That(nonceResponse.IsSuccessStatusCode, Is.True, "server failed when getting nonce");
+        Assert.That(nonceResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), "server failed when getting nonce");
         var clientNonce = nonceResponse.Content!;
 
         var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicJwk, clientNonce.CRC)
@@ -74,7 +69,7 @@ internal static class OwnerPasswordFlow
         var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
         var saltResponse = await svc.GenerateNewSalts();
-        Assert.That(saltResponse.IsSuccessStatusCode, Is.True, "failed to generate new salts");
+        Assert.That(saltResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), "failed to generate new salts");
         var clientSalts = saltResponse.Content!;
 
         var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicJwk, clientSalts.CRC)
@@ -89,7 +84,7 @@ internal static class OwnerPasswordFlow
     public static async Task<ApiResponse<OwnerAuthenticationResult>> LoginAsync(
         OdinHost host, string identity, string password, EccFullKeyData clientEccFullKey)
     {
-        using var authClient = AnonymousClient(host, identity);
+        using var authClient = host.CreateAnonymousClient(identity);
         var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
         var reply = await CalculateAuthenticationPasswordReplyAsync(authClient, password, clientEccFullKey);
         return await svc.Authenticate(reply);
@@ -102,7 +97,7 @@ internal static class OwnerPasswordFlow
     public static async Task<ResetPasswordRequest> BuildResetPasswordRequestAsync(
         OdinHost host, string identity, string currentPassword, string newPassword)
     {
-        using var authClient = AnonymousClient(host, identity);
+        using var authClient = host.CreateAnonymousClient(identity);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
         return new ResetPasswordRequest
@@ -121,13 +116,13 @@ internal static class OwnerPasswordFlow
         OdinHost host, string identity, string recoveryKey, string newPassword)
     {
         const PublicPrivateKeyType keyType = PublicPrivateKeyType.OfflineKey;
-        using var authClient = AnonymousClient(host, identity);
+        using var authClient = host.CreateAnonymousClient(identity);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
         var saltyReply = await CalculatePasswordReplyAsync(authClient, newPassword, clientEccFullKey);
 
         var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
         var publicKeyResponse = await svc.GetPublicKeyEcc(keyType);
-        Assert.That(publicKeyResponse.IsSuccessStatusCode, Is.True);
+        Assert.That(publicKeyResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var publicKey = publicKeyResponse.Content!;
 
         var hostPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKey.PublicKeyJwkBase64Url);

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
@@ -31,8 +30,7 @@ public class DidControllerTests : V2Fixture
     public async Task ItShouldGetDidWeb()
     {
         using var apiClient = Host.CreateAnonymousClient(Identities.Frodo);
-        var request = new HttpRequestMessage(HttpMethod.Get, $"https://{Identities.Frodo}/.well-known/did.json");
-        var response = await apiClient.SendAsync(request);
+        var response = await apiClient.GetAsync("/.well-known/did.json");
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var result = OdinSystemSerializer.Deserialize<DidWebResponse>(await response.Content.ReadAsStringAsync());

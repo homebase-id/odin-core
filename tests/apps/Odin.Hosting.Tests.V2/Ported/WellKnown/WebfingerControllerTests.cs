@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
@@ -24,8 +23,7 @@ public class WebfingerControllerTests : V2Fixture
     public async Task ItShouldGetWebfinger()
     {
         using var apiClient = Host.CreateAnonymousClient(Identities.Frodo);
-        var request = new HttpRequestMessage(HttpMethod.Get, $"https://{Identities.Frodo}/.well-known/webfinger");
-        var response = await apiClient.SendAsync(request);
+        var response = await apiClient.GetAsync("/.well-known/webfinger");
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var result = OdinSystemSerializer.Deserialize<WebFingerResponse>(await response.Content.ReadAsStringAsync());

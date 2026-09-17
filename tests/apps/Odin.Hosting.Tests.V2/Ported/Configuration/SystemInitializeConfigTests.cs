@@ -21,7 +21,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
-using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 
@@ -34,10 +33,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 /// <remarks>
 /// <para>
 /// <b>The un-initialized tenant.</b> The original got one from
-/// <c>RunBeforeAnyTests(initializeIdentity: false)</c>. Here
-/// <see cref="V2Fixture.WarmTenantBaselineAsync"/> is overridden to log in — which sets the owner
-/// password, required before <c>OdinHost.TakeBaselineAsync</c> snapshots the identity DB — and stop
-/// there, deliberately skipping <c>Admin.InitializeIdentity()</c>. Same approach as
+/// <c>RunBeforeAnyTests(initializeIdentity: false)</c>. Here <see cref="V2Fixture.InitializeIdentities"/>
+/// is false, so the baseline still logs in — which sets the owner password, required before
+/// <c>OdinHost.TakeBaselineAsync</c> snapshots the identity DB — and stops there, deliberately
+/// skipping <c>Admin.InitializeIdentity()</c>. Same approach as
 /// <c>Ported/DriveManagement/HandleDriveAddedRegressionTests</c>. Verified: the snapshot is taken
 /// pre-init, so every test starts with <c>isconfigured</c> false and the first assertion of
 /// <see cref="CanInitializeSystem_WithAllKeys"/> would fail loudly if that ever stopped holding.
@@ -52,25 +51,17 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 /// The whole fixture's SUT is the admin surface, so every call goes through
 /// <see cref="OwnerSession.RefitFor{T}"/> rather than <c>owner.Admin</c> — splitting it would swap in
 /// <c>OwnerAdmin</c>'s opinionated defaults (page size, metadata) under assertions that read them.
-/// The public-key endpoints are anonymous guest routes, so they are reached with the host's raw client
-/// rather than the owner factory, which would wrap them in shared-secret encryption.
+/// The public-key endpoints are anonymous guest routes, so they are reached with
+/// <see cref="AnonymousHttp.AnonymousRefitFor{T}"/> rather than the owner factory, which would wrap
+/// them in shared-secret encryption.
 /// </para>
 /// <para>No caller matrix in the original and none added.</para>
 /// </remarks>
 [TestFixture]
 public class SystemInitializeConfigTests : V2Fixture
 {
-    /// <summary>
-    /// Logs the owner in (to set the password the snapshot baseline needs) and stops there. Skipping
-    /// <c>InitializeIdentity</c> is the point: initial setup is what these tests exercise.
-    /// </summary>
-    protected override async Task WarmTenantBaselineAsync()
-    {
-        foreach (var identity in HostIdentities)
-        {
-            await LoginAsOwner(identity);
-        }
-    }
+    /// <summary>The system under test is initial setup itself, so the tenants must not be initialized.</summary>
+    protected override bool InitializeIdentities => false;
 
     [Test]
     public async Task CanInitializeSystem_WithAllKeys()
@@ -155,20 +146,19 @@ public class SystemInitializeConfigTests : V2Fixture
         var createdDrives = createdDrivesResponse.Content!;
         Assert.That(createdDrives.Results.Count, Is.EqualTo(BuiltinDrives.Protected.Count));
 
-        void AssertDriveExists(TargetDrive drive) =>
-            Assert.That(createdDrives.Results.Any(cd => cd.TargetDriveInfo == drive), Is.True,
-                $"expected drive [{drive}] not found");
-
-        AssertDriveExists(WellKnownAppDrives.ContactDrive);
-        AssertDriveExists(WellKnownAppDrives.ProfileDrive);
         // WalletDrive is deliberately absent: it is no longer seeded for new identities, and only
         // the ones that already had it keep it.
-        AssertDriveExists(WellKnownAppDrives.ChatDrive);
-        AssertDriveExists(WellKnownAppDrives.MomentsDrive);
-        AssertDriveExists(WellKnownAppDrives.MailDrive);
-        AssertDriveExists(WellKnownAppDrives.FeedDrive);
-        AssertDriveExists(WellKnownAppDrives.HomePageConfigDrive);
-        AssertDriveExists(WellKnownAppDrives.PublicPostsChannelDrive);
+        Assert.That(createdDrives.Results.Select(cd => cd.TargetDriveInfo), Is.SupersetOf(new[]
+        {
+            WellKnownAppDrives.ContactDrive,
+            WellKnownAppDrives.ProfileDrive,
+            WellKnownAppDrives.ChatDrive,
+            WellKnownAppDrives.MomentsDrive,
+            WellKnownAppDrives.MailDrive,
+            WellKnownAppDrives.FeedDrive,
+            WellKnownAppDrives.HomePageConfigDrive,
+            WellKnownAppDrives.PublicPostsChannelDrive
+        }));
 
         var getCircleDefinitionsResponse = await owner.RefitFor<IRefitOwnerCircleDefinition>()
             .GetCircleDefinitions(includeSystemCircle: true);
@@ -328,11 +318,7 @@ public class SystemInitializeConfigTests : V2Fixture
         var createdDrives = createdDrivesResponse.Content!;
         Assert.That(createdDrives.Results.Count, Is.EqualTo(expectedDrives.Count));
 
-        foreach (var expectedDrive in expectedDrives)
-        {
-            Assert.That(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive), Is.True,
-                $"expected drive [{expectedDrive}] not found");
-        }
+        Assert.That(createdDrives.Results.Select(cd => cd.TargetDriveInfo), Is.SupersetOf(expectedDrives));
 
         var getCircleDefinitionsResponse = await owner.RefitFor<IRefitOwnerCircleDefinition>()
             .GetCircleDefinitions(includeSystemCircle: true);
@@ -390,16 +376,10 @@ public class SystemInitializeConfigTests : V2Fixture
     }
 
     /// <summary>
-    /// The public-key routes live under the anonymous guest surface, so they are called with a raw
-    /// client bound to the identity's host header — not the owner factory, whose shared-secret
-    /// handler would encrypt a request the endpoint expects in the clear.
+    /// The public-key routes live under the anonymous guest surface, so they are called with a
+    /// credential-free client bound to the identity's host header — not the owner factory, whose
+    /// shared-secret handler would encrypt a request the endpoint expects in the clear.
     /// </summary>
     private IPublicPrivateKeyHttpClientForOwner PublicKeyClient()
-    {
-        var client = new System.Net.Http.HttpClient(Host.Server.CreateHandler())
-        {
-            BaseAddress = new Uri($"https://{PrimaryIdentity}/")
-        };
-        return RestService.For<IPublicPrivateKeyHttpClientForOwner>(client);
-    }
+        => Host.AnonymousRefitFor<IPublicPrivateKeyHttpClientForOwner>(PrimaryIdentity);
 }

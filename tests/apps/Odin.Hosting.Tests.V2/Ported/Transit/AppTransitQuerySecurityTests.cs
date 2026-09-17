@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -45,6 +46,12 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///     The original's <c>Task.Delay(5)</c> before <c>GetModified</c> is dropped: it was there for
 ///     the modified-file cursor in the sibling fixtures, and this test prepares no data at all.
 ///   </description></item>
+///   <item><description>
+///     Both apps are registered once in <see cref="WarmTenantBaselineAsync"/> and baked into the
+///     baseline snapshot rather than re-registered per test: app registrations and their client
+///     tokens live in the identity DB the per-test reset restores. Nothing else in the arrange is
+///     shared — test 1 makes its own connection, and the refusal tests prepare no data at all.
+///   </description></item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -52,15 +59,31 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 public class AppTransitQuerySecurityTests : V2Fixture
 {
 
+    private AppSession _merryAppWithTransitRead;
+    private AppSession _merryAppWithoutTransitRead;
+
     protected override string[] HostIdentities => [Identities.Merry, Identities.Pippin];
+
+    /// <summary>
+    /// The two apps the fixture reads through: the one test 1 needs, holding
+    /// <see cref="PermissionKeys.UseTransitRead"/>, and the one the six refusal tests share, holding
+    /// everything except it.
+    /// </summary>
+    protected override async Task WarmTenantBaselineAsync()
+    {
+        await base.WarmTenantBaselineAsync();
+
+        var merry = await LoginAsOwner(Identities.Merry);
+        _merryAppWithTransitRead = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
+        _merryAppWithoutTransitRead = await AppTransitClients.CreateAppAsync(merry,
+            PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
+    }
 
     [Test]
     public async Task SystemDefault_AppHas_Read_React_Comment_Permissions_On_AnonymousDrives_WhenConnected()
     {
         var merry = await LoginAsOwner(Identities.Merry);
         var pippin = await LoginAsOwner(Identities.Pippin);
-
-        var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
 
         var sendRequest = await pippin.Connections.SendConnectionRequest(merry.Identity);
         Assert.That(sendRequest.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -71,7 +94,7 @@ public class AppTransitQuerySecurityTests : V2Fixture
         var allPippinDrives = await pippin.Admin.GetDrives();
         var expectedAnonymousDrives = allPippinDrives.Where(drive => drive.AllowAnonymousReads).ToList();
 
-        var remoteDotYouContextResponse = await AppTransitClients.QueryFor(merryApp)
+        var remoteDotYouContextResponse = await _merryAppWithTransitRead.RefitFor<IRefitAppTransitQuery>()
             .GetRemoteDotYouContext(new TransitGetSecurityContextRequest { OdinId = pippin.Identity });
 
         Assert.That(remoteDotYouContextResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -93,8 +116,8 @@ public class AppTransitQuerySecurityTests : V2Fixture
     public async Task AppFailsTo_GetBatch_OverTransitQuery_Without_UseTransitRead_Permission()
     {
         //Note: I do not prepare any remote data because the permission is enforced on the origin identity
-        var merryApp = await CreateAppWithoutTransitReadAsync();
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetBatch(new PeerQueryBatchRequest
+        var svc = _merryAppWithoutTransitRead.RefitFor<IRefitAppTransitQuery>();
+        var getBatchResponse = await svc.GetBatch(new PeerQueryBatchRequest
         {
             OdinId = Identities.Pippin
         });
@@ -106,8 +129,8 @@ public class AppTransitQuerySecurityTests : V2Fixture
     public async Task AppFailsTo_GetModified_OverTransitQuery_Without_UseTransitRead_Permission()
     {
         //Note: I do not prepare any remote data because the permission is enforced on the origin identity
-        var merryApp = await CreateAppWithoutTransitReadAsync();
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetModified(new PeerQueryModifiedRequest
+        var svc = _merryAppWithoutTransitRead.RefitFor<IRefitAppTransitQuery>();
+        var getBatchResponse = await svc.GetModified(new PeerQueryModifiedRequest
         {
             OdinId = Identities.Merry
         });
@@ -119,8 +142,8 @@ public class AppTransitQuerySecurityTests : V2Fixture
     public async Task AppFailsTo_GetHeader_OverTransitQuery_Without_UseTransitRead_Permission()
     {
         //Note: I do not prepare any remote data because the permission is enforced on the origin identity
-        var merryApp = await CreateAppWithoutTransitReadAsync();
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetFileHeader(new TransitExternalFileIdentifier
+        var svc = _merryAppWithoutTransitRead.RefitFor<IRefitAppTransitQuery>();
+        var getBatchResponse = await svc.GetFileHeader(new TransitExternalFileIdentifier
         {
             OdinId = Identities.Merry,
             File = new ExternalFileIdentifier
@@ -137,8 +160,8 @@ public class AppTransitQuerySecurityTests : V2Fixture
     public async Task AppFailsTo_GetPayload_OverTransitQuery_Without_UseTransitRead_Permission()
     {
         //Note: I do not prepare any remote data because the permission is enforced on the origin identity
-        var merryApp = await CreateAppWithoutTransitReadAsync();
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetPayload(new TransitGetPayloadRequest
+        var svc = _merryAppWithoutTransitRead.RefitFor<IRefitAppTransitQuery>();
+        var getBatchResponse = await svc.GetPayload(new TransitGetPayloadRequest
         {
             OdinId = Identities.Merry,
             File = new ExternalFileIdentifier
@@ -156,8 +179,8 @@ public class AppTransitQuerySecurityTests : V2Fixture
     public async Task AppFailsTo_GetThumbnails_OverTransitQuery_Without_UseTransitRead_Permission()
     {
         //Note: I do not prepare any remote data because the permission is enforced on the origin identity
-        var merryApp = await CreateAppWithoutTransitReadAsync();
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetThumbnail(new TransitGetThumbRequest
+        var svc = _merryAppWithoutTransitRead.RefitFor<IRefitAppTransitQuery>();
+        var getBatchResponse = await svc.GetThumbnail(new TransitGetThumbRequest
         {
             OdinId = Identities.Merry,
             File = new ExternalFileIdentifier
@@ -174,8 +197,8 @@ public class AppTransitQuerySecurityTests : V2Fixture
     public async Task AppFailsTo_GetBatchCollection_OverTransitQuery_Without_UseTransitRead_Permission()
     {
         //Note: I do not prepare any remote data because the permission is enforced on the origin identity
-        var merryApp = await CreateAppWithoutTransitReadAsync();
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetBatchCollection(new PeerQueryBatchCollectionRequest
+        var svc = _merryAppWithoutTransitRead.RefitFor<IRefitAppTransitQuery>();
+        var getBatchResponse = await svc.GetBatchCollection(new PeerQueryBatchCollectionRequest
         {
             OdinId = Identities.Merry,
             Queries = new List<CollectionQueryParamSection>
@@ -190,14 +213,5 @@ public class AppTransitQuerySecurityTests : V2Fixture
         });
 
         Assert.That(getBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-    }
-
-    // ---------------------------------------------------------------------------------------------
-
-    /// <summary>The app the six refusal tests share: everything except <see cref="PermissionKeys.UseTransitRead"/>.</summary>
-    private async Task<AppSession> CreateAppWithoutTransitReadAsync()
-    {
-        var merry = await LoginAsOwner(Identities.Merry);
-        return await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
     }
 }

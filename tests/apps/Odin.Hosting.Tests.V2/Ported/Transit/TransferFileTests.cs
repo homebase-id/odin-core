@@ -65,9 +65,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///     <see cref="CreateAppAndTransferFileAsync"/>, including its inline assertions (file id non-empty,
 ///     drive valid, one <c>RecipientStatus</c> per recipient, each <c>Enqueued</c>) and its wire shape:
 ///     metadata forced encrypted, one payload under <c>WebScaffold.PAYLOAD_KEY</c> encrypted with the
-///     file key header, a manifest descriptor carrying an unrelated random IV, and — when asked — one
-///     300x300 thumbnail encrypted with the same key header. The original supported N recipients; both
-///     callers pass one, so this takes one.
+///     file key header, a manifest descriptor carrying an unrelated random IV, and one 300x300
+///     thumbnail encrypted with the same key header. The original supported N recipients and made the
+///     thumbnail optional; both callers pass one recipient and ask for the thumbnail, so this takes one
+///     recipient and always sends it.
+///   </description></item>
+///   <item><description>
+///     The two tests that build their multipart upload by hand share their whole arrange —
+///     <see cref="ConnectAppsOverOneDriveAsync"/>, which composes the three helpers above. The
+///     originals inlined it twice, byte-identically apart from <c>canUseTransit</c>.
 ///   </description></item>
 ///   <item><description>
 ///     <c>AppApi.DeleteFile</c> is <see cref="DeleteFileAsync"/>, with the same four assertions.
@@ -82,7 +88,16 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///   <item><description>
 ///     Reads and the raw multipart uploads still go through the original's own
 ///     <see cref="IDriveTestHttpClientForApps"/>, bound to the app caller — the <c>_Universal</c>
-///     drive client would have changed the request shape the round-trip assertions rest on.
+///     drive client would have changed the request shape the round-trip assertions rest on. Reads
+///     reach it through <c>app.RefitFor&lt;IDriveTestHttpClientForApps&gt;()</c>; the two hand-rolled
+///     uploads build the <c>HttpClient</c> themselves, because they need the shared secret it hands
+///     back to encrypt the file descriptor.
+///   </description></item>
+///   <item><description>
+///     The original spread its five tests over three identities — Frodo/Sam for two, Sam/Merry for the
+///     other two — an arbitrary pairing: each test resets to the baseline and the identities are
+///     structurally identical. All five use Frodo and Sam here, so the fixture boots two tenants
+///     instead of three.
 ///   </description></item>
 ///   <item><description>
 ///     The trailing <c>DisconnectIdentities</c> calls asserted nothing and are dropped; per-test reset
@@ -115,38 +130,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 public class TransferFileTests : V2Fixture
 {
 
-    protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
+    protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    [Test(Description = "")]
+    [Test]
     public async Task FailToTransferWithoutUseTransitPermission()
     {
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        var appId = Guid.NewGuid();
-        var targetDrive = TargetDrive.NewTargetDrive();
-        var senderApp = await SetupTestSampleAppAsync(sender, appId, targetDrive,
-            canReadConnections: true, driveAllowAnonymousReads: true, canUseTransit: false);
-        await SetupTestSampleAppAsync(recipient, appId, targetDrive,
-            canReadConnections: true, driveAllowAnonymousReads: false, canUseTransit: false);
+        var (sender, senderApp, recipient, _, targetDrive) = await ConnectAppsOverOneDriveAsync(canUseTransit: false);
 
         var fileTag = Guid.NewGuid();
-
-        var senderCircleId = await CreateCircleWithDriveAsync(sender, "Sender Circle", [], new PermissionedDrive
-        {
-            Drive = targetDrive,
-            Permission = DrivePermission.ReadWrite
-        });
-
-        var recipientCircleId = await CreateCircleWithDriveAsync(recipient, "Recipient Circle", [], new PermissionedDrive
-        {
-            Drive = targetDrive,
-            Permission = DrivePermission.ReadWrite
-        });
-
-        await CreateConnectionAsync(sender, recipient,
-            circleIdsGrantedToRecipient: [senderCircleId],
-            circleIdsGrantedToSender: [recipientCircleId]);
 
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -230,8 +221,8 @@ public class TransferFileTests : V2Fixture
     public async Task TransientFileIsDeletedAfterSending()
     {
         const int someFiletype = 3892;
-        var sender = await LoginAsOwner(Identities.Sam);
-        var recipient = await LoginAsOwner(Identities.Merry);
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
 
         var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), recipient.Identity);
         instructionSet.TransitOptions.IsTransient = true;
@@ -247,7 +238,7 @@ public class TransferFileTests : V2Fixture
             AccessControlList = AccessControlList.Connected
         };
 
-        var ctx = await CreateAppAndTransferFileAsync(sender, recipient, instructionSet, fileMetadata, includeThumbnail: true);
+        var ctx = await CreateAppAndTransferFileAsync(sender, recipient, instructionSet, fileMetadata);
 
         var sentFile = ctx.UploadResult.File;
 
@@ -283,7 +274,7 @@ public class TransferFileTests : V2Fixture
         //
         // On sender identity - see that file is not indexed and not available by direct access
         //
-        var getSenderFileResponse = await DriveSvc(ctx.SenderApp).GetFileHeaderAsPost(sentFile);
+        var getSenderFileResponse = await ctx.SenderApp.RefitFor<IDriveTestHttpClientForApps>().GetFileHeaderAsPost(sentFile);
         Assert.That(getSenderFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
             "Sender should no longer have the file since we used IsTransient");
 
@@ -304,8 +295,8 @@ public class TransferFileTests : V2Fixture
 
         const int someFiletype = 89994;
 
-        var sender = await LoginAsOwner(Identities.Sam);
-        var recipient = await LoginAsOwner(Identities.Merry);
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
 
         var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), recipient.Identity);
 
@@ -321,7 +312,7 @@ public class TransferFileTests : V2Fixture
         };
 
         // Send the first file
-        var sendFileResult = await CreateAppAndTransferFileAsync(sender, recipient, instructionSet, fileMetadata, includeThumbnail: true);
+        var sendFileResult = await CreateAppAndTransferFileAsync(sender, recipient, instructionSet, fileMetadata);
 
         Assert.That(sendFileResult.UploadResult.GlobalTransitId, Is.Not.Null);
         Assert.That(sendFileResult.UploadResult.GlobalTransitId.GetValueOrDefault(), Is.Not.EqualTo(Guid.Empty));
@@ -376,11 +367,11 @@ public class TransferFileTests : V2Fixture
     //     Assert.Inconclusive("WIP - testing this requires me to hack the server side and set the same global transit id");
     // }
 
-    [Test(Description = "")]
+    [Test]
     public Task CanSendTransferAndRecipientCanGetFilesByTag_SendNowAwaitResponse() =>
         SendTransferAndReadBackByTagAsync(WebScaffold.PAYLOAD_KEY);
 
-    [Test(Description = "")]
+    [Test]
     public Task CanSendTransferAndRecipientCanGetFilesByTag_Queued() =>
         SendTransferAndReadBackByTagAsync("abc333yc");
 
@@ -427,33 +418,10 @@ public class TransferFileTests : V2Fixture
     /// </remarks>
     private async Task SendTransferAndReadBackByTagAsync(string payloadKey)
     {
-        var sender = await LoginAsOwner(Identities.Frodo);
-        var recipient = await LoginAsOwner(Identities.Sam);
-
-        var appId = Guid.NewGuid();
-        var targetDrive = TargetDrive.NewTargetDrive();
-        var senderApp = await SetupTestSampleAppAsync(sender, appId, targetDrive,
-            canReadConnections: true, driveAllowAnonymousReads: true);
-        var recipientApp = await SetupTestSampleAppAsync(recipient, appId, targetDrive,
-            canReadConnections: true, driveAllowAnonymousReads: false);
+        var (sender, senderApp, recipient, recipientApp, targetDrive) =
+            await ConnectAppsOverOneDriveAsync(canUseTransit: true);
 
         var fileTag = Guid.NewGuid();
-
-        var senderCircleId = await CreateCircleWithDriveAsync(sender, "Sender Circle", [], new PermissionedDrive
-        {
-            Drive = targetDrive,
-            Permission = DrivePermission.ReadWrite
-        });
-
-        var recipientCircleId = await CreateCircleWithDriveAsync(recipient, "Recipient Circle", [], new PermissionedDrive
-        {
-            Drive = targetDrive,
-            Permission = DrivePermission.ReadWrite
-        });
-
-        await CreateConnectionAsync(sender, recipient,
-            circleIdsGrantedToRecipient: [senderCircleId],
-            circleIdsGrantedToSender: [recipientCircleId]);
 
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -551,167 +519,163 @@ public class TransferFileTests : V2Fixture
         var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
         var instructionStream = new MemoryStream(bytes);
 
+        var transitSvc = RestService.For<IDriveTestHttpClientForApps>(uploadClient);
+        var response = await transitSvc.Upload(
+            new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+            new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+            new StreamPart(payloadCipher, payloadKey, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+            new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(payloadKey), thumbnail1.ContentType,
+                Enum.GetName(MultipartUploadParts.Thumbnail)),
+            new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(payloadKey), thumbnail2.ContentType,
+                Enum.GetName(MultipartUploadParts.Thumbnail)));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content, Is.Not.Null);
+        var transferResult = response.Content!;
+
+        Assert.That(transferResult.File, Is.Not.Null);
+        Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(transferResult.File.TargetDrive.IsValid(), Is.True);
+
+        foreach (var r in instructionSet.TransitOptions.Recipients)
         {
-            var transitSvc = RestService.For<IDriveTestHttpClientForApps>(uploadClient);
-            var response = await transitSvc.Upload(
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(payloadCipher, payloadKey, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(payloadKey), thumbnail1.ContentType,
-                    Enum.GetName(MultipartUploadParts.Thumbnail)),
-                new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(payloadKey), thumbnail2.ContentType,
-                    Enum.GetName(MultipartUploadParts.Thumbnail)));
-
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(response.Content, Is.Not.Null);
-            var transferResult = response.Content!;
-
-            Assert.That(transferResult.File, Is.Not.Null);
-            Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-            Assert.That(transferResult.File.TargetDrive.IsValid(), Is.True);
-
-            foreach (var r in instructionSet.TransitOptions.Recipients)
-            {
-                Assert.That(transferResult.RecipientStatus.ContainsKey(r), Is.True, $"Could not find matching recipient {r}");
-                Assert.That(transferResult.RecipientStatus[r], Is.EqualTo(TransferStatus.Enqueued), $"file was not enqued for {r}");
-            }
+            Assert.That(transferResult.RecipientStatus.ContainsKey(r), Is.True, $"Could not find matching recipient {r}");
+            Assert.That(transferResult.RecipientStatus[r], Is.EqualTo(TransferStatus.Enqueued), $"file was not enqued for {r}");
         }
 
         await sender.Sync.DrainOutboxAsync();
 
+        //First force transfers to be put into their long term location
+        await recipientApp.Sync.ProcessInboxAsync(targetDrive);
+
+        var driveSvc = recipientApp.RefitFor<IDriveTestHttpClientForApps>();
+
+        //lookup the fileId by the fileTag from earlier
+        var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest
         {
-            //First force transfers to be put into their long term location
-            await recipientApp.Sync.ProcessInboxAsync(targetDrive);
-
-            var driveSvc = DriveSvc(recipientApp);
-
-            //lookup the fileId by the fileTag from earlier
-            var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest
-            {
-                QueryParams = new FileQueryParamsV1
-                {
-                    TargetDrive = targetDrive,
-                    TagsMatchAll = [fileTag]
-                },
-                ResultOptionsRequest = new QueryBatchResultOptionsRequest
-                {
-                    MaxRecords = 1,
-                    IncludeMetadataHeader = true
-                }
-            });
-
-            Assert.That(queryBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(queryBatchResponse.Content, Is.Not.Null);
-            Assert.That(queryBatchResponse.Content!.SearchResults.Count(), Is.EqualTo(1));
-
-            var uploadedFile = new ExternalFileIdentifier
+            QueryParams = new FileQueryParamsV1
             {
                 TargetDrive = targetDrive,
-                FileId = queryBatchResponse.Content.SearchResults.Single().FileId
-            };
-
-            var fileResponse = await driveSvc.GetFileHeaderAsPost(uploadedFile);
-
-            Assert.That(fileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(fileResponse.Content, Is.Not.Null);
-
-            var clientFileHeader = fileResponse.Content!;
-
-            Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
-            Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
-
-            Assert.That(clientFileHeader.FileMetadata.AppData.Tags, Is.EquivalentTo(descriptor.FileMetadata.AppData.Tags));
-            Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
-            Assert.That(clientFileHeader.FileMetadata.Payloads.Count, Is.EqualTo(1));
-
-            Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
-            Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
-            Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-            Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
-            Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-
-            var ss = recipientApp.Factory.SharedSecret;
-            var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
-
-            Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-            Assert.That(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()), Is.True);
-
-            //validate preview thumbnail
-            Assert.That(clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType,
-                Is.EqualTo(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType));
-            Assert.That(clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight,
-                Is.EqualTo(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight));
-            Assert.That(clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth,
-                Is.EqualTo(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth));
-            Assert.That(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
-                clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content), Is.True);
-
-            Assert.That(clientFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey).Thumbnails.Count(), Is.EqualTo(2));
-
-            //
-            // Get the payload that was uploaded, test it
-            //
-            var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest { File = uploadedFile, Key = payloadKey });
-            Assert.That(payloadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(payloadResponse.Content, Is.Not.Null);
-
-            var payloadResponseCipher = await payloadResponse.Content!.ReadAsByteArrayAsync();
-            Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
-
-            var aesKey = decryptedKeyHeader.AesKey;
-            var decryptedPayloadBytes = AesCbc.Decrypt(
-                cipherText: payloadResponseCipher,
-                key: aesKey,
-                iv: payloadIv);
-
-            var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
-            Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
-
-            //
-            // Validate additional thumbnails
-            //
-            var expectedThumbnails = new List<ThumbnailDescriptor> { thumbnail1, thumbnail2 };
-            var clientFileHeaderList = clientFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey).Thumbnails.ToList();
-
-            //validate thumbnail 1
-            Assert.That(clientFileHeaderList[0].ContentType, Is.EqualTo(expectedThumbnails[0].ContentType));
-            Assert.That(clientFileHeaderList[0].PixelWidth, Is.EqualTo(expectedThumbnails[0].PixelWidth));
-            Assert.That(clientFileHeaderList[0].PixelHeight, Is.EqualTo(expectedThumbnails[0].PixelHeight));
-
-            var thumbnailResponse1 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest
+                TagsMatchAll = [fileTag]
+            },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest
             {
-                File = uploadedFile,
-                Height = thumbnail1.PixelHeight,
-                Width = thumbnail1.PixelWidth,
-                PayloadKey = payloadKey
-            });
+                MaxRecords = 1,
+                IncludeMetadataHeader = true
+            }
+        });
 
-            Assert.That(thumbnailResponse1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(thumbnailResponse1.Content, Is.Not.Null);
+        Assert.That(queryBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(queryBatchResponse.Content, Is.Not.Null);
+        Assert.That(queryBatchResponse.Content!.SearchResults.Count(), Is.EqualTo(1));
 
-            var thumbnailResponse1CipherBytes = await thumbnailResponse1.Content!.ReadAsByteArrayAsync();
-            Assert.That(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, thumbnailResponse1CipherBytes), Is.True);
+        var uploadedFile = new ExternalFileIdentifier
+        {
+            TargetDrive = targetDrive,
+            FileId = queryBatchResponse.Content.SearchResults.Single().FileId
+        };
 
-            //validate thumbnail 2
-            Assert.That(clientFileHeaderList[1].ContentType, Is.EqualTo(expectedThumbnails[1].ContentType));
-            Assert.That(clientFileHeaderList[1].PixelWidth, Is.EqualTo(expectedThumbnails[1].PixelWidth));
-            Assert.That(clientFileHeaderList[1].PixelHeight, Is.EqualTo(expectedThumbnails[1].PixelHeight));
+        var fileResponse = await driveSvc.GetFileHeaderAsPost(uploadedFile);
 
-            var thumbnailResponse2 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest
-            {
-                File = uploadedFile,
-                Height = thumbnail2.PixelHeight,
-                Width = thumbnail2.PixelWidth,
-                PayloadKey = payloadKey
-            });
+        Assert.That(fileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(fileResponse.Content, Is.Not.Null);
 
-            Assert.That(thumbnailResponse2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(thumbnailResponse2.Content, Is.Not.Null);
-            var thumbnailResponse2CipherBytes = await thumbnailResponse2.Content!.ReadAsByteArrayAsync();
-            Assert.That(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, thumbnailResponse2CipherBytes), Is.True);
+        var clientFileHeader = fileResponse.Content!;
 
-            decryptedKeyHeader.AesKey.Wipe();
-        }
+        Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
+        Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
+
+        Assert.That(clientFileHeader.FileMetadata.AppData.Tags, Is.EquivalentTo(descriptor.FileMetadata.AppData.Tags));
+        Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
+        Assert.That(clientFileHeader.FileMetadata.Payloads.Count, Is.EqualTo(1));
+
+        Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
+        Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
+        Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
+        Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
+        Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
+
+        var ss = recipientApp.Factory.SharedSecret;
+        var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
+
+        Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
+        Assert.That(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()), Is.True);
+
+        //validate preview thumbnail
+        Assert.That(clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType,
+            Is.EqualTo(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType));
+        Assert.That(clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight,
+            Is.EqualTo(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight));
+        Assert.That(clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth,
+            Is.EqualTo(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth));
+        Assert.That(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
+            clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content), Is.True);
+
+        Assert.That(clientFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey).Thumbnails.Count(), Is.EqualTo(2));
+
+        //
+        // Get the payload that was uploaded, test it
+        //
+        var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest { File = uploadedFile, Key = payloadKey });
+        Assert.That(payloadResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(payloadResponse.Content, Is.Not.Null);
+
+        var payloadResponseCipher = await payloadResponse.Content!.ReadAsByteArrayAsync();
+        Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
+
+        var aesKey = decryptedKeyHeader.AesKey;
+        var decryptedPayloadBytes = AesCbc.Decrypt(
+            cipherText: payloadResponseCipher,
+            key: aesKey,
+            iv: payloadIv);
+
+        var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
+        Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
+
+        //
+        // Validate additional thumbnails
+        //
+        var expectedThumbnails = new List<ThumbnailDescriptor> { thumbnail1, thumbnail2 };
+        var clientFileHeaderList = clientFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey).Thumbnails.ToList();
+
+        //validate thumbnail 1
+        Assert.That(clientFileHeaderList[0].ContentType, Is.EqualTo(expectedThumbnails[0].ContentType));
+        Assert.That(clientFileHeaderList[0].PixelWidth, Is.EqualTo(expectedThumbnails[0].PixelWidth));
+        Assert.That(clientFileHeaderList[0].PixelHeight, Is.EqualTo(expectedThumbnails[0].PixelHeight));
+
+        var thumbnailResponse1 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest
+        {
+            File = uploadedFile,
+            Height = thumbnail1.PixelHeight,
+            Width = thumbnail1.PixelWidth,
+            PayloadKey = payloadKey
+        });
+
+        Assert.That(thumbnailResponse1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(thumbnailResponse1.Content, Is.Not.Null);
+
+        var thumbnailResponse1CipherBytes = await thumbnailResponse1.Content!.ReadAsByteArrayAsync();
+        Assert.That(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, thumbnailResponse1CipherBytes), Is.True);
+
+        //validate thumbnail 2
+        Assert.That(clientFileHeaderList[1].ContentType, Is.EqualTo(expectedThumbnails[1].ContentType));
+        Assert.That(clientFileHeaderList[1].PixelWidth, Is.EqualTo(expectedThumbnails[1].PixelWidth));
+        Assert.That(clientFileHeaderList[1].PixelHeight, Is.EqualTo(expectedThumbnails[1].PixelHeight));
+
+        var thumbnailResponse2 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest
+        {
+            File = uploadedFile,
+            Height = thumbnail2.PixelHeight,
+            Width = thumbnail2.PixelWidth,
+            PayloadKey = payloadKey
+        });
+
+        Assert.That(thumbnailResponse2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(thumbnailResponse2.Content, Is.Not.Null);
+        var thumbnailResponse2CipherBytes = await thumbnailResponse2.Content!.ReadAsByteArrayAsync();
+        Assert.That(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, thumbnailResponse2CipherBytes), Is.True);
+
+        decryptedKeyHeader.AesKey.Wipe();
 
         keyHeader.AesKey.Wipe();
     }
@@ -761,6 +725,48 @@ public class TransferFileTests : V2Fixture
         return await AppSession.SetupAsync(owner, targetDrive, DrivePermission.All, keys, knownAppId: appId);
     }
 
+    /// <summary>
+    /// The arrange the two hand-rolled upload tests share: one drive on both identities, an app over
+    /// it on each, a read/write circle on each, and the connection granting them across.
+    /// </summary>
+    /// <remarks>
+    /// The originals spelled this out twice, byte-identically apart from <paramref name="canUseTransit"/>
+    /// — which is the whole subject of <see cref="FailToTransferWithoutUseTransitPermission"/>, and so
+    /// stays a parameter. Composed from the three helpers below rather than inlined a third time.
+    /// </remarks>
+    private async Task<(OwnerSession Sender, AppSession SenderApp, OwnerSession Recipient, AppSession RecipientApp,
+        TargetDrive TargetDrive)> ConnectAppsOverOneDriveAsync(bool canUseTransit)
+    {
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
+
+        var appId = Guid.NewGuid();
+        var targetDrive = TargetDrive.NewTargetDrive();
+
+        var senderApp = await SetupTestSampleAppAsync(sender, appId, targetDrive,
+            canReadConnections: true, driveAllowAnonymousReads: true, canUseTransit: canUseTransit);
+        var recipientApp = await SetupTestSampleAppAsync(recipient, appId, targetDrive,
+            canReadConnections: true, canUseTransit: canUseTransit);
+
+        var senderCircleId = await CreateCircleWithDriveAsync(sender, "Sender Circle", [], new PermissionedDrive
+        {
+            Drive = targetDrive,
+            Permission = DrivePermission.ReadWrite
+        });
+
+        var recipientCircleId = await CreateCircleWithDriveAsync(recipient, "Recipient Circle", [], new PermissionedDrive
+        {
+            Drive = targetDrive,
+            Permission = DrivePermission.ReadWrite
+        });
+
+        await CreateConnectionAsync(sender, recipient,
+            circleIdsGrantedToRecipient: [senderCircleId],
+            circleIdsGrantedToSender: [recipientCircleId]);
+
+        return (sender, senderApp, recipient, recipientApp, targetDrive);
+    }
+
     /// <summary><c>OwnerApiTestUtils.CreateCircleWithDrive</c>; returns the circle id.</summary>
     private static async Task<Guid> CreateCircleWithDriveAsync(
         OwnerSession owner, string name, IReadOnlyList<int> permissionKeys, PermissionedDrive drive)
@@ -797,15 +803,12 @@ public class TransferFileTests : V2Fixture
         OwnerSession sender,
         OwnerSession recipient,
         UploadInstructionSet instructionSet,
-        UploadFileMetadata fileMetadata,
-        bool includeThumbnail,
-        bool driveAllowAnonymousReads = false)
+        UploadFileMetadata fileMetadata)
     {
         var targetDrive = instructionSet.StorageOptions.Drive;
         var appId = Guid.NewGuid();
 
-        var senderApp = await SetupTestSampleAppAsync(sender, appId, targetDrive,
-            canReadConnections: true, driveAllowAnonymousReads: driveAllowAnonymousReads);
+        var senderApp = await SetupTestSampleAppAsync(sender, appId, targetDrive, canReadConnections: true);
 
         var senderCircleId = await CreateCircleWithDriveAsync(sender, $"Sender ({sender.Identity}) Circle",
             [PermissionKeys.ReadConnections], new PermissionedDrive
@@ -835,38 +838,31 @@ public class TransferFileTests : V2Fixture
 
         fileMetadata.IsEncrypted = true;
 
-        var thumbnailParts = new List<StreamPart>();
-        var thumbnailsAdded = new List<ThumbnailDescriptor>();
-        var thumbs = new List<UploadedManifestThumbnailDescriptor>();
-
-        if (includeThumbnail)
+        var thumbnail1 = new ThumbnailDescriptor
         {
-            var thumbnail1 = new ThumbnailDescriptor
-            {
-                PixelHeight = 300,
-                PixelWidth = 300,
-                ContentType = "image/jpeg"
-            };
+            PixelHeight = 300,
+            PixelWidth = 300,
+            ContentType = "image/jpeg"
+        };
 
-            thumbs.Add(new UploadedManifestThumbnailDescriptor
-            {
-                PixelHeight = thumbnail1.PixelHeight,
-                PixelWidth = thumbnail1.PixelWidth,
-                ThumbnailKey = thumbnail1.GetFilename(payloadKey)
-            });
-
-            var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
-            thumbnailParts.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(payloadKey),
-                thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
-            thumbnailsAdded.Add(thumbnail1);
-        }
+        var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
+        var thumbnailPart = new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(payloadKey),
+            thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail));
 
         instructionSet.Manifest.PayloadDescriptors ??= [];
         instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor
         {
             Iv = ByteArrayUtil.GetRndByteArray(16),
             PayloadKey = payloadKey,
-            Thumbnails = thumbs
+            Thumbnails =
+            [
+                new UploadedManifestThumbnailDescriptor
+                {
+                    PixelHeight = thumbnail1.PixelHeight,
+                    PixelWidth = thumbnail1.PixelWidth,
+                    ThumbnailKey = thumbnail1.GetFilename(payloadKey)
+                }
+            ]
         });
 
         var transferIv = instructionSet.TransferIv;
@@ -888,7 +884,7 @@ public class TransferFileTests : V2Fixture
             new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
             new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
             new StreamPart(payloadCipher, payloadKey, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-            thumbnailParts.ToArray());
+            thumbnailPart);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content, Is.Not.Null);
@@ -912,13 +908,13 @@ public class TransferFileTests : V2Fixture
         keyHeader.AesKey.Wipe();
 
         return new TransferContext(sender, senderApp, recipient, recipientApp, targetDrive, transferResult, fileMetadata,
-            thumbnailsAdded);
+            [thumbnail1]);
     }
 
     /// <summary><c>AppApiTestUtils.DeleteFile</c> for one recipient, assertions and delivery included.</summary>
     private static async Task DeleteFileAsync(TransferContext ctx, ExternalFileIdentifier fileId)
     {
-        var deleteFileResponse = await DriveSvc(ctx.SenderApp).DeleteFile(new DeleteFileRequest
+        var deleteFileResponse = await ctx.SenderApp.RefitFor<IDriveTestHttpClientForApps>().DeleteFile(new DeleteFileRequest
         {
             File = fileId,
             Recipients = [ctx.Recipient.Identity]
@@ -941,26 +937,20 @@ public class TransferFileTests : V2Fixture
 
     // The three app-scoped reads the original reached through _scaffold.AppApi.
 
-    private static IDriveTestHttpClientForApps DriveSvc(AppSession app)
-    {
-        var client = app.Factory.CreateHttpClient(app.Identity, out var sharedSecret);
-        return RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, sharedSecret);
-    }
-
     private static Task<ApiResponse<QueryBatchResponse>> QueryBatchAsync(
         AppSession app, FileQueryParamsV1 queryParams, QueryBatchResultOptionsRequest options) =>
-        DriveSvc(app).GetBatch(new QueryBatchRequest
+        app.RefitFor<IDriveTestHttpClientForApps>().GetBatch(new QueryBatchRequest
         {
             QueryParams = queryParams,
             ResultOptionsRequest = options
         });
 
     private static Task<ApiResponse<HttpContent>> GetFilePayloadAsync(AppSession app, ExternalFileIdentifier file) =>
-        DriveSvc(app).GetPayloadAsPost(new GetPayloadRequest { File = file, Key = WebScaffold.PAYLOAD_KEY });
+        app.RefitFor<IDriveTestHttpClientForApps>().GetPayloadAsPost(new GetPayloadRequest { File = file, Key = WebScaffold.PAYLOAD_KEY });
 
     private static Task<ApiResponse<HttpContent>> GetThumbnailAsync(
         AppSession app, ExternalFileIdentifier file, int width, int height, string payloadKey) =>
-        DriveSvc(app).GetThumbnailAsPost(new GetThumbnailRequest
+        app.RefitFor<IDriveTestHttpClientForApps>().GetThumbnailAsPost(new GetThumbnailRequest
         {
             File = file,
             Height = height,

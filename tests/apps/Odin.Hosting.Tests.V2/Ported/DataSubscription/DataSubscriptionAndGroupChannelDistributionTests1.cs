@@ -33,8 +33,10 @@ namespace Odin.Hosting.Tests.V2.Ported.DataSubscription;
 /// note is presumably about.</item>
 /// <item>Same mechanical substitutions as its sibling fixture: <c>WaitForEmptyOutbox</c> →
 /// <c>Sync.DrainOutboxAsync()</c>, <c>ProcessInbox(FeedDrive)</c> →
-/// <c>Sync.ProcessInboxAsync(FeedDrive)</c>, the private upload / assert helpers →
-/// <see cref="DataSubscriptionScenario"/>, trailing unfollow / disconnect cleanup dropped.</item>
+/// <c>Sync.ProcessInboxAsync(FeedDrive)</c>, the private drive-create / connect / follow / upload /
+/// assert helpers → <see cref="DataSubscriptionScenario"/>, trailing unfollow / disconnect cleanup
+/// dropped. The group drive's attribute bag is the framework's <see cref="DriveSpec.CollabAttributes"/>,
+/// which is the same single <c>IsCollaborativeChannel</c> entry the original built inline.</item>
 /// <item>Since none of it runs, none of those substitutions has been exercised.</item>
 /// </list>
 /// </remarks>
@@ -53,11 +55,8 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
         //create a channel drive
-        var groupChannelDrive = DataSubscriptionScenario.NewChannelDrive();
-
-        await groupIdentityOwnerClient.Admin.CreateDrive(groupChannelDrive, "A Group Channel Drive",
-            allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true,
-            attributes: DataSubscriptionScenario.IsGroupChannelAttributes);
+        var groupChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(groupIdentityOwnerClient,
+            name: "A Group Channel Drive", attributes: DriveSpec.CollabAttributes);
 
         var memberCircleId = Guid.NewGuid();
         await groupIdentityOwnerClient.Admin.CreateCircle(memberCircleId, "group members", new PermissionSetGrantRequest
@@ -77,10 +76,10 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
             }
         );
 
-        await ConnectAsync(groupIdentityOwnerClient, samOwnerClient, memberCircleId);
+        await DataSubscriptionScenario.ConnectAsync(groupIdentityOwnerClient, samOwnerClient, memberCircleId);
 
         // Sam to follow everything from frodo
-        await FollowAsync(samOwnerClient, groupIdentityOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, groupIdentityOwnerClient);
 
         // channel member posts they are here
         var uploadedContent = "Hi all, I'm here; my name is Sam.";
@@ -94,12 +93,8 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
 
         var query = DataSubscriptionScenario.FeedQueryByFileType(fileType);
 
-        var batch = await DataSubscriptionScenario.QueryBatchAsync(samOwnerClient, query);
-        Assert.That(batch.Count, Is.EqualTo(1));
-        var originalFile = batch.First();
-        Assert.That(originalFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(originalFile.FileMetadata.AppData.Content, Is.EqualTo(uploadedContent));
-        Assert.That(originalFile.FileMetadata.GlobalTransitId, Is.EqualTo(firstUploadResult.GlobalTransitId));
+        var originalFile = await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(
+            samOwnerClient, query, uploadedContent, firstUploadResult);
 
         //Now change the file as if someone edited a post
         var updatedContent = "No really, I'm Frodo Baggins";
@@ -143,15 +138,12 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
         //create a channel drive
-        var frodoChannelDrive = DataSubscriptionScenario.NewChannelDrive();
+        var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient);
 
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
-
-        await ConnectAsync(frodoOwnerClient, samOwnerClient);
+        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient);
 
         // Sam to follow everything from frodo
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
@@ -160,13 +152,8 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
 
         await frodoOwnerClient.Sync.DrainOutboxAsync();
 
-        var batch = await DataSubscriptionScenario.QueryBatchAsync(samOwnerClient,
-            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult));
-        Assert.That(batch.Count, Is.EqualTo(1));
-        var theFile = batch.First();
-        Assert.That(theFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(theFile.FileMetadata.AppData.Content, Is.EqualTo(uploadedContent));
-        Assert.That(theFile.FileMetadata.GlobalTransitId, Is.EqualTo(uploadResult.GlobalTransitId));
+        await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(samOwnerClient,
+            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult), uploadedContent, uploadResult);
     }
 
     [Test]
@@ -179,13 +166,10 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
         //create a channel drive
-        var frodoChannelDrive = DataSubscriptionScenario.NewChannelDrive();
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
+        var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient);
 
         // Sam to follow everything from frodo
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
@@ -198,13 +182,8 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         // Sam should have the same content on his feed drive
         // await samOwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
 
-        var batch = await DataSubscriptionScenario.QueryBatchAsync(samOwnerClient,
-            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult));
-        Assert.That(batch.Count, Is.EqualTo(1));
-        var theFile = batch.First();
-        Assert.That(theFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(theFile.FileMetadata.AppData.Content, Is.EqualTo(uploadedContent));
-        Assert.That(theFile.FileMetadata.GlobalTransitId, Is.EqualTo(uploadResult.GlobalTransitId));
+        await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(samOwnerClient,
+            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult), uploadedContent, uploadResult);
     }
 
     [Test]
@@ -217,15 +196,12 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
         //create a channel drive
-        var frodoChannelDrive = DataSubscriptionScenario.NewChannelDrive();
+        var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient);
 
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
-
-        await ConnectAsync(frodoOwnerClient, samOwnerClient);
+        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient);
 
         // Sam to follow everything from frodo
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
@@ -238,13 +214,8 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
 
         await samOwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
 
-        var batch = await DataSubscriptionScenario.QueryBatchAsync(samOwnerClient,
-            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult));
-        Assert.That(batch.Count, Is.EqualTo(1));
-        var theFile = batch.First();
-        Assert.That(theFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(theFile.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(theFile.FileMetadata.GlobalTransitId, Is.EqualTo(uploadResult.GlobalTransitId));
+        await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(samOwnerClient,
+            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult), encryptedJsonContent64, uploadResult);
     }
 
     [Test]
@@ -257,13 +228,10 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
         //create a channel drive
-        var frodoChannelDrive = DataSubscriptionScenario.NewChannelDrive();
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
+        var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient);
 
         // Sam to follow everything from frodo
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
@@ -275,9 +243,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
 
         await samOwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
 
-        var batch = await DataSubscriptionScenario.QueryBatchAsync(samOwnerClient,
-            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult));
-        Assert.That(batch, Is.Empty);
+        await DataSubscriptionScenario.AssertFeedDriveDoesNotHaveHeaderAsync(samOwnerClient, uploadResult);
     }
 
     [Test]
@@ -292,18 +258,18 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var pippinOwnerClient = await LoginAsOwner(Identities.Pippin);
 
         //create a channel drive
-        var frodoChannelDrive = DataSubscriptionScenario.NewChannelDrive();
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: true,
-            ownerOnly: false, allowSubscriptions: true);
+        var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient,
+            allowAnonymousReads: true);
 
         // Sam is connected to follow everything from frodo
-        await ConnectAsync(frodoOwnerClient, samOwnerClient);
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         //Pippin and merry follow a channel
-        await FollowAsync(pippinOwnerClient, frodoOwnerClient, FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
-        await FollowAsync(merryOwnerClient, frodoOwnerClient, FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
+        await DataSubscriptionScenario.FollowAsync(pippinOwnerClient, frodoOwnerClient,
+            FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
+        await DataSubscriptionScenario.FollowAsync(merryOwnerClient, frodoOwnerClient,
+            FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
 
         // Frodo uploads content to channel drive
         const string uploadedContent = "I'm Mr. Underhill";
@@ -338,18 +304,18 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var pippinOwnerClient = await LoginAsOwner(Identities.Pippin);
 
         //create a channel drive
-        var frodoChannelDrive = DataSubscriptionScenario.NewChannelDrive();
-
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: true,
-            ownerOnly: false, allowSubscriptions: true);
+        var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient,
+            allowAnonymousReads: true);
 
         // Sam is connected to follow everything from frodo
-        await ConnectAsync(frodoOwnerClient, samOwnerClient);
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         //Pippin and merry follow a channel
-        await FollowAsync(pippinOwnerClient, frodoOwnerClient, FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
-        await FollowAsync(merryOwnerClient, frodoOwnerClient, FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
+        await DataSubscriptionScenario.FollowAsync(pippinOwnerClient, frodoOwnerClient,
+            FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
+        await DataSubscriptionScenario.FollowAsync(merryOwnerClient, frodoOwnerClient,
+            FollowerNotificationType.SelectedChannels, [frodoChannelDrive]);
 
         // Frodo uploads content to channel drive
         const string uploadedContent = "I'm Mr. Underhill";
@@ -412,15 +378,12 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
         var samOwnerClient = await LoginAsOwner(Identities.Sam);
 
         //create a channel drive
-        var frodoChannelDrive = DataSubscriptionScenario.NewChannelDrive();
+        var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient);
 
-        await frodoOwnerClient.Admin.CreateDrive(frodoChannelDrive, "A Channel Drive", allowAnonymousReads: false,
-            ownerOnly: false, allowSubscriptions: true);
-
-        await ConnectAsync(frodoOwnerClient, samOwnerClient);
+        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient);
 
         // Sam to follow everything from frodo
-        await FollowAsync(samOwnerClient, frodoOwnerClient);
+        await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
@@ -433,33 +396,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1 : V2Fixture
 
         await samOwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
 
-        var batch = await DataSubscriptionScenario.QueryBatchAsync(samOwnerClient,
-            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult));
-        Assert.That(batch.Count, Is.EqualTo(1));
-        var theFile = batch.First();
-        Assert.That(theFile.FileState, Is.EqualTo(FileState.Active));
-        Assert.That(theFile.FileMetadata.AppData.Content, Is.EqualTo(encryptedJsonContent64));
-        Assert.That(theFile.FileMetadata.GlobalTransitId, Is.EqualTo(uploadResult.GlobalTransitId));
-    }
-
-    // ---------------------------------------------------------------------------------------------
-
-    /// <summary>Sends and accepts a connection request, optionally granting <paramref name="circleId"/>.</summary>
-    private static async Task ConnectAsync(OwnerSession sender, OwnerSession recipient, Guid? circleId = null)
-    {
-        var sendResponse = await sender.Connections.SendConnectionRequest(recipient.Identity,
-            circleId.HasValue ? [circleId.Value] : []);
-        Assert.That(sendResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var acceptResponse = await recipient.Connections.AcceptConnectionRequest(sender.Identity, []);
-        Assert.That(acceptResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-    }
-
-    private static async Task FollowAsync(OwnerSession follower, OwnerSession followee,
-        FollowerNotificationType notificationType = FollowerNotificationType.AllNotifications,
-        List<TargetDrive> channels = null)
-    {
-        var response = await follower.V1.Follower.FollowIdentity(followee.Identity, notificationType, channels);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        await DataSubscriptionScenario.AssertFeedDriveHasFileAsync(samOwnerClient,
+            DataSubscriptionScenario.FeedQueryByGlobalTransitId(uploadResult), encryptedJsonContent64, uploadResult);
     }
 }

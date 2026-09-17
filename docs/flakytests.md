@@ -274,6 +274,28 @@ they do not deterministically wait for. The fast framework has `Sync.DrainOutbox
 `ProcessInboxAsync()` for exactly this; a port that keeps a V1-style implicit wait inherits the
 flake.
 
+**Second failure, 2026-09-17, and it revises the above.** The same test failed again on a full
+Debug run, but *not* on the delivery assertion -- it failed in teardown, on the log-event
+invariant:
+
+```
+[1/1] Error: "SQLite Error 5: 'database is locked'."
+Exception origin: "POST" "/api/peer/v1/host/drives/deletelinkedfile"
+```
+
+So at least one failure in this family is not a missing wait at all: the delete never lands
+because the peer's write loses a lock race, and the delivery assertion was the *symptom*. The
+diagnosis above was written before `AssertLogEvents` printed events -- it was inferred from a bare
+`Expected: True`, and it is now clear that a bare assertion cannot distinguish "not waited long
+enough" from "the write failed". Treat the timing story as unconfirmed for this entry until a
+failure is seen with a clean error log.
+
+**This is the evidence #1777 was filed without.** When I filed #1777 I recorded that I had not
+established whether SQLite write contention was reachable at realistic concurrency, as opposed to
+under the deliberate hammer fixtures. This is an ordinary two-identity peer delete, on Linux, with
+no hammer -- so it is reachable. Three of the entries in this file (`V1PeerReadReceiptTestsSuccess`,
+`ConcurrentOverwriteEncryptedHeaderTests`, and this) are now the same `database is locked` cause.
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.DriveWrite.HammerTimeLocalUpdateBatchTests`
@@ -376,3 +398,35 @@ untouched because it belongs to an earlier batch and was not part of this one. N
 toleration is what makes the *bleed* survivable; while it is in place, a fixture that tolerates the
 message cannot distinguish its own occurrence of #1771 from a neighbour's. Fixing the isolation
 (or #1771) is what removes the whole class.
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.DriveWrite.ConcurrentOverwriteEncryptedHeaderTests`
+
+- `Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads`
+
+**Where:** CI, `windows/sqlite/debug` only (run 35184385873, 2026-09-17). Failed after 2m14s.
+`ubuntu/sqlite/release` and `ubuntu/postgres/release` passed the same commit; 1 failure in 1367.
+
+**Symptom:** `Assert.That(tag.HasValue, Is.True) / Expected: True, But was: False`, three times in one
+`Assert.Multiple`. The fixture runs 20 threads x 50 iterations, each overwriting its own encrypted
+header and carrying the version tag forward; a null tag means an upload did not succeed.
+
+**The assertion did not say why, and that is now fixed.** `UploadAndValidateHeader` captured the
+status code (it counts 500s into `_serverErrorCount`) and then returned a bare `null`, so the failure
+printed `Expected: True` and nothing else. It now returns the status alongside the tag and asserts on
+the status, so the next occurrence names the code. This is the third time in one sitting that a
+precomputed-bool assertion hid a diagnosis -- see also #1772 (a 500 behind `IsSuccessStatusCode`) and
+the log-event invariant (three product bugs behind `Expected: 0`).
+
+**Probably the same contention as #1777, but not yet established.** The sibling fixture
+`PayloadConcurrentHammerEncryptedTests` is already `[Explicit]` with a comment naming exactly this --
+"the 9-thread hammer exhausts SQLite's busy timeout on the Windows CI runner". This fixture runs
+*twice* that concurrency and is not `[Explicit]`, so it runs. `V1PeerReadReceiptTestsSuccess` logs
+`SQLite Error 5` locally under the same pressure. Three tests, one family. But the assertion above
+gave no status code, so attributing this specific failure to lock contention is inference -- re-run
+once the improved assertion is in CI before treating it as settled.
+
+**Not confirmed pre-existing.** The port carries the `_Universal` original's concurrency shape
+unchanged and the `[Explicit]` sibling's comment predates this work, which argues it is not new --
+but I could not run Windows locally, and both Linux matrices pass, so `main` has not been checked.

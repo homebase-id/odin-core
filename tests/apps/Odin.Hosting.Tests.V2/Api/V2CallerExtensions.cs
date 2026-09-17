@@ -1,3 +1,4 @@
+using Odin.Core.Storage;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
 namespace Odin.Hosting.Tests.V2.Api;
@@ -18,9 +19,14 @@ public static class V2CallerExtensions
     /// exactly this reason. The caller's own factory supplies the token and shared secret, so an App
     /// caller's identity can never be paired with an Owner's credentials.
     /// </remarks>
-    public static T RefitFor<T>(this IV2Caller caller)
+    /// <param name="fileSystemType">
+    /// Which file system the request addresses. Sent as a header by the factory, so a fixture reading
+    /// or writing comments needs <see cref="FileSystemType.Comment"/> here rather than a hand-rolled
+    /// client — which is what two transit fixtures were doing before this parameter existed.
+    /// </param>
+    public static T RefitFor<T>(this IV2Caller caller, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = caller.Factory.CreateHttpClient(caller.Identity, out var sharedSecret);
+        var client = caller.Factory.CreateHttpClient(caller.Identity, out var sharedSecret, fileSystemType);
         return RefitCreator.RestServiceFor<T>(client, sharedSecret);
     }
 }

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -14,9 +16,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 /// <remarks>
 /// The original ran on an un-initialized tenant (<c>RunBeforeAnyTests(initializeIdentity: false)</c>)
 /// and called <c>InitializeIdentity</c> inside each test. <see cref="V2Fixture.WarmTenantBaselineAsync"/>
-/// already initializes, and the call is idempotent on the server, so the in-test call is kept verbatim
-/// rather than deleted — nothing here asserts on the un-initialized state, so no override is needed
-/// (contrast <see cref="SystemInitializeConfigTests"/>, whose subject <i>is</i> initial setup).
+/// already initializes, and neither test asserted anything about that call's response, so it is
+/// dropped rather than repeated — nothing here asserts on the un-initialized state either, so
+/// <see cref="V2Fixture.InitializeIdentities"/> stays true (contrast
+/// <see cref="SystemInitializeConfigTests"/>, whose subject <i>is</i> initial setup).
 /// Carried verbatim: the original pinned Merry; here the fixture default acts, because the identities
 /// are structurally identical and only one is booted.
 ///
@@ -40,28 +43,24 @@ public class AuthenticatedDefaultsTests : V2Fixture
     }
 
     [Test]
-    public async Task SystemDefault_TenantSettings_AuthenticatedIdentitiesCanReactOnAnonymousDrives_IsTrue()
+    [TestCase("AuthenticatedIdentitiesCanReactOnAnonymousDrives", true)]
+    [TestCase("AuthenticatedIdentitiesCanCommentOnAnonymousDrives", false)]
+    public async Task SystemDefault_TenantSettings_IsExpected(string setting, bool expected)
     {
+        var read = Readers[setting];
+
         var owner = await LoginAsOwner();
         var svc = owner.RefitFor<IRefitOwnerConfiguration>();
 
-        await svc.InitializeIdentity(new InitialSetupRequest());
-
         var getSettingsResponse = await svc.GetTenantSettings();
         Assert.That(getSettingsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(getSettingsResponse.Content!.AuthenticatedIdentitiesCanReactOnAnonymousDrives, Is.True);
+        Assert.That(read(getSettingsResponse.Content!), Is.EqualTo(expected));
     }
 
-    [Test]
-    public async Task SystemDefault_TenantSettings_AuthenticatedIdentitiesCan_NOT_CommentOnAnonymousDrives_IsTrue()
+    /// <summary>Keyed by name, because the <c>[TestCase]</c> label is what a failure prints.</summary>
+    private static readonly Dictionary<string, Func<TenantSettings, bool>> Readers = new()
     {
-        var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerConfiguration>();
-
-        await svc.InitializeIdentity(new InitialSetupRequest());
-
-        var getSettingsResponse = await svc.GetTenantSettings();
-        Assert.That(getSettingsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(getSettingsResponse.Content!.AuthenticatedIdentitiesCanCommentOnAnonymousDrives, Is.False);
-    }
+        ["AuthenticatedIdentitiesCanReactOnAnonymousDrives"] = s => s.AuthenticatedIdentitiesCanReactOnAnonymousDrives,
+        ["AuthenticatedIdentitiesCanCommentOnAnonymousDrives"] = s => s.AuthenticatedIdentitiesCanCommentOnAnonymousDrives
+    };
 }

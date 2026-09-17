@@ -7,7 +7,9 @@ using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
@@ -22,24 +24,28 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 /// Port of tests/apps/Odin.Hosting.Tests/AppAPI/Transit/Query/AppTransitQueryTestsForPrivateFiles.cs
 ///
 /// The secured counterpart of <see cref="AppTransitQueryTestsForPublicFiles"/>: Merry and Pippin are
-/// connected through the hobbit mesh, which grants read/write on one shared drive, so Merry's
-/// transit-reading app can batch, batch-collect, list-modified, and fetch the header, payload and
-/// thumbnail of a <see cref="AccessControlList.Connected"/> file on that drive — and sees only the
-/// drives of Pippin's it has been granted.
+/// connected over one shared drive granting read/write, so Merry's transit-reading app can batch,
+/// batch-collect, list-modified, and fetch the header, payload and thumbnail of a
+/// <see cref="AccessControlList.Connected"/> file on that drive — and sees only the drives of
+/// Pippin's it has been granted.
 /// </summary>
 /// <remarks>
 /// Port notes:
 /// <list type="bullet">
 ///   <item><description>
 ///     <c>_scaffold.Scenarios.CreateConnectedHobbits</c>, at seven call sites here, is
-///     <see cref="HobbitScenario.ConnectAllAsync"/> — the mesh connect plus the per-identity app the
-///     V1 helper registered. The matching <c>DisconnectHobbits()</c> at the end of each test asserted
-///     nothing and is dropped; per-test reset restores that state.
+///     <see cref="PeerFlow.ConnectAllAsync"/>. The V1 helper also registered an app per hobbit; no
+///     test here reads it — each builds the app it actually uses through
+///     <see cref="AppTransitClients.CreateAppAsync"/>, on its own drive — so that step is dropped,
+///     the same decision as <c>Ported/Circles/AppCircleDefinitionTests</c>. The original meshed four
+///     hobbits; Frodo and Sam took part in the mesh and nothing more, so only the Merry/Pippin pair
+///     every assertion is about is connected here. The matching <c>DisconnectHobbits()</c> at the end
+///     of each test asserted nothing and is dropped; per-test reset restores that state.
 ///   </description></item>
 ///   <item><description>
 ///     <c>CreateAppAndClient</c> is <see cref="AppTransitClients.CreateAppAsync"/>; the app's
-///     <c>TransitQuery</c> client is <see cref="AppTransitClients.QueryFor"/>; the upload and modify
-///     helpers are <see cref="AppTransitUploads"/>.
+///     <c>TransitQuery</c> client is <c>app.RefitFor&lt;IRefitAppTransitQuery&gt;()</c>; the upload
+///     and modify helpers are <see cref="AppTransitUploads"/>.
 ///   </description></item>
 ///   <item><description>
 ///     <see cref="AppCan_Get_Secured_Metadata_Type_OverTransitQuery"/> creates its two extra drives
@@ -57,8 +63,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 {
 
-    protected override string[] HostIdentities =>
-        [Identities.Merry, Identities.Pippin, Identities.Frodo, Identities.Sam];
+    protected override string[] HostIdentities => [Identities.Merry, Identities.Pippin];
 
     [Test]
     public async Task AppCan_Query_Secured_Batch_OverTransitQuery()
@@ -102,7 +107,7 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
             }
         };
 
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetBatch(request);
+        var getBatchResponse = await merryApp.RefitFor<IRefitAppTransitQuery>().GetBatch(request);
         Assert.That(getBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getBatchResponse.Content, Is.Not.Null);
         Assert.That(getBatchResponse.Content!.SearchResults,
@@ -171,7 +176,7 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
             }
         };
 
-        var collectionResponse = await AppTransitClients.QueryFor(merryApp).GetBatchCollection(request);
+        var collectionResponse = await merryApp.RefitFor<IRefitAppTransitQuery>().GetBatchCollection(request);
 
         Assert.That(collectionResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(collectionResponse.Content, Is.Not.Null);
@@ -179,15 +184,13 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 
         var set1 = collectionResponse.Content.Results.SingleOrDefault(r => r.Name.ToLower() == testResult1.ToLower());
         Assert.That(set1, Is.Not.Null);
-
-        var set1File1 = set1!.SearchResults.SingleOrDefault(f => f.FileId == randomFile1.uploadResult.File.FileId);
-        Assert.That(set1File1, Is.Not.Null);
+        Assert.That(set1!.SearchResults,
+            Has.Exactly(1).Matches<SharedSecretEncryptedFileHeader>(f => f.FileId == randomFile1.uploadResult.File.FileId));
 
         var set2 = collectionResponse.Content.Results.SingleOrDefault(r => r.Name.ToLower() == testResult2.ToLower());
         Assert.That(set2, Is.Not.Null);
-
-        var set2File1 = set2!.SearchResults.SingleOrDefault(f => f.FileId == randomFile2.uploadResult.File.FileId);
-        Assert.That(set2File1, Is.Not.Null);
+        Assert.That(set2!.SearchResults,
+            Has.Exactly(1).Matches<SharedSecretEncryptedFileHeader>(f => f.FileId == randomFile2.uploadResult.File.FileId));
     }
 
     [Test]
@@ -239,7 +242,7 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 
         await Task.Delay(5);
 
-        var getBatchResponse = await AppTransitClients.QueryFor(merryApp).GetModified(request);
+        var getBatchResponse = await merryApp.RefitFor<IRefitAppTransitQuery>().GetModified(request);
         Assert.That(getBatchResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getBatchResponse.Content, Is.Not.Null);
         var theModifiedFile = getBatchResponse.Content!.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
@@ -261,7 +264,7 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 
         var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
 
-        var response = await AppTransitClients.QueryFor(merryApp).GetFileHeader(new TransitExternalFileIdentifier
+        var response = await merryApp.RefitFor<IRefitAppTransitQuery>().GetFileHeader(new TransitExternalFileIdentifier
         {
             OdinId = pippin.Identity,
             File = randomFile.uploadResult.File
@@ -288,7 +291,7 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 
         var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
 
-        var response = await AppTransitClients.QueryFor(merryApp).GetPayload(new TransitGetPayloadRequest
+        var response = await merryApp.RefitFor<IRefitAppTransitQuery>().GetPayload(new TransitGetPayloadRequest
         {
             OdinId = pippin.Identity,
             File = randomFile.uploadResult.File,
@@ -324,7 +327,7 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 
         var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
 
-        var response = await AppTransitClients.QueryFor(merryApp).GetThumbnail(new TransitGetThumbRequest
+        var response = await merryApp.RefitFor<IRefitAppTransitQuery>().GetThumbnail(new TransitGetThumbRequest
         {
             OdinId = pippin.Identity,
             File = randomFile.uploadResult.File,
@@ -362,7 +365,7 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
 
         var merryApp = await AppTransitClients.CreateAppAsync(merry, PermissionKeys.UseTransitRead);
 
-        var getTransitDrives = await AppTransitClients.QueryFor(merryApp).GetDrives(new TransitGetDrivesByTypeRequest
+        var getTransitDrives = await merryApp.RefitFor<IRefitAppTransitQuery>().GetDrives(new TransitGetDrivesByTypeRequest
         {
             OdinId = pippin.Identity,
             DriveType = driveType,
@@ -386,17 +389,15 @@ public class AppTransitQueryTestsForPrivateFiles : V2Fixture
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// The hobbit mesh over <paramref name="targetDrive"/>, returning the two identities every test
-    /// then acts as. Frodo and Sam take part in the mesh and nothing more — as in the original.
+    /// Merry and Pippin connected over <paramref name="targetDrive"/>, each granting the other
+    /// read/write on it — the part of the original's four-hobbit mesh anything here acts on.
     /// </summary>
     private async Task<(OwnerSession Pippin, OwnerSession Merry)> ConnectHobbitsAsync(TargetDrive targetDrive)
     {
-        var frodo = await LoginAsOwner(Identities.Frodo);
         var merry = await LoginAsOwner(Identities.Merry);
         var pippin = await LoginAsOwner(Identities.Pippin);
-        var sam = await LoginAsOwner(Identities.Sam);
 
-        await HobbitScenario.ConnectAllAsync([frodo, merry, pippin, sam], targetDrive);
+        await PeerFlow.ConnectAllAsync([merry, pippin], targetDrive);
         return (pippin, merry);
     }
 

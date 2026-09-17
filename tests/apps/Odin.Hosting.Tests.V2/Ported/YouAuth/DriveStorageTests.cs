@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Serialization;
-using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
 using Odin.Services.Authorization.Acl;
@@ -30,7 +27,7 @@ namespace Odin.Hosting.Tests.V2.Ported.YouAuth;
 /// <para>
 /// The original also carried a second, entirely unused private helper (<c>UploadFilexx</c>, which
 /// went through <c>OldOwnerApi.Upload</c> with a payload). Dead code, dropped rather than moved.
-/// The surviving <c>UploadFile</c> never writes a payload, so
+/// <see cref="AnonymousDriveUploads.UploadToNewDriveAsync"/> never writes a payload, so
 /// <see cref="ShouldFailToGetSecuredFile_Payload"/> asks for a payload key that was never uploaded —
 /// carried as found, since the refusal it asserts happens at the drive check, before anything looks
 /// for the payload.
@@ -46,15 +43,14 @@ public class DriveStorageTests : V2Fixture
     public async Task ShouldFailToGetSecuredFile_Header()
     {
         var owner = await LoginAsOwner();
-        var tag = Guid.NewGuid();
-        var uploadContext = await UploadFile(owner, tag, SecurityGroupType.Connected);
+        var uploadResult = await UploadSecuredFile(owner);
 
         var svc = Host.AnonymousRefitFor<IRefitGuestDriveQuery>(owner.Identity);
         var getHeaderResponse = await svc.GetFileHeader(
             new ExternalFileIdentifier()
             {
-                TargetDrive = uploadContext.UploadResult.File.TargetDrive,
-                FileId = uploadContext.UploadResult.File.FileId
+                TargetDrive = uploadResult.File.TargetDrive,
+                FileId = uploadResult.File.FileId
             });
 
         Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
@@ -64,8 +60,7 @@ public class DriveStorageTests : V2Fixture
     public async Task ShouldFailToGetSecuredFile_Payload()
     {
         var owner = await LoginAsOwner();
-        var tag = Guid.NewGuid();
-        var uploadContext = await UploadFile(owner, tag, SecurityGroupType.Connected);
+        var uploadResult = await UploadSecuredFile(owner);
 
         var svc = Host.AnonymousRefitFor<IRefitGuestDriveQuery>(owner.Identity);
 
@@ -74,8 +69,8 @@ public class DriveStorageTests : V2Fixture
             {
                 File = new ExternalFileIdentifier()
                 {
-                    TargetDrive = uploadContext.UploadResult.File.TargetDrive,
-                    FileId = uploadContext.UploadResult.File.FileId
+                    TargetDrive = uploadResult.File.TargetDrive,
+                    FileId = uploadResult.File.FileId
                 },
                 Key = WebScaffold.PAYLOAD_KEY
             });
@@ -84,32 +79,15 @@ public class DriveStorageTests : V2Fixture
         Assert.That(getPayloadStreamResponse.Content, Is.Null);
     }
 
-    private static async Task<(UploadResult UploadResult, UploadFileMetadata UploadedFileMetadata)> UploadFile(
-        OwnerSession owner, Guid tag, SecurityGroupType requiredSecurityGroup)
+    /// <summary>
+    /// A file requiring <see cref="SecurityGroupType.Connected"/> on a fresh anonymous-readable
+    /// drive — the arrangement both tests refuse to read. The tag is fresh and never queried by, and
+    /// neither test reads the uploaded metadata, so only the <see cref="UploadResult"/> comes back.
+    /// </summary>
+    private static async Task<UploadResult> UploadSecuredFile(OwnerSession owner)
     {
-        List<Guid> tags = new List<Guid>() { tag };
-
-        var uploadFileMetadata = new UploadFileMetadata()
-        {
-            AllowDistribution = false,
-            IsEncrypted = false,
-            AppData = new()
-            {
-                Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
-                FileType = 100,
-                DataType = 202,
-                UserDate = new UnixTimeUtc(0),
-                Tags = tags
-            },
-            AccessControlList = new AccessControlList()
-            {
-                RequiredSecurityGroup = requiredSecurityGroup
-            }
-        };
-
-        var td = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(td, "a drive", allowAnonymousReads: true);
-        var response = await owner.V1.Drive.UploadNewMetadata(td, uploadFileMetadata);
-        return (response.Content, uploadFileMetadata);
+        var (uploadResult, _) = await AnonymousDriveUploads.UploadToNewDriveAsync(
+            owner, Guid.NewGuid(), SecurityGroupType.Connected);
+        return uploadResult;
     }
 }

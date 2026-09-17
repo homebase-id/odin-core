@@ -56,13 +56,8 @@ public class SystemInitializeConfigTestsAutomatedPasswordRecovery : V2Fixture
 
     protected override string[] HostIdentities => [Identities.Frodo, .. AutoPlayers];
 
-    protected override async Task WarmTenantBaselineAsync()
-    {
-        foreach (var identity in HostIdentities)
-        {
-            await LoginAsOwner(identity);
-        }
-    }
+    /// <summary>The system under test is initial setup itself, so the tenants must not be initialized.</summary>
+    protected override bool InitializeIdentities => false;
 
     [Test]
     public async Task CanInitializeSystem_WithAutomatedPasswordRecovery()

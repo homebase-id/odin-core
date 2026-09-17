@@ -1,7 +1,5 @@
 using System;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
@@ -48,41 +46,21 @@ public class OwnerAnonymousDefaultsTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
 
-        var frodoInitResponse = await frodo.RefitFor<IRefitOwnerConfiguration>().InitializeIdentity(new InitialSetupRequest
-        {
-            Drives = null,
-            Circles = null
-        });
-
-        Assert.That(frodoInitResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(frodoInitResponse.Content, Is.True);
-
-        var samInitResponse = await sam.RefitFor<IRefitOwnerConfiguration>().InitializeIdentity(new InitialSetupRequest
-        {
-            Drives = null,
-            Circles = null
-        });
-
-        Assert.That(samInitResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(samInitResponse.Content, Is.True);
+        await AssertInitializeIdentity(frodo);
+        await AssertInitializeIdentity(sam);
 
         await ConnectAsync(frodo, sam);
 
-        {
-            var getConnectionsResponse = await AnonymousConnectionsOf(Identities.Sam);
-            Assert.That(getConnectionsResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
-                "Should have failed to get connections with 403 status code.");
-        }
+        var before = await AnonymousConnectionsOf(Identities.Sam);
+        Assert.That(before.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
 
         await sam.Admin.UpdateTenantSettingsFlag(
             TenantConfigFlagNames.AnonymousVisitorsCanViewConnections, bool.TrueString);
 
-        {
-            var getConnectionsResponse = await AnonymousConnectionsOf(Identities.Sam);
-            Assert.That(getConnectionsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(getConnectionsResponse.Content, Is.Not.Null);
-            Assert.That(getConnectionsResponse.Content!.Results, Is.Not.Empty);
-        }
+        var after = await AnonymousConnectionsOf(Identities.Sam);
+        Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(after.Content, Is.Not.Null);
+        Assert.That(after.Content!.Results, Is.Not.Empty);
 
         await DisconnectAsync(frodo, sam);
     }
@@ -93,32 +71,34 @@ public class OwnerAnonymousDefaultsTests : V2Fixture
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
 
-        var senderInitResponse = await sender.RefitFor<IRefitOwnerConfiguration>().InitializeIdentity(new InitialSetupRequest
-        {
-            Drives = null,
-            Circles = null
-        });
-
-        Assert.That(senderInitResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(senderInitResponse.Content, Is.True);
-
-        var recipientInitResponse = await recipient.RefitFor<IRefitOwnerConfiguration>().InitializeIdentity(new InitialSetupRequest
-        {
-            Drives = null,
-            Circles = null
-        });
-
-        Assert.That(recipientInitResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(recipientInitResponse.Content, Is.True);
+        await AssertInitializeIdentity(sender);
+        await AssertInitializeIdentity(recipient);
 
         await ConnectAsync(sender, recipient);
 
         // The sender's own connection list, with the flag left at its default.
         var getConnectionsResponse = await AnonymousConnectionsOf(Identities.Frodo);
-        Assert.That(getConnectionsResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
-            "Should have failed to get connections with 403 status code.");
+        Assert.That(getConnectionsResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
 
         await DisconnectAsync(sender, recipient);
+    }
+
+    /// <summary>
+    /// Runs initial setup and asserts it succeeded. The fixture baseline has already initialized both
+    /// tenants and the call is idempotent, but both originals asserted its response, so it is a test
+    /// step rather than arrange — which is why it goes through <see cref="OwnerSession.RefitFor{T}"/>
+    /// rather than <c>owner.Admin</c>.
+    /// </summary>
+    private static async Task AssertInitializeIdentity(OwnerSession owner)
+    {
+        var response = await owner.RefitFor<IRefitOwnerConfiguration>().InitializeIdentity(new InitialSetupRequest
+        {
+            Drives = null,
+            Circles = null
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content, Is.True);
     }
 
     /// <summary>
@@ -163,17 +143,9 @@ public class OwnerAnonymousDefaultsTests : V2Fixture
 
     /// <summary>
     /// The YouAuth connected-profiles endpoint as a visitor holding nothing at all —
-    /// <see cref="V2Fixture.Host"/>'s raw client, which carries no token or shared secret.
+    /// <see cref="AnonymousHttp.AnonymousRefitFor{T}"/>, which carries no token or shared secret.
     /// </summary>
-    private async Task<ApiResponse<Odin.Core.PagedResult<RedactedIdentityConnectionRegistration>>>
+    private Task<ApiResponse<Odin.Core.PagedResult<RedactedIdentityConnectionRegistration>>>
         AnonymousConnectionsOf(string identity)
-    {
-        using var client = new HttpClient(Host.Server.CreateHandler())
-        {
-            BaseAddress = new Uri($"https://{identity}/")
-        };
-
-        var svc = RestService.For<ICircleNetworkYouAuthClient>(client);
-        return await svc.GetConnectedProfiles(1, "");
-    }
+        => Host.AnonymousRefitFor<ICircleNetworkYouAuthClient>(identity).GetConnectedProfiles(1, "");
 }

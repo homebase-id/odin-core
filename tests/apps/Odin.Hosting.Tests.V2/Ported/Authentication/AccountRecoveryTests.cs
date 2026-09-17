@@ -27,6 +27,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Authentication;
 /// framework, so it moves unchanged.
 /// </para>
 /// <para>
+/// <b>This fixture sleeps, and it is not the framework's fault.</b> Four of the five tests wait out
+/// <see cref="PasswordKeyRecoveryService.RecoveryKeyWaitingPeriodSecondsForTesting"/> — a real
+/// five-second product timer before a requested recovery key becomes viewable — so the fixture costs
+/// roughly twenty seconds of wall clock no matter how fast the host boots. There is nothing to
+/// convert: the constant is a <c>const</c> on the service, not a setting, so a test cannot shorten
+/// it, and the waiting period is the behaviour under test. Do not "optimize" the delays away.
+/// </para>
+/// <para>
 /// Deviations, all checked:
 /// <list type="bullet">
 /// <item>The originals called <c>OldOwnerApi.SetupOwnerAccount</c> with their own password because
@@ -55,29 +63,7 @@ public class AccountRecoverySectionTests : V2Fixture
 #endif
     public async Task CanGetAccountRecoveryKey()
     {
-        var owner = await LoginAsOwner();
-        var security = owner.RefitFor<ITestSecurityContextOwnerClient>();
-
-        // let us say the user already has their key from before
-        await security.ConfirmStoredRecoveryKey();
-
-        // since we just set up the account - first request the recovery key
-        var requestRecoveryKeyResponse = await security.RequestRecoveryKey();
-
-        Assert.That(requestRecoveryKeyResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(requestRecoveryKeyResponse.Content, Is.Not.Null);
-        var nextDate = requestRecoveryKeyResponse.Content!.NextViewableDate;
-
-        await WaitUntil(nextDate);
-
-        var response = await security.GetAccountRecoveryKey();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var decryptedRecoveryKey = response.Content!;
-        Assert.That(decryptedRecoveryKey.Created.milliseconds, Is.LessThan(UnixTimeUtc.Now().milliseconds));
-        Assert.That(decryptedRecoveryKey.Key, Is.Not.Null);
-        Assert.That(decryptedRecoveryKey.Key, Is.Not.Empty);
-        Assert.That(decryptedRecoveryKey.Key.Split(" ").Length, Is.EqualTo(12), "there should be 12 words");
+        await RequestAndViewRecoveryKeyAsync();
 
         //TODO: additional checks on the key
         // RecoveryKeyGenerator.Characters
@@ -89,18 +75,34 @@ public class AccountRecoverySectionTests : V2Fixture
 #endif
     public async Task CanToGetAccountRecoveryKeyWhenViewedAfterTimeWindow()
     {
+        var security = await RequestAndViewRecoveryKeyAsync();
+
+        // this should fail because we've cleared
+        var response2 = await security.GetAccountRecoveryKey();
+        Assert.That(response2.Content!.Key, Is.Null.Or.Empty);
+    }
+
+    /// <summary>
+    /// Confirm the stored key, request it, wait out the viewing window, and read it — asserting the
+    /// phrase that comes back. This is the whole of <see cref="CanGetAccountRecoveryKey"/>, and
+    /// <see cref="CanToGetAccountRecoveryKeyWhenViewedAfterTimeWindow"/> is the same sequence plus a
+    /// second read; the two tests were byte-identical up to that trailing assertion.
+    /// </summary>
+    private async Task<ITestSecurityContextOwnerClient> RequestAndViewRecoveryKeyAsync()
+    {
         var owner = await LoginAsOwner();
         var security = owner.RefitFor<ITestSecurityContextOwnerClient>();
 
         // let us say the user already has their key from before
         await security.ConfirmStoredRecoveryKey();
 
+        // since we just set up the account - first request the recovery key
         var requestRecoveryKeyResponse = await security.RequestRecoveryKey();
-        Assert.That(requestRecoveryKeyResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var result = requestRecoveryKeyResponse.Content;
-        Assert.That(result, Is.Not.Null);
 
-        await WaitUntil(result!.NextViewableDate);
+        Assert.That(requestRecoveryKeyResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(requestRecoveryKeyResponse.Content, Is.Not.Null);
+
+        await WaitUntil(requestRecoveryKeyResponse.Content!.NextViewableDate);
 
         var response = await security.GetAccountRecoveryKey();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -111,9 +113,7 @@ public class AccountRecoverySectionTests : V2Fixture
         Assert.That(decryptedRecoveryKey.Key, Is.Not.Empty);
         Assert.That(decryptedRecoveryKey.Key.Split(" ").Length, Is.EqualTo(12), "there should be 12 words");
 
-        // this should fail because we've cleared
-        var response2 = await security.GetAccountRecoveryKey();
-        Assert.That(response2.Content!.Key, Is.Null.Or.Empty);
+        return security;
     }
 
     [Test]
@@ -143,8 +143,7 @@ public class AccountRecoverySectionTests : V2Fixture
         // now make a second request
         var requestRecoveryKeyResponse2 = await security.RequestRecoveryKey();
         Assert.That(requestRecoveryKeyResponse2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var result2 = requestRecoveryKeyResponse2.Content;
-        Assert.That(result2, Is.Not.Null);
+        Assert.That(requestRecoveryKeyResponse2.Content, Is.Not.Null);
 
         var response2 = await security.GetAccountRecoveryKey();
         Assert.That(response2.Content!.Key, Is.Null, "key should not yet be viewable");
@@ -219,8 +218,8 @@ public class AccountRecoverySectionTests : V2Fixture
         var invalidRecoveryKey = Guid.NewGuid().ToString("N");
         var resetPasswordResponse = await OwnerPasswordFlow.ResetPasswordUsingRecoveryKeyAsync(
             Host, PrimaryIdentity, invalidRecoveryKey, newPassword);
-        Assert.That(resetPasswordResponse.IsSuccessStatusCode, Is.False,
-            $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
+        Assert.That(resetPasswordResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
+            $"should have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
 
         // Fail to login with new password
         var secondLogin = await OwnerPasswordFlow.LoginAsync(Host, PrimaryIdentity, newPassword, clientEccFullKey);

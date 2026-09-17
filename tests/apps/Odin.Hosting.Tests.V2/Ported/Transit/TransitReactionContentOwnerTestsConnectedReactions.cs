@@ -44,9 +44,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 /// Carried oddity, behaviour left as found: both real tests have Sam follow Pippin and create the
 /// circle, but nothing reads the follow — the reaction path here is the connected one, and the
 /// original had already commented out its own "validate Pippin knows Sam follows him" assertion. The
-/// follow is kept because removing it would change the arrange under test. Two private helpers on the
-/// original (<c>UploadComment</c>, and the <c>allowDistribution</c> / <c>acl</c> parameters of
-/// <c>UploadUnencryptedContentToChannel</c>) had no caller and are not carried.
+/// follow is kept because removing it would change the arrange under test. The original's private
+/// <c>UploadComment</c> had no caller and is not carried; <c>UploadUnencryptedContentToChannel</c> is
+/// <see cref="TransitScenario.UploadUnencryptedContentToChannelAsync"/>, shared with the
+/// authenticated-reactions fixture, whose defaults are this fixture's two fixed arguments.
 /// </remarks>
 [TestFixture]
 public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
@@ -164,30 +165,9 @@ public class TransitReactionContentOwnerTestsConnectedReactions : V2Fixture
         // Pippin uploads a post
         //
         var uploadedContent = "I'm Hungry!";
-        var uploadResult = await UploadUnencryptedContentToChannelAsync(pippin, pippinChannelDrive, uploadedContent);
+        var uploadResult = await TransitScenario.UploadUnencryptedContentToChannelAsync(pippin, pippinChannelDrive,
+            uploadedContent);
 
         return (pippin, sam, uploadResult);
-    }
-
-    private static async Task<UploadResult> UploadUnencryptedContentToChannelAsync(
-        OwnerSession owner, TargetDrive targetDrive, string uploadedContent)
-    {
-        var fileMetadata = new UploadFileMetadata
-        {
-            AllowDistribution = true,
-            IsEncrypted = false,
-            AppData = new()
-            {
-                Content = uploadedContent,
-                FileType = default,
-                GroupId = default,
-                Tags = default
-            },
-            AccessControlList = AccessControlList.Connected
-        };
-
-        var response = await owner.V1.Drive.UploadNewMetadata(targetDrive, fileMetadata, FileSystemType.Standard);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        return response.Content;
     }
 }

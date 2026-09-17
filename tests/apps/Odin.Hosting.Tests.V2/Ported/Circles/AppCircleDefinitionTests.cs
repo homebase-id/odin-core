@@ -32,16 +32,17 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// <c>app.RefitFor&lt;T&gt;()</c>. Both declare absolute <c>/api/apps/v1/...</c> paths, so they need no
 /// base-path rewriting.
 /// <para>
-/// <c>_scaffold.Scenarios.CreateConnectedHobbits</c> becomes <see cref="PeerFlow.ConnectAllAsync"/>.
+/// <c>_scaffold.Scenarios.CreateConnectedHobbits</c> becomes <see cref="PeerFlow.ConnectAllAsync"/>,
+/// run once from <see cref="WarmTenantBaselineAsync"/> rather than per test — the mesh is connections,
+/// circles and drives, all of which the baseline snapshot carries, so eighteen handshakes become six.
 /// The original read the acting identity's mesh circle off the <c>ScenarioContext</c> that helper
 /// returned; <c>ConnectAllAsync</c> generates the circle ids internally and returns nothing, so
-/// <see cref="MeshCircleIdAsync"/> reads it back instead, identified by the drive it grants — a drive
-/// the test minted for the purpose, so exactly one circle can grant it. (Counting circles would not
-/// do: a freshly initialised tenant already carries thirteen the app tree declares.) The original
-/// also registered an
+/// <see cref="MeshCircleIdAsync"/> reads it back instead, identified by the drive it grants —
+/// <see cref="HobbitMeshDrive"/>, which nothing else here creates, so exactly one circle can grant it.
+/// (Counting circles would not do: a freshly initialised tenant already carries thirteen the app tree
+/// declares.) The original also registered an
 /// app per hobbit inside that helper; these three tests register their own app afterwards and never
-/// touch the helper's, so that step is dropped (the same decision as
-/// <c>Ported/Transit/HobbitScenario</c>).
+/// touch the helper's, so that step is dropped.
 /// </para>
 /// <para>
 /// Every hobbit test ended with <c>Scenarios.DisconnectHobbits()</c>, pure lifecycle restoration now
@@ -49,10 +50,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// </para>
 /// <para>
 /// The original pinned Frodo / Pippin / Merry per test purely because <c>WebScaffold</c> shared
-/// identities process-wide. Only the three mesh tests need more than one identity, and none of the
-/// assertions read which identity is acting, so the nine single-identity tests run as the fixture
-/// default. <c>HostIdentities</c> still lists four because <see cref="PeerFlow.ConnectAllAsync"/>
-/// resolves all four.
+/// identities process-wide. None of the assertions read which identity is acting, so every test runs
+/// as the fixture default; <c>HostIdentities</c> lists four because the baked-in mesh spans all four.
 /// </para>
 /// <para>
 /// Carried, unchanged: <see cref="AppFailsGetCircleDefinitionListWithoutReadCircleMembershipPermission"/>
@@ -74,9 +73,6 @@ public class AppCircleDefinitionTests : V2Fixture
     public async Task AppCannotSeeSystemCircleMembers()
     {
         var owner = await LoginAsOwner();
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await ConnectHobbits(owner, targetDrive);
-
         var appClient = await CreateAppAndClient(owner, PermissionKeys.All.ToArray());
 
         var response = await GetDomainsInCircle(appClient, SystemCircleConstants.ConfirmedConnectionsCircleId);
@@ -87,9 +83,7 @@ public class AppCircleDefinitionTests : V2Fixture
     public async Task AppCanGetCircleMembers()
     {
         var owner = await LoginAsOwner();
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await ConnectHobbits(owner, targetDrive);
-        var meshCircleId = await MeshCircleIdAsync(owner, targetDrive);
+        var meshCircleId = await MeshCircleIdAsync(owner);
 
         var appClient = await CreateAppAndClient(owner, PermissionKeys.ReadCircleMembership);
 
@@ -106,9 +100,7 @@ public class AppCircleDefinitionTests : V2Fixture
     public async Task AppFailsToGetCircleMembersWithoutReadCircleMembershipPermission()
     {
         var owner = await LoginAsOwner();
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await ConnectHobbits(owner, targetDrive);
-        var meshCircleId = await MeshCircleIdAsync(owner, targetDrive);
+        var meshCircleId = await MeshCircleIdAsync(owner);
 
         var appClient = await CreateAppAndClient(owner, PermissionKeys.ReadConnections);
 
@@ -183,44 +175,38 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That(getDefinitionResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
-    [Test]
-    public async Task AppFailsToUpdateCircleDefinition()
+    /// <summary>
+    /// The four write verbs the original spelled out as <c>AppFailsTo{Update,Delete,Disable,Enable}
+    /// CircleDefinition</c>. Each was the same four lines — register an app holding
+    /// <c>ReadCircleMembership</c>, create a circle, call one endpoint, expect Forbidden — so they are
+    /// rows here; the row name is the original test's name, so a failure still points at it.
+    /// </summary>
+    public static IEnumerable<TestCaseData> ForbiddenCircleWrites()
     {
-        var owner = await LoginAsOwner();
-        var appClient = await CreateAppAndClient(owner, PermissionKeys.ReadCircleMembership);
-        var def1 = await CreateRandomCircle(owner);
-        def1.Name = "another name";
-        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().UpdateCircleDefinition(def1);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        yield return Row("AppFailsToUpdateCircleDefinition", (client, def) =>
+        {
+            def.Name = "another name";
+            return client.UpdateCircleDefinition(def);
+        });
+        yield return Row("AppFailsToDeleteCircleDefinition", (client, def) => client.DeleteCircleDefinition(def.Id.Value));
+        yield return Row("AppFailsToDisableCircleDefinition", (client, def) => client.DisableCircleDefinition(def.Id.Value));
+        yield return Row("AppFailsToEnableCircleDefinition", (client, def) => client.EnableCircleDefinition(def.Id.Value));
+
+        static TestCaseData Row(
+            string name,
+            Func<IAppCircleDefinitionClient, CircleDefinition, Task<Refit.ApiResponse<bool>>> call)
+            => new TestCaseData(call).SetArgDisplayNames(name);
     }
 
-    [Test]
-    public async Task AppFailsToDeleteCircleDefinition()
+    [Test, TestCaseSource(nameof(ForbiddenCircleWrites))]
+    public async Task AppFailsToWriteCircleDefinition(
+        Func<IAppCircleDefinitionClient, CircleDefinition, Task<Refit.ApiResponse<bool>>> call)
     {
         var owner = await LoginAsOwner();
         var appClient = await CreateAppAndClient(owner, PermissionKeys.ReadCircleMembership);
         var def1 = await CreateRandomCircle(owner);
-        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().DeleteCircleDefinition(def1.Id.Value);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-    }
 
-    [Test]
-    public async Task AppFailsToDisableCircleDefinition()
-    {
-        var owner = await LoginAsOwner();
-        var appClient = await CreateAppAndClient(owner, PermissionKeys.ReadCircleMembership);
-        var def1 = await CreateRandomCircle(owner);
-        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().DisableCircleDefinition(def1.Id.Value);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-    }
-
-    [Test]
-    public async Task AppFailsToEnableCircleDefinition()
-    {
-        var owner = await LoginAsOwner();
-        var appClient = await CreateAppAndClient(owner, PermissionKeys.ReadCircleMembership);
-        var def1 = await CreateRandomCircle(owner);
-        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().EnableCircleDefinition(def1.Id.Value);
+        var response = await call(appClient.RefitFor<IAppCircleDefinitionClient>(), def1);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
@@ -246,34 +232,50 @@ public class AppCircleDefinitionTests : V2Fixture
     // -------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// The four-identity mesh the original got from <c>Scenarios.CreateConnectedHobbits</c>, minus the
-    /// per-hobbit app registration nothing here reads.
+    /// The drive the four-identity mesh is built over. Fixed rather than minted per test so the mesh
+    /// can be baked into the baseline snapshot once (see <see cref="WarmTenantBaselineAsync"/>); it
+    /// also has to be a drive no other arrange here creates, because
+    /// <see cref="MeshCircleIdAsync"/> identifies the mesh circle by it.
     /// </summary>
-    private async Task ConnectHobbits(OwnerSession acting, TargetDrive targetDrive)
+    private static readonly TargetDrive HobbitMeshDrive = new()
     {
-        var others = new List<OwnerSession> { acting };
-        foreach (var identity in HostIdentities.Where(i => i != acting.Identity.DomainName))
+        Alias = Guid.Parse("a1b2c3d4-0000-4000-8000-000000000001"),
+        Type = Guid.Parse("a1b2c3d4-0000-4000-8000-000000000002")
+    };
+
+    /// <summary>
+    /// Bakes the four-identity mesh the original got from <c>Scenarios.CreateConnectedHobbits</c> into
+    /// the baseline, minus the per-hobbit app registration nothing here reads. Connections, circles and
+    /// drives are snapshot state, so the eighteen handshakes run once for the fixture rather than once
+    /// per mesh test. The nine tests that do not read the mesh are unaffected: each looks its circles
+    /// and definitions up by an id it minted itself, never by counting what the tenant holds.
+    /// </summary>
+    protected override async Task WarmTenantBaselineAsync()
+    {
+        await base.WarmTenantBaselineAsync();
+
+        var hobbits = new List<OwnerSession>();
+        foreach (var identity in HostIdentities)
         {
-            others.Add(await LoginAsOwner(identity));
+            hobbits.Add(await LoginAsOwner(identity));
         }
 
-        await PeerFlow.ConnectAllAsync(others, targetDrive);
+        await PeerFlow.ConnectAllAsync(hobbits, HobbitMeshDrive);
     }
 
     /// <summary>
     /// The circle <see cref="PeerFlow.ConnectAllAsync"/> created for this identity and granted to
     /// every peer, found by the one thing that distinguishes it: it is the circle that grants
-    /// <paramref name="sharedDrive"/>, a drive the test minted seconds earlier. See the class remarks
-    /// for why it has to be read back at all.
+    /// <see cref="HobbitMeshDrive"/>. See the class remarks for why it has to be read back at all.
     /// </summary>
-    private static async Task<Guid> MeshCircleIdAsync(OwnerSession owner, TargetDrive sharedDrive)
+    private static async Task<Guid> MeshCircleIdAsync(OwnerSession owner)
     {
         var response = await owner.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var matches = response.Content!
             .Where(d => d.DriveGrants != null &&
-                        d.DriveGrants.Any(g => g.PermissionedDrive.Drive == sharedDrive))
+                        d.DriveGrants.Any(g => g.PermissionedDrive.Drive == HobbitMeshDrive))
             .ToList();
 
         Assert.That(matches.Count, Is.EqualTo(1),
@@ -281,18 +283,16 @@ public class AppCircleDefinitionTests : V2Fixture
         return matches.Single().Id.Value;
     }
 
-    private static Task<CircleDefinition> CreateRandomCircle(OwnerSession owner, params int[] permissionKeys)
-    {
-        return CreateRandomCircle(owner, null, permissionKeys);
-    }
-
     /// <summary>
-    /// Same, but handed to <paramref name="owningAppId"/> once created.  The create endpoint takes
-    /// an AppId, but the owner-side helper this uses does not carry one, so the circle is adopted
-    /// immediately afterwards instead.
+    /// A circle over a drive minted for it, optionally handed to <paramref name="owningAppId"/> once
+    /// created. The create endpoint takes an AppId, but the owner-side helper this uses does not carry
+    /// one, so the circle is adopted immediately afterwards instead.
     /// </summary>
-    private static async Task<CircleDefinition> CreateRandomCircle(OwnerSession owner, Guid? owningAppId,
-        params int[] permissionKeys)
+    /// <remarks>
+    /// The circle carries no permission keys. The original's helper took them, but no call site here
+    /// ever supplied one, so the parameter has been dropped rather than carried as always-empty.
+    /// </remarks>
+    private static async Task<CircleDefinition> CreateRandomCircle(OwnerSession owner, Guid? owningAppId = null)
     {
         var titleId = Guid.NewGuid();
 
@@ -313,7 +313,7 @@ public class AppCircleDefinitionTests : V2Fixture
                     }
                 }
             },
-            PermissionSet = new PermissionSet(permissionKeys)
+            PermissionSet = new PermissionSet()
         });
 
         var def = await owner.Admin.GetCircleDefinition(circleId);
@@ -326,8 +326,7 @@ public class AppCircleDefinitionTests : V2Fixture
                     CircleId = circleId,
                     AppId = owningAppId.Value
                 });
-            Assert.That(response.IsSuccessStatusCode, Is.True,
-                $"Failed to set owning app.  Actual response {response.StatusCode}");
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
             def.AppId = owningAppId.Value;
         }
@@ -344,6 +343,11 @@ public class AppCircleDefinitionTests : V2Fixture
     /// Same, with the app's id chosen by the caller -- needed when the test also has to create
     /// circles owned by that app.
     /// </summary>
+    /// <remarks>
+    /// Byte-for-byte the same body as <c>Ported/Transit/AppTransitClients.CreateAppAsync</c>, down to
+    /// the drive label, bar this one's caller-chosen app id. Not merged here because that file is
+    /// owned elsewhere; promoting one shared helper is tracked as follow-up work.
+    /// </remarks>
     private static async Task<AppSession> CreateAppAndClient(OwnerSession owner, Guid appId,
         params int[] permissionKeys)
     {

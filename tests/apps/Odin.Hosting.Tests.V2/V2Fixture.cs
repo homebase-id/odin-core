@@ -76,11 +76,31 @@ public abstract class V2Fixture
     /// without it, <c>CircleMembershipService.CreateCircleGrantListAsync</c> throws "Missing circle
     /// Id". Idempotent; override to add fixture-specific seed state before the snapshot is taken.
     /// </summary>
+    /// <summary>
+    /// When false, the baseline is taken against tenants that have never run initial setup — for a
+    /// fixture whose system under test *is* that setup.
+    /// </summary>
+    /// <remarks>
+    /// A flag rather than an override, because the owner login must happen either way: it sets the
+    /// password <see cref="OdinHost.TakeBaselineAsync"/> needs, and a fixture that overrode
+    /// <see cref="WarmTenantBaselineAsync"/> and dropped it got an obscure snapshot failure rather
+    /// than a message. Three fixtures carried byte-identical overrides to express exactly this before
+    /// the flag existed. Override the method itself only to add extra seed state.
+    /// </remarks>
+    protected virtual bool InitializeIdentities => true;
+
     protected virtual async Task WarmTenantBaselineAsync()
     {
         foreach (var identity in HostIdentities)
         {
+            // The login is not optional: it sets the password the baseline snapshot requires.
             var owner = await LoginAsOwner(identity);
+
+            if (!InitializeIdentities)
+            {
+                continue;
+            }
+
             var resp = await owner.Admin.InitializeIdentity();
             if (!resp.IsSuccessStatusCode)
             {
