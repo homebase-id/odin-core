@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
@@ -33,6 +34,7 @@ public sealed class OwnerSession : IV2Caller
 
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
+    public V1Handles V1 { get; }
     public OwnerAdmin Admin { get; }
     public ConnectionsHandle Connections { get; }
     public FollowersHandle Followers { get; }
@@ -54,15 +56,23 @@ public sealed class OwnerSession : IV2Caller
         Factory = new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        V1 = new V1Handles(Identity, Factory);
         Admin = new OwnerAdmin(this);
         Connections = new ConnectionsHandle(this);
         Followers = new FollowersHandle(this);
         Sync = new OwnerSync(host.GetTestSync(identity), this);
     }
 
-    public static async Task<OwnerSession> LoginAsync(OdinHost host, string identity)
+    /// <param name="password">
+    /// Defaults to <see cref="OwnerLogin.DefaultPassword"/>, which the baseline set for every
+    /// preconfigured identity. Pass an explicit one for a test that has just <i>changed</i> the
+    /// password out from under that default — the Shamir recovery-finalization flow — so the new
+    /// session comes back as a full <see cref="OwnerSession"/> rather than a hand-built factory.
+    /// </param>
+    public static async Task<OwnerSession> LoginAsync(
+        OdinHost host, string identity, string password = OwnerLogin.DefaultPassword)
     {
-        var (token, secret) = await OwnerLogin.RunAsync(host, identity);
+        var (token, secret) = await OwnerLogin.RunAsync(host, identity, password);
         return new OwnerSession(host, identity, token, secret);
     }
 
@@ -75,5 +85,23 @@ public sealed class OwnerSession : IV2Caller
     {
         var http = Factory.CreateHttpClient(Identity, out var ss);
         return (http, ss);
+    }
+
+    /// <summary>
+    /// The Refit surface <typeparamref name="T"/> as this owner, handing back the raw
+    /// <c>ApiResponse</c>. Use this when a refusal is the thing under test.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Admin"/> is arrange-only: its helpers pick opinionated defaults and throw on
+    /// non-2xx, because setup that fails is a broken test rather than an expected outcome. That
+    /// makes it the wrong tool once an admin endpoint becomes the system under test — you need the
+    /// caller's own request shape and the unfiltered response. Reach for this instead of adding a
+    /// non-throwing twin to <see cref="OwnerAdmin"/>; the twin would have to be repeated for
+    /// roughly half the admin surface.
+    /// </remarks>
+    public T RefitFor<T>()
+    {
+        var (client, ss) = NewAdminHttpClient();
+        return RefitCreator.RestServiceFor<T>(client, ss);
     }
 }

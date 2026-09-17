@@ -17,6 +17,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 
@@ -42,17 +43,20 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly AppNotificationDispatcher _dispatcher;
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly LiveRelayRetainedStore _liveRelayRetainedStore;
+        private readonly CircleNetworkService _circleNetworkService;
 
         public AppNotificationHandler(
             ILogger<AppNotificationHandler> logger,
             AppNotificationDispatcher dispatcher,
             PeerInboxProcessor peerInboxProcessor,
-            LiveRelayRetainedStore liveRelayRetainedStore)
+            LiveRelayRetainedStore liveRelayRetainedStore,
+            CircleNetworkService circleNetworkService)
         {
             _logger = logger;
             _dispatcher = dispatcher;
             _peerInboxProcessor = peerInboxProcessor;
             _liveRelayRetainedStore = liveRelayRetainedStore;
+            _circleNetworkService = circleNetworkService;
         }
 
         //
@@ -306,6 +310,23 @@ namespace Odin.Services.AppNotifications.WebSocket
                     {
                         await _peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, odinContext, request.BatchSize);
                     }
+                    break;
+
+                case SocketCommandType.ProcessEnrollments:
+                    // The app's own way of saying "I am here now" -- the counterpart to the targeted
+                    // PendingEnrollmentsAwaiting notification, and the same shape as ProcessInbox above.
+                    // Safe to send on every connect: an app sees only the entries for circles it owns, so
+                    // an app with none simply finds nothing to do.
+                    var (connections, enrollments) =
+                        await _circleNetworkService.ProcessPendingEnrollmentsForAppAsync(odinContext);
+
+                    if (enrollments > 0)
+                    {
+                        _logger.LogInformation(
+                            "Socket ProcessEnrollments completed {enrollments} enrollment(s) across {connections} connection(s)",
+                            enrollments, connections);
+                    }
+
                     break;
 
                 case SocketCommandType.Ping:

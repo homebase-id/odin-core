@@ -10,9 +10,13 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using System.Collections.Generic;
+using Odin.Core.Identity;
+using Odin.Services.Membership.Connections;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.Api;
@@ -20,14 +24,21 @@ namespace Odin.Hosting.Tests.V2.Api;
 /// <summary>
 /// V1 admin operations (drives, apps, circles, YouAuth domains) routed over the in-process pipeline
 /// as the logged-in owner. V2 doesn't yet expose admin endpoints for these, so test setup uses V1
-/// here even though the SUT calls in test bodies stay V2.
+/// here.
+///
+/// This is an <b>arrange-only</b> facade: it picks opinionated defaults and throws on failure. When
+/// one of these endpoints is itself the system under test — as in the ported <c>OwnerApi</c>
+/// fixtures — don't reach for a non-throwing twin here; call the Refit interface directly via
+/// <see cref="OwnerSession.RefitFor{T}"/>, which hands back the raw response and lets the test
+/// specify its own request.
 /// </summary>
 /// <remarks>
 /// Split across partial-class files by concern: this file holds the constructor + tenant init +
 /// drives + circles; <c>OwnerAdmin.Apps.cs</c> covers app + app-client registration;
 /// <c>OwnerAdmin.YouAuth.cs</c> covers YouAuth domains + clients. Every helper throws on non-2xx
-/// via <see cref="EnsureSuccess{T}"/> — test setup that fails is always a broken test, never an
-/// expected outcome.
+/// via <see cref="EnsureSuccess{T}"/> — setup that fails is always a broken test, never an expected
+/// outcome. A helper earns its place here only when two or more fixtures need it as <i>arrange</i>;
+/// a one-fixture need goes through <see cref="OwnerSession.RefitFor{T}"/>.
 /// </remarks>
 public sealed partial class OwnerAdmin
 {
@@ -118,7 +129,8 @@ public sealed partial class OwnerAdmin
         string name,
         bool allowAnonymousReads = true,
         bool ownerOnly = false,
-        bool allowSubscriptions = false)
+        bool allowSubscriptions = false,
+        System.Collections.Generic.Dictionary<string, string>? attributes = null)
     {
         var existing = await GetDrives();
         if (existing.Any(d => d.TargetDriveInfo == drive))
@@ -126,7 +138,7 @@ public sealed partial class OwnerAdmin
             return;
         }
 
-        await CreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions);
+        await CreateDrive(drive, name, allowAnonymousReads, ownerOnly, allowSubscriptions, attributes);
     }
 
     /// <summary>
@@ -139,6 +151,16 @@ public sealed partial class OwnerAdmin
         var response = await svc.GetDrives(new GetDrivesRequest { PageNumber = 1, PageSize = 1000 });
         EnsureSuccess(response, nameof(GetDrives));
         return response.Content!.Results.ToList();
+    }
+
+    /// <summary>
+    /// One drive's row, by target drive. Throws if it isn't there — a drive the test just created
+    /// going missing is a broken test, not an expected outcome.
+    /// </summary>
+    public async Task<OwnerClientDriveData> GetDrive(TargetDrive drive)
+    {
+        var drives = await GetDrives();
+        return drives.Single(d => d.TargetDriveInfo == drive);
     }
 
     /// <summary>
@@ -198,6 +220,15 @@ public sealed partial class OwnerAdmin
         return response;
     }
 
+    /// <summary>
+    /// Stops the identity auto-accepting introductions, so a test can drive the connection handshake
+    /// itself. Arrange-only: every fixture that needs it wants the flag set, not the response.
+    /// </summary>
+    public Task<ApiResponse<bool>> DisableAutoAcceptIntroductions() =>
+        UpdateTenantSettingsFlag(
+            Odin.Services.Configuration.TenantConfigFlagNames.DisableAutoAcceptIntroductionsForTests,
+            bool.TrueString);
+
     // -----------------------------------------------------------------------------------------
     // Circles (delegated to the existing new-style client; works with our factory unchanged)
     // -----------------------------------------------------------------------------------------
@@ -206,10 +237,57 @@ public sealed partial class OwnerAdmin
     /// Creates a circle that members will be granted on connection. Used by <see cref="GuestSession"/>
     /// to attach a YouAuth domain to a drive-permission grant.
     /// </summary>
-    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant)
+    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant,
+        Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
     {
-        var response = await _network.CreateCircle(id, name, grant);
+        var response = await _network.CreateCircle(id, name, grant, appId, grantOn);
         EnsureSuccess(response, nameof(CreateCircle));
+        return response;
+    }
+
+    /// <summary>The connections eligible for one circle that are not in it.</summary>
+    public async Task<ApiResponse<CircleEnrollmentCandidates>> GetEnrollmentCandidatesForCircle(Guid circleId)
+    {
+        var response = await _network.GetEnrollmentCandidatesForCircle(circleId);
+        EnsureSuccess(response, nameof(GetEnrollmentCandidatesForCircle));
+        return response;
+    }
+
+    /// <summary>Reads a circle definition.</summary>
+    public async Task<CircleDefinition> GetCircleDefinition(Guid circleId)
+    {
+        var response = await _network.GetCircleDefinition(circleId);
+        EnsureSuccess(response, nameof(GetCircleDefinition));
+        return response.Content!;
+    }
+
+    /// <summary>Writes a circle definition back.  Does not throw, so a refusal can be asserted on.</summary>
+    public Task<ApiResponse<HttpContent>> TryUpdateCircleDefinition(CircleDefinition definition)
+    {
+        return _network.UpdateCircleDefinition(definition);
+    }
+
+    /// <summary>Per circle owned by the app, the connections that could be added but are not.</summary>
+    public async Task<ApiResponse<List<CircleEnrollmentCandidates>>> GetEnrollmentCandidates(Guid appId)
+    {
+        var response = await _network.GetEnrollmentCandidates(appId);
+        EnsureSuccess(response, nameof(GetEnrollmentCandidates));
+        return response;
+    }
+
+    /// <summary>Adds several identities to one circle, reporting what each became.</summary>
+    public async Task<ApiResponse<EnrollmentResult>> GrantCircleToMany(Guid circleId, List<OdinId> odinIds)
+    {
+        var response = await _network.GrantCircleToMany(circleId, odinIds);
+        EnsureSuccess(response, nameof(GrantCircleToMany));
+        return response;
+    }
+
+    /// <summary>Moves a circle from the app that owns it to another.  Owner console only.</summary>
+    public async Task<ApiResponse<HttpContent>> ReassignCircleOwningApp(Guid circleId, Guid appId)
+    {
+        var response = await _network.ReassignCircleOwningApp(circleId, appId);
+        EnsureSuccess(response, nameof(ReassignCircleOwningApp));
         return response;
     }
 

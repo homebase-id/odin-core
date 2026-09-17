@@ -24,6 +24,24 @@ namespace Odin.Hosting.Tests._Universal.AppNotifications;
 //     WS broadcast (IgnoreWebSocketNotification) so the header isn't sent twice; its MediatR event
 //     still fires for cache/feed.
 // So for a reaction the client receives exactly one fileModified and zero statisticsChanged.
+/// <summary>
+/// FLAGGED: this stays on the OLD WebScaffold framework. Nine of its ten cases assert on what
+/// arrived over a real WebSocket (<c>ReactionNotificationSocketHandler</c> wraps a
+/// <c>ClientWebSocket</c> against <c>wss://{identity}:{WebScaffold.HttpsPort}</c>), and WebSocket
+/// flows plus real TLS are both explicit non-goals of the fast framework. There is no HTTP-only
+/// path to port onto — the fixture never reads the notification list over plain HTTP.
+///
+/// The whole <c>_Universal/AppNotifications</c> folder is socket-bound for the same reason,
+/// including <c>ReactionNotificationPeerTests</c>; skip the folder rather than re-deriving this
+/// per fixture. Moving it would need an in-process notification socket
+/// (<c>TestServer.CreateWebSocketClient</c>) plus a drain hook on <c>OdinHost.ResetAsync</c> for
+/// <c>SharedDeviceSocketCollection</c> — a framework project, not a port.
+///
+/// One case here is pure HTTP and would port:
+/// <see cref="ReactionPreview_DictionaryKey_IsSha256OfReactionContent"/>. Nothing in the fast suite
+/// asserts <c>ReduceSHA256Hash</c> today, so that characterisation would be lost if this file is
+/// ever retired without lifting it out.
+/// </summary>
 public class ReactionNotificationConsistencyTests
 {
     private WebScaffold _scaffold;

@@ -92,6 +92,19 @@ public sealed partial class OdinHost
     /// <c>TenantServices.ConfigureTenantServices</c> that buffers mutable state outside DB / cache —
     /// notably the two <c>SharedDeviceSocketCollection&lt;T&gt;</c> registries for app + peer-app
     /// notifications. The current suite doesn't open WebSockets; add a drain helper if/when one does.
+    /// Also: the SYSTEM database. Only identity DBs are snapshotted, so rows written there survive a
+    /// reset — <c>TableJobs</c> in particular, which every TTL'd upload and every scheduled
+    /// notification writes to. A fixture that cares clears them itself; see
+    /// <c>Ported/Notifications/ScheduledNotificationTests.ClearScheduledJobs</c>. Lift that into this
+    /// method if a third fixture ever needs it — and note the counter has moved:
+    /// <c>Ported/Admin/AdminControllerTest</c> is now a second fixture depending on system-DB
+    /// survival, since its export job outlives the reset and the test deletes it as part of its own
+    /// assertions.
+    /// Also: <b>identity-registry state</b>. A tenant's <c>Enabled</c> and
+    /// <c>EnablePublicWebPresence</c> flags are written to the registry, not to the identity DB, so
+    /// toggling one survives a reset and leaks into every later test in the fixture. A fixture that
+    /// toggles either restores it — see <c>Ported/Admin/AdminControllerTest</c>, which re-enables in
+    /// a teardown so a mid-test failure cannot leave the tenant disabled.
     /// </para>
     /// <para><b>FusionCache clear scope:</b> <see cref="IFusionCache"/> is registered as a true
     /// singleton at the process container; tenant-keyed cache prefixes mean different tenants

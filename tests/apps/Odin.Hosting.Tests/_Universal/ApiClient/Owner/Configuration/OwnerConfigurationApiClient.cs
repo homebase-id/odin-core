@@ -118,4 +118,15 @@ public class OwnerConfigurationApiClient(OwnerApiTestUtils ownerApi, TestIdentit
             throw new Exception("test setup failed");
         }
     }
+
+    public async Task DisableAllowIntroductions(bool disabled)
+    {
+        var updateTenantSettingsFlagResponse =
+            await this.UpdateTenantSettingsFlag(TenantConfigFlagNames.DisableAllowIntroductions, disabled.ToString());
+
+        if (!updateTenantSettingsFlagResponse.IsSuccessStatusCode)
+        {
+            throw new Exception("test setup failed");
+        }
+    }
 }

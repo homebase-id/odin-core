@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -31,6 +31,7 @@ using Odin.Services.Drives;
 using Odin.Services.Optimization.Cdn;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -64,7 +65,8 @@ namespace Odin.Services.Membership.Connections.Requests
         ContactEnrichmentService contactEnrichmentService,
         StaticFileContentService staticFileContentService,
         VersionUpgradeScheduler versionUpgradeScheduler,
-        PeerOutbox peerOutbox)
+        PeerOutbox peerOutbox,
+        CircleDefinitionService circleDefinitionService)
         : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {
         private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
@@ -756,7 +758,26 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Accepts a connection request.  This will store the public key certificate
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        public async Task AcceptConnectionRequestAsync(AcceptRequestHeader header, bool tryOverrideAcl, IOdinContext odinContext)
+        /// <param name="markReviewed">
+        /// True when the owner is the one accepting -- an explicit accept from a client.  That act is the
+        /// connection review happening at accept time, so it stamps
+        /// <see cref="IdentityConnectionRegistration.ReviewedAt"/> (docs/connection-defaults.md, "On
+        /// verify").  False for the introduction auto-accept, which nobody reviewed: an auto-connection
+        /// stays New until the owner looks at it.  Deliberately required, not defaulted -- a forgetful call
+        /// site would silently mint a connection the owner never vouched for, or vouch for one they never
+        /// saw.
+        /// <para>
+        /// The send-becomes-accept short-circuit -- "a request from them was already waiting, so accept
+        /// it rather than send one" -- is <b>not</b> automatically an owner accept.  It passes whatever
+        /// the waiting request's <see cref="ConnectionRequestOrigin"/> says, because an introduction that
+        /// completes through that branch is still an introduction: two identities a third party named to
+        /// each other, connecting without the owner present.  Hardcoding true there made the stamp depend
+        /// on which side's request arrived first, so the same introduction was reviewed or not by
+        /// coincidence of timing.
+        /// </para>
+        /// </param>
+        public async Task AcceptConnectionRequestAsync(AcceptRequestHeader header, bool tryOverrideAcl, bool markReviewed,
+            IOdinContext odinContext)
         {
             header.Validate();
 
@@ -810,10 +831,11 @@ namespace Odin.Services.Membership.Connections.Requests
                 sharedSecret: remoteClientAccessToken.SharedSecret);
 
             SensitiveByteArray masterKey = odinContext.Caller.HasMasterKey ? odinContext.Caller.GetMasterKey() : null;
-            // No master key (accepting without the owner online) deliberately mints keyless
-            // grants; the deferred master-key upgrade re-mints them with real storage keys.
-            var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
-            var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
+            // No master key (an app or introduction accepting without the owner online): source storage
+            // keys from the caller's own drive access. Drives it cannot read still mint keyless, and
+            // nothing re-mints those later -- the master-key upgrade only re-encrypts the Peer Key.
+            var storageKeySource = StorageKeySource.FromMasterKeyOrCaller(masterKey, odinContext);
+            var circles = await WithConnectCirclesAsync(header.CircleIds);
             accessGrant ??= new PeerKeyStore()
             {
                 MasterKeyEncryptedPeerKey = odinContext.Caller.HasMasterKey
@@ -866,6 +888,11 @@ namespace Odin.Services.Membership.Connections.Requests
                 incomingRequest.IntroducerOdinId,
                 verificationHash,
                 odinContext);
+
+            if (markReviewed)
+            {
+                await _cns.StampReviewedIfUnsetAsync(senderOdinId);
+            }
 
             keyStoreKey.Wipe();
 
@@ -1103,6 +1130,17 @@ namespace Odin.Services.Membership.Connections.Requests
                 originalRequest.IntroducerOdinId,
                 originalRequest.VerificationHash,
                 odinContext);
+
+            // The sender's half of the review.  An IdentityOwner-origin request is one the owner sent
+            // deliberately, naming the circles this connection is about to be enrolled in -- so by the time
+            // the recipient accepts, the owner has already done everything the review dialog asks for, and
+            // the circle memberships being minted right here must imply a review (docs/connection-defaults.md:
+            // "circleIdList ACLs check membership, not tier, so membership must imply review").  An
+            // Introduction-origin request was sent without the owner present and stays New.
+            if (originalRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+            {
+                await _cns.StampReviewedIfUnsetAsync((OdinId)reply.SenderOdinId);
+            }
 
             try
             {
@@ -1355,7 +1393,15 @@ namespace Odin.Services.Membership.Connections.Requests
                     ContactData = header.ContactData
                 };
 
-                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false, odinContext);
+                // Whether this counts as a review is the incoming request's to decide, not this
+                // path's. The short-circuit is "a request from them was already waiting, so accept
+                // it instead of sending one" -- and for an introduction-origin request nobody
+                // accepted anything: two identities a third party introduced connected on their
+                // own. Stamping it would vouch for a connection the owner never saw, and would do
+                // so only on the ordering where their request happened to arrive first.
+                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
+                    markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                    odinContext);
                 return;
             }
 
@@ -1448,7 +1494,15 @@ namespace Odin.Services.Membership.Connections.Requests
                         ContactData = header.ContactData
                     };
 
-                    await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false, odinContext);
+                    // Whether this counts as a review is the incoming request's to decide, not this
+                    // path's. The short-circuit is "a request from them was already waiting, so accept
+                    // it instead of sending one" -- and for an introduction-origin request nobody
+                    // accepted anything: two identities a third party introduced connected on their
+                    // own. Stamping it would vouch for a connection the owner never saw, and would do
+                    // so only on the ordering where their request happened to arrive first.
+                    await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
+                        markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                        odinContext);
                 }
             }
         }
@@ -1473,7 +1527,15 @@ namespace Odin.Services.Membership.Connections.Requests
                     ContactData = header.ContactData
                 };
 
-                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false, odinContext);
+                // Whether this counts as a review is the incoming request's to decide, not this
+                // path's. The short-circuit is "a request from them was already waiting, so accept
+                // it instead of sending one" -- and for an introduction-origin request nobody
+                // accepted anything: two identities a third party introduced connected on their
+                // own. Stamping it would vouch for a connection the owner never saw, and would do
+                // so only on the ordering where their request happened to arrive first.
+                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
+                    markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                    odinContext);
                 return;
             }
 
@@ -1603,9 +1665,13 @@ namespace Odin.Services.Membership.Connections.Requests
                 keyStoreKey,
                 ClientTokenType.IdentityConnectionRegistration);
 
-            // We allow the master key to be null in the case of connection requests coming due to
-            // an introduction; the keyless grants are re-minted by the deferred master-key upgrade.
-            var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
+            // The sender's half: this key store is what the sender holds once the connection completes.
+            circles = await WithConnectCirclesAsync(circles);
+
+            // The master key is null for requests sent by an app or an introduction: source storage keys
+            // from the caller's own drive access. Drives it cannot read still mint keyless, and nothing
+            // re-mints those later -- the master-key upgrade only re-encrypts the Peer Key.
+            var storageKeySource = StorageKeySource.FromMasterKeyOrCaller(masterKey, odinContext);
             var grant = new PeerKeyStore()
             {
                 MasterKeyEncryptedPeerKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
@@ -1622,6 +1688,43 @@ namespace Odin.Services.Membership.Connections.Requests
             };
 
             return (clientAccessToken, grant);
+        }
+
+        /// <summary>
+        /// The circles a new connection is granted: the ones named by the caller, plus every
+        /// <see cref="CircleGrantOn.Connect"/> circle.
+        /// </summary>
+        /// <remarks>
+        /// Every origin, deliberately.  <see cref="CircleGrantOn.Connect"/> says the qualifying act is
+        /// connecting, so an owner-approved contact must hold at least what an introduced stranger does --
+        /// the opposite would be backwards.  It is the same rule the enrolment offer and the v17 -&gt; v18
+        /// backfill already apply: connected is the whole test (<see cref="CircleNetworkService"/>'s
+        /// <c>IsEnrollmentCandidate</c>).  The client may still name these circles at review time
+        /// (docs/connection-defaults.md, "On verify"); enrolling here makes that a belt-and-braces
+        /// repeat rather than the only thing standing between a manual accept and a chat that works.
+        /// <para>
+        /// Safe without the owner present because of what a Connect circle may contain, not because of who
+        /// is calling: <see cref="CircleDefinitionService.AssertDepositOnlyIfAmbientAsync"/> holds it to
+        /// write/react grants when the definition is written, so nothing minted here can read.
+        /// </para>
+        /// <para>
+        /// Not yet filtered by a per-app owner toggle; that setting does not exist
+        /// (docs/connection-review-todo.md).  Returns a new list so the caller's is never mutated.
+        /// </para>
+        /// </remarks>
+        private async Task<List<GuidId>> WithConnectCirclesAsync(IEnumerable<GuidId> circleIds)
+        {
+            var circles = circleIds?.ToList() ?? new List<GuidId>();
+
+            foreach (var circle in await circleDefinitionService.GetCirclesByGrantOnAsync(CircleGrantOn.Connect))
+            {
+                if (!circle.Disabled)
+                {
+                    circles.EnsureItem(circle.Id);
+                }
+            }
+
+            return circles;
         }
 
         private async Task<(bool success, ConnectionRequestReceipt receipt)> TrySendRequestInternalAsync(

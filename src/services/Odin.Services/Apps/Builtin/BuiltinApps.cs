@@ -206,6 +206,25 @@ public static class BuiltinApps
     /// <summary>Every circle any app owns, whether or not it is seeded.</summary>
     public static IEnumerable<CircleDefinition> AllCircles => All.SelectMany(a => a.Circles);
 
+    /// <summary>
+    /// True when the app tree declares this circle, and so re-applies its owner, grant rule and
+    /// designation on every version upgrade.
+    /// </summary>
+    /// <remarks>
+    /// The distinction a client needs before offering to edit any of those: a change to a declared
+    /// circle is undone by the next upgrade without saying so, while an app's runtime circle -- the
+    /// feed app minting one per channel, say -- is owned by an app but named by nobody and stays as
+    /// the owner leaves it.  App ownership alone does not separate the two, which is the mistake
+    /// this exists to stop a client making.
+    /// <para>
+    /// Built once: the tree is static, and this is asked per circle on a page that lists them.
+    /// </para>
+    /// </remarks>
+    private static readonly HashSet<Guid> DeclaredCircleIds =
+        AllCircles.Select(c => c.Id.Value).ToHashSet();
+
+    public static bool IsTreeDeclaredCircle(Guid circleId) => DeclaredCircleIds.Contains(circleId);
+
     public static WellknownAppDefinition Get(Guid appId) => All.FirstOrDefault(a => a.AppId == appId);
 
     public static IEnumerable<AppDriveGrant> GrantsFor(Guid appId) =>
