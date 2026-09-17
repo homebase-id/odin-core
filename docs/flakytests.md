@@ -196,9 +196,34 @@ listener on port 8445 is not accepting connections (ConnectionReset); a rejectio
 Worth noting the assertion message is a good one: it says what it could not do and why, rather
 than printing a bare failure. That is why this entry can state the failure mode at all.
 
-**Not caused by the change in flight:** PR #1781 is a test migration in `Odin.Hosting.Tests.V2`;
-`git diff origin/main...HEAD` is empty for `*Kestrel*`, `*ProxyProtocol*` and `Startup.cs`. It
-cannot reach a real TCP listener on port 8445.
+**CORRECTED — it IS implicated by the change in flight, and my first note here was wrong.** I
+originally wrote "not caused by the change in flight" on the grounds that `git diff
+origin/main...HEAD` is empty for `*Kestrel*`, `*ProxyProtocol*` and `Startup.cs`. That reasoning
+only rules out a *code* path, and it is not the only causal path. PR #1781 deletes six fixtures from
+this project, which changes fixture ordering — and this fixture adds its 8444/8445 listen entries
+through **process-wide env vars** (`WebScaffold.RunBeforeAnyTests(envOverrides:)`), so what else is
+booting around it matters.
+
+The evidence that it is implicated:
+
+- It **passed on PR #1776**, with identical Kestrel code, before the deletions.
+- Recent `main` runs of this workflow are green.
+- It then failed **twice consecutively** on #1781's `ubuntu/sqlite/release` with an identical
+  message. Two-for-two is not flake-shaped.
+
+The evidence that the defect is nonetheless pre-existing, not introduced:
+
+- It does **not** reproduce locally: 15/15 in isolation, and the whole project green (156 tests) in
+  the CI Release configuration with CI's define constants.
+- The fixture pins ports 8443/8445 and never waits for the bind, which is a latent hazard
+  independent of ordering.
+
+Best reading, stated as inference rather than fact: a pre-existing fixed-port/no-bind-check defect
+that this PR's reordering exposed. I could not reproduce it locally, so the mechanism is not
+confirmed.
+
+**Status:** marked `[Explicit]` (2026-09-17), the same treatment its sibling got under #1734, with
+the reason in the attribute. Remove it once ports are assigned rather than pinned.
 
 **Pattern:** this fixture binds fixed ports (8443, 8445) on a shared CI runner, and both of its
 recorded failures are port/timing-shaped rather than logic-shaped. #1734 covers the sibling; the
