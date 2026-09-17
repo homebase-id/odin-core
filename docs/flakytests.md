@@ -222,15 +222,30 @@ Best reading, stated as inference rather than fact: a pre-existing fixed-port/no
 that this PR's reordering exposed. I could not reproduce it locally, so the mechanism is not
 confirmed.
 
-**Status:** marked `[Explicit]` (2026-09-17), the same treatment its sibling got under #1734, with
-the reason in the attribute. Remove it once ports are assigned rather than pinned.
+**It is not one test, and it is not a port race — second correction.** `UntrustedPeer_IsStillLoggedAtWarning`
+fails identically on the postgres matrix, and those are *exactly* the two tests in this fixture that
+use 8445. What the evidence actually shows:
 
-**Pattern:** this fixture binds fixed ports (8443, 8445) on a shared CI runner, and both of its
-recorded failures are port/timing-shaped rather than logic-shaped. #1734 covers the sibling; the
-same "fixed port on a shared runner" hazard is the one #1779 records for
-`Odin.SetupHelper.Tests.TcpProbeTests`. Three fixtures, one root cause worth fixing once: bind port
-0 and read back the assigned port, and expose a "listening" signal to await instead of racing the
-bind.
+- **Listen entry 1 (8444) comes up.** `HeaderFromUntrustedPeer_IsRejected` does a positive-control
+  handshake on 8444 before touching 8445, and that control passes — so the host booted and the
+  env-var listen-entry mechanism works.
+- **Listen entry 2 (8445) does not.** Every test touching it fails; every test on 8443/8444 passes.
+- **No bind error anywhere in the CI job log** — `address already in use`, `failed to bind`,
+  `AddressInUse` and `8445` all turn up nothing from the host.
+
+So entry 2 is *absent*, not losing a race for a taken port. That means this is **not** the
+hard-coded-port hazard of #1779/#1734 that I first filed it under, despite resembling it. Tracked
+separately as **#1783**.
+
+**Status:** both 8445 tests marked `[Explicit]` (2026-09-17) pointing at #1783, so a V1
+test-infrastructure problem does not block a test-migration PR. The fixture's third `[Explicit]`
+test is a different issue (#1734).
+
+**Pattern note, now narrower:** #1779's "fixed port, no happens-before" root cause still covers
+`TcpProbeTests` and plausibly #1734's close-vs-read race, but not this one. Two lessons are worth
+keeping: a positive control in the same test is what made "entry 1 up, entry 2 down" visible at all,
+and an assertion message that says *what it could not do* ("a rejection cannot be asserted") is why
+this was diagnosable from a log alone.
 
 ---
 

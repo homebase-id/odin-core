@@ -132,15 +132,12 @@ public class ProxyProtocolListenerTests
 
     // 3. A header from an untrusted peer is not honoured (the security test)
     [Test]
-    [Explicit("Exposed by PR #1781 (batch 8), which deleted six fixtures from this project and so " +
-              "changed fixture ordering: this then failed deterministically on ubuntu/sqlite/release " +
-              "with 'listener on port 8445 is not accepting connections (ConnectionReset)', twice, " +
-              "having passed on #1776 with the same Kestrel code. It does not reproduce locally, " +
-              "in isolation (15/15) or across the whole project in the CI Release configuration. " +
-              "The underlying defect is the one #1779 describes and this fixture's already-[Explicit] " +
-              "sibling shares (#1734): a hard-coded port plus no happens-before between the listener " +
-              "binding and the client connecting. Un-explicit this once ports are assigned rather " +
-              "than pinned. See docs/flakytests.md.")]
+    [Explicit("Port 8445 (listen entry 2) does not come up on CI for PR #1781 onwards; see #1783 " +
+              "and docs/flakytests.md. Entry 1 on 8444 DOES come up -- this test's own positive " +
+              "control passes -- and the host logs no bind error, so entry 2 is simply absent " +
+              "rather than losing a port race. Not reproducible locally: 15/15 in isolation and " +
+              "156/156 across the project in the CI Release configuration. Un-explicit once #1783 " +
+              "explains why the second listen entry is dropped in that environment.")]
     public async Task HeaderFromUntrustedPeer_IsRejected()
     {
         var header = V2Header(Forged, 40004, IPAddress.Loopback, UntrustedPort);
@@ -303,6 +300,12 @@ public class ProxyProtocolListenerTests
     // ...and so does a header from a peer that is not trusted to send one. This is the message
     // that was being drowned out.
     [Test]
+    [Explicit("Port 8445 (listen entry 2) does not come up on CI for PR #1781 onwards; see #1783 " +
+              "and docs/flakytests.md. Entry 1 on 8444 DOES come up -- this test's own positive " +
+              "control passes -- and the host logs no bind error, so entry 2 is simply absent " +
+              "rather than losing a port race. Not reproducible locally: 15/15 in isolation and " +
+              "156/156 across the project in the CI Release configuration. Un-explicit once #1783 " +
+              "explains why the second listen entry is dropped in that environment.")]
     public async Task UntrustedPeer_IsStillLoggedAtWarning()
     {
         await AssertListenerClosesTlsConnection(UntrustedPort, V2Header(Forged, 40009, IPAddress.Loopback, UntrustedPort));
