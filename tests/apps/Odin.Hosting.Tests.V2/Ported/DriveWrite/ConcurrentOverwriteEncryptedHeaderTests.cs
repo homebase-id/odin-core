@@ -42,7 +42,14 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
 
     private int _successCount;
     private int _serverErrorCount;
+    private string _firstServerErrorBody;
 
+    // Deliberately NOT [Ignore]d, unlike its two siblings. Twenty concurrent writers against one
+    // drive make the V1 upload endpoint answer 500 on a small fraction of requests (#1780, high
+    // priority). The fixture's claim is that a losing writer is refused cleanly rather than blowing
+    // up, so the assertion is right and the product is what is wrong. windows/sqlite/debug is left
+    // red on purpose: the failure is a real product defect, and hiding it behind [Ignore] would buy
+    // a green board at the price of the signal. See docs/flakytests.md and #1780.
     [Test]
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {
@@ -89,9 +96,15 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
             sw.Restart();
 
             var prevTag = newVersionTag;
-            var tag = await UploadAndValidateHeader(targetFile, newVersionTag);
+            var (tag, status) = await UploadAndValidateHeader(targetFile, newVersionTag);
 
-            Assert.That(tag.HasValue, Is.True);
+            // Assert on the status, not on tag.HasValue: a bare "Expected: True, But was: False"
+            // says an upload failed but not how. This earned its keep immediately -- the next CI run
+            // reported InternalServerError on six named iterations, which is what identified #1780.
+            // (An earlier version of this comment blamed #1777's SQLite write contention. That was a
+            // guess, and the log from the failing run carries no lock error at all; see #1780.)
+            Assert.That(status, Is.EqualTo(HttpStatusCode.OK),
+                $"upload failed on iteration {count} of thread body. First 500 body: {_firstServerErrorBody ?? "(none captured)"}");
             newVersionTag = tag.GetValueOrDefault();
             Assert.That(newVersionTag, Is.Not.EqualTo(prevTag), $"version tag did not change on iteration {count}");
 
@@ -102,7 +115,8 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
         return (fileByteLength, timers);
     }
 
-    private async Task<Guid?> UploadAndValidateHeader(ExternalFileIdentifier targetFile, Guid targetVersionTag)
+    private async Task<(Guid? Tag, HttpStatusCode Status)> UploadAndValidateHeader(
+        ExternalFileIdentifier targetFile, Guid targetVersionTag)
     {
         var fileMetadata = new UploadFileMetadata()
         {
@@ -128,15 +142,21 @@ public class ConcurrentOverwriteEncryptedHeaderTests : V2Fixture
             Interlocked.Increment(ref _successCount);
             Assert.That(uploadPayloadResponse.Content!.NewVersionTag, Is.Not.EqualTo(targetVersionTag),
                 "Version tag should have changed");
-            return uploadPayloadResponse.Content!.NewVersionTag;
+            return (uploadPayloadResponse.Content!.NewVersionTag, uploadPayloadResponse.StatusCode);
         }
 
         if (uploadPayloadResponse.StatusCode == HttpStatusCode.InternalServerError)
         {
             Interlocked.Increment(ref _serverErrorCount);
+
+            // Keep the first 500's body. The status alone does not name the defect, and the host's
+            // own error log did not reach the CI output on the runs that failed (see #1780), so
+            // without this the next failure is again a status code with no cause behind it.
+            Interlocked.CompareExchange(ref _firstServerErrorBody,
+                uploadPayloadResponse.Error?.Content ?? "(no response body)", null);
         }
 
-        return null;
+        return (null, uploadPayloadResponse.StatusCode);
     }
 
     private async Task<(UploadResult, KeyHeader keyHeader)> PrepareEncryptedFile(TargetDrive targetDrive)

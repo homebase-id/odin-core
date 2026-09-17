@@ -25,6 +25,15 @@ public sealed class GuestSession : IV2Caller
 {
     public OdinId Identity { get; }
     public AsciiDomainName GuestDomain { get; }
+
+    /// <summary>
+    /// The circle this guest was granted. Surfaced because a fixture may have to name the same circle
+    /// twice — once here and once in a file's <c>CircleIdList</c> — and without it the only way to do
+    /// that was to re-implement this class's factory construction fixture-side. Mirrors
+    /// <see cref="AppSession"/>'s <c>knownAppId</c>, which exists for the same reason in the other
+    /// direction.
+    /// </summary>
+    public Guid CircleId { get; }
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
@@ -34,11 +43,13 @@ public sealed class GuestSession : IV2Caller
         OdinHost host,
         OdinId identity,
         AsciiDomainName guestDomain,
+        Guid circleId,
         ClientAuthenticationToken token,
         byte[] sharedSecret)
     {
         Identity = identity;
         GuestDomain = guestDomain;
+        CircleId = circleId;
         Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token,
             sharedSecret.ToSensitiveByteArray(), GuestApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
@@ -103,7 +114,7 @@ public sealed class GuestSession : IV2Caller
         var clientReg = await owner.Admin.RegisterYouAuthClient(guestDomain);
 
         var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);
-        return new GuestSession(owner.Host, owner.Identity, guestDomain, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
+        return new GuestSession(owner.Host, owner.Identity, guestDomain, circleId, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
     }
 
     private static AsciiDomainName NewGuestDomain() =>

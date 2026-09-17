@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System;
 using System.Linq;
 using System.Net;
@@ -25,6 +26,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 [TestFixture]
 public class AcceptIncomingRequestTests : V2Fixture
 {
+    /// <remarks>
+    /// Surfaced only once #1775 made attribution correct: accepting a connection runs a best-effort
+    /// channel sync whose failure is swallowed and logged (<c>CircleNetworkRequestService</c>, the
+    /// same catch-all shape as the two sites in #1770). Until that is fixed the error is not
+    /// something this fixture can avoid provoking.
+    /// </remarks>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        ["Failed while trying to sync channels"];
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]

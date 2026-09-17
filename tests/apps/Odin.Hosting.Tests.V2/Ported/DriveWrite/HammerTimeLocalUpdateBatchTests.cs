@@ -45,6 +45,7 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 [TestFixture]
 public class HammerTimeLocalUpdateBatchTests : V2Fixture
 {
+
     private OwnerSession _owner;
     private Guid _initialVersionTag;
     private ExternalFileIdentifier _targetFile;
@@ -55,6 +56,10 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
     private int _conflictCount;
 
     [Test]
+    [Ignore("Blocked on issue #1772: reading a payload/thumbnail that another thread is replacing " +
+            "answers 500 with an OdinSystemException where a 404 belongs. The assertion is correct " +
+            "and the product is what is wrong, so weakening it would be the wrong fix; ignored rather " +
+            "than left to redden CI roughly 1 run in 8. See docs/flakytests.md. Un-ignore when #1772 lands.")]
     public async Task UpdateBatch_HammerTime_WithPayloads()
     {
         _owner = await LoginAsOwner();

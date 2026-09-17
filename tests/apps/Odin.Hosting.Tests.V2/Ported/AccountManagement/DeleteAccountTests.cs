@@ -1,18 +1,13 @@
 #nullable enable
-using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Cryptography.Login;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement;
-using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Services.Authentication.Owner;
-using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.AccountManagement;
 
@@ -89,37 +84,21 @@ public class DeleteAccountTests : V2Fixture
         Assert.That(getStatusResponse2.Content!.PlannedDeletionDate, Is.Null);
     }
 
+    /// <summary>
+    /// The anonymous half of the password dance, via <see cref="OwnerPasswordFlow"/>: pull a fresh
+    /// authentication nonce off the identity and fold the password into it. Mirrors
+    /// <c>OwnerApiTestUtils.CalculateAuthenticationPasswordReply</c>, which the original reached
+    /// through <c>OwnerAccountManagementApiClient</c>.
+    /// </summary>
     private async Task<DeleteAccountRequest> BuildDeleteRequestAsync(OwnerSession owner)
     {
+        using var client = Host.CreateAnonymousClient(owner.Identity.DomainName);
+        var eccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+
         return new DeleteAccountRequest
         {
-            CurrentAuthenticationPasswordReply = await CalculateAuthenticationPasswordReplyAsync(owner.Identity.DomainName)
+            CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+                client, OwnerLogin.DefaultPassword, eccKey)
         };
-    }
-
-    /// <summary>
-    /// The anonymous half of the password dance: pull a fresh authentication nonce off the identity
-    /// and fold the password into it. Mirrors <c>OwnerApiTestUtils.CalculateAuthenticationPasswordReply</c>,
-    /// which the original reached through <c>OwnerAccountManagementApiClient</c>.
-    /// </summary>
-    private async Task<PasswordReply> CalculateAuthenticationPasswordReplyAsync(string identity)
-    {
-        using var client = new HttpClient(Host.Server.CreateHandler())
-        {
-            BaseAddress = new Uri($"https://{identity}/")
-        };
-
-        var svc = RestService.For<IOwnerAuthenticationClient>(client);
-        var nonceResponse = await svc.GenerateAuthenticationNonce();
-        Assert.That(nonceResponse.IsSuccessStatusCode, Is.True, "server failed when getting nonce");
-
-        var clientNonce = nonceResponse.Content!;
-        var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicJwk, clientNonce.CRC)
-        {
-            Nonce64 = clientNonce.Nonce64
-        };
-
-        var eccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
-        return PasswordDataManager.CalculatePasswordReply(OwnerLogin.DefaultPassword, nonce, eccKey);
     }
 }

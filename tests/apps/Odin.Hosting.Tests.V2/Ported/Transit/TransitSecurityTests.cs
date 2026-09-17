@@ -56,6 +56,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 [TestFixture]
 public class TransitSecurityTests : V2Fixture
 {
+
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]

@@ -158,6 +158,18 @@ re-deriving, which is how the first batches ended up with three spellings of the
   `OwnerAdmin`; roughly half the admin surface would need one.
 - `OwnerAdmin` earns a new method only when two or more fixtures need it *as arrange*. A
   one-fixture need goes through `RefitFor<T>()`.
+- Unauthenticated callers use `Host.CreateAnonymousClient(identity)` (`Api/AnonymousHttp.cs`) — the
+  counterpart of V1's `WebScaffold.CreateAnonymousApiHttpClient`. It is `Host.CreateClient()` plus a
+  tenant `BaseAddress` and the file-system-type header, so well-known / SSR / swagger GETs and
+  `RestService.For<T>` against an anonymous surface both work. Bare `Host.CreateClient()` stays
+  correct where the test spells out an absolute URL (`Ported/Ping`).
+- **A `_Universal` context that grants permission *keys only* has no `CallerSpec` equivalent.**
+  `AppPermissionsKeysOnly` and `ConnectedIdentityLoggedInOnGuestApi` register an app / YouAuth domain
+  with a `PermissionSet` and *no* `Drives` at all, whereas `CallerSpec.App` / `.Guest` always attach a
+  `DriveGrantRequest`. Porting one through `CallerSpec` therefore either invents a drive or grants
+  access the original didn't. `Ported/Concepts/CollabScenario.cs` shows the shape: a local
+  `record`-based spec carrying a `Func<OwnerSession, Task<IV2Caller>>`, named for the V1 context so
+  failures read the same.
 
 **Identity**
 - Prefer the fixture default. The V1 originals pinned identities because `WebScaffold` shared them
@@ -224,12 +236,38 @@ re-deriving, which is how the first batches ended up with three spellings of the
 
   So don't assume either outcome: check what the worker for that `OutboxItemType` returns, and record
   the verdict in the fixture's `<remarks>`.
-- **There is no log-event assertion here, and its absence is silent.** `WebScaffold` fixtures end with
-  `[TearDown] { _scaffold.AssertLogEvents(); }`, and some use `SetAssertLogEventsAction` to assert the
-  *content* of expected errors or `AssertHasDebugLogEvent` to assert one fired. None of that exists on
-  `V2Fixture`, so a port drops it by deleting the tear-down and nothing goes red. When the log half is
-  load-bearing — the two `S2100` cases in `Ported/Transit/TransitCommentFileRoutingTests` are the clear
-  example — say so in the fixture's `<remarks>` so the lost coverage is findable. Tracked in #1766.
+- **A fixture whose subject is initial setup overrides `WarmTenantBaselineAsync`.** The baseline runs
+  `Admin.InitializeIdentity()` before the snapshot, so `isconfigured` is already true and "system
+  circles do not exist yet" is unreachable. Override it to keep the owner login — that sets the
+  password `TakeBaselineAsync` needs — and drop only the `InitializeIdentity` call.
+  `Ported/DriveManagement/HandleDriveAddedRegressionTests` and the two
+  `Ported/Configuration/SystemInitializeConfig*` fixtures do exactly this. Only do it where the
+  pre-init state is actually asserted: the other `SystemInit` ports call `InitializeIdentity` inside
+  the test, which is idempotent on the server, so they keep the default baseline.
+- **`RunBeforeAnyTests(envOverrides:)` becomes `ConfigOverrides`, and the tear-down that undid it
+  goes away.** Env vars are process-wide, so the V1 fixtures that set one had to clear it again or
+  leak the flag into every later fixture (`OwnerApi/Mail/MailActivationTests` said so in a comment).
+  `ConfigOverrides` is per host, so the cleanup has nothing to do — and the flag-off sibling fixture
+  no longer depends on the flag-on one having tidied up first. List settings bind by index
+  (`Email:TenantMail:MxNodes:0`), not `__0`.
+- **The log-event assertion is ON, and it will catch things your test never looks at.** A test fails
+  if the server logged an Error or Fatal during it, even when every explicit assertion passed — the
+  invariant `WebScaffold` enforced via `AssertLogEvents`. When a port trips it, **read the message it
+  prints** (it renders every event and exception) before deciding what to do:
+  - the error is the behaviour under test → add its text to `ToleratedErrorLogSubstrings` on that
+    fixture, with a comment saying why. For an outbox delivery that is *meant* to fail, use the shared
+    `OutboxDeliveryFailureLogged` constant.
+  - it looks like a real defect → file it, and tolerate it with the issue number attached. Three of
+    the first four things this caught were product bugs (#1770, #1771, #1772), all in tests whose own
+    assertions passed.
+  - turn `AssertNoErrorLogEvents` off only if the whole fixture is about error paths.
+
+  Two framework-level lists sit alongside the per-fixture one, and the distinction matters:
+  `KnownProductNoise` (filed defects, deleted when fixed) and `ParallelLoadArtefacts` (SQLite lock
+  contention from running many hosts in one process — not a defect, not expected to shrink).
+- **`Is.EqualTo` across `GuidId` and `Guid` compiles and then fails at run time.** NUnit compares the
+  boxed objects and never reaches the `==` operator, so you get
+  `Expected: bb2683fa-402a-… / But was: <bb2683fa402aff…>`. Cast *both* sides to `Guid`.
 - `FileMetadata.OriginalAuthor` is an `OdinId`; `FileMetadata.SenderOdinId` is a `string`. Comparing
   the first against a `(string)` cast fails with the baffling
   `Expected: "frodo.dotyou.cloud" / But was: frodo.dotyou.cloud`.
@@ -328,6 +366,7 @@ Api/        V2Fixture          ← (in parent dir) the base class
             OwnerAdmin (+ .Apps / .YouAuth partials) ← V1 admin endpoints
             DriveHandles       ← reader + writer + reactions, bundled per caller
             AppFileUploads     ← the encrypted multipart upload the V1 drive ports arrange with
+            AnonymousHttp      ← Host.CreateAnonymousClient(identity): unauthenticated, tenant-bound
             Identities         ← Frodo/Sam/… constants (derived from TestIdentities)
 Auth/       OwnerLogin         ← ECC + AES-CBC password-set + authenticate dance
 Peer/       PeerFlow           ← drive-create + circle + connect helper (+ bidirectional)

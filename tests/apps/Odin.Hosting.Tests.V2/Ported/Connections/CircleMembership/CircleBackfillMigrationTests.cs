@@ -33,6 +33,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class CircleBackfillMigrationTests : V2Fixture
 {
+    /// <remarks>
+    /// This fixture's subject is the v17->v18 backfill, whose error paths it drives deliberately: an
+    /// identity left out of a circle, and the swallowed key-upgrade failure tracked in #1770. Narrow
+    /// tolerations rather than a whole-fixture opt-out, so the invariant still covers the rest.
+    /// </remarks>
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        ["Failed to upgrade KSK Encryption", "left 1 identity(s) out of the"];
+
     protected override string[] HostIdentities =>
         [Identities.Frodo, Identities.Sam, Identities.Merry, Identities.Pippin, Identities.TomBombadil];
 

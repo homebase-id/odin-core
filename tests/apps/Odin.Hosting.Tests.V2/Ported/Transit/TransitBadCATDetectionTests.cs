@@ -12,6 +12,7 @@ using Odin.Hosting.Tests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -32,10 +33,12 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 /// and the secured one answers 403.
 /// </summary>
 /// <remarks>
-/// Framework gap worked around: <c>_scaffold.Scenarios.CreateConnectedHobbits</c> has no V2
-/// counterpart. Its mesh connect is <see cref="Peer.PeerFlow.ConnectAllAsync"/>; the app registration
-/// the V1 helper also did stays in <see cref="HobbitScenario.ConnectAllAsync"/>, local to this folder
-/// — see that class for what it does and does not carry over.
+/// <c>_scaffold.Scenarios.CreateConnectedHobbits</c> has no V2 counterpart; its mesh connect is
+/// <see cref="Peer.PeerFlow.ConnectAllAsync"/>. The V1 helper also registered an app per hobbit and
+/// carried its token on a <c>TestAppContext</c>; every call here is made as the owner and no token is
+/// ever read, so that step is dropped — the same decision as
+/// <c>Ported/Circles/AppCircleDefinitionTests</c> and
+/// <see cref="AppTransitQueryTestsForPrivateFiles"/>.
 /// <para>
 /// Other port notes: the transit payload read goes through the V1
 /// <see cref="IRefitOwnerTransitQuery"/> via <c>owner.RefitFor</c> (there is no <c>_Universal</c>
@@ -73,7 +76,7 @@ public class TransitBadCATDetectionTests : V2Fixture
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
 
-        await HobbitScenario.ConnectAllAsync([frodo, merry, pippin, sam], targetDrive);
+        await PeerFlow.ConnectAllAsync([frodo, merry, pippin, sam], targetDrive);
 
         // 2. Merry posts two pieces of content 1 public, one secured that requires you to be connected
         //

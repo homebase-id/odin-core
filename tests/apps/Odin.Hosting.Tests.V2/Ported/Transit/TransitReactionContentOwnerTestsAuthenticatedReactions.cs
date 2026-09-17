@@ -42,6 +42,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///     <c>GetFollower</c> returns an <c>ApiResponse</c> here rather than the bare definition, so the
 ///     original's "is not null" check on the definition is now a status check plus a content check.
 ///   </description></item>
+///   <item><description>
+///     The original's private <c>UploadUnencryptedContentToChannel</c> is
+///     <see cref="TransitScenario.UploadUnencryptedContentToChannelAsync"/> — the connected-reactions
+///     fixture carried the same helper, with these two parameters fixed at their defaults.
+///   </description></item>
 /// </list>
 /// </remarks>
 [TestFixture]
@@ -83,8 +88,8 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions : V2Fixture
         // Pippin uploads a post
         //
         var uploadedContent = "I'm Hungry!";
-        var uploadResult = await UploadUnencryptedContentToChannelAsync(pippin, pippinChannelDrive, uploadedContent,
-            acl: AccessControlList.Anonymous);
+        var uploadResult = await TransitScenario.UploadUnencryptedContentToChannelAsync(pippin, pippinChannelDrive,
+            uploadedContent, acl: AccessControlList.Anonymous);
 
         await PeerFlow.DistributeAsync(pippin, sam, WellKnownAppDrives.FeedDrive);
 
@@ -144,32 +149,6 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions : V2Fixture
     }
 
     // ---------------------------------------------------------------------------------------------
-
-    private static async Task<UploadResult> UploadUnencryptedContentToChannelAsync(
-        OwnerSession owner,
-        TargetDrive targetDrive,
-        string uploadedContent,
-        bool allowDistribution = true,
-        AccessControlList acl = null)
-    {
-        var fileMetadata = new UploadFileMetadata
-        {
-            AllowDistribution = allowDistribution,
-            IsEncrypted = false,
-            AppData = new()
-            {
-                Content = uploadedContent,
-                FileType = default,
-                GroupId = default,
-                Tags = default
-            },
-            AccessControlList = acl ?? AccessControlList.Connected
-        };
-
-        var response = await owner.V1.Drive.UploadNewMetadata(targetDrive, fileMetadata, FileSystemType.Standard);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        return response.Content;
-    }
 
     /// <summary>The post as it landed on <paramref name="owner"/>'s feed drive.</summary>
     private static async Task<SharedSecretEncryptedFileHeader> GetHeaderFromFeedDriveAsync(
