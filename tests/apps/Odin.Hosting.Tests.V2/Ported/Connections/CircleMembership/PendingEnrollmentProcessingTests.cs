@@ -511,24 +511,4 @@ public class PendingEnrollmentProcessingTests : V2Fixture
         return icr!;
     }
 
-    /// <summary>
-    /// An owner context carrying the master key, built the way <c>VersionUpgradeService</c> builds one,
-    /// so a phase can be replayed by calling the service directly.
-    /// </summary>
-    private async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext { Tenant = default, AuthTokenCreated = null, Caller = null };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }

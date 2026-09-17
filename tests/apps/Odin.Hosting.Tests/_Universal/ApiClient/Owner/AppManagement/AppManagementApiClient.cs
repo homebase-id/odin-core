@@ -178,6 +178,10 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
             {
                 Name = $"Test_{appId}",
                 AppId = appId,
+
+                // A slug is required at registration. The generator owns the length and format
+                // rules, so no test hard-codes them.
+                AppSlug = AppSlugGenerator.Generate(appId, null, new HashSet<string>()),
                 PermissionSet = appPermissions.PermissionSet,
                 Drives = appPermissions.Drives?.ToList(),
                 AuthorizedCircles = authorizedCircles,

@@ -22,22 +22,25 @@ public class CreateDriveRequest
     public bool OwnerOnly { get; set; }
 
     /// <summary>
-    /// The app that owns the drive; null means an owner drive.
+    /// The app that owns the drive.  Omitting it means the owner acting as themselves, which is the
+    /// owner-console app -- never nobody.
     /// </summary>
     /// <remarks>
-    /// Accepted, stored, and read by nothing yet.  Omitting all three leaves the drive addressed by
-    /// Guid exactly as before -- which is every drive today.  See <c>docs/drive-addressing.md</c>.
+    /// The app must exist: one the platform ships, or one registered on this identity.  Ownership is
+    /// half the drive's wire address (<c>/apps/{appSlug}/drives/{driveSlug}</c>) and is not changeable
+    /// afterwards except by adoption, so it is checked when the drive is written.
     /// </remarks>
     public Guid? AppId { get; set; }
 
     /// <summary>
-    /// The drive's portable name, unique per owning app.  Validated for format when supplied; not
-    /// required, and not derived for you.
+    /// The drive's portable name, unique per owning app.  Validated for format when supplied, and
+    /// derived from <see cref="Name"/> when it is not -- every drive ends up with one.
     /// </summary>
     public string DriveSlug { get; set; }
 
     /// <summary>
-    /// Readable form of the drive's type, e.g. <c>channel</c>.
+    /// Readable form of the drive's type, e.g. <c>channel</c>.  Derived from the drive's type when
+    /// omitted, falling back to <c>drive</c> for a type nothing recognises.
     /// </summary>
     public string DriveTypeSlug { get; set; }
 

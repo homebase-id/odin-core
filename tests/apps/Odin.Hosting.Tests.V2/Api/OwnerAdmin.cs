@@ -240,6 +240,14 @@ public sealed partial class OwnerAdmin
     public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant,
         Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
     {
+        // A circle cannot be handed to an app that does not exist. Fixtures name an owning app to say
+        // "some app's, not the owner's", and coin the id on the spot; registering it here keeps that
+        // shorthand working without every fixture having to order its setup around the rule.
+        if (appId.HasValue)
+        {
+            await EnsureAppRegistered(appId.Value);
+        }
+
         var response = await _network.CreateCircle(id, name, grant, appId, grantOn);
         EnsureSuccess(response, nameof(CreateCircle));
         return response;

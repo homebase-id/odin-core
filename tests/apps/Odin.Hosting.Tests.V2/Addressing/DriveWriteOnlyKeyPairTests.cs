@@ -175,28 +175,6 @@ public class DriveWriteOnlyKeyPairTests : V2Fixture
             Is.EqualTo(secret), "a deposit sealed before the updates must still open after them");
     }
 
-    private async Task<Odin.Services.Base.IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<Odin.Services.Authentication.Owner.OwnerAuthenticationService>();
-        var odinContext = new Odin.Services.Base.OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new Odin.Services.Base.OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
-
     [Test]
     public async Task EveryDriveGetsADistinctKeypair()
     {
