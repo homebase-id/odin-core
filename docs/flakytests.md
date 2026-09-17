@@ -74,7 +74,7 @@ the shared cause is probably worth chasing rather than re-running.
 
 ---
 
-## `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryTests`
+## `Odin.Hosting.Tests.V2.Ported.Shamir.ShamirPasswordRecoveryTests`
 
 - `CanEnterAndExitRecoveryMode`
 
@@ -83,6 +83,23 @@ the shared cause is probably worth chasing rather than re-running.
 **Symptom:** expects a `Redirect`, gets `Forbidden`.
 
 **Not caused by the change in flight:** same run and reasoning as the entry above.
+
+**Moved 2026-09-17.** Was `Odin.Hosting.Tests.OwnerApi.Shamir.ShamirPasswordRecoveryTests`; the
+fixture is now ported to the fast framework and the V1 original is deleted. The recovery logic is
+unchanged by the port, so if the flake is real it is still reachable -- and it is now far cheaper to
+chase, because the whole fixture runs in about 2 s instead of 18 s.
+
+**Still not reproduced, and a green local run does not clear it.** 8/8 green after the port (3 batch
+runs plus 5 focused), and the V1 original also passed on the same tree -- but that was Linux/sqlite,
+filtered and unloaded, whereas the recorded failure is Windows CI under parallel load. Those are not
+the same experiment.
+
+**Where to look, from reading the code rather than from a measurement:** a `Forbidden` on
+`verify-enter` means an `OdinSecurityException` escaping `ShamirRecoveryService.EnterRecoveryMode`.
+Two places on that path can raise one -- `HandleReleaseShardRequest` on a *player*
+(`sender != requester`, or a `RecoveryEmailHash` mismatch) and the dealer-side collect. A player's
+non-2xx is swallowed by the `if (response.IsSuccessStatusCode)` guard, so it would have to be raised
+dealer-side. Unconfirmed: this is analysis, not a reproduction.
 
 ---
 
@@ -160,6 +177,75 @@ Remove the attribute and this entry once that is fixed.
 observed before the first read returns the buffered bytes, the read is cancelled with
 `bytesReceived == 0` and logged at Verbose instead of Warning. Details and candidate fixes in
 #1734. The test was added by `9d1315b7e` (PR #1732).
+
+### A second method in the same fixture, 2026-09-17
+
+- `HeaderFromUntrustedPeer_IsRejected`
+
+**Where:** CI, `ubuntu/sqlite/release` on PR #1781 (run 35198…, job 105131700664). One failure in
+that project's 156 tests; the fast suite in the same job was green at 1388.
+
+**Symptom:** a different failure mode from the entry above — not a missing log event, but the
+listener never came up:
+
+```
+listener on port 8445 is not accepting connections (ConnectionReset); a rejection cannot be asserted
+    at ProxyProtocolListenerTests.ConnectOrFail(Int32 port, Byte[] proxyHeader):167
+```
+
+Worth noting the assertion message is a good one: it says what it could not do and why, rather
+than printing a bare failure. That is why this entry can state the failure mode at all.
+
+**CORRECTED — it IS implicated by the change in flight, and my first note here was wrong.** I
+originally wrote "not caused by the change in flight" on the grounds that `git diff
+origin/main...HEAD` is empty for `*Kestrel*`, `*ProxyProtocol*` and `Startup.cs`. That reasoning
+only rules out a *code* path, and it is not the only causal path. PR #1781 deletes six fixtures from
+this project, which changes fixture ordering — and this fixture adds its 8444/8445 listen entries
+through **process-wide env vars** (`WebScaffold.RunBeforeAnyTests(envOverrides:)`), so what else is
+booting around it matters.
+
+The evidence that it is implicated:
+
+- It **passed on PR #1776**, with identical Kestrel code, before the deletions.
+- Recent `main` runs of this workflow are green.
+- It then failed **twice consecutively** on #1781's `ubuntu/sqlite/release` with an identical
+  message. Two-for-two is not flake-shaped.
+
+The evidence that the defect is nonetheless pre-existing, not introduced:
+
+- It does **not** reproduce locally: 15/15 in isolation, and the whole project green (156 tests) in
+  the CI Release configuration with CI's define constants.
+- The fixture pins ports 8443/8445 and never waits for the bind, which is a latent hazard
+  independent of ordering.
+
+Best reading, stated as inference rather than fact: a pre-existing fixed-port/no-bind-check defect
+that this PR's reordering exposed. I could not reproduce it locally, so the mechanism is not
+confirmed.
+
+**It is not one test, and it is not a port race — second correction.** `UntrustedPeer_IsStillLoggedAtWarning`
+fails identically on the postgres matrix, and those are *exactly* the two tests in this fixture that
+use 8445. What the evidence actually shows:
+
+- **Listen entry 1 (8444) comes up.** `HeaderFromUntrustedPeer_IsRejected` does a positive-control
+  handshake on 8444 before touching 8445, and that control passes — so the host booted and the
+  env-var listen-entry mechanism works.
+- **Listen entry 2 (8445) does not.** Every test touching it fails; every test on 8443/8444 passes.
+- **No bind error anywhere in the CI job log** — `address already in use`, `failed to bind`,
+  `AddressInUse` and `8445` all turn up nothing from the host.
+
+So entry 2 is *absent*, not losing a race for a taken port. That means this is **not** the
+hard-coded-port hazard of #1779/#1734 that I first filed it under, despite resembling it. Tracked
+separately as **#1783**.
+
+**Status:** both 8445 tests marked `[Explicit]` (2026-09-17) pointing at #1783, so a V1
+test-infrastructure problem does not block a test-migration PR. The fixture's third `[Explicit]`
+test is a different issue (#1734).
+
+**Pattern note, now narrower:** #1779's "fixed port, no happens-before" root cause still covers
+`TcpProbeTests` and plausibly #1734's close-vs-read race, but not this one. Two lessons are worth
+keeping: a positive control in the same test is what made "entry 1 up, entry 2 down" visible at all,
+and an assertion message that says *what it could not do* ("a rejection cannot be asserted") is why
+this was diagnosable from a log alone.
 
 ---
 
@@ -432,7 +518,13 @@ writers against one **drive**, not several writers racing one file. The server-s
 the 500 did not reach the CI output, so the cause is still unknown; the fixture now captures the
 first 500's response body into the assertion message so the next run names it.
 
-**Status: left RUNNING and RED on `windows/sqlite/debug`, on purpose (decision 2026-09-17).** It was
+**Frequency: roughly two failures in three Windows runs — it is intermittent, not deterministic.**
+It passed the full 20x50 run on `windows/sqlite/debug` for PR #1781 (job 105144168218) after failing
+on two earlier commits. So a green Windows run does not clear it, and the response-body capture added
+for diagnosis has not fired yet — the cause still rests on the six
+`Expected: OK, But was: InternalServerError` iterations from the failing runs.
+
+**Status: left RUNNING on `windows/sqlite/debug`, on purpose (decision 2026-09-17).** It was
 briefly `[Ignore]`d against #1780; that was reverted. Unlike its two siblings
 (`PayloadConcurrentHammerEncryptedTests`, `[Explicit]`, and `UpdateBatch_HammerTime_WithPayloads`,
 `[Ignore]` under #1772), this one stays in CI. The failure is a real product defect rather than a

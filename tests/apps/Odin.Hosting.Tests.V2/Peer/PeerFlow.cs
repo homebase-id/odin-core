@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -93,6 +94,43 @@ public static class PeerFlow
         var accept = await recipientConnections.AcceptConnectionRequest(sender.Identity, new GuidId[] { recipientCircleId });
         Assert.That(accept.IsSuccessStatusCode, Is.True,
             $"AcceptConnectionRequest on {recipient.Identity} failed: {accept.StatusCode}");
+    }
+
+    /// <summary>
+    /// Connect two identities with <b>no circles and no shared drive</b> — just the request/accept
+    /// handshake, which grants the builtin <c>ConfirmedConnections</c> circle on its own.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from the <paramref name="a"/>/<paramref name="b"/>-plus-drive overloads above, none of
+    /// which can serve a caller that wants the bare handshake: they all mint a circle over a drive.
+    /// Callers that need only the connection — the Shamir shard flows, whose write grant rides
+    /// <c>ConfirmedConnections</c> — get it here instead of open-coding the two calls.
+    /// <para>
+    /// Asserts the exact <see cref="HttpStatusCode.OK"/> its one caller asserted, rather than this
+    /// class's usual <c>IsSuccessStatusCode</c>; this is a move of that caller's code, not a rewrite
+    /// of what it checks.
+    /// </para>
+    /// </remarks>
+    public static async Task ConnectAsync(OwnerSession a, OwnerSession b)
+    {
+        var send = await a.Connections.SendConnectionRequest(b.Identity);
+        Assert.That(send.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var accept = await b.Connections.AcceptConnectionRequest(a.Identity);
+        Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    /// <summary>
+    /// The counterpart to <see cref="ConnectAsync(OwnerSession, OwnerSession)"/>: severs both sides.
+    /// <c>DisconnectFrom</c> is one-sided by default, so each identity has to sever its own.
+    /// </summary>
+    public static async Task DisconnectAsync(OwnerSession a, OwnerSession b)
+    {
+        var aSide = await a.Connections.DisconnectFrom(b.Identity);
+        Assert.That(aSide.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var bSide = await b.Connections.DisconnectFrom(a.Identity);
+        Assert.That(bSide.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     /// <summary>
