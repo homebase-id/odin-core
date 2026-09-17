@@ -5,15 +5,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
+using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Connections;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 
@@ -93,5 +98,77 @@ public class AppAcceptedConnectionGrantTests : V2Fixture
         var members = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).GetCircleMembersAsync(circleA);
         Assert.That(members.IsSuccessStatusCode, Is.True, $"GetCircleMembers failed: {members.StatusCode}");
         Assert.That(members.Content!.Any(m => m == sam.Identity), Is.True, "sam should appear as a member of circleA");
+    }
+
+    [Test]
+    public async Task AppAcceptingWithReadCircle_MintsGrantWithStorageKey_AndSamCanDecrypt()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        var appDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(appDrive, "appDrive", allowAnonymousReads: false);
+
+        // Shaped like Emergency Location Access: an app-owned circle granting Read on the app's own drive.
+        var appId = Guid.NewGuid();
+        var readCircle = Guid.NewGuid();
+        var created = await frodo.Admin.CreateCircle(readCircle, "read-circle", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = appDrive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        }, appId: appId);
+        Assert.That(created.IsSuccessStatusCode, Is.True, $"CreateCircle failed: {created.StatusCode}");
+
+        // The app can read appDrive itself, so it is able to source the storage key it hands out.
+        var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
+            permissionKeys: new[]
+            {
+                PermissionKeys.ManageContacts,
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.ManageCircleMembership,
+                PermissionKeys.UseTransitWrite
+            },
+            knownAppId: appId);
+
+        // Encrypted before the connection exists, so reading it back depends on the grant's storage key.
+        const string plaintext = "only readable with a keyed read grant";
+        var metadata = SampleMetadataData.Create(fileType: 7031, acl: AccessControlList.Connected);
+        metadata.AppData.Content = plaintext;
+        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(
+            appDrive.Alias, metadata, new TransitOptions(), keyHeader: KeyHeader.NewRandom16());
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"encrypted upload failed: {upload.StatusCode}");
+        var fileId = upload.Content!.FileId;
+
+        var sendReq = await new UniversalCircleNetworkRequestsApiClient(sam.Identity, sam.Factory)
+            .SendConnectionRequest(frodo.Identity);
+        Assert.That(sendReq.IsSuccessStatusCode, Is.True, $"SendConnectionRequest failed: {sendReq.StatusCode}");
+
+        var accept = await new V2ConnectionRequestsClient(app.Identity, app.Factory)
+            .AcceptIncomingRequestAsync(sam.Identity, new AcceptConnectionRequestV2 { CircleIds = [readCircle] });
+        Assert.That(accept.IsSuccessStatusCode, Is.True, $"app accept failed: {accept.StatusCode} {accept.Error?.Content}");
+        await frodo.Sync.DrainOutboxAsync();
+
+        var storage = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
+        var icr = await storage.GetAsync(sam.Identity);
+        Assert.That(icr!.PeerKeyStore.CircleGrants.TryGetValue(readCircle, out var circleGrant), Is.True,
+            "the app's accept should have put sam in the read circle");
+        var driveGrant = circleGrant!.KeyStoreKeyEncryptedDriveGrants.Single(dg => dg.PermissionedDrive.Drive == appDrive);
+        Assert.That(driveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Read), Is.True);
+        Assert.That(driveGrant.KeyStoreKeyEncryptedStorageKey, Is.Not.Null,
+            "a read grant minted by an app that can read the drive must carry the storage key, not be keyless");
+
+        // Strongest proof: Sam reads the encrypted file over peer and decrypts it with Sam's own shared secret.
+        var headerResp = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, appDrive.Alias, fileId);
+        Assert.That(headerResp.IsSuccessStatusCode, Is.True, $"peer header read failed: {headerResp.StatusCode}");
+        var header = headerResp.Content!;
+        Assert.That(header.FileMetadata.IsEncrypted, Is.True);
+
+        var samSecret = sam.Drives.Reader.GetSharedSecret();
+        var keyHeader = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref samSecret);
+        var decrypted = keyHeader.Decrypt(header.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes();
+        Assert.That(decrypted, Is.EqualTo(plaintext));
     }
 }
