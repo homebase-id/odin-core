@@ -233,8 +233,8 @@ with a few certificate-less domains cycling out of their backoffs pulses the swe
 times an hour, and each sweep re-places a full order for every *other* domain whose renewal
 is failing: the same allowance burn, arriving on a different domain than the one pulsed.
 The cost is bounded, since the backoff caps at an hour and renewal starts 7 days before
-expiry. `RenewIfAboutToExpireAsync` does not wait for the lock either — whoever holds it is
-ordering for the same domain, so waiting only risks a timeout and an alarming log line.
+expiry. It takes the order lock the ordinary way (see *The order lock is an ordinary blocking
+lock* below) and treats a timeout as "somebody else is ordering for this domain".
 
 **Trade-off, deliberately accepted.** The first requests to a brand-new identity fail
 fast and the client must retry, rather than one request blocking until the certificate
@@ -252,6 +252,55 @@ as a debug line. A latent total outage in exchange for tidier logs.
 
 Both callers now use `LockAsync` and treat a timeout as "somebody else is already ordering
 for this domain", which is what it means.
+
+### The re-check after the lock reads the database, not the cache
+
+The order lock is cluster-wide (`RedisLock`). `CertificateStore`'s cache is not: it is a
+dictionary in a process-lifetime singleton, and a cached certificate counts as good until
+`NotAfter`. So "take the lock, then check whether somebody else already did the work" only
+works if the check can see somebody else's work. It used to go through the cache-first
+`GetCertificateAsync`, and behind a load balancer that meant one order **per node** per
+renewal: A orders and writes the row; B takes the lock next, its cache still answers with
+the old certificate, `NeedsRenewalAsync` is still true, and B orders again (#1747).
+
+Both re-checks (`CreateCertificateAsync`, `RenewIfAboutToExpireAsync`) now call
+`ICertificateStore.ReloadCertificateAsync`, which reads the row and refreshes the cache.
+That closes it completely, not just mostly: the winning node writes its row *inside* the
+lock, so the next holder's read is guaranteed to see it.
+
+Everything else - the TLS handshake path above all - still reads cache-first.
+
+### A written certificate is announced to the other nodes
+
+A duplicate order used to *mask* a second problem: it refreshed the ordering node's cache as
+a side effect. With the duplicate gone, a node that does not itself renew would keep serving
+the replaced certificate from memory until it expired - a node in failure backoff, or any
+node when the certificate was supplied out of band (`OptionalCertificatePemContent` at
+registration), where nothing is near expiry and so nothing would ever re-read the row.
+
+So `PutCertificateAsync` announces the write on `ISystemPubSub`
+(`CertificateChangedMessage`, channel `certificate-changed`) and every other node re-reads
+that domain's row into its cache. It refreshes rather than evicts: an eviction would hand
+the database read to the next TLS handshake, and to every handshake racing it. The old
+certificate keeps being served until the new one is in. Startup subscribes *before*
+`LoadRegistrations`, which is what warms the cache.
+
+- **The message carries the domain name and nothing else.** No certificate, no key. The
+  encrypted key travels through the database only.
+- **The publisher ignores its own message** (`OriginNodeId`): both pub/sub backends deliver
+  to the sender, and it has just cached what it wrote.
+- **No durable backstop, on purpose.** Pub/sub has no replay, and the registry carries a
+  version row and a reconnect re-check for that reason. Here a missed announcement costs one
+  node serving a still-valid, superseded certificate, and it heals itself: once that
+  certificate enters its renewal window the node takes the order lock, and the database
+  re-check above refreshes its cache instead of ordering. Only a certificate replaced out of
+  band, far from expiry, stays stale until it expires. That is not worth the registry's
+  machinery. A failed publish is logged as a warning and does not fail the write.
+- `ISystemPubSub` is resolved from the store's `IServiceProvider`, as the store already does
+  for its scoped table and as the registry does for the same interface. Should it ever be
+  constructor-injected instead: `CertificateStore` is on the constructor-hash whitelist in
+  `AutofacDiagnostics` (see the gotcha under *Relevant code*), and unlike `RedisLock` it is
+  registered unconditionally, so the mismatch shows up in any Development run.
 
 ### Failed orders back off
 
@@ -286,9 +335,9 @@ database write while the host is tearing down.
 A backoff window that ended more than six hours ago is forgotten entirely, so a domain
 that fails once every few months is not escalated to the hour cap forever.
 
-The **background** renewal loop (`UpdateCertificatesBackgroundService`) deliberately
-ignores the backoff. Its own interval is its rate limiter, and it is the thing that
-eventually heals a domain whose DNS has since been fixed. Nothing is waiting on it.
+The **background** renewal loop (`UpdateCertificatesBackgroundService`) respects the
+backoff too - see *Nothing on a request path waits, for anything* above for why it had to
+stop ignoring it.
 
 ### Terminal CA verdicts are not retried
 
@@ -370,6 +419,8 @@ Where else to look:
 
 - `src/services/Odin.Services/Certificate/CertificateService.cs` — the lock and
   backoff policy
+- `src/services/Odin.Services/Certificate/CertificateStore.cs` — the per-node cache,
+  `ReloadCertificateAsync`, and the `certificate-changed` announcement
 - `src/services/Odin.Services/Certificate/CertesAcme.cs` — CA error classification
 - `src/services/Odin.Services/Certificate/AcmeExceptions.cs` — `AcmeOrderException`,
   `AcmeRateLimitedException`

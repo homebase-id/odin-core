@@ -6,12 +6,15 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Json;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.PubSub;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
@@ -23,9 +26,21 @@ namespace Odin.Services.Certificate;
 public interface ICertificateStore
 {
     Task<X509Certificate2?> GetCertificateAsync(string domain);
+
+    /// <summary>
+    /// Reads the certificate from the database, ignoring this node's cache, and refreshes the
+    /// cache with what it finds. See docs/certificate-issuance-locking.md.
+    /// </summary>
+    Task<X509Certificate2?> ReloadCertificateAsync(string domain);
+
     Task<X509Certificate2> PutCertificateAsync(string domain, string keyPem, string certificatePem);
     Task StoreFailedCertificateUpdateAsync(string domain, string errorText);
     void ClearCache();
+
+    /// <summary>
+    /// Starts listening for certificates written by other nodes. Call once, at startup.
+    /// </summary>
+    Task SubscribeToCertificateChangesAsync();
 }
 
 //
@@ -36,6 +51,8 @@ public class CertificateStore(
 {
     private readonly byte[] _storageKey = certificateStorageKey.StorageKey;
     private readonly ConcurrentDictionary<string, X509Certificate2> _cache = new ();
+    private readonly Guid _nodeId = Guid.NewGuid();
+    private IPubSubSubscription? _certificateChangeSubscription;
 
     //
 
@@ -54,8 +71,55 @@ public class CertificateStore(
             return x509;
         }
 
-        x509 = await LoadAndValidateCertificateAsync(domain);
+        x509 = await ReloadCertificateAsync(domain);
         return x509;
+    }
+
+    //
+
+    public async Task SubscribeToCertificateChangesAsync()
+    {
+        if (_certificateChangeSubscription != null)
+        {
+            return;
+        }
+
+        var pubSub = serviceProvider.GetRequiredService<ISystemPubSub>();
+        _certificateChangeSubscription = await pubSub.SubscribeAsync(CertificateChangedMessage.Channel, OnCertificateChangedAsync);
+    }
+
+    //
+
+    private async Task OnCertificateChangedAsync(JsonEnvelope envelope)
+    {
+        if (envelope.DeserializeMessage() is not CertificateChangedMessage message || message.OriginNodeId == _nodeId)
+        {
+            return;
+        }
+
+        // Refresh here rather than evict: an eviction would make the next TLS handshake pay for
+        // the database read. The old certificate keeps being served until the new one is in.
+        await ReloadCertificateAsync(message.Domain);
+    }
+
+    //
+
+    private async Task PublishCertificateChangedAsync(string domain)
+    {
+        // Outside the try: a missing registration is a wiring bug, not a failed announcement
+        var pubSub = serviceProvider.GetRequiredService<ISystemPubSub>();
+        try
+        {
+            var envelope = JsonEnvelope.Create(new CertificateChangedMessage { Domain = domain, OriginNodeId = _nodeId });
+            await pubSub.PublishAsync(CertificateChangedMessage.Channel, envelope);
+        }
+        catch (Exception e)
+        {
+            // The certificate is already committed, so the write must not fail over this
+            var logger = serviceProvider.GetRequiredService<ILogger<CertificateStore>>();
+            logger.LogWarning(e, "Could not announce the new certificate for {domain} to other nodes: {error}",
+                domain, e.Message);
+        }
     }
 
     //
@@ -68,7 +132,7 @@ public class CertificateStore(
     
     //
 
-    private async Task<X509Certificate2?> LoadAndValidateCertificateAsync(string domain)
+    public async Task<X509Certificate2?> ReloadCertificateAsync(string domain)
     {
         var odinId = new OdinId(domain);
 
@@ -131,6 +195,8 @@ public class CertificateStore(
         using var scope = serviceProvider.CreateScope();
         var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
         await tableCertificates.UpsertAsync(record);
+
+        await PublishCertificateChangedAsync(domain);
 
         return x509;
     }
