@@ -1,18 +1,21 @@
 #nullable enable
-using System.IO;
 using System.Threading.Tasks;
 using Odin.Core.Storage.SQLite;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
 /// <summary>
-/// Per-tenant snapshot of an identity SQLite DB. <see cref="TakeAsync"/> copies the live file to a
-/// sibling <c>.snap</c> via <see cref="BackupSqliteDatabase"/>; <see cref="RestoreAsync"/> copies it
-/// back over the live file. Callers must ensure no open connections hold the live file when
-/// restoring — in our framework <c>OdinHost.ResetAsync</c> clears the tenant's
-/// <c>IDbConnectionPool</c> before calling <see cref="RestoreAsync"/>. The tenant lifetime scope
-/// itself stays alive (see <see cref="OdinHost"/>.Snapshots.cs xmldoc).
+/// Per-tenant snapshot of an identity SQLite DB. Both directions go through SQLite's backup API
+/// (<see cref="BackupSqliteDatabase"/>): <see cref="TakeAsync"/> copies the live database to a
+/// sibling <c>.snap</c>, and <see cref="RestoreAsync"/> writes it back into the live one.
 /// </summary>
+/// <remarks>
+/// Restore used to be <c>File.Copy</c> over the live file. That is only safe with every connection
+/// closed, and a request still in flight from the previous test keeps one open. In WAL mode the
+/// surviving -wal file is then replayed over the copied-in file, so the "reset" silently keeps the
+/// previous test's writes. Restoring through SQLite is correct with connections open, and leaves
+/// the database in WAL mode, as production runs it.
+/// </remarks>
 internal sealed class DbSnapshot
 {
     public string Domain { get; }
@@ -34,7 +37,7 @@ internal sealed class DbSnapshot
 
     public Task RestoreAsync()
     {
-        File.Copy(SnapshotPath, LiveDbPath, overwrite: true);
+        BackupSqliteDatabase.Execute(SnapshotPath, LiveDbPath);
         return Task.CompletedTask;
     }
 }
