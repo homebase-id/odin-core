@@ -289,6 +289,12 @@ certificate keeps being served until the new one is in. Startup subscribes *befo
   encrypted key travels through the database only.
 - **The publisher ignores its own message** (`OriginNodeId`): both pub/sub backends deliver
   to the sender, and it has just cached what it wrote.
+- **The cache never moves backwards.** Handlers run fire-and-forget, so two announcements'
+  reloads - or a reload and a TLS handshake's cache miss - can finish in either order. Each
+  cache entry keeps the row version it was read at (`Certificates.modified`, which every
+  upsert moves strictly forward) and is only replaced by a read at an equal or newer one.
+  Without that, a reload that read the row early could land late and leave the node serving
+  the certificate it replaced; CI caught exactly that.
 - **No durable backstop, on purpose.** Pub/sub has no replay, and the registry carries a
   version row and a reconnect re-check for that reason. Here a missed announcement costs one
   node serving a still-valid, superseded certificate, and it heals itself: once that

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -42,7 +43,7 @@ public class CertificateStoreTests
     [TearDown]
     public async Task TearDown()
     {
-        _autofacContainer.Dispose();
+        _autofacContainer?.Dispose(); // null when a test needs no database
 
         if (_postgresContainer != null)
         {
@@ -422,5 +423,28 @@ public class CertificateStoreTests
     {
         await RegisterServicesAsync(DatabaseType.Sqlite);
         Assert.That(await _certificateStore.ReloadCertificateAsync("frodo.dotyou.cloud"), Is.Null);
+    }
+
+    //
+
+    // Loads finish in any order. On CI a change announcement's reload that read the FIRST
+    // certificate completed after the one that read the second, and left node B serving the
+    // certificate node A had replaced.
+    [Test]
+    public void ALoadThatFinishesLate_DoesNotReplaceANewerCachedCertificate()
+    {
+        var store = new CertificateStore(Substitute.For<IServiceProvider>(), new CertificateStorageKey(new byte[32]));
+        using var older = X509Extensions.CreateSelfSignedEcDsaCertificate(Domain);
+        using var newer = X509Extensions.CreateSelfSignedEcDsaCertificate(Domain);
+
+        Assert.That(store.CacheUnlessNewerCached(Domain, newer, version: 2).Thumbprint, Is.EqualTo(newer.Thumbprint));
+
+        Assert.That(store.CacheUnlessNewerCached(Domain, older, version: 1).Thumbprint, Is.EqualTo(newer.Thumbprint),
+            "A certificate read at an older row version must not replace the cached one");
+        Assert.That(store.CacheUnlessNewerCached(Domain, newer, version: 2).Thumbprint, Is.EqualTo(newer.Thumbprint),
+            "Re-reading the same version is a no-op, not a rejection");
+
+        using var newest = X509Extensions.CreateSelfSignedEcDsaCertificate(Domain);
+        Assert.That(store.CacheUnlessNewerCached(Domain, newest, version: 3).Thumbprint, Is.EqualTo(newest.Thumbprint));
     }
 }

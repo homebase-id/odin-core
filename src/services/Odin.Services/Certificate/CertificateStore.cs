@@ -21,7 +21,9 @@ using Odin.Core.Util;
 namespace Odin.Services.Certificate;
 #nullable enable
 
-// SEB:NOTE we accept interleaving threads in here. The end result is always the same.
+// SEB:NOTE we accept interleaving threads in here. What keeps the end result the same is that
+// a cache entry is only ever replaced by a certificate read at an equal or newer row version -
+// see CacheUnlessNewerCached.
 
 public interface ICertificateStore
 {
@@ -50,7 +52,7 @@ public class CertificateStore(
     CertificateStorageKey certificateStorageKey) : ICertificateStore
 {
     private readonly byte[] _storageKey = certificateStorageKey.StorageKey;
-    private readonly ConcurrentDictionary<string, X509Certificate2> _cache = new ();
+    private readonly ConcurrentDictionary<string, CachedCertificate> _cache = new ();
     private readonly Guid _nodeId = Guid.NewGuid();
     private IPubSubSubscription? _certificateChangeSubscription;
 
@@ -126,7 +128,8 @@ public class CertificateStore(
 
     private X509Certificate2? LookupAndValidateCertificate(string domain)
     {
-        _cache.TryGetValue(domain, out var x509);
+        _cache.TryGetValue(domain, out var cached);
+        var x509 = cached?.Certificate;
         return IsValid(x509) ? x509 : null;
     }
     
@@ -152,11 +155,28 @@ public class CertificateStore(
         var x509 = X509FromPem(domain, decryptedKeyPem, record.certificate);
         if (IsValid(x509))
         {
-            _cache[domain] = x509;
-            return x509;
+            return CacheUnlessNewerCached(domain, x509, record.modified.milliseconds);
         }
 
         return null;
+    }
+
+    //
+
+    // A cached certificate and the row version it was read at: Certificates.modified, which every
+    // upsert moves strictly forward. Loads finish in any order - a TLS handshake's cache miss, a
+    // change announcement from another node, the re-check after the order lock - and an
+    // unconditional write let one that read the row early overwrite a newer certificate after
+    // the fact, leaving this node serving the one it replaced.
+    private sealed record CachedCertificate(X509Certificate2 Certificate, long Version);
+
+    // internal for testing
+    internal X509Certificate2 CacheUnlessNewerCached(string domain, X509Certificate2 x509, long version)
+    {
+        return _cache.AddOrUpdate(
+            domain,
+            _ => new CachedCertificate(x509, version),
+            (_, cached) => cached.Version > version ? cached : new CachedCertificate(x509, version)).Certificate;
     }
 
     //
@@ -172,8 +192,6 @@ public class CertificateStore(
         {
             throw new OdinSystemException($"Certificate for {domain} is not valid. Did it expire?");
         }
-
-        _cache[domain] = x509;
 
         var iv = IvFromString(certificatePem);
         var encryptedKeyPem = Convert.ToHexString(AesCbc.Encrypt(Encoding.UTF8.GetBytes(keyPem), _storageKey, iv));
@@ -195,6 +213,7 @@ public class CertificateStore(
         using var scope = serviceProvider.CreateScope();
         var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
         await tableCertificates.UpsertAsync(record);
+        CacheUnlessNewerCached(domain, x509, record.modified.milliseconds);
 
         await PublishCertificateChangedAsync(domain);
 
