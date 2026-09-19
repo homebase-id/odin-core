@@ -382,6 +382,29 @@ under the deliberate hammer fixtures. This is an ordinary two-identity peer dele
 no hammer -- so it is reachable. Three of the entries in this file (`V1PeerReadReceiptTestsSuccess`,
 `ConcurrentOverwriteEncryptedHeaderTests`, and this) are now the same `database is locked` cause.
 
+**RESOLVED 2026-09-19 -- a harness defect, not product contention.** The V2 harness ran every test
+in rollback-journal mode, not WAL. `BackupSqliteDatabase` switched the live database to
+`journal_mode=DELETE` before taking the fixture's snapshot and never switched it back. The product
+sets WAL once per database per process, which had already happened, so the database stayed in
+rollback mode for the rest of the fixture. Measured on a live V2 host: `PRAGMA journal_mode`
+reported `delete` in every test after the baseline. In that mode readers and writers block each
+other and can deadlock, which WAL never does: a writer's commit waited 1051 ms behind an open reader,
+against 2 ms in WAL. The reset also restored with a raw `File.Copy` over the live file. Once WAL was
+back, that silently replayed the previous test's surviving `-wal` over the restored file (301 rows
+seen after "resetting" to 1).
+
+Fixed by snapshotting and restoring through SQLite's backup API, which leaves the database in WAL
+and resets it correctly even with connections open. A live V2 host now reports `wal`. Results:
+- 5 consecutive full `Odin.Hosting.Tests.V2` runs: all green, no `database is locked`.
+- The `database is locked` toleration was removed from `V1PeerReadReceiptTestsSuccess`, and
+  `PayloadConcurrentHammerEncryptedTests` is no longer `[Explicit]`. Both passed 15 of 15 local runs.
+
+Not reproduced beforehand: the failure was roughly 1 in dozens of full runs. Also, Microsoft.Data.Sqlite
+retries a busy database for 30 s before throwing, so the observed error means some request waited out
+that 30 s. Rollback-mode deadlocks allow that and WAL does not; that link is inference. The product's
+peer-delete path was traced and holds no transaction across I/O and never writes under an open
+reader, so nothing here points at production.
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.DriveWrite.HammerTimeLocalUpdateBatchTests`
@@ -526,7 +549,8 @@ for diagnosis has not fired yet — the cause still rests on the six
 
 **Status: left RUNNING on `windows/sqlite/debug`, on purpose (decision 2026-09-17).** It was
 briefly `[Ignore]`d against #1780; that was reverted. Unlike its two siblings
-(`PayloadConcurrentHammerEncryptedTests`, `[Explicit]`, and `UpdateBatch_HammerTime_WithPayloads`,
+(`PayloadConcurrentHammerEncryptedTests`, then `[Explicit]` -- running again since the 2026-09-19
+journal-mode fix, see the `DeleteBatchTests` entry -- and `UpdateBatch_HammerTime_WithPayloads`,
 `[Ignore]` under #1772), this one stays in CI. The failure is a real product defect rather than a
 timing artefact, and ignoring it would buy a green board at the price of the signal. #1780 is marked
 high priority. **Do not "fix" this by ignoring or weakening the assertion** -- the claim it makes,
