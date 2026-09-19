@@ -184,7 +184,6 @@ public static class SystemServices
         services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
             sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
             sp.GetRequiredService<ICertificateService>(),
-            sp.GetRequiredService<IDynamicHttpClientFactory>(),
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainer>(),
             TenantServices.ConfigureTenantServices,
