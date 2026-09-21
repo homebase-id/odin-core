@@ -16,7 +16,6 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
-using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
@@ -46,7 +45,6 @@ public class DriveManager : IDriveManager
     private readonly IMediator _mediator;
     private readonly TenantContext _tenantContext;
     private readonly TableDrivesCached _tableDrives;
-    private readonly TableAppRegistrations _tableAppRegistrations;
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
     /// <summary>
@@ -58,7 +56,6 @@ public class DriveManager : IDriveManager
         IMediator mediator,
         TenantContext tenantContext,
         TableDrivesCached tableDrives,
-        TableAppRegistrations tableAppRegistrations,
         ScopedIdentityConnectionFactory scopedConnectionFactory)
     {
         _logger = logger;
@@ -66,7 +63,6 @@ public class DriveManager : IDriveManager
         _mediator = mediator;
         _tenantContext = tenantContext;
         _tableDrives = tableDrives;
-        _tableAppRegistrations = tableAppRegistrations;
         _scopedConnectionFactory = scopedConnectionFactory;
     }
 
@@ -135,7 +131,18 @@ public class DriveManager : IDriveManager
         // it is an address, so handing back a different one would be worse than refusing.
         var appId = request.AppId ?? SystemAppConstants.OwnerConsoleAppId;
 
-        await OwningApp.AssertExistsAsync(_tableAppRegistrations, appId);
+        // The app is taken on trust here: stored, never resolved, and NOT required to be registered.
+        // Registration cannot come first.  ExchangeGrantService resolves every drive a registration
+        // grants and throws if one is missing, so an app's drives have to exist before the app does --
+        // BuiltinProvisioner.EnsureAllAsync relies on that ordering, and so does the owner console for
+        // third-party apps (create the drives, then RegisterApp).  Requiring a registration here would
+        // close the loop on itself and make registering any app that asks for a new drive impossible.
+        //
+        // The check lives on set-owner and reassign-owner instead (OwningApp.AssertExistsAsync, and
+        // stricter still on the controller): there the drive already exists and the caller is a person
+        // at a console naming an app by hand, so a mistyped id is a real risk and the ordering cannot
+        // bite.  A drive created against an id nobody ever registers is addressed at nothing until one
+        // does, and reassign-owner can move it.
         var driveSlug = requestedSlug;
 
         // Scope the taken set to this app: the constraint is per app, so feed/news and chat/news

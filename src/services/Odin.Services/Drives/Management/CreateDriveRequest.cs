@@ -26,9 +26,15 @@ public class CreateDriveRequest
     /// owner-console app -- never nobody.
     /// </summary>
     /// <remarks>
-    /// The app must exist: one the platform ships, or one registered on this identity.  Ownership is
-    /// half the drive's wire address (<c>/apps/{appSlug}/drives/{driveSlug}</c>) and is not changeable
-    /// afterwards except by adoption, so it is checked when the drive is written.
+    /// Taken on trust: the app is stored, not resolved, and does not have to be registered yet.  It
+    /// cannot be -- a registration is granted its drives, and a grant cannot be issued for a drive that
+    /// is not there, so an app's drives are created before the app exists.  Naming an app nobody ever
+    /// registers leaves the drive addressed at nothing until one does; <c>reassign-owner</c> is the way
+    /// back from that, and it does check.
+    /// <para>
+    /// Ownership is half the drive's wire address (<c>/apps/{appSlug}/drives/{driveSlug}</c>) and is not
+    /// changeable afterwards except by adoption or reassignment.
+    /// </para>
     /// </remarks>
     public Guid? AppId { get; set; }
 

@@ -5,11 +5,14 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -396,6 +399,68 @@ public class DriveOwningAppTests : V2Fixture
     /// its helpers throw on non-2xx — so the calls this fixture asserts refusals on go through the
     /// Refit interface directly, via <see cref="OwnerSession.RefitFor{T}"/>.
     /// </summary>
+    //
+    // Creation: an app owns the drives it asks for, and it does not exist yet when they are made.
+    //
+
+    [Test]
+    public async Task ADriveMayNameAnAppThatIsNotRegisteredYet()
+    {
+        // The app is taken on trust at create time, and it has to be: a registration is granted its
+        // drives, and ExchangeGrantService refuses a grant naming a drive that does not exist -- so
+        // the drives are created first, at which point the app they belong to is not registered.
+        // Refusing an unregistered app here would make the two requirements mutually exclusive.
+        var owner = await LoginAsOwner();
+
+        var unregistered = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "Field Notes", allowAnonymousReads: false,
+            appId: unregistered, driveSlug: "field-notes", driveTypeSlug: "notes");
+
+        var created = await owner.Admin.GetDrive(drive);
+        Assert.That(created.AppId, Is.EqualTo(unregistered), "the app named in the request owns the drive");
+        Assert.That(created.DriveSlug, Is.EqualTo("field-notes"));
+        Assert.That(created.DriveTypeSlug, Is.EqualTo("notes"));
+    }
+
+    [Test]
+    public async Task AnAppRegistersWithADriveItAskedForAndOwns()
+    {
+        // The whole sequence the owner console runs for a third-party app, in order. Either half
+        // rejecting the other strands it: nothing the app asked for can be created after it is
+        // registered either, because the grant is written at registration.
+        var owner = await LoginAsOwner();
+
+        var appId = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+
+        await owner.Admin.CreateDrive(drive, "Third Party Library", allowAnonymousReads: false,
+            appId: appId, driveSlug: "library", driveTypeSlug: "library");
+
+        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest
+        {
+            Drives = new[]
+            {
+                new DriveGrantRequest
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = drive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            }
+        });
+
+        var after = await owner.Admin.GetDrive(drive);
+        Assert.That(after.AppId, Is.EqualTo(appId), "the drive stays with the app that asked for it");
+        Assert.That(after.DriveSlug, Is.EqualTo("library"));
+
+        var registration = await owner.RefitFor<IRefitOwnerAppRegistration>()
+            .GetRegisteredApp(new GetAppRequest { AppId = appId });
+        Assert.That(registration.Content, Is.Not.Null, "and the app is registered");
+    }
+
     private static Task<ApiResponse<HttpContent>> SetOwningApp(
         OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug = null, string driveTypeSlug = null) =>
         owner.RefitFor<IRefitDriveManagement>().SetDriveOwningApp(new SetDriveOwningAppRequest

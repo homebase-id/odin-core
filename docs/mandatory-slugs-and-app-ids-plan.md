@@ -17,16 +17,25 @@ than left to mislead; what remains is the rules, and the items still outstanding
 ## Backend changes (odin-core)
 
 1. **Drive create** — `DriveManager.CreateDriveAsync`, owner `drive/mgmt/create`, setup wizard:
-   - `AppId` required; the app must be registered. An owner request without one defaults to the System app
-     rather than failing, so the console and wizard keep working.
+   - `AppId` required, and **taken on trust — the app does not have to be registered yet**. It cannot be:
+     a registration is granted its drives and `ExchangeGrantService` refuses a grant naming a drive that
+     does not exist, so an app's drives are created before the app is registered (`BuiltinProvisioner`
+     and the owner console both do this). Requiring a registration here made the two rules mutually
+     exclusive and left a third-party app that asks for a new drive impossible to register. The check
+     lives on `set-owner` / `reassign-owner` instead, where the drive already exists and the ordering
+     cannot bite. An owner request without an `AppId` defaults to the System app rather than failing, so
+     the console and wizard keep working.
    - `DriveSlug` required. (Runtime instance drives — channels, communities, profiles — may keep deriving
      server-side until clients name them; everything else must send one.)
    - `DriveTypeSlug` required, and `TypeSlugFor` must never return null.
 2. **Circle create** — `CircleDefinitionService.CreateCircleInternalAsync`, owner create endpoint, setup
    wizard: `AppId` required, defaulting to the System app for owner callers; the app must be registered.
+   Unlike drive create, which cannot check: nothing has to create a circle before its app exists, so the
+   ordering that forces the exemption on drives does not arise here.
 3. **App slug required at registration** — `AssignSlugAsync` refuses a missing slug instead of deriving;
-   `AppRegistrationRequest.IsValid()` includes it; YouAuth requires `as` only when the app still needs
-   registering (so an already-registered app signing in is unaffected). `AppSlugGenerator` stays for
+   validated in `AssignSlugAsync` rather than `IsValid()`, which cannot see which apps are built in;
+   YouAuth requires `as` only when the app still needs registering (so an already-registered app signing
+   in is unaffected, and the parameter is deliberately not `[Required]`). `AppSlugGenerator` stays for
    migrations.
 4. **Reserve built-in app slugs**: refuse a slug that `BuiltinApps` assigns to a different `AppId`.
 5. **Migration (v18 → v19)**: stamp the System app id on every drive and circle with a null `AppId`,
