@@ -11,6 +11,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -79,7 +80,7 @@ namespace Odin.Services.Authorization.Apps
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
-                AppSlug = await AssignSlugAsync(request.AppId, request.Name, request.AppSlug),
+                AppSlug = await AssignSlugAsync(request.AppId, request.AppSlug),
                 Name = request.Name,
                 AppKeyStore = appGrant,
 
@@ -556,27 +557,61 @@ namespace Odin.Services.Authorization.Apps
         }
 
         /// <summary>
-        /// Empties the cache and creates a new instance that can be built
-        /// </summary>
-        /// <summary>
-        /// Picks a slug for a newly registered app, unique against those already registered.
-        /// </summary>
-        /// <summary>
-        /// The slug the app will hold: the one it asked for, or one derived from its name.
+        /// The slug the app will hold: the one it asked for, or the one the tree names for a built-in.
         /// </summary>
         /// <remarks>
-        /// Not required yet.  An app that omits it gets a derived slug, which is what every registration
-        /// that predates the field got, so nothing that works today starts failing.
+        /// Required.  A slug is the app half of <c>/apps/{appSlug}/drives/{driveSlug}</c>, so an app
+        /// without one is unaddressable; deriving one from the display name produced addresses nobody
+        /// chose ("Homebase - Location" became <c>homebase-locat</c>), which is why a missing slug is now
+        /// refused instead.  The exception is an app the tree names: its slug is already decided, so
+        /// provisioning does not have to repeat it in the request.
         /// <para>
         /// A requested slug is taken verbatim or refused -- never quietly replaced with a derived one.
         /// It is an address other identities resolve against, so handing back a different one would be
-        /// worse than saying no.  Registration is first-come (<c>docs/drive-addressing.md</c>), and
+        /// worse than saying no.  Registration is first-come, and
         /// <c>UNIQUE(identityId, AppSlug)</c> would refuse it at the database anyway; this only makes the
         /// refusal a clear client error rather than a constraint violation.
         /// </para>
         /// </remarks>
-        private async Task<string> AssignSlugAsync(Guid appId, string name, string requestedSlug)
+        private async Task<string> AssignSlugAsync(Guid appId, string requestedSlug)
         {
+            // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
+            // unset field as "" or " " routinely, and without this the three spellings diverge. Not
+            // coercion of a real slug -- there is no address inside "   " to preserve. Anything with
+            // actual content is still validated and rejected on failure, so " chat " is an error, never
+            // trimmed to "chat".
+            if (string.IsNullOrWhiteSpace(requestedSlug))
+            {
+                // A built-in registers with the slug the tree names, so provisioning and the migration
+                // that repairs older registrations agree on one answer.
+                var builtin = BuiltinApps.Get(appId);
+                if (builtin != null)
+                {
+                    return builtin.AppSlug;
+                }
+
+                throw new OdinClientException(
+                    $"An app slug is required to register app {appId}; it is the app half of the address " +
+                    "other identities resolve against.",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
+            OdinSlug.AssertValidOrNull(requestedSlug, nameof(AppRegistrationRequest.AppSlug));
+
+            // The tree's slugs belong to the apps it names, registered or not: "chat" resolving to
+            // whoever asked for it first would put another app at the address every client already
+            // builds.
+            var reservedBy = BuiltinApps.All.FirstOrDefault(
+                a => a.AppId != appId && string.Equals(a.AppSlug, requestedSlug, StringComparison.Ordinal));
+            if (reservedBy != null)
+            {
+                throw new OdinClientException(
+                    $"The app slug '{requestedSlug}' is reserved for {reservedBy.Name} ({reservedBy.AppId}).",
+                    OdinClientErrorCode.IdAlreadyExists);
+            }
+
+            // Read here rather than at the top: the branches above return or throw without consulting
+            // it, and this is a full table read plus, on a pre-v13 identity, a full legacy blob read.
             var existing = await db.AppRegistrations.GetAllAsync();
 
             // Seed with the slugs actually stored, not re-derived ones -- an app holding "acme-2" still
@@ -600,18 +635,6 @@ namespace Odin.Services.Authorization.Apps
                     }
                 }
             }
-
-            // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
-            // unset field as "" or " " routinely, and without this the three spellings diverge: null and
-            // "" derive a slug while "   " fails validation and throws. Not coercion of a real slug --
-            // there is no address inside "   " to preserve. Anything with actual content is still
-            // validated and rejected on failure, so " chat " is an error, never trimmed to "chat".
-            if (string.IsNullOrWhiteSpace(requestedSlug))
-            {
-                return AppSlugGenerator.Generate(appId, name, taken);
-            }
-
-            OdinSlug.AssertValidOrNull(requestedSlug, nameof(AppRegistrationRequest.AppSlug));
 
             if (taken.Contains(requestedSlug))
             {

@@ -227,6 +227,38 @@ public static class BuiltinApps
 
     public static WellknownAppDefinition Get(Guid appId) => All.FirstOrDefault(a => a.AppId == appId);
 
+    /// <summary>
+    /// True when the id names an app the platform ships, whether or not it is registered here.
+    /// </summary>
+    /// <remarks>
+    /// This is the test for "may own a drive or circle" that ownership checks apply before falling back
+    /// to the registration table.  The platform's own apps have to pass it before they exist as
+    /// registrations: provisioning creates drives and circles first and registers apps last
+    /// (<c>BuiltinProvisioner.EnsureAllAsync</c>), so requiring a registration would invert that order
+    /// and break identity setup.
+    /// <para>
+    /// Read off the tree, plus the two apps that own a provisioned drive without a tree entry.  Those
+    /// two are named because they are exceptions and have to be seen as such -- the alternative, taking
+    /// every <c>Guid</c> declared in <see cref="SystemAppConstants"/>, makes the rule "is a constant in
+    /// that file" and quietly grants ownership to the next Guid anyone adds there for any purpose.
+    /// </para>
+    /// </remarks>
+    public static bool IsPlatformApp(Guid appId) => PlatformAppIds.Contains(appId);
+
+    /// <remarks>
+    /// Lists and Mail own <c>BuiltinDrives.ListsDrive</c> and <c>BuiltinDrives.MailDrive</c>, which
+    /// <c>BuiltinProvisioner.SystemCircleCarryOverDrives</c> creates because the system circles grant
+    /// them -- while neither app is on the tree (Lists is commented out below; Mail left
+    /// <c>Builtin</c> and was never added to <c>Wellknown</c>).  Both entries retire with that
+    /// carry-over list when the system circles do.
+    /// </remarks>
+    private static readonly HashSet<Guid> PlatformAppIds =
+    [
+        ..All.Select(a => a.AppId),
+        SystemAppConstants.ListsAppId,
+        SystemAppConstants.MailAppId,
+    ];
+
     public static IEnumerable<AppDriveGrant> GrantsFor(Guid appId) =>
         BuiltinAppDriveGrants.DriveGrants.Where(g => g.AppId == appId);
 }

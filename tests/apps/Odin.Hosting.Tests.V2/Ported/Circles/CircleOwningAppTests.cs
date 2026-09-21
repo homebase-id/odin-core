@@ -7,6 +7,7 @@ using Refit;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -38,14 +39,14 @@ public class CircleOwningAppTests : V2Fixture
     //
     // Adoption: giving an unowned circle an owning app.
     //
-    // A circle with no AppId reads as the owner's own, which is right for most and wrong for the
-    // ones that predate app ownership.  Adoption is one-way -- it fills an empty owner, never moves
-    // a set one -- because PendingEnrollment denormalises AppId on the promise that ownership does
-    // not change.
+    // A circle the owner made in the console belongs to the owner-console app, which is right for most
+    // and wrong for the ones that were always meant to be an app's.  Adoption is one-way -- it takes a
+    // circle from the owner console, never from another app -- because PendingEnrollment denormalises
+    // AppId on the promise that ownership does not move between apps.
     //
 
     [Test]
-    public async Task AdoptingAnUnownedCircleGivesItTheApp()
+    public async Task AdoptingAnOwnerConsoleCircleGivesItTheApp()
     {
         var owner = await LoginAsOwner();
 
@@ -55,7 +56,8 @@ public class CircleOwningAppTests : V2Fixture
         await owner.Admin.CreateCircle(circleId, "Circle awaiting an owner", ReadCircleMembershipGrant());
 
         var before = await owner.Admin.GetCircleDefinition(circleId);
-        Assert.That(before.AppId, Is.Null, "a circle created without an app must start unowned");
+        Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "a circle created without an app belongs to the owner console");
 
         var adopt = await SetOwningApp(owner, circleId, appId);
         Assert.That(adopt.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {adopt.StatusCode}");
@@ -131,7 +133,8 @@ public class CircleOwningAppTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         var after = await owner.Admin.GetCircleDefinition(circleId);
-        Assert.That(after!.AppId, Is.Null, "the circle must still be adoptable");
+        Assert.That(after!.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "the circle must still be the owner's, and so still adoptable");
     }
 
     [Test]

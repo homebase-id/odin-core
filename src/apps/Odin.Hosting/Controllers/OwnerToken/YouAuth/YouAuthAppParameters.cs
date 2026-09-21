@@ -18,10 +18,22 @@ public class YouAuthAppParameters
     public string AppName { get; set; } = "";
 
     /// <summary>
-    /// The app half of <c>/apps/{appSlug}/drives/{driveSlug}</c>. Optional: left empty, the server
-    /// derives one from <see cref="AppName"/> at registration. Either way it is immutable once
-    /// written, so this is the app's one chance to name itself.
+    /// The app half of <c>/apps/{appSlug}/drives/{driveSlug}</c>. Required when the app still has to be
+    /// registered: an omitted slug is refused, not derived from <see cref="AppName"/>.
     /// </summary>
+    /// <remarks>
+    /// Deriving one from the display name is what produced addresses nobody chose ("Homebase - Location"
+    /// became <c>homebase-locat</c>, permanently), so <c>AppRegistrationService.AssignSlugAsync</c> now
+    /// refuses a missing one instead.
+    /// <para>
+    /// Not marked <c>[Required]</c>, unlike the fields above: an app that is already registered has a
+    /// slug and does not resend it, and this same parameter set carries those sign-ins. The requirement
+    /// belongs at registration, where it is known whether the app needs one.
+    /// </para>
+    /// <para>
+    /// Immutable once written, so this is the app's one chance to name itself.
+    /// </para>
+    /// </remarks>
     public const string AppSlugName = "as";
     [JsonPropertyName(AppSlugName)]
     public string AppSlug { get; set; } = "";

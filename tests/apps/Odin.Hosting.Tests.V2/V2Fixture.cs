@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Base;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2;
@@ -290,5 +293,45 @@ public abstract class V2Fixture
             d.Attributes);
         var caller = await spec.Build(owner);
         return (caller, owner);
+    }
+
+    /// <summary>
+    /// An owner <see cref="IOdinContext"/> and the tenant scope it came from — what a test needs to call
+    /// a service (a version-upgrade pass, say) directly rather than over HTTP.
+    /// </summary>
+    /// <remarks>
+    /// Here rather than in each fixture: a dozen-odd fixtures grew their own byte-identical copy of this,
+    /// so a change to how the context is built (a new <c>OdinClientContext</c> field, say) meant a dozen
+    /// edits. New fixtures should use this; the existing copies can migrate as they are touched.
+    /// </remarks>
+    protected async Task<(ILifetimeScope Scope, IOdinContext Context)> MigrationContextAsync(OwnerSession owner)
+    {
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        return (scope, await BuildOwnerContextAsync(scope, owner));
+    }
+
+    /// <summary>
+    /// An owner context carrying the master key, built from a logged-in owner session.
+    /// </summary>
+    protected static async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
+    {
+        var authService = scope.Resolve<OwnerAuthenticationService>();
+        var odinContext = new OdinContext
+        {
+            Tenant = default,
+            AuthTokenCreated = null,
+            Caller = null
+        };
+        var clientContext = new OdinClientContext
+        {
+            CorsHostName = null,
+            AccessRegistrationId = null,
+            DevicePushNotificationKey = null,
+            ClientIdOrDomain = null
+        };
+
+        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
+        odinContext.Caller!.AssertHasMasterKey();
+        return odinContext;
     }
 }
