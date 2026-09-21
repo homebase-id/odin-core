@@ -20,6 +20,14 @@ public class YouAuthAppParameters
     [Required(ErrorMessage = $"{AppNameName} is required")]
     public string AppName { get; set; } = "";
 
+    // The app half of /apps/{appSlug}/drives/{driveSlug}. Required when the app still has to be
+    // registered -- the server refuses an omitted slug rather than deriving one from the name. Not
+    // [Required] here for the same reason it is not on the server's copy: an already-registered app
+    // signing in again has a slug and does not resend it.
+    public const string AppSlugName = "as";
+    [JsonPropertyName(AppSlugName)]
+    public string AppSlug { get; set; } = "";
+
     public const string AppOriginName = "o";
     [JsonPropertyName(AppOriginName)]
     public string AppOrigin { get; set; } = "";
@@ -70,6 +78,7 @@ public class YouAuthAppParameters
 
         qs[AppIdName] = AppId;
         qs[AppNameName] = AppName;
+        qs[AppSlugName] = AppSlug;
         qs[AppOriginName] = AppOrigin;
         qs[ClientFriendlyName] = ClientFriendly;
         qs[DrivesParamName] = DrivesParam;
