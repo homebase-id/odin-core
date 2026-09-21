@@ -161,7 +161,6 @@ public sealed partial class OdinHost : IAsyncDisposable
                     new FileSystemIdentityRegistry(
                         sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
                         sp.GetRequiredService<ICertificateService>(),
-                        sp.GetRequiredService<IDynamicHttpClientFactory>(),
                         sp.GetRequiredService<ISystemHttpClient>(),
                         sp.GetRequiredService<IMultiTenantContainer>(),
                         (cb, registration, cfg) =>
