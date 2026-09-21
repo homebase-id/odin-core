@@ -56,54 +56,73 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            await StampOwnerConsoleDrivesAsync(odinContext, cancellationToken);
+            await FinishDriveAddressesAsync(odinContext, cancellationToken);
             await StampOwnerConsoleCirclesAsync(odinContext, cancellationToken);
         }
 
         /// <summary>
-        /// Gives every ownerless drive to the owner console, with a slug and a type slug.
+        /// Finishes every drive's address: an owner for the ones that have none, and the missing half of
+        /// an address for any drive carrying only part of one.
         /// </summary>
         /// <remarks>
-        /// The drives that reach here are the ones no app declares: created through the owner console or
-        /// by the setup wizard, neither of which named an app.  v13 -&gt; v14 gave most of them a slug and
-        /// deliberately left the owner alone, which is the state this finishes.
+        /// Two populations, one pass.  The ownerless drives are the ones no app declares -- created
+        /// through the owner console or by the setup wizard, neither of which named an app; v13 -&gt; v14
+        /// gave most of them a slug and deliberately left the owner alone, which is the state this
+        /// finishes.  App-owned drives are here too, because the old create path settled for whatever
+        /// <c>TypeSlugFor</c> returned and that was null for any type it did not recognise -- so a
+        /// third-party app's drive carries an owner and a slug and no type slug.  Validation below covers
+        /// every drive, so leaving those behind would fail the upgrade on rows nothing else would fix.
         /// <para>
-        /// Uniqueness is per owning app, so the set to avoid is every slug the owner console already
-        /// holds -- including the drives that ship with an identity, since the system app and the owner
-        /// console are the same id.  It grows as the pass runs, because two drives stamped in the same
-        /// run compete with each other and the database is not consulted between rows.
+        /// An owner is filled, never moved: a drive that already names an app keeps it, and only the
+        /// missing parts of its address are written.
+        /// </para>
+        /// <para>
+        /// Uniqueness is per owning app, so the slugs to avoid are the ones that app already holds --
+        /// tracked per app, not identity-wide, since feed/news and chat/news may coexist.  Each set grows
+        /// as the pass runs, because two drives finished in the same run compete with each other and the
+        /// database is not consulted between rows.
         /// </para>
         /// </remarks>
-        public async Task<int> StampOwnerConsoleDrivesAsync(IOdinContext odinContext,
+        public async Task<int> FinishDriveAddressesAsync(IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
 
             var everyDrive = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
 
-            var taken = new HashSet<string>(
-                everyDrive.Results
-                    .Where(d => d.AppId == SystemAppConstants.OwnerConsoleAppId &&
-                                !string.IsNullOrWhiteSpace(d.DriveSlug))
-                    .Select(d => d.DriveSlug),
-                StringComparer.Ordinal);
+            var takenByApp = everyDrive.Results
+                .Where(d => d.AppId != null && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                .GroupBy(d => d.AppId!.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => new HashSet<string>(g.Select(d => d.DriveSlug), StringComparer.Ordinal));
 
-            var stamped = 0;
+            var finished = 0;
             foreach (var drive in everyDrive.Results)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (drive.AppId != null)
+                var carried = string.IsNullOrWhiteSpace(drive.DriveSlug) ? null : drive.DriveSlug;
+                var carriedTypeSlug = string.IsNullOrWhiteSpace(drive.DriveTypeSlug) ? null : drive.DriveTypeSlug;
+
+                if (drive.AppId != null && carried != null && carriedTypeSlug != null)
                 {
                     continue;
+                }
+
+                var appId = drive.AppId ?? SystemAppConstants.OwnerConsoleAppId;
+                if (!takenByApp.TryGetValue(appId, out var taken))
+                {
+                    taken = new HashSet<string>(StringComparer.Ordinal);
+                    takenByApp[appId] = taken;
                 }
 
                 // A slug carried over from the ownerless era was unconstrained, so it may be one the
                 // owner console already holds. Dropped in that case and re-derived below: the address
                 // resolved to nothing before this (the wire address needs the app's half too), so
-                // nothing anyone can reach is being moved.
-                var carried = string.IsNullOrWhiteSpace(drive.DriveSlug) ? null : drive.DriveSlug;
-                if (carried != null && taken.Contains(carried))
+                // nothing anyone can reach is being moved. A drive that already had an owner cannot be
+                // in this position -- its slug was inside the constraint all along.
+                if (drive.AppId == null && carried != null && taken.Contains(carried))
                 {
                     logger.LogInformation(
                         "v18->v19: drive {name} carried the slug {slug}, which the owner console already " +
@@ -115,20 +134,18 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
                 var slug = carried ?? DriveSlugGenerator.Generate(drive.Id, drive.Name, taken);
                 taken.Add(slug);
 
-                var typeSlug = string.IsNullOrWhiteSpace(drive.DriveTypeSlug)
-                    ? DriveSlugGenerator.TypeSlugOrDefault(drive.Id, drive.TargetDriveInfo.Type)
-                    : drive.DriveTypeSlug;
+                var typeSlug = carriedTypeSlug ??
+                               DriveSlugGenerator.TypeSlugOrDefault(drive.Id, drive.TargetDriveInfo.Type);
 
-                await driveManager.ApplyAddressAsync(drive.Id, SystemAppConstants.OwnerConsoleAppId, slug,
-                    typeSlug, odinContext);
+                await driveManager.ApplyAddressAsync(drive.Id, appId, slug, typeSlug, odinContext);
 
-                stamped++;
-                logger.LogDebug("v18->v19: drive {name} is now owner-console {typeSlug}/{slug}",
-                    drive.Name, typeSlug, slug);
+                finished++;
+                logger.LogDebug("v18->v19: drive {name} is now {appId} {typeSlug}/{slug}",
+                    drive.Name, appId, typeSlug, slug);
             }
 
-            logger.LogInformation("v18->v19: gave {count} drive(s) to the owner console", stamped);
-            return stamped;
+            logger.LogInformation("v18->v19: finished the address of {count} drive(s)", finished);
+            return finished;
         }
 
         /// <summary>

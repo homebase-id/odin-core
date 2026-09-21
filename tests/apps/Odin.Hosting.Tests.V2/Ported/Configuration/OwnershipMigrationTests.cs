@@ -48,7 +48,7 @@ public class OwnershipMigrationTests : V2Fixture
         await StripDriveOwnershipAsync(scope, driveId);
 
         var stamped = await scope.Resolve<V18ToV19VersionMigrationService>()
-            .StampOwnerConsoleDrivesAsync(ctx, CancellationToken.None);
+            .FinishDriveAddressesAsync(ctx, CancellationToken.None);
 
         Assert.That(stamped, Is.GreaterThanOrEqualTo(1));
 
@@ -74,7 +74,7 @@ public class OwnershipMigrationTests : V2Fixture
         var (scope, ctx) = await MigrationContextAsync(owner);
 
         await scope.Resolve<V18ToV19VersionMigrationService>()
-            .StampOwnerConsoleDrivesAsync(ctx, CancellationToken.None);
+            .FinishDriveAddressesAsync(ctx, CancellationToken.None);
 
         var after = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!;
         Assert.That(after.AppId, Is.EqualTo(appId), "the pass fills owners, it does not move them");
@@ -157,6 +157,37 @@ public class OwnershipMigrationTests : V2Fixture
         Assert.DoesNotThrowAsync(async () => await v19.ValidateUpgradeAsync(ctx, CancellationToken.None));
     }
 
+    [Test]
+    public async Task AnAppOwnedDriveMissingATypeSlugIsFinished()
+    {
+        // The state an app-owned drive of an unrecognised type was left in before v19: AppId and
+        // DriveSlug written by the app, DriveTypeSlug null because TypeSlugFor knew nothing about the
+        // type and the old create path took its answer as final. Validation covers every drive, not
+        // just the ownerless ones, so a drive left like this fails the whole upgrade.
+        var owner = await LoginAsOwner(Identities.Collab);
+
+        var appId = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "App Notes", allowAnonymousReads: false, appId: appId,
+            driveSlug: "app-notes", driveTypeSlug: "notes");
+
+        var (scope, ctx) = await MigrationContextAsync(owner);
+        var driveId = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!.Id;
+
+        await StripDriveTypeSlugAsync(scope, driveId);
+
+        await scope.Resolve<V18ToV19VersionMigrationService>()
+            .FinishDriveAddressesAsync(ctx, CancellationToken.None);
+
+        var after = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!;
+        Assert.That(after.AppId, Is.EqualTo(appId), "the pass fills, it does not move an owner");
+        Assert.That(after.DriveSlug, Is.EqualTo("app-notes"), "and keeps an address the drive already had");
+        Assert.That(after.DriveTypeSlug, Is.EqualTo(DriveSlugGenerator.DefaultTypeSlug));
+
+        var v19 = scope.Resolve<V18ToV19VersionMigrationService>();
+        Assert.DoesNotThrowAsync(async () => await v19.ValidateUpgradeAsync(ctx, CancellationToken.None));
+    }
+
     private static PermissionSetGrantRequest ReadCircleMembershipGrant() => new()
     {
         PermissionSet = new PermissionSet(PermissionKeys.ReadCircleMembership)
@@ -179,6 +210,20 @@ public class OwnershipMigrationTests : V2Fixture
         record!.AppId = null;
         record.DriveSlug = null;
         record.DriveTypeSlug = null;
+
+        await drives.UpsertAsync(record);
+    }
+
+    /// <summary>
+    /// Writes a drive's type slug back to null, leaving its owner and slug alone: the state an
+    /// app-owned drive of an unrecognised type was created in before v19.
+    /// </summary>
+    private static async Task StripDriveTypeSlugAsync(ILifetimeScope scope, Guid driveId)
+    {
+        var drives = scope.Resolve<TableDrivesCached>();
+        var record = await drives.GetAsync(driveId);
+
+        record!.DriveTypeSlug = null;
 
         await drives.UpsertAsync(record);
     }

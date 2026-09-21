@@ -267,17 +267,17 @@ public class VersionUpgradeService(
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 // Two phases, a transaction each. The passes are independent -- one stamps drives, the
-                // other circles -- and each is a fill that skips anything already owned, so a phase that
-                // landed does not have to be undone to retry the other. The phase name in the log then
-                // says which of the two stalled.
+                // other circles -- and each only fills what is missing, never moving an owner that is
+                // already set, so a phase that landed does not have to be undone to retry the other.
+                // The phase name in the log then says which of the two stalled.
                 //
                 // Placed last, after the built-in provisioning earlier versions run: a drive or circle
                 // created by provisioning already names its app, and stamping before it ran would leave
                 // the ones it creates afterwards ownerless.
-                await RunPhaseAsync("v18->v19 stamp-owner-console-drives", async ct =>
+                await RunPhaseAsync("v18->v19 finish-drive-addresses", async ct =>
                 {
                     await using var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
-                    await v19.StampOwnerConsoleDrivesAsync(odinContext, ct);
+                    await v19.FinishDriveAddressesAsync(odinContext, ct);
                     drivesTx.Commit();
                 }, cancellationToken);
 
