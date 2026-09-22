@@ -9,7 +9,6 @@ using NUnit.Framework;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;

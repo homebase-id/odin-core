@@ -6,7 +6,6 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
