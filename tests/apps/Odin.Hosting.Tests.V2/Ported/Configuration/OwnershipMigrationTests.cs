@@ -87,7 +87,7 @@ public class OwnershipMigrationTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Merry);
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Book Club", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Book Club", OwnerAdmin.ReadCircleMembershipGrant());
 
         var (scope, ctx) = await MigrationContextAsync(owner);
 
@@ -114,7 +114,7 @@ public class OwnershipMigrationTests : V2Fixture
 
         // One circle of the owner's own, so the sweep has something of each kind to find alongside the
         // two the platform provisions.
-        await owner.Admin.CreateCircle(Guid.NewGuid(), "Walking Club", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(Guid.NewGuid(), "Walking Club", OwnerAdmin.ReadCircleMembershipGrant());
 
         var (scope, ctx) = await MigrationContextAsync(owner);
         var circles = scope.Resolve<CircleDefinitionService>();
@@ -141,7 +141,7 @@ public class OwnershipMigrationTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Ad Hoc", allowAnonymousReads: false);
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Ad Hoc Circle", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Ad Hoc Circle", OwnerAdmin.ReadCircleMembershipGrant());
 
         var (scope, ctx) = await MigrationContextAsync(owner);
         var driveId = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!.Id;
@@ -187,11 +187,6 @@ public class OwnershipMigrationTests : V2Fixture
         var v19 = scope.Resolve<V18ToV19VersionMigrationService>();
         Assert.DoesNotThrowAsync(async () => await v19.ValidateUpgradeAsync(ctx, CancellationToken.None));
     }
-
-    private static PermissionSetGrantRequest ReadCircleMembershipGrant() => new()
-    {
-        PermissionSet = new PermissionSet(PermissionKeys.ReadCircleMembership)
-    };
 
     /// <summary>
     /// Writes a drive's owner and address back to null, the state a row written before v19 is in.

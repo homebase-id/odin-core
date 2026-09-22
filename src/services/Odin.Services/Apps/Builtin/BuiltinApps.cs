@@ -231,11 +231,10 @@ public static class BuiltinApps
     /// True when the id names an app the platform ships, whether or not it is registered here.
     /// </summary>
     /// <remarks>
-    /// This is the test for "may own a drive or circle" that ownership checks apply before falling back
-    /// to the registration table.  The platform's own apps have to pass it before they exist as
-    /// registrations: provisioning creates drives and circles first and registers apps last
-    /// (<c>BuiltinProvisioner.EnsureAllAsync</c>), so requiring a registration would invert that order
-    /// and break identity setup.
+    /// The exemption circle creation applies before consulting the registration table
+    /// (<c>CircleDefinitionService.AssertOwningAppExistsAsync</c>): a tree app the identity has not
+    /// installed may still own a circle the console makes for it.  Provisioning does not need this -- it
+    /// creates its circles with validation skipped -- so the only caller is a person naming an app.
     /// <para>
     /// Read off the tree, plus the two apps that own a provisioned drive without a tree entry.  Those
     /// two are named because they are exceptions and have to be seen as such -- the alternative, taking
