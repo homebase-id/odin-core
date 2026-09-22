@@ -219,6 +219,13 @@ namespace Odin.Services.Authorization.Apps
             return result?.Redacted();
         }
 
+        public async Task<RedactedAppRegistration> GetRegisteredAppOrThrowAsync(GuidId appId, IOdinContext odinContext)
+        {
+            return await GetAppRegistration(appId, odinContext)
+                   ?? throw new OdinClientException($"No app is registered with id {appId}",
+                       OdinClientErrorCode.AppNotRegistered);
+        }
+
         /// <summary>
         /// The app addressed as <c>{appSlug}</c> -- the first half of
         /// <c>/apps/{appSlug}/drives/{driveSlug}</c>.  Null when no app holds that slug.
@@ -610,33 +617,24 @@ namespace Odin.Services.Authorization.Apps
                     OdinClientErrorCode.IdAlreadyExists);
             }
 
-            // Read here rather than at the top: the branches above return or throw without consulting
-            // it, and this is a full table read plus, on a pre-v13 identity, a full legacy blob read.
-            var existing = await db.AppRegistrations.GetAllAsync();
-
-            // Seed with the slugs actually stored, not re-derived ones -- an app holding "acme-2" still
-            // holds it whatever its name slugifies to today.
-            var taken = new HashSet<string>(
-                existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
-                StringComparer.Ordinal);
+            // One indexed lookup: UNIQUE(identityId, AppSlug) is what this refuses ahead of, and
+            // GetByAppSlugAsync is served by that same index.
+            var holder = await db.AppRegistrations.GetByAppSlugAsync(requestedSlug);
+            var alreadyTaken = holder != null && holder.AppId != appId;
 
             // Pre-v13 the table holds only what was registered during the window, so it is not the whole
             // picture: a slug free here could still be one the move is about to coin for a blob app, and
             // the move would then fail on UNIQUE(identityId, AppSlug). The legacy slugs are resolved by
-            // the same generator the move uses, so reserving them here is reserving exactly what it
+            // the same generator the move uses, so refusing them here is refusing exactly what it
             // will want.
-            if (await legacyStore.IsPreMoveAsync())
+            if (!alreadyTaken && await legacyStore.IsPreMoveAsync())
             {
-                foreach (var reg in await legacyStore.ReadAppRegistrationsAsync())
-                {
-                    if ((Guid)reg.AppId != (Guid)appId)
-                    {
-                        taken.Add(reg.AppSlug);
-                    }
-                }
+                alreadyTaken = (await legacyStore.ReadAppRegistrationsAsync()).Any(reg =>
+                    (Guid)reg.AppId != (Guid)appId &&
+                    string.Equals(reg.AppSlug, requestedSlug, StringComparison.Ordinal));
             }
 
-            if (taken.Contains(requestedSlug))
+            if (alreadyTaken)
             {
                 throw new OdinClientException(
                     $"The app slug '{requestedSlug}' is already registered on this identity.",
