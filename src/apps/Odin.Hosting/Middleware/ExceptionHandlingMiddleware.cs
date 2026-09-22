@@ -33,6 +33,13 @@ namespace Odin.Hosting.Middleware
             {
                 await next(context);
             }
+            catch (OdinPayloadVersionGoneException e) // => HTTP 404
+            {
+                // Caught ahead of OdinClientException, which it derives from: a payload replaced while it
+                // was being read is not a bad request, it is a version that no longer exists. Re-reading
+                // the file header gets the caller the current one.
+                await HandleExceptionAsync(context, new NotFoundException(e.Message, e.ErrorCode, e));
+            }
             catch (OdinClientException e) // => HTTP 400
             {
                 // SEB:TODO OdinClientException is used in a lot of places.

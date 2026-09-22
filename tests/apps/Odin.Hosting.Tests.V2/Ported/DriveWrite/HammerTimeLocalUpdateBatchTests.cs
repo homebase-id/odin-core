@@ -56,10 +56,6 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
     private int _conflictCount;
 
     [Test]
-    [Ignore("Blocked on issue #1772: reading a payload/thumbnail that another thread is replacing " +
-            "answers 500 with an OdinSystemException where a 404 belongs. The assertion is correct " +
-            "and the product is what is wrong, so weakening it would be the wrong fix; ignored rather " +
-            "than left to redden CI roughly 1 run in 8. See docs/flakytests.md. Un-ignore when #1772 lands.")]
     public async Task UpdateBatch_HammerTime_WithPayloads()
     {
         _owner = await LoginAsOwner();
@@ -197,6 +193,16 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         // Ensure payloadToAdd add is added
         //
         var getPayloadToAddResponse = await _owner.V1.Drive.GetPayload(_targetFile, _originalPayload.Key);
+
+        // Two writers and a reader on one file: the other thread can replace this payload between the
+        // header read above and this fetch, which leaves the version just resolved genuinely gone. That
+        // is a 404 (#1772) and not something this test can prevent -- what it pins is that it is never
+        // a 500, and that a version that IS still there is served whole.
+        if (getPayloadToAddResponse.StatusCode == HttpStatusCode.NotFound)
+        {
+            return (updateFileResponse.StatusCode, OdinClientErrorCode.NoErrorCode, updateFileResponse.Content!.NewVersionTag);
+        }
+
         Assert.That(getPayloadToAddResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getPayloadToAddResponse.ContentHeaders!.LastModified.HasValue, Is.True);
         Assert.That(getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault(),
@@ -210,6 +216,12 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         {
             var getThumbnailResponse = await _owner.V1.Drive.GetThumbnail(_targetFile, thumbnail.PixelWidth,
                 thumbnail.PixelHeight, _originalPayload.Key);
+
+            // Same race, same contract as the payload fetch above.
+            if (getThumbnailResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                continue;
+            }
 
             Assert.That(getThumbnailResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(getThumbnailResponse.ContentHeaders!.LastModified.HasValue, Is.True);

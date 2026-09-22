@@ -96,6 +96,7 @@ public enum OdinClientErrorCode
     ThumbnailTooLarge = 4171,
     MustRotateKeyHeaderIvWhenUpdating = 4172,
     CannotSourceDriveStorageKeyForGrant = 4173,
+    PayloadVersionGone = 4174,
 
 
     // Connection errors 50xx

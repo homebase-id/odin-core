@@ -300,17 +300,22 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
 
-            if (chunk == null)
+            try
             {
-                logger.LogDebug("GetPayloadStreamAsync: {path}", path);
-                var bytes = await longTermPayloadStore.ReadAllBytesAsync(path);
-                return new MemoryStream(bytes);
-            }
-            else
-            {
+                if (chunk == null)
+                {
+                    logger.LogDebug("GetPayloadStreamAsync: {path}", path);
+                    var bytes = await longTermPayloadStore.ReadAllBytesAsync(path);
+                    return new MemoryStream(bytes);
+                }
+
                 logger.LogDebug("GetPayloadStreamAsync: {path}, start={start}, length={length}", path, chunk.Start, chunk.Length);
-                var bytes = await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length);
-                return new MemoryStream(bytes);
+                var chunkBytes = await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length);
+                return new MemoryStream(chunkBytes);
+            }
+            catch (Exception e)
+            {
+                throw await ClassifyReadFailureAsync(path, e, "payload");
             }
         }
 
@@ -332,9 +337,34 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Failed to get thumbnail stream for file {path}", path);
-                throw;
+                throw await ClassifyReadFailureAsync(path, e, "thumbnail");
             }
+        }
+
+        /// <summary>
+        /// Turns a failed read into the exception that says what actually happened: the file the header
+        /// named is not there, or the read failed for some other reason.
+        /// </summary>
+        /// <remarks>
+        /// Asked of the store rather than inferred from the exception, because the stores disagree about
+        /// what a missing file throws -- disk raises <c>OdinSystemException</c> from
+        /// <c>AssertFileExists</c>, S3 wraps everything in <c>DriveFileStoreException</c>. Only runs on
+        /// the failure path, so the extra round trip costs nothing in the normal case.
+        /// <para>
+        /// Logged at Debug, not Error: whether a missing file is a fault depends on whether the payload
+        /// moved on, which this layer cannot see. <c>DriveStorageServiceBase</c> decides, and says so.
+        /// </para>
+        /// </remarks>
+        private async Task<Exception> ClassifyReadFailureAsync(string path, Exception e, string what)
+        {
+            if (!await longTermPayloadStore.ExistsAsync(path))
+            {
+                logger.LogDebug(e, "The {what} file named by the header is not there: {path}", what, path);
+                return new OdinFileHeaderHasCorruptPayloadException($"The {what} file is missing: {path}", e);
+            }
+
+            logger.LogError(e, "Failed to read {what} file {path}", what, path);
+            return e;
         }
 
         public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)
