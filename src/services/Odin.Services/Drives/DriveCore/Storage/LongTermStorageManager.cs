@@ -305,17 +305,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 if (chunk == null)
                 {
                     logger.LogDebug("GetPayloadStreamAsync: {path}", path);
-                    var bytes = await longTermPayloadStore.ReadAllBytesAsync(path);
-                    return new MemoryStream(bytes);
+                    return new MemoryStream(await longTermPayloadStore.ReadAllBytesAsync(path));
                 }
 
                 logger.LogDebug("GetPayloadStreamAsync: {path}, start={start}, length={length}", path, chunk.Start, chunk.Length);
-                var chunkBytes = await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length);
-                return new MemoryStream(chunkBytes);
+                return new MemoryStream(await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length));
             }
             catch (Exception e)
             {
-                throw await ClassifyReadFailureAsync(path, e, "payload");
+                var missing = await MissingFileOrNullAsync(path, e);
+                if (missing != null)
+                {
+                    throw missing;
+                }
+
+                throw;
             }
         }
 
@@ -326,9 +330,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<Stream> GetThumbnailStreamAsync(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
             UnixTimeUtcUnique payloadUid)
         {
-            var fileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
-            var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-            var path = Path.Combine(dir, fileName);
+            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, width, height);
 
             try
             {
@@ -337,13 +339,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
             catch (Exception e)
             {
-                throw await ClassifyReadFailureAsync(path, e, "thumbnail");
+                var missing = await MissingFileOrNullAsync(path, e);
+                if (missing != null)
+                {
+                    throw missing;
+                }
+
+                throw;
             }
         }
 
         /// <summary>
-        /// Turns a failed read into the exception that says what actually happened: the file the header
-        /// named is not there, or the read failed for some other reason.
+        /// The exception for "the file the header named is not there", or null when the read failed for
+        /// some other reason -- in which case the caller rethrows and keeps the original stack.
         /// </summary>
         /// <remarks>
         /// Asked of the store rather than inferred from the exception, because the stores disagree about
@@ -355,16 +363,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// moved on, which this layer cannot see. <c>DriveStorageServiceBase</c> decides, and says so.
         /// </para>
         /// </remarks>
-        private async Task<Exception> ClassifyReadFailureAsync(string path, Exception e, string what)
+        private async Task<Exception> MissingFileOrNullAsync(string path, Exception e)
         {
-            if (!await longTermPayloadStore.ExistsAsync(path))
+            if (await longTermPayloadStore.ExistsAsync(path))
             {
-                logger.LogDebug(e, "The {what} file named by the header is not there: {path}", what, path);
-                return new OdinFileHeaderHasCorruptPayloadException($"The {what} file is missing: {path}", e);
+                logger.LogError(e, "Failed to read {path}", path);
+                return null;
             }
 
-            logger.LogError(e, "Failed to read {what} file {path}", what, path);
-            return e;
+            logger.LogDebug(e, "The file named by the header is not there: {path}", path);
+            return new OdinFileHeaderHasCorruptPayloadException($"File is missing: {path}", e);
         }
 
         public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)

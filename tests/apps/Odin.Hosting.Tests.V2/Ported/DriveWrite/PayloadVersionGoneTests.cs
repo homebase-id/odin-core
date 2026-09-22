@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -10,7 +9,6 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
@@ -49,17 +47,17 @@ public class PayloadVersionGoneTests : V2Fixture
         var file = upload.Content!.File;
 
         var firstHeader = await owner.V1.Drive.GetFileHeader(file);
-        var replacedUid = firstHeader.Content!.FileMetadata.Payloads.Single(p => p.Key == payload.Key).Uid;
+        var replacedUid = firstHeader.Content!.FileMetadata.GetPayloadDescriptor(payload.Key)!.Uid;
 
         // Replace the payload. The file is fine afterwards -- it is the version above that is gone.
         var reupload = await owner.V1.Drive.UploadPayloads(file,
             firstHeader.Content.FileMetadata.VersionTag,
             new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] },
             [payload]);
-        Assert.That(reupload.IsSuccessStatusCode, Is.True, $"replacing the payload failed: {reupload.StatusCode}");
+        Assert.That(reupload.StatusCode, Is.EqualTo(HttpStatusCode.OK), "replacing the payload failed");
 
         var currentHeader = await owner.V1.Drive.GetFileHeader(file);
-        var currentUid = currentHeader.Content!.FileMetadata.Payloads.Single(p => p.Key == payload.Key).Uid;
+        var currentUid = currentHeader.Content!.FileMetadata.GetPayloadDescriptor(payload.Key)!.Uid;
         Assert.That(currentUid.uniqueTime, Is.Not.EqualTo(replacedUid.uniqueTime),
             "precondition: replacing the payload must move its uid, or there is no stale version to ask for");
 

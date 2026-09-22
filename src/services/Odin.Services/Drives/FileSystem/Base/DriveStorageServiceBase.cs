@@ -202,14 +202,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
                 return new PayloadStream(descriptor, stream.Length, stream);
             }
-            catch (OdinFileHeaderHasCorruptPayloadException e)
+            catch (OdinFileHeaderHasCorruptPayloadException)
             {
                 if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
 
-                await AssertPayloadVersionHasNotMovedAsync(file, key, descriptor.Uid, odinContext, e);
                 throw;
             }
         }
@@ -496,14 +495,23 @@ namespace Odin.Services.Drives.FileSystem.Base
             string payloadKey,
             UnixTimeUtcUnique resolvedUid,
             IOdinContext odinContext,
-            Exception inner)
+            Exception inner,
+            PayloadDescriptor currentInHand = null)
         {
-            var current = await GetServerFileHeader(file, odinContext);
-            var currentUid = current?.FileMetadata.GetPayloadDescriptor(payloadKey)?.Uid;
+            // Storage paths are (fileId, key, uid), so "shares storage with" and "is the same version"
+            // are one question, and PayloadDescriptor already answers it -- including the case-insensitive
+            // key match that GetPayloadDescriptor does its own lookup with.
+            var resolved = new PayloadDescriptor { Key = payloadKey, Uid = resolvedUid };
 
-            if (currentUid.HasValue && currentUid.Value.uniqueTime == resolvedUid.uniqueTime)
+            // A header the caller already read settles it when it names a different version. Only when it
+            // still names the missing one is a fresh read needed, to see a replacement that landed since.
+            if (currentInHand == null || currentInHand.SharesStorageWith(resolved))
             {
-                return;
+                var refreshed = await GetServerFileHeader(file, odinContext);
+                if (refreshed?.FileMetadata.GetPayloadDescriptor(payloadKey)?.SharesStorageWith(resolved) == true)
+                {
+                    return;
+                }
             }
 
             throw new OdinPayloadVersionGoneException(
@@ -532,28 +540,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
-            if (null != directMatchingThumb)
-            {
-                try
-                {
-                    var s = await longTermStorageManager.GetThumbnailStreamAsync(drive, file.FileId, width, height, payloadKey, payloadUid);
-                    return (s, directMatchingThumb);
-                }
-                catch (Exception e)
-                {
-                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
-                    {
-                        return (Stream.Null, directMatchingThumb);
-                    }
-
-                    await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, payloadUid, odinContext, e);
-                    throw;
-                }
-            }
-
-            var nextSizeUp = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly);
-            if (null == nextSizeUp)
+            // One lookup, not two: FindMatchingThumbnail tries the exact size first and only then the
+            // next size up, so the direct-match branch that used to sit here was asking the same
+            // question and then repeating the read and its error handling.
+            var thumb = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly);
+            if (null == thumb)
             {
                 return (Stream.Null, null);
             }
@@ -561,23 +552,19 @@ namespace Odin.Services.Drives.FileSystem.Base
             try
             {
                 var stream = await longTermStorageManager.GetThumbnailStreamAsync(
-                    drive,
-                    file.FileId,
-                    nextSizeUp.PixelWidth,
-                    nextSizeUp.PixelHeight,
-                    payloadKey, payloadUid);
+                    drive, file.FileId, thumb.PixelWidth, thumb.PixelHeight, payloadKey, payloadUid);
 
-                return (stream, nextSizeUp);
+                return (stream, thumb);
             }
             catch (Exception e)
             {
                 if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
-                    return (Stream.Null, nextSizeUp);
+                    return (Stream.Null, thumb);
                 }
 
-                await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, payloadUid, odinContext, e);
-
+                await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, payloadUid, odinContext, e,
+                    header.FileMetadata.GetPayloadDescriptor(payloadKey));
                 throw;
             }
         }
@@ -727,13 +714,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
                 return new PayloadStream(descriptor, stream.Length, stream);
             }
-            catch (OdinFileHeaderHasCorruptPayloadException)
+            catch (OdinFileHeaderHasCorruptPayloadException e)
             {
                 if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
 
+                await AssertPayloadVersionHasNotMovedAsync(file, key, descriptor.Uid, odinContext, e);
                 throw;
             }
         }

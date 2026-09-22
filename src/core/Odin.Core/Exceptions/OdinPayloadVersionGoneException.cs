@@ -20,11 +20,6 @@ namespace Odin.Core.Exceptions;
 /// </remarks>
 public class OdinPayloadVersionGoneException : OdinClientException
 {
-    public OdinPayloadVersionGoneException(string message)
-        : base(message, OdinClientErrorCode.PayloadVersionGone)
-    {
-    }
-
     public OdinPayloadVersionGoneException(string message, Exception innerException)
         : base(message, innerException)
     {

@@ -192,15 +192,19 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
         //
         // Ensure payloadToAdd add is added
         //
+        // The round succeeded either way; the reads below may find the version already replaced.
+        var served = (updateFileResponse.StatusCode, OdinClientErrorCode.NoErrorCode, updateFileResponse.Content!.NewVersionTag);
+
         var getPayloadToAddResponse = await _owner.V1.Drive.GetPayload(_targetFile, _originalPayload.Key);
 
         // Two writers and a reader on one file: the other thread can replace this payload between the
         // header read above and this fetch, which leaves the version just resolved genuinely gone. That
         // is a 404 (#1772) and not something this test can prevent -- what it pins is that it is never
-        // a 500, and that a version that IS still there is served whole.
+        // a 500, and that a version that IS still there is served whole. Its thumbnails went with it,
+        // so there is nothing left in this round to verify.
         if (getPayloadToAddResponse.StatusCode == HttpStatusCode.NotFound)
         {
-            return (updateFileResponse.StatusCode, OdinClientErrorCode.NoErrorCode, updateFileResponse.Content!.NewVersionTag);
+            return served;
         }
 
         Assert.That(getPayloadToAddResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -217,10 +221,11 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
             var getThumbnailResponse = await _owner.V1.Drive.GetThumbnail(_targetFile, thumbnail.PixelWidth,
                 thumbnail.PixelHeight, _originalPayload.Key);
 
-            // Same race, same contract as the payload fetch above.
+            // Same race, same contract as the payload fetch above -- and once the version has moved its
+            // remaining sizes are gone too, so there is no point asking for them.
             if (getThumbnailResponse.StatusCode == HttpStatusCode.NotFound)
             {
-                continue;
+                return served;
             }
 
             Assert.That(getThumbnailResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -232,6 +237,6 @@ public class HammerTimeLocalUpdateBatchTests : V2Fixture
             Assert.That(thumbContent, Is.EqualTo(thumbnail.Content));
         }
 
-        return (updateFileResponse.StatusCode, OdinClientErrorCode.NoErrorCode, updateFileResponse.Content!.NewVersionTag);
+        return served;
     }
 }
