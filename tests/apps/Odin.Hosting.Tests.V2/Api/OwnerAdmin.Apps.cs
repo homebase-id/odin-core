@@ -35,14 +35,8 @@ public sealed partial class OwnerAdmin
         return appId;
     }
 
-    /// <summary>
-    /// A slug for a test app, derived from its id so it is unique without the test having to pick one.
-    /// </summary>
-    /// <remarks>
-    /// The generator rather than a hand-rolled substring: it owns the length and format rules, and it
-    /// returns the tree's slug for a built-in id, which a hand-rolled one would collide with.
-    /// </remarks>
-    public static string SlugFor(Guid appId) => AppSlugGenerator.Generate(appId, null, new HashSet<string>());
+    /// <summary>A slug for a test app, derived from its id; see <see cref="TestAppSlug"/>.</summary>
+    public static string SlugFor(Guid appId) => TestAppSlug.For(appId);
 
     /// <summary>
     /// Registers a bare app under an id the caller has already chosen, unless something is registered

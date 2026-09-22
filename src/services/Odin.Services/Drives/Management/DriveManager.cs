@@ -138,27 +138,18 @@ public class DriveManager : IDriveManager
         // third-party apps (create the drives, then RegisterApp).  Requiring a registration here would
         // close the loop on itself and make registering any app that asks for a new drive impossible.
         //
-        // The check lives on set-owner and reassign-owner instead (OwningApp.AssertExistsAsync, and
-        // stricter still on the controller): there the drive already exists and the caller is a person
-        // at a console naming an app by hand, so a mistyped id is a real risk and the ordering cannot
-        // bite.  A drive created against an id nobody ever registers is addressed at nothing until one
-        // does, and reassign-owner can move it.
+        // The check lives on set-owner and reassign-owner instead (OwnerDriveManagementController, which
+        // requires a registration): there the drive already exists and the caller is a person at a
+        // console naming an app by hand, so a mistyped id is a real risk and the ordering cannot bite.
+        // A drive created against an id nobody ever registers is addressed at nothing until one does,
+        // and reassign-owner can move it.
         var driveSlug = requestedSlug;
 
-        // Scope the taken set to this app: the constraint is per app, so feed/news and chat/news
-        // may coexist. Deduping across the whole identity would hand the second one "news-2" -- a
-        // permanent address nobody asked for, for a collision the schema permits.
-        //
         // Read unconditionally, not only when deriving. The set answers both questions -- what a
         // derived slug must avoid, and whether a supplied one is already claimed -- and without
         // the second, a caller-supplied duplicate would reach the insert and surface as a raw
         // UNIQUE(identityId, AppId, DriveSlug) violation instead of a client error.
-        var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-        var taken = new HashSet<string>(
-            existingDrives
-                .Where(d => d.AppId == appId && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                .Select(d => d.DriveSlug),
-            StringComparer.Ordinal);
+        var taken = await SlugsHeldByAppAsync(appId);
 
         if (driveSlug == null)
         {
@@ -503,6 +494,27 @@ public class DriveManager : IDriveManager
     }
 
     /// <summary>
+    /// The slugs <paramref name="appId"/> already holds -- what a derived slug must avoid and what a
+    /// supplied one is refused against.
+    /// </summary>
+    /// <remarks>
+    /// Scoped to the app because the constraint is: <c>UNIQUE(identityId, AppId, DriveSlug)</c> lets
+    /// feed/news and chat/news coexist.  Deduping across the whole identity would hand the second one
+    /// "news-2" -- a permanent address nobody asked for, for a collision the schema permits.
+    /// <paramref name="exceptDriveId"/> leaves out the drive being moved, whose own slug is not a
+    /// collision with itself.
+    /// </remarks>
+    private async Task<HashSet<string>> SlugsHeldByAppAsync(Guid appId, Guid? exceptDriveId = null)
+    {
+        var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+        return new HashSet<string>(
+            existingDrives
+                .Where(d => d.AppId == appId && d.DriveId != exceptDriveId && !string.IsNullOrWhiteSpace(d.DriveSlug))
+                .Select(d => d.DriveSlug),
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// Hands one of the owner's own drives to an app, once, and gives it the address that goes with
     /// being owned by one.
     /// </summary>
@@ -518,8 +530,8 @@ public class DriveManager : IDriveManager
     /// </para>
     /// <para>
     /// Provisioned drives are refused outright.  They already belong to the app that ships them, and
-    /// the ones still carrying a null AppId are waiting on provisioning to stamp it -- not on the
-    /// owner to guess.  The check is the same TargetDrive comparison
+    /// which app that is comes from the tree -- not from the owner guessing.  The check is the same
+    /// TargetDrive comparison
     /// <see cref="SetArchiveDriveFlagAsync"/> uses, not <c>IsProtected</c>, which matches on alias
     /// alone.
     /// </para>
@@ -564,16 +576,10 @@ public class DriveManager : IDriveManager
         OdinSlug.AssertValidOrNull(requestedSlug, nameof(driveSlug));
         OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(driveTypeSlug));
 
-        // Scoped to this app, because the constraint is: feed/news and chat/news may coexist. Read
-        // unconditionally -- the set answers both what a derived slug must avoid and whether a
+        // Read unconditionally -- the set answers both what a derived slug must avoid and whether a
         // supplied one is already claimed, and without the second a duplicate would reach the insert
         // as a raw UNIQUE violation instead of a client error.
-        var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-        var taken = new HashSet<string>(
-            existingDrives
-                .Where(d => d.AppId == appId && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                .Select(d => d.DriveSlug),
-            StringComparer.Ordinal);
+        var taken = await SlugsHeldByAppAsync(appId);
 
         // Every drive carries a slug, including one the owner made for themselves -- CreateDriveAsync
         // derives one when the caller names none. The slug it carries is an owner-console address,
@@ -682,14 +688,9 @@ public class DriveManager : IDriveManager
         var requestedTypeSlug = string.IsNullOrWhiteSpace(driveTypeSlug) ? null : driveTypeSlug;
         OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(driveTypeSlug));
 
-        // Taken set scoped to the *new* app: the drive is arriving somewhere it has not been, and the
-        // slug that was free under the old owner says nothing about this one.
-        var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-        var taken = new HashSet<string>(
-            existingDrives
-                .Where(d => d.AppId == appId && d.DriveId != driveId && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                .Select(d => d.DriveSlug),
-            StringComparer.Ordinal);
+        // Scoped to the *new* app: the drive is arriving somewhere it has not been, and the slug that
+        // was free under the old owner says nothing about this one.
+        var taken = await SlugsHeldByAppAsync(appId, exceptDriveId: driveId);
 
         if (taken.Contains(driveSlug))
         {

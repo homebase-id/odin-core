@@ -300,9 +300,9 @@ public abstract class V2Fixture
     /// a service (a version-upgrade pass, say) directly rather than over HTTP.
     /// </summary>
     /// <remarks>
-    /// Here rather than in each fixture: a dozen-odd fixtures grew their own byte-identical copy of this,
-    /// so a change to how the context is built (a new <c>OdinClientContext</c> field, say) meant a dozen
-    /// edits. New fixtures should use this; the existing copies can migrate as they are touched.
+    /// Here rather than in each fixture: a dozen-odd fixtures once grew their own byte-identical copy of
+    /// this, so a change to how the context is built (a new <c>OdinClientContext</c> field, say) meant a
+    /// dozen edits.
     /// </remarks>
     protected async Task<(ILifetimeScope Scope, IOdinContext Context)> MigrationContextAsync(OwnerSession owner)
     {
@@ -316,21 +316,9 @@ public abstract class V2Fixture
     protected static async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
     {
         var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
+        var odinContext = new OdinContext();
 
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
+        await authService.UpdateOdinContextAsync(owner.Token, new OdinClientContext(), odinContext);
         odinContext.Caller!.AssertHasMasterKey();
         return odinContext;
     }

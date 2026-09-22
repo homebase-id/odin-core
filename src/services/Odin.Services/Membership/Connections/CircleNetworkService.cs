@@ -1110,12 +1110,7 @@ namespace Odin.Services.Membership.Connections
             // Checked before the write rather than trusted: an AppId naming no app would leave the
             // circle in the one state adoption exists to escape -- owned by something that can never
             // come back for it, and no longer adoptable, since a second call is refused.
-            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
-            if (app == null)
-            {
-                throw new OdinClientException($"No app is registered with id {appId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
+            var app = await appRegistrationService.GetRegisteredAppOrThrowAsync(appId, odinContext);
 
             var circle = await circleDefinitionService.GetCircleAsync(circleId);
             if (circle == null)
@@ -1190,12 +1185,7 @@ namespace Odin.Services.Membership.Connections
                 return [];
             }
 
-            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
-            if (app == null)
-            {
-                throw new OdinClientException($"No app is registered with id {appId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
+            var app = await appRegistrationService.GetRegisteredAppOrThrowAsync(appId, odinContext);
 
             // Keyed on the drive, so the union is per drive rather than per grant.
             var merged = new Dictionary<TargetDrive, DrivePermission>();
@@ -1724,12 +1714,7 @@ namespace Odin.Services.Membership.Connections
 
             OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
 
-            var app = await appRegistrationService.GetAppRegistration(appId, odinContext);
-            if (app == null)
-            {
-                throw new OdinClientException($"No app is registered with id {appId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
+            var app = await appRegistrationService.GetRegisteredAppOrThrowAsync(appId, odinContext);
 
             var circle = await circleDefinitionService.GetCircleAsync(circleId);
             if (circle == null)
@@ -2183,8 +2168,8 @@ namespace Odin.Services.Membership.Connections
         /// <remarks>
         /// Read back from the committed record rather than from what the loop believed it wrote, and
         /// filtered to what this review actually added, so a second review of the same contact does not
-        /// re-announce work an app has already been told about. An owner circle names no app and is
-        /// skipped; it waits for the owner regardless.
+        /// re-announce work an app has already been told about. An owner-console circle is skipped; it
+        /// waits for the owner regardless.
         /// </remarks>
         private async Task PublishPendingEnrollmentNotificationsAsync(OdinId odinId, List<Guid> alreadyQueued,
             IOdinContext odinContext)

@@ -9,7 +9,6 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
-using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Apps;
@@ -223,8 +222,8 @@ namespace Odin.Services.Membership.Circles
         /// <c>CircleNetworkService.ReassignCircleOwningAppAsync</c>, which is the only caller.
         /// </para>
         /// <para>
-        /// System circles are refused: they belong to no app by definition, and the app tree is what
-        /// stamps the ones that do.
+        /// System circles are refused: they are the owner console's, and the app tree is what stamps
+        /// the ones an app owns.
         /// </para>
         /// </remarks>
         internal async Task ReassignOwningAppAsync(GuidId circleId, Guid appId)
@@ -238,7 +237,7 @@ namespace Odin.Services.Membership.Circles
 
             if (SystemCircleConstants.IsSystemCircle(circleId.Value))
             {
-                throw new OdinClientException($"Circle {circleId} is a system circle and belongs to no app",
+                throw new OdinClientException($"Circle {circleId} is a system circle and cannot belong to an app",
                     OdinClientErrorCode.CannotReassignSystemCircle);
             }
 
@@ -268,7 +267,7 @@ namespace Odin.Services.Membership.Circles
         /// the drives a circle grants, and this changes neither.
         /// </para>
         /// </remarks>
-        internal async Task<bool> StampOwningAppIfUnsetAsync(Guid circleId, Guid appId)
+        internal async Task<bool> StampOwnerConsoleIfUnsetAsync(Guid circleId)
         {
             var circle = await GetCircleAsync(circleId);
             if (circle == null || circle.AppId.HasValue)
@@ -276,7 +275,7 @@ namespace Odin.Services.Membership.Circles
                 return false;
             }
 
-            circle.AppId = appId;
+            circle.AppId = SystemAppConstants.OwnerConsoleAppId;
             circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
 
             await db.CircleCached.UpsertAsync(ToRecord(circle));
@@ -562,12 +561,46 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
+        /// <summary>
+        /// Throws unless the app exists: one the platform ships, or one registered on this identity.
+        /// </summary>
+        /// <remarks>
+        /// The owning app names who may administer the circle and complete its enrollments, and it is
+        /// not changeable afterwards except by an explicit hand-over -- so a circle written against an
+        /// app nobody registered is stuck.  Checked when the row is written rather than trusted.
+        /// <para>
+        /// Against the table rather than <c>IAppRegistrationService</c>, which depends on this service
+        /// through <c>ExchangeGrantService</c>.  Provisioning never reaches this: it creates its circles
+        /// with <c>skipValidation</c>.  The platform exemption is for the console naming a tree app the
+        /// identity has not installed (Community before install; Lists and Mail, which own a provisioned
+        /// drive without a tree entry) -- those may own a circle without a registration.
+        /// </para>
+        /// </remarks>
+        private async Task AssertOwningAppExistsAsync(Guid appId)
+        {
+            if (BuiltinApps.IsPlatformApp(appId))
+            {
+                return;
+            }
+
+            if (await db.AppRegistrations.GetAsync(appId) == null)
+            {
+                throw new OdinClientException($"No app is registered with id {appId}",
+                    OdinClientErrorCode.AppNotRegistered);
+            }
+        }
+
         private async Task<CircleDefinition> CreateCircleInternalAsync(CreateCircleRequest request, bool skipValidation = false)
         {
+            // Every circle has an owner. A request that names no app is the owner acting as themselves --
+            // a circle they made in the console -- which belongs to the owner-console app.  "The owner's
+            // own" is then an owner rather than a null, so nothing has to treat absence as a meaning.
+            var appId = request.AppId ?? SystemAppConstants.OwnerConsoleAppId;
+
             if (!skipValidation)
             {
                 await AssertValidAsync(request.Permissions, request.DriveGrants?.ToList());
-                await OwningApp.AssertExistsAsync(db.AppRegistrations, request.AppId);
+                await AssertOwningAppExistsAsync(appId);
             }
 
             if (null != await GetCircleAsync(request.Id))
@@ -585,12 +618,7 @@ namespace Odin.Services.Membership.Circles
                 Description = request.Description,
                 DriveGrants = request.DriveGrants,
                 Permissions = request.Permissions,
-
-                // Every circle has an owner. A request that names no app is the owner acting as
-                // themselves -- a circle they made in the console -- which belongs to the owner-console
-                // app.  "The owner's own" is then an owner rather than a null, so nothing has to treat
-                // absence as a meaning.
-                AppId = request.AppId ?? SystemAppConstants.OwnerConsoleAppId,
+                AppId = appId,
                 GrantOn = request.GrantOn,
                 Designation = request.Designation,
                 Emoji = request.Emoji

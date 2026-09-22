@@ -12,7 +12,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 using Odin.Services.Apps.Builtin;
-using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Util;
 
@@ -114,7 +113,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
-        /// Hands a drive that belongs to no app to one that does exist.
+        /// Hands one of the owner's own drives to an app that exists.
         /// </summary>
         /// <remarks>
         /// Owner console only -- this whole controller is.  An app must not be able to hand itself a
@@ -141,12 +140,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
             OdinValidationUtils.AssertNotEmptyGuid(request.AppId, nameof(request.AppId));
 
-            var app = await appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
-            if (app == null)
-            {
-                throw new OdinClientException($"No app is registered with id {request.AppId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
+            await appRegistrationService.GetRegisteredAppOrThrowAsync(request.AppId, WebOdinContext);
 
             await driveManager.SetDriveOwningAppAsync(request.TargetDrive.Alias, request.AppId,
                 request.DriveSlug, request.DriveTypeSlug, WebOdinContext);
@@ -175,12 +169,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
             OdinValidationUtils.AssertNotEmptyGuid(request.AppId, nameof(request.AppId));
 
-            var app = await appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
-            if (app == null)
-            {
-                throw new OdinClientException($"No app is registered with id {request.AppId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
+            await appRegistrationService.GetRegisteredAppOrThrowAsync(request.AppId, WebOdinContext);
 
             await driveManager.ReassignDriveOwningAppAsync(request.TargetDrive.Alias, request.AppId,
                 request.DriveSlug, request.DriveTypeSlug, WebOdinContext);

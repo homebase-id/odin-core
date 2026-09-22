@@ -9,6 +9,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Configuration;
@@ -232,6 +233,15 @@ public sealed partial class OwnerAdmin
     // -----------------------------------------------------------------------------------------
     // Circles (delegated to the existing new-style client; works with our factory unchanged)
     // -----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The smallest grant a circle can carry: <see cref="PermissionKeys.ReadCircleMembership"/> and no
+    /// drives.  For fixtures whose subject is the circle's ownership, not what it grants.
+    /// </summary>
+    public static PermissionSetGrantRequest ReadCircleMembershipGrant() => new()
+    {
+        PermissionSet = new PermissionSet(PermissionKeys.ReadCircleMembership)
+    };
 
     /// <summary>
     /// Creates a circle that members will be granted on connection. Used by <see cref="GuestSession"/>

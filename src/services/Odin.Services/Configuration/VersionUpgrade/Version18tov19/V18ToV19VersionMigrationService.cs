@@ -170,11 +170,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // The "is it already owned?" test lives in StampOwningAppIfUnsetAsync, which answers it
-                // against the stored row; asking it again here from the loop's copy would be a second
-                // place to keep in step.
-                if (await circleDefinitionService.StampOwningAppIfUnsetAsync(circle.Id,
-                        SystemAppConstants.OwnerConsoleAppId))
+                // Skipped off the copy in hand, so an app-owned circle costs no round trip. The stamp
+                // re-checks the stored row before writing regardless.
+                if (circle.AppId.HasValue)
+                {
+                    continue;
+                }
+
+                if (await circleDefinitionService.StampOwnerConsoleIfUnsetAsync(circle.Id))
                 {
                     stamped++;
                     logger.LogDebug("v18->v19: circle {name} is now the owner console's", circle.Name);
