@@ -17,7 +17,8 @@ public sealed class VersionUpgradeScheduler(
     TenantConfigService configService,
     TenantContext tenantContext,
     ILogger<VersionUpgradeScheduler> logger,
-    IJobManager jobManager)
+    IJobManager jobManager,
+    VersionUpgradeRunState runState)
 {
     private readonly IJobManager _jobManager = jobManager;
 
@@ -82,6 +83,48 @@ public sealed class VersionUpgradeScheduler(
             OnSuccessDeleteAfter = TimeSpan.FromMinutes(0),
             OnFailureDeleteAfter = TimeSpan.FromMinutes(0),
         });
+    }
+
+    /// <summary>
+    /// What the upgrade is doing, as one value. See <see cref="UpgradeState"/> for why the signals
+    /// this folds together are a trap to hand out separately.
+    /// </summary>
+    public async Task<UpgradeState> GetUpgradeStateAsync()
+    {
+        var (requiresUpgrade, tenantVersion, failureInfo) = await RequiresUpgradeAsync();
+        return GetUpgradeState(requiresUpgrade, tenantVersion, failureInfo);
+    }
+
+    /// <summary>
+    /// <see cref="GetUpgradeStateAsync"/> for a caller that has already asked
+    /// <see cref="RequiresUpgradeAsync"/> -- the version-info endpoint is polled every few seconds
+    /// while an upgrade runs, and asking twice per request to answer one question is a waste.
+    /// </summary>
+    public UpgradeState GetUpgradeState(
+        bool requiresUpgrade,
+        int tenantVersion,
+        FailedUpgradeVersionInfo failureInfo)
+    {
+        if (runState.IsRunning)
+        {
+            return UpgradeState.Running;
+        }
+
+        if (requiresUpgrade)
+        {
+            return failureInfo == null ? UpgradeState.Pending : UpgradeState.Failed;
+        }
+
+        // RequiresUpgradeAsync answers "should this be attempted now", so it also says no when the
+        // last attempt failed on the build that is running: retrying it would fail the same way, and
+        // the wait is for a new build rather than for a job. The data is still behind, though, and
+        // reporting that as up to date is how a client ends up waiting for something that is over.
+        if (failureInfo != null && tenantVersion < Version.DataVersionNumber)
+        {
+            return UpgradeState.Failed;
+        }
+
+        return UpgradeState.UpToDate;
     }
 
     public async Task<(bool requiresUpgrade, int tenantVersion, FailedUpgradeVersionInfo failureInfo)> RequiresUpgradeAsync()

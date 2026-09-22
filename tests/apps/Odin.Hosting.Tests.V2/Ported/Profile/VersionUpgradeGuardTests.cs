@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Version;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
@@ -212,5 +213,38 @@ public class VersionUpgradeGuardTests : V2Fixture
         {
             runState.SetRunning(false);
         }
+    }
+
+    /// <summary>
+    /// Version-info names what the upgrade is doing, not just whether the version is behind.
+    /// </summary>
+    /// <remarks>
+    /// The screen that waits out an upgrade has to tell "running, keep waiting" from "over, go
+    /// back", and the version number alone cannot: it is written before the run ends. Pinned here
+    /// because the client's whole wait-and-resume flow hangs off this one value.
+    /// </remarks>
+    [Test]
+    public async Task VersionInfoNamesWhatTheUpgradeIsDoing()
+    {
+        var owner = await LoginAsOwner(Identities.TomBombadil);
+        var runState = Host.GetTenantScope(owner.Identity.DomainName).Resolve<VersionUpgradeRunState>();
+        var svc = owner.RefitFor<IVersionTestHttpClientForOwner>();
+
+        try
+        {
+            runState.SetRunning(true);
+
+            var during = await svc.GetVersionInfo();
+            Assert.That(during.Content?.UpgradeState, Is.EqualTo(UpgradeState.Running),
+                "while the job runs, the one endpoint left open must say so");
+        }
+        finally
+        {
+            runState.SetRunning(false);
+        }
+
+        var after = await svc.GetVersionInfo();
+        Assert.That(after.Content?.UpgradeState, Is.EqualTo(UpgradeState.UpToDate),
+            "and once it is over, that the identity has nothing left to do");
     }
 }
