@@ -12,13 +12,14 @@ using Odin.Services.Base;
 namespace Odin.Hosting.Tests.V2.Ported.Profile;
 
 /// <summary>
-/// An app may now ask for its own slug at registration. The doc calls the slug a package name rather
-/// than a role -- a second chat implementation picks <c>chatty</c> instead of occupying <c>chat</c> --
-/// and registration is first-come (docs/drive-addressing.md).
+/// An app names its own slug at registration. The slug is a package name rather than a role -- a second
+/// chat implementation picks <c>chatty</c> instead of occupying <c>chat</c> -- and registration is
+/// first-come.
 /// </summary>
 /// <remarks>
-/// Not required, and that is the point of these tests: an app that omits the field must keep getting a
-/// derived slug, exactly as every registration that predates the field did.
+/// Required, and that is the point of these tests: an app that omits the field is refused rather than
+/// handed an address derived from its display name, and the slugs of the apps that ship with an identity
+/// are not available to anyone else.
 /// </remarks>
 [TestFixture]
 public class AppSlugRegistrationTests : V2Fixture
@@ -47,7 +48,7 @@ public class AppSlugRegistrationTests : V2Fixture
     }
 
     [Test]
-    public async Task AnOmittedSlugIsStillDerived()
+    public async Task AnOmittedSlugIsRefused()
     {
         var owner = await LoginAsOwner(Identities.Sam);
         var scope = Host.GetTenantScope(owner.Identity.DomainName);
@@ -55,18 +56,41 @@ public class AppSlugRegistrationTests : V2Fixture
         var apps = scope.Resolve<AppRegistrationService>();
 
         var appId = Guid.NewGuid();
-        await apps.RegisterAppAsync(new AppRegistrationRequest
-        {
-            AppId = appId,
-            Name = "Acme Receipts",
-            PermissionSet = new PermissionSet()
-        }, ctx);
 
-        var reg = await apps.GetAppRegistration(appId, ctx);
+        // Deriving one from the display name is what produced addresses nobody chose -- "Homebase -
+        // Location" became "homebase-locat", permanently, because a slug cannot be changed afterwards.
+        var ex = Assert.ThrowsAsync<OdinClientException>(async () =>
+            await apps.RegisterAppAsync(new AppRegistrationRequest
+            {
+                AppId = appId,
+                Name = "Acme Receipts",
+                PermissionSet = new PermissionSet()
+            }, ctx));
 
-        // The field is optional; every registration written before it existed took this path.
-        // Fits under OdinSlug.MaxLength: "acme-receipts" is 13 characters.
-        Assert.That(reg!.AppSlug, Is.EqualTo("acme-receipts"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(OdinClientErrorCode.ArgumentError));
+        Assert.That(await apps.GetAppRegistration(appId, ctx), Is.Null, "Nothing should have been written");
+    }
+
+    [Test]
+    public async Task ABuiltInSlugIsReservedForItsOwnApp()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var ctx = await BuildOwnerContextAsync(scope, owner);
+        var apps = scope.Resolve<AppRegistrationService>();
+
+        // "chat" is the address every client already builds for the chat app. First-come cannot apply
+        // to it: whoever asked first would put another app where those clients are looking.
+        var ex = Assert.ThrowsAsync<OdinClientException>(async () =>
+            await apps.RegisterAppAsync(new AppRegistrationRequest
+            {
+                AppId = Guid.NewGuid(),
+                Name = "Not Chat",
+                AppSlug = "chat",
+                PermissionSet = new PermissionSet()
+            }, ctx));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(OdinClientErrorCode.IdAlreadyExists));
     }
 
     [Test]
@@ -120,25 +144,4 @@ public class AppSlugRegistrationTests : V2Fixture
         Assert.That(ex!.ErrorCode, Is.EqualTo(OdinClientErrorCode.IdAlreadyExists));
     }
 
-    private async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller.AssertHasMasterKey();
-        return odinContext;
-    }
 }

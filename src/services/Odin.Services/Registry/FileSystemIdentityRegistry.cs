@@ -54,7 +54,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private IPubSubSubscription _registryChangeSubscription;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
-    private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainer _serviceProvider;
     private readonly Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> _tenantContainerBuilder;
@@ -63,7 +62,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
         ICertificateService certificateService,
-        IDynamicHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainer serviceProvider,
         Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> tenantContainerBuilder,
@@ -78,7 +76,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _trie = new Trie<IdentityRegistration>();
         _logger = logger;
         _certificateService = certificateService;
-        _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
         _serviceProvider = serviceProvider;
         _tenantContainerBuilder = tenantContainerBuilder;
@@ -204,6 +201,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             _registryLock.Release();
         }
 
+        // Announce as soon as the row is committed, not after the certificate. Every other node
+        // is blind to this identity until it hears this, and the certificate step can be routed
+        // to any of them - the sign-up page's readiness poll goes through the load balancer, and
+        // so did InitializeCertificate until it went local. Announcing last held that blindness
+        // across the whole certificate wait: up to its 90 s deadline whenever the balancer
+        // routed to another node. A peer builds the tenant from the row itself; nothing below
+        // this line is anything it needs.
+        await AnnounceAsync(version, registration.PrimaryDomainName);
+
         if (request.OptionalCertificatePemContent == null)
         {
             await InitializeCertificate(request.OdinId);
@@ -226,10 +232,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             await StartBackgroundServices(registration);
         }
-
-        // Announce last: a node that hears this re-reads the row and brings the tenant up itself,
-        // so the tenant must be complete here first.
-        await AnnounceAsync(version, registration.PrimaryDomainName);
 
         return registration.FirstRunToken.GetValueOrDefault();
     }
@@ -1036,18 +1038,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task InitializeCertificate(string domain)
     {
-        var httpClient = _httpClientFactory.CreateClient(domain);
-        var uri = $"https://{domain}:{_config.Host.DefaultHttpsPort}/.well-known/acme-challenge/ping";
-
         //
-        // This request exists only to make the host obtain a certificate for the new identity.
-        // It used to do so synchronously: the TLS handshake placed the ACME order inline, so a
-        // single GET came back once the certificate existed. Issuance now happens out of band
-        // (see docs/certificate-issuance-locking.md), so the first attempts are EXPECTED to fail
-        // while the order runs - the handshake asks the background issuer and serves nothing
-        // until it delivers. Retrying until the handshake succeeds keeps the old guarantee that
-        // registration finishes with a usable identity, without putting the order back on the
-        // handshake path.
+        // Registration finishes with a usable identity: this waits until the certificate exists.
+        // Issuance happens out of band (see docs/certificate-issuance-locking.md), so each round
+        // asks this node's issuer for it and checks the store, which is exactly what the TLS
+        // handshake serves from - including a certificate another node obtained.
+        //
+        // It used to make an HTTPS request to the new domain instead, which went out through DNS
+        // and the load balancer. Routed to a node that did not know the identity yet, that
+        // request could never succeed, and nothing asked for a certificate until it gave up.
         //
         var deadline = DateTimeOffset.UtcNow + InitializeCertificateTimeout;
         var attempts = 0;
@@ -1055,29 +1054,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         while (true)
         {
             attempts++;
-            try
+            if (await _certificateService.GetCertificateAsync(domain) != null)
             {
-                var response = await httpClient.GetAsync(uri);
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation(
-                        "InitializeCertificate: {domain} is serving HTTPS after {attempts} attempt(s)",
-                        domain, attempts);
-                    return;
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                _logger.LogDebug("InitializeCertificate: request to {domain} timed out (attempt {attempts})",
+                _logger.LogInformation(
+                    "InitializeCertificate: {domain} has a certificate after {attempts} attempt(s)",
                     domain, attempts);
+                return;
             }
-            catch (HttpRequestException e)
-            {
-                // Expected while the certificate is still being ordered. Also happens when the
-                // DNS server this host uses does not yet know the domain.
-                _logger.LogDebug("InitializeCertificate: {domain} not ready yet (attempt {attempts}): {error}",
-                    domain, attempts, e.Message);
-            }
+
+            // Suppressed while the issuer was pulsed in the last few seconds or the domain is
+            // in failure backoff; the next round asks again.
+            await _certificateService.RequestIssuanceAsync(domain);
 
             if (DateTimeOffset.UtcNow >= deadline)
             {

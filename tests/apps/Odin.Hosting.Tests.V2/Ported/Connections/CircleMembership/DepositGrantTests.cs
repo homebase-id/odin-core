@@ -271,29 +271,4 @@ public class DepositGrantTests : V2Fixture
         return (driveA, circleA, app);
     }
 
-    /// <summary>
-    /// Builds an owner context carrying the master key by replaying the production path used by
-    /// <c>VersionUpgradeService</c> (<see cref="Odin.Services.Authentication.Owner.OwnerAuthenticationService.UpdateOdinContextAsync"/>).
-    /// </summary>
-    private async Task<Odin.Services.Base.IOdinContext> BuildOwnerContextAsync(Autofac.ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<Odin.Services.Authentication.Owner.OwnerAuthenticationService>();
-        var odinContext = new Odin.Services.Base.OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new Odin.Services.Base.OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }
