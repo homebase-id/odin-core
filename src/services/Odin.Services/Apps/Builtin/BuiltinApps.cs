@@ -206,7 +206,57 @@ public static class BuiltinApps
     /// <summary>Every circle any app owns, whether or not it is seeded.</summary>
     public static IEnumerable<CircleDefinition> AllCircles => All.SelectMany(a => a.Circles);
 
+    /// <summary>
+    /// True when the app tree declares this circle, and so re-applies its owner, grant rule and
+    /// designation on every version upgrade.
+    /// </summary>
+    /// <remarks>
+    /// The distinction a client needs before offering to edit any of those: a change to a declared
+    /// circle is undone by the next upgrade without saying so, while an app's runtime circle -- the
+    /// feed app minting one per channel, say -- is owned by an app but named by nobody and stays as
+    /// the owner leaves it.  App ownership alone does not separate the two, which is the mistake
+    /// this exists to stop a client making.
+    /// <para>
+    /// Built once: the tree is static, and this is asked per circle on a page that lists them.
+    /// </para>
+    /// </remarks>
+    private static readonly HashSet<Guid> DeclaredCircleIds =
+        AllCircles.Select(c => c.Id.Value).ToHashSet();
+
+    public static bool IsTreeDeclaredCircle(Guid circleId) => DeclaredCircleIds.Contains(circleId);
+
     public static WellknownAppDefinition Get(Guid appId) => All.FirstOrDefault(a => a.AppId == appId);
+
+    /// <summary>
+    /// True when the id names an app the platform ships, whether or not it is registered here.
+    /// </summary>
+    /// <remarks>
+    /// The exemption circle creation applies before consulting the registration table
+    /// (<c>CircleDefinitionService.AssertOwningAppExistsAsync</c>): a tree app the identity has not
+    /// installed may still own a circle the console makes for it.  Provisioning does not need this -- it
+    /// creates its circles with validation skipped -- so the only caller is a person naming an app.
+    /// <para>
+    /// Read off the tree, plus the two apps that own a provisioned drive without a tree entry.  Those
+    /// two are named because they are exceptions and have to be seen as such -- the alternative, taking
+    /// every <c>Guid</c> declared in <see cref="SystemAppConstants"/>, makes the rule "is a constant in
+    /// that file" and quietly grants ownership to the next Guid anyone adds there for any purpose.
+    /// </para>
+    /// </remarks>
+    public static bool IsPlatformApp(Guid appId) => PlatformAppIds.Contains(appId);
+
+    /// <remarks>
+    /// Lists and Mail own <c>BuiltinDrives.ListsDrive</c> and <c>BuiltinDrives.MailDrive</c>, which
+    /// <c>BuiltinProvisioner.SystemCircleCarryOverDrives</c> creates because the system circles grant
+    /// them -- while neither app is on the tree (Lists is commented out below; Mail left
+    /// <c>Builtin</c> and was never added to <c>Wellknown</c>).  Both entries retire with that
+    /// carry-over list when the system circles do.
+    /// </remarks>
+    private static readonly HashSet<Guid> PlatformAppIds =
+    [
+        ..All.Select(a => a.AppId),
+        SystemAppConstants.ListsAppId,
+        SystemAppConstants.MailAppId,
+    ];
 
     public static IEnumerable<AppDriveGrant> GrantsFor(Guid appId) =>
         BuiltinAppDriveGrants.DriveGrants.Where(g => g.AppId == appId);

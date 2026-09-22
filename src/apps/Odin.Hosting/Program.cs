@@ -140,6 +140,19 @@ namespace Odin.Hosting
                         otlp.ResourceAttributes = new Dictionary<string, object>
                         {
                             ["service.name"] = oo.ServiceName,
+                            // WHICH MACHINE WROTE THIS. Without it the collector cannot tell one
+                            // identity host from another: service.name is set per CLUSTER, and the
+                            // "Hostname" property on each record is the request's TENANT
+                            // (john.doe.id.pub), not the box. Today that is survivable because a
+                            // single host serves every name; the moment a load balancer spreads
+                            // traffic across both cores, "which core did this?" stops having an
+                            // answer - which is exactly when it is asked.
+                            //
+                            // Environment.MachineName is correct here even in Docker: the app runs
+                            // with network_mode: host, so the container inherits the host's
+                            // hostname ("i1-1") rather than a container id. Verified on the NA
+                            // fleet 2026-09-10.
+                            ["service.instance.id"] = Environment.MachineName,
                         };
                     }));
             }
@@ -174,7 +187,16 @@ namespace Odin.Hosting
 
         //
 
-        public static IHostBuilder CreateHostBuilder(string[] args)
+        /// <param name="args">Command-line arguments passed through to the host builder.</param>
+        /// <param name="preserveStaticLogger">
+        /// When false (production), Serilog assigns the process-wide <c>Log.Logger</c> to this host's
+        /// logger. That is fine for a process that hosts one server, and wrong for a test process that
+        /// boots many in parallel: Serilog builds its <c>ILoggerFactory</c> with a null logger in that
+        /// mode, so an injected <c>ILogger&lt;T&gt;</c> resolves <c>Log.Logger</c> at each write and
+        /// every already-booted host starts writing into the newest host's sinks. Pass true to leave
+        /// the static logger alone and keep each host's events in its own sinks. See issue #1775.
+        /// </param>
+        public static IHostBuilder CreateHostBuilder(string[] args, bool preserveStaticLogger = false)
         {
             var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
 
@@ -195,7 +217,7 @@ namespace Odin.Hosting
                 .UseSerilog((context, services, loggerConfiguration) =>
                 {
                     CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
-                })
+                }, preserveStaticLogger: preserveStaticLogger)
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory())
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
@@ -233,7 +255,17 @@ namespace Odin.Hosting
                             var reservedHttpsPorts = odinConfig.Host.IpAddressListenList.Select(x => x.HttpsPort);
                             if (odinConfig.Admin.ApiEnabled && !reservedHttpsPorts.Contains(odinConfig.Admin.ApiPort))
                             {
-                                kestrelOptions.Listen(IPAddress.Any, odinConfig.Admin.ApiPort,
+                                // Was hardcoded to IPAddress.Any. That made the admin API the one
+                                // listener a deployment could not place: everything else here binds
+                                // an address from config, so it can be made unreachable BY
+                                // CONSTRUCTION, while this one could only be closed by a firewall
+                                // rule - one line of defence where the rest have two, and a flushed
+                                // ruleset exposes it.
+                                //
+                                // Default is unchanged ("0.0.0.0"), because Odin.Cli is documented
+                                // to reach this port over the network.
+                                kestrelOptions.Listen(IPAddress.Parse(odinConfig.Admin.ApiBindAddress),
+                                    odinConfig.Admin.ApiPort,
                                     options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
                             }
                         })
@@ -276,7 +308,7 @@ namespace Odin.Hosting
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
                 var (cert, requireClientCertificate) =
-                    await ServerCertificateSelector(hostName, odinConfig, serviceProvider, cancellationToken);
+                    await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {
@@ -317,17 +349,39 @@ namespace Odin.Hosting
 
         //         
 
-        private static readonly string[] NoSans = [];
+        private static void WarnIfSlow(string hostName, Stopwatch sw)
+        {
+            if (sw.Elapsed > CertificateSelectorSlowThreshold)
+            {
+                Log.Warning(
+                    "Certificate lookup for {hostName} took {elapsed}s on the TLS handshake path",
+                    hostName, sw.ElapsedMilliseconds / 1000.0);
+            }
+        }
+
+        //
+
+        // The handshake timeout is 60s; anything on this path that takes seconds is worth a log
+        // line, because it is paid per connection.
+        private static readonly TimeSpan CertificateSelectorSlowThreshold = TimeSpan.FromSeconds(5);
+
+        // NOTE no CancellationToken. Nothing in here may take long enough to need one now that
+        // issuance is out of band, and accepting one invites putting the order back on this path.
         private static async Task<(X509Certificate2 certificate, bool requireClientCertificate)> ServerCertificateSelector(
             string hostName,
             OdinConfiguration config,
-            IServiceProvider serviceProvider,
-            CancellationToken cancellationToken = default)
+            IServiceProvider serviceProvider)
         {
             if (Log.IsEnabled(LogEventLevel.Verbose))
             {
                 Log.Verbose("Getting certificate for {host}", hostName);
             }
+
+            // Times the WHOLE selector. Bracketing only the issuance request would measure the
+            // one call that cannot be slow (it is Task.FromResult by construction) and miss the
+            // registry resolve and the certificate store read - which misses the store's cache
+            // and does a scoped DB read on every connection to a certless domain.
+            var sw = Stopwatch.StartNew();
 
             if (string.IsNullOrWhiteSpace(hostName))
             {
@@ -365,6 +419,7 @@ namespace Odin.Hosting
                 Log.Verbose(
                     "Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host",
                     hostName);
+                WarnIfSlow(hostName, sw);
                 return (null, false);
             }
 
@@ -376,35 +431,63 @@ namespace Odin.Hosting
             var certificate = await certificateService.GetCertificateAsync(domain);
             if (certificate != null)
             {
+                WarnIfSlow(hostName, sw);
                 return (certificate, requireClientCertificate);
             }
 
             // 
-            // Tenant or system found, but no certificate. Create it.
+            // Tenant or system found, but no certificate yet. Ask for one to be issued.
+            // The SAN set is decided by the background issuer, which is the only thing that
+            // orders now, so it is not worked out here any more.
             //
 
             // Sanity #1
             if (config.Host.DefaultHttpPort != 80)
             {
                 Log.Error("Lets-encrypt requires port 80 for HTTP-01 challenge");
+                WarnIfSlow(hostName, sw);
                 return (null, false);
             }
 
-            var sans = NoSans;
-            if (idReg != null)
+            //
+            // NOTE: this is the TLS handshake path, one call per inbound connection, and it is
+            // bounded by a 60s handshake deadline (see handshakeTimeoutTimeSpan above). It must
+            // never place the ACME order itself. An order takes minutes; running it here means
+            // the connection that starts it stalls until the deadline kills it, mid-order, after
+            // the CA has already been asked to validate - which spends the rate-limit allowance
+            // and yields nothing. That was the 2026-09-08 incident. Ask the background issuer
+            // instead and serve nothing this time round; the client retries and finds the
+            // certificate waiting.
+            //
+            var issuanceRequested = false;
+            try
             {
-                sans = idReg.GetSans();
+                issuanceRequested = await certificateService.RequestIssuanceAsync(domain);
+            }
+            catch (OperationCanceledException)
+            {
+                return (null, false);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Error requesting certificate for {hostName}: {error}", hostName, e.Message);
+                return (null, false);
             }
 
-            certificate = await certificateService.CreateCertificateAsync(domain, sans, cancellationToken);
+            WarnIfSlow(hostName, sw);
 
-            // Sanity #2
-            if (certificate == null)
+            if (issuanceRequested)
             {
-                Log.Warning("No certificate configured for {hostName}", hostName);
+                Log.Warning("No certificate yet for {hostName}; issuance requested", hostName);
+            }
+            else
+            {
+                // Suppressed by backoff or throttle - saying "issuance requested" here would
+                // misdescribe what happened, once per connection, for as long as it lasts.
+                Log.Debug("No certificate for {hostName}; issuance not requested this time", hostName);
             }
 
-            return (certificate, requireClientCertificate);
+            return (null, false);
         }
 
         //

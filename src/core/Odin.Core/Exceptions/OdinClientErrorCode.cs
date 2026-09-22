@@ -33,8 +33,12 @@ public enum OdinClientErrorCode
     IdentityAlreadyFollowed = 3009,
     CannotGrantAutoConnectedMoreCircles = 3010,
     IncomingRequestNotFound = 3011,
+    CannotClearReviewWhilePersonalCircleMember = 3012,
     CannotGrantKeysOnAmbientCircle = 3013,
     CannotGrantReadOnAmbientCircle = 3014,
+    CircleAlreadyHasOwningApp = 3015,
+    CircleNotFound = 3016,
+    CannotReassignSystemCircle = 3017,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -42,6 +46,14 @@ public enum OdinClientErrorCode
     DriveAliasAndTypeAlreadyExists = 4003,
     InvalidGrantNonExistingDrive = 4004,
     CannotAllowSubscriptionsOnOwnerOnlyDrive = 4004,
+    DriveAlreadyHasOwningApp = 4005,
+    CannotSetOwningAppOnSystemDrive = 4006,
+    /// <summary>
+    /// No longer thrown as of v19.  Its only source was drive adoption refusing to rename a slug the
+    /// drive already carried; adoption now takes the caller's slug, because the app half of the address
+    /// changes with the owner anyway.  Kept so the numbering stays a stable wire contract.
+    /// </summary>
+    DriveSlugAlreadySet = 4007,
 
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,

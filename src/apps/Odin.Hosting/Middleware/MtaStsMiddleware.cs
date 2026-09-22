@@ -17,11 +17,26 @@ namespace Odin.Hosting.Middleware;
 public sealed class MtaStsMiddleware(RequestDelegate next, OdinConfiguration config)
 {
     private const string HostPrefix = DnsConfigurationSet.PrefixMtaSts + ".";
+    private static readonly PathString AcmeChallengePath = new("/.well-known/acme-challenge");
 
     public async Task Invoke(HttpContext context)
     {
         var tenantMail = config.Email.TenantMail;
         if (!tenantMail.Enabled || !context.Request.Host.Host.StartsWith(HostPrefix))
+        {
+            await next(context);
+            return;
+        }
+
+        //
+        // The HTTP-01 challenge for THIS host must reach CertesAcmeMiddleware, which runs after
+        // us. Without this, every path but the policy 404s - including the challenge - so the
+        // mta-sts SAN could never validate on any host with tenant mail enabled, which is the
+        // only configuration in which it is requested. That deterministic 404 is what Let's
+        // Encrypt was counting against the failed-authorization allowance on 2026-09-08.
+        // RedirectIfNotApexMiddleware avoids the same trap by passing plain HTTP through.
+        //
+        if (context.Request.Path.StartsWithSegments(AcmeChallengePath))
         {
             await next(context);
             return;

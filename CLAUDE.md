@@ -12,6 +12,10 @@ ODIN-CORE (Homebase.ID) is a decentralized identity platform providing self-sove
 # Build
 dotnet build ./odin-core.sln
 
+# Release build -- ALWAYS pass --warnaserror. CI does, so a warning that a Debug or a plain
+# Release build merely prints will fail the build there before any test runs.
+dotnet build ./odin-core.sln --configuration Release --warnaserror
+
 # Run all tests
 dotnet test ./odin-core.sln
 
@@ -31,6 +35,16 @@ docker/start-dev-servers.sh
 Test framework is **NUnit** across 10 test projects (~2,000+ tests total). Tests are under `tests/` mirroring the `src/` structure. Integration tests in `Odin.Hosting.Tests` (~933 tests, the largest project) use `WebScaffold` for test server setup and pre-built test identities (frodo, sam, pippin, merry `.dotyou.cloud`).
 
 **Note:** `dotnet test` CLI runs in NUnit "Non-Explicit" mode, which excludes `[Explicit]` tests. The CLI total will be lower than Visual Studio Test Explorer's count. This is expected — not missing tests.
+
+**Release builds must use `--warnaserror`.** CI builds Release that way, so warnings are errors
+there: a nullable dereference or an `async` method with nothing to await passes locally and fails
+CI at the Build step, before a single test runs. To reproduce CI exactly, including its define
+constants (note the escaped `%3B` separators -- an unescaped `;` is parsed as a switch and fails):
+
+```bash
+dotnet build --configuration Release --warnaserror \
+  "-p:DefineConstants=RELEASE%3BTRACE%3BCI_GITHUB%3BCI_LINUX%3BRUN_REDIS_TESTS%3BRUN_S3_TESTS" ./odin-core.sln
+```
 
 **Flaky tests:** `docs/flakytests.md` is the register of tests that fail intermittently or only in certain environments. Check it before concluding a red test is caused by your change, and **add an entry every time you find a new one** — including ones that "just need a re-run". Confirm a failure is pre-existing by running it on a clean tree (`git stash`) and by checking recent `main` runs, and record that evidence in the entry.
 
@@ -132,6 +146,14 @@ Custom crypto layer in `Odin.Core.Cryptography`. AES-GCM (preferred) and AES-CBC
 
 ## CI / CD
 Do NOT use slash (/) in Git branch names.
+
+## Before you merge: remind me to run a simplify pass
+
+Before a PR is opened or merged, remind me to run `/simplify` on the branch. Ask -- do not run it unprompted, and do not assume it already happened. Only an explicit "no" declines it; if I do not answer, presume I did not see the reminder and say it again rather than deciding for me.
+
+Why it is worth the nag: review reads a diff for correctness, and rarely notices that the diff re-implements a helper this codebase already has, that a block was copy-pasted inside the same PR, that a field is derivable from another, or that work landed on a path that runs per request. Those cost nothing to fix on the branch and get expensive once a second caller copies them -- and a copy that outlives review is how two call sites end up answering the same question differently.
+
+If a finding is a design change rather than a cleanup, file it instead of widening the PR.
 
 ## Reporting findings
 

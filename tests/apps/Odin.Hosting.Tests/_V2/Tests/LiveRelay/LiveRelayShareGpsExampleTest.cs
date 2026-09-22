@@ -27,6 +27,10 @@ namespace Odin.Hosting.Tests._V2.Tests.LiveRelay;
 ///   3) sender POSTs /api/v2/live-relay with { channelKey, recipients, blob }
 ///   4) recipient receives a LiveRelay notification carrying { senderOdinId, channelKey, blob,
 ///      receivedAt }, filters by the channelKey of its open session, decodes the blob, and draws it
+///
+/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>),
+/// because step 2 opens a real WebSocket — an explicit non-goal of the fast framework, which runs
+/// TLS-less over <c>TestServer</c> and hosts no WS endpoint.
 /// </summary>
 [TestFixture]
 public class LiveRelayShareGpsExampleTest

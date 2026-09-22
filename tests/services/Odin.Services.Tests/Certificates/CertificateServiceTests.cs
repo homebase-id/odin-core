@@ -17,7 +17,10 @@ using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.PubSub;
 using Odin.Core.X509;
+using Odin.Services.Background;
+using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
@@ -166,7 +169,12 @@ public class CertificateServiceTests
                 .As<ICertesAcme>().SingleInstance();
             cb.RegisterInstance(new CertificateStorageKey(config.CertificateRenewal.StorageKey)).SingleInstance();
             cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
+            cb.AddSystemPubSub(useRedis);
             cb.RegisterType<CertificateService>().As<ICertificateService>().SingleInstance();
+            // The real notifier needs the background-service manager, which this harness does
+            // not start; the tests call the service directly and never need a pulse delivered.
+            cb.RegisterInstance<IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>>(
+                new NoopIssuanceNotifier()).SingleInstance();
 
             cb.RegisterModule(new LoggingAutofacModule());
 
@@ -299,10 +307,9 @@ public class CertificateServiceTests
     //
 }
 
+//
 
-
-
-
-
-
-
+file sealed class NoopIssuanceNotifier : IBackgroundServiceNotifier<UpdateCertificatesBackgroundService>
+{
+    public Task NotifyWorkAvailableAsync(string? serviceIdentifier = null) => Task.CompletedTask;
+}

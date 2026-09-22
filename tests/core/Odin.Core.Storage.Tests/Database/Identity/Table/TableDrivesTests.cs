@@ -1,4 +1,6 @@
 using System;
+using System.Data;
+using Odin.Core.Storage.Database.Identity.Connection;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
@@ -12,7 +14,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
     public class TableDrivesTests : IocTestBase
     {
-        private DrivesRecord CreateDrivesRecord()
+        internal DrivesRecord CreateDrivesRecord()
         {
             var mk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var secret = new SensitiveByteArray(mk.GetKey());
@@ -32,6 +34,63 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 EncryptedIdValue64 = encryptedIdValue.ToBase64(),
                 detailsJson = OdinSystemSerializer.Serialize("details"),
             };
+        }
+
+        /// <summary>
+        /// The count must be scoped to this identity. The generated CRUD's GetCountAsync is a bare
+        /// "SELECT COUNT(*) FROM Drives" with no identityId filter, which is accidentally right on
+        /// SQLite (one database file per tenant) and returns the whole fleet's drives on Postgres,
+        /// where every tenant shares one database.
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task GetCountAsyncIsScopedToTheIdentity(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tbl = scope.Resolve<TableDrives>();
+
+            await tbl.InsertAsync(CreateDrivesRecord());
+            await tbl.InsertAsync(CreateDrivesRecord());
+
+            // A drive belonging to a different identity. Inserted with raw SQL because the table
+            // wrapper always stamps the ambient identity onto the record.
+            await InsertForeignIdentityDriveAsync(scope, Guid.NewGuid());
+
+            Assert.That(await tbl.GetCountAsync(), Is.EqualTo(2));
+        }
+
+        private static async Task InsertForeignIdentityDriveAsync(ILifetimeScope scope, Guid foreignIdentityId)
+        {
+            var record = new TableDrivesTests().CreateDrivesRecord();
+            var factory = scope.Resolve<ScopedIdentityConnectionFactory>();
+            await using var cn = await factory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+
+            cmd.CommandText =
+                """
+                INSERT INTO drives (identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,
+                                    MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,
+                                    detailsJson,created,modified)
+                VALUES (@identityId,@DriveId,@StorageKeyCheckValue,@DriveType,@DriveName,
+                        @MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,
+                        @detailsJson,0,0);
+                """;
+
+            cmd.AddParameter("@identityId", DbType.Binary, foreignIdentityId);
+            cmd.AddParameter("@DriveId", DbType.Binary, record.DriveId);
+            cmd.AddParameter("@StorageKeyCheckValue", DbType.Binary, record.StorageKeyCheckValue);
+            cmd.AddParameter("@DriveType", DbType.Binary, record.DriveType);
+            cmd.AddParameter("@DriveName", DbType.String, record.DriveName);
+            cmd.AddParameter("@MasterKeyEncryptedStorageKeyJson", DbType.String, record.MasterKeyEncryptedStorageKeyJson);
+            cmd.AddParameter("@EncryptedIdIv64", DbType.String, record.EncryptedIdIv64);
+            cmd.AddParameter("@EncryptedIdValue64", DbType.String, record.EncryptedIdValue64);
+            cmd.AddParameter("@detailsJson", DbType.String, record.detailsJson);
+
+            await cmd.ExecuteNonQueryAsync();
         }
 
         [Test]

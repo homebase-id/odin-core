@@ -40,12 +40,12 @@ public sealed partial class OdinHost
     /// <see cref="ResetAsync"/> calls restore from these snapshots.
     /// </summary>
     /// <remarks>
-    /// Clears each tenant's connection pool before snapshotting —
-    /// <c>BackupSqliteDatabase.Execute</c> switches the journal mode via a PRAGMA, which
-    /// fails with "database is locked" if any pooled connection from the warm-up still has the
-    /// file open. We don't dispose the tenant scope itself: the multi-tenant middleware looks the
-    /// scope up via <c>GetTenantScope</c> (which throws if absent) rather than recreating it, so
-    /// disposing the scope would 500 every subsequent request.
+    /// Clears each tenant's connection pool before snapshotting, so the warm-up's connections are
+    /// not carried into the tests. The snapshot itself goes through SQLite's backup API and leaves
+    /// the live database in WAL mode, as production runs it. We don't dispose the tenant scope
+    /// itself: the multi-tenant middleware looks the scope up via <c>GetTenantScope</c> (which
+    /// throws if absent) rather than recreating it, so disposing the scope would 500 every
+    /// subsequent request.
     /// </remarks>
     public async Task TakeBaselineAsync()
     {
@@ -75,8 +75,9 @@ public sealed partial class OdinHost
 
     /// <summary>
     /// Reset every snapshotted tenant to its baseline. For each snapshotted tenant: drain its
-    /// connection pool (so the DB file is no longer held open), copy the snapshot back over the
-    /// live identity DB, wipe the non-DB tenant directories (payloads / temp / inbox), and drain
+    /// connection pool, restore the snapshot into the live identity DB through SQLite (correct even
+    /// if a request from the previous test still holds a connection), wipe the non-DB tenant
+    /// directories (payloads / temp / inbox), and drain
     /// the tenant's <see cref="PeerInboxDriveQueue"/> channel. The tenant scope stays alive — the
     /// next request resolves a fresh connection from the now-empty pool against the restored file.
     /// Process-wide: the shared FusionCache singleton is cleared (every fixture has its own host,
@@ -92,6 +93,19 @@ public sealed partial class OdinHost
     /// <c>TenantServices.ConfigureTenantServices</c> that buffers mutable state outside DB / cache —
     /// notably the two <c>SharedDeviceSocketCollection&lt;T&gt;</c> registries for app + peer-app
     /// notifications. The current suite doesn't open WebSockets; add a drain helper if/when one does.
+    /// Also: the SYSTEM database. Only identity DBs are snapshotted, so rows written there survive a
+    /// reset — <c>TableJobs</c> in particular, which every TTL'd upload and every scheduled
+    /// notification writes to. A fixture that cares clears them itself; see
+    /// <c>Ported/Notifications/ScheduledNotificationTests.ClearScheduledJobs</c>. Lift that into this
+    /// method if a third fixture ever needs it — and note the counter has moved:
+    /// <c>Ported/Admin/AdminControllerTest</c> is now a second fixture depending on system-DB
+    /// survival, since its export job outlives the reset and the test deletes it as part of its own
+    /// assertions.
+    /// Also: <b>identity-registry state</b>. A tenant's <c>Enabled</c> and
+    /// <c>EnablePublicWebPresence</c> flags are written to the registry, not to the identity DB, so
+    /// toggling one survives a reset and leaks into every later test in the fixture. A fixture that
+    /// toggles either restores it — see <c>Ported/Admin/AdminControllerTest</c>, which re-enables in
+    /// a teardown so a mid-test failure cannot leave the tenant disabled.
     /// </para>
     /// <para><b>FusionCache clear scope:</b> <see cref="IFusionCache"/> is registered as a true
     /// singleton at the process container; tenant-keyed cache prefixes mean different tenants

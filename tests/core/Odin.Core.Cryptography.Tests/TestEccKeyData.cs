@@ -8,6 +8,10 @@ namespace Odin.Core.Cryptography.Tests
     using System;
     using System.Collections.Generic;
     using System.Text.Json;
+    using Org.BouncyCastle.Crypto.Parameters;
+    using Org.BouncyCastle.Security;
+    using Org.BouncyCastle.Utilities;
+    using NetCrypto = System.Security.Cryptography;
 
     [TestFixture]
     public class TestEccKeyData
@@ -259,6 +263,89 @@ namespace Odin.Core.Cryptography.Tests
 
             // The shared secrets should be identical
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretA.GetKey(), sharedSecretB.GetKey()));
+        }
+        // #1728: the shared secret is the X coordinate encoded at the curve's field length. About 1 exchange in 256
+        // has an X with a leading zero byte, where the old ToByteArrayUnsigned() encoding came out a byte short and
+        // derived a different key than the client. These tests find such a pair so that case is exercised
+        // deterministically, and use .NET's own ECDH as an independent fixed-length peer - standing in for WebCrypto
+        // (odin-js) and JCA (chat-kmp, via cryptography-kotlin), which is what every client actually derives.
+
+        [Test]
+        public void GetEcdhSharedSecret_LeadingZeroSharedSecret_MatchesFixedLengthPlatformEcdh()
+        {
+            var (serverPwd, server, clientPwd, client) = CreatePairWithLeadingZeroSharedSecret();
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+
+            var rawSecret = PlatformRawSecret(client, clientPwd, server);
+            Assert.That(rawSecret.Length, Is.EqualTo(48));
+            Assert.That(rawSecret[0], Is.EqualTo(0), "the pair must exercise the leading-zero case");
+
+            var platformKey = NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, rawSecret, 16, salt, []);
+            var serverKey = server.GetEcdhSharedSecret(serverPwd, client, salt).GetKey();
+
+            Assert.That(serverKey, Is.EqualTo(platformKey));
+            Assert.That(client.GetEcdhSharedSecret(clientPwd, server, salt).GetKey(), Is.EqualTo(serverKey));
+        }
+
+        [Test]
+        public void GetEcdhSharedSecret_MatchesFixedLengthPlatformEcdh()
+        {
+            var serverPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var server = new EccFullKeyData(serverPwd, EccKeySize.P384, 2);
+            var clientPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var client = new EccFullKeyData(clientPwd, EccKeySize.P384, 2);
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+
+            var rawSecret = PlatformRawSecret(client, clientPwd, server);
+            var platformKey = NetCrypto.HKDF.DeriveKey(NetCrypto.HashAlgorithmName.SHA256, rawSecret, 16, salt, []);
+
+            Assert.That(server.GetEcdhSharedSecret(serverPwd, client, salt).GetKey(), Is.EqualTo(platformKey));
+        }
+
+        /// <summary>Finds a key pair whose shared secret X starts with a zero byte, using the platform ECDH so the
+        /// search does not depend on the encoding under test.</summary>
+        private static (SensitiveByteArray serverPwd, EccFullKeyData server, SensitiveByteArray clientPwd, EccFullKeyData client)
+            CreatePairWithLeadingZeroSharedSecret()
+        {
+            var serverPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var server = new EccFullKeyData(serverPwd, EccKeySize.P384, 2);
+
+            for (var attempt = 0; attempt < 20_000; attempt++)
+            {
+                var clientPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+                var client = new EccFullKeyData(clientPwd, EccKeySize.P384, 2);
+                if (PlatformRawSecret(client, clientPwd, server)[0] == 0)
+                {
+                    return (serverPwd, server, clientPwd, client);
+                }
+            }
+
+            Assert.Fail("no key pair with a leading-zero shared secret found");
+            return default;
+        }
+
+        private static byte[] PlatformRawSecret(EccFullKeyData local, SensitiveByteArray localPwd, EccPublicKeyData remote)
+        {
+            var localPrivate = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(Convert.FromBase64String(local.privateDerBase64(localPwd)));
+
+            using var localEcdh = NetCrypto.ECDiffieHellman.Create(ToNetParameters(local, localPrivate));
+            using var remoteEcdh = NetCrypto.ECDiffieHellman.Create(ToNetParameters(remote, null));
+            return localEcdh.DeriveRawSecretAgreement(remoteEcdh.PublicKey);
+        }
+
+        private static NetCrypto.ECParameters ToNetParameters(EccPublicKeyData key, ECPrivateKeyParameters privateKey)
+        {
+            var publicKey = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(key.publicKey);
+            return new NetCrypto.ECParameters
+            {
+                Curve = NetCrypto.ECCurve.NamedCurves.nistP384,
+                Q = new NetCrypto.ECPoint
+                {
+                    X = BigIntegers.AsUnsignedByteArray(48, publicKey.Q.AffineXCoord.ToBigInteger()),
+                    Y = BigIntegers.AsUnsignedByteArray(48, publicKey.Q.AffineYCoord.ToBigInteger())
+                },
+                D = privateKey == null ? null : BigIntegers.AsUnsignedByteArray(48, privateKey.D)
+            };
         }
     }
 }

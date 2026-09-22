@@ -499,8 +499,11 @@ public static class HostExtensions
         // Subscribe before loading: a change announced mid-load is either at or below the version
         // load reads, and dropped, or above it, and reconciled after.
         registry.SubscribeToRegistryChangesAsync().BlockingWait();
-        registry.LoadRegistrations().BlockingWait();
+        // Same ordering for certificates: LoadRegistrations warms the certificate cache, and a
+        // certificate another node writes after that must evict what was cached here.
         var certificateStore = services.GetRequiredService<ICertificateStore>();
+        certificateStore.SubscribeToCertificateChangesAsync().BlockingWait();
+        registry.LoadRegistrations().BlockingWait();
         DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry, certificateStore);
 
         // Check for singleton dependencies
@@ -564,6 +567,19 @@ public static class HostExtensions
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)
         {
             services.StartSystemBackgroundServices().BlockingWait();
+        }
+        else
+        {
+            //
+            // UpdateCertificatesBackgroundService is the ONLY thing that orders certificates -
+            // the TLS handshake path asks it for one and serves nothing until it delivers. With
+            // system background services off there is no issuer and no backstop, so a host that
+            // terminates TLS would silently never obtain a certificate for any domain.
+            //
+            logger.LogWarning(
+                "System background services are disabled. No certificates will be ordered or " +
+                "renewed. This is only safe for hosts that do not terminate TLS, or whose " +
+                "certificates are provisioned externally.");
         }
 
         //

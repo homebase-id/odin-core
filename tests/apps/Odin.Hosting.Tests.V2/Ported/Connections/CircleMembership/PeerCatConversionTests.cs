@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
@@ -17,6 +18,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
@@ -117,6 +119,83 @@ public class PeerCatConversionTests : V2Fixture
             "an AppCircleGrant entry should have been fanned out for the app");
         Assert.That(appCircleGrants!.ContainsKey(circleX), Is.True,
             "the fanned-out AppCircleGrant should cover circleX");
+    }
+
+    [Test]
+    public async Task PeerCallFromSam_ConvertsReadDeposit_WithRealStorageKey_AndSamCanDecrypt()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // Sam can write to Frodo's trigger drive, which is what lets Sam's server call in and set off
+        // Frodo's conversion of whatever Frodo holds pending about Sam.
+        var trigger = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "trigger");
+
+        // A Read circle: the deposit has to carry a sealed storage key, unlike the Write|React case above.
+        var secretDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(secretDrive, "secretDrive", allowAnonymousReads: false);
+
+        var circle = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circle, "read-circle", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = secretDrive, Permission = DrivePermission.Read } }
+            },
+            PermissionSet = new PermissionSet(new List<int>())
+        });
+
+        var app = await AppSession.SetupAsync(frodo, secretDrive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circle, sam.Identity);
+        Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
+
+        var storage = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
+        var before = await storage.GetAsync(sam.Identity);
+        var pending = before!.PeerKeyStore.DepositedGrants.SingleOrDefault(d => d.CircleId == circle);
+        Assert.That(pending, Is.Not.Null, "precondition: the read circle should be deposited, not minted");
+        Assert.That(pending!.DriveGrants.Single().SealedStorageKey, Is.Not.Null,
+            "precondition: a read deposit must carry the sealed storage key");
+
+        // Encrypted before conversion, so reading it back depends on the storage key the deposit carried.
+        const string plaintext = "only readable with the converted storage key";
+        var metadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Connected);
+        metadata.AppData.Content = plaintext;
+        var (upload, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(
+            secretDrive.Alias, metadata, new TransitOptions(), keyHeader: KeyHeader.NewRandom16());
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"encrypted upload failed: {upload.StatusCode}");
+        var fileId = upload.Content!.FileId;
+
+        // Sam's server calls into Frodo's -- the peer-CAT conversion trigger.
+        var triggerMetadata = SampleMetadataData.Create(fileType: MessageFileType, acl: AccessControlList.Connected);
+        triggerMetadata.AllowDistribution = true;
+        var send = await sam.Drives.Writer.UploadNewMetadata(trigger.Alias, triggerMetadata,
+            transitOptions: new TransitOptions { Recipients = new List<string> { frodo.Identity } });
+        Assert.That(send.IsSuccessStatusCode, Is.True, $"trigger upload failed: {send.StatusCode}");
+        await PeerFlow.DistributeAsync(sam, frodo, trigger);
+
+        var after = await storage.GetAsync(sam.Identity);
+        Assert.That(after!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circle), Is.False,
+            "the deposit should have converted on Sam's peer call");
+        Assert.That(after.PeerKeyStore.CircleGrants.TryGetValue(circle, out var circleGrant), Is.True,
+            "the read circle should now be a real CircleGrant");
+        var driveGrant = circleGrant!.KeyStoreKeyEncryptedDriveGrants.Single();
+        Assert.That(driveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Read), Is.True);
+        Assert.That(driveGrant.KeyStoreKeyEncryptedStorageKey, Is.Not.Null,
+            "the peer-CAT path must carry the deposited storage key into the grant, not mint it keyless");
+
+        // Strongest proof: Sam reads the encrypted file over peer and decrypts it with Sam's own shared secret,
+        // which only works if Frodo's server could recover the drive's storage key from Sam's grant.
+        var headerResp = await sam.Drives.Peer.GetFileHeaderAsync(frodo.Identity, secretDrive.Alias, fileId);
+        Assert.That(headerResp.IsSuccessStatusCode, Is.True, $"peer header read failed: {headerResp.StatusCode}");
+        var header = headerResp.Content!;
+        Assert.That(header.FileMetadata.IsEncrypted, Is.True);
+
+        var samSecret = sam.Drives.Reader.GetSharedSecret();
+        var keyHeader = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref samSecret);
+        var decrypted = keyHeader.Decrypt(header.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes();
+        Assert.That(decrypted, Is.EqualTo(plaintext));
     }
 
     [Test]

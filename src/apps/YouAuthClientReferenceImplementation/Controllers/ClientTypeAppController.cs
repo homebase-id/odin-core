@@ -298,6 +298,7 @@ public class ClientTypeAppController : BaseController
         var appParams = new YouAuthAppParameters
         {
             AppName = "third party app",
+            AppSlug = "third-party",
             AppOrigin = "dev.dotyou.cloud:3005",
             AppId = "aaaaaaaa-bbbb-cccc-dddd-cccccccccccc",
             ClientFriendly = "Firefox | macOS",

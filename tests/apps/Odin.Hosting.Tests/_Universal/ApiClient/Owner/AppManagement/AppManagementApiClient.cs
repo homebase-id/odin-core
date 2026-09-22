@@ -178,6 +178,8 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
             {
                 Name = $"Test_{appId}",
                 AppId = appId,
+
+                AppSlug = TestAppSlug.For(appId),
                 PermissionSet = appPermissions.PermissionSet,
                 Drives = appPermissions.Drives?.ToList(),
                 AuthorizedCircles = authorizedCircles,

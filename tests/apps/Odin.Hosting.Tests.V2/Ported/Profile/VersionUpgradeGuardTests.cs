@@ -1,8 +1,15 @@
+using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
 
@@ -57,5 +64,153 @@ public class VersionUpgradeGuardTests : V2Fixture
         // Back to normal once the upgrade is over.
         var after = await client.GetAsync("/api/owner/v1/circles/definitions/list");
         Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    /// <summary>
+    /// The YouAuth code-for-token exchange is refused like anything else, and says why.
+    /// </summary>
+    /// <remarks>
+    /// Pinned separately from the general case because two things now depend on this exact
+    /// behaviour, and both break quietly if it changes.
+    /// <para>
+    /// This endpoint is not an incidental casualty: approving a YouAuth sign-in means logging into
+    /// the owner console, and that login is what schedules the upgrade
+    /// (<c>OwnerAuthenticationHandler</c> -&gt; <c>VersionUpgradeScheduler</c>). So the upgrade
+    /// reliably begins between <c>authorize</c> and <c>token</c> -- the two halves of one sign-in
+    /// land on either side of it.
+    /// </para>
+    /// <para>
+    /// <c>HomeAuthenticationController.ExchangeDigestForToken</c> reads the header to tell "that
+    /// identity is upgrading, try again shortly" apart from a genuine failure. Exempt this endpoint
+    /// from the guard, or drop the header, and that becomes dead code with no test to say so.
+    /// </para>
+    /// <para>
+    /// The real caller is another identity's server with no owner token; the guard runs ahead of
+    /// authentication and does not distinguish, so the authenticated client here reaches it just
+    /// the same.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task TheYouAuthTokenExchangeIsRefusedAndSaysWhy()
+    {
+        var owner = await LoginAsOwner(Identities.TomBombadil);
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var runState = scope.Resolve<VersionUpgradeRunState>();
+        var (client, _) = owner.NewAdminHttpClient();
+
+        try
+        {
+            runState.SetRunning(true);
+
+            var response = await client.PostAsync("/api/owner/v1/youauth/token",
+                new StringContent("{}", Encoding.UTF8, "application/json"));
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable),
+                "the token exchange must be refused while an upgrade runs");
+            Assert.That(response.Headers.Contains(OdinHeaderNames.UpgradeIsRunning), Is.True,
+                "and must say why, which is the only thing that makes the failure distinguishable");
+        }
+        finally
+        {
+            runState.SetRunning(false);
+        }
+    }
+
+    /// <summary>
+    /// A browser navigated to the authorize endpoint mid-upgrade is sent to the owner console's
+    /// upgrade screen, told where to come back to.
+    /// </summary>
+    /// <remarks>
+    /// Signing in to an app navigates the browser itself to <c>authorize</c>, and the refusal above
+    /// has no body -- so the owner was shown a bare 503 by their browser. The consent screen's own
+    /// upgrade check could not help: reaching that screen depends on this very request.
+    /// </remarks>
+    [Test]
+    public async Task ABrowserNavigationIsSentToTheUpgradeScreen()
+    {
+        await WhileUpgradingAsync(async client =>
+        {
+            var response = await client.GetAsync(OwnerApiPathConstants.YouAuthV1Authorize);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect),
+                "a browser navigation must be sent somewhere that can explain itself");
+
+            var location = response.Headers.Location?.ToString() ?? "";
+            Assert.That(location, Does.StartWith($"{OwnerFrontendPathConstants.DataUpgrade}?returnUrl="),
+                "and that somewhere is the screen which polls the upgrade to completion");
+            Assert.That(WebUtility.UrlDecode(location), Does.Contain(OwnerApiPathConstants.YouAuthV1Authorize),
+                "carrying where to go back to, so the sign-in resumes rather than being abandoned");
+        });
+    }
+
+    /// <summary>
+    /// Giving consent mid-upgrade lands on the upgrade screen too, pointed back at the sign-in it
+    /// came from -- unless the form says to come back somewhere else entirely.
+    /// </summary>
+    /// <remarks>
+    /// The consent screen submits a real form POST to the same endpoint. A form carries its
+    /// parameters in the body, so coming back to the request URL would fail for want of a
+    /// redirect_uri -- the resume target is the authorize URL the form was rendered for, which the
+    /// form carries as <c>return_url</c> and which the consent handler redirects to on success.
+    /// Re-rendering consent there costs one more click and keeps the sign-in alive.
+    /// </remarks>
+    [Test]
+    public async Task ConsentGivenDuringAnUpgradeResumesAfterIt()
+    {
+        var authorizeUrl =
+            $"https://{Identities.TomBombadil}{OwnerApiPathConstants.YouAuthV1Authorize}?client_id=someapp.example.com";
+
+        await WhileUpgradingAsync(async client =>
+        {
+            var response = await client.SendAsync(ConsentPost(authorizeUrl));
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther),
+                "a posted form must be answered with a page to fetch, not a re-post");
+            Assert.That(WebUtility.UrlDecode(response.Headers.Location?.ToString() ?? ""),
+                Is.EqualTo($"{OwnerFrontendPathConstants.DataUpgrade}?returnUrl={authorizeUrl}"),
+                "and must carry the sign-in it interrupted, so the owner resumes where they were");
+
+            // A return_url pointing somewhere else would make the upgrade screen an open redirect.
+            var forged = await client.SendAsync(
+                ConsentPost($"https://evil.example.com{OwnerApiPathConstants.YouAuthV1Authorize}"));
+
+            Assert.That(forged.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable),
+                "a resume target on another host is not one we hand to a browser");
+        });
+    }
+
+    private static HttpRequestMessage ConsentPost(string returnUrl) =>
+        new(HttpMethod.Post, OwnerApiPathConstants.YouAuthV1Authorize)
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { YouAuthAuthorizeConsentGiven.ReturnUrlName, returnUrl }
+            })
+        };
+
+    /// <summary>
+    /// Runs <paramref name="body"/> against an owner client while the identity reports an upgrade in
+    /// progress, and clears the flag afterwards however it ends.
+    /// </summary>
+    /// <remarks>
+    /// The run state is a tenant singleton, so a test that left it set would hand its 503s to every
+    /// other fixture on this identity -- which is what <c>NonParallelizable</c> is guarding. One
+    /// place that knows to reset it beats four.
+    /// </remarks>
+    private async Task WhileUpgradingAsync(Func<HttpClient, Task> body)
+    {
+        var owner = await LoginAsOwner(Identities.TomBombadil);
+        var runState = Host.GetTenantScope(owner.Identity.DomainName).Resolve<VersionUpgradeRunState>();
+        var (client, _) = owner.NewAdminHttpClient();
+
+        runState.SetRunning(true);
+        try
+        {
+            await body(client);
+        }
+        finally
+        {
+            runState.SetRunning(false);
+        }
     }
 }
