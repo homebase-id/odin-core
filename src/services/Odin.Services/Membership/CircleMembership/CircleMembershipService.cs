@@ -14,6 +14,7 @@ using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -325,7 +326,7 @@ public class CircleMembershipService(
         if ((tenantContext.Settings?.HideOwnerCirclesFromApps ?? false) &&
             odinContext.Caller.OdinClientContext?.AppId != null)
         {
-            circles = circles.Where(c => c.AppId.HasValue).ToList();
+            circles = circles.Where(c => !SystemAppConstants.IsOwnerConsole(c.AppId)).ToList();
         }
 
         return circles;

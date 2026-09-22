@@ -48,6 +48,11 @@ public enum OdinClientErrorCode
     CannotAllowSubscriptionsOnOwnerOnlyDrive = 4004,
     DriveAlreadyHasOwningApp = 4005,
     CannotSetOwningAppOnSystemDrive = 4006,
+    /// <summary>
+    /// No longer thrown as of v19.  Its only source was drive adoption refusing to rename a slug the
+    /// drive already carried; adoption now takes the caller's slug, because the app half of the address
+    /// changes with the owner anyway.  Kept so the numbering stays a stable wire contract.
+    /// </summary>
     DriveSlugAlreadySet = 4007,
 
     // Drive errors 41xx

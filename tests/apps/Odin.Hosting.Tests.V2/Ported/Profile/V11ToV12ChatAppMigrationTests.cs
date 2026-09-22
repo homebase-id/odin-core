@@ -161,29 +161,4 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
         return app.Grant?.PermissionSet?.Keys?.Contains(PermissionKeys.ManageCircleMembership) ?? false;
     }
 
-    /// <summary>
-    /// Builds an owner context carrying the master key by replaying the production path used by
-    /// <c>VersionUpgradeService</c> (<see cref="OwnerAuthenticationService.UpdateOdinContextAsync"/>).
-    /// </summary>
-    private async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller.AssertHasMasterKey();
-        return odinContext;
-    }
 }

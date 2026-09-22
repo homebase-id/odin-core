@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System;
 using System.Linq;
 using System.Net;
@@ -56,16 +55,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 [TestFixture]
 public class V1PeerReadReceiptTestsSuccess : V2Fixture
 {
-    /// <remarks>
-    /// This fixture drives concurrent peer writes against one tenant's identity DB, and under load a
-    /// writer can hold the lock long enough for a concurrent request to log <c>SQLite Error 5</c>.
-    /// Tolerated here rather than globally: the storage layer sets no <c>busy_timeout</c> pragma and
-    /// no command timeout, so this is a real contention question (#1777) rather than a harness
-    /// artefact, and suppressing it suite-wide would hide it everywhere.
-    /// </remarks>
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["SQLite Error 5: 'database is locked'"];
-
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]

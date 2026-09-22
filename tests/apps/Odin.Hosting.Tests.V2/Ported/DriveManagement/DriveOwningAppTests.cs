@@ -5,12 +5,17 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.Tests.V2.Ported.DriveManagement;
 
@@ -27,7 +32,7 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveManagement;
 public class DriveOwningAppTests : V2Fixture
 {
     [Test]
-    public async Task AdoptingAnUnownedDriveSetsTheAppAndDerivesASlug()
+    public async Task AdoptingAnOwnerConsoleDriveSetsTheAppAndKeepsItAddressed()
     {
         var owner = await LoginAsOwner();
 
@@ -37,8 +42,9 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Field Notes", allowAnonymousReads: false);
 
         var before = await owner.Admin.GetDrive(drive);
-        Assert.That(before.AppId, Is.Null, "a drive created without an app must start unowned");
-        Assert.That(before.DriveSlug, Is.Null, "AppId and DriveSlug are set together or both null");
+        Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "a drive created without an app belongs to the owner console");
+        Assert.That(before.DriveSlug, Is.Not.Null.And.Not.Empty, "and is addressed from the start");
 
         var response = await SetOwningApp(owner, drive, appId);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
@@ -50,10 +56,8 @@ public class DriveOwningAppTests : V2Fixture
         // row with no slug would sit outside the constraint entirely.
         Assert.That(after.DriveSlug, Is.Not.Null.And.Not.Empty);
 
-        // DriveTypeSlug is deliberately NOT asserted non-null. TypeSlugFor returns null for a drive
-        // type it does not recognise, and this drive has a random one -- a type slug is a readable
-        // category, not an address, so having none is a correct answer rather than a gap.
-        Assert.That(after.DriveTypeSlug, Is.Null);
+        // A drive of a type nothing recognises still gets a readable category: "drive".
+        Assert.That(after.DriveTypeSlug, Is.EqualTo(DriveSlugGenerator.DefaultTypeSlug));
 
         // Adoption is an addressing change; it must not touch what the drive is or holds.
         Assert.That(after.Name, Is.EqualTo(before.Name));
@@ -100,7 +104,8 @@ public class DriveOwningAppTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
         var secondAfter = await owner.Admin.GetDrive(second);
-        Assert.That(secondAfter.AppId, Is.Null, "the refused call must leave the drive adoptable");
+        Assert.That(secondAfter.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "the refused call must leave the drive with the owner, and so still adoptable");
     }
 
     [Test]
@@ -178,7 +183,8 @@ public class DriveOwningAppTests : V2Fixture
         var response = await SetOwningApp(owner, drive, Guid.NewGuid());
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
-        Assert.That((await owner.Admin.GetDrive(drive)).AppId, Is.Null, "the drive must still be adoptable");
+        Assert.That((await owner.Admin.GetDrive(drive)).AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "the drive must still be the owner's, and so still adoptable");
     }
 
     [Test]
@@ -195,7 +201,7 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Something Else Entirely", allowAnonymousReads: false, driveSlug: "news");
 
         var before = await owner.Admin.GetDrive(drive);
-        Assert.That(before.AppId, Is.Null);
+        Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId));
         Assert.That(before.DriveSlug, Is.EqualTo("news"), "precondition: the drive carries a slug already");
 
         // No slug supplied -- the pre-existing one must survive rather than being derived from
@@ -224,10 +230,11 @@ public class DriveOwningAppTests : V2Fixture
     }
 
     [Test]
-    public async Task AdoptingWithADifferentSlugThanTheDriveCarriesIsRefused()
+    public async Task AdoptingWithADifferentSlugTakesTheSuppliedOne()
     {
-        // Two explicit answers that disagree. Refused rather than picking one, so renaming an
-        // address is never something adoption does on the way past.
+        // The slug the drive carries is an owner-console address, and adoption changes the app half
+        // anyway -- so nothing the caller can reach today is being renamed underneath them, and the
+        // app taking the drive gets to say what it is called.
         var owner = await LoginAsOwner();
 
         var appId = await owner.Admin.RegisterBareApp();
@@ -236,11 +243,11 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: "news");
 
         var response = await SetOwningApp(owner, drive, appId, "headlines");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
 
         var after = await owner.Admin.GetDrive(drive);
-        Assert.That(after.AppId, Is.Null, "the refused call must leave the drive adoptable");
-        Assert.That(after.DriveSlug, Is.EqualTo("news"), "and must leave its slug alone");
+        Assert.That(after.AppId, Is.EqualTo(appId));
+        Assert.That(after.DriveSlug, Is.EqualTo("headlines"));
     }
 
     [Test]
@@ -392,6 +399,68 @@ public class DriveOwningAppTests : V2Fixture
     /// its helpers throw on non-2xx — so the calls this fixture asserts refusals on go through the
     /// Refit interface directly, via <see cref="OwnerSession.RefitFor{T}"/>.
     /// </summary>
+    //
+    // Creation: an app owns the drives it asks for, and it does not exist yet when they are made.
+    //
+
+    [Test]
+    public async Task ADriveMayNameAnAppThatIsNotRegisteredYet()
+    {
+        // The app is taken on trust at create time, and it has to be: a registration is granted its
+        // drives, and ExchangeGrantService refuses a grant naming a drive that does not exist -- so
+        // the drives are created first, at which point the app they belong to is not registered.
+        // Refusing an unregistered app here would make the two requirements mutually exclusive.
+        var owner = await LoginAsOwner();
+
+        var unregistered = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "Field Notes", allowAnonymousReads: false,
+            appId: unregistered, driveSlug: "field-notes", driveTypeSlug: "notes");
+
+        var created = await owner.Admin.GetDrive(drive);
+        Assert.That(created.AppId, Is.EqualTo(unregistered), "the app named in the request owns the drive");
+        Assert.That(created.DriveSlug, Is.EqualTo("field-notes"));
+        Assert.That(created.DriveTypeSlug, Is.EqualTo("notes"));
+    }
+
+    [Test]
+    public async Task AnAppRegistersWithADriveItAskedForAndOwns()
+    {
+        // The whole sequence the owner console runs for a third-party app, in order. Either half
+        // rejecting the other strands it: nothing the app asked for can be created after it is
+        // registered either, because the grant is written at registration.
+        var owner = await LoginAsOwner();
+
+        var appId = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+
+        await owner.Admin.CreateDrive(drive, "Third Party Library", allowAnonymousReads: false,
+            appId: appId, driveSlug: "library", driveTypeSlug: "library");
+
+        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest
+        {
+            Drives = new[]
+            {
+                new DriveGrantRequest
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = drive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            }
+        });
+
+        var after = await owner.Admin.GetDrive(drive);
+        Assert.That(after.AppId, Is.EqualTo(appId), "the drive stays with the app that asked for it");
+        Assert.That(after.DriveSlug, Is.EqualTo("library"));
+
+        var registration = await owner.RefitFor<IRefitOwnerAppRegistration>()
+            .GetRegisteredApp(new GetAppRequest { AppId = appId });
+        Assert.That(registration.Content, Is.Not.Null, "and the app is registered");
+    }
+
     private static Task<ApiResponse<HttpContent>> SetOwningApp(
         OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug = null, string driveTypeSlug = null) =>
         owner.RefitFor<IRefitDriveManagement>().SetDriveOwningApp(new SetDriveOwningAppRequest

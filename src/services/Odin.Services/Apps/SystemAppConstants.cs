@@ -33,6 +33,34 @@ public static class SystemAppConstants
     /// </para>
     /// </remarks>
     public static readonly Guid SystemAppId = Guid.Parse("ac126e09-54cb-4878-a690-856be692da16");
+
+    /// <summary>
+    /// The owner acting as themselves: drives and circles the owner console creates for the identity
+    /// rather than for an app -- the wallet drive, ad-hoc drives, the owner's own circles.
+    /// </summary>
+    /// <remarks>
+    /// Every drive and circle carries an <c>AppId</c>, so "the owner's own" is a real owner rather than a
+    /// null.  That is what makes <c>UNIQUE(identityId, AppId, DriveSlug)</c> cover every slug: NULLs do not
+    /// collide in a unique index in either dialect, so an ownerless row's slug would be unconstrained.
+    /// This is the one statement of that rule; the places that rely on it point here rather than repeat it.
+    /// <para>
+    /// The same id as <see cref="SystemAppId"/>, which already owns what ships with an identity.  Named
+    /// separately because the two readings are different -- "the platform made this" and "the owner made
+    /// this, as themselves" -- and a later split would otherwise have to find every call site again.
+    /// </para>
+    /// </remarks>
+    public static readonly Guid OwnerConsoleAppId = SystemAppId;
+
+    /// <summary>True when the drive or circle belongs to the owner rather than to an app.</summary>
+    /// <remarks>
+    /// A null reads the same way.  Rows predating the "every drive and circle has an owner" rule carry no
+    /// <c>AppId</c>, which has always meant the owner's own, and the migration that stamps them runs after
+    /// the code is deployed -- so both spellings are live at once and both answer true here.  Call sites
+    /// then say what they mean ("is this the owner's?") instead of testing for a null and having to be
+    /// found again when the nulls are gone.
+    /// </remarks>
+    public static bool IsOwnerConsole(Guid? appId) => !appId.HasValue || appId == OwnerConsoleAppId;
+
     public static readonly Guid ChatAppId = Guid.Parse("2d781401-3804-4b57-b4aa-d8e4e2ef39f4");
     public static readonly Guid FeedAppId = Guid.Parse("5f887d80-0132-4294-ba40-bda79155551d");
     public static readonly Guid PhotoAppId = Guid.Parse("32f0bdbf-017f-4fc0-8004-2d4631182d1e");
