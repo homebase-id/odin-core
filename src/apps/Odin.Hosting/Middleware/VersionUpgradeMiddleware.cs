@@ -56,25 +56,18 @@ namespace Odin.Hosting.Middleware
                 // data-conversion controller mutates, so it stays behind the guard.
                 if (!path.Contains(OwnerDataConversionController.VersionInfoEndpoint))
                 {
-                    // Authorizing an app or a YouAuth sign-in walks the owner's own browser through
-                    // /api/owner/v1/youauth/authorize -- first a navigation, then the consent form's
-                    // POST. The refusal below has no body, so mid-upgrade the owner was left looking
-                    // at a bare 503 from their browser. The consent screen's own upgrade check cannot
-                    // cover it: reaching that screen depends on these very requests.
+                    context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+
+                    // The refusal is what every caller gets -- and for machine callers it is what they
+                    // want: CircleNetworkIntroductionService and the YouAuth token exchange both read
+                    // the header above off it to tell an upgrading identity from a broken one.
                     //
-                    // Send the browser to the owner console's upgrade screen instead. It polls the
-                    // version-info endpoint exempted above and returns to returnUrl once the upgrade
-                    // is done, so the sign-in the owner started carries on rather than dying.
-                    //
-                    // Only for browser navigations by the owner. Everything else keeps the 503 and the
-                    // header above, which is what callers like CircleNetworkIntroductionService and
-                    // the YouAuth token exchange read to tell an upgrading identity from a broken one.
-                    if (IsOwnerConsoleNavigation(context, path))
+                    // Except on the one endpoint a browser is navigated to rather than called.
+                    if (IsYouAuthAuthorizeByOwner(context.Request))
                     {
                         return RedirectToUpgradeScreenAsync(context);
                     }
 
-                    context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
                     return Task.CompletedTask;
                 }
             }
@@ -83,47 +76,83 @@ namespace Odin.Hosting.Middleware
         }
 
         /// <summary>
-        /// Sends the browser to the owner console's upgrade screen, telling it where to resume. Falls
-        /// back to the refusal if where-to-resume cannot be established.
+        /// The YouAuth authorize endpoint, reached by the owner's own browser.
         /// </summary>
-        private static async Task RedirectToUpgradeScreenAsync(HttpContext context)
+        /// <remarks>
+        /// Authorizing an app or a YouAuth sign-in navigates the browser here and then posts the
+        /// consent form back to the same place, so a bodiless 503 is rendered by the browser as a
+        /// bare error with nothing to act on. It is the same endpoint
+        /// <c>OwnerAuthenticationHandler</c> singles out in its own <c>RedirectPaths</c>, for
+        /// the same reason: this is where a refusal has to reach a person rather than a program.
+        /// Widen this to a shared list rather than a second one if a second endpoint ever needs it.
+        /// </remarks>
+        private static bool IsYouAuthAuthorizeByOwner(HttpRequest request)
         {
-            var resumeUrl = await ResolveResumeUrlAsync(context);
-            if (resumeUrl == null)
+            if (!request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1Authorize))
             {
-                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                return;
+                return false;
             }
 
-            var target = $"{OwnerFrontendPathConstants.DataUpgrade}?returnUrl={WebUtility.UrlEncode(resumeUrl)}";
-
-            // See Other for the consent POST: the upgrade screen is a page to be fetched, not the
-            // form's handler re-run, and 303 is what says so without relying on the convention that
-            // browsers downgrade a 302'd POST to a GET.
-            context.Response.StatusCode = (int)(HttpMethods.IsPost(context.Request.Method)
-                ? HttpStatusCode.SeeOther
-                : HttpStatusCode.Redirect);
-            context.Response.Headers.Location = target;
+            // The endpoint is [AuthorizeValidOwnerToken] and UseAuthorization runs ahead of this
+            // middleware (Startup), so a browser without a session is already redirected to login and
+            // never arrives here. Checked anyway because the cost of being wrong is not a 503: the
+            // upgrade screen is owner-only, and it returns to where it came from on its own, so a
+            // session-less browser sent there would bounce between the two.
+            return !string.IsNullOrEmpty(request.Cookies[OwnerAuthConstants.CookieName]);
         }
 
         /// <summary>
-        /// Where to send the browser once the upgrade finishes: the request itself for a navigation,
-        /// or the URL the consent form was posted on behalf of.
+        /// Replaces the refusal with a redirect to the owner console's upgrade screen, telling it
+        /// where to resume. Leaves the refusal in place if where-to-resume cannot be established.
         /// </summary>
-        private static async Task<string?> ResolveResumeUrlAsync(HttpContext context)
+        /// <remarks>
+        /// That screen polls the version-info endpoint exempted above and returns to <c>returnUrl</c>
+        /// once the upgrade is done, so the sign-in the owner started carries on instead of dying.
+        /// </remarks>
+        private static async Task RedirectToUpgradeScreenAsync(HttpContext context)
         {
             var request = context.Request;
 
-            if (!HttpMethods.IsPost(request.Method))
+            string? resumeUrl;
+            HttpStatusCode status;
+
+            if (HttpMethods.IsPost(request.Method))
             {
-                return request.GetDisplayUrl();
+                resumeUrl = await ReadConsentReturnUrlAsync(request);
+
+                // See Other, not Found: the upgrade screen is a page to be fetched, not the consent
+                // form's handler re-run, and 303 says so without relying on the convention that
+                // browsers downgrade a 302'd POST to a GET.
+                status = HttpStatusCode.SeeOther;
+            }
+            else
+            {
+                resumeUrl = request.GetDisplayUrl();
+                status = HttpStatusCode.Redirect;
             }
 
-            // A form POST carries its parameters in the body, so the request URL alone is not enough
-            // to come back to -- resuming there would fail validation for want of a redirect_uri. The
-            // consent form posts the authorize URL it was rendered for, which is also where the
-            // controller redirects on success, so resuming there re-renders consent and the owner
-            // finishes the sign-in with one more click.
+            if (resumeUrl == null)
+            {
+                return;
+            }
+
+            context.Response.StatusCode = (int)status;
+            context.Response.Headers.Location =
+                $"{OwnerFrontendPathConstants.DataUpgrade}?returnUrl={WebUtility.UrlEncode(resumeUrl)}";
+        }
+
+        /// <summary>
+        /// The authorize URL the consent form was rendered for, or null if this is not that form.
+        /// </summary>
+        /// <remarks>
+        /// A form POST carries its parameters in the body, so the request URL alone is not somewhere
+        /// to come back to -- resuming there would fail validation for want of a redirect_uri. The
+        /// consent form posts the authorize URL it belongs to, which is also where the controller
+        /// redirects on success, so resuming there re-renders consent and the owner finishes the
+        /// sign-in with one more click.
+        /// </remarks>
+        private static async Task<string?> ReadConsentReturnUrlAsync(HttpRequest request)
+        {
             if (!request.HasFormContentType)
             {
                 return null;
@@ -137,60 +166,15 @@ namespace Odin.Hosting.Middleware
                 return null;
             }
 
-            // Same checks the consent handler makes on this value (Sanity #1 and #2). Here they also
-            // keep the upgrade screen from being turned into an open redirect by a forged form.
+            // The same checks the consent handler makes on this value (its Sanity #1 and #2). Here
+            // they also keep the upgrade screen from being turned into an open redirect by a forged
+            // form. Keep the two in step: this one refuses by leaving the 503, that one by 400.
             if (returnUri.Host != request.Host.Host || returnUri.AbsolutePath != request.Path)
             {
                 return null;
             }
 
             return returnUrl;
-        }
-
-        /// <summary>
-        /// True when this request is a browser being navigated to an owner endpoint while carrying an
-        /// owner session -- the only case where the owner console's upgrade screen is both reachable
-        /// and able to say anything useful.
-        /// </summary>
-        private static bool IsOwnerConsoleNavigation(HttpContext context, string path)
-        {
-            var request = context.Request;
-
-            // Owner paths only. A guest or public-app navigation has no business being sent into the
-            // owner console of the identity it is visiting.
-            if (!path.StartsWith(OwnerApiPathConstants.BasePathV1))
-            {
-                return false;
-            }
-
-            // GET/HEAD for a plain navigation; POST for a form submitted by one, which is how consent
-            // is given. Other verbs are APIs being called, not pages being visited.
-            if (!HttpMethods.IsGet(request.Method) &&
-                !HttpMethods.IsHead(request.Method) &&
-                !HttpMethods.IsPost(request.Method))
-            {
-                return false;
-            }
-
-            // The upgrade screen is owner-authenticated and polls owner endpoints, so a browser
-            // without the cookie would only get an error page out of it -- worse than the 503 it
-            // replaces. This middleware runs ahead of authentication, so whether the cookie is still
-            // valid is not knowable here; that is the screen's problem, as it is for any owner page.
-            if (string.IsNullOrEmpty(request.Cookies[OwnerAuthConstants.CookieName]))
-            {
-                return false;
-            }
-
-            // Sent by current browsers on every top-level navigation and by nothing else, so where it
-            // is present it settles the question on its own. Checked before Accept so that a fetch()
-            // which happens to ask for HTML is not mistaken for a navigation.
-            var fetchDest = request.Headers["Sec-Fetch-Dest"].ToString();
-            if (!string.IsNullOrEmpty(fetchDest))
-            {
-                return fetchDest == "document";
-            }
-
-            return request.Headers.Accept.ToString().Contains("text/html", StringComparison.OrdinalIgnoreCase);
         }
     }
 

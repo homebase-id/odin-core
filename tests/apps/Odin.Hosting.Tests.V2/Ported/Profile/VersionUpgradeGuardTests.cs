@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -6,6 +7,9 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
 
@@ -113,120 +117,96 @@ public class VersionUpgradeGuardTests : V2Fixture
     }
 
     /// <summary>
-    /// A browser navigated to an owner endpoint mid-upgrade is sent to the owner console's upgrade
-    /// screen; everything else still gets the 503.
+    /// A browser navigated to the authorize endpoint mid-upgrade is sent to the owner console's
+    /// upgrade screen, told where to come back to.
     /// </summary>
     /// <remarks>
-    /// Signing in to a new app navigates the browser itself to <c>/api/owner/v1/youauth/authorize</c>,
-    /// and the refusal above has no body -- so the user was shown a bare 503 by their browser. The
-    /// consent screen's own upgrade check could not help: reaching that screen depends on this very
-    /// request redirecting there.
-    /// <para>
-    /// The 503 is load-bearing for every other caller (see the token-exchange test above), so this
-    /// pins both sides: a navigation redirects, a non-navigation on the same path does not.
-    /// </para>
+    /// Signing in to an app navigates the browser itself to <c>authorize</c>, and the refusal above
+    /// has no body -- so the owner was shown a bare 503 by their browser. The consent screen's own
+    /// upgrade check could not help: reaching that screen depends on this very request.
     /// </remarks>
     [Test]
     public async Task ABrowserNavigationIsSentToTheUpgradeScreen()
     {
-        var owner = await LoginAsOwner(Identities.TomBombadil);
-        var scope = Host.GetTenantScope(owner.Identity.DomainName);
-        var runState = scope.Resolve<VersionUpgradeRunState>();
-        var (client, _) = owner.NewAdminHttpClient();
-
-        try
+        await WhileUpgradingAsync(async client =>
         {
-            runState.SetRunning(true);
-
-            var navigation = new HttpRequestMessage(HttpMethod.Get, "/api/owner/v1/youauth/authorize");
-            navigation.Headers.Add("Sec-Fetch-Dest", "document");
-            navigation.Headers.Add("Accept", "text/html");
-
-            var response = await client.SendAsync(navigation);
+            var response = await client.GetAsync(OwnerApiPathConstants.YouAuthV1Authorize);
 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect),
                 "a browser navigation must be sent somewhere that can explain itself");
 
             var location = response.Headers.Location?.ToString() ?? "";
-            Assert.That(location, Does.StartWith("/owner/data-upgrade?returnUrl="),
+            Assert.That(location, Does.StartWith($"{OwnerFrontendPathConstants.DataUpgrade}?returnUrl="),
                 "and that somewhere is the screen which polls the upgrade to completion");
-            Assert.That(WebUtility.UrlDecode(location), Does.Contain("/api/owner/v1/youauth/authorize"),
+            Assert.That(WebUtility.UrlDecode(location), Does.Contain(OwnerApiPathConstants.YouAuthV1Authorize),
                 "carrying where to go back to, so the sign-in resumes rather than being abandoned");
-
-            var xhr = new HttpRequestMessage(HttpMethod.Get, "/api/owner/v1/youauth/authorize");
-            xhr.Headers.Add("Sec-Fetch-Dest", "empty");
-
-            var xhrResponse = await client.SendAsync(xhr);
-
-            Assert.That(xhrResponse.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable),
-                "a non-navigation on the same path must still be refused");
-            Assert.That(xhrResponse.Headers.Contains(OdinHeaderNames.UpgradeIsRunning), Is.True,
-                "with the header its callers read to tell an upgrade apart from a failure");
-        }
-        finally
-        {
-            runState.SetRunning(false);
-        }
+        });
     }
 
     /// <summary>
     /// Giving consent mid-upgrade lands on the upgrade screen too, pointed back at the sign-in it
-    /// came from.
+    /// came from -- unless the form says to come back somewhere else entirely.
     /// </summary>
     /// <remarks>
-    /// The consent screen submits a real form POST to the same authorize endpoint, so it is refused
-    /// like the navigation before it. A form carries its parameters in the body, so coming back to
-    /// the request URL would fail for want of a redirect_uri -- the resume target is the authorize
-    /// URL the form was rendered for, which the form itself carries as <c>return_url</c> and which
-    /// the consent handler redirects to on success. Re-rendering consent there costs one more click
-    /// and keeps the sign-in alive.
+    /// The consent screen submits a real form POST to the same endpoint. A form carries its
+    /// parameters in the body, so coming back to the request URL would fail for want of a
+    /// redirect_uri -- the resume target is the authorize URL the form was rendered for, which the
+    /// form carries as <c>return_url</c> and which the consent handler redirects to on success.
+    /// Re-rendering consent there costs one more click and keeps the sign-in alive.
     /// </remarks>
     [Test]
     public async Task ConsentGivenDuringAnUpgradeResumesAfterIt()
     {
-        var owner = await LoginAsOwner(Identities.TomBombadil);
-        var scope = Host.GetTenantScope(owner.Identity.DomainName);
-        var runState = scope.Resolve<VersionUpgradeRunState>();
-        var (client, _) = owner.NewAdminHttpClient();
-
         var authorizeUrl =
-            $"https://{owner.Identity.DomainName}/api/owner/v1/youauth/authorize?client_id=someapp.example.com";
+            $"https://{Identities.TomBombadil}{OwnerApiPathConstants.YouAuthV1Authorize}?client_id=someapp.example.com";
 
-        try
+        await WhileUpgradingAsync(async client =>
         {
-            runState.SetRunning(true);
-
-            var consent = new HttpRequestMessage(HttpMethod.Post, "/api/owner/v1/youauth/authorize")
-            {
-                Content = new FormUrlEncodedContent(new Dictionary<string, string>
-                {
-                    { "return_url", authorizeUrl }
-                })
-            };
-            consent.Headers.Add("Sec-Fetch-Dest", "document");
-
-            var response = await client.SendAsync(consent);
+            var response = await client.SendAsync(ConsentPost(authorizeUrl));
 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.SeeOther),
                 "a posted form must be answered with a page to fetch, not a re-post");
             Assert.That(WebUtility.UrlDecode(response.Headers.Location?.ToString() ?? ""),
-                Is.EqualTo($"/owner/data-upgrade?returnUrl={authorizeUrl}"),
+                Is.EqualTo($"{OwnerFrontendPathConstants.DataUpgrade}?returnUrl={authorizeUrl}"),
                 "and must carry the sign-in it interrupted, so the owner resumes where they were");
 
             // A return_url pointing somewhere else would make the upgrade screen an open redirect.
-            var forged = new HttpRequestMessage(HttpMethod.Post, "/api/owner/v1/youauth/authorize")
-            {
-                Content = new FormUrlEncodedContent(new Dictionary<string, string>
-                {
-                    { "return_url", "https://evil.example.com/api/owner/v1/youauth/authorize" }
-                })
-            };
-            forged.Headers.Add("Sec-Fetch-Dest", "document");
+            var forged = await client.SendAsync(
+                ConsentPost($"https://evil.example.com{OwnerApiPathConstants.YouAuthV1Authorize}"));
 
-            var forgedResponse = await client.SendAsync(forged);
-
-            Assert.That(forgedResponse.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable),
+            Assert.That(forged.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable),
                 "a resume target on another host is not one we hand to a browser");
+        });
+    }
+
+    private static HttpRequestMessage ConsentPost(string returnUrl) =>
+        new(HttpMethod.Post, OwnerApiPathConstants.YouAuthV1Authorize)
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { YouAuthAuthorizeConsentGiven.ReturnUrlName, returnUrl }
+            })
+        };
+
+    /// <summary>
+    /// Runs <paramref name="body"/> against an owner client while the identity reports an upgrade in
+    /// progress, and clears the flag afterwards however it ends.
+    /// </summary>
+    /// <remarks>
+    /// The run state is a tenant singleton, so a test that left it set would hand its 503s to every
+    /// other fixture on this identity -- which is what <c>NonParallelizable</c> is guarding. One
+    /// place that knows to reset it beats four.
+    /// </remarks>
+    private async Task WhileUpgradingAsync(Func<HttpClient, Task> body)
+    {
+        var owner = await LoginAsOwner(Identities.TomBombadil);
+        var runState = Host.GetTenantScope(owner.Identity.DomainName).Resolve<VersionUpgradeRunState>();
+        var (client, _) = owner.NewAdminHttpClient();
+
+        runState.SetRunning(true);
+        try
+        {
+            await body(client);
         }
         finally
         {
