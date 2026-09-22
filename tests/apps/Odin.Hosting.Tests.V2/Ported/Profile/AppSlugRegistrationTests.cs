@@ -4,7 +4,6 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;

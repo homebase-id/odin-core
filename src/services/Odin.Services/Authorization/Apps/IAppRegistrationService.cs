@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
@@ -17,6 +18,12 @@ namespace Odin.Services.Authorization.Apps
         Task<RedactedAppRegistration> RegisterAppAsync(AppRegistrationRequest request, IOdinContext odinContext);
 
         Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext);
+
+        /// <summary>
+        /// The registered app, or <see cref="OdinClientErrorCode.AppNotRegistered"/> when no app has that
+        /// id.  For callers that are about to write the id somewhere it cannot easily be taken back from.
+        /// </summary>
+        Task<RedactedAppRegistration> GetRegisteredAppOrThrowAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// The app addressed as <c>{appSlug}</c>; see

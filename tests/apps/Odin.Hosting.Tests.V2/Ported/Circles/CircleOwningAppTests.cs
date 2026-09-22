@@ -53,7 +53,7 @@ public class CircleOwningAppTests : V2Fixture
         var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Circle awaiting an owner", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Circle awaiting an owner", OwnerAdmin.ReadCircleMembershipGrant());
 
         var before = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
@@ -87,7 +87,7 @@ public class CircleOwningAppTests : V2Fixture
         await owner.Admin.RegisterApp(secondAppId, new PermissionSetGrantRequest());
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Circle adopted once", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Circle adopted once", OwnerAdmin.ReadCircleMembershipGrant());
 
         Assert.That((await SetOwningApp(owner, circleId, firstAppId)).IsSuccessStatusCode, Is.True);
 
@@ -110,7 +110,7 @@ public class CircleOwningAppTests : V2Fixture
         var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Circle adopted twice by one app", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Circle adopted twice by one app", OwnerAdmin.ReadCircleMembershipGrant());
 
         Assert.That((await SetOwningApp(owner, circleId, appId)).IsSuccessStatusCode, Is.True);
 
@@ -127,7 +127,7 @@ public class CircleOwningAppTests : V2Fixture
         var owner = await LoginAsOwner();
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Circle offered to nobody", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Circle offered to nobody", OwnerAdmin.ReadCircleMembershipGrant());
 
         var response = await SetOwningApp(owner, circleId, Guid.NewGuid());
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -164,7 +164,7 @@ public class CircleOwningAppTests : V2Fixture
 
         var circleId = Guid.NewGuid();
         const string circleName = "Circle that moves";
-        await owner.Admin.CreateCircle(circleId, circleName, ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, circleName, OwnerAdmin.ReadCircleMembershipGrant());
 
         Assert.That((await SetOwningApp(owner, circleId, firstAppId)).IsSuccessStatusCode, Is.True);
 
@@ -193,7 +193,7 @@ public class CircleOwningAppTests : V2Fixture
         var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Never owned", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Never owned", OwnerAdmin.ReadCircleMembershipGrant());
 
         var response = await ReassignOwningApp(owner, circleId, appId);
 
@@ -221,7 +221,7 @@ public class CircleOwningAppTests : V2Fixture
         var appId = await owner.Admin.RegisterBareApp();
 
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "Going nowhere", ReadCircleMembershipGrant());
+        await owner.Admin.CreateCircle(circleId, "Going nowhere", OwnerAdmin.ReadCircleMembershipGrant());
 
         Assert.That((await SetOwningApp(owner, circleId, appId)).IsSuccessStatusCode, Is.True);
 
@@ -230,16 +230,6 @@ public class CircleOwningAppTests : V2Fixture
         Assert.That((await owner.Admin.GetCircleDefinition(circleId))!.AppId, Is.EqualTo(appId),
             "the refused call must not have moved it");
     }
-
-    /// <summary>
-    /// What every circle here grants: the original created each one with nothing but
-    /// <see cref="PermissionKeys.ReadCircleMembership"/>, and two tests assert that adoption and
-    /// reassignment leave it in place.
-    /// </summary>
-    private static PermissionSetGrantRequest ReadCircleMembershipGrant() => new()
-    {
-        PermissionSet = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
-    };
 
     /// <summary>
     /// The circle set-owner endpoint as the system under test. <c>owner.Admin</c> is arrange-only —

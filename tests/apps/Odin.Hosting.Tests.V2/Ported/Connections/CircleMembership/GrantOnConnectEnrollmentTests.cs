@@ -10,7 +10,6 @@ using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps.Builtin;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -169,7 +168,7 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
             Identity = merry.Identity,
             IntroducerOdinId = frodo.Identity,
             Message = "you two should meet"
-        }, CancellationToken.None, await OwnerContextAsync(samScope, sam));
+        }, CancellationToken.None, await BuildOwnerContextAsync(samScope, sam));
 
         var incoming = await merry.Connections.GetIncomingRequestFrom(sam.Identity);
         Assert.That(incoming.IsSuccessStatusCode, Is.True, $"no introduced request arrived: {incoming.StatusCode}");
@@ -262,23 +261,6 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
         Assert.That(query.IsSuccessStatusCode, Is.True, $"frodo query failed: {query.StatusCode}");
         Assert.That(query.Content!.SearchResults.Count(), Is.EqualTo(1),
             "the Chat grant did not open frodo's chat drive: nothing arrived");
-    }
-
-    /// <summary>An owner context with the master key, built the way the version ladder builds one.</summary>
-    private static async Task<IOdinContext> OwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext { Tenant = default, AuthTokenCreated = null, Caller = null };
-        await authService.UpdateOdinContextAsync(owner.Token, new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        }, odinContext);
-
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
     }
 
     private async Task<IdentityConnectionRegistration> GetIcrAsync(OwnerSession owner, OdinId target)

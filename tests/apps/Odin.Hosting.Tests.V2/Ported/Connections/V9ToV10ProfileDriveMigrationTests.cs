@@ -6,7 +6,6 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
