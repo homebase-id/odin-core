@@ -8,7 +8,9 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Version;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.UnifiedV2;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
@@ -246,5 +248,65 @@ public class VersionUpgradeGuardTests : V2Fixture
         var after = await svc.GetVersionInfo();
         Assert.That(after.Content?.UpgradeState, Is.EqualTo(UpgradeState.UpToDate),
             "and once it is over, that the identity has nothing left to do");
+    }
+
+    /// <summary>
+    /// The "are you an identity?" probe answers while an upgrade runs.
+    /// </summary>
+    /// <remarks>
+    /// Every login box opens with <c>GET /api/guest/v1/auth/ident</c> and reads <c>odinId</c> out of
+    /// the body (<c>YouAuthLoginBox.pingIdentity</c>, <c>login-app/loginBox.ts</c>, the provisioning
+    /// app). A bodiless 503 fails that parse, and each of those callers turns a parse failure into
+    /// "identity not found" -- so refusing this made an upgrading identity look like it does not
+    /// exist, to the person trying to sign in with it and to anyone checking the name.
+    /// <para>
+    /// Anonymous on purpose: the real caller is another identity's browser with no token here.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task TheIdentityProbeAnswersWhileAnUpgradeRuns()
+    {
+        await WhileUpgradingAsync(async _ =>
+        {
+            using var anonymous = Host.CreateClient();
+            anonymous.BaseAddress = new Uri($"https://{Identities.TomBombadil}/");
+
+            var response = await anonymous.GetAsync(GuestApiPathConstantsV1.IdentV1);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "an upgrading identity must still be able to say that it is an identity");
+
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.That(body, Does.Contain(Identities.TomBombadil).IgnoreCase,
+                "and name itself, which is the field every login box compares against what was typed");
+            Assert.That(response.Headers.Contains(OdinHeaderNames.UpgradeIsRunning), Is.True,
+                "while still carrying the header, so a caller that wants to say 'busy' can");
+        });
+    }
+
+    /// <summary>
+    /// Health answers while an upgrade runs.
+    /// </summary>
+    /// <remarks>
+    /// <c>/api/v2/health/ping</c> names the host and <c>/ip</c> names the caller; neither reads
+    /// tenant data. Refused, a monitor or a client probing the host reports it down, which is not
+    /// what "deliberately busy for a few seconds" means -- and the 503 reached a person as
+    /// "server error" during a sign-in.
+    /// </remarks>
+    [Test]
+    public async Task HealthAnswersWhileAnUpgradeRuns()
+    {
+        await WhileUpgradingAsync(async _ =>
+        {
+            using var anonymous = Host.CreateClient();
+            anonymous.BaseAddress = new Uri($"https://{Identities.TomBombadil}/");
+
+            var ping = await anonymous.GetAsync($"{UnifiedApiRouteConstants.Health}/ping");
+
+            Assert.That(ping.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                "a host that is upgrading is busy, not down");
+            Assert.That(await ping.Content.ReadAsStringAsync(), Does.Contain(Identities.TomBombadil).IgnoreCase,
+                "and still names itself");
+        });
     }
 }
