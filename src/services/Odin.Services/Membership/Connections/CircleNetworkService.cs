@@ -184,7 +184,20 @@ namespace Odin.Services.Membership.Connections
         public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext, bool notifyRemote = true)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
-            return await DisconnectInternalAsync(odinId, notifyRemote, odinContext);
+
+            // A blocked record is not disconnectable, and used to answer 200 having done nothing: the
+            // guard below skips its whole body for any status but Connected, and the false it returns
+            // was thrown away by the V2 controller. Say so instead. Blocking keeps the connection on
+            // purpose, so the way out is RemoveBlockedConnectionAsync, not this.
+            var icr = await GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
+            if (icr.Status == ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException(
+                    "The identity is blocked; unblock it to disconnect, or remove the blocked connection",
+                    OdinClientErrorCode.BlockedConnection);
+            }
+
+            return await DisconnectInternalAsync(odinId, notifyRemote, odinContext, icr);
         }
 
         /// <summary>
@@ -208,11 +221,20 @@ namespace Odin.Services.Membership.Connections
             await DisconnectInternalAsync(caller, notifyRemote: false, odinContext);
         }
 
-        private async Task<bool> DisconnectInternalAsync(OdinId odinId, bool notifyRemote, IOdinContext odinContext)
+        /// <remarks>
+        /// Returns false rather than throwing for a record that is not Connected, which is what the
+        /// inbound peer path needs: a blocked identity telling us they disconnected must get a 200 and
+        /// keep our block. Refusing it would make their outbox retry a notification that is working as
+        /// intended, and an error distinguishable from success would tell them they are blocked.
+        /// <see cref="DisconnectAsync"/> is where the owner gets told.
+        /// </remarks>
+        private async Task<bool> DisconnectInternalAsync(OdinId odinId, bool notifyRemote, IOdinContext odinContext,
+            IdentityConnectionRegistration icr = null)
         {
             // overrideHack/no-upgrade: the inbound-peer path runs under a context without ReadConnections,
             // and we're about to delete the record anyway, so skip the permission check and token upgrade.
-            var info = await this.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
+            // The owner path has already read the record to check for a block, and passes it in.
+            var info = icr ?? await this.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
             if (info is { Status: ConnectionStatus.Connected })
             {
                 // Capture the access token to the remote identity BEFORE deleting the connection record,
@@ -238,23 +260,36 @@ namespace Odin.Services.Membership.Connections
                     await EnqueueBreakConnectionNotificationAsync(odinId, remoteToken);
                 }
 
-                await mediator.Publish(new ConnectionDeletedNotification()
-                {
-                    OdinContext = odinContext,
-                    OdinId = odinId,
-                });
-
-                await mediator.Publish(new ConnectionChangedNotification
-                {
-                    OdinContext = odinContext,
-                    OdinId = odinId,
-                    Change = ConnectionChangeType.Disconnected,
-                });
+                await PublishConnectionSeveredAsync(odinId, odinContext);
 
                 return true;
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Announces that a connection is gone -- the pair every severance publishes.
+        /// </summary>
+        /// <remarks>
+        /// Two notifications because they reach different places: the deleted one resets the auth caches
+        /// and drops introductions, the changed one is the websocket push to connected clients. Kept
+        /// together so a severance cannot publish half of it.
+        /// </remarks>
+        private async Task PublishConnectionSeveredAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            await mediator.Publish(new ConnectionDeletedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+            });
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                Change = ConnectionChangeType.Disconnected,
+            });
         }
 
         /// <summary>
@@ -375,66 +410,6 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Unblocks the specified <see cref="OdinId"/> from your network
         /// </summary>
-        /// <summary>
-        /// Severs a blocked connection for good: the grant, circle grants and access token are
-        /// destroyed, and a bare blocked record is left behind so the identity stays blocked and stays
-        /// visible to unblock.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="BlockAsync"/> is "not now" -- it keeps the grant intact precisely so unblocking
-        /// restores the connection. This is "done": there is nothing left to restore, so unblocking
-        /// afterwards leaves the identity at <see cref="ConnectionStatus.None"/> and they must ask for a
-        /// connection again.
-        /// <para>
-        /// The record has to survive, because the record is the block. Every guard that refuses a
-        /// blocked identity reads the status off it (<c>CircleNetworkRequestService</c>: the outgoing
-        /// send, the auto-connect probe, and the inbound-request perimeter), so deleting it outright
-        /// would clear the block and let them send a request -- and it would take the row the owner
-        /// needs in order to unblock them later.
-        /// </para>
-        /// <para>
-        /// The remote identity is not notified. They are blocked; telling them the connection was
-        /// severed says something about their status here that a block exists not to say.
-        /// </para>
-        /// </remarks>
-        public async Task RemoveBlockedConnectionAsync(OdinId odinId, IOdinContext odinContext)
-        {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
-
-            var info = await this.GetIcrAsync(odinId, odinContext);
-            if (info.Status != ConnectionStatus.Blocked)
-            {
-                throw new OdinClientException("The identity is not blocked; block it before removing it",
-                    OdinClientErrorCode.IdentityIsNotBlocked);
-            }
-
-            await circleNetworkStorage.DeleteAsync(odinId);
-
-            var blocked = new IdentityConnectionRegistration
-            {
-                OdinId = odinId,
-                Status = ConnectionStatus.Blocked,
-                Created = info.Created
-            };
-
-            await SaveIcrAsync(blocked, odinContext);
-
-            // The connection is gone, so say so with the same notifications a disconnect publishes --
-            // caches and clients holding it need to drop it whether or not the identity stays blocked.
-            await mediator.Publish(new ConnectionDeletedNotification
-            {
-                OdinContext = odinContext,
-                OdinId = odinId,
-            });
-
-            await mediator.Publish(new ConnectionChangedNotification
-            {
-                OdinContext = odinContext,
-                OdinId = odinId,
-                Change = ConnectionChangeType.Disconnected,
-            });
-        }
-
         public async Task<bool> UnblockAsync(OdinId odinId, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
@@ -458,6 +433,72 @@ namespace Odin.Services.Membership.Connections
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Severs a blocked connection for good: the grant, circle grants and access token are
+        /// destroyed, and a bare blocked record is left behind so the identity stays blocked and stays
+        /// visible to unblock.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="BlockAsync"/> is "not now" and keeps the grant for the reason its own NOTE gives.
+        /// This is "done": nothing is left to restore, so unblocking afterwards lands on
+        /// <see cref="ConnectionStatus.None"/> and the identity must ask for a connection again.
+        /// <para>
+        /// The record survives because the record is the block -- the guards that refuse a blocked
+        /// identity read status off it -- and because it is what the owner unblocks later.
+        /// </para>
+        /// <para>
+        /// The remote identity is not notified: telling them the connection was severed says something
+        /// about their standing here that a block exists not to say.
+        /// </para>
+        /// </remarks>
+        public async Task RemoveBlockedConnectionAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+            // No token upgrade: it would re-encrypt an access token this method is about to destroy,
+            // which is the reason DisconnectInternalAsync skips it too.
+            var info = await this.GetIcrAsync(odinId, odinContext, tryUpgradeEncryption: false);
+            if (info.Status != ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException("The identity is not blocked; block it before removing it",
+                    OdinClientErrorCode.IdentityIsNotBlocked);
+            }
+
+            // Clear the grant on the record rather than replacing the record. Writing it is the teardown:
+            // UpsertAsync clears circle memberships and app grants before writing and re-adds only what
+            // the record carries, which is now nothing. One write, under the lock every other ICR write
+            // takes -- deleting first would repeat that work in a second transaction and leave the
+            // identity briefly unblocked in between, which is the one thing this must not do.
+            //
+            // What survives is deliberate: the contact card, because the blocked list shows it so the
+            // owner can tell who they blocked, and where the connection came from, because that stays
+            // true after it is severed.
+            info.PeerKeyStore = null;
+            info.EncryptedClientAccessToken = null;
+            info.TemporaryWeakClientAccessToken = null;
+            info.TempWeakKeyStoreKey = null;
+            info.VerificationHash = null;
+            info.Status = ConnectionStatus.Blocked;
+
+            await SaveIcrAsync(info, odinContext);
+
+            // Deleted for the internal teardown -- auth caches and introductions. Changed as Blocked
+            // rather than Disconnected because that is the state the client should now render: reporting
+            // a disconnect would invite it to drop the identity from the blocked list it still belongs in.
+            await mediator.Publish(new ConnectionDeletedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+            });
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                Change = ConnectionChangeType.Blocked,
+            });
         }
 
         /// <summary>

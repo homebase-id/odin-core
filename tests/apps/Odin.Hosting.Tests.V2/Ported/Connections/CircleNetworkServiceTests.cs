@@ -76,10 +76,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// <para>
 /// Trailing <c>DisconnectIdentities</c> / <c>DeleteConnectionRequestsFromFrodoToSam</c> calls are
 /// kept where the original had them: both make assertions of their own, so they are tests rather
-/// than cleanup. <see cref="CanBlock"/>'s unasserted <c>Unblock</c> looks like state restoration but
-/// is not, and is kept: disconnecting a blocked ICR leaves it <c>Blocked</c>, so the
-/// <c>DisconnectIdentities</c> after it fails its status assertion without it (confirmed by running
-/// it both ways). <c>SetupCallerWithOwner</c> ordering is not in play — no caller matrix,
+/// than cleanup. <see cref="CanBlock"/>'s <c>Unblock</c> is load-bearing rather than restoration:
+/// disconnecting a blocked identity is refused (#1763), so without it the <c>DisconnectIdentities</c>
+/// after it fails its status assertion. <c>SetupCallerWithOwner</c> ordering is not in play — no caller matrix,
 /// <c>LoginAsOwner</c> only.
 /// </para>
 /// </remarks>
@@ -451,8 +450,9 @@ public class CircleNetworkServiceTests : V2Fixture
         Assert.That(blockResponse.Content, Is.True, "failed to block");
         await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.Blocked);
 
-        // Not state restoration, despite being unasserted: disconnecting a blocked ICR leaves it
-        // Blocked, so the DisconnectIdentities below fails its status assertion without this.
+        // Load-bearing rather than restoration: disconnecting a blocked identity is refused (#1763), so
+        // the DisconnectIdentities below needs the block lifted first. Asserted in
+        // CanRemoveABlockedConnection, which has a blocked identity in hand for its own reasons.
         await samConnections.Unblock(new OdinIdRequest() { OdinId = frodo.Identity });
 
         await DisconnectIdentities(frodo, sam);
@@ -473,17 +473,10 @@ public class CircleNetworkServiceTests : V2Fixture
     {
         var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-        var requests = sam.Owner.RefitFor<IRefitOwnerCircleNetworkRequests>();
-        var acceptResponse = await requests.AcceptConnectionRequest(new AcceptRequestHeader
-        {
-            Sender = frodo.Identity,
-            CircleIds = new List<GuidId>(),
-            ContactData = sam.ContactData
-        });
-        Assert.That(acceptResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.Connected);
+        await AcceptConnectionRequest(sender: frodo, recipient: sam);
 
         var samV2 = new V2ConnectionNetworkClient(sam.Owner.Identity, sam.Owner.Factory);
+        var samConnectionsV1 = sam.Owner.RefitFor<IRefitOwnerCircleNetworkConnections>();
 
         // Removing before blocking is refused: this is the exit from a block, not a second disconnect.
         var premature = await samV2.RemoveBlockedConnectionAsync(frodo.Identity);
@@ -493,11 +486,26 @@ public class CircleNetworkServiceTests : V2Fixture
         Assert.That((await samV2.BlockAsync(frodo.Identity)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.Blocked);
 
+        // Disconnect is not the way out of a block -- it used to answer 200 having done nothing (#1763).
+        var refused = await samV2.DisconnectAsync(frodo.Identity);
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
+            "disconnect must not report success for a blocked identity");
+
         var removeResponse = await samV2.RemoveBlockedConnectionAsync(frodo.Identity);
         Assert.That(removeResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Still blocked, or removing them would let them ask again.
         await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.Blocked);
+
+        // Still listed, and still recognisable: the blocked list carries the contact card so the owner
+        // can tell who they blocked, and a severed connection they cannot identify is not much use.
+        var blocked = await samConnectionsV1.GetBlockedProfiles(100, null, omitContactData: false);
+        Assert.That(blocked.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var entry = blocked.Content!.Results.SingleOrDefault(r => r.OdinId == frodo.Identity);
+        Assert.That(entry, Is.Not.Null, "a removed connection must stay in the blocked list");
+        Assert.That(entry!.AccessGrant, Is.Null, "its grant is what the removal destroyed");
+        Assert.That(entry.OriginalContactData, Is.Not.Null,
+            "and its contact card is what the owner recognises it by");
 
         // The grant is what makes unblock restore a connection, and removing destroyed it.
         Assert.That((await samV2.UnblockAsync(frodo.Identity)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
