@@ -37,7 +37,8 @@ namespace Odin.Services.Profile;
 ///
 /// <para>
 /// Reacts generically to <see cref="DriveFileAddedNotification"/>/<see cref="DriveFileChangedNotification"/>/
-/// <see cref="DriveFileDeletedNotification"/> for the ProfileDrive rather than requiring each writer to call
+/// <see cref="DriveFileDeletedNotification"/> for the ProfileDrive (plus the Theme attribute on the
+/// HomePageConfigDrive, which feeds sitedata.json's "theme" section) rather than requiring each writer to call
 /// <see cref="PublishAsync"/> by hand -- so this fires for <em>any</em> profile-attribute write, including
 /// ones from <see cref="ProfileAttributeService"/>, the owner-app's own direct uploads, or any future writer,
 /// without each of them needing to remember to trigger a republish.
@@ -67,7 +68,7 @@ public class ProfilePublishService(
 
     // odin-js HomePageAttributes.Theme = toGuidId("theme_attribute"); not part of BuiltInProfileAttributes
     // since Theme attributes live on the HomePageConfigDrive, not the ProfileDrive, and are out of scope
-    // for ProfileAttributeService itself -- only needed here to query the "theme" sitedata.json section.
+    // for ProfileAttributeService itself -- only needed here for the "theme" sitedata.json section.
     private static readonly Guid ThemeAttributeType = new("8f7eb1c3-2fc7-2c0a-bf0c-ee09be588f26");
 
     private static readonly SectionResultOptions BaseResultOptions = new()
@@ -138,14 +139,15 @@ public class ProfilePublishService(
 
     /// <summary>
     /// Common entry point for all three drive-write notifications: only profile-attribute files on the
-    /// ProfileDrive are in scope (odin-js's own direct uploads and any other file on this drive are ignored).
-    /// The attribute type -- needed to decide which artifacts a change can possibly affect -- comes from the
-    /// header's own tags (<c>[type, sectionId, profileId, id]</c>, see BuildHeaderAsync/BuildPhotoMetadata)
-    /// rather than a caller-supplied parameter, since any writer can reach this path.
+    /// ProfileDrive, and the Theme attribute on the HomePageConfigDrive, are in scope (any other file on
+    /// these drives is ignored). The attribute type -- needed to decide which artifacts a change can
+    /// possibly affect -- comes from the header's own tags (<c>[type, sectionId, profileId, id]</c>, see
+    /// BuildHeaderAsync/BuildPhotoMetadata) rather than a caller-supplied parameter, since any writer can
+    /// reach this path.
     /// </summary>
     private async Task HandleDriveEventAsync(Guid driveId, ServerFileHeader header, IOdinContext odinContext)
     {
-        if (driveId != ProfileDrive.Alias || header?.FileMetadata?.AppData?.FileType != ProfileAttributeService.AttributeFileType)
+        if (header?.FileMetadata?.AppData?.FileType != ProfileAttributeService.AttributeFileType)
         {
             return;
         }
@@ -153,7 +155,14 @@ public class ProfilePublishService(
         var tags = header.FileMetadata.AppData.Tags;
         Guid? attributeType = tags is { Count: > 0 } ? tags[0] : null;
 
-        await PublishAsync(attributeType, odinContext);
+        if (driveId == ProfileDrive.Alias)
+        {
+            await PublishAsync(attributeType, odinContext);
+        }
+        else if (driveId == HomePageConfigDrive.Alias && attributeType == ThemeAttributeType)
+        {
+            await PublishAsync(ThemeAttributeType, odinContext);
+        }
     }
 
     private async Task TryRunAsync(Func<Task> action, string artifact)

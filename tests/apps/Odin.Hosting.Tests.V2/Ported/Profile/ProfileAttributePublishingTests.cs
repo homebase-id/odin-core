@@ -7,10 +7,13 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Core.Serialization;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Contacts;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Optimization.Cdn;
 using Odin.Services.Profile;
 
@@ -29,6 +32,9 @@ public class ProfileAttributePublishingTests : V2Fixture
     private static readonly Guid NicknameType = BuiltInProfileAttributes.Nickname;
     private static readonly Guid PhotoType = BuiltInProfileAttributes.Photo;
     private static readonly Guid BioType = BuiltInProfileAttributes.Bio;
+
+    // odin-js HomePageAttributes.Theme = toGuidId("theme_attribute")
+    private static readonly Guid ThemeType = new("8f7eb1c3-2fc7-2c0a-bf0c-ee09be588f26");
 
     // SectionOutput/StaticFile have no [JsonPropertyName] attributes and the server serializes camelCase
     // with string enums, so plain Deserialize<> would silently leave every property null / throw on enums.
@@ -410,5 +416,71 @@ public class ProfileAttributePublishingTests : V2Fixture
         var nameSection = sections.SingleOrDefault(s => s.Name == "name");
         Assert.That(nameSection, Is.Not.Null);
         Assert.That(nameSection!.Files, Is.Empty, "a Connected (encrypted) attribute must not appear in the public sitedata.json");
+    }
+
+    [Test]
+    public async Task ThemeAttribute_WrittenByAppOnHomePageDrive_RepublishesSiteDataTheme()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.HomePageConfigDrive, DrivePermission.Write);
+
+        var created = await app.V1.Drive.UploadNewMetadata(WellKnownAppDrives.HomePageConfigDrive,
+            ThemeMetadata(ThemeType, "poster"));
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {created.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var themeBefore = await GetSiteDataThemeSectionAsync(client);
+        Assert.That(themeBefore.Files, Has.Count.EqualTo(1));
+        Assert.That(themeBefore.Files[0].Header.FileMetadata.AppData.Content, Does.Contain("\"cardDesign\":\"poster\""));
+
+        var updated = await app.V1.Drive.UpdateExistingMetadata(created.Content!.File, created.Content.NewVersionTag,
+            ThemeMetadata(ThemeType, "dossier"));
+        Assert.That(updated.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {updated.StatusCode}");
+
+        var themeAfter = await GetSiteDataThemeSectionAsync(client);
+        Assert.That(themeAfter.Files, Has.Count.EqualTo(1));
+        Assert.That(themeAfter.Files[0].Header.FileMetadata.AppData.Content, Does.Contain("\"cardDesign\":\"dossier\""));
+    }
+
+    [Test]
+    public async Task NonThemeAttribute_OnHomePageDrive_DoesNotPublishSiteData()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+
+        var created = await owner.V1.Drive.UploadNewMetadata(WellKnownAppDrives.HomePageConfigDrive,
+            ThemeMetadata(Guid.NewGuid(), "poster"));
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {created.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var siteDataResp = await client.GetAsync($"https://{Identities.Frodo}/cdn/sitedata.json");
+        Assert.That(siteDataResp.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"actual {siteDataResp.StatusCode}");
+    }
+
+    private static UploadFileMetadata ThemeMetadata(Guid type, string cardDesign) => new()
+    {
+        AllowDistribution = false,
+        IsEncrypted = false,
+        AppData = new()
+        {
+            FileType = ProfileAttributeService.AttributeFileType,
+            Tags = [type],
+            Content = OdinSystemSerializer.Serialize(new
+            {
+                type = type.ToString("N"),
+                priority = 1,
+                data = new { themeId = "555", cardDesign }
+            })
+        },
+        AccessControlList = AccessControlList.Anonymous
+    };
+
+    private static async Task<SectionOutput> GetSiteDataThemeSectionAsync(System.Net.Http.HttpClient client)
+    {
+        var resp = await client.GetAsync($"https://{Identities.Frodo}/cdn/sitedata.json");
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {resp.StatusCode}");
+        var sections = JsonSerializer.Deserialize<List<SectionOutput>>(await resp.Content.ReadAsStringAsync(), SiteDataJsonOptions)!;
+        var theme = sections.SingleOrDefault(s => s.Name == "theme");
+        Assert.That(theme, Is.Not.Null, "sitedata.json should carry a 'theme' section");
+        return theme!;
     }
 }
