@@ -1003,11 +1003,25 @@ namespace Odin.Services.Membership.Connections.Requests
 
             try
             {
+                // Under an upgraded context, because the caller may not be able to authorise this: an app
+                // accepting on the owner's behalf has neither ManageFeed nor write access to the feed
+                // drive, so this threw OdinSecurityException every time, was swallowed by the catch
+                // below, and the new contact's channels silently never arrived (#1784).
+                //
+                // The peer is queried with the token that just arrived rather than one minted from the
+                // ICR key, which is master-key protected and therefore out of an app's reach. Deferring
+                // the sync would lose that token, which is why it happens here rather than later.
                 logger.LogDebug("AcceptConnectionRequest - Running SynchronizeChannelFiles");
-                await followerService.SynchronizeChannelFilesAsync(senderOdinId, odinContext, remoteClientAccessToken.SharedSecret);
+                var feedWriterContext = OdinContextUpgrades.UpgradeToFeedWriterForConnectionAccept(odinContext);
+
+                await followerService.SynchronizeChannelFilesAsync(senderOdinId, feedWriterContext,
+                    remoteClientAccessToken.SharedSecret, peerToken: remoteClientAccessToken);
             }
             catch (Exception e)
             {
+                // Still best-effort: the connection is established and must not be undone because their
+                // back-catalogue could not be fetched. What is gone is the guarantee that this always
+                // fails, so an error here is now worth reading.
                 logger.LogError(e, "Failed while trying to sync channels");
             }
 

@@ -356,7 +356,13 @@ namespace Odin.Services.DataSubscription.Follower
             await this.SynchronizeChannelFilesAsync(identityIFollow, odinContext, sharedSecret: sharedSecret);
         }
 
-        public async Task SynchronizeChannelFilesAsync(OdinId identityIFollow, IOdinContext odinContext, SensitiveByteArray sharedSecret)
+        /// <param name="peerToken">
+        /// Authenticate the channel query to <paramref name="identityIFollow"/> with this token rather than
+        /// one minted from the ICR key. Needed by the caller that has a live token and no way to reach the
+        /// ICR key -- see <c>CircleNetworkRequestService.AcceptConnectionRequest</c>.
+        /// </param>
+        public async Task SynchronizeChannelFilesAsync(OdinId identityIFollow, IOdinContext odinContext,
+            SensitiveByteArray sharedSecret, ClientAccessToken peerToken = null)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
@@ -397,7 +403,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             var collection = await peerDriveQueryService.GetBatchCollectionAsync(identityIFollow, request, FileSystemType.Standard,
-                odinContext);
+                odinContext, peerToken);
 
             var patchedContext = sharedSecret == null
                 ? odinContext

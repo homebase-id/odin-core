@@ -136,6 +136,53 @@ public static class OdinContextUpgrades
         return patchedContext;
     }
 
+    /// <summary>
+    /// Grants the caller what the channel sync needs, for the accept path where the caller cannot have it.
+    /// </summary>
+    /// <remarks>
+    /// Accepting a connection request runs a channel sync, which asserts
+    /// <see cref="PermissionKeys.ManageFeed"/> and writes the feed drive. An app accepting on the owner's
+    /// behalf has neither, so the sync threw <c>OdinSecurityException</c> every time, the catch-all
+    /// swallowed it, and the new contact's channels silently never arrived (#1784).
+    /// <para>
+    /// The same shape as <see cref="PrepForSynchronizeChannelFiles"/>, which the sender side of this flow
+    /// already uses, with one difference: no feed-drive storage key, because the accept path has none to
+    /// give. That is enough because a feed write is satisfied by permission rather than key material --
+    /// <see cref="UpgradeToReadFollowersForDistribution"/> writes feed files with no drive grant at all,
+    /// and it is how every inbound feed post arrives.
+    /// </para>
+    /// <para>
+    /// Added to the caller's own groups rather than replacing them: an owner's groups carry the ICR key
+    /// the channel query mints its peer token from, and dropping them breaks the owner's own sync.
+    /// </para>
+    /// </remarks>
+    public static IOdinContext UpgradeToFeedWriterForConnectionAccept(IOdinContext odinContext)
+    {
+        var patchedContext = odinContext.Clone();
+        var feedDrive = WellKnownAppDrives.FeedDrive;
+
+        var feedDriveGrant = new DriveGrant
+        {
+            DriveId = feedDrive.Alias,
+            PermissionedDrive = new PermissionedDrive
+            {
+                Drive = feedDrive,
+                Permission = DrivePermission.ReadWrite
+            },
+            KeyStoreKeyEncryptedStorageKey = null
+        };
+
+        patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
+
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd(
+            nameof(UpgradeToFeedWriterForConnectionAccept),
+            new PermissionGroup(
+                new PermissionSet([PermissionKeys.ManageFeed, PermissionKeys.UseTransitRead, PermissionKeys.ReadConnections]),
+                new List<DriveGrant> { feedDriveGrant }, null, null));
+
+        return patchedContext;
+    }
+
     public static IOdinContext UsePermissions(IOdinContext odinContext, params int[] permissionKeys)
     {
         var patchedContext = odinContext.Clone();
