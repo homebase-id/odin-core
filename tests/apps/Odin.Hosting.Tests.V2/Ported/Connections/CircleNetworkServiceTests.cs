@@ -11,6 +11,7 @@ using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -455,6 +456,53 @@ public class CircleNetworkServiceTests : V2Fixture
         await samConnections.Unblock(new OdinIdRequest() { OdinId = frodo.Identity });
 
         await DisconnectIdentities(frodo, sam);
+    }
+
+    /// <summary>
+    /// Removing a blocked connection severs it for good: the grant is gone, the identity stays
+    /// blocked, and unblocking afterwards leaves them at None rather than restoring the connection.
+    /// </summary>
+    /// <remarks>
+    /// Block is "not now" and keeps the grant so unblock can restore it (<c>CircleNetworkService.BlockAsync</c>
+    /// says so in as many words). This is "done", and the difference is the whole point: the record has
+    /// to survive because the record is the block -- deleting it outright would clear the block and let
+    /// the identity send a connection request again.
+    /// </remarks>
+    [Test]
+    public async Task CanRemoveABlockedConnection()
+    {
+        var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+
+        var requests = sam.Owner.RefitFor<IRefitOwnerCircleNetworkRequests>();
+        var acceptResponse = await requests.AcceptConnectionRequest(new AcceptRequestHeader
+        {
+            Sender = frodo.Identity,
+            CircleIds = new List<GuidId>(),
+            ContactData = sam.ContactData
+        });
+        Assert.That(acceptResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.Connected);
+
+        var samV2 = new V2ConnectionNetworkClient(sam.Owner.Identity, sam.Owner.Factory);
+
+        // Removing before blocking is refused: this is the exit from a block, not a second disconnect.
+        var premature = await samV2.RemoveBlockedConnectionAsync(frodo.Identity);
+        Assert.That(premature.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
+            "removing a connection that is not blocked must be refused");
+
+        Assert.That((await samV2.BlockAsync(frodo.Identity)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.Blocked);
+
+        var removeResponse = await samV2.RemoveBlockedConnectionAsync(frodo.Identity);
+        Assert.That(removeResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // Still blocked, or removing them would let them ask again.
+        await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.Blocked);
+
+        // The grant is what makes unblock restore a connection, and removing destroyed it.
+        Assert.That((await samV2.UnblockAsync(frodo.Identity)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        // Nothing left to restore, so unblock lands on None rather than Connected.
+        await AssertConnectionStatus(sam.Owner, frodo.Identity, ConnectionStatus.None);
     }
 
     [Test]

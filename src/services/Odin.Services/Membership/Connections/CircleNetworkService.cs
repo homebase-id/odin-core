@@ -375,6 +375,66 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Unblocks the specified <see cref="OdinId"/> from your network
         /// </summary>
+        /// <summary>
+        /// Severs a blocked connection for good: the grant, circle grants and access token are
+        /// destroyed, and a bare blocked record is left behind so the identity stays blocked and stays
+        /// visible to unblock.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="BlockAsync"/> is "not now" -- it keeps the grant intact precisely so unblocking
+        /// restores the connection. This is "done": there is nothing left to restore, so unblocking
+        /// afterwards leaves the identity at <see cref="ConnectionStatus.None"/> and they must ask for a
+        /// connection again.
+        /// <para>
+        /// The record has to survive, because the record is the block. Every guard that refuses a
+        /// blocked identity reads the status off it (<c>CircleNetworkRequestService</c>: the outgoing
+        /// send, the auto-connect probe, and the inbound-request perimeter), so deleting it outright
+        /// would clear the block and let them send a request -- and it would take the row the owner
+        /// needs in order to unblock them later.
+        /// </para>
+        /// <para>
+        /// The remote identity is not notified. They are blocked; telling them the connection was
+        /// severed says something about their status here that a block exists not to say.
+        /// </para>
+        /// </remarks>
+        public async Task RemoveBlockedConnectionAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+            var info = await this.GetIcrAsync(odinId, odinContext);
+            if (info.Status != ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException("The identity is not blocked; block it before removing it",
+                    OdinClientErrorCode.IdentityIsNotBlocked);
+            }
+
+            await circleNetworkStorage.DeleteAsync(odinId);
+
+            var blocked = new IdentityConnectionRegistration
+            {
+                OdinId = odinId,
+                Status = ConnectionStatus.Blocked,
+                Created = info.Created
+            };
+
+            await SaveIcrAsync(blocked, odinContext);
+
+            // The connection is gone, so say so with the same notifications a disconnect publishes --
+            // caches and clients holding it need to drop it whether or not the identity stays blocked.
+            await mediator.Publish(new ConnectionDeletedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+            });
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                Change = ConnectionChangeType.Disconnected,
+            });
+        }
+
         public async Task<bool> UnblockAsync(OdinId odinId, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);

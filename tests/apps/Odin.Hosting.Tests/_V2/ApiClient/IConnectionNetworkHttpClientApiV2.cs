@@ -25,6 +25,9 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/unblock")]
     Task<ApiResponse<HttpContent>> Unblock([Body] OdinIdRequest request);
 
+    [Post(Root + "/remove-blocked-connection")]
+    Task<ApiResponse<HttpContent>> RemoveBlockedConnection([Body] OdinIdRequest request);
+
     [Post(Root + "/disconnect")]
     Task<ApiResponse<HttpContent>> Disconnect([Body] OdinIdRequest request);
 
