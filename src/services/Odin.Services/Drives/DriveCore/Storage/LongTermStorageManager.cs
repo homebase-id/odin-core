@@ -300,17 +300,26 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
 
-            if (chunk == null)
+            try
             {
-                logger.LogDebug("GetPayloadStreamAsync: {path}", path);
-                var bytes = await longTermPayloadStore.ReadAllBytesAsync(path);
-                return new MemoryStream(bytes);
-            }
-            else
-            {
+                if (chunk == null)
+                {
+                    logger.LogDebug("GetPayloadStreamAsync: {path}", path);
+                    return new MemoryStream(await longTermPayloadStore.ReadAllBytesAsync(path));
+                }
+
                 logger.LogDebug("GetPayloadStreamAsync: {path}, start={start}, length={length}", path, chunk.Start, chunk.Length);
-                var bytes = await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length);
-                return new MemoryStream(bytes);
+                return new MemoryStream(await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length));
+            }
+            catch (Exception e)
+            {
+                var missing = await MissingFileOrNullAsync(path, e);
+                if (missing != null)
+                {
+                    throw missing;
+                }
+
+                throw;
             }
         }
 
@@ -321,9 +330,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<Stream> GetThumbnailStreamAsync(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
             UnixTimeUtcUnique payloadUid)
         {
-            var fileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
-            var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-            var path = Path.Combine(dir, fileName);
+            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, width, height);
 
             try
             {
@@ -332,9 +339,40 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Failed to get thumbnail stream for file {path}", path);
+                var missing = await MissingFileOrNullAsync(path, e);
+                if (missing != null)
+                {
+                    throw missing;
+                }
+
                 throw;
             }
+        }
+
+        /// <summary>
+        /// The exception for "the file the header named is not there", or null when the read failed for
+        /// some other reason -- in which case the caller rethrows and keeps the original stack.
+        /// </summary>
+        /// <remarks>
+        /// Asked of the store rather than inferred from the exception, because the stores disagree about
+        /// what a missing file throws -- disk raises <c>OdinSystemException</c> from
+        /// <c>AssertFileExists</c>, S3 wraps everything in <c>DriveFileStoreException</c>. Only runs on
+        /// the failure path, so the extra round trip costs nothing in the normal case.
+        /// <para>
+        /// Logged at Debug, not Error: whether a missing file is a fault depends on whether the payload
+        /// moved on, which this layer cannot see. <c>DriveStorageServiceBase</c> decides, and says so.
+        /// </para>
+        /// </remarks>
+        private async Task<Exception> MissingFileOrNullAsync(string path, Exception e)
+        {
+            if (await longTermPayloadStore.ExistsAsync(path))
+            {
+                logger.LogError(e, "Failed to read {path}", path);
+                return null;
+            }
+
+            logger.LogDebug(e, "The file named by the header is not there: {path}", path);
+            return new OdinFileHeaderHasCorruptPayloadException($"File is missing: {path}", e);
         }
 
         public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)

@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         /// <summary>
         /// Identifies this server as an ODIN identity server
         /// </summary>
-        [HttpGet("ident")]
+        [HttpGet(GuestApiPathConstantsV1.IdentV1)]
         [Produces("application/json")]
         public async Task<IActionResult> GetInfo()
         {

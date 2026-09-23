@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -3300,12 +3301,22 @@ namespace Odin.Services.Membership.Connections
                         });
                     }
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is OdinClientException or OdinSecurityException or CryptographicException)
                 {
                     // One connection whose deposits cannot be converted must not fail the upgrade for the
                     // rest.  Its deposits stay pending and convert on the contact's next call or the owner's
                     // next touch of that connection.
                     logger.LogError(e, "Could not convert deposited grants for {odinId}; leaving them pending",
+                        identity.OdinId);
+                }
+                catch (Exception e)
+                {
+                    // Same resilience, different claim. The batch still survives, but this is not one of the
+                    // failures the loop is built to absorb, and reporting it in the same words as those hid
+                    // whatever it actually is.
+                    logger.LogError(e,
+                        "Unexpected failure converting deposited grants for {odinId}; leaving them pending. " +
+                        "This is not a connection that cannot be converted -- it is a fault in converting it",
                         identity.OdinId);
                 }
                 finally
@@ -3322,6 +3333,19 @@ namespace Odin.Services.Membership.Connections
         {
             if (identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
             {
+                // Requires the upgrade and has nothing to recover the Peer Key from. This is a state, not
+                // a failure: V7ToV8 and V11ToV12 both describe it as a tolerated skip, and the connection
+                // self-heals when the contact next calls or the owner next touches it. Discovering it by
+                // dereferencing null inside EccDecryptPayload logged it as an Error, which said the
+                // opposite -- and the Error was the only evidence the upgrade had not happened.
+                if (identity.TempWeakKeyStoreKey == null)
+                {
+                    logger.LogDebug(
+                        "Not upgrading KSK Encryption for {id}: it requires the upgrade but has no temp weak " +
+                        "key store key to recover the peer key from. Left as-is for a later pass", identity.OdinId);
+                    return false;
+                }
+
                 logger.LogDebug("Upgrading KSK Encryption for {id}", identity.OdinId);
                 try
                 {
@@ -3331,11 +3355,37 @@ namespace Odin.Services.Membership.Connections
                     await circleNetworkStorage.UpdateKeyStoreKeyAsync(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
                     return true;
                 }
-                catch (Exception e)
+                catch (OdinClientException e)
                 {
-                    logger.LogError(e, "Failed to upgrade KSK Encryption for {id}", identity.OdinId);
+                    // EccDecryptPayload refuses a payload sealed to an ECC key this identity no longer
+                    // holds. Unrecoverable, but nothing is wrong: the key rotated.
+                    logger.LogWarning(e,
+                        "Not upgrading KSK Encryption for {id}: its temp weak key store key was sealed to a " +
+                        "key this identity no longer holds. Left as-is", identity.OdinId);
                     return false;
                 }
+                catch (OdinSecurityException e)
+                {
+                    // Pre-existing tolerance: two of the call sites do not check for the master key before
+                    // asking, and this used to return false rather than throw at them.
+                    logger.LogWarning(e,
+                        "Not upgrading KSK Encryption for {id}: the caller cannot supply the keys it needs",
+                        identity.OdinId);
+                    return false;
+                }
+                catch (CryptographicException e)
+                {
+                    // The stored key did not authenticate. Unlike the cases above, something is actually
+                    // wrong with the data, so this keeps the Error it always had.
+                    logger.LogError(e,
+                        "Failed to upgrade KSK Encryption for {id}: its temp weak key store key did not " +
+                        "authenticate", identity.OdinId);
+                    return false;
+                }
+
+                // Deliberately no catch-all. Anything else here is a fault rather than a connection that
+                // cannot be upgraded yet, and swallowing it is how an NRE in this method went unnoticed
+                // while every test around it passed.
             }
 
             return false;

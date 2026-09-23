@@ -10,6 +10,7 @@
         public const string BasePathV1 = "/api/guest/v1";
 
         public const string AuthV1 = BasePathV1 + "/auth";
+        public const string IdentV1 = AuthV1 + "/ident";
         public const string DriveV1 = BasePathV1 + "/drive";
         public const string DriveQueryV1 = DriveV1 + "/query";
         public const string PeerNotificationsV1 = BasePathV1 + "/notify/peer";

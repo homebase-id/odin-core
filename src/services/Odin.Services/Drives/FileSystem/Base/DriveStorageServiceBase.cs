@@ -476,6 +476,50 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await store.ReadAllBytesAsync(path);
         }
 
+        /// <summary>
+        /// Throws <see cref="OdinPayloadVersionGoneException"/> when the payload has been replaced since
+        /// the caller resolved <paramref name="resolvedUid"/>; returns quietly when it has not.
+        /// </summary>
+        /// <remarks>
+        /// A read is two steps and a writer can land between them, so the file a header named is gone
+        /// while the file itself is fine -- a 500 tells the caller "the server broke" when the truth is
+        /// "that version is gone", and a re-read gets them the new one.
+        /// <para>
+        /// Whether the version moved is the whole difference between a client error and a server one, so
+        /// it is asked rather than assumed: if the current header still names the uid whose file is
+        /// missing, the store really has lost data and the caller keeps the fault it had.
+        /// </para>
+        /// </remarks>
+        private async Task AssertPayloadVersionHasNotMovedAsync(
+            InternalDriveFileId file,
+            string payloadKey,
+            UnixTimeUtcUnique resolvedUid,
+            IOdinContext odinContext,
+            Exception inner,
+            PayloadDescriptor currentInHand = null)
+        {
+            // Storage paths are (fileId, key, uid), so "shares storage with" and "is the same version"
+            // are one question, and PayloadDescriptor already answers it -- including the case-insensitive
+            // key match that GetPayloadDescriptor does its own lookup with.
+            var resolved = new PayloadDescriptor { Key = payloadKey, Uid = resolvedUid };
+
+            // A header the caller already read settles it when it names a different version. Only when it
+            // still names the missing one is a fresh read needed, to see a replacement that landed since.
+            if (currentInHand == null || currentInHand.SharesStorageWith(resolved))
+            {
+                var refreshed = await GetServerFileHeader(file, odinContext);
+                if (refreshed?.FileMetadata.GetPayloadDescriptor(payloadKey)?.SharesStorageWith(resolved) == true)
+                {
+                    return;
+                }
+            }
+
+            throw new OdinPayloadVersionGoneException(
+                $"Payload '{payloadKey}' on file {file.FileId} was replaced while it was being read; " +
+                $"the version that was resolved is gone. Re-read the file header for the current one.",
+                inner);
+        }
+
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
             int width,
             int height,
@@ -496,27 +540,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
-            if (null != directMatchingThumb)
-            {
-                try
-                {
-                    var s = await longTermStorageManager.GetThumbnailStreamAsync(drive, file.FileId, width, height, payloadKey, payloadUid);
-                    return (s, directMatchingThumb);
-                }
-                catch (Exception)
-                {
-                    if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
-                    {
-                        return (Stream.Null, directMatchingThumb);
-                    }
-
-                    throw;
-                }
-            }
-
-            var nextSizeUp = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly);
-            if (null == nextSizeUp)
+            // One lookup, not two: FindMatchingThumbnail tries the exact size first and only then the
+            // next size up, so the direct-match branch that used to sit here was asking the same
+            // question and then repeating the read and its error handling.
+            var thumb = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly);
+            if (null == thumb)
             {
                 return (Stream.Null, null);
             }
@@ -524,21 +552,19 @@ namespace Odin.Services.Drives.FileSystem.Base
             try
             {
                 var stream = await longTermStorageManager.GetThumbnailStreamAsync(
-                    drive,
-                    file.FileId,
-                    nextSizeUp.PixelWidth,
-                    nextSizeUp.PixelHeight,
-                    payloadKey, payloadUid);
+                    drive, file.FileId, thumb.PixelWidth, thumb.PixelHeight, payloadKey, payloadUid);
 
-                return (stream, nextSizeUp);
+                return (stream, thumb);
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
-                    return (Stream.Null, nextSizeUp);
+                    return (Stream.Null, thumb);
                 }
 
+                await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, payloadUid, odinContext, e,
+                    header.FileMetadata.GetPayloadDescriptor(payloadKey));
                 throw;
             }
         }
@@ -688,13 +714,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
                 return new PayloadStream(descriptor, stream.Length, stream);
             }
-            catch (OdinFileHeaderHasCorruptPayloadException)
+            catch (OdinFileHeaderHasCorruptPayloadException e)
             {
                 if (drive.TargetDriveInfo == WellKnownAppDrives.FeedDrive)
                 {
                     return null;
                 }
 
+                await AssertPayloadVersionHasNotMovedAsync(file, key, descriptor.Uid, odinContext, e);
                 throw;
             }
         }
