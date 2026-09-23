@@ -69,7 +69,7 @@ public class ProfilePublishService(
     // odin-js HomePageAttributes.Theme = toGuidId("theme_attribute"); not part of BuiltInProfileAttributes
     // since Theme attributes live on the HomePageConfigDrive, not the ProfileDrive, and are out of scope
     // for ProfileAttributeService itself -- only needed here for the "theme" sitedata.json section.
-    private static readonly Guid ThemeAttributeType = new("8f7eb1c3-2fc7-2c0a-bf0c-ee09be588f26");
+    internal static readonly Guid ThemeAttributeType = new("8f7eb1c3-2fc7-2c0a-bf0c-ee09be588f26");
 
     private static readonly SectionResultOptions BaseResultOptions = new()
     {
@@ -155,13 +155,9 @@ public class ProfilePublishService(
         var tags = header.FileMetadata.AppData.Tags;
         Guid? attributeType = tags is { Count: > 0 } ? tags[0] : null;
 
-        if (driveId == ProfileDrive.Alias)
+        if (driveId == ProfileDrive.Alias || (driveId == HomePageConfigDrive.Alias && attributeType == ThemeAttributeType))
         {
             await PublishAsync(attributeType, odinContext);
-        }
-        else if (driveId == HomePageConfigDrive.Alias && attributeType == ThemeAttributeType)
-        {
-            await PublishAsync(ThemeAttributeType, odinContext);
         }
     }
 

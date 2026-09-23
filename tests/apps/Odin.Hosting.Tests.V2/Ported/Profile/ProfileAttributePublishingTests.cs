@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -33,8 +34,7 @@ public class ProfileAttributePublishingTests : V2Fixture
     private static readonly Guid PhotoType = BuiltInProfileAttributes.Photo;
     private static readonly Guid BioType = BuiltInProfileAttributes.Bio;
 
-    // odin-js HomePageAttributes.Theme = toGuidId("theme_attribute")
-    private static readonly Guid ThemeType = new("8f7eb1c3-2fc7-2c0a-bf0c-ee09be588f26");
+    private static readonly Guid ThemeType = ProfilePublishService.ThemeAttributeType;
 
     // SectionOutput/StaticFile have no [JsonPropertyName] attributes and the server serializes camelCase
     // with string enums, so plain Deserialize<> would silently leave every property null / throw on enums.
@@ -64,13 +64,8 @@ public class ProfileAttributePublishingTests : V2Fixture
 
         using var client = Host.CreateClient();
 
-        var siteDataResp = await client.GetAsync($"https://{Identities.Frodo}/cdn/sitedata.json");
-        Assert.That(siteDataResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {siteDataResp.StatusCode}");
-        var rawBody = await siteDataResp.Content.ReadAsStringAsync();
-        var sections = JsonSerializer.Deserialize<List<SectionOutput>>(rawBody, SiteDataJsonOptions)!;
-        var nameSection = sections.SingleOrDefault(s => s.Name == "name");
-        Assert.That(nameSection, Is.Not.Null, "sitedata.json should carry a 'name' section");
-        Assert.That(nameSection!.Files, Has.Count.EqualTo(1));
+        var nameSection = await GetSiteDataSectionAsync(client, "name");
+        Assert.That(nameSection.Files, Has.Count.EqualTo(1));
 
         var cardResp = await client.GetAsync($"https://{Identities.Frodo}/pub/profile");
         Assert.That(cardResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {cardResp.StatusCode}");
@@ -410,12 +405,8 @@ public class ProfileAttributePublishingTests : V2Fixture
         // The write is of a triggering type, so sitedata.json still gets rebuilt -- but this attribute is
         // Connected (encrypted at rest), so it's filtered out of the public output (same filter
         // StaticFileContentService already applies when serving these sections).
-        var siteDataResp = await client.GetAsync($"https://{Identities.Frodo}/cdn/sitedata.json");
-        Assert.That(siteDataResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {siteDataResp.StatusCode}");
-        var sections = JsonSerializer.Deserialize<List<SectionOutput>>(await siteDataResp.Content.ReadAsStringAsync(), SiteDataJsonOptions)!;
-        var nameSection = sections.SingleOrDefault(s => s.Name == "name");
-        Assert.That(nameSection, Is.Not.Null);
-        Assert.That(nameSection!.Files, Is.Empty, "a Connected (encrypted) attribute must not appear in the public sitedata.json");
+        var nameSection = await GetSiteDataSectionAsync(client, "name");
+        Assert.That(nameSection.Files, Is.Empty, "a Connected (encrypted) attribute must not appear in the public sitedata.json");
     }
 
     [Test]
@@ -429,7 +420,7 @@ public class ProfileAttributePublishingTests : V2Fixture
         Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {created.StatusCode}");
 
         using var client = Host.CreateClient();
-        var themeBefore = await GetSiteDataThemeSectionAsync(client);
+        var themeBefore = await GetSiteDataSectionAsync(client, "theme");
         Assert.That(themeBefore.Files, Has.Count.EqualTo(1));
         Assert.That(themeBefore.Files[0].Header.FileMetadata.AppData.Content, Does.Contain("\"cardDesign\":\"poster\""));
 
@@ -437,7 +428,7 @@ public class ProfileAttributePublishingTests : V2Fixture
             ThemeMetadata(ThemeType, "dossier"));
         Assert.That(updated.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {updated.StatusCode}");
 
-        var themeAfter = await GetSiteDataThemeSectionAsync(client);
+        var themeAfter = await GetSiteDataSectionAsync(client, "theme");
         Assert.That(themeAfter.Files, Has.Count.EqualTo(1));
         Assert.That(themeAfter.Files[0].Header.FileMetadata.AppData.Content, Does.Contain("\"cardDesign\":\"dossier\""));
     }
@@ -474,13 +465,13 @@ public class ProfileAttributePublishingTests : V2Fixture
         AccessControlList = AccessControlList.Anonymous
     };
 
-    private static async Task<SectionOutput> GetSiteDataThemeSectionAsync(System.Net.Http.HttpClient client)
+    private static async Task<SectionOutput> GetSiteDataSectionAsync(HttpClient client, string name)
     {
         var resp = await client.GetAsync($"https://{Identities.Frodo}/cdn/sitedata.json");
         Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {resp.StatusCode}");
         var sections = JsonSerializer.Deserialize<List<SectionOutput>>(await resp.Content.ReadAsStringAsync(), SiteDataJsonOptions)!;
-        var theme = sections.SingleOrDefault(s => s.Name == "theme");
-        Assert.That(theme, Is.Not.Null, "sitedata.json should carry a 'theme' section");
-        return theme!;
+        var section = sections.SingleOrDefault(s => s.Name == name);
+        Assert.That(section, Is.Not.Null, $"sitedata.json should carry a '{name}' section");
+        return section!;
     }
 }
