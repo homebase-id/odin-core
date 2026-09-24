@@ -4,6 +4,7 @@ using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.AppNotifications.Push.Scheduled;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Security.Email;
@@ -41,6 +42,7 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<MailRelayOnboardingJob>(cb, MailRelayOnboardingJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ExpireFileJob>(cb, ExpireFileJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ReapFileJob>(cb, ReapFileJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<SyncChannelFilesJob>(cb, SyncChannelFilesJob.JobTypeId);
 
 
         //

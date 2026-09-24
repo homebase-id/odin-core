@@ -1,15 +1,18 @@
 using System;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Odin.Services.DataSubscription.Follower;
+using Odin.Services.JobManagement;
 using System.Linq;
+using System.Threading;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
-using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests.V2.Ported.Feed;
@@ -88,18 +91,30 @@ public class AppAcceptedConnectionFeedSyncTests : V2Fixture
             .AcceptIncomingRequestAsync(frodo.Identity, new AcceptConnectionRequestV2());
         Assert.That(accept.IsSuccessStatusCode, Is.True, $"app accept failed: {accept.StatusCode} {accept.Error?.Content}");
 
-        // What the accept-time sync can deliver, and what it cannot.
-        var afterAccepting = await sam.V1.Drive.QueryBatch(FeedScenario.FeedQuery(fileType));
-        Assert.That(afterAccepting.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        // The accept does not wait for the fetch -- it schedules it, so that an unreachable sender cannot
+        // hold a user-facing request open. Nothing has been fetched yet at this point.
+        var stillOnlyTheAnonymousPost = await sam.V1.Drive.QueryBatch(FeedScenario.FeedQuery(fileType));
+        Assert.That(stillOnlyTheAnonymousPost.Content!.SearchResults!.Count(), Is.EqualTo(1),
+            "the accept must return without having fetched anything");
 
-        var files = afterAccepting.Content!.SearchResults!.ToList();
+        // Drive the job the way IJobManager documents for tests.
+        var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
+        var scheduled = (await jobManager.GetAllJobsAsync())
+            .Single(j => j.jobType == SyncChannelFilesJob.JobTypeId.ToString());
+        await jobManager.RunJobNowAsync(scheduled.id, CancellationToken.None);
 
-        Assert.That(files, Has.Exactly(1).Matches<SharedSecretEncryptedFileHeader>(f =>
-                !f.FileMetadata.IsEncrypted && f.FileMetadata.AppData.Content == frodoFiles.PublicFileContent),
-            "the unencrypted post is writable without the feed drive's storage key, so it is here");
 
-        Assert.That(files, Has.Exactly(0).Matches<SharedSecretEncryptedFileHeader>(f => f.FileMetadata.IsEncrypted),
-            "the encrypted post needs the feed drive's storage key to seal, which an app-accepted " +
-            "connection cannot produce -- it is deferred, not delivered, and that is the open half of #1784");
+        // The job writes what it can seal -- nothing, for the encrypted post -- and deposits the rest.
+        var beforeDraining = await sam.V1.Drive.QueryBatch(FeedScenario.FeedQuery(fileType));
+        Assert.That(beforeDraining.Content!.SearchResults!.ToList(),
+            Has.Exactly(0).Matches<SharedSecretEncryptedFileHeader>(f => f.FileMetadata.IsEncrypted),
+            "precondition: the app-accept context cannot seal, so the encrypted post is on the inbox, not the drive");
+
+        // Draining is what a feed-capable caller does -- the Feed app opening, or the owner. Not the
+        // owner console specifically: the deposit is sealed under the server-held offline key.
+        await sam.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
+
+        // Both posts, from a connection an app accepted and an inbox pass completed.
+        await FeedScenario.AssertHasAllExpectedFeedFilesAsync(sam, FeedScenario.FeedQuery(fileType), frodoFiles);
     }
 }

@@ -22,6 +22,8 @@ using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.JobManagement;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
@@ -66,7 +68,8 @@ namespace Odin.Services.Membership.Connections.Requests
         StaticFileContentService staticFileContentService,
         VersionUpgradeScheduler versionUpgradeScheduler,
         PeerOutbox peerOutbox,
-        CircleDefinitionService circleDefinitionService)
+        CircleDefinitionService circleDefinitionService,
+        IJobManager jobManager)
         : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {
         private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
@@ -776,8 +779,13 @@ namespace Odin.Services.Membership.Connections.Requests
         /// coincidence of timing.
         /// </para>
         /// </param>
+        /// <param name="callerToken">
+        /// The owner's token, when the owner is the one accepting. Carried to the channel-sync job so it
+        /// can rebuild their context and seal encrypted posts; an app accept passes none and the job
+        /// fetches only what needs no sealing.
+        /// </param>
         public async Task AcceptConnectionRequestAsync(AcceptRequestHeader header, bool tryOverrideAcl, bool markReviewed,
-            IOdinContext odinContext)
+            IOdinContext odinContext, ClientAuthenticationToken callerToken = null)
         {
             header.Validate();
 
@@ -1001,31 +1009,69 @@ namespace Odin.Services.Membership.Connections.Requests
             await TryUpsertConnectionContactAsync(senderOdinId, CardFromRequestData(incomingRequest.ContactData),
                 odinContext, enrichFromPublicIfNoName: false);
 
-            try
-            {
-                // The same upgrade the sender side of this flow uses, minus the key material the accept
-                // path has none of. Without it an app accepting on the owner's behalf has no ManageFeed
-                // and no feed drive, so this threw every time and the catch below hid it (#1784).
-                //
-                // Delivers the sender's unencrypted posts. Their encrypted ones need the feed drive's
-                // storage key to seal, which no app-accepted connection can produce, so those are left
-                // for a keyed pass -- see the skip in SynchronizeChannelFilesAsync.
-                logger.LogDebug("AcceptConnectionRequest - Running SynchronizeChannelFiles");
-                var feedWriterContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext);
-
-                await followerService.SynchronizeChannelFilesAsync(senderOdinId, feedWriterContext,
-                    remoteClientAccessToken.SharedSecret);
-            }
-            catch (Exception e)
-            {
-                // Still best-effort: the connection is established and must not be undone because their
-                // back-catalogue could not be fetched. What is gone is the guarantee that this always
-                // fails, so an error here is now worth reading.
-                logger.LogError(e, "Failed while trying to sync channels");
-            }
+            // Fetching the new contact's channels is not this request's work. Inline it meant two
+            // retry-wrapped peer calls on a user-facing accept -- three attempts each against a 100s
+            // default timeout, no cancellation -- so an unreachable sender could hold the accept open for
+            // minutes. Scheduled instead, and the accept returns.
+            //
+            // The job cannot mint a token to call the sender with: minting reads the ICR key, which is
+            // master-key protected and gone once the request ends. So it carries the peer's own token,
+            // encrypted under the tenant's temporal key, the way VersionUpgradeJob carries the owner's.
+            await ScheduleChannelSyncAsync(senderOdinId, remoteClientAccessToken, callerToken);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
+        }
+
+        /// <summary>
+        /// Queues the channel-file fetch for a newly accepted connection.
+        /// </summary>
+        /// <remarks>
+        /// Best-effort by construction: a connection is established whether or not their back-catalogue
+        /// arrives, so a failure to schedule is logged and swallowed rather than undoing the accept.
+        /// </remarks>
+        private async Task ScheduleChannelSyncAsync(OdinId senderOdinId, ClientAccessToken remoteClientAccessToken,
+            ClientAuthenticationToken callerToken)
+        {
+            try
+            {
+                var (iv, encryptedToken) = AesCbc.Encrypt(
+                    remoteClientAccessToken.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
+
+                byte[] callerIv = null;
+                byte[] encryptedCallerToken = null;
+                if (callerToken != null)
+                {
+                    (callerIv, encryptedCallerToken) = AesCbc.Encrypt(
+                        callerToken.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
+                }
+
+                var job = jobManager.NewJob<SyncChannelFilesJob>();
+                job.Data = new SyncChannelFilesJobData
+                {
+                    Tenant = tenantContext.HostOdinId,
+                    PeerIdentity = senderOdinId,
+                    EncryptedPeerToken = encryptedToken,
+                    Iv = iv,
+                    EncryptedCallerToken = encryptedCallerToken,
+                    CallerIv = callerIv
+                };
+
+                logger.LogDebug("AcceptConnectionRequest - scheduling channel sync from {sender}", senderOdinId);
+
+                await jobManager.ScheduleJobAsync(job, new JobSchedule
+                {
+                    RunAt = DateTimeOffset.Now,
+                    MaxAttempts = 5,
+                    RetryDelay = TimeSpan.FromMinutes(1),
+                    OnSuccessDeleteAfter = TimeSpan.FromMinutes(0),
+                    OnFailureDeleteAfter = TimeSpan.FromMinutes(0),
+                });
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed to schedule the channel sync for {sender}", senderOdinId);
+            }
         }
 
         /// <summary>
