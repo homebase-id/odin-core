@@ -51,18 +51,31 @@ public class OdinContextCache(
 
     //
 
-    public async Task<IOdinContext?> GetOrAddContextAsync(
+    public Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
         Func<Task<IOdinContext?>> dotYouContextFactory,
         TimeSpan? expiration = null,
         string? keySuffix = null)
     {
         var duration = expiration ?? DefaultDuration;
-        if (duration < TimeSpan.FromSeconds(1))
+        if (duration < FusionCacheWrapper.MinL2Duration)
         {
-            throw new OdinSystemException("Cache duration must be at least 1 second.");
+            throw new OdinSystemException($"Cache duration must be at least {FusionCacheWrapper.MinL2Duration.TotalSeconds}s.");
         }
 
+        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), duration), keySuffix);
+    }
+
+    /// <summary>
+    /// As above, but the factory says how long its result may be cached, for a context whose credential
+    /// it only learns the end of while building it: a token the owner gave a fixed date must not get
+    /// the default hour's grace from this cache. Null means the default.
+    /// </summary>
+    public async Task<IOdinContext?> GetOrAddContextAsync(
+        ClientAuthenticationToken token,
+        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory,
+        string? keySuffix = null)
+    {
         // The suffix separates contexts built for the same token under different request inputs.
         var key = token.AsKey().ToString().ToLower() + (keySuffix == null ? "" : ":" + keySuffix);
 
@@ -71,8 +84,12 @@ public class OdinContextCache(
         var result = await level1Cache.GetOrDefaultAsync<IOdinContext?>(key);
         if (result == null)
         {
-            result = await dotYouContextFactory();
-            if (result != null)
+            (result, var cacheFor) = await dotYouContextFactory();
+            var duration = cacheFor ?? DefaultDuration;
+
+            // Less than the cache's minimum is not "cache briefly", it is an error there. The
+            // credential is about to end anyway; serve this request from the fresh build and stop.
+            if (result != null && duration >= FusionCacheWrapper.MinL2Duration)
             {
                 await level1Cache.SetAsync(key, result, duration, EntrySize.Small, _cacheTags);
             }

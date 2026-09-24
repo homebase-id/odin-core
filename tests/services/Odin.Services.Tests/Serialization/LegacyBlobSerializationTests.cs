@@ -14,6 +14,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Base;
 using Odin.Services.Membership.YouAuth;
 
 namespace Odin.Services.Tests.Serialization;
@@ -329,8 +330,9 @@ public class LegacyBlobSerializationTests
         var appClientRegistration = new AppClientRegistration(
             new OdinId("sam.dotyou.cloud"), new GuidId(appId), "app client", serverHalfOfClientKey);
 
-        var youAuthDomainClient = new YouAuthDomainClient(
-            new AsciiDomainName("photos.odin.earth"), "domain client", serverHalfOfClientKey);
+        var youAuthDomainClient = YouAuthDomainClient.Create(
+            new AsciiDomainName("photos.odin.earth"), "domain client", serverHalfOfClientKey,
+            new ConsentRequirements { ConsentRequirementType = ConsentRequirementType.Never });
 
         var peerIcrClient = new PeerIcrClient
         {
