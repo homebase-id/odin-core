@@ -339,6 +339,26 @@ works around it in the fast test host); fixing it would likely make this flake i
 
 ---
 
+## Every fixture that starts an S3 container (2026-09-24, all ubuntu CI jobs, all branches)
+
+**Symptom:** `OneTimeSetUp: Docker.DotNet.DockerApiException : Docker API responded with status
+code='InternalServerError', response='{"message":"unauthorized: access to the requested resource
+is not authorized"}'` from Testcontainers' image pull, followed by `TearDown :
+NullReferenceException` in the same fixtures. Around 150 failures per job; redis and ryuk pull fine.
+
+**Cause (verified by pulling locally):** MinIO withdrew its public images. `minio/minio` left Docker
+Hub on 2026-09-11 and `quay.io/minio/minio` began requiring authentication for every tag on
+2026-09-24, so the pinned `quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z` returned 401.
+
+**Fix:** the four fixtures and `docker/compose.dev.yml` now pull `rustfs/rustfs:1.0.0`, an
+Apache-2.0 S3 server that speaks MinIO's API and honours its environment and command line, so the
+unchanged Testcontainers `MinioBuilder` starts it. Verified locally with `RUN_S3_TESTS` defined:
+`S3AwsStorageTests` (26), `S3FileStoreUnitTests` (45) and the hosting `AppNotifications`, peer and
+inbox fixtures with S3 payload storage on, all green. If it recurs, check that the tag still
+resolves before suspecting a test.
+
+---
+
 ## `Odin.Hosting.Tests.V2.Ported.Peer.DeleteBatchTests`
 
 - `DeleteFileIdBatch_WithSingleRecipient_PropagatesDeleteToRecipient`
