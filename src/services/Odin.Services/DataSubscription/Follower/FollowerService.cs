@@ -356,13 +356,8 @@ namespace Odin.Services.DataSubscription.Follower
             await this.SynchronizeChannelFilesAsync(identityIFollow, odinContext, sharedSecret: sharedSecret);
         }
 
-        /// <param name="peerToken">
-        /// Authenticate the channel query to <paramref name="identityIFollow"/> with this token rather than
-        /// one minted from the ICR key. Needed by the caller that has a live token and no way to reach the
-        /// ICR key -- see <c>CircleNetworkRequestService.AcceptConnectionRequest</c>.
-        /// </param>
         public async Task SynchronizeChannelFilesAsync(OdinId identityIFollow, IOdinContext odinContext,
-            SensitiveByteArray sharedSecret, ClientAccessToken peerToken = null)
+            SensitiveByteArray sharedSecret)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
@@ -403,13 +398,22 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             var collection = await peerDriveQueryService.GetBatchCollectionAsync(identityIFollow, request, FileSystemType.Standard,
-                odinContext, peerToken);
+                odinContext);
 
             var patchedContext = sharedSecret == null
                 ? odinContext
                 : OdinContextUpgrades.PatchInSharedSecret(
                     odinContext,
                     sharedSecret: sharedSecret);
+
+            // Sealing a file into the feed drive needs that drive's storage key, so a caller without one
+            // can write the unencrypted posts and none of the encrypted ones. Asked once: it is a fact
+            // about the caller, not about any file, and discovering it per file means an exception and an
+            // Error line each time. The same split inbound distribution makes -- FeedDistributionPerimeterService
+            // writes an unencrypted post and routes an encrypted one to the inbox for a keyed pass.
+            var canWriteEncrypted = patchedContext.PermissionsContext
+                .TryGetDriveStorageKey(WellKnownAppDrives.FeedDrive.Alias, out _);
+            var deferredEncrypted = 0;
 
             foreach (var results in collection.Results)
             {
@@ -421,6 +425,12 @@ namespace Odin.Services.DataSubscription.Follower
 
                 foreach (var dsr in results.SearchResults)
                 {
+                    if (dsr.FileMetadata.IsEncrypted && !canWriteEncrypted)
+                    {
+                        deferredEncrypted++;
+                        continue;
+                    }
+
                     try
                     {
                         var channelId = Guid.Parse(results.Name); //name above is the channelId
@@ -433,6 +443,15 @@ namespace Odin.Services.DataSubscription.Follower
                             patchedContext.PermissionsContext.SharedSecretKey == null ? "null" : "not null");
                     }
                 }
+            }
+
+            if (deferredEncrypted > 0)
+            {
+                // One line, not one per file, and not an Error: nothing failed. The posts stay unfetched
+                // until something holding the feed drive's storage key syncs this identity.
+                logger.LogInformation(
+                    "SynchronizeChannelFiles - left {count} encrypted file(s) from {identity} unfetched: this caller " +
+                    "cannot seal to the feed drive", deferredEncrypted, identityIFollow);
             }
         }
 

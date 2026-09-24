@@ -1003,19 +1003,18 @@ namespace Odin.Services.Membership.Connections.Requests
 
             try
             {
-                // Under an upgraded context, because the caller may not be able to authorise this: an app
-                // accepting on the owner's behalf has neither ManageFeed nor write access to the feed
-                // drive, so this threw OdinSecurityException every time, was swallowed by the catch
-                // below, and the new contact's channels silently never arrived (#1784).
+                // The same upgrade the sender side of this flow uses, minus the key material the accept
+                // path has none of. Without it an app accepting on the owner's behalf has no ManageFeed
+                // and no feed drive, so this threw every time and the catch below hid it (#1784).
                 //
-                // The peer is queried with the token that just arrived rather than one minted from the
-                // ICR key, which is master-key protected and therefore out of an app's reach. Deferring
-                // the sync would lose that token, which is why it happens here rather than later.
+                // Delivers the sender's unencrypted posts. Their encrypted ones need the feed drive's
+                // storage key to seal, which no app-accepted connection can produce, so those are left
+                // for a keyed pass -- see the skip in SynchronizeChannelFilesAsync.
                 logger.LogDebug("AcceptConnectionRequest - Running SynchronizeChannelFiles");
-                var feedWriterContext = OdinContextUpgrades.UpgradeToFeedWriterForConnectionAccept(odinContext);
+                var feedWriterContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext);
 
                 await followerService.SynchronizeChannelFilesAsync(senderOdinId, feedWriterContext,
-                    remoteClientAccessToken.SharedSecret, peerToken: remoteClientAccessToken);
+                    remoteClientAccessToken.SharedSecret);
             }
             catch (Exception e)
             {
@@ -1160,9 +1159,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 if (originalRequest.TempEncryptedFeedDriveStorageKey != null)
                 {
-                    var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
                     var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext,
-                        feedDriveId,
                         tempKey,
                         originalRequest.TempEncryptedFeedDriveStorageKey,
                         originalRequest.TempEncryptedIcrKey);

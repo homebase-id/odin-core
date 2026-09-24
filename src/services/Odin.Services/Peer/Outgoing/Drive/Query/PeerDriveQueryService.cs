@@ -14,7 +14,6 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Apps;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -225,20 +224,13 @@ public class PeerDriveQueryService(
         }
     }
 
-    /// <param name="peerToken">
-    /// Authenticate to <paramref name="odinId"/> with this token instead of one minted from the ICR key.
-    /// For callers that hold a live token but cannot reach the ICR key -- an app accepting a connection
-    /// request on the owner's behalf has the peer's own CAT in hand and no master key to unlock the ICR
-    /// key with.
-    /// </param>
     public async Task<QueryBatchCollectionResponse> GetBatchCollectionAsync(OdinId odinId, QueryBatchCollectionRequest request,
         FileSystemType fileSystemType,
-        IOdinContext odinContext,
-        ClientAccessToken peerToken = null)
+        IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, peerToken);
+        var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
         {
             ApiResponse<QueryBatchCollectionResponse> queryBatchResponse = null;
@@ -819,21 +811,12 @@ public class PeerDriveQueryService(
 
     private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClientAsync(OdinId odinId,
         FileSystemType? fileSystemType,
-        IOdinContext odinContext,
-        ClientAccessToken peerToken = null)
+        IOdinContext odinContext)
     {
         //TODO: this check is duplicated in the ResolveClientAccessToken method; need to centralize
         odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead);
-
-        if (peerToken != null)
-        {
-            // The caller handed us the credential, so there is nothing to mint and no ICR key to need.
-            var tokenHttpClient = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerDriveQueryHttpClient>(
-                odinId, peerToken.ToAuthenticationToken(), fileSystemType);
-            return (null, tokenHttpClient);
-        }
 
         if (odinContext.AuthContext == "youauth-token")
         {
