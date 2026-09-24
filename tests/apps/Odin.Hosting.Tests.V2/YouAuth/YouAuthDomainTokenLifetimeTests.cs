@@ -4,19 +4,10 @@ using System.Net;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
-using Odin.Core.Util;
-using Odin.Hosting.Authentication.YouAuth;
-using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
-using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.Tests.V2.Hosting;
-using Odin.Services.Authentication.YouAuth;
-using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.YouAuth;
 
@@ -44,8 +35,6 @@ namespace Odin.Hosting.Tests.V2.YouAuth;
 [TestFixture]
 public class YouAuthDomainTokenLifetimeTests : V2Fixture
 {
-    private static readonly TimeSpan SixMonths = TimeSpan.FromDays(180);
-
     /// <summary>
     /// Clock skew between the test computing "now" and the server doing the same a request later.
     /// </summary>
@@ -57,13 +46,12 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var expiration = UnixTimeUtc.Now().AddDays(14);
 
-        var guest = await RegisterGuestAsync(owner, ConsentRequirementType.Expiring, expiration);
+        var guest = await GuestWithConsentAsync(owner, ConsentRequirementType.Expiring, expiration);
 
         var row = await ReadRowAsync(owner, guest.TokenId);
         Assert.That(row, Is.Not.Null,
             "the token must live in the client-registrations table, the one store that enforces expiry");
-        Assert.That(row!.expiresAt.milliseconds, Is.EqualTo(expiration.milliseconds).Within((long)Slack.TotalMilliseconds),
-            "the owner named the date; that is when the token expires");
+        AssertCloseTo(row!.expiresAt, expiration, "the owner named the date; that is when the token expires");
     }
 
     [TestCase(ConsentRequirementType.Never)]
@@ -73,13 +61,12 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var issued = UnixTimeUtc.Now();
 
-        var guest = await RegisterGuestAsync(owner, consent);
+        var guest = await GuestWithConsentAsync(owner, consent);
 
         var row = await ReadRowAsync(owner, guest.TokenId);
         Assert.That(row, Is.Not.Null,
             "the token must live in the client-registrations table, the one store that enforces expiry");
-        AssertCloseTo(row!.expiresAt, issued.AddMilliseconds((long)SixMonths.TotalMilliseconds),
-            "no date from the owner means the same six months the owner console gets");
+        AssertCloseTo(row!.expiresAt, SixMonthsFrom(issued), "no date from the owner means the same six months the owner console gets");
     }
 
     [TestCase(ConsentRequirementType.Never)]
@@ -87,37 +74,30 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
     public async Task UsingTheTokenRestartsTheSixMonths(ConsentRequirementType consent)
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var guest = await RegisterGuestAsync(owner, consent);
+        var guest = await GuestWithConsentAsync(owner, consent);
 
         // Three months on, and eighty days of the window left. The next use should give it six again.
         await RewindRowAsync(owner, guest.TokenId, UnixTimeUtc.Now().AddDays(80));
 
         var used = UnixTimeUtc.Now();
-        var verify = await guest.Auth.VerifyToken();
-        Assert.That(verify.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var row = await UseTokenAsync(owner, guest);
 
-        var row = await ReadRowAsync(owner, guest.TokenId);
-        Assert.That(row, Is.Not.Null);
-        AssertCloseTo(row!.expiresAt, used.AddMilliseconds((long)SixMonths.TotalMilliseconds),
-            "a client still in use is never cut off: each use restarts the six months");
+        AssertCloseTo(row.expiresAt, SixMonthsFrom(used), "a client still in use is never cut off: each use restarts the six months");
     }
 
     [Test]
     public async Task UsingTheTokenNeverMovesAFixedDate()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var guest = await RegisterGuestAsync(owner, ConsentRequirementType.Expiring, UnixTimeUtc.Now().AddDays(14));
+        var guest = await GuestWithConsentAsync(owner, ConsentRequirementType.Expiring, UnixTimeUtc.Now().AddDays(14));
 
         // Eleven days on, three left. Use must not hand it another fourteen.
         var threeDaysLeft = UnixTimeUtc.Now().AddDays(3);
         await RewindRowAsync(owner, guest.TokenId, threeDaysLeft);
 
-        var verify = await guest.Auth.VerifyToken();
-        Assert.That(verify.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var row = await UseTokenAsync(owner, guest);
 
-        var row = await ReadRowAsync(owner, guest.TokenId);
-        Assert.That(row, Is.Not.Null);
-        Assert.That(row!.expiresAt.milliseconds, Is.EqualTo(threeDaysLeft.milliseconds),
+        Assert.That(row.expiresAt.milliseconds, Is.EqualTo(threeDaysLeft.milliseconds),
             "the owner named a date; nothing the client does moves it");
     }
 
@@ -125,18 +105,15 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
     public async Task AWindowRestartedWithinTheLastDayIsLeftAlone()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var guest = await RegisterGuestAsync(owner, ConsentRequirementType.Never);
+        var guest = await GuestWithConsentAsync(owner, ConsentRequirementType.Never);
 
         // Restarted an hour ago: a restart now would move the date by an hour, and that is not worth a write.
-        var restartedAnHourAgo = UnixTimeUtc.Now().AddMilliseconds((long)SixMonths.TotalMilliseconds).AddHours(-1);
+        var restartedAnHourAgo = SixMonthsFrom(UnixTimeUtc.Now()).AddHours(-1);
         await RewindRowAsync(owner, guest.TokenId, restartedAnHourAgo);
 
-        var verify = await guest.Auth.VerifyToken();
-        Assert.That(verify.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var row = await UseTokenAsync(owner, guest);
 
-        var row = await ReadRowAsync(owner, guest.TokenId);
-        Assert.That(row, Is.Not.Null);
-        Assert.That(row!.expiresAt.milliseconds, Is.EqualTo(restartedAnHourAgo.milliseconds),
+        Assert.That(row.expiresAt.milliseconds, Is.EqualTo(restartedAnHourAgo.milliseconds),
             "restarting the window is throttled to once a day; a recent restart is left as it was");
     }
 
@@ -144,7 +121,7 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
     public async Task AnExpiredTokenIsRefused()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var guest = await RegisterGuestAsync(owner, ConsentRequirementType.Never);
+        var guest = await GuestWithConsentAsync(owner, ConsentRequirementType.Never);
 
         await RewindRowAsync(owner, guest.TokenId, UnixTimeUtc.Now().AddSeconds(-1));
 
@@ -163,7 +140,7 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
         // must not get an hour's grace from that cache, so the cache entry has to end when the token does.
         var owner = await LoginAsOwner(Identities.Frodo);
         var lifetime = TimeSpan.FromSeconds(3);
-        var guest = await RegisterGuestAsync(owner, ConsentRequirementType.Expiring, UnixTimeUtc.Now().AddMilliseconds((long)lifetime.TotalMilliseconds));
+        var guest = await GuestWithConsentAsync(owner, ConsentRequirementType.Expiring, UnixTimeUtc.Now().AddSeconds((long)lifetime.TotalSeconds));
 
         var beforeExpiry = await guest.Auth.VerifyToken();
         Assert.That(beforeExpiry.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the token is good until its date");
@@ -179,41 +156,31 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
     // Helpers
     // -------------------------------------------------------------------------------------------
 
-    private sealed record Guest(Guid TokenId, AuthV2Client Auth);
-
     /// <summary>
-    /// A throwaway domain registered under the given consent rule, with one client under it. The
-    /// domain endpoints are used straight rather than through <see cref="GuestSession"/>, which fixes
-    /// the consent rule at Never -- the rule is the variable here.
+    /// A throwaway guest domain registered under the given consent rule. The grant is the smallest a
+    /// circle may carry; the consent rule is the variable.
     /// </summary>
-    private static async Task<Guest> RegisterGuestAsync(
+    private static Task<GuestSession> GuestWithConsentAsync(
         OwnerSession owner,
         ConsentRequirementType consent,
         UnixTimeUtc consentExpiration = default)
     {
-        var domain = new AsciiDomainName($"{Guid.NewGuid():n}-test.org");
+        var grant = new PermissionSetGrantRequest { PermissionSet = new PermissionSet(PermissionKeys.ReadConnections) };
+        return GuestSession.SetupAsync(owner, grant,
+            consent: new ConsentRequirements { ConsentRequirementType = consent, Expiration = consentExpiration });
+    }
 
-        var svc = owner.RefitFor<IRefitYouAuthDomainRegistration>();
-        var registered = await svc.RegisterDomain(new YouAuthDomainRegistrationRequest
-        {
-            Name = $"Test_{domain.DomainName}",
-            Domain = domain.DomainName,
-            CircleIds = [],
-            ConsentRequirements = new ConsentRequirements
-            {
-                ConsentRequirementType = consent,
-                Expiration = consentExpiration
-            }
-        });
-        Assert.That(registered.IsSuccessStatusCode, Is.True, $"RegisterDomain failed: {registered.StatusCode}");
+    /// <summary>
+    /// Uses the token once, which must succeed, and returns the row afterwards.
+    /// </summary>
+    private static async Task<ClientRegistrationsRecord> UseTokenAsync(OwnerSession owner, GuestSession guest)
+    {
+        var verify = await guest.Auth.VerifyToken();
+        Assert.That(verify.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var clientReg = await owner.Admin.RegisterYouAuthClient(domain);
-        var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);
-
-        var factory = new InProcessApiClientFactory(owner.Host, YouAuthDefaults.XTokenCookieName,
-            cat.ToAuthenticationToken(), cat.SharedSecret.GetKey().ToSensitiveByteArray(), GuestApiPathConstantsV1.BasePathV1);
-
-        return new Guest(cat.Id, new AuthV2Client(owner.Identity, factory));
+        var row = await ReadRowAsync(owner, guest.TokenId);
+        Assert.That(row, Is.Not.Null, "a token that just verified has a row");
+        return row!;
     }
 
     private static async Task<ClientRegistrationsRecord?> ReadRowAsync(OwnerSession owner, Guid tokenId)
@@ -240,6 +207,9 @@ public class YouAuthDomainTokenLifetimeTests : V2Fixture
 
         await tenant.Resolve<OdinContextCache>().ResetAsync();
     }
+
+    private static UnixTimeUtc SixMonthsFrom(UnixTimeUtc t) =>
+        t.AddMilliseconds((long)YouAuthDomainClient.SlidingLifetime.TotalMilliseconds);
 
     private static void AssertCloseTo(UnixTimeUtc actual, UnixTimeUtc expected, string because)
     {

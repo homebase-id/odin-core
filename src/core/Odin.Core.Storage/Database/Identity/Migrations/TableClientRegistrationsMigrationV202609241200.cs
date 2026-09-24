@@ -3,6 +3,7 @@ using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Odin.Core.Time;
@@ -36,8 +37,9 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
     /// months that use restarts. A token whose consent date has already passed is expired, not carried.
     /// </para>
     /// <para>
-    /// The KeyThreeValue rows are left in place, as the circle-definition move did: if this goes wrong
-    /// the source is still there. Nothing reads them any more. Cleaning them up is a separate job.
+    /// The KeyThreeValue rows are left in place, as the v12 to v13 circle-definition move did: if this
+    /// goes wrong the source is still there. Nothing reads them any more. Cleaning them up is a
+    /// separate job.
     /// </para>
     /// </remarks>
     public class TableClientRegistrationsMigrationV202609241200 : MigrationBase
@@ -142,7 +144,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                 }
 
                 clients.Add(new LegacyClient(identityId, key1.AsSpan(0, 16).ToArray(),
-                    global::System.Text.Encoding.UTF8.GetString((byte[])rdr[2])));
+                    Encoding.UTF8.GetString((byte[])rdr[2])));
             }
 
             return clients;
@@ -170,31 +172,21 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             return JsonNode.Parse(bytes)?.AsObject()?["consentRequirements"]?.AsObject();
         }
 
-        private static async Task<bool> RowExistsAsync(IConnectionWrapper cn, byte[] identityId, byte[] tokenId)
-        {
-            await using var select = cn.CreateCommand();
-            select.CommandText = "SELECT 1 FROM ClientRegistrationsMigrationsV202609241200 WHERE identityId = @identityId AND catId = @catId;";
-            select.AddParameter("@identityId", DbType.Binary, identityId);
-            select.AddParameter("@catId", DbType.Binary, tokenId);
-            return await select.ExecuteScalarAsync() != null;
-        }
-
         /// <summary>
         /// Carries each legacy client into the new table, sized by its domain's consent. Returns how
-        /// many rows it wrote. Re-runnable: a token already in the table is skipped.
+        /// many rows it wrote. The previous version never wrote a domain client here, so a duplicate
+        /// id is not a case to skip quietly: catId is UNIQUE and the insert would fail the migration.
         /// </summary>
         public async Task<int> MoveLegacyClientsAsync(IConnectionWrapper cn)
         {
             var moved = 0;
             var now = UnixTimeUtc.Now();
 
+            // Tokens cluster by domain (one per login to the same site); read each domain's consent once.
+            var consentByDomain = new Dictionary<(string identityId, string domain), JsonObject>();
+
             foreach (var legacy in await ReadLegacyClientsAsync(cn))
             {
-                if (await RowExistsAsync(cn, legacy.IdentityId, legacy.TokenId))
-                {
-                    continue;
-                }
-
                 var client = JsonNode.Parse(legacy.Json)?.AsObject();
                 var domain = client?["domain"]?.GetValue<string>();
                 if (client == null || string.IsNullOrEmpty(domain))
@@ -202,7 +194,12 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                     continue;
                 }
 
-                var consent = await ReadConsentAsync(cn, legacy.IdentityId, domain);
+                var consentKey = (Convert.ToHexString(legacy.IdentityId), domain);
+                if (!consentByDomain.TryGetValue(consentKey, out var consent))
+                {
+                    consent = await ReadConsentAsync(cn, legacy.IdentityId, domain);
+                    consentByDomain[consentKey] = consent;
+                }
                 var expiring = string.Equals(consent?["consentRequirementType"]?.GetValue<string>(), "expiring",
                     StringComparison.OrdinalIgnoreCase);
 

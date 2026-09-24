@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json.Serialization;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -30,13 +31,14 @@ public sealed class YouAuthDomainClient : IClientRegistration
     public const int CatType = 408;
 
     /// <summary>
-    /// Kept in step with the owner console session: a domain the owner gave no end date to is
-    /// treated the way their own login is.
+    /// The owner console session's window: a domain the owner gave no end date to is treated the
+    /// way their own login is.
     /// </summary>
-    public static readonly TimeSpan SlidingLifetime = TimeSpan.FromDays(180);
+    public static readonly TimeSpan SlidingLifetime = OwnerConsoleClientRegistration.Lifetime;
 
     /// <summary>
-    /// One category for every domain client. Per-domain lookup goes by <see cref="IssuedTo"/>.
+    /// One category for every domain client; a per-domain lookup goes by <see cref="IssuedTo"/>
+    /// (<see cref="Authorization.ClientRegistrationStorage.GetByTypeAndIssuedToAsync{T}"/>).
     /// </summary>
     public static readonly Guid CategoryIdValue = Guid.Parse("83742ae7-e66d-45e6-82a6-6a003c960b39");
 

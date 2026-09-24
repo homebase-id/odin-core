@@ -30,6 +30,10 @@ public class ClientRegistrationsDomainClientMoveTests : IocTestBase
     private static readonly byte[] ClientDataType = Guid.Parse("cd16bc37-3e1f-410b-be03-7bec83dd6c33").ToByteArray();
     private static readonly byte[] DomainContextKey = Guid.Parse("e11ff091-0edf-4532-8b0f-b9d9ebe0880f").ToByteArray();
 
+    /// <summary>
+    /// The migration's own frozen copy of the sliding lifetime; the test pins the value, as it pins
+    /// the GUIDs below, so a change in the service does not silently change what the move does.
+    /// </summary>
     private static readonly TimeSpan SixMonths = TimeSpan.FromDays(180);
     private static readonly TimeSpan Slack = TimeSpan.FromSeconds(30);
 
@@ -40,11 +44,8 @@ public class ClientRegistrationsDomainClientMoveTests : IocTestBase
 #endif
     public async Task DomainClientsAreCarriedAcrossSizedByTheirConsent(DatabaseType databaseType)
     {
-        await RegisterServicesAsync(databaseType, createDatabases: false);
-        await using var scope = Services.BeginLifetimeScope();
-
+        await using var scope = await StandBeforeTheMoveAsync(databaseType);
         var migrator = scope.Resolve<IdentityMigrator>();
-        await migrator.MigrateAsync(VersionBeforeTheMove);
 
         var keyValues = scope.Resolve<TableKeyThreeValue>();
         var before = UnixTimeUtc.Now();
@@ -94,11 +95,8 @@ public class ClientRegistrationsDomainClientMoveTests : IocTestBase
         // The copy carries rows with their rowIds; the moved clients are appended after. On Postgres the
         // shadow table's sequence starts over, so without a resync the first newcomer would collide with
         // rowId 1. This test is the one that would catch that.
-        await RegisterServicesAsync(databaseType, createDatabases: false);
-        await using var scope = Services.BeginLifetimeScope();
-
+        await using var scope = await StandBeforeTheMoveAsync(databaseType);
         var migrator = scope.Resolve<IdentityMigrator>();
-        await migrator.MigrateAsync(VersionBeforeTheMove);
 
         var registrations = scope.Resolve<TableClientRegistrations>();
         var existing = Guid.NewGuid();
@@ -125,6 +123,17 @@ public class ClientRegistrationsDomainClientMoveTests : IocTestBase
     // -------------------------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A fresh database migrated to the version before the move, in a scope the test owns.
+    /// </summary>
+    private async Task<ILifetimeScope> StandBeforeTheMoveAsync(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType, createDatabases: false);
+        var scope = Services.BeginLifetimeScope();
+        await scope.Resolve<IdentityMigrator>().MigrateAsync(VersionBeforeTheMove);
+        return scope;
+    }
 
     /// <summary>
     /// A domain registration and one client under it, in the key-value shape the service wrote before

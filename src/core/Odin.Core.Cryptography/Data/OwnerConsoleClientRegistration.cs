@@ -27,7 +27,13 @@ namespace Odin.Core.Cryptography.Data
 
         public int Type => 100;
 
-        public int TimeToLiveSeconds => (Int32)TimeSpan.FromDays(180).TotalSeconds;
+        /// <summary>
+        /// How long an owner session lives without use. Named so a token meant to behave like the
+        /// owner's own login (a YouAuth domain the owner gave no end date to) can share it.
+        /// </summary>
+        public static readonly TimeSpan Lifetime = TimeSpan.FromDays(180);
+
+        public int TimeToLiveSeconds => (Int32)Lifetime.TotalSeconds;
 
         public Guid CategoryId => Guid.Parse("cc0b390d-ac32-450f-bbaa-0108debde248");
 

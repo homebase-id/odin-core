@@ -234,20 +234,17 @@ namespace Odin.Services.Membership.YouAuth
                 throw new OdinSecurityException("Invalid call to Delete domain client");
             }
 
-            var client = await clientRegistrationStorage.GetAsync<YouAuthDomainClient>(accessRegistrationId);
-
-            if (null == client)
-            {
-                throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
-            }
-
-            await clientRegistrationStorage.DeleteAsync(accessRegistrationId);
+            await DeleteClientOrThrowAsync(accessRegistrationId);
         }
 
         public async Task DeleteClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
+            await DeleteClientOrThrowAsync(accessRegistrationId);
+        }
 
+        private async Task DeleteClientOrThrowAsync(Guid accessRegistrationId)
+        {
             var client = await clientRegistrationStorage.GetAsync<YouAuthDomainClient>(accessRegistrationId);
 
             if (null == client)
@@ -273,10 +270,7 @@ namespace Odin.Services.Membership.YouAuth
             var clientsByDomain = await GetClientsByDomainAsync(domain);
 
             await using var tx = await db.BeginStackedTransactionAsync();
-            foreach (var c in clientsByDomain)
-            {
-                await clientRegistrationStorage.DeleteAsync(c.ServerHalfOfClientKey.Id);
-            }
+            await clientRegistrationStorage.DeleteManyAsync(clientsByDomain.Select(c => c.ServerHalfOfClientKey.Id.Value));
 
             await DomainStorage.DeleteAsync(db.KeyThreeValueCached, GetDomainKey(domain));
             tx.Commit();
@@ -363,24 +357,18 @@ namespace Odin.Services.Membership.YouAuth
             // write when the date would move by less than a day.
             async Task<(IOdinContext?, TimeSpan?)> Creator()
             {
-                var (domainClient, row, domainRegistration) = await ValidateClientAuthTokenAsync(token);
-
-                if (domainClient == null || row == null || domainRegistration == null)
+                if (await ValidateClientAuthTokenAsync(token) is not var (domainClient, row, domainRegistration))
                 {
                     throw new OdinSecurityException("Invalid token");
                 }
 
-                TimeSpan? cacheFor;
                 if (domainClient.SlidingExpiration)
                 {
                     await clientRegistrationStorage.ExtendLife(row);
-                    cacheFor = null;
                 }
-                else
-                {
-                    // The owner named the date: the cached context must end there too.
-                    cacheFor = row.expiresAt - UnixTimeUtc.Now();
-                }
+
+                // The cached context must not outlive the token, whichever way its date was set.
+                var cacheFor = row.expiresAt - UnixTimeUtc.Now();
 
                 var accessReg = domainClient.ServerHalfOfClientKey;
 
@@ -404,28 +392,22 @@ namespace Odin.Services.Membership.YouAuth
         }
 
         /// <summary>
-        /// The client behind a token, when it is live, unrevoked, and under an unrevoked domain; nulls otherwise.
+        /// The client behind a token, with its row and domain, when it is live, unrevoked, and under
+        /// an unrevoked domain; null otherwise.
         /// </summary>
-        private async Task<(YouAuthDomainClient? client, ClientRegistrationsRecord? row, YouAuthDomainRegistration? youAuthDomainRegistration)>
-            ValidateClientAuthTokenAsync(
-                ClientAuthenticationToken authToken)
+        private async Task<(YouAuthDomainClient client, ClientRegistrationsRecord row, YouAuthDomainRegistration registration)?>
+            ValidateClientAuthTokenAsync(ClientAuthenticationToken authToken)
         {
             var (domainClient, row) = await clientRegistrationStorage.GetWithRowAsync<YouAuthDomainClient>(authToken.Id);
-            if (null == domainClient)
+            if (domainClient == null || row == null)
             {
-                return (null, null, null);
+                return null;
             }
 
             var reg = await this.GetDomainRegistrationInternalAsync(domainClient.Domain);
-
-            if (null == reg)
+            if (reg == null || domainClient.ServerHalfOfClientKey.IsRevoked || reg.IsRevoked)
             {
-                return (null, null, null);
-            }
-
-            if (domainClient.ServerHalfOfClientKey.IsRevoked || reg.IsRevoked)
-            {
-                return (null, null, null);
+                return null;
             }
 
             return (domainClient, row, reg);
@@ -433,11 +415,10 @@ namespace Odin.Services.Membership.YouAuth
 
         // 
 
-        private async Task<List<YouAuthDomainClient>> GetClientsByDomainAsync(AsciiDomainName domain)
+        private Task<List<YouAuthDomainClient>> GetClientsByDomainAsync(AsciiDomainName domain)
         {
-            var all = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<YouAuthDomainClient>(
-                YouAuthDomainClient.CatType, YouAuthDomainClient.CategoryIdValue);
-            return all.Where(c => c.Domain.DomainName.Equals(domain.DomainName, StringComparison.OrdinalIgnoreCase)).ToList();
+            // IssuedTo is the domain, already lower-cased by AsciiDomainName, so this is an exact match.
+            return clientRegistrationStorage.GetByTypeAndIssuedToAsync<YouAuthDomainClient>(YouAuthDomainClient.CatType, domain.DomainName);
         }
 
         private async Task<YouAuthDomainRegistration?> GetDomainRegistrationInternalAsync(AsciiDomainName domain)

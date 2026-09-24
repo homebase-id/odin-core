@@ -107,7 +107,7 @@ public class ClientRegistrationStorage(
     public async Task ExtendLife(ClientRegistrationsRecord record)
     {
         var restarted = UnixTimeUtc.Now().AddSeconds(record.ttl);
-        if (record.expiresAt.AddSeconds((long)ExtendLifeGranularity.TotalSeconds) >= restarted)
+        if (restarted - record.expiresAt < ExtendLifeGranularity)
         {
             return;
         }
@@ -136,7 +136,7 @@ public class ClientRegistrationStorage(
             return (null, null);
         }
 
-        if (record.expiresAt < UnixTimeUtc.Now())
+        if (!IsLive(record, UnixTimeUtc.Now()))
         {
             await DeleteAsync(id);
             return (null, null);
@@ -151,17 +151,47 @@ public class ClientRegistrationStorage(
     /// </summary>
     public async Task<List<T>> GetByTypeAndCategoryIdAsync<T>(int typeId, Guid categoryId) where T : class
     {
-        var now = UnixTimeUtc.Now();
         var records = await clientRegistrationsTable.GetByTypeAndCategoryIdAsync(typeId, categoryId);
+        return LiveOnly<T>(records);
+    }
+
+    /// <summary>
+    /// Live registrations issued to one party, for a registration type whose category does not
+    /// vary per party (a YouAuth domain client, say).
+    /// </summary>
+    public async Task<List<T>> GetByTypeAndIssuedToAsync<T>(int typeId, string issuedTo) where T : class
+    {
+        var records = await clientRegistrationsTable.GetByTypeAndIssuedToAsync(typeId, issuedTo);
+        return LiveOnly<T>(records);
+    }
+
+    private static List<T> LiveOnly<T>(IEnumerable<ClientRegistrationsRecord> records) where T : class
+    {
+        var now = UnixTimeUtc.Now();
         return records
-            .Where(record => record.expiresAt >= now)
+            .Where(record => IsLive(record, now))
             .Select(record => OdinSystemSerializer.DeserializeOrThrow<T>(record.value))
             .ToList();
     }
 
+    private static bool IsLive(ClientRegistrationsRecord record, UnixTimeUtc now) => record.expiresAt >= now;
+
     public async Task DeleteAsync(Guid tokenId)
     {
         await clientRegistrationsTable.DeleteAsync(tokenId);
+        await odinContextCache.ResetAsync();
+    }
+
+    /// <summary>
+    /// Deletes several, dropping the cached contexts once rather than once per row.
+    /// </summary>
+    public async Task DeleteManyAsync(IEnumerable<Guid> tokenIds)
+    {
+        foreach (var tokenId in tokenIds)
+        {
+            await clientRegistrationsTable.DeleteAsync(tokenId);
+        }
+
         await odinContextCache.ResetAsync();
     }
     

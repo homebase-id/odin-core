@@ -34,6 +34,13 @@ public sealed class GuestSession : IV2Caller
     /// direction.
     /// </summary>
     public Guid CircleId { get; }
+
+    /// <summary>
+    /// The id of the client registration behind this guest's token: the row a test about token
+    /// lifetime reads and rewinds.
+    /// </summary>
+    public Guid TokenId { get; }
+
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
@@ -50,6 +57,7 @@ public sealed class GuestSession : IV2Caller
         Identity = identity;
         GuestDomain = guestDomain;
         CircleId = circleId;
+        TokenId = token.Id;
         Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token,
             sharedSecret.ToSensitiveByteArray(), GuestApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
@@ -89,6 +97,9 @@ public sealed class GuestSession : IV2Caller
     /// Omit for a throwaway domain. Pass one to model "this identity browsing in as a guest", which
     /// is what the collaboration-channel fixtures need — the author's own identity is the domain.
     /// </param>
+    /// <param name="consent">
+    /// The owner's consent rule for the domain; Never when omitted. It decides the token's lifetime.
+    /// </param>
     /// <remarks>
     /// Porting note: V1's <c>GuestSpecifyAccessToDrive</c> accepts a <c>TestPermissionKeyList</c> and
     /// then silently drops it (its <c>_keys</c> field is never read and the circle is built with
@@ -99,7 +110,8 @@ public sealed class GuestSession : IV2Caller
     public static async Task<GuestSession> SetupAsync(
         OwnerSession owner,
         PermissionSetGrantRequest grant,
-        AsciiDomainName? domain = null)
+        AsciiDomainName? domain = null,
+        ConsentRequirements consent = null)
     {
         var guestDomain = domain ?? NewGuestDomain();
 
@@ -110,7 +122,7 @@ public sealed class GuestSession : IV2Caller
             throw new InvalidOperationException($"CreateCircle failed: {circleResp.StatusCode}");
         }
 
-        await owner.Admin.RegisterYouAuthDomain(guestDomain, [circleId]);
+        await owner.Admin.RegisterYouAuthDomain(guestDomain, [circleId], consent);
         var clientReg = await owner.Admin.RegisterYouAuthClient(guestDomain);
 
         var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);

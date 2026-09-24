@@ -54,22 +54,15 @@ public class OdinContextCache(
     public Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
         Func<Task<IOdinContext?>> dotYouContextFactory,
-        TimeSpan? expiration = null,
         string? keySuffix = null)
     {
-        var duration = expiration ?? DefaultDuration;
-        if (duration < FusionCacheWrapper.MinL2Duration)
-        {
-            throw new OdinSystemException($"Cache duration must be at least {FusionCacheWrapper.MinL2Duration.TotalSeconds}s.");
-        }
-
-        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), duration), keySuffix);
+        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), null), keySuffix);
     }
 
     /// <summary>
     /// As above, but the factory says how long its result may be cached, for a context whose credential
-    /// it only learns the end of while building it: a token the owner gave a fixed date must not get
-    /// the default hour's grace from this cache. Null means the default.
+    /// it only learns the end of while building it: a cached context must not outlive the token it
+    /// was built for. Null means the default; a longer value is capped at the default.
     /// </summary>
     public async Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
@@ -85,7 +78,7 @@ public class OdinContextCache(
         if (result == null)
         {
             (result, var cacheFor) = await dotYouContextFactory();
-            var duration = cacheFor ?? DefaultDuration;
+            var duration = cacheFor < DefaultDuration ? cacheFor.Value : DefaultDuration;
 
             // Less than the cache's minimum is not "cache briefly", it is an error there. The
             // credential is about to end anyway; serve this request from the fresh build and stop.
