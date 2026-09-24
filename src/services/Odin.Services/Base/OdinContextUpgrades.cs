@@ -109,54 +109,6 @@ public static class OdinContextUpgrades
     }
 
 
-    /// <summary>
-    /// A context for fetching channel files when there is no caller to upgrade -- the background job that
-    /// runs after a connection is accepted.
-    /// </summary>
-    /// <remarks>
-    /// Same grant as <see cref="PrepForSynchronizeChannelFiles"/> and the same limit: no feed-drive
-    /// storage key, so unencrypted posts are written and encrypted ones are skipped. The peer credential
-    /// does not come from here -- the job carries it, because minting one needs the ICR key and a job has
-    /// no master key to unlock it with.
-    /// </remarks>
-    public static IOdinContext BuildFeedSyncContext(OdinId tenant)
-    {
-        var feedDriveGrant = new DriveGrant
-        {
-            DriveId = WellKnownAppDrives.FeedDrive.Alias,
-            PermissionedDrive = new PermissionedDrive
-            {
-                Drive = WellKnownAppDrives.FeedDrive,
-                Permission = DrivePermission.ReadWrite
-            },
-            KeyStoreKeyEncryptedStorageKey = null
-        };
-
-        var odinContext = new OdinContext
-        {
-            Tenant = tenant,
-            AuthTokenCreated = null,
-            Caller = new CallerContext(
-                odinId: tenant,
-                masterKey: null,
-                securityLevel: SecurityGroupType.Owner,
-                tokenType: ClientTokenType.Other)
-        };
-
-        var groups = new Dictionary<string, PermissionGroup>
-        {
-            {
-                nameof(BuildFeedSyncContext),
-                new PermissionGroup(
-                    new PermissionSet([PermissionKeys.ManageFeed, PermissionKeys.UseTransitRead, PermissionKeys.ReadConnections]),
-                    new List<DriveGrant> { feedDriveGrant }, null, null)
-            }
-        };
-
-        odinContext.SetPermissionContext(new PermissionContext(groups, sharedSecretKey: null));
-        return odinContext;
-    }
-
     public static IOdinContext PatchInSharedSecret(IOdinContext odinContext, SensitiveByteArray sharedSecret)
     {
         var patchedContext = odinContext.Clone();

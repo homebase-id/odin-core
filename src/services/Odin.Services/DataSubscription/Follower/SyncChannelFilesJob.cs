@@ -30,25 +30,18 @@ public class SyncChannelFilesJobData
     public string? PeerIdentity { get; set; }
 
     /// <summary>
-    /// The peer's client access token, AES-encrypted under the tenant's temporal key.
+    /// The accepting caller's token -- owner or app -- AES-encrypted under the tenant's temporal key.
     /// </summary>
     /// <remarks>
-    /// The job carries the credential because it cannot mint one. Minting requires the ICR key, which is
-    /// master-key protected -- available to the request that accepted the connection, gone by the time a
-    /// background job runs. The same technique <c>VersionUpgradeJob</c> uses to carry the owner's token.
-    /// </remarks>
-    public byte[]? EncryptedPeerToken { get; set; }
-
-    public byte[]? Iv { get; set; }
-
-    /// <summary>
-    /// The owner's client auth token, encrypted the same way. Null when an app accepted.
-    /// </summary>
-    /// <remarks>
-    /// Rebuilding the owner's context is what lets the job seal encrypted posts into the feed drive: the
-    /// storage key is reachable from their key store key and nowhere else. Without it the job can still
-    /// fetch, but only the unencrypted posts land -- which is the app-accept case, and the same limit the
-    /// inline version had there.
+    /// The one credential this job carries, because it cannot derive one. The ICR key that authenticates
+    /// the channel query lives in the caller's permission groups and is master-key protected, so a job
+    /// running with no caller has no way to reach it. Rebuilding their context supplies that key, and the
+    /// peer's shared secret follows from it. The same technique <c>VersionUpgradeJob</c> uses for the
+    /// owner's token, widened to app tokens because an app accept is the case this exists for.
+    /// <para>
+    /// An owner's context also carries the feed drive's storage key; an app's does not, which is why the
+    /// encrypted posts it fetches are deposited to the inbox rather than written.
+    /// </para>
     /// </remarks>
     public byte[]? EncryptedCallerToken { get; set; }
 
@@ -96,19 +89,13 @@ public class SyncChannelFilesJob(
             scope.Resolve<IStickyHostname>().Hostname = $"{Data.Tenant}&";
 
             var tenantContext = scope.Resolve<TenantContext>();
-            var tokenBytes = AesCbc.Decrypt(Data.EncryptedPeerToken, tenantContext.TemporalEncryptionKey, Data.Iv);
-            var peerToken = ClientAccessToken.FromPortableBytes(tokenBytes);
-
             var odinContext = await BuildContextAsync(scope, tenantContext);
 
-            // The shared secret is the peer's; everything else the sync needs -- the ICR key to
-            // authenticate, and the feed drive's storage key if it has one -- comes from the context.
+            // Everything the sync needs comes from the rebuilt context: the ICR key it mints the peer's
+            // shared secret from, and the feed drive's storage key if the caller had one. Carrying the
+            // peer's token as well would be a second credential at rest for something already derivable.
             var followerService = scope.Resolve<FollowerService>();
-            await followerService.SynchronizeChannelFilesAsync((OdinId)Data.PeerIdentity!, odinContext,
-                peerToken.SharedSecret);
-
-            peerToken.AccessTokenHalfKey.Wipe();
-            peerToken.SharedSecret.Wipe();
+            await followerService.SynchronizeChannelFilesAsync((OdinId)Data.PeerIdentity!, odinContext);
         }
         catch (Exception e)
         {
@@ -123,13 +110,20 @@ public class SyncChannelFilesJob(
     }
 
     /// <summary>
-    /// The owner's context if their token was carried, otherwise a keyless one.
+    /// The accepting caller's context, rebuilt from their token.
     /// </summary>
+    /// <remarks>
+    /// There is no keyless fallback on purpose. Without the caller's ICR key the channel query cannot
+    /// authenticate, mint the peer's shared secret, or re-encrypt the headers it fetches -- three
+    /// separate failures -- so a context built from nothing would only produce a confusing one. Better to
+    /// fail the job while it still says why, and let the schedule retry.
+    /// </remarks>
     private async Task<IOdinContext> BuildContextAsync(ILifetimeScope scope, TenantContext tenantContext)
     {
         if (Data.EncryptedCallerToken == null || Data.CallerIv == null)
         {
-            return OdinContextUpgrades.BuildFeedSyncContext((OdinId)Data.Tenant!);
+            throw new OdinSystemException("SyncChannelFilesJob has no caller token; there is nothing to " +
+                                          "authenticate the channel query with");
         }
 
         var callerBytes = AesCbc.Decrypt(Data.EncryptedCallerToken, tenantContext.TemporalEncryptionKey, Data.CallerIv);
@@ -170,9 +164,8 @@ public class SyncChannelFilesJob(
             return OdinContextUpgrades.PrepForSynchronizeChannelFiles(appContext);
         }
 
-        // Neither validates any more -- the token expired between the accept and the drain.
-        logger.LogInformation("SyncChannelFilesJob: the token carried from the accept no longer validates");
-        return OdinContextUpgrades.BuildFeedSyncContext((OdinId)Data.Tenant!);
+        // Neither validates any more -- the token expired between the accept and this run.
+        throw new OdinSystemException("SyncChannelFilesJob: the token carried from the accept no longer validates");
 
     }
 

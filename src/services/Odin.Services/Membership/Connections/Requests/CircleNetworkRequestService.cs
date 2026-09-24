@@ -1014,10 +1014,10 @@ namespace Odin.Services.Membership.Connections.Requests
             // default timeout, no cancellation -- so an unreachable sender could hold the accept open for
             // minutes. Scheduled instead, and the accept returns.
             //
-            // The job cannot mint a token to call the sender with: minting reads the ICR key, which is
-            // master-key protected and gone once the request ends. So it carries the peer's own token,
+            // The job cannot reach the ICR key that authenticates the channel query -- it is master-key
+            // protected and there is no caller once the request ends -- so it carries this caller's token,
             // encrypted under the tenant's temporal key, the way VersionUpgradeJob carries the owner's.
-            await ScheduleChannelSyncAsync(senderOdinId, remoteClientAccessToken, callerToken);
+            await ScheduleChannelSyncAsync(senderOdinId, callerToken);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -1030,14 +1030,10 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Best-effort by construction: a connection is established whether or not their back-catalogue
         /// arrives, so a failure to schedule is logged and swallowed rather than undoing the accept.
         /// </remarks>
-        private async Task ScheduleChannelSyncAsync(OdinId senderOdinId, ClientAccessToken remoteClientAccessToken,
-            ClientAuthenticationToken callerToken)
+        private async Task ScheduleChannelSyncAsync(OdinId senderOdinId, ClientAuthenticationToken callerToken)
         {
             try
             {
-                var (iv, encryptedToken) = AesCbc.Encrypt(
-                    remoteClientAccessToken.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
-
                 byte[] callerIv = null;
                 byte[] encryptedCallerToken = null;
                 if (callerToken != null)
@@ -1051,8 +1047,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 {
                     Tenant = tenantContext.HostOdinId,
                     PeerIdentity = senderOdinId,
-                    EncryptedPeerToken = encryptedToken,
-                    Iv = iv,
                     EncryptedCallerToken = encryptedCallerToken,
                     CallerIv = callerIv
                 };
