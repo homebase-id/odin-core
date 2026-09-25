@@ -419,9 +419,10 @@ public class AppReviewTests : V2Fixture
     /// ticked from this one's review dialog.
     /// </summary>
     /// <param name="owningAppId">
-    /// The app this circle belongs to.  It has to belong to one: a circle owned by no app can never be
-    /// queued, because no app's queue would claim it.  Defaults to an id standing in for some other
-    /// installed app -- the reviewing app is not it, which is the point.
+    /// The app this circle belongs to.  It must not be the owner console: a circle the owner keeps for
+    /// themselves can never be queued, because no app's queue would claim it.  Defaults to a fresh id
+    /// standing in for some other installed app -- the reviewing app is not it, which is the point.
+    /// <c>OwnerAdmin.CreateCircle</c> registers whatever id it is given, so it need not exist yet.
     /// </param>
     private static async Task<(Guid circle, TargetDrive drive)> CreateOutOfReachCircleAsync(
         OwnerSession frodo, string name, Guid? owningAppId = null)
@@ -448,8 +449,13 @@ public class AppReviewTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "readDrive", allowAnonymousReads: false);
 
-        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. Registered
+        // before the circle so the app carries its real permissions rather than the bare registration
+        // OwnerAdmin.CreateCircle would otherwise coin for the id.
         var appId = Guid.NewGuid();
+        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
+
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "read-circle", new PermissionSetGrantRequest
         {
@@ -459,9 +465,6 @@ public class AppReviewTests : V2Fixture
             },
             PermissionSet = new PermissionSet(new List<int>())
         }, appId: appId);
-
-        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
 
         return (drive, circle, app);
     }

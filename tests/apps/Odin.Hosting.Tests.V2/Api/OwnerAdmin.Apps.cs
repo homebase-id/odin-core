@@ -31,8 +31,30 @@ public sealed partial class OwnerAdmin
     public async Task<Guid> RegisterBareApp()
     {
         var appId = Guid.NewGuid();
-        await RegisterApp(appId, new PermissionSetGrantRequest());
+        await EnsureAppRegistered(appId);
         return appId;
+    }
+
+    /// <summary>A slug for a test app, derived from its id; see <see cref="TestAppSlug"/>.</summary>
+    public static string SlugFor(Guid appId) => TestAppSlug.For(appId);
+
+    /// <summary>
+    /// Registers a bare app under an id the caller has already chosen, unless something is registered
+    /// there.  For fixtures that name an owning app for a drive or circle: the server requires it to
+    /// exist, and which app it is is not what those tests are about.
+    /// </summary>
+    public async Task EnsureAppRegistered(Guid appId)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);
+
+        var existing = await svc.GetRegisteredApp(new GetAppRequest { AppId = appId });
+        if (existing.IsSuccessStatusCode && existing.Content != null)
+        {
+            return;
+        }
+
+        await RegisterApp(appId, new PermissionSetGrantRequest());
     }
 
     public async Task<ApiResponse<RedactedAppRegistration>> RegisterApp(
@@ -50,9 +72,8 @@ public sealed partial class OwnerAdmin
             Name = $"Test_{appId}",
             AppId = appId,
 
-            // Left null the server derives one from Name; tests that address the app by slug pass
-            // an explicit value so they are not asserting against a derivation rule.
-            AppSlug = appSlug,
+            // Required at registration, so a caller that names none gets one derived from the app id.
+            AppSlug = appSlug ?? SlugFor(appId),
             PermissionSet = appPermissions.PermissionSet,
             Drives = appPermissions.Drives?.ToList(),
             AuthorizedCircles = authorizedCircles ?? new List<Guid>(),

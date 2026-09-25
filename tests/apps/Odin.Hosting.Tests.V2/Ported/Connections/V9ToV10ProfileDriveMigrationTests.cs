@@ -6,7 +6,6 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
@@ -141,29 +140,4 @@ public class V9ToV10ProfileDriveMigrationTests : V2Fixture
             g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)) ?? false;
     }
 
-    /// <summary>
-    /// Builds an owner context carrying the master key by replaying the production path used by
-    /// <c>VersionUpgradeService</c> (<see cref="OwnerAuthenticationService.UpdateOdinContextAsync"/>).
-    /// </summary>
-    private async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller.AssertHasMasterKey();
-        return odinContext;
-    }
 }

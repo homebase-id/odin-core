@@ -9,6 +9,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Configuration;
@@ -234,12 +235,29 @@ public sealed partial class OwnerAdmin
     // -----------------------------------------------------------------------------------------
 
     /// <summary>
+    /// The smallest grant a circle can carry: <see cref="PermissionKeys.ReadCircleMembership"/> and no
+    /// drives.  For fixtures whose subject is the circle's ownership, not what it grants.
+    /// </summary>
+    public static PermissionSetGrantRequest ReadCircleMembershipGrant() => new()
+    {
+        PermissionSet = new PermissionSet(PermissionKeys.ReadCircleMembership)
+    };
+
+    /// <summary>
     /// Creates a circle that members will be granted on connection. Used by <see cref="GuestSession"/>
     /// to attach a YouAuth domain to a drive-permission grant.
     /// </summary>
     public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant,
         Guid? appId = null, CircleGrantOn grantOn = CircleGrantOn.None)
     {
+        // A circle cannot be handed to an app that does not exist. Fixtures name an owning app to say
+        // "some app's, not the owner's", and coin the id on the spot; registering it here keeps that
+        // shorthand working without every fixture having to order its setup around the rule.
+        if (appId.HasValue)
+        {
+            await EnsureAppRegistered(appId.Value);
+        }
+
         var response = await _network.CreateCircle(id, name, grant, appId, grantOn);
         EnsureSuccess(response, nameof(CreateCircle));
         return response;

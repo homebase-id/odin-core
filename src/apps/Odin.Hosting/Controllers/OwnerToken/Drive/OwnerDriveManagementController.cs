@@ -12,7 +12,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 using Odin.Services.Apps.Builtin;
-using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Util;
 
@@ -114,7 +113,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
-        /// Hands a drive that belongs to no app to one that does exist.
+        /// Hands one of the owner's own drives to an app that exists.
         /// </summary>
         /// <remarks>
         /// Owner console only -- this whole controller is.  An app must not be able to hand itself a
@@ -125,11 +124,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// on <c>IDriveManager</c>, so resolving it down there is a cycle.
         /// </para>
         /// <para>
-        /// It is checked at all, unlike in <c>CreateDriveAsync</c> where AppId is taken on trust.  That
-        /// exemption exists because provisioning creates drives before it registers apps and validating
-        /// would invert the dependency -- an ordering that cannot arise here, where the caller is a
-        /// person at a console adopting a drive that already exists.  Left unchecked, a mistyped id
-        /// would strand the drive: owned by nothing real, and no longer adoptable.
+        /// Checked at all, unlike in <c>CreateDriveAsync</c> where the app is taken on trust.  That
+        /// exemption is forced: a registration is granted its drives and a grant cannot be issued for a
+        /// drive that is not there, so an app's drives have to be created before the app exists.  That
+        /// ordering cannot arise here, where the caller is a person at a console adopting a drive that
+        /// already exists, so a registration is required.  Left unchecked, a mistyped id would strand the
+        /// drive: owned by nothing real, and no longer adoptable.
         /// </para>
         /// </remarks>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
@@ -140,12 +140,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
             OdinValidationUtils.AssertNotEmptyGuid(request.AppId, nameof(request.AppId));
 
-            var app = await appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
-            if (app == null)
-            {
-                throw new OdinClientException($"No app is registered with id {request.AppId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
+            await appRegistrationService.GetRegisteredAppOrThrowAsync(request.AppId, WebOdinContext);
 
             await driveManager.SetDriveOwningAppAsync(request.TargetDrive.Alias, request.AppId,
                 request.DriveSlug, request.DriveTypeSlug, WebOdinContext);
@@ -174,12 +169,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
             OdinValidationUtils.AssertNotEmptyGuid(request.AppId, nameof(request.AppId));
 
-            var app = await appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
-            if (app == null)
-            {
-                throw new OdinClientException($"No app is registered with id {request.AppId}",
-                    OdinClientErrorCode.AppNotRegistered);
-            }
+            await appRegistrationService.GetRegisteredAppOrThrowAsync(request.AppId, WebOdinContext);
 
             await driveManager.ReassignDriveOwningAppAsync(request.TargetDrive.Alias, request.AppId,
                 request.DriveSlug, request.DriveTypeSlug, WebOdinContext);

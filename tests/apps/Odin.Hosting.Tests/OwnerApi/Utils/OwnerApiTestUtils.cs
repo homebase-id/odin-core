@@ -436,6 +436,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 {
                     Name = $"Test_{appId}",
                     AppId = appId,
+
+                    AppSlug = TestAppSlug.For(appId),
                     PermissionSet = permissionSet,
                     Drives = drives,
                     AuthorizedCircles = authorizedCircles,

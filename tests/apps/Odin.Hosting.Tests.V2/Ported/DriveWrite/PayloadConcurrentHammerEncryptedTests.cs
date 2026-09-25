@@ -47,10 +47,7 @@ public class PayloadConcurrentHammerEncryptedTests : V2Fixture
     private int _successCount;
     private int _badRequestCount;
 
-    // Explicit: known flaky on the Windows CI runner - the 9-thread hammer exhausts
-    // SQLite's busy timeout there ("SQLite Error 5: 'database is locked'" in
-    // BeginTransactionAsync), failing runs of unrelated PRs. Run manually / locally.
-    [Test, Explicit]
+    [Test]
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {
         _targetDrive = TargetDrive.NewTargetDrive();

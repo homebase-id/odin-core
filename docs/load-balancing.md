@@ -85,6 +85,15 @@ and `RegistryChangeMissedWhileRedisWasDown_ConvergesOnReconnect` stops Redis, ch
 registration with nothing able to announce it, confirms both nodes are stale, starts Redis and
 asserts both converge.
 
+**A new registration is announced the moment its row commits.** It used to be announced last,
+after `InitializeCertificate`, which reached the new domain over HTTPS through the balancer. Routed
+to a node that had not heard of the identity, that request could never succeed, so the other
+nodes stayed blind for its full 90 s deadline - a 2-minute sign-up spinner on the EU cluster,
+while NA was fast by luck of routing. A peer builds the tenant from the row alone, so it needs
+nothing the registering node does after the commit. `InitializeCertificate` now also waits
+locally: it asks its own node's issuer and checks the certificate store, which sees a
+certificate whichever node obtained it.
+
 ## Notes and constraints (not breaks)
 
 - **The IP rate limiter is per node, so the effective limit is `configured x nodes`.**
@@ -100,10 +109,10 @@ asserts both converge.
   nothing shared.
 - **`Host:SystemProcessApiKey` defaults to a fresh GUID per process** and is not in the ansible
   template, so each node would generate its own. `SystemAuthenticationHandler` validates inbound
-  calls against it and `SystemHttpClient` sends it. Its one caller is the registry's certificate
-  status check (`FileSystemIdentityRegistry.InitializeCertificate`), which calls the tenant's own
-  host and so may land on a different node behind a balancer and be rejected. Pin the value
-  across the cluster.
+  calls against it and `SystemHttpClient` sends it. Its only user today is
+  `FileSystemIdentityRegistry.GetRegistrationStatus`, which nothing calls; anything that calls a
+  tenant's own host through it may land on another node and be rejected. Pin the value across
+  the cluster.
 - **Every node runs every background service** (43 each in this run), including the
   inbox/outbox reconciliation, orphan scan and temp-folder cleanup. Outbox and inbox are safe
   because items are checked out with a DB update, and no contention errors appeared in either

@@ -40,12 +40,12 @@ public sealed partial class OdinHost
     /// <see cref="ResetAsync"/> calls restore from these snapshots.
     /// </summary>
     /// <remarks>
-    /// Clears each tenant's connection pool before snapshotting —
-    /// <c>BackupSqliteDatabase.Execute</c> switches the journal mode via a PRAGMA, which
-    /// fails with "database is locked" if any pooled connection from the warm-up still has the
-    /// file open. We don't dispose the tenant scope itself: the multi-tenant middleware looks the
-    /// scope up via <c>GetTenantScope</c> (which throws if absent) rather than recreating it, so
-    /// disposing the scope would 500 every subsequent request.
+    /// Clears each tenant's connection pool before snapshotting, so the warm-up's connections are
+    /// not carried into the tests. The snapshot itself goes through SQLite's backup API and leaves
+    /// the live database in WAL mode, as production runs it. We don't dispose the tenant scope
+    /// itself: the multi-tenant middleware looks the scope up via <c>GetTenantScope</c> (which
+    /// throws if absent) rather than recreating it, so disposing the scope would 500 every
+    /// subsequent request.
     /// </remarks>
     public async Task TakeBaselineAsync()
     {
@@ -75,8 +75,9 @@ public sealed partial class OdinHost
 
     /// <summary>
     /// Reset every snapshotted tenant to its baseline. For each snapshotted tenant: drain its
-    /// connection pool (so the DB file is no longer held open), copy the snapshot back over the
-    /// live identity DB, wipe the non-DB tenant directories (payloads / temp / inbox), and drain
+    /// connection pool, restore the snapshot into the live identity DB through SQLite (correct even
+    /// if a request from the previous test still holds a connection), wipe the non-DB tenant
+    /// directories (payloads / temp / inbox), and drain
     /// the tenant's <see cref="PeerInboxDriveQueue"/> channel. The tenant scope stays alive — the
     /// next request resolves a fresh connection from the now-empty pool against the restored file.
     /// Process-wide: the shared FusionCache singleton is cleared (every fixture has its own host,

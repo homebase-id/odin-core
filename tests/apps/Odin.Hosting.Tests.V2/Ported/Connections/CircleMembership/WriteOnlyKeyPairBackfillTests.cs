@@ -6,7 +6,6 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
@@ -24,13 +23,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class WriteOnlyKeyPairBackfillTests : V2Fixture
 {
-    /// <remarks>
-    /// The backfill path under test reaches the swallowed key-upgrade failure in #1770. Narrowed from a
-    /// whole-fixture opt-out now that attribution is correct.
-    /// </remarks>
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Failed to upgrade KSK Encryption"];
-
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]
@@ -180,29 +172,4 @@ public class WriteOnlyKeyPairBackfillTests : V2Fixture
             "the pre-existing (real) write-only keypair from the normal accept flow must be left untouched");
     }
 
-    /// <summary>
-    /// Builds an owner context carrying the master key by replaying the production path used by
-    /// <c>VersionUpgradeService</c> (<see cref="OwnerAuthenticationService.UpdateOdinContextAsync"/>).
-    /// </summary>
-    private async Task<IOdinContext> BuildOwnerContextAsync(Autofac.ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }

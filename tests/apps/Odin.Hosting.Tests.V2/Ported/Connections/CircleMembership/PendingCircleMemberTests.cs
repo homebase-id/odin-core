@@ -9,7 +9,6 @@ using NUnit.Framework;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -151,8 +150,13 @@ public class PendingCircleMemberTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "readDrive", allowAnonymousReads: false);
 
-        // App-owned: an app cannot enrol anyone into a circle that belongs to no app.
+        // App-owned: an app cannot enrol anyone into a circle the owner keeps for themselves. Registered
+        // before the circle so the app carries its real permissions rather than the bare registration
+        // OwnerAdmin.CreateCircle would otherwise coin for the id.
         var appId = Guid.NewGuid();
+        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
+
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "read-circle", new PermissionSetGrantRequest
         {
@@ -163,26 +167,7 @@ public class PendingCircleMemberTests : V2Fixture
             PermissionSet = new PermissionSet(new List<int>())
         }, appId: appId);
 
-        var app = await AppSession.SetupAsync(frodo, drive, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership }, knownAppId: appId);
-
         return (drive, circle, app);
     }
 
-    private async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext { Tenant = default, AuthTokenCreated = null, Caller = null };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }
