@@ -426,9 +426,10 @@ public class CircleMembershipService(
             throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
         }
 
-        // IsOwnerConsole is not redundant with the AppId comparison: the owner console's AppId is the
-        // System app's, which is a registered app, so without it the System app could toggle every
-        // owner-console circle.
+        // Both tests are about the circle; the caller is already known to be an app (no master key).
+        // A circle the owner owns is never an app's.  That is not implied by the AppId comparison:
+        // owner-owned circles are tagged SystemAppId, and System is a registered app a client token can
+        // be minted for, so its token would match every owner-owned circle.
         if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != callerAppId)
         {
             throw new OdinSecurityException(
