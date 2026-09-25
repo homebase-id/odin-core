@@ -1254,6 +1254,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+            if (null == existingHeader)
+            {
+                throw new OdinClientException("Cannot update file that does not exist", OdinClientErrorCode.FileNotFound);
+            }
+
             if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
             {
                 throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates",
@@ -1262,7 +1267,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // First prepare by copying everything needed
             var (header, copiedPayloads, zombies, committedPayloads) = await UpdateBatchCopyFilesAsync(originFile, targetFile,
-                manifest, odinContext, sourceArea);
+                existingHeader, manifest, odinContext, sourceArea);
             try
             {
                 await AssertPayloadsExistOnFileSystemAsync(header);
@@ -1344,7 +1349,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies,
                 List<PayloadDescriptor> committedPayloads)>
             UpdateBatchCopyFilesAsync(InternalDriveFileId originFile,
-                InternalDriveFileId targetFile, BatchUpdateManifest manifest,
+                InternalDriveFileId targetFile, ServerFileHeader existingHeader, BatchUpdateManifest manifest,
                 IOdinContext odinContext, StagingArea sourceArea)
         {
             List<PayloadDescriptor> copiedPayloads = new();
@@ -1414,16 +1419,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
             var metadata = manifest.FileMetadata;
             metadata?.Validate(odinContext.Tenant);
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
 
             //
             // Validations
             //
-            if (null == existingHeader)
-            {
-                throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
-            }
-
             if (existingHeader.FileMetadata.IsEncrypted)
             {
                 var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);

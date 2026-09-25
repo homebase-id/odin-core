@@ -232,7 +232,7 @@ re-deriving, which is how the first batches ended up with three spellings of the
   **Verify it per endpoint rather than assuming it** — update-batch is a measured exception. There,
   an update with no `VersionTag` answers 400 for *every* caller (validation precedes authz), and a
   `Guest[Write]` row clears the drive check and is refused deep enough in that a non-existent file
-  answers 500. Those rows still need a local seed; what they don't need is the peer arrange
+  answers 400 (`FileNotFound`) rather than the expected 403. Those rows still need a local seed; what they don't need is the peer arrange
   (recipient logins, drives, connection handshakes), which is where the time actually goes.
 - **Every passive poll becomes an explicit drain.** `DriveRedux.WaitForEmptyOutbox`,
   `Connections.AwaitIntroductionsProcessing` (the same poll of the transient-temp-drive outbox under
