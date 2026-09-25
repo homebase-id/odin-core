@@ -360,40 +360,29 @@ public class CircleMembershipService(
     /// <summary>
     /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
     /// </summary>
-    public async Task DisableCircleAsync(GuidId circleId, IOdinContext odinContext)
-    {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var circle = await this.GetCircleAsync(circleId, odinContext);
-        circle.Disabled = true;
-        circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        await circleDefinitionService.UpdateAsync(circle);
-
-        await mediator.Publish(new CircleDefinitionChangedNotification
-        {
-            OdinContext = odinContext,
-            CircleId = circleId.Value,
-            Change = CircleDefinitionChangeType.Disabled,
-        });
-    }
+    /// <remarks>
+    /// The owner console may disable any circle but a system circle; an app only one it owns.  See
+    /// <see cref="AssertCallerMayToggleCircleAsync"/>.
+    /// </remarks>
+    public Task DisableCircleAsync(GuidId circleId, IOdinContext odinContext) =>
+        SetDisabledAsync(circleId, true, odinContext);
 
     /// <summary>
     /// Enables a circle
     /// </summary>
-    public async Task EnableCircleAsync(GuidId circleId, IOdinContext odinContext)
-    {
-        odinContext.Caller.AssertHasMasterKey();
+    public Task EnableCircleAsync(GuidId circleId, IOdinContext odinContext) =>
+        SetDisabledAsync(circleId, false, odinContext);
 
-        var circle = await this.GetCircleAsync(circleId, odinContext);
-        circle.Disabled = false;
-        circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        await circleDefinitionService.UpdateAsync(circle);
+    private async Task SetDisabledAsync(GuidId circleId, bool disabled, IOdinContext odinContext)
+    {
+        await AssertCallerMayToggleCircleAsync(circleId, odinContext);
+        await circleDefinitionService.SetDisabledAsync(circleId, disabled);
 
         await mediator.Publish(new CircleDefinitionChangedNotification
         {
             OdinContext = odinContext,
             CircleId = circleId.Value,
-            Change = CircleDefinitionChangeType.Enabled,
+            Change = disabled ? CircleDefinitionChangeType.Disabled : CircleDefinitionChangeType.Enabled,
         });
     }
 
@@ -405,6 +394,47 @@ public class CircleMembershipService(
     {
         odinContext.Caller.AssertHasMasterKey();
         await circleDefinitionService.EnsureSystemCirclesExistAsync();
+    }
+
+    /// <summary>
+    /// Who may enable or disable a circle: the owner console (master key) any circle; otherwise the
+    /// owner acting through an app, and only on a circle that app owns.
+    /// </summary>
+    /// <remarks>
+    /// No permission key: an app is the owner acting, and owning the circle is the whole of its
+    /// authority over it.  An owner-console circle (no AppId, or the owner console's) is never an
+    /// app's, and that includes the system circles.
+    /// </remarks>
+    private async Task AssertCallerMayToggleCircleAsync(GuidId circleId, IOdinContext odinContext)
+    {
+        if (odinContext.Caller.HasMasterKey)
+        {
+            return;
+        }
+
+        odinContext.Caller.AssertCallerIsOwner();
+
+        var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+        if (callerAppId == null)
+        {
+            throw new OdinSecurityException($"Caller cannot enable or disable circle {circleId}; it is not an app");
+        }
+
+        var circle = await circleDefinitionService.GetCircleAsync(circleId);
+        if (null == circle)
+        {
+            throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
+        }
+
+        // Both tests are about the circle; the caller is already known to be an app (no master key).
+        // A circle the owner owns is never an app's.  That is not implied by the AppId comparison:
+        // owner-owned circles are tagged SystemAppId, and System is a registered app a client token can
+        // be minted for, so its token would match every owner-owned circle.
+        if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != callerAppId)
+        {
+            throw new OdinSecurityException(
+                $"App {callerAppId} cannot enable or disable circle {circleId}; it belongs to {circle.AppId?.ToString() ?? "the owner"}");
+        }
     }
 
     private async Task<(bool enabled, bool exists)> CircleIsEnabledAsync(GuidId circleId)
