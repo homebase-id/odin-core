@@ -45,6 +45,15 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
+    [HttpPost("remove-blocked-connection")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Sever a blocked connection, leaving the identity blocked")]
+    public async Task<IActionResult> RemoveBlockedConnection([FromBody] OdinIdRequest request)
+    {
+        await circleNetwork.RemoveBlockedConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+        return Ok();
+    }
+
     [HttpPost("disconnect")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Disconnect from an identity")]
     public async Task<IActionResult> Disconnect([FromBody] OdinIdRequest request, [FromQuery] bool notifyRemote = true)

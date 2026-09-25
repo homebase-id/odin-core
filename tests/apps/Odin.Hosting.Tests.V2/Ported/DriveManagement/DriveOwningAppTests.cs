@@ -22,11 +22,11 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveManagement;
 /// <summary>
 /// Port of <c>OwnerApi/Drive/Management/DriveOwningAppTests</c>.
 ///
-/// Adoption: giving a drive that belongs to no app an owning app, and the address that goes with it.
+/// Adoption: giving one of the owner's own drives an owning app, and the address that goes with it.
 ///
-/// Every drive predating the addressing work carries a null AppId, which reads as "the owner's own"
-/// and leaves it unaddressable by slug.  Adoption is one way -- it fills an empty owner and never
-/// moves a set one -- because the slug is an address other identities resolve against.
+/// A drive the owner made for themselves belongs to the owner console, and nothing but the console
+/// can address it.  Adoption is one way -- it takes a drive from the owner console and never moves one
+/// between apps -- because the slug is an address other identities resolve against.
 /// </summary>
 [TestFixture]
 public class DriveOwningAppTests : V2Fixture
@@ -158,8 +158,8 @@ public class DriveOwningAppTests : V2Fixture
     [Test]
     public async Task AdoptingASystemDriveIsRefused()
     {
-        // Provisioned drives already belong to the app that ships them; the ones still carrying a
-        // null AppId wait on provisioning to stamp it, not on the owner to guess.
+        // Provisioned drives already belong to the app that ships them, and which app that is comes
+        // from the tree, not from the owner guessing.
         var owner = await LoginAsOwner();
 
         var appId = await owner.Admin.RegisterBareApp();
@@ -190,9 +190,9 @@ public class DriveOwningAppTests : V2Fixture
     [Test]
     public async Task AnExistingSlugIsKeptRatherThanRegenerated()
     {
-        // A drive can carry a slug with no AppId: CreateDriveAsync only skips *deriving* one for an
-        // app-less drive, and a supplied one passes through. Adoption is when that slug starts
-        // resolving, so it must not be swapped for a name-derived one on the way past.
+        // Every drive carries a slug -- CreateDriveAsync derives one when the caller names none, and
+        // keeps a supplied one. A caller that names none at adoption keeps the slug the drive has,
+        // rather than having it swapped for a name-derived one on the way past.
         var owner = await LoginAsOwner();
 
         var appId = await owner.Admin.RegisterBareApp();
@@ -253,9 +253,9 @@ public class DriveOwningAppTests : V2Fixture
     [Test]
     public async Task AKeptSlugThatCollidesWithinTheTargetAppIsRefused()
     {
-        // The slug was unconstrained while the drive had no AppId, so it may well collide with one
-        // the target app already holds. Reaching the insert would surface that as a raw UNIQUE
-        // violation rather than a client error.
+        // The slug is unique within the owner console, not within the app taking the drive, so it may
+        // well collide with one that app already holds. Reaching the insert would surface that as a
+        // raw UNIQUE violation rather than a client error.
         var owner = await LoginAsOwner();
 
         var appId = await owner.Admin.RegisterBareApp();
@@ -394,11 +394,6 @@ public class DriveOwningAppTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
-    /// <summary>
-    /// The drive-management endpoints as the system under test. <c>owner.Admin</c> is arrange-only —
-    /// its helpers throw on non-2xx — so the calls this fixture asserts refusals on go through the
-    /// Refit interface directly, via <see cref="OwnerSession.RefitFor{T}"/>.
-    /// </summary>
     //
     // Creation: an app owns the drives it asks for, and it does not exist yet when they are made.
     //
@@ -461,6 +456,11 @@ public class DriveOwningAppTests : V2Fixture
         Assert.That(registration.Content, Is.Not.Null, "and the app is registered");
     }
 
+    /// <summary>
+    /// The drive-management endpoints as the system under test. <c>owner.Admin</c> is arrange-only —
+    /// its helpers throw on non-2xx — so the calls this fixture asserts refusals on go through the
+    /// Refit interface directly, via <see cref="OwnerSession.RefitFor{T}"/>.
+    /// </summary>
     private static Task<ApiResponse<HttpContent>> SetOwningApp(
         OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug = null, string driveTypeSlug = null) =>
         owner.RefitFor<IRefitDriveManagement>().SetDriveOwningApp(new SetDriveOwningAppRequest

@@ -437,9 +437,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     Name = $"Test_{appId}",
                     AppId = appId,
 
-                    // A slug is required at registration. The generator owns the length and format
-                    // rules, so no test hard-codes them.
-                    AppSlug = AppSlugGenerator.Generate(appId, null, new HashSet<string>()),
+                    AppSlug = TestAppSlug.For(appId),
                     PermissionSet = permissionSet,
                     Drives = drives,
                     AuthorizedCircles = authorizedCircles,

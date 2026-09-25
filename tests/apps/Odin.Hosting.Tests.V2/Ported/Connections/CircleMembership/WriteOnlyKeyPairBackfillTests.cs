@@ -6,7 +6,6 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
@@ -24,13 +23,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 [TestFixture]
 public class WriteOnlyKeyPairBackfillTests : V2Fixture
 {
-    /// <remarks>
-    /// The backfill path under test reaches the swallowed key-upgrade failure in #1770. Narrowed from a
-    /// whole-fixture opt-out now that attribution is correct.
-    /// </remarks>
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Failed to upgrade KSK Encryption"];
-
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]

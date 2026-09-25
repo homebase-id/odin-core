@@ -39,6 +39,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
         Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize, bool omitContactData = true);
 
         [Post(root_path + "/blocked")]
-        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetBlockedProfiles(int pageNumber, int pageSize, bool omitContactData = true);
+        // count/cursor, matching CircleNetworkControllerBase.GetBlockedProfiles -- the pageNumber/pageSize
+        // names this carried bound nothing, so count arrived as 0 and the endpoint answered 500.
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetBlockedProfiles(int count, string cursor, bool omitContactData = true);
     }
 }
