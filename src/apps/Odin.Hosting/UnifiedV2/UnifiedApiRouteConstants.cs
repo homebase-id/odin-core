@@ -5,6 +5,7 @@ public static class UnifiedApiRouteConstants
     public const string BasePath = "/api/v2";
     public const string Auth = BasePath + "/auth";
     public const string Connections = BasePath + "/connections";
+    public const string Followers = BasePath + "/followers";
     public const string Contacts = BasePath + "/contacts";
     public const string Profile = BasePath + "/profile";
     public const string Health = BasePath + "/health";
