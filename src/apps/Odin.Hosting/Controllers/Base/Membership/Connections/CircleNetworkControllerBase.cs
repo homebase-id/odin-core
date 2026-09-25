@@ -30,6 +30,17 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return result;
         }
 
+        /// <summary>
+        /// Severs a blocked connection for good, leaving the identity blocked so it stays refused and
+        /// stays visible to unblock.
+        /// </summary>
+        [HttpPost("remove-blocked-connection")]
+        public async Task<IActionResult> RemoveBlockedConnection([FromBody] OdinIdRequest request)
+        {
+            await circleNetwork.RemoveBlockedConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+            return Ok();
+        }
+
         [HttpPost("disconnect")]
         public async Task<bool> Disconnect([FromBody] OdinIdRequest request, [FromQuery] bool notifyRemote = true)
         {

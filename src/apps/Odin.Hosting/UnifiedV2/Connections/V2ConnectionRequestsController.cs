@@ -7,6 +7,9 @@ using Odin.Core;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Hosting.Authentication.YouAuth;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Util;
@@ -145,10 +148,43 @@ public class V2ConnectionRequestsController(
         };
         header.Validate();
 
+        var callerToken = ResolveCallerTokenForChannelSync();
+
         await circleNetworkRequestService
-            .AcceptConnectionRequestAsync(header, tryOverrideAcl: false, markReviewed: true, WebOdinContext);
+            .AcceptConnectionRequestAsync(header, tryOverrideAcl: false, markReviewed: true, WebOdinContext, callerToken);
 
         return NoContent();
+    }
+
+
+    /// <summary>
+    /// The caller's own token, so the channel-sync job can rebuild their context.
+    /// </summary>
+    /// <remarks>
+    /// The job needs the ICR key to query the sender, and that key lives in the caller's permission
+    /// groups -- owner or app. Carried rather than re-derived because a background job has no master
+    /// key to unlock it with.
+    /// </remarks>
+    private ClientAuthenticationToken ResolveCallerTokenForChannelSync()
+    {
+        if (ClientAuthenticationToken.TryParse(Request.Cookies[OwnerAuthConstants.CookieName], out var ownerToken))
+        {
+        return ownerToken;
+        }
+
+        if (ClientAuthenticationToken.TryParse(Request.Cookies[YouAuthConstants.AppCookieName], out var appCookie))
+        {
+        return appCookie;
+        }
+
+        var authorization = Request.Headers.Authorization.ToString();
+        if (authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
+        ClientAuthenticationToken.TryParse(authorization["Bearer ".Length..], out var bearer))
+        {
+        return bearer;
+        }
+
+        return null;
     }
 
     // DELETE /requests/incoming/{senderId}
