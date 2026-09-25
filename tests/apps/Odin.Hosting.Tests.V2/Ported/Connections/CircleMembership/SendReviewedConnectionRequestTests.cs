@@ -14,6 +14,7 @@ using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
@@ -48,6 +49,46 @@ public class SendReviewedConnectionRequestTests : V2Fixture
             "a reviewed connection is a confirmed one");
         Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId), Is.False,
             "and not an auto-connection");
+    }
+
+    [Test]
+    public async Task AppSentReviewedRequest_AcceptedByHand_IsReviewedOnBothSides()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (app, _) = await SetupAppWithReadCircleAsync(frodo);
+
+        var flagSet = await sam.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "true");
+        Assert.That(flagSet.IsSuccessStatusCode, Is.True);
+
+        var response = await SendReviewedAsync(app, sam.Identity, []);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"got {response.StatusCode}");
+        Assert.That(response.Content!.Outcome, Is.EqualTo(AutoConnectOutcome.PendingManualApproval), response.Content.Detail);
+
+        // The flag waits on the stored sent request for as long as Sam takes.
+        var accept = await sam.Connections.AcceptConnectionRequest(frodo.Identity);
+        Assert.That(accept.IsSuccessStatusCode, Is.True, $"got {accept.StatusCode}");
+
+        var frodosView = await GetIcrAsync(frodo, sam.Identity);
+        Assert.That(frodosView.ReviewedAt, Is.Not.Null, "the sender's half: stamped when the accept calls back");
+        Assert.That(frodosView.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.ConfirmedConnectionsCircleId), Is.True);
+
+        var samsView = await GetIcrAsync(sam, frodo.Identity);
+        Assert.That(samsView.ReviewedAt, Is.Not.Null, "the accepter's half: Sam accepted it himself");
+    }
+
+    [Test]
+    public async Task AppSentReviewedRequest_AutoAccepted_LeavesTheRecipientsSideNew()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var (app, _) = await SetupAppWithReadCircleAsync(frodo);
+
+        AssertConnected(await SendReviewedAsync(app, sam.Identity, []));
+
+        Assert.That((await GetIcrAsync(frodo, sam.Identity)).ReviewedAt, Is.Not.Null, "Frodo reviewed by sending");
+        Assert.That((await GetIcrAsync(sam, frodo.Identity)).ReviewedAt, Is.Null,
+            "nobody on Sam's side looked at an auto-accepted request; it stays New until Sam reviews it");
     }
 
     [Test]
