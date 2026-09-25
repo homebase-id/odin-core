@@ -603,6 +603,15 @@ red run should name the exception behind it.
 unchanged and the `[Explicit]` sibling's comment predates this work, which argues it is not new --
 but I could not run Windows locally, and both Linux matrices pass, so `main` has not been checked.
 
+**New symptom, 2026-09-25 -- the log-event invariant, not a 500.** PR #1807 commit `ca4c3702d`,
+run 36131064361, `windows/sqlite/debug` only (both Linux jobs on the same commit passed). The
+uploads did not fail; the per-test teardown did, on one error-level server log event:
+`HardDeletePayloadFile -> source payload does not exist [...\files\7\4\<fileId>-pknt0001-<uid>.payload]`.
+Not caused by the PR: its diff is circle enable/disable and touches no drive, payload or upload
+code, and the next commit (`edcb0b130`, no drive changes either) passed all three jobs. Inferred,
+not traced: a writer cleaning up a payload version another writer had already replaced -- the same
+concurrent-writers-on-one-drive shape as #1780, surfacing as a missing file rather than a 500.
+
 ---
 
 ## `Odin.SetupHelper.Tests.TcpProbeTests`
