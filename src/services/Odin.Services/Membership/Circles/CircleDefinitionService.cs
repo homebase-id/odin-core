@@ -391,7 +391,7 @@ namespace Odin.Services.Membership.Circles
             var circle = await GetCircleAsync(circleId);
             if (null == circle)
             {
-                throw new OdinClientException($"Invalid circle {circleId}", OdinClientErrorCode.UnknownId);
+                throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
             }
 
             circle.Disabled = disabled;

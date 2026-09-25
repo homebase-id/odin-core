@@ -231,6 +231,19 @@ public class AppCircleDefinitionTests : V2Fixture
     }
 
     [Test]
+    public async Task OwnerCanDisableAppOwnedCircle()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        await CreateAppAndClient(owner, appId, PermissionKeys.ReadCircleMembership);
+        var def = await CreateRandomCircle(owner, appId);
+
+        var response = await owner.RefitFor<IRefitOwnerCircleDefinition>().DisableCircleDefinition(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.True);
+    }
+
+    [Test]
     public async Task AppFailsToDisableItsOwnCircleWithoutManageCircleMembership()
     {
         var owner = await LoginAsOwner();

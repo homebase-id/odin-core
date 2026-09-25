@@ -5,7 +5,6 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
-using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps.Builtin;
@@ -19,10 +18,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 
 /// <summary>
 /// Port of <c>OwnerApi/Membership/Circles/CircleDefinitionTests</c>. What the owner console can say
-/// about a circle definition: create it, list it, update it, disable it, delete it -- and the four
-/// shapes the server refuses (an owner-only drive on create or on update, a circle that grants
-/// neither a drive nor a permission on create or on update, and <c>UseTransit*</c> as a circle
-/// permission).
+/// about a circle definition: create it, list it, update it, disable and re-enable it, delete it --
+/// and the shapes the server refuses (an owner-only drive on create or on update, a circle that
+/// grants neither a drive nor a permission on create or on update, <c>UseTransit*</c> as a circle
+/// permission, and disabling a system circle or one that does not exist).
 /// </summary>
 /// <remarks>
 /// The circle-definition endpoints are V1 only, so the calls under test go through the V1 Refit
@@ -421,13 +420,13 @@ public class CircleDefinitionTests : V2Fixture
             PermissionSet = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
         });
 
-        var circle = await GetCircle(svc, circleId);
+        var circle = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(circle.Disabled, Is.False);
 
         var disableResponse = await svc.DisableCircleDefinition(circleId);
         Assert.That(disableResponse.IsSuccessStatusCode, Is.True, $"Actual response {disableResponse.StatusCode}");
 
-        var disabledCircle = await GetCircle(svc, circleId);
+        var disabledCircle = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(disabledCircle.Disabled, Is.True);
         Assert.That(disabledCircle.Name, Is.EqualTo(circle.Name));
         Assert.That(disabledCircle.Description, Is.EqualTo(circle.Description));
@@ -440,43 +439,17 @@ public class CircleDefinitionTests : V2Fixture
         var updateResponse = await svc.UpdateCircleDefinition(disabledCircle);
         Assert.That(updateResponse.IsSuccessStatusCode, Is.True, $"Actual response {updateResponse.StatusCode}");
 
-        var updatedCircle = await GetCircle(svc, circleId);
+        var updatedCircle = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(updatedCircle.Disabled, Is.True);
         Assert.That(updatedCircle.Description, Is.EqualTo("changed while disabled"));
 
         var enableResponse = await svc.EnableCircleDefinition(circleId);
         Assert.That(enableResponse.IsSuccessStatusCode, Is.True, $"Actual response {enableResponse.StatusCode}");
 
-        var enabledCircle = await GetCircle(svc, circleId);
+        var enabledCircle = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(enabledCircle.Disabled, Is.False);
 
         await svc.DeleteCircleDefinition(circleId);
-    }
-
-    [Test]
-    public async Task OwnerCanDisableAppOwnedCircle()
-    {
-        var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
-
-        var appId = Guid.NewGuid();
-        var appDrive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(appDrive, "App drive", allowAnonymousReads: false);
-        await AppSession.SetupAsync(owner, appDrive, DrivePermission.Read,
-            [PermissionKeys.ReadCircleMembership], knownAppId: appId);
-
-        var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, "App circle", new PermissionSetGrantRequest
-        {
-            Drives = null,
-            PermissionSet = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
-        });
-        var setOwner = await svc.SetCircleOwningApp(new SetCircleOwningAppRequest { CircleId = circleId, AppId = appId });
-        Assert.That(setOwner.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var response = await svc.DisableCircleDefinition(circleId);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await GetCircle(svc, circleId)).Disabled, Is.True);
     }
 
     private static IEnumerable<Guid> SystemCircles() => SystemCircleConstants.AllSystemCircles.Select(c => c.Value);
@@ -490,8 +463,7 @@ public class CircleDefinitionTests : V2Fixture
         var response = await svc.DisableCircleDefinition(id);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
-        var circles = await svc.GetCircleDefinitions(includeSystemCircle: true);
-        Assert.That(circles.Content!.Single(c => c.Id == id).Disabled, Is.False);
+        Assert.That((await owner.Admin.GetCircleDefinition(id)).Disabled, Is.False);
     }
 
     [Test]
@@ -502,14 +474,6 @@ public class CircleDefinitionTests : V2Fixture
 
         var response = await svc.DisableCircleDefinition(Guid.NewGuid());
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-    }
-
-    private static async Task<CircleDefinition> GetCircle(IRefitOwnerCircleDefinition svc, Guid circleId)
-    {
-        var response = await svc.GetCircleDefinitions();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content, Is.Not.Null);
-        return response.Content.Single(c => c.Id == circleId);
     }
 
     [Test]
