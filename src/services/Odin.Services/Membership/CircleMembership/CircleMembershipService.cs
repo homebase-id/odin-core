@@ -364,10 +364,7 @@ public class CircleMembershipService(
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var circle = await this.GetCircleAsync(circleId, odinContext);
-        circle.Disabled = true;
-        circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        await circleDefinitionService.UpdateAsync(circle);
+        await circleDefinitionService.SetDisabledAsync(circleId, true);
 
         await mediator.Publish(new CircleDefinitionChangedNotification
         {
@@ -384,10 +381,7 @@ public class CircleMembershipService(
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var circle = await this.GetCircleAsync(circleId, odinContext);
-        circle.Disabled = false;
-        circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        await circleDefinitionService.UpdateAsync(circle);
+        await circleDefinitionService.SetDisabledAsync(circleId, false);
 
         await mediator.Publish(new CircleDefinitionChangedNotification
         {

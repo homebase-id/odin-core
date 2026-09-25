@@ -360,11 +360,32 @@ namespace Odin.Services.Membership.Circles
             existingCircle.Designation = newCircleDefinition.Designation;
             existingCircle.Emoji = newCircleDefinition.Emoji;
 
+            // Disabled deliberately not taken from the request either: it keeps the stored value, and
+            // only SetDisabledAsync changes it.  A PUT built without the field would otherwise quietly
+            // re-enable a disabled circle, and without the Disabled/Enabled notification.
+
             // Re-checked on every write, not just the first: the invariant has to hold whenever GrantOn
             // changes, and an update is the way a circle becomes ambient.
             await AssertDepositOnlyIfAmbientAsync(existingCircle);
 
             await db.CircleCached.UpsertAsync(ToRecord(existingCircle));
+        }
+
+        /// <summary>
+        /// The only writer of <see cref="CircleDefinition.Disabled"/>; <see cref="UpdateAsync"/> keeps
+        /// the stored value.
+        /// </summary>
+        public async Task SetDisabledAsync(GuidId circleId, bool disabled)
+        {
+            var circle = await GetCircleAsync(circleId);
+            if (null == circle)
+            {
+                throw new OdinClientException($"Invalid circle {circleId}", OdinClientErrorCode.UnknownId);
+            }
+
+            circle.Disabled = disabled;
+            circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
         }
 
         public async Task<bool> IsEnabledAsync(GuidId circleId)
