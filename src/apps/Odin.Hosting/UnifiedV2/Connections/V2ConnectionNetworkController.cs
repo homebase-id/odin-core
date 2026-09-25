@@ -280,6 +280,34 @@ public class V2ConnectionNetworkController(
         return result;
     }
 
+    /// <summary>
+    /// Disables a circle without removing it: members stay, but its grants stop applying to them.
+    /// </summary>
+    /// <remarks>
+    /// The owner may disable any circle but a system circle; an app only one it owns, and only with
+    /// ManageCircleMembership (<see cref="CircleMembershipService.DisableCircleAsync"/>).
+    /// </remarks>
+    [HttpPost("circles/disable")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Disable a circle")]
+    public async Task<IActionResult> DisableCircle([FromBody] Guid circleId)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+        await circleMembership.DisableCircleAsync(new GuidId(circleId), WebOdinContext);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Re-enables a disabled circle; its grants apply to the existing members again.
+    /// </summary>
+    [HttpPost("circles/enable")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Enable a circle")]
+    public async Task<IActionResult> EnableCircle([FromBody] Guid circleId)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+        await circleMembership.EnableCircleAsync(new GuidId(circleId), WebOdinContext);
+        return Ok();
+    }
+
     [HttpPost("circles/add")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Add an identity to a circle")]
     public async Task<IActionResult> GrantCircle([FromBody] AddCircleMembershipRequest request)
