@@ -64,7 +64,7 @@ internal static class UpdateBatchPeerScenario
     /// the "don't seed for rows that early-return" rule in the fixture README. Measured against the
     /// running server: a Guest holding only Read is refused before the file is touched, but a Guest
     /// holding Write clears the drive check and is refused further in — with no file to update it
-    /// answers 500 instead of 403. An update with no <c>VersionTag</c> answers 400 for every caller.
+    /// answers 400 (<c>FileNotFound</c>) instead of 403. An update with no <c>VersionTag</c> answers 400 for every caller.
     /// So the row still needs a real file and its version tag; what it does not need is anything
     /// peer-side.
     /// </remarks>
