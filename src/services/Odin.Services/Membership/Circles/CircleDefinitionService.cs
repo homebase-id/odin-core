@@ -375,8 +375,19 @@ namespace Odin.Services.Membership.Circles
         /// The only writer of <see cref="CircleDefinition.Disabled"/>; <see cref="UpdateAsync"/> keeps
         /// the stored value.
         /// </summary>
+        /// <remarks>
+        /// A system circle cannot be disabled by anyone: disabling Confirmed Connections would take the
+        /// base grants away from every connection at once.  Enabling one is allowed, so a system circle
+        /// left disabled can always be recovered.
+        /// </remarks>
         public async Task SetDisabledAsync(GuidId circleId, bool disabled)
         {
+            if (disabled && SystemCircleConstants.IsSystemCircle(circleId))
+            {
+                throw new OdinClientException($"System circle {circleId} cannot be disabled",
+                    OdinClientErrorCode.CannotDisableSystemCircle);
+            }
+
             var circle = await GetCircleAsync(circleId);
             if (null == circle)
             {

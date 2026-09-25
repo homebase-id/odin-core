@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps.Builtin;
@@ -450,6 +451,47 @@ public class CircleDefinitionTests : V2Fixture
         Assert.That(enabledCircle.Disabled, Is.False);
 
         await svc.DeleteCircleDefinition(circleId);
+    }
+
+    [Test]
+    public async Task OwnerCanDisableAppOwnedCircle()
+    {
+        var owner = await LoginAsOwner();
+        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
+
+        var appId = Guid.NewGuid();
+        var appDrive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(appDrive, "App drive", allowAnonymousReads: false);
+        await AppSession.SetupAsync(owner, appDrive, DrivePermission.Read,
+            [PermissionKeys.ReadCircleMembership], knownAppId: appId);
+
+        var circleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(circleId, "App circle", new PermissionSetGrantRequest
+        {
+            Drives = null,
+            PermissionSet = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
+        });
+        var setOwner = await svc.SetCircleOwningApp(new SetCircleOwningAppRequest { CircleId = circleId, AppId = appId });
+        Assert.That(setOwner.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var response = await svc.DisableCircleDefinition(circleId);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await GetCircle(svc, circleId)).Disabled, Is.True);
+    }
+
+    private static IEnumerable<Guid> SystemCircles() => SystemCircleConstants.AllSystemCircles.Select(c => c.Value);
+
+    [Test, TestCaseSource(nameof(SystemCircles))]
+    public async Task FailToDisableSystemCircle(Guid id)
+    {
+        var owner = await LoginAsOwner();
+        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
+
+        var response = await svc.DisableCircleDefinition(id);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        var circles = await svc.GetCircleDefinitions(includeSystemCircle: true);
+        Assert.That(circles.Content!.Single(c => c.Id == id).Disabled, Is.False);
     }
 
     [Test]

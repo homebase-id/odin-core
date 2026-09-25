@@ -39,6 +39,7 @@ public enum OdinClientErrorCode
     CircleAlreadyHasOwningApp = 3015,
     CircleNotFound = 3016,
     CannotReassignSystemCircle = 3017,
+    CannotDisableSystemCircle = 3018,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
