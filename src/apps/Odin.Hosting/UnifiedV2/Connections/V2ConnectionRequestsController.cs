@@ -129,6 +129,25 @@ public class V2ConnectionRequestsController(
         return Ok(result);
     }
 
+    // POST /requests/send-reviewed
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Send a connection request as the owner's review: the named circles are granted, queued for " +
+                  "their owning app, or refused exactly as POST review does, and ReviewedAt is stamped when " +
+                  "the connection completes. Works from the owner console and from apps; the origin is taken " +
+                  "from the caller, never the body.")]
+    [HttpPost("requests/send-reviewed")]
+    public async Task<ActionResult<ConnectionRequestResult>> SendReviewed(
+        [FromBody] ConnectionRequestHeader requestHeader)
+    {
+        OdinValidationUtils.AssertNotNull(requestHeader, nameof(requestHeader));
+        OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
+
+        var result = await circleNetworkRequestService
+            .SendReviewedConnectionRequestAsync(requestHeader, HttpContext.RequestAborted, WebOdinContext);
+
+        return Ok(result);
+    }
+
     // PUT /requests/incoming/{senderId}
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpPut("requests/incoming/{senderId}")]

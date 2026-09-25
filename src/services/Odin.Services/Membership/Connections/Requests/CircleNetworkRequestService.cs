@@ -165,8 +165,19 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Sends a <see cref="ConnectionRequest"/> as an invitation.
         /// </summary>
         /// <returns></returns>
-        public async Task SendConnectionRequestAsync(ConnectionRequestHeader header, CancellationToken cancellationToken,
+        public Task SendConnectionRequestAsync(ConnectionRequestHeader header, CancellationToken cancellationToken,
             IOdinContext odinContext)
+        {
+            return SendConnectionRequestInternalAsync(header, reviewOnCompletion: false, cancellationToken, odinContext);
+        }
+
+        /// <param name="reviewOnCompletion">
+        /// True only from <see cref="SendReviewedConnectionRequestAsync"/>: the named circles are routed the
+        /// way a review routes them, and the connection is reviewed when it completes.  See
+        /// <see cref="ConnectionRequest.ReviewOnCompletion"/>.
+        /// </param>
+        private async Task SendConnectionRequestInternalAsync(ConnectionRequestHeader header, bool reviewOnCompletion,
+            CancellationToken cancellationToken, IOdinContext odinContext)
         {
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
@@ -231,7 +242,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
             {
-                await HandleConnectionRequestInternalForAppAsync(header, odinContext);
+                await HandleConnectionRequestInternalForAppAsync(header, reviewOnCompletion, odinContext);
                 return;
             }
 
@@ -243,7 +254,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
-                await HandleConnectionRequestInternalForIdentityOwnerAsync(header, odinContext);
+                await HandleConnectionRequestInternalForIdentityOwnerAsync(header, reviewOnCompletion, odinContext);
             }
         }
 
@@ -254,8 +265,14 @@ namespace Odin.Services.Membership.Connections.Requests
         /// describe what actually happened (connected, pending, blocked, etc.) so the calling app
         /// can respond without a second round trip.
         /// </summary>
-        public async Task<ConnectionRequestResult> SendAutoConnectRequestAsync(ConnectionRequestHeader header,
+        public Task<ConnectionRequestResult> SendAutoConnectRequestAsync(ConnectionRequestHeader header,
             CancellationToken cancellationToken, IOdinContext odinContext)
+        {
+            return SendAutoConnectRequestInternalAsync(header, reviewOnCompletion: false, cancellationToken, odinContext);
+        }
+
+        private async Task<ConnectionRequestResult> SendAutoConnectRequestInternalAsync(ConnectionRequestHeader header,
+            bool reviewOnCompletion, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             if (header == null || string.IsNullOrWhiteSpace(header.Recipient))
             {
@@ -299,7 +316,7 @@ namespace Odin.Services.Membership.Connections.Requests
             // we can tell the AcceptedFromExistingIncoming case apart from Connected afterward.
             var hadIncomingPending = await GetPendingRequestInternalAsync(recipient) != null;
 
-            var failure = await TrySendAndMapOutcomeAsync(autoHeader, cancellationToken, odinContext);
+            var failure = await TrySendAndMapOutcomeAsync(autoHeader, reviewOnCompletion, cancellationToken, odinContext);
             if (failure != null)
             {
                 return failure;
@@ -356,8 +373,53 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <see cref="AutoConnectOutcome.AcceptedFromExistingIncoming"/> instead of being
         /// mis-reported as <see cref="AutoConnectOutcome.PendingManualApproval"/>.
         /// </summary>
-        public async Task<ConnectionRequestResult> SendConnectionRequestWithOutcomeAsync(
+        public Task<ConnectionRequestResult> SendConnectionRequestWithOutcomeAsync(
             ConnectionRequestHeader header,
+            CancellationToken cancellationToken,
+            IOdinContext odinContext)
+        {
+            return SendConnectionRequestWithOutcomeInternalAsync(header, reviewOnCompletion: false, cancellationToken, odinContext);
+        }
+
+        /// <summary>
+        /// The review-time send: the owner -- from the console or from an app, which is the owner acting --
+        /// asks to connect and names the circles the contact goes into.  Sending the request that way is the
+        /// connection review happening at request time (docs/connection-defaults.md, "Both halves of a
+        /// request"), so it behaves as <see cref="CircleNetworkService.MarkReviewedAsync"/> does:
+        /// <list type="bullet">
+        /// <item>circles the caller can grant are granted; another app's circle is queued for that app; an
+        /// owner-console circle named by an app is refused (<see cref="CircleNetworkService.RouteReviewCirclesAsync"/>);</item>
+        /// <item>the contact is placed in the Confirmed Connections system circle, not Auto Connections;</item>
+        /// <item><see cref="IdentityConnectionRegistration.ReviewedAt"/> is stamped when the connection
+        /// completes -- here, if a request from them was already waiting, otherwise in
+        /// <see cref="EstablishConnection"/>.</item>
+        /// </list>
+        /// </summary>
+        /// <remarks>
+        /// The origin is decided here from who is calling, never taken from the body: the master key means
+        /// the owner console, anything else is an app.  The circle check runs before anything is sent so a
+        /// refusal surfaces as the error it is, not as an outcome.
+        /// </remarks>
+        public async Task<ConnectionRequestResult> SendReviewedConnectionRequestAsync(
+            ConnectionRequestHeader header,
+            CancellationToken cancellationToken,
+            IOdinContext odinContext)
+        {
+            if (header == null || string.IsNullOrWhiteSpace(header.Recipient))
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest };
+            }
+
+            await _cns.RouteReviewCirclesAsync(header.CircleIds, (OdinId)header.Recipient, odinContext);
+
+            return odinContext.Caller.HasMasterKey
+                ? await SendConnectionRequestWithOutcomeInternalAsync(header, reviewOnCompletion: true, cancellationToken, odinContext)
+                : await SendAutoConnectRequestInternalAsync(header, reviewOnCompletion: true, cancellationToken, odinContext);
+        }
+
+        private async Task<ConnectionRequestResult> SendConnectionRequestWithOutcomeInternalAsync(
+            ConnectionRequestHeader header,
+            bool reviewOnCompletion,
             CancellationToken cancellationToken,
             IOdinContext odinContext)
         {
@@ -384,7 +446,7 @@ namespace Odin.Services.Membership.Connections.Requests
             // can tell the AcceptedFromExistingIncoming case apart from Connected afterward.
             var hadIncomingPending = await GetPendingRequestInternalAsync(recipient) != null;
 
-            var failure = await TrySendAndMapOutcomeAsync(ownerHeader, cancellationToken, odinContext);
+            var failure = await TrySendAndMapOutcomeAsync(ownerHeader, reviewOnCompletion, cancellationToken, odinContext);
             if (failure != null)
             {
                 return failure;
@@ -432,12 +494,13 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         private async Task<ConnectionRequestResult> TrySendAndMapOutcomeAsync(
             ConnectionRequestHeader header,
+            bool reviewOnCompletion,
             CancellationToken cancellationToken,
             IOdinContext odinContext)
         {
             try
             {
-                await SendConnectionRequestAsync(header, cancellationToken, odinContext);
+                await SendConnectionRequestInternalAsync(header, reviewOnCompletion, cancellationToken, odinContext);
                 return null;
             }
             catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ConnectionRequestToYourself)
@@ -816,6 +879,16 @@ namespace Odin.Services.Membership.Connections.Requests
             var senderOdinId = (OdinId)incomingRequest.SenderOdinId;
             PeerKeyStore accessGrant = null;
 
+            // An accept the owner made is a review, so the circles they named are routed as a review routes
+            // them: granted when this caller can, queued for the owning app when it cannot, refused when an
+            // app names an owner circle.  Done before anything is written, so a refusal leaves no trace.
+            var namedCircles = header.CircleIds;
+            List<PendingEnrollment> queuedEnrollments = [];
+            if (markReviewed)
+            {
+                (namedCircles, queuedEnrollments) = await _cns.RouteReviewCirclesAsync(header.CircleIds, senderOdinId, odinContext);
+            }
+
             //Note: this option is used for auto-accepting connection requests for the Invitation feature
             if (tryOverrideAcl)
             {
@@ -843,7 +916,7 @@ namespace Odin.Services.Membership.Connections.Requests
             // keys from the caller's own drive access. Drives it cannot read still mint keyless, and
             // nothing re-mints those later -- the master-key upgrade only re-encrypts the Peer Key.
             var storageKeySource = StorageKeySource.FromMasterKeyOrCaller(masterKey, odinContext);
-            var circles = await WithConnectCirclesAsync(header.CircleIds);
+            var circles = await WithConnectCirclesAsync(namedCircles);
             accessGrant ??= new PeerKeyStore()
             {
                 MasterKeyEncryptedPeerKey = odinContext.Caller.HasMasterKey
@@ -861,6 +934,8 @@ namespace Odin.Services.Membership.Connections.Requests
                     incomingRequest.ConnectionRequestOrigin, storageKeySource, odinContext),
                 PeerClientKey = accessRegistration
             };
+
+            AddPendingEnrollments(accessGrant, queuedEnrollments);
 
             var verificationHash = _cns.CreateVerificationHash(
                 incomingRequest.VerificationRandomCode,
@@ -1018,6 +1093,13 @@ namespace Odin.Services.Membership.Connections.Requests
             // protected and there is no caller once the request ends -- so it carries this caller's token,
             // encrypted under the tenant's temporal key, the way VersionUpgradeJob carries the owner's.
             await ScheduleChannelSyncAsync(senderOdinId, callerToken);
+
+            // Only now that both sides hold the connection: an app told to come and finish an enrollment
+            // must find a connection to finish it on.
+            if (accessGrant.HasPendingEnrollments)
+            {
+                await _cns.PublishPendingEnrollmentNotificationsAsync(senderOdinId, alreadyQueued: [], odinContext);
+            }
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -1188,9 +1270,11 @@ namespace Odin.Services.Membership.Connections.Requests
             // deliberately, naming the circles this connection is about to be enrolled in -- so by the time
             // the recipient accepts, the owner has already done everything the review dialog asks for, and
             // the circle memberships being minted right here must imply a review (docs/connection-defaults.md:
-            // "circleIdList ACLs check membership, not tier, so membership must imply review").  An
-            // Introduction-origin request was sent without the owner present and stays New.
-            if (originalRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+            // "circleIdList ACLs check membership, not tier, so membership must imply review").  A request
+            // sent through the review-time send says so explicitly, and covers an app sending as the owner.
+            // An Introduction-origin request was sent without the owner present and stays New.
+            if (originalRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner ||
+                originalRequest.ReviewOnCompletion)
             {
                 await _cns.StampReviewedIfUnsetAsync((OdinId)reply.SenderOdinId);
             }
@@ -1222,6 +1306,13 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await this.DeleteSentRequestInternalAsync(recipient);
             await this.DeletePendingRequestInternal(recipient);
+
+            // Circles queued at send time for apps that could not grant them then; the connection they
+            // are to be finished on exists only now.
+            if (originalRequest.PendingPeerKeyStore.HasPendingEnrollments)
+            {
+                await _cns.PublishPendingEnrollmentNotificationsAsync(recipient, alreadyQueued: [], odinContext);
+            }
 
             if (originalRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
@@ -1412,7 +1503,8 @@ namespace Odin.Services.Membership.Connections.Requests
             return null;
         }
 
-        private async Task HandleConnectionRequestInternalForIdentityOwnerAsync(ConnectionRequestHeader header, IOdinContext odinContext)
+        private async Task HandleConnectionRequestInternalForIdentityOwnerAsync(ConnectionRequestHeader header, bool reviewOnCompletion,
+            IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
             var masterKey = odinContext.Caller.GetMasterKey();
@@ -1449,9 +1541,11 @@ namespace Odin.Services.Membership.Connections.Requests
                 // it instead of sending one" -- and for an introduction-origin request nobody
                 // accepted anything: two identities a third party introduced connected on their
                 // own. Stamping it would vouch for a connection the owner never saw, and would do
-                // so only on the ordering where their request happened to arrive first.
+                // so only on the ordering where their request happened to arrive first.  The
+                // review-time send is the exception: there the owner said outright that this is a
+                // review, whichever request got here first.
                 await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
-                    markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                    markReviewed: reviewOnCompletion || incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
                     odinContext);
                 return;
             }
@@ -1462,7 +1556,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 logger.LogInformation(
                     "[DEBUG-754] IdentityOwner: no pending-incoming, no existing sent-request — creating fresh outgoing to {recipient}",
                     recipient);
-                await CreateAndSendRequestInternalAsync(header, masterKey, odinContext);
+                await CreateAndSendRequestInternalAsync(header, masterKey, reviewOnCompletion, odinContext);
             }
             else
             {
@@ -1473,17 +1567,17 @@ namespace Odin.Services.Membership.Connections.Requests
                 if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
                 {
                     //overwrite this with new request and send it
-                    await CreateAndSendRequestInternalAsync(header, masterKey, odinContext);
+                    await CreateAndSendRequestInternalAsync(header, masterKey, reviewOnCompletion, odinContext);
                 }
                 else if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                 {
                     //merge with existing request
+                    var review = reviewOnCompletion || existingOutgoingRequest.ReviewOnCompletion;
                     var newCircles = header.CircleIds ?? [];
-                    var exitingCircles = existingOutgoingRequest.PendingPeerKeyStore.CircleGrants.Keys.Select(c => new GuidId(c))
-                        .ToList();
+                    var exitingCircles = await CirclesToCarryForwardAsync(existingOutgoingRequest, review);
                     newCircles.AddRange(exitingCircles.Where(c => !newCircles.Exists(nc => nc == c)).ToList());
                     header.CircleIds = newCircles;
-                    await CreateAndSendRequestInternalAsync(header, masterKey, odinContext);
+                    await CreateAndSendRequestInternalAsync(header, masterKey, review, odinContext);
                 }
             }
         }
@@ -1508,7 +1602,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 var existingOutgoingRequest = await this.GetSentRequestInternalAsync(recipient);
                 if (null == existingOutgoingRequest)
                 {
-                    await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                    await CreateAndSendRequestInternalAsync(header, masterKey: null, reviewOnCompletion: false, odinContext);
                 }
                 else
                 {
@@ -1517,14 +1611,14 @@ namespace Odin.Services.Membership.Connections.Requests
                     {
                         // overwrite this with newly incoming request and send it
                         // reason: the new request is created by the owner, so it will more explicit info (like circles)
-                        await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                        await CreateAndSendRequestInternalAsync(header, masterKey: null, reviewOnCompletion: false, odinContext);
                     }
                     else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                     {
                         // Resend the request - using the circles from the existing request
                         header.CircleIds = existingOutgoingRequest.PendingPeerKeyStore.CircleGrants.Keys.Select(c => new GuidId(c))
                             .ToList();
-                        await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                        await CreateAndSendRequestInternalAsync(header, masterKey: null, reviewOnCompletion: false, odinContext);
                     }
                 }
             }
@@ -1533,7 +1627,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 var incomingRequest = await this.GetPendingRequestAsync(recipient, odinContext);
                 if (incomingRequest == null)
                 {
-                    await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                    await CreateAndSendRequestInternalAsync(header, masterKey: null, reviewOnCompletion: false, odinContext);
                 }
                 else
                 {
@@ -1558,7 +1652,8 @@ namespace Odin.Services.Membership.Connections.Requests
             }
         }
 
-        private async Task HandleConnectionRequestInternalForAppAsync(ConnectionRequestHeader header, IOdinContext ctx)
+        private async Task HandleConnectionRequestInternalForAppAsync(ConnectionRequestHeader header, bool reviewOnCompletion,
+            IOdinContext ctx)
         {
             ctx.Caller.AssertCallerIsOwner();
             var odinContext = OdinContextUpgrades.UsePermissions(ctx, PermissionKeys.ReadCircleMembership);
@@ -1583,9 +1678,11 @@ namespace Odin.Services.Membership.Connections.Requests
                 // it instead of sending one" -- and for an introduction-origin request nobody
                 // accepted anything: two identities a third party introduced connected on their
                 // own. Stamping it would vouch for a connection the owner never saw, and would do
-                // so only on the ordering where their request happened to arrive first.
+                // so only on the ordering where their request happened to arrive first.  The
+                // review-time send is the exception: there the owner said outright that this is a
+                // review, whichever request got here first.
                 await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false,
-                    markReviewed: incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
+                    markReviewed: reviewOnCompletion || incomingRequest.ConnectionRequestOrigin != ConnectionRequestOrigin.Introduction,
                     odinContext);
                 return;
             }
@@ -1593,7 +1690,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var existingOutgoingRequest = await this.GetSentRequestInternalAsync(recipient);
             if (null == existingOutgoingRequest)
             {
-                await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                await CreateAndSendRequestInternalAsync(header, masterKey: null, reviewOnCompletion, odinContext);
                 return;
             }
 
@@ -1601,20 +1698,19 @@ namespace Odin.Services.Membership.Connections.Requests
             if (existingRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
                 // overwrite with the new app-initiated request and resend
-                await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                await CreateAndSendRequestInternalAsync(header, masterKey: null, reviewOnCompletion, odinContext);
             }
             else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
             {
                 // Resend in case something changed on the recipient side (e.g. they
                 // deleted the pending request). Merge circles so we don't lose any
                 // grants from the earlier app-origin request.
+                var review = reviewOnCompletion || existingOutgoingRequest.ReviewOnCompletion;
                 var newCircles = header.CircleIds ?? [];
-                var existingCircles = existingOutgoingRequest.PendingPeerKeyStore.CircleGrants.Keys
-                    .Select(c => new GuidId(c))
-                    .ToList();
+                var existingCircles = await CirclesToCarryForwardAsync(existingOutgoingRequest, review);
                 newCircles.AddRange(existingCircles.Where(c => !newCircles.Exists(nc => nc == c)).ToList());
                 header.CircleIds = newCircles;
-                await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                await CreateAndSendRequestInternalAsync(header, masterKey: null, review, odinContext);
             }
             else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
@@ -1627,9 +1723,17 @@ namespace Odin.Services.Membership.Connections.Requests
         }
 
         private async Task CreateAndSendRequestInternalAsync(ConnectionRequestHeader header, SensitiveByteArray masterKey,
-            IOdinContext odinContext)
+            bool reviewOnCompletion, IOdinContext odinContext)
         {
             var recipient = (OdinId)header.Recipient;
+
+            // Routed before anything is cached or stored, so a refused circle leaves no trace.
+            var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
+            List<PendingEnrollment> queuedEnrollments = [];
+            if (reviewOnCompletion)
+            {
+                (circles, queuedEnrollments) = await _cns.RouteReviewCirclesAsync(circles, recipient, odinContext);
+            }
 
             //TODO: scalability - _outgoingIntroductionRequests needs to work across servers
             var timestamp = SequentialGuid.CreateGuid();
@@ -1637,9 +1741,12 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
-            var (clientAccessToken, grant) = await CreateTokenAndExchangeGrantAsync(keyStoreKey, circles, header.ConnectionRequestOrigin,
+            // A reviewed connection is a confirmed one, whichever client sent it: the system circle follows
+            // the review, not the absence of a master key.
+            var systemCircleOrigin = reviewOnCompletion ? ConnectionRequestOrigin.IdentityOwner : header.ConnectionRequestOrigin;
+            var (clientAccessToken, grant) = await CreateTokenAndExchangeGrantAsync(keyStoreKey, circles, systemCircleOrigin,
                 masterKey, odinContext);
+            AddPendingEnrollments(grant, queuedEnrollments);
 
             var tempRawKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
@@ -1656,6 +1763,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 ConnectionRequestOrigin = header.ConnectionRequestOrigin,
                 IntroducerOdinId = header.IntroducerOdinId,
                 PendingPeerKeyStore = grant,
+                ReviewOnCompletion = reviewOnCompletion,
                 VerificationHash = _cns.CreateVerificationHash(randomCode, clientAccessToken.SharedSecret)
             };
 
@@ -1678,6 +1786,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 outgoingRequest.ClientAccessToken64 = clientAccessToken.ToPortableBytes64();
                 outgoingRequest.VerificationHash = null;
                 outgoingRequest.PendingPeerKeyStore = null;
+                outgoingRequest.ReviewOnCompletion = false;
                 outgoingRequest.TempEncryptedIcrKey = null;
                 outgoingRequest.TempEncryptedFeedDriveStorageKey = null;
                 clientAccessToken.SharedSecret.Wipe();
@@ -1703,6 +1812,55 @@ namespace Odin.Services.Membership.Connections.Requests
 
             keyStoreKey.Wipe();
             tempRawKey.Wipe();
+        }
+
+        /// <summary>
+        /// Carries review-routed circles an app could not grant onto a new key store, so they are waiting
+        /// on the connection when it completes -- where <see cref="CircleNetworkService.MarkReviewedAsync"/>
+        /// would have queued them.
+        /// </summary>
+        private static void AddPendingEnrollments(PeerKeyStore store, List<PendingEnrollment> queued)
+        {
+            store.PendingEnrollments ??= [];
+            foreach (var entry in queued)
+            {
+                if (!store.CircleGrants.ContainsKey(entry.CircleId) &&
+                    !store.PendingEnrollments.Any(p => p.CircleId == entry.CircleId))
+                {
+                    store.PendingEnrollments.Add(entry);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The circles an earlier outgoing request named, for a resend that merges them in.
+        /// </summary>
+        /// <remarks>
+        /// A plain resend keeps every circle the earlier store granted, as it always has.  A reviewed one
+        /// re-routes what it carries forward, so it takes what the owner named -- granted or queued -- and
+        /// leaves out what the pipeline added itself: the system circles (which a review would refuse from
+        /// an app, as owner circles) and the <see cref="CircleGrantOn.Connect"/> circles, which are added
+        /// again regardless.
+        /// </remarks>
+        private async Task<List<GuidId>> CirclesToCarryForwardAsync(ConnectionRequest existing, bool review)
+        {
+            var store = existing.PendingPeerKeyStore;
+            var granted = store.CircleGrants.Keys.Select(c => new GuidId(c)).ToList();
+            if (!review)
+            {
+                return granted;
+            }
+
+            var added = (await circleDefinitionService.GetCirclesByGrantOnAsync(CircleGrantOn.Connect))
+                .Select(c => c.Id.Value)
+                .Concat(SystemCircleConstants.AllSystemCircles.Select(c => c.Value))
+                .ToHashSet();
+
+            return granted
+                .Concat((store.PendingEnrollments ?? []).Select(p => p.CircleId))
+                .Where(c => !added.Contains(c.Value))
+                .Distinct()
+                .ToList();
         }
 
         private async Task<(ClientAccessToken clientAccessToken, PeerKeyStore)> CreateTokenAndExchangeGrantAsync(
