@@ -131,10 +131,8 @@ public class V2ConnectionRequestsController(
 
     // POST /requests/send-reviewed
     [SwaggerOperation(Tags = [SwaggerInfo.Connections],
-        Summary = "Send a connection request as the owner's review: the named circles are granted, queued for " +
-                  "their owning app, or refused exactly as POST review does, and ReviewedAt is stamped when " +
-                  "the connection completes. Works from the owner console and from apps; the origin is taken " +
-                  "from the caller, never the body.")]
+        Summary = "Send a connection request that is the owner's review: circles are routed as POST review " +
+                  "routes them, and ReviewedAt is stamped when the connection completes. Owner console or app.")]
     [HttpPost("requests/send-reviewed")]
     public async Task<ActionResult<ConnectionRequestResult>> SendReviewed(
         [FromBody] ConnectionRequestHeader requestHeader)

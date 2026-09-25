@@ -2689,23 +2689,36 @@ namespace Odin.Services.Membership.Connections
         private void EnqueuePendingEnrollment(IdentityConnectionRegistration icr, CircleDefinition circleDefinition,
             IOdinContext odinContext)
         {
-            var circleId = circleDefinition.Id;
-
-            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId) ||
-                icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId) ||
-                icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circleId))
+            if (!EnqueuePendingEnrollment(icr.PeerKeyStore, NewPendingEnrollment(circleDefinition, odinContext)))
             {
                 return;
             }
 
-            icr.PeerKeyStore.PendingEnrollments.Add(NewPendingEnrollment(circleDefinition, odinContext));
-
             logger.LogDebug(
                 "Enqueued pending enrollment for {odinId} in circle {circleId} (owned by app {owningAppId})",
-                icr.OdinId, circleId, circleDefinition.AppId);
+                icr.OdinId, circleDefinition.Id, circleDefinition.AppId);
 
             // Deliberately silent. Telling the owning app is the caller's job, after its transaction has
             // committed -- announcing work that a rollback would erase is worse than announcing it late.
+        }
+
+        /// <summary>
+        /// Adds <paramref name="entry"/> to <paramref name="store"/> unless its circle is already granted,
+        /// deposited or queued there.  The store-level half of <see cref="EnqueuePendingEnrollment(IdentityConnectionRegistration, CircleDefinition, IOdinContext)"/>,
+        /// for the connection-request paths, which build a store before any connection exists.
+        /// </summary>
+        public static bool EnqueuePendingEnrollment(PeerKeyStore store, PendingEnrollment entry)
+        {
+            store.PendingEnrollments ??= [];
+            if (store.CircleGrants.ContainsKey(entry.CircleId) ||
+                (store.DepositedGrants ?? []).Any(d => d.CircleId == entry.CircleId) ||
+                store.PendingEnrollments.Any(p => p.CircleId == entry.CircleId))
+            {
+                return false;
+            }
+
+            store.PendingEnrollments.Add(entry);
+            return true;
         }
 
         private static PendingEnrollment NewPendingEnrollment(CircleDefinition circleDefinition, IOdinContext odinContext)
