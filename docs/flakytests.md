@@ -505,10 +505,18 @@ times in a row, under concurrency** -- the test is reporting a real defect, not 
 Do not "fix" this by draining harder. Tracked as a product issue: **#1778**.
 
 Worth knowing the production asymmetry while reading these failures: a failed `ConnectIntroducee`
-item reschedules for **+10 minutes**, hardcoded in two places
-(`ConnectIntroduceeOutboxWorker.cs:45` and `:73`, the latter carrying `//TODO: change to calculated`).
-Tests bring that forward; production waits it out. So a transient introduction failure costs a real
-user ten minutes, which matches the product's reputation for flaky introductions.
+item used to reschedule for a flat **+10 minutes**. Tests bring that forward; production waits it
+out. Fixed for #1778: both introduction workers now use the outbox's calculated backoff
+(`OutboxWorkerBase.CalculateBackoffNextRunTime`, 10 s steps then 30 s steps), and the retry path
+logs the `OdinClientErrorCode` at Warning so the transient failure is named in production logs.
+
+**Update 2026-09-25 -- not reproduced since the WAL harness fix.** 8 consecutive full
+`Odin.Hosting.Tests.V2` runs on `main` (1360 passed each, none failed) with a temporary trace on
+every `ConnectIntroducee` failure path: the trace never fired, so no introducee send failed at all.
+`7d8bcbdd5` (2026-09-19, two days after this entry) found the V2 harness had been running SQLite in
+rollback-journal mode, where readers and writers block each other ("database is locked", #1777).
+That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
+failure of these three fixtures names it. If one goes red again, the Warning above says why.
 
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them

@@ -103,18 +103,26 @@ public abstract class OutboxWorkerBase(
 
     protected UnixTimeUtc CalculateNextRunTime(LatestTransferStatus transferStatus)
     {
-        var delay = CalculateSecondsDelay(FileItem.AttemptCount);
         switch (transferStatus)
         {
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientServerNotResponding:
-                return UnixTimeUtc.Now().AddSeconds(delay);
+                return CalculateBackoffNextRunTime();
 
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
-                return UnixTimeUtc.Now().AddSeconds(delay);
+                return CalculateBackoffNextRunTime();
             default:
                 return UnixTimeUtc.Now().AddSeconds(30);
         }
+    }
+
+    /// <summary>
+    /// Next run for a retry, backing off with the item's attempt count: 10 s steps for the first five
+    /// attempts, 30 s steps after that.
+    /// </summary>
+    protected UnixTimeUtc CalculateBackoffNextRunTime()
+    {
+        return UnixTimeUtc.Now().AddSeconds(CalculateSecondsDelay(FileItem.AttemptCount));
     }
 
     protected async Task<(Stream metadataStream,
