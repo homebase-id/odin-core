@@ -5,6 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
+using Odin.Hosting.Authentication.YouAuth;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Util;
@@ -17,6 +20,37 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         CircleNetworkIntroductionService introductionService)
         : OdinControllerBase
     {
+
+        /// <summary>
+        /// The caller's own token, so the channel-sync job can rebuild their context.
+        /// </summary>
+        /// <remarks>
+        /// The job needs the ICR key to query the sender, and that key lives in the caller's permission
+        /// groups -- owner or app. Carried rather than re-derived because a background job has no master
+        /// key to unlock it with.
+        /// </remarks>
+        private ClientAuthenticationToken ResolveCallerTokenForChannelSync()
+        {
+            if (ClientAuthenticationToken.TryParse(Request.Cookies[OwnerAuthConstants.CookieName], out var ownerToken))
+            {
+                return ownerToken;
+            }
+
+            if (ClientAuthenticationToken.TryParse(Request.Cookies[YouAuthConstants.AppCookieName], out var appCookie))
+            {
+                return appCookie;
+            }
+
+            var authorization = Request.Headers.Authorization.ToString();
+            if (authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
+                ClientAuthenticationToken.TryParse(authorization["Bearer ".Length..], out var bearer))
+            {
+                return bearer;
+            }
+
+            return null;
+        }
+
         /// <summary>
         /// Gets a list of connection requests that are awaiting a response
         /// </summary>
@@ -64,8 +98,11 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
+
+            var callerToken = ResolveCallerTokenForChannelSync();
+
             await circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: false, markReviewed: true,
-                WebOdinContext);
+                WebOdinContext, callerToken);
             return true;
         }
 
