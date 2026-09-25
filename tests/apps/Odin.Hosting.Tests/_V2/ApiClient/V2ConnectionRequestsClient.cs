@@ -17,6 +17,14 @@ public class V2ConnectionRequestsClient(OdinId identity, IApiClientFactory facto
         return await svc.AutoConnect(header);
     }
 
+    // POST /requests/send-reviewed -> CircleNetworkRequestService.SendReviewedConnectionRequestAsync
+    public async Task<ApiResponse<ConnectionRequestResult>> SendReviewedAsync(ConnectionRequestHeader header)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionRequestsHttpClientApiV2>(client, sharedSecret);
+        return await svc.SendReviewed(header);
+    }
+
     // PUT /requests/incoming/{senderId} -> CircleNetworkRequestService.AcceptConnectionRequestAsync
     public async Task<ApiResponse<HttpContent>> AcceptIncomingRequestAsync(OdinId sender, AcceptConnectionRequestV2 request)
     {

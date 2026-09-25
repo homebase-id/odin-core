@@ -43,6 +43,15 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public byte[] TempRawKey { get; set; }
 
+        /// <summary>
+        /// Sender-side only, never sent to the recipient: the owner sent this through the review-time send
+        /// (<see cref="CircleNetworkRequestService.SendReviewedConnectionRequestAsync"/>), so completing it
+        /// stamps <see cref="IdentityConnectionRegistration.ReviewedAt"/> whichever client -- console or app
+        /// -- sent it.  A flag rather than a reading of <see cref="ConnectionRequestHeader.ConnectionRequestOrigin"/>
+        /// so the older send endpoints keep exactly their existing behaviour.
+        /// </summary>
+        public bool ReviewOnCompletion { get; set; }
+
         public Guid VerificationRandomCode { get; set; }
         public byte[] VerificationHash { get; set; }
 
