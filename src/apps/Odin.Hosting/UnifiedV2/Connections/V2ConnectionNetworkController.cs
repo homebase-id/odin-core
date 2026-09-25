@@ -284,8 +284,8 @@ public class V2ConnectionNetworkController(
     /// Disables a circle without removing it: members stay, but its grants stop applying to them.
     /// </summary>
     /// <remarks>
-    /// The owner may disable any circle but a system circle; an app only one it owns, and only with
-    /// ManageCircleMembership (<see cref="CircleMembershipService.DisableCircleAsync"/>).
+    /// The owner may disable any circle but a system circle; an app only one it owns
+    /// (<see cref="CircleMembershipService.DisableCircleAsync"/>).
     /// </remarks>
     [HttpPost("circles/disable")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Disable a circle")]

@@ -24,8 +24,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// <summary>
 /// Port of <c>AppAPI/Membership/AppCircleDefinitionTests</c>. What an app may do with circles: read
 /// definitions and members when it holds <c>ReadCircleMembership</c>; enable or disable a circle it
-/// owns when it holds <c>ManageCircleMembership</c> (issue #1760); and nothing else — no create,
-/// update or delete, no toggling a circle it does not own, and no peek at the system circle's members.
+/// owns, which needs no permission key (issue #1760); and nothing else — no create, update or
+/// delete, no toggling a circle it does not own, and no peek at the system circle's members.
 /// </summary>
 /// <remarks>
 /// The app caller is an <see cref="AppSession"/>; the two app-side Refit surfaces the V1
@@ -217,8 +217,9 @@ public class AppCircleDefinitionTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var appId = Guid.NewGuid();
-        var appClient = await CreateAppAndClient(owner, appId,
-            PermissionKeys.ReadCircleMembership, PermissionKeys.ManageCircleMembership);
+
+        // No permission keys at all: owning the circle is the app's whole authority over it.
+        var appClient = await CreateAppAndClient(owner, appId);
         var def = await CreateRandomCircle(owner, appId);
         var client = appClient.RefitFor<IAppCircleDefinitionClient>();
 
@@ -244,22 +245,9 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.True);
     }
 
-    [Test]
-    public async Task AppFailsToDisableItsOwnCircleWithoutManageCircleMembership()
-    {
-        var owner = await LoginAsOwner();
-        var appId = Guid.NewGuid();
-        var appClient = await CreateAppAndClient(owner, appId, PermissionKeys.ReadCircleMembership);
-        var def = await CreateRandomCircle(owner, appId);
-
-        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().DisableCircleDefinition(def.Id.Value);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
-    }
-
     /// <summary>
-    /// ManageCircleMembership is not enough on its own: the circle must name the calling app.  One row
-    /// for the owner's own circle, one for another app's.
+    /// Permissions do not widen it: even holding every key an app may, the circle must name the
+    /// calling app.  One row for the owner's own circle, one for another app's.
     /// </summary>
     [TestCase(false, TestName = "AppFailsToDisableOwnerCircle")]
     [TestCase(true, TestName = "AppFailsToDisableAnotherAppsCircle")]
@@ -267,7 +255,7 @@ public class AppCircleDefinitionTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var appClient = await CreateAppAndClient(owner,
-            PermissionKeys.ReadCircleMembership, PermissionKeys.ManageCircleMembership);
+            PermissionKeyAllowance.Apps.ToArray());
 
         Guid? otherAppId = null;
         if (ownedByAnotherApp)
@@ -288,8 +276,7 @@ public class AppCircleDefinitionTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var appId = Guid.NewGuid();
-        var appClient = await CreateAppAndClient(owner, appId,
-            PermissionKeys.ReadCircleMembership, PermissionKeys.ManageCircleMembership);
+        var appClient = await CreateAppAndClient(owner, appId);
         var def = await CreateRandomCircle(owner, appId);
         var v2 = appClient.RefitFor<IConnectionNetworkHttpClientApiV2>();
 
@@ -307,7 +294,7 @@ public class AppCircleDefinitionTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var appClient = await CreateAppAndClient(owner,
-            PermissionKeys.ReadCircleMembership, PermissionKeys.ManageCircleMembership);
+            PermissionKeyAllowance.Apps.ToArray());
         var def = await CreateRandomCircle(owner);
 
         var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>().DisableCircle(def.Id.Value);
@@ -320,7 +307,7 @@ public class AppCircleDefinitionTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var appClient = await CreateAppAndClient(owner,
-            PermissionKeys.ReadCircleMembership, PermissionKeys.ManageCircleMembership);
+            PermissionKeyAllowance.Apps.ToArray());
 
         var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>()
             .DisableCircle(SystemCircleConstants.ConfirmedConnectionsCircleId.Value);

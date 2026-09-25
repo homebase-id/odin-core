@@ -398,14 +398,12 @@ public class CircleMembershipService(
 
     /// <summary>
     /// Who may enable or disable a circle: the owner console (master key) any circle; otherwise the
-    /// caller needs <see cref="PermissionKeys.ManageCircleMembership"/> and must be the app named as the
-    /// circle's owner.
+    /// owner acting through an app, and only on a circle that app owns.
     /// </summary>
     /// <remarks>
-    /// Disabling a circle cuts every member off, the same reach as removing each of them, which is what
-    /// <see cref="PermissionKeys.ManageCircleMembership"/> already lets an app do; so no new key.  An
-    /// owner-console circle (no AppId, or the owner console's) is never an app's, and that includes the
-    /// system circles.
+    /// No permission key: an app is the owner acting, and owning the circle is the whole of its
+    /// authority over it.  An owner-console circle (no AppId, or the owner console's) is never an
+    /// app's, and that includes the system circles.
     /// </remarks>
     private async Task AssertCallerMayToggleCircleAsync(GuidId circleId, IOdinContext odinContext)
     {
@@ -414,7 +412,13 @@ public class CircleMembershipService(
             return;
         }
 
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageCircleMembership);
+        odinContext.Caller.AssertCallerIsOwner();
+
+        var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+        if (callerAppId == null)
+        {
+            throw new OdinSecurityException($"Caller cannot enable or disable circle {circleId}; it is not an app");
+        }
 
         var circle = await circleDefinitionService.GetCircleAsync(circleId);
         if (null == circle)
@@ -425,11 +429,10 @@ public class CircleMembershipService(
         // IsOwnerConsole is not redundant with the AppId comparison: the owner console's AppId is the
         // System app's, which is a registered app, so without it the System app could toggle every
         // owner-console circle.
-        var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
-        if (callerAppId == null || SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != callerAppId)
+        if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != callerAppId)
         {
             throw new OdinSecurityException(
-                $"Caller cannot enable or disable circle {circleId}; only the app that owns it, or the owner, may");
+                $"App {callerAppId} cannot enable or disable circle {circleId}; it belongs to {circle.AppId?.ToString() ?? "the owner"}");
         }
     }
 
