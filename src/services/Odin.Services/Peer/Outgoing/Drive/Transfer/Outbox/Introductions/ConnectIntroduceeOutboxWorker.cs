@@ -8,7 +8,6 @@ using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Introductions;
@@ -21,40 +20,23 @@ public class ConnectIntroduceeOutboxWorker(
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        var data = FileItem.State.Data.ToStringFromUtf8Bytes();
-
-        var iid = OdinSystemSerializer.Deserialize<IdentityIntroduction>(data);
-        var recipient = FileItem.Recipient;
+        var iid = OdinSystemSerializer.Deserialize<IdentityIntroduction>(FileItem.State.Data.ToStringFromUtf8Bytes());
 
         try
         {
             AssertHasRemainingAttempts();
             await introductionService.SendAutoConnectIntroduceeRequest(iid, cancellationToken, odinContext);
-        }
-        catch (OdinOutboxProcessingException e) when (e.TransferStatus == LatestTransferStatus.SendingServerTooManyAttempts)
-        {
-            // Settle here rather than let it escape: the processor treats an escaped exception as a worker
-            // that did not handle its failure, and logs it at Error (#1778).
-            logger.LogWarning("ConnectIntroducee to {recipient} gave up after {attempts} attempts; introduction from {introducer} dropped",
-                recipient, FileItem.AttemptCount, iid.IntroducerOdinId);
             return (true, UnixTimeUtc.ZeroTime);
         }
-        catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RemoteServerReturnedForbidden)
+        catch (OdinOutboxProcessingException e)
         {
-            // Recipient blocked us (or otherwise refused at the network edge). Equivalent to the
-            // OdinSecurityException case below — retrying won't change the answer, mark complete.
-            return (true, UnixTimeUtc.ZeroTime);
+            // Only AssertHasRemainingAttempts raises this here; the base settles it as unrecoverable.
+            return await HandleOutboxProcessingException(odinContext, e);
         }
-        catch (OdinClientException e)
+        catch (Exception e) when (e is OdinSecurityException
+                                      or OdinClientException { ErrorCode: OdinClientErrorCode.RemoteServerReturnedForbidden })
         {
-            // Warning, with the code: this is the retry path, and it used to wait out a flat 10 minutes
-            // without saying why, so a stalled introduction could not be diagnosed from the logs (#1778).
-            logger.LogWarning(e, "ConnectIntroducee to {recipient} failed with {code} (attempt {attempt}); retrying",
-                recipient, e.ErrorCode, FileItem.AttemptCount);
-            return (false, CalculateBackoffNextRunTime());
-        }
-        catch (OdinSecurityException)
-        {
+            // Recipient blocked us, or refused at the network edge: retrying won't change the answer.
             return (true, UnixTimeUtc.ZeroTime);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -64,15 +46,12 @@ public class ConnectIntroduceeOutboxWorker(
         }
         catch (Exception e)
         {
-            // Network, timeout, or a local fault such as a locked database: all worth retrying, and all
-            // on the backoff. This used to escape to the processor, which rescheduled it for "now" — the
-            // whole attempt budget went in well under a second and the introduction was dropped (#1778).
-            logger.LogWarning(e, "ConnectIntroducee to {recipient} failed (attempt {attempt}); retrying",
-                recipient, FileItem.AttemptCount);
+            // Anything else -- a client error, the network, or a local fault such as a locked database -- is
+            // retried on the backoff. Escaping to the processor would retry it at once, logged at Error (#1778).
+            logger.LogWarning(e, "ConnectIntroducee to {recipient} failed with {code} (attempt {attempt}); retrying",
+                FileItem.Recipient, (e as OdinClientException)?.ErrorCode, FileItem.AttemptCount);
             return (false, CalculateBackoffNextRunTime());
         }
-
-        return (true, UnixTimeUtc.ZeroTime);
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)
@@ -82,6 +61,8 @@ public class ConnectIntroduceeOutboxWorker(
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e, IOdinContext odinContext)
     {
+        logger.LogWarning("ConnectIntroducee to {recipient} gave up after {attempts} attempts ({status})",
+            FileItem.Recipient, FileItem.AttemptCount, e.TransferStatus);
         return Task.CompletedTask;
     }
 }

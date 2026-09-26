@@ -25,9 +25,8 @@ namespace Odin.Hosting.Tests.V2.Isolation;
 /// of <c>OutboxOperationMaxAttempts</c> went in well under a second, each logged at Error, and a
 /// recipient that was briefly unreachable lost the introduction for good.
 ///
-/// These drive <see cref="PeerOutboxProcessorBackgroundService.DrainAsync"/> one pass at a time with no
-/// bring-forward, so an item runs again only if the outbox itself considers it due. The recipient is an
-/// identity no host serves, so every send fails.
+/// The backoff test drains one pass at a time with no bring-forward, so an item runs again only if the
+/// outbox itself considers it due. The recipient is an identity no host serves, so every send fails.
 /// </summary>
 [TestFixture]
 public class ConnectIntroduceeRetryTests : V2Fixture
@@ -72,11 +71,8 @@ public class ConnectIntroduceeRetryTests : V2Fixture
         var (outbox, processor, _) = Resolve();
         await EnqueueConnectIntroduceeAsync(outbox);
 
-        for (var pass = 0; pass < 3 * MaxAttempts && await GetItemAsync(outbox) != null; pass++)
-        {
-            await processor.DrainAsync(maxRetryPasses: 0);
-            await outbox.BringForwardScheduledItemsAsync();
-        }
+        // Each retry pass brings the backed-off item forward, so this runs it until it settles.
+        await processor.DrainAsync(maxRetryPasses: 3 * MaxAttempts);
 
         Assert.That(await GetItemAsync(outbox), Is.Null, "an exhausted item must leave the outbox");
         Assert.That(WarningsContaining("gave up"), Has.Count.EqualTo(1),
@@ -106,13 +102,11 @@ public class ConnectIntroduceeRetryTests : V2Fixture
             Recipient = Unreachable,
             Priority = 55,
             Type = OutboxItemType.ConnectIntroducee,
-            AttemptCount = 0,
             File = new InternalDriveFileId
             {
                 DriveId = SystemDriveConstants.TransientTempDrive.Alias,
                 FileId = Unreachable.ToHashId()
             },
-            DependencyFileId = default,
             State = new OutboxItemState { Data = OdinSystemSerializer.Serialize(iid).ToUtf8ByteArray() }
         }, useUpsert: true);
     }

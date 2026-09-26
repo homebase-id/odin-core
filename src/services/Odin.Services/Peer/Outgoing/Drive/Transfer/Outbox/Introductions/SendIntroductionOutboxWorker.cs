@@ -32,9 +32,8 @@ public class SendIntroductionOutboxWorker(
         }
         catch (OdinOutboxProcessingException e)
         {
-            // Settle it the way every other peer worker does -- backoff for a 5xx or no response, drop a
-            // 400 or exhausted attempts. Escaping to the processor rescheduled it for "now", so the whole
-            // attempt budget went in well under a second and each attempt was logged at Error (#1778).
+            // Settle it as the other peer workers do. Escaping to the processor would retry it at once,
+            // logged at Error (#1778).
             return await HandleOutboxProcessingException(odinContext, e);
         }
     }
@@ -116,7 +115,6 @@ public class SendIntroductionOutboxWorker(
                 File = file
             };
         }
-
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)
@@ -126,6 +124,8 @@ public class SendIntroductionOutboxWorker(
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e, IOdinContext odinContext)
     {
+        logger.LogWarning("SendIntroduction to {recipient} gave up after {attempts} attempts ({status})",
+            FileItem.Recipient, FileItem.AttemptCount, e.TransferStatus);
         return Task.CompletedTask;
     }
 }
