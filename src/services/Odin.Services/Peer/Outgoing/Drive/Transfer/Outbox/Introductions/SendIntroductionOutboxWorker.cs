@@ -25,13 +25,27 @@ public class SendIntroductionOutboxWorker(
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
+        try
+        {
+            AssertHasRemainingAttempts();
+            return await SendIntroduction(cancellationToken);
+        }
+        catch (OdinOutboxProcessingException e)
+        {
+            // Settle it the way every other peer worker does -- backoff for a 5xx or no response, drop a
+            // 400 or exhausted attempts. Escaping to the processor rescheduled it for "now", so the whole
+            // attempt budget went in well under a second and each attempt was logged at Error (#1778).
+            return await HandleOutboxProcessingException(odinContext, e);
+        }
+    }
+
+    private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendIntroduction(CancellationToken cancellationToken)
+    {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
         var introduction = OdinSystemSerializer.Deserialize<Introduction>(data);
         var file = FileItem.File;
         var recipient = FileItem.Recipient;
-
-        AssertHasRemainingAttempts();
 
         try
         {

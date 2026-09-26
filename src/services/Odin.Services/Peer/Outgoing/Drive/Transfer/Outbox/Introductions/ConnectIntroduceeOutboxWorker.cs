@@ -1,5 +1,4 @@
 using System;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -25,14 +24,20 @@ public class ConnectIntroduceeOutboxWorker(
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
         var iid = OdinSystemSerializer.Deserialize<IdentityIntroduction>(data);
-        var file = FileItem.File;
         var recipient = FileItem.Recipient;
-
-        AssertHasRemainingAttempts();
 
         try
         {
+            AssertHasRemainingAttempts();
             await introductionService.SendAutoConnectIntroduceeRequest(iid, cancellationToken, odinContext);
+        }
+        catch (OdinOutboxProcessingException e) when (e.TransferStatus == LatestTransferStatus.SendingServerTooManyAttempts)
+        {
+            // Settle here rather than let it escape: the processor treats an escaped exception as a worker
+            // that did not handle its failure, and logs it at Error (#1778).
+            logger.LogWarning("ConnectIntroducee to {recipient} gave up after {attempts} attempts; introduction from {introducer} dropped",
+                recipient, FileItem.AttemptCount, iid.IntroducerOdinId);
+            return (true, UnixTimeUtc.ZeroTime);
         }
         catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RemoteServerReturnedForbidden)
         {
@@ -52,20 +57,19 @@ public class ConnectIntroduceeOutboxWorker(
         {
             return (true, UnixTimeUtc.ZeroTime);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            var status = (ex is TaskCanceledException or HttpRequestException or OperationCanceledException)
-                ? LatestTransferStatus.RecipientServerNotResponding
-                : LatestTransferStatus.UnknownServerError;
-
-            throw new OdinOutboxProcessingException("Failed sending to recipient")
-            {
-                TransferStatus = status,
-                VersionTag = default,
-                Recipient = recipient,
-                GlobalTransitId = default,
-                File = file
-            };
+            // Shutting down: let the processor reschedule it as it does any cancelled item.
+            throw;
+        }
+        catch (Exception e)
+        {
+            // Network, timeout, or a local fault such as a locked database: all worth retrying, and all
+            // on the backoff. This used to escape to the processor, which rescheduled it for "now" — the
+            // whole attempt budget went in well under a second and the introduction was dropped (#1778).
+            logger.LogWarning(e, "ConnectIntroducee to {recipient} failed (attempt {attempt}); retrying",
+                recipient, FileItem.AttemptCount);
+            return (false, CalculateBackoffNextRunTime());
         }
 
         return (true, UnixTimeUtc.ZeroTime);
