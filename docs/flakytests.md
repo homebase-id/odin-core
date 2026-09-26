@@ -518,6 +518,16 @@ rollback-journal mode, where readers and writers block each other ("database is 
 That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
 failure of these three fixtures names it. If one goes red again, the Warning above says why.
 
+**Update 2026-09-26 -- the 2026-09-25 fix covered only one failure path.** The backoff above applied
+only when the send failed with an `OdinClientException`. A network, timeout or other failure left
+the worker as `OdinOutboxProcessingException`. The processor then rescheduled it for "now" and
+logged it at Error, so `HandleRecoverableTransferStatus` never ran. Measured with a throwaway probe
+against an identity no host serves: all 30 attempts went in ~350 ms, with 32 Error lines, and then
+the item was dropped. Both introduction workers now settle their own failures on the backoff, which
+`Isolation/ConnectIntroduceeRetryTests` pins. Whether that path is what reddened these three
+fixtures is still **not confirmed**. It would explain "the introduction simply never landed" (a
+brief failure burning every attempt at once), but no captured failure names it.
+
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them
 visible, by prompting the repeated full-suite runs that surfaced them.
