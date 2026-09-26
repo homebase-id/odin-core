@@ -32,8 +32,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (null == referencedFile)
             {
-                //TODO file does not exist or some other issue - need clarity on what is happening here
-                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                // Resolved above, so the caller most likely cannot read it. Like the S2040 case below, a
+                // resend will not change that, so it is a 400 rather than a retried 503.
+                throw new OdinClientException("Referenced file missing or caller does not have access",
+                    OdinClientErrorCode.InvalidReferenceFile);
             }
 
             //S2040
