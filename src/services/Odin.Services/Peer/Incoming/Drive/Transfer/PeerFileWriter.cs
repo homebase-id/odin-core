@@ -95,7 +95,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
-                targetAcl = await ResetAclForComment(metadata, odinContext);
+                targetAcl = await IncomingCommentAcl.ResetAclForComment(fileSystemResolver, metadata, odinContext);
             }
             else
             {
@@ -211,43 +211,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 update,
                 odinContext,
                 markComplete);
-        }
-
-        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext)
-        {
-            AccessControlList targetAcl;
-
-            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext);
-
-            if (null == referencedFs || !fileId.HasValue)
-            {
-                throw new OdinClientException("Referenced file missing or caller does not have access");
-            }
-
-            //
-            // Issue - the caller cannot see the ACL because it's only shown to the
-            // owner, so we need to forceIncludeServerMetadata
-            //
-
-            var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
-                metadata.ReferencedFile.GlobalTransitId, odinContext: odinContext, forceIncludeServerMetadata: true);
-
-            if (null == referencedFile)
-            {
-                //TODO file does not exist or some other issue - need clarity on what is happening here
-                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
-            }
-
-
-            //S2040
-            if (referencedFile.FileMetadata.IsEncrypted != metadata.IsEncrypted)
-            {
-                throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
-            }
-
-            targetAcl = referencedFile.ServerMetadata.AccessControlList;
-
-            return targetAcl;
         }
 
         private async Task<(bool success, List<PayloadDescriptor> payloads)> WriteNewFile(IDriveFileSystem fs, InternalDriveFileId file,
