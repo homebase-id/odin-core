@@ -45,13 +45,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 ///     <see cref="FailureCases"/>. The S-codes they exercise are in the row names.
 ///   </description></item>
 ///   <item><description>
-///     <b>Dropped, and not replaced:</b> the two <c>S2100</c> tests wrapped themselves in
-///     <c>_scaffold.SetAssertLogEventsAction</c>, asserting that every <c>Error</c> log event raised
-///     during the test read "Remote identity host failed: Referenced filed and metadata payload
-///     encryption do not match". This framework has no log-event store or per-test log assertion hook,
-///     so that half of those two tests is not carried; what remains is the transfer-history status
-///     assertion, which is what the test names claim. Restoring it would mean giving
-///     <c>V2Fixture</c> a log sink — see the framework-gap note in the batch report.
+///     <b>Dropped:</b> the two <c>S2100</c> tests wrapped themselves in
+///     <c>_scaffold.SetAssertLogEventsAction</c> to tolerate the Error that the recipient logged when it
+///     refused the comment with a 503. It refuses with a 400 now (#1771), which is not logged at Error,
+///     so the fixture's no-Error invariant holds without any toleration.
 ///   </description></item>
 ///   <item><description>
 ///     No caller matrix and no <c>SetupCallerWithOwner</c> — owner-only flows throughout.
@@ -68,17 +65,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Transit;
 [TestFixture]
 public class TransitCommentFileRoutingTests : V2Fixture
 {
-    /// <remarks>
-    /// Issue #1771. Under load the outbox retries a peer upload that trips the S2040 guard in
-    /// <c>PeerFileWriter.GetTargetAcl</c> (a comment whose encryption disagrees with its referenced
-    /// file); it is logged at Error four times — the drain's initial attempt plus its three retry
-    /// passes — and the test's own assertions pass regardless. The V1 originals whitelisted the same
-    /// message via <c>SetAssertLogEventsAction</c>, so this carries that over rather than conceding
-    /// something new. Remove when #1771 is resolved.
-    /// </remarks>
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Referenced filed and metadata payload encryption do not match"];
-
     private const string StandardFileContent = "We eagles fly to Mordor, sup w/ that?";
     private const string CommentFileContent = "Srsly!?? =O";
 
@@ -259,7 +245,7 @@ public class TransitCommentFileRoutingTests : V2Fixture
             Bad Request (S2100)
          */
         yield return new TestCaseData(DrivePermission.Read | DrivePermission.WriteReactionsAndComments, true, false,
-                LatestTransferStatus.RecipientIdentityReturnedServerError)
+                LatestTransferStatus.RecipientIdentityReturnedBadRequest)
             .SetName("FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test1");
 
         /*
@@ -274,7 +260,7 @@ public class TransitCommentFileRoutingTests : V2Fixture
             Bad Request (S2100)
          */
         yield return new TestCaseData(DrivePermission.Read | DrivePermission.WriteReactionsAndComments, false, true,
-                LatestTransferStatus.RecipientIdentityReturnedServerError)
+                LatestTransferStatus.RecipientIdentityReturnedBadRequest)
             .SetName("FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test2");
 
         /*

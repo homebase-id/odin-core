@@ -242,7 +242,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //S2040
             if (referencedFile.FileMetadata.IsEncrypted != metadata.IsEncrypted)
             {
-                throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
+                // The sender's data is wrong, and resending it will not change that: a 400 lets the
+                // sender's outbox settle the item instead of retrying it as a 503 (#1771).
+                throw new OdinClientException("Referenced file and metadata payload encryption do not match",
+                    OdinClientErrorCode.InvalidReferenceFile);
             }
 
             targetAcl = referencedFile.ServerMetadata.AccessControlList;
