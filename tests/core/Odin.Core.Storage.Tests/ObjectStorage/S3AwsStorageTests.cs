@@ -83,7 +83,7 @@ public class S3AwsStorageTests
         }
         else
         {
-            _minioContainer = new MinioBuilder("quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z")
+            _minioContainer = new MinioBuilder("rustfs/rustfs:1.0.0")
                 .WithUsername("minioadmin")
                 .WithPassword("minioadmin123")
                 .Build();

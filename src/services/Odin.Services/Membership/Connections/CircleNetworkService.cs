@@ -184,7 +184,20 @@ namespace Odin.Services.Membership.Connections
         public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext, bool notifyRemote = true)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
-            return await DisconnectInternalAsync(odinId, notifyRemote, odinContext);
+
+            // A blocked record is not disconnectable, and used to answer 200 having done nothing: the
+            // guard below skips its whole body for any status but Connected, and the false it returns
+            // was thrown away by the V2 controller. Say so instead. Blocking keeps the connection on
+            // purpose, so the way out is RemoveBlockedConnectionAsync, not this.
+            var icr = await GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
+            if (icr.Status == ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException(
+                    "The identity is blocked; unblock it to disconnect, or remove the blocked connection",
+                    OdinClientErrorCode.BlockedConnection);
+            }
+
+            return await DisconnectInternalAsync(odinId, notifyRemote, odinContext, icr);
         }
 
         /// <summary>
@@ -208,11 +221,20 @@ namespace Odin.Services.Membership.Connections
             await DisconnectInternalAsync(caller, notifyRemote: false, odinContext);
         }
 
-        private async Task<bool> DisconnectInternalAsync(OdinId odinId, bool notifyRemote, IOdinContext odinContext)
+        /// <remarks>
+        /// Returns false rather than throwing for a record that is not Connected, which is what the
+        /// inbound peer path needs: a blocked identity telling us they disconnected must get a 200 and
+        /// keep our block. Refusing it would make their outbox retry a notification that is working as
+        /// intended, and an error distinguishable from success would tell them they are blocked.
+        /// <see cref="DisconnectAsync"/> is where the owner gets told.
+        /// </remarks>
+        private async Task<bool> DisconnectInternalAsync(OdinId odinId, bool notifyRemote, IOdinContext odinContext,
+            IdentityConnectionRegistration icr = null)
         {
             // overrideHack/no-upgrade: the inbound-peer path runs under a context without ReadConnections,
             // and we're about to delete the record anyway, so skip the permission check and token upgrade.
-            var info = await this.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
+            // The owner path has already read the record to check for a block, and passes it in.
+            var info = icr ?? await this.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
             if (info is { Status: ConnectionStatus.Connected })
             {
                 // Capture the access token to the remote identity BEFORE deleting the connection record,
@@ -238,23 +260,36 @@ namespace Odin.Services.Membership.Connections
                     await EnqueueBreakConnectionNotificationAsync(odinId, remoteToken);
                 }
 
-                await mediator.Publish(new ConnectionDeletedNotification()
-                {
-                    OdinContext = odinContext,
-                    OdinId = odinId,
-                });
-
-                await mediator.Publish(new ConnectionChangedNotification
-                {
-                    OdinContext = odinContext,
-                    OdinId = odinId,
-                    Change = ConnectionChangeType.Disconnected,
-                });
+                await PublishConnectionSeveredAsync(odinId, odinContext);
 
                 return true;
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Announces that a connection is gone -- the pair every severance publishes.
+        /// </summary>
+        /// <remarks>
+        /// Two notifications because they reach different places: the deleted one resets the auth caches
+        /// and drops introductions, the changed one is the websocket push to connected clients. Kept
+        /// together so a severance cannot publish half of it.
+        /// </remarks>
+        private async Task PublishConnectionSeveredAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            await mediator.Publish(new ConnectionDeletedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+            });
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                Change = ConnectionChangeType.Disconnected,
+            });
         }
 
         /// <summary>
@@ -398,6 +433,72 @@ namespace Odin.Services.Membership.Connections
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Severs a blocked connection for good: the grant, circle grants and access token are
+        /// destroyed, and a bare blocked record is left behind so the identity stays blocked and stays
+        /// visible to unblock.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="BlockAsync"/> is "not now" and keeps the grant for the reason its own NOTE gives.
+        /// This is "done": nothing is left to restore, so unblocking afterwards lands on
+        /// <see cref="ConnectionStatus.None"/> and the identity must ask for a connection again.
+        /// <para>
+        /// The record survives because the record is the block -- the guards that refuse a blocked
+        /// identity read status off it -- and because it is what the owner unblocks later.
+        /// </para>
+        /// <para>
+        /// The remote identity is not notified: telling them the connection was severed says something
+        /// about their standing here that a block exists not to say.
+        /// </para>
+        /// </remarks>
+        public async Task RemoveBlockedConnectionAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+            // No token upgrade: it would re-encrypt an access token this method is about to destroy,
+            // which is the reason DisconnectInternalAsync skips it too.
+            var info = await this.GetIcrAsync(odinId, odinContext, tryUpgradeEncryption: false);
+            if (info.Status != ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException("The identity is not blocked; block it before removing it",
+                    OdinClientErrorCode.IdentityIsNotBlocked);
+            }
+
+            // Clear the grant on the record rather than replacing the record. Writing it is the teardown:
+            // UpsertAsync clears circle memberships and app grants before writing and re-adds only what
+            // the record carries, which is now nothing. One write, under the lock every other ICR write
+            // takes -- deleting first would repeat that work in a second transaction and leave the
+            // identity briefly unblocked in between, which is the one thing this must not do.
+            //
+            // What survives is deliberate: the contact card, because the blocked list shows it so the
+            // owner can tell who they blocked, and where the connection came from, because that stays
+            // true after it is severed.
+            info.PeerKeyStore = null;
+            info.EncryptedClientAccessToken = null;
+            info.TemporaryWeakClientAccessToken = null;
+            info.TempWeakKeyStoreKey = null;
+            info.VerificationHash = null;
+            info.Status = ConnectionStatus.Blocked;
+
+            await SaveIcrAsync(info, odinContext);
+
+            // Deleted for the internal teardown -- auth caches and introductions. Changed as Blocked
+            // rather than Disconnected because that is the state the client should now render: reporting
+            // a disconnect would invite it to drop the identity from the blocked list it still belongs in.
+            await mediator.Publish(new ConnectionDeletedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+            });
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                Change = ConnectionChangeType.Blocked,
+            });
         }
 
         /// <summary>
@@ -783,22 +884,9 @@ namespace Odin.Services.Membership.Connections
 
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
 
-            // An owner-console circle is the owner's own, and an app has no business putting anyone
-            // into one: nothing an app does should leave the contact waiting on the owner opening their
-            // console. Apps are not shown these circles either
-            // (CircleMembershipService.GetCircleDefinitions), so a well-behaved client never asks.
-            if (SystemAppConstants.IsOwnerConsole(circleDefinition.AppId) && odinContext.Caller.OdinClientContext?.AppId != null)
-            {
-                throw new OdinSecurityException(
-                    $"An app cannot add {odinId} to circle {circleId}; it belongs to the owner, not to an app");
-            }
+            AssertAppMayEnroll(circleDefinition, odinId, odinContext);
 
-            // The owner chose a circle this caller cannot grant -- another app's, whose drives it cannot
-            // read. Record the intent so the app that can grant it may finish later, rather than failing an
-            // act the owner was entitled to perform. Recording confers nothing: whoever processes the entry
-            // re-checks scope then.
-            if (enqueueWhenOutOfReach && !odinContext.Caller.HasMasterKey &&
-                !await CallerCanGrantCircleAsync(circleDefinition, odinContext))
+            if (enqueueWhenOutOfReach && await IsOutOfReachAsync(circleDefinition, odinContext))
             {
                 EnqueuePendingEnrollment(icr, circleDefinition, odinContext);
                 await this.SaveIcrAsync(icr, odinContext);
@@ -2172,7 +2260,7 @@ namespace Odin.Services.Membership.Connections
         /// re-announce work an app has already been told about. An owner-console circle is skipped; it
         /// waits for the owner regardless.
         /// </remarks>
-        private async Task PublishPendingEnrollmentNotificationsAsync(OdinId odinId, List<Guid> alreadyQueued,
+        public async Task PublishPendingEnrollmentNotificationsAsync(OdinId odinId, List<Guid> alreadyQueued,
             IOdinContext odinContext)
         {
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
@@ -2601,29 +2689,113 @@ namespace Odin.Services.Membership.Connections
         private void EnqueuePendingEnrollment(IdentityConnectionRegistration icr, CircleDefinition circleDefinition,
             IOdinContext odinContext)
         {
-            var circleId = circleDefinition.Id;
-
-            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId) ||
-                icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId) ||
-                icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circleId))
+            if (!EnqueuePendingEnrollment(icr.PeerKeyStore, NewPendingEnrollment(circleDefinition, odinContext)))
             {
                 return;
             }
 
-            icr.PeerKeyStore.PendingEnrollments.Add(new PendingEnrollment
-            {
-                CircleId = circleId,
-                OwningAppId = circleDefinition.AppId,
-                RequestedByAppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
-                Requested = UnixTimeUtc.Now()
-            });
-
             logger.LogDebug(
                 "Enqueued pending enrollment for {odinId} in circle {circleId} (owned by app {owningAppId})",
-                icr.OdinId, circleId, circleDefinition.AppId);
+                icr.OdinId, circleDefinition.Id, circleDefinition.AppId);
 
             // Deliberately silent. Telling the owning app is the caller's job, after its transaction has
             // committed -- announcing work that a rollback would erase is worse than announcing it late.
+        }
+
+        /// <summary>
+        /// Adds <paramref name="entry"/> to <paramref name="store"/> unless its circle is already granted,
+        /// deposited or queued there.  The store-level half of <see cref="EnqueuePendingEnrollment(IdentityConnectionRegistration, CircleDefinition, IOdinContext)"/>,
+        /// for the connection-request paths, which build a store before any connection exists.
+        /// </summary>
+        public static bool EnqueuePendingEnrollment(PeerKeyStore store, PendingEnrollment entry)
+        {
+            store.PendingEnrollments ??= [];
+            if (store.CircleGrants.ContainsKey(entry.CircleId) ||
+                (store.DepositedGrants ?? []).Any(d => d.CircleId == entry.CircleId) ||
+                store.PendingEnrollments.Any(p => p.CircleId == entry.CircleId))
+            {
+                return false;
+            }
+
+            store.PendingEnrollments.Add(entry);
+            return true;
+        }
+
+        private static PendingEnrollment NewPendingEnrollment(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            return new PendingEnrollment
+            {
+                CircleId = circleDefinition.Id,
+                OwningAppId = circleDefinition.AppId,
+                RequestedByAppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
+                Requested = UnixTimeUtc.Now()
+            };
+        }
+
+        /// <summary>
+        /// An owner-console circle is the owner's own, and an app has no business putting anyone into one:
+        /// nothing an app does should leave the contact waiting on the owner opening their console.  Apps are
+        /// not shown these circles either (CircleMembershipService.GetCircleDefinitions), so a well-behaved
+        /// client never asks.
+        /// </summary>
+        private static void AssertAppMayEnroll(CircleDefinition circleDefinition, OdinId odinId, IOdinContext odinContext)
+        {
+            if (SystemAppConstants.IsOwnerConsole(circleDefinition.AppId) && odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot add {odinId} to circle {circleDefinition.Id}; it belongs to the owner, not to an app");
+            }
+        }
+
+        /// <summary>
+        /// The owner chose a circle this caller cannot grant -- another app's, whose drives it cannot read.
+        /// Such a circle is recorded as a <see cref="PendingEnrollment"/> so the app that can grant it may
+        /// finish later, rather than failing an act the owner was entitled to perform.  Recording confers
+        /// nothing: whoever processes the entry re-checks scope then.
+        /// </summary>
+        private async Task<bool> IsOutOfReachAsync(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            return !odinContext.Caller.HasMasterKey && !await CallerCanGrantCircleAsync(circleDefinition, odinContext);
+        }
+
+        /// <summary>
+        /// Splits the circles an owner named in a review-time act the way <see cref="MarkReviewedAsync"/>
+        /// splits them: those this caller can grant now, and those only their owning app can complete.
+        /// </summary>
+        /// <remarks>
+        /// For the connection-request paths, which build a brand-new key store rather than enrolling into an
+        /// existing one, so they mint the first list themselves and carry the second onto the store.  Sharing
+        /// the decision with <see cref="EnrollInCircleInternalAsync"/> is the point: a circle named when a
+        /// request is sent or accepted ends up where the same circle named in a later review would.  Throws
+        /// for an owner-console circle named by an app, as a review does.
+        /// </remarks>
+        public async Task<(List<GuidId> GrantNow, List<PendingEnrollment> Queued)> RouteReviewCirclesAsync(
+            IEnumerable<GuidId> circleIds, OdinId odinId, IOdinContext odinContext)
+        {
+            var grantNow = new List<GuidId>();
+            var queued = new List<PendingEnrollment>();
+
+            foreach (var circleId in (circleIds ?? []).Distinct())
+            {
+                var circleDefinition = await circleDefinitionService.GetCircleAsync(circleId);
+                if (circleDefinition == null)
+                {
+                    throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
+                }
+
+                AssertAppMayEnroll(circleDefinition, odinId, odinContext);
+
+                if (await IsOutOfReachAsync(circleDefinition, odinContext))
+                {
+                    queued.Add(NewPendingEnrollment(circleDefinition, odinContext));
+                }
+                else
+                {
+                    grantNow.Add(circleId);
+                }
+            }
+
+            return (grantNow, queued);
         }
 
         /// <summary>

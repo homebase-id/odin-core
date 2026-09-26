@@ -339,6 +339,26 @@ works around it in the fast test host); fixing it would likely make this flake i
 
 ---
 
+## Every fixture that starts an S3 container (2026-09-24, all ubuntu CI jobs, all branches)
+
+**Symptom:** `OneTimeSetUp: Docker.DotNet.DockerApiException : Docker API responded with status
+code='InternalServerError', response='{"message":"unauthorized: access to the requested resource
+is not authorized"}'` from Testcontainers' image pull, followed by `TearDown :
+NullReferenceException` in the same fixtures. Around 150 failures per job; redis and ryuk pull fine.
+
+**Cause (verified by pulling locally):** MinIO withdrew its public images. `minio/minio` left Docker
+Hub on 2026-09-11 and `quay.io/minio/minio` began requiring authentication for every tag on
+2026-09-24, so the pinned `quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z` returned 401.
+
+**Fix:** the four fixtures and `docker/compose.dev.yml` now pull `rustfs/rustfs:1.0.0`, an
+Apache-2.0 S3 server that speaks MinIO's API and honours its environment and command line, so the
+unchanged Testcontainers `MinioBuilder` starts it. Verified locally with `RUN_S3_TESTS` defined:
+`S3AwsStorageTests` (26), `S3FileStoreUnitTests` (45) and the hosting `AppNotifications`, peer and
+inbox fixtures with S3 payload storage on, all green. If it recurs, check that the tag still
+resolves before suspecting a test.
+
+---
+
 ## `Odin.Hosting.Tests.V2.Ported.Peer.DeleteBatchTests`
 
 - `DeleteFileIdBatch_WithSingleRecipient_PropagatesDeleteToRecipient`
@@ -449,6 +469,15 @@ and the original `_Universal` test has the same shape. The failure message was u
 the assert was `Is.True` on `IsSuccessStatusCode`, which records no status code; the cleanup converted
 this fixture's asserts to exact-status form, so a recurrence will name the code it got.
 
+**RESOLVED 2026-09-22 (#1772), and no longer `[Ignore]`d.** The race was real and so was the 500: a
+reader resolved a header, a writer replaced the payload, and the read of the file the header named
+threw `OdinSystemException` from `AssertFileExists`. That now answers **404** -- the version asked for
+is gone, which is a client error -- while a missing file whose version has *not* moved keeps its 500,
+because there the store really has lost data. The fixture's payload and thumbnail reads accept `OK` or
+`NotFound` and still reject everything else, so the claim it makes is now "never a 500", which is the
+claim worth making about a race it cannot prevent. `PayloadVersionGoneTests` pins the same behaviour
+deterministically by handing the read a uid that has already been replaced.
+
 ## `Odin.Hosting.Tests.V2.Ported.Connections` — the introduction family
 
 - `Introductions.IntroductionTestsAutoAcceptEnabledOnAllIdentities.WillHandleWhenAllWhenConnectionsFailsVerification`
@@ -476,10 +505,18 @@ times in a row, under concurrency** -- the test is reporting a real defect, not 
 Do not "fix" this by draining harder. Tracked as a product issue: **#1778**.
 
 Worth knowing the production asymmetry while reading these failures: a failed `ConnectIntroducee`
-item reschedules for **+10 minutes**, hardcoded in two places
-(`ConnectIntroduceeOutboxWorker.cs:45` and `:73`, the latter carrying `//TODO: change to calculated`).
-Tests bring that forward; production waits it out. So a transient introduction failure costs a real
-user ten minutes, which matches the product's reputation for flaky introductions.
+item used to reschedule for a flat **+10 minutes**. Tests bring that forward; production waits it
+out. Fixed for #1778: both introduction workers now use the outbox's calculated backoff
+(`OutboxWorkerBase.CalculateBackoffNextRunTime`, 10 s steps then 30 s steps), and the retry path
+logs the `OdinClientErrorCode` at Warning so the transient failure is named in production logs.
+
+**Update 2026-09-25 -- not reproduced since the WAL harness fix.** 8 consecutive full
+`Odin.Hosting.Tests.V2` runs on `main` (1360 passed each, none failed) with a temporary trace on
+every `ConnectIntroducee` failure path: the trace never fired, so no introducee send failed at all.
+`7d8bcbdd5` (2026-09-19, two days after this entry) found the V2 harness had been running SQLite in
+rollback-journal mode, where readers and writers block each other ("database is locked", #1777).
+That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
+failure of these three fixtures names it. If one goes red again, the Warning above says why.
 
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them
@@ -563,7 +600,7 @@ for diagnosis has not fired yet — the cause still rests on the six
 briefly `[Ignore]`d against #1780; that was reverted. Unlike its two siblings
 (`PayloadConcurrentHammerEncryptedTests`, then `[Explicit]` -- running again since the 2026-09-19
 journal-mode fix, see the `DeleteBatchTests` entry -- and `UpdateBatch_HammerTime_WithPayloads`,
-`[Ignore]` under #1772), this one stays in CI. The failure is a real product defect rather than a
+which ran again once #1772 landed on 2026-09-22), this one stays in CI. The failure is a real product defect rather than a
 timing artefact, and ignoring it would buy a green board at the price of the signal. #1780 is marked
 high priority. **Do not "fix" this by ignoring or weakening the assertion** -- the claim it makes,
 that a losing writer is refused cleanly rather than blowing up, is the only coverage of that claim
@@ -573,6 +610,15 @@ red run should name the exception behind it.
 **Not confirmed pre-existing.** The port carries the `_Universal` original's concurrency shape
 unchanged and the `[Explicit]` sibling's comment predates this work, which argues it is not new --
 but I could not run Windows locally, and both Linux matrices pass, so `main` has not been checked.
+
+**New symptom, 2026-09-25 -- the log-event invariant, not a 500.** PR #1807 commit `ca4c3702d`,
+run 36131064361, `windows/sqlite/debug` only (both Linux jobs on the same commit passed). The
+uploads did not fail; the per-test teardown did, on one error-level server log event:
+`HardDeletePayloadFile -> source payload does not exist [...\files\7\4\<fileId>-pknt0001-<uid>.payload]`.
+Not caused by the PR: its diff is circle enable/disable and touches no drive, payload or upload
+code, and the next commit (`edcb0b130`, no drive changes either) passed all three jobs. Inferred,
+not traced: a writer cleaning up a payload version another writer had already replaced -- the same
+concurrent-writers-on-one-drive shape as #1780, surfacing as a missing file rather than a 500.
 
 ---
 

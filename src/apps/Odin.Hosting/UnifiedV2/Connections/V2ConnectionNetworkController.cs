@@ -45,6 +45,15 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
+    [HttpPost("remove-blocked-connection")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Sever a blocked connection, leaving the identity blocked")]
+    public async Task<IActionResult> RemoveBlockedConnection([FromBody] OdinIdRequest request)
+    {
+        await circleNetwork.RemoveBlockedConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+        return Ok();
+    }
+
     [HttpPost("disconnect")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Disconnect from an identity")]
     public async Task<IActionResult> Disconnect([FromBody] OdinIdRequest request, [FromQuery] bool notifyRemote = true)
@@ -269,6 +278,34 @@ public class V2ConnectionNetworkController(
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Disables a circle without removing it: members stay, but its grants stop applying to them.
+    /// </summary>
+    /// <remarks>
+    /// The owner may disable any circle but a system circle; an app only one it owns
+    /// (<see cref="CircleMembershipService.DisableCircleAsync"/>).
+    /// </remarks>
+    [HttpPost("circles/disable")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Disable a circle")]
+    public async Task<IActionResult> DisableCircle([FromBody] Guid circleId)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+        await circleMembership.DisableCircleAsync(new GuidId(circleId), WebOdinContext);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Re-enables a disabled circle; its grants apply to the existing members again.
+    /// </summary>
+    [HttpPost("circles/enable")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Enable a circle")]
+    public async Task<IActionResult> EnableCircle([FromBody] Guid circleId)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+        await circleMembership.EnableCircleAsync(new GuidId(circleId), WebOdinContext);
+        return Ok();
     }
 
     [HttpPost("circles/add")]

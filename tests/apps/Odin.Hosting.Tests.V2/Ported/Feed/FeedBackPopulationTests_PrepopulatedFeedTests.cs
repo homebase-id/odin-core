@@ -2,6 +2,9 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
+using Odin.Services.JobManagement;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Acl;
@@ -68,10 +71,13 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests : V2Fixture
         await AssertFollowsAndGetsExpectedFilesAsync(ownerSam, ownerFrodo, fileType, frodoPreparedFiles);
 
         //
-        // Note: the Connection request process will call SynchronizedChannelFiles because they already follow each other
+        // Note: accepting schedules the channel sync rather than running it inline, so that an
+        // unreachable sender cannot hold a user-facing accept open. The files land when the job runs.
         //
         await ownerSam.Connections.SendConnectionRequest(ownerFrodo.Identity, [samFriendsOnlyCircle]);
         await ownerFrodo.Connections.AcceptConnectionRequest(ownerSam.Identity, [frodoFriendsOnlyCircle]);
+
+        await RunScheduledChannelSyncsAsync();
 
         //
         // Validate frodo and Sam have secured files in their feeds
@@ -81,6 +87,24 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests : V2Fixture
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Runs every channel-sync job the accept scheduled, the way <c>IJobManager</c> documents for tests.
+    /// </summary>
+    private async Task RunScheduledChannelSyncsAsync()
+    {
+        var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
+        var scheduled = (await jobManager.GetAllJobsAsync())
+            .Where(j => j.jobType == SyncChannelFilesJob.JobTypeId.ToString())
+            .ToList();
+
+        Assert.That(scheduled, Is.Not.Empty, "accepting should have scheduled a channel sync");
+
+        foreach (var job in scheduled)
+        {
+            await jobManager.RunJobNowAsync(job.id, CancellationToken.None);
+        }
+    }
 
     /// <summary>
     /// <paramref name="follower"/> follows <paramref name="followee"/>; only the anonymous post lands,

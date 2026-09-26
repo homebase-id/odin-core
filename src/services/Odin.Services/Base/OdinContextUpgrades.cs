@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -57,12 +58,28 @@ public static class OdinContextUpgrades
         return patchedContext;
     }
 
+    /// <param name="keyStoreKey">
+    /// Null when the caller has none to give. The sender side of a connection stashed temp-encrypted
+    /// copies of these three while the owner was present; the accept side has no equivalent, and runs
+    /// with all three null.
+    /// </param>
+    /// <remarks>
+    /// Without <paramref name="encryptedFeedDriveStorageKey"/> the grant permits writing the feed drive
+    /// but cannot seal anything to it, so only unencrypted posts can be written --
+    /// <c>CreateServerHeaderInternal</c> needs the storage key to encrypt a key header, and throws
+    /// without it. That is the same split inbound distribution makes:
+    /// <c>FeedDistributionPerimeterService</c> writes an unencrypted post directly and routes an
+    /// encrypted one to the inbox for a keyed pass to finish.
+    /// <para>
+    /// <see cref="SecurityGroupType.Owner"/> is load-bearing for the sender path, which runs under a
+    /// peer/transit context. On the accept path it is a no-op -- app clients are already Owner.
+    /// </para>
+    /// </remarks>
     public static IOdinContext PrepForSynchronizeChannelFiles(
         IOdinContext odinContext,
-        Guid feedDriveId,
-        SensitiveByteArray keyStoreKey,
-        SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
-        SymmetricKeyEncryptedAes encryptedIcrKey)
+        SensitiveByteArray keyStoreKey = null,
+        SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey = null,
+        SymmetricKeyEncryptedAes encryptedIcrKey = null)
     {
         var patchedContext = odinContext.Clone();
 
@@ -70,7 +87,7 @@ public static class OdinContextUpgrades
         // Upgrade access briefly to perform functions
         var feedDriveGrant = new DriveGrant()
         {
-            DriveId = feedDriveId,
+            DriveId = WellKnownAppDrives.FeedDrive.Alias,
             PermissionedDrive = new()
             {
                 Drive = WellKnownAppDrives.FeedDrive,
@@ -82,7 +99,7 @@ public static class OdinContextUpgrades
 
         patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
 
-        patchedContext.PermissionsContext.PermissionGroups.Add(
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd(
             "PrepForSynchronizeChannelFiles",
             new PermissionGroup(
                 new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }),
