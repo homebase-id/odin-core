@@ -557,6 +557,16 @@ toleration is what makes the *bleed* survivable; while it is in place, a fixture
 message cannot distinguish its own occurrence of #1771 from a neighbour's. Fixing the isolation
 (or #1771) is what removes the whole class.
 
+**RESOLVED 2026-09-26 -- both halves.** #1775 (2026-09-17) fixed the isolation: each host keeps its
+own Serilog sink. #1771 removed the error itself. The recipient refused a comment whose encryption
+disagrees with its referenced file (S2040) with `OdinRemoteIdentityException`, which the middleware
+turns into a 503. The sender's outbox treats a 503 as recoverable, so it retried a transfer that
+could never succeed, and the recipient logged an Error on every attempt. The refusal is now a 400,
+which is not logged at Error. Before that change, on `main`, only the two deliberate S2100 rows of
+`TransitCommentFileRoutingTests` produced the message (4 events each: the initial attempt plus
+three drain retries), and 5 of 5 runs of `Ported.Transit` were green. The last toleration of the
+message is gone.
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.DriveWrite.ConcurrentOverwriteEncryptedHeaderTests`
