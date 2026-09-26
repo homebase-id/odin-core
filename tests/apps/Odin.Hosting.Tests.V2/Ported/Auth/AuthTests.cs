@@ -23,7 +23,11 @@ public class AuthTests : V2Fixture
     {
         yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.Unauthorized];
         yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Unauthorized];
-        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.OK];
+        // Guest once expected OK here: logout deletes through ClientRegistrationStorage, and a guest
+        // token was not stored there, so the delete silently missed and the token kept working. The
+        // test was pinning that gap. Guest tokens are in the registrations table now, so logout
+        // means the same thing for all three.
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Unauthorized];
     }
 
     [Test, TestCaseSource(nameof(CallerVariants))]
