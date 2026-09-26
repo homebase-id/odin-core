@@ -61,6 +61,12 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/enrollments/process")]
     Task<ApiResponse<PendingEnrollmentProcessingResult>> ProcessPendingEnrollments();
 
+    [Post(Root + "/circles/disable")]
+    Task<ApiResponse<HttpContent>> DisableCircle([Body] Guid circleId);
+
+    [Post(Root + "/circles/enable")]
+    Task<ApiResponse<HttpContent>> EnableCircle([Body] Guid circleId);
+
     [Post(Root + "/circles/revoke")]
     Task<ApiResponse<HttpContent>> RevokeCircle([Body] RevokeCircleMembershipRequest request);
 }

@@ -40,9 +40,13 @@ public class ConnectIntroduceeOutboxWorker(
             // OdinSecurityException case below — retrying won't change the answer, mark complete.
             return (true, UnixTimeUtc.ZeroTime);
         }
-        catch (OdinClientException)
+        catch (OdinClientException e)
         {
-            return (false, UnixTimeUtc.Now().AddMinutes(10));
+            // Warning, with the code: this is the retry path, and it used to wait out a flat 10 minutes
+            // without saying why, so a stalled introduction could not be diagnosed from the logs (#1778).
+            logger.LogWarning(e, "ConnectIntroducee to {recipient} failed with {code} (attempt {attempt}); retrying",
+                recipient, e.ErrorCode, FileItem.AttemptCount);
+            return (false, CalculateBackoffNextRunTime());
         }
         catch (OdinSecurityException)
         {
@@ -69,8 +73,7 @@ public class ConnectIntroduceeOutboxWorker(
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)
     {
-        //TODO: change to calculated 
-        return Task.FromResult(UnixTimeUtc.Now().AddMinutes(10));
+        return Task.FromResult(CalculateBackoffNextRunTime());
     }
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e, IOdinContext odinContext)

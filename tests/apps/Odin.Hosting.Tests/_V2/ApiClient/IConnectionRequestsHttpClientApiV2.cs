@@ -14,6 +14,9 @@ public interface IConnectionRequestsHttpClientApiV2
     [Post(Root + "/requests/auto-connect")]
     Task<ApiResponse<ConnectionRequestResult>> AutoConnect([Body] ConnectionRequestHeader header);
 
+    [Post(Root + "/requests/send-reviewed")]
+    Task<ApiResponse<ConnectionRequestResult>> SendReviewed([Body] ConnectionRequestHeader header);
+
     [Put(Root + "/requests/incoming/{senderId}")]
     Task<ApiResponse<HttpContent>> AcceptIncomingRequest(string senderId, [Body] AcceptConnectionRequestV2 request);
 
