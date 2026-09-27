@@ -1,5 +1,12 @@
 # YouAuth unified flow
 
+The identity's side of this flow is `YouAuthUnifiedController`; the relying party's side is the
+reference implementation under `src/apps/YouAuthClientReferenceImplementation` and, for one identity
+signing in on another's home site, `HomeAuthenticationController`. All three cite the step numbers
+below as `YouAuth [nnn]` comments, so `grep -rn "YouAuth \[060\]"` finds every implementation of a
+step. Brought in from `YouFoundation/stories-and-architecture-docs` (`concepts/YouAuth/unified-authorization.md`)
+so a change to the flow and to its diagram land in the same diff.
+
 ```mermaid
 sequenceDiagram
     participant user as Sam
@@ -17,25 +24,27 @@ sequenceDiagram
 
     client->>samsBackendAuthorize: [030] Request authorization code<br/> Browser: GET /authorize?<br/> client_id = uuid_or_domain<br/> client_type = app_or_domain<br/> client_info = json_or_url_with_client_info<br/> permission_request = list_of_permissions_to_consent_to<br/> public_key = public_key_from_previous_step<br/> state = user defined value<br/> redirect_uri = callback_url_with_authorize_response
 
+    samsBackendAuthorize-->>client: [030] Redirect target not trusted?<br/> HTTP 400 at the identity when redirect_uri does not parse, client_type<br/> or client_id is missing, a domain's redirect host is not its client_id,<br/> or the client is this identity. Nobody has vouched for redirect_uri yet,<br/> so the browser is not sent there, not even with an error.
+
     samsBackendAuthorize-->>samsFrontend: [040] Logged in?<br/>If Sam is not logged in (no owner-cookie), redirect (302) to<br/> https://samwise.me/owner/login?returnUrl=<current uri>
 
     samsFrontend-->>samsBackendAuthorize: [042] Log in and redirect back<br/> Sam logs in and the browser is redirected back to 'returnUrl'
 
-    samsBackendAuthorize-->>samsFrontend: [045] client_type is app?<br/> If app is not registered at Sam's identity, redirect (302) to<br/> https://samwise.me/owner/appreg?returnUrl=<current uri>
+    samsBackendAuthorize-->>samsFrontend: [045] client_type is app?<br/> If app is not registered at Sam's identity, redirect (302) to<br/> https://samwise.me/owner/appreg?<app parameters from permission_request><br/> return = <current uri><br/> cancel = redirect_uri<br/> An app nobody has registered is not a trusted redirect target (see [030]);<br/> a registered one is, from here on.
 
-    samsFrontend-->>samsBackendAuthorize: [047] Approve app registration<br/> Sam is shown approval screen. If Sam clicks OK,<br/> app is registered.<br/> Redirect browser back to 'returnUrl'
+    samsFrontend-->>samsBackendAuthorize: [047] Approve app registration<br/> Sam is shown approval screen. If Sam clicks OK,<br/> app is registered.<br/> Redirect browser back to 'return'.<br/> If Sam declines: redirect (302) to redirect_uri<br/> error = cancelled-by-user
 
-    samsBackendAuthorize-->>samsFrontend: [050] Consent needed?<br/> If backend determines that Sam needs to consent, redirect (302) to<br/> https://samwise.me/owner/youauth/authorize?<br/> client_id = uuid_or_domain<br/> client_info =  json_or_url_with_client_info<br/> permission_request = list_of_permissions_to_consent_to<br/> returnUrl = <current uri>
+    samsBackendAuthorize-->>samsFrontend: [050] Consent needed?<br/> If backend determines that Sam needs to consent, redirect (302) to<br/> https://samwise.me/owner/youauth/consent?returnUrl=<current uri><br/> (client_id, client_info and permission_request travel inside returnUrl)
 
-    samsFrontend-->>samsBackendAuthorize: [055] Give consent and redirect back<br/> Sam is shown consent screen. If Sam clicks OK,<br/> consent to/for client_id and permission_request are stored in database<br/> by POST'ing to /authorize.<br/> Finally redirect browser back to 'returnUrl'
+    samsFrontend-->>samsBackendAuthorize: [055] Give consent and redirect back<br/> Sam is shown consent screen. If Sam clicks OK,<br/> consent to/for client_id and permission_request are stored in database<br/> by POST'ing to /authorize.<br/> Finally redirect browser back to 'returnUrl'.<br/> If Sam declines: redirect (302) to redirect_uri<br/> error = cancelled-by-user
 
-    samsBackendAuthorize-->>samsFrontend: [060] Validate consent and scopes.<br/> Show error if something is wrong.
+    samsBackendAuthorize->>frodosBackend: [060] Something wrong from [030] on?<br/> Redirect (http 302) to redirect_uri<br/> error = invalid-request | app-revoked | access-denied | server-error<br/> error_description = human-readable detail (not for server-error)<br/> state = user defined value from above<br/> Only once the redirect target is trusted (see [030] and [045]);<br/> the query redirect_uri already carried is kept.
 
     samsBackendAuthorize->>samsBackendAuthorize: [070] Create ECC private/public key pair, random salt<br/> and shared secret based on public_key from step 30.<br/> Create client access token and store it encrypted<br/> with shared secret in cache for later lookup.
 
     note over client, samsBackendAuthorize: (below: redirect because native app must be able to intercept it)
 
-    samsBackendAuthorize->>frodosBackend: [080] Return identity host's public key and salt.<br/> Redirect (http 302) to redirect_uri<br/> state = user defined value from above<br/> public_key = public key from above<br/> salt = random salt from above<br/> identity = authorizing identity
+    samsBackendAuthorize->>frodosBackend: [080] Return identity host's public key and salt.<br/> Redirect (http 302) to redirect_uri<br/> state = user defined value from above<br/> public_key = public key from above<br/> salt = random salt from above<br/> identity = authorizing identity<br/> The query redirect_uri already carried is kept.<br/> The relying party trusts the identity it stored in its own state, not this parameter.
 
     frodosBackend->>frodosBackend: [090] Calculate shared secret and digtest for token exchange<br/> based on private key from step 10 and public key<br/> and salt from previous step.
 
@@ -82,15 +91,23 @@ The purpose of YouAuth is to:
   - `domain`: The value must match the callback domain in the `redirect_uri`.
 - `public_key` (required): Base64 encoded ECC public key.
 - `state` (optional): A value included in the request that is also returned in the authorization callback response/redirect.
-- `permission_request` (optional): (tbd) list of explicit permissions the CLIENT is requesting. E.g. "drive:xyz:read drive:xyz:write".
-- `client_info` (optional): (tbd) JSON structure with CLIENT details (e.g. name, description, list of scopes, signature, etc.) shown on consent screen. Alternatively a URL from which the json structure can be fetched.
+- `permission_request` (required for `app`, otherwise optional): for an app, the JSON `YouAuthAppParameters` (app id, name, slug, origin, friendly client name, drives, circles, permissions) the app-registration page shows Sam. For a domain it is not used today.
+- `client_info` (optional): for an app it is overwritten with the friendly client name from `permission_request`. For a domain it is accepted but not stored; the consent page shows the domain.
 
-The response to the `authorize` endpoint is delivered using `HTTP 302 Redirect` to `redirect_uri` parameter with the following query parameters:
+The response to the `authorize` endpoint is delivered using `HTTP 302 Redirect` to `redirect_uri` parameter with the following query parameters. Any query `redirect_uri` already carried is kept.
 
-- `identity`: The identity id.
+- `identity`: The identity id. The relying party must trust only the identity it stored in its own state, never this echo.
 - `public_key`: The identity host's public key (required below).
 - `salt`: The identity host's random salt (required below).
 - `state`: Copy of the user defined state data.
+
+When something is wrong (step 060), the redirect carries these instead:
+
+- `error`: one of `invalid-request` (a parameter is missing or malformed), `app-revoked` (Sam revoked the app), `access-denied`, `server-error` (the identity logged the detail), or `cancelled-by-user` (sent by the owner app's consent and app-registration pages, never by the server).
+- `error_description`: optional human-readable detail; never sent for `server-error`.
+- `state`: Copy of the user defined state data.
+
+A request that fails before the redirect target is trusted (step 030: `redirect_uri` does not parse, `client_type` or `client_id` missing, a domain's redirect host is not its `client_id`, the client is the identity itself, or the app is not registered) is answered with `HTTP 400` at the identity instead, because bouncing the browser to an unvouched-for address would make the endpoint an open redirector.
 
 ## `token` endpoint
 
@@ -109,5 +126,7 @@ The response to the `token` endpoint is a JSON object with the following members
 Both the identity host and the third-party site compute the shared secret independently using their private keys and the other party's public key, combined with a random salt provided by the identity host. The formula for the shared secret could be expressed as:
 
     Shared Secret = HKDF(ECDH(private_key_self, public_key_other_party), salt)
+
+The ECDH output is the X coordinate of the shared point encoded at the curve's field length (48 bytes for P-384), zero-padded; dropping a leading zero byte made one exchange in 256 derive a different key on one side (odin-core issue #1728). The HKDF output is 16 bytes with no info label.
 
 This ensures that both parties derive the same shared secret without transmitting it over the network. Using a KDF strengthens the shared secret by ensuring it's uniformly random and resistant to attacks. It also allows the incorporation of the salt in a cryptographically secure manner.

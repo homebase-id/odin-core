@@ -21,8 +21,10 @@ namespace Odin.Hosting.Tests.V2.YouAuth;
 /// <summary>
 /// How the authorize endpoint reports a failure: back to the relying party with an error code once
 /// its redirect target is trusted, a 400 at the identity before that. The rule and its reason are
-/// on <c>YouAuthUnifiedController.Authorize</c>. Driven over raw HTTP with the owner's cookie,
-/// because the Location header is the subject.
+/// on <c>YouAuthUnifiedController.Authorize</c>; the step numbers in the test names are the flow
+/// diagram's (<c>docs/youauth-unified-authorization.md</c>): [030] is the request arriving and being
+/// refused, [060] is a failure reported to the relying party. Driven over raw HTTP with the owner's
+/// cookie, because the Location header is the subject.
 /// </summary>
 [TestFixture]
 public class YouAuthErrorRedirectTests : V2Fixture
@@ -32,7 +34,7 @@ public class YouAuthErrorRedirectTests : V2Fixture
     private const string AppCallback = "https://app.example.org/callback";
 
     [Test]
-    public async Task ADomainClientMissingItsPublicKeyIsSentBackWithAnError()
+    public async Task YouAuth060_ADomainClientMissingItsPublicKeyIsSentBackWithAnError()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
@@ -46,7 +48,7 @@ public class YouAuthErrorRedirectTests : V2Fixture
     }
 
     [Test]
-    public async Task TheRelyingPartysOwnQueryIsKept()
+    public async Task YouAuth060_TheRelyingPartysOwnQueryIsKept()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
@@ -59,7 +61,7 @@ public class YouAuthErrorRedirectTests : V2Fixture
     }
 
     [Test]
-    public async Task ARevokedAppIsSentBackWithAnError()
+    public async Task YouAuth060_ARevokedAppIsSentBackWithAnError()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var appId = await owner.Admin.RegisterBareApp();
@@ -80,7 +82,7 @@ public class YouAuthErrorRedirectTests : V2Fixture
     }
 
     [Test]
-    public async Task ARedirectHostThatIsNotTheDomainClientIsRefusedAtTheIdentity()
+    public async Task YouAuth030_ARedirectHostThatIsNotTheDomainClientIsRefusedAtTheIdentity()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
@@ -93,7 +95,7 @@ public class YouAuthErrorRedirectTests : V2Fixture
     }
 
     [Test]
-    public async Task AnUnregisteredAppWithABadRequestIsRefusedAtTheIdentity()
+    public async Task YouAuth030_AnUnregisteredAppWithABadRequestIsRefusedAtTheIdentity()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 

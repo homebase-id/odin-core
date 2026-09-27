@@ -27,12 +27,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
     /// (GET, and POST for consent) and the <c>token</c> endpoint.
     /// </summary>
     /// <remarks>
-    /// The <c>Step [nnn]</c> comments below are the step numbers of the protocol flow diagram at
-    /// https://github.com/YouFoundation/stories-and-architecture-docs/blob/master/concepts/YouAuth/unified-authorization.md
-    /// and read in that order: [030] the request arrives here, [040] to [055] bounce through the
+    /// The <c>YouAuth [nnn]</c> comments below are the step numbers of the protocol flow diagram in
+    /// <c>docs/youauth-unified-authorization.md</c>, the same spelling the reference client and the
+    /// home-site login use, so a grep for a step finds every implementation of it. They read in
+    /// that order: [030] the request arrives here, [040] to [055] bounce through the
     /// owner's login, app-registration and consent pages, [070] to [080] answer the relying party,
     /// and [100] to [140] are the token exchange. Steps not numbered here -- [010], [042], [047],
-    /// [090], [150], [400] -- happen in the owner's browser or at the relying party. [060] is the
+    /// YouAuth [090], [150], [400] -- happen in the owner's browser or at the relying party. [060] is the
     /// one out of sequence: the diagram's "show error if something is wrong" is the catch at the end
     /// of <see cref="Authorize"/>, which any earlier step can fall into.
     /// </remarks>
@@ -65,7 +66,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         public async Task<ActionResult> Authorize([FromQuery] YouAuthAuthorizeRequest authorize)
         {
             //
-            // Step [030] Get authorization code
+            // YouAuth [030] Get authorization code
             // Validate parameters
             //
             // Two kinds of failure from here on. Until the redirect target is trusted -- the URI
@@ -105,12 +106,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     authorize.ClientType, authorize.ClientId, authorize.RedirectUri);
 
                 //
-                // Step [040] Logged in?
+                // YouAuth [040] Logged in?
                 // Authentication check and redirect to 'login' is done by controller attribute [AuthorizeValidOwnerToken]
                 //
 
                 //
-                // Step [045] App registered?
+                // YouAuth [045] App registered?
                 // If we're authorizing an app and it's not already registered, start that flow and return here.
                 //
                 if (authorize.ClientType == ClientType.app)
@@ -140,7 +141,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 }
 
                 //
-                // Step [050] Consent needed?
+                // YouAuth [050] Consent needed?
                 //
                 var needConsent = await _youAuthService.NeedConsent(
                     _currentTenant,
@@ -162,7 +163,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 }
 
                 //
-                // Step [070]
+                // YouAuth [070]
                 // Create ECC private/public key pair, random salt and shared secret based on public_key from step 30.
                 // Create client access token and store it encrypted with shared secret in cache for later lookup.
                 //
@@ -175,7 +176,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     WebOdinContext);
 
                 //
-                // Step [080] Return identity, public key, salt and state to the relying party
+                // YouAuth [080] Return identity, public key, salt and state to the relying party
                 //
                 return RedirectToRelyingParty(redirectUri, new Dictionary<string, string?>
                 {
@@ -186,7 +187,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 });
             }
             //
-            // Step [060] Show error if something is wrong.
+            // YouAuth [060] Show error if something is wrong.
             // Anything from [030] onward that failed lands here and goes back to the relying party,
             // provided its redirect is trusted (see the top of the method). A revoked app is by
             // definition a registered one, so its redirect is trusted whether or not step [045] got
@@ -251,7 +252,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             string consentRequirementJson)
         {
             //
-            // [055] Give consent and redirect back
+            // YouAuth [055] Give consent and redirect back
             //
 
             if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out var returnUri))
@@ -309,7 +310,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         // Token (POST)
         //
 
-        // [100] Request exchange auth code for access token
+        // YouAuth [100] Request exchange auth code for access token
         [AllowAnonymous]
         [HttpPost(OwnerApiPathConstants.YouAuthV1Token)] // "token"
         [Produces("application/json")]
@@ -318,12 +319,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             tokenRequest.Validate();
 
             //
-            // [110] Load encrypted client access token from cache based on shared secret
+            // YouAuth [110] Load encrypted client access token from cache based on shared secret
             //
             var accessToken = await _youAuthService.ExchangeDigestForEncryptedToken(tokenRequest.SecretDigest);
 
             //
-            // [120] Return 404 if code lookup failed
+            // YouAuth [120] Return 404 if code lookup failed
             //
             if (accessToken == null)
             {
@@ -339,7 +340,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             };
 
             //
-            // [140] Return client access token to client
+            // YouAuth [140] Return client access token to client
             //
             return result;
         }
