@@ -11,8 +11,11 @@ Homebase identity serves its own document by default.
 consent page says "amazon.com", a bare domain. The display name the site sends in `client_info` is
 discarded, and rightly: anything in the query string was chosen by whoever built the link, so a
 phishing page on `arnazon-login.com` could send `client_info=Amazon` and have the dialog print it.
-The only name the identity can safely show is one it fetched from the site's own domain, where only
-the site's owner can put it.
+A name fetched from the domain the browser is about to be redirected to is different in one way
+only, and it is the way that matters: it is bound to that domain. It does not say the site is honest,
+since `arnazon-login.com` can publish a document calling itself "Amazon" just as easily. It says
+that the domain which will receive the token calls itself that, so the dialog can show the two
+together, and a name that does not fit the domain beneath it is the phishing signal the owner sees.
 
 **The callback is pinned to a host, not a path.** The authorize endpoint checks that the redirect
 host equals the client id and accepts any path on it (`YouAuthAuthorizeRequest.ValidateRedirectTarget`).
@@ -23,8 +26,8 @@ whole host.
 
 Neither fix adds registration. A site still meets an identity for the first time with nothing
 provisioned on either side; the owner is still met with the approval dialog. What changes is that
-the dialog can show a name the site itself vouched for, and the site can say which path is its
-callback.
+the dialog can show the name the redirect domain gives itself, next to that domain, and the domain
+can say which path is its callback. The trust is in the domain, never in whoever runs it.
 
 ## The document
 
@@ -51,7 +54,8 @@ A site that wants more than a bare domain publishes `https://<client_id>/.well-k
 
 The shape is deliberately the one Bluesky landed on for ATProto OAuth (a client metadata document
 at a URL the client controls), so a site that already publishes one for that ecosystem has nothing
-new to learn. The trust model stays "what the site serves on its own domain".
+new to learn. The trust model stays "what the redirect domain serves about itself": the identity
+trusts that the document came from that domain, and nothing more.
 
 ## What the identity does with it
 
