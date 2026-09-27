@@ -123,6 +123,7 @@ public class ClientTypeAppController : BaseController
             PublicKey = keyPair.PublicKeyJwkBase64Url(),
             RedirectUri = $"https://{Request.Host}/{controllerRoute}/authorization-code-callback",
             State = state,
+            Cipher = YouAuthDefaults.CipherAesGcm,
         };
 
         var uri =
@@ -218,13 +219,8 @@ public class ClientTypeAppController : BaseController
         var json = await response.Content.ReadAsStringAsync();
         var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(json);
 
-        var sharedSecretCipher = Convert.FromBase64String(token!.Base64SharedSecretCipher!);
-        var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-        var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
-
-        var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
-        var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
-        var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
+        var sharedSecret = Helper.OpenTokenField(token!.Cipher, token.Base64SharedSecretCipher!, exchangeSecret, token.Base64SharedSecretIv!);
+        var clientAuthToken = Helper.OpenTokenField(token.Cipher, token.Base64ClientAuthTokenCipher!, exchangeSecret, token.Base64ClientAuthTokenIv!);
 
         //
         // Post YouAuth [400]
