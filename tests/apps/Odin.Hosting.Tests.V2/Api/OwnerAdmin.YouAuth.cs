@@ -17,11 +17,13 @@ public sealed partial class OwnerAdmin
 {
     /// <summary>
     /// Registers a YouAuth domain (the third-party domain that a Guest test caller represents),
-    /// optionally granting it the given circles.
+    /// optionally granting it the given circles. Consent defaults to Never; a test about what the
+    /// consent choice does to the token passes its own.
     /// </summary>
     public async Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterYouAuthDomain(
         AsciiDomainName domain,
-        List<GuidId>? circleIds = null)
+        List<GuidId>? circleIds = null,
+        ConsentRequirements? consent = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitYouAuthDomainRegistration>(client, ss);
@@ -30,7 +32,7 @@ public sealed partial class OwnerAdmin
             Name = $"Test_{domain.DomainName}",
             Domain = domain.DomainName,
             CircleIds = circleIds ?? new List<GuidId>(),
-            ConsentRequirements = new ConsentRequirements { ConsentRequirementType = ConsentRequirementType.Never }
+            ConsentRequirements = consent ?? new ConsentRequirements { ConsentRequirementType = ConsentRequirementType.Never }
         });
         EnsureSuccess(response, nameof(RegisterYouAuthDomain));
         return response;

@@ -22,6 +22,7 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Background;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -167,6 +168,14 @@ public sealed partial class OdinHost : IAsyncDisposable
                         {
                             TenantServices.ConfigureTenantServices(cb, registration, cfg);
                             cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
+
+                            // Registered per tenant in ConfigureTenantServices, so overridden per
+                            // tenant: the production fetcher over the in-process server.
+                            cb.Register(c => new YouAuthClientMetadataFetcher(
+                                    new InProcessDynamicHttpClientFactory(serverHolder),
+                                    c.Resolve<ILogger<YouAuthClientMetadataFetcher>>()))
+                                .As<IYouAuthClientMetadataFetcher>()
+                                .InstancePerLifetimeScope();
                             return cb;
                         },
                         sp.GetRequiredService<OdinConfiguration>())));

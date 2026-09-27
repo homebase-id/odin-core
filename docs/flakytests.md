@@ -339,6 +339,35 @@ works around it in the fast test host); fixing it would likely make this flake i
 
 ---
 
+## `Odin.Services.Tests.JobManagement.JobManagerTests` (third entry)
+
+- `ItShouldRescheduleInTheBackground(Sqlite)`
+
+**Where:** CI, `windows/sqlite/debug` (run 36012953591, 2026-09-24, PR #1804).
+
+**Symptom:** the `nextRun` assertion fails with the job's original scheduled time (`But was:
+1790260447308`, i.e. "now") instead of the 2100-01-01 value the `DeferJobTest` job reschedules to.
+The other assertions before it (job present, state Scheduled, runCount 0) passed.
+
+**Cause (inferred, not verified):** the test calls `StartBackgroundServices()`, schedules the job,
+then `await Task.Delay(200)` and reads the job back. The 200 ms is the only synchronisation with
+the background runner, so on a slow Windows runner the job had not yet been picked up and deferred
+when the read happened. Same family as the two entries above: an assertion racing a background
+service, with a fixed sleep standing in for a signal.
+
+**Not caused by the change in flight:** PR #1804 moves YouAuth domain client tokens between
+storage tables and touches nothing under `src/services/Odin.Services/JobManagement/` or
+`Background/`; the failing test is in a different assembly. The same workflow on branch
+`feed-sync-under-system-context` passed this test three times the same day (runs 36045191818,
+36043697826 and two earlier), and `main`'s last run the night before was green.
+
+**Ubuntu jobs on the same PR run were red for an unrelated reason** worth knowing when reading
+that run: every failure there is Testcontainers' `OneTimeSetUp` getting
+`Docker API responded with status code='InternalServerError', response='{"message":"unauthorized:
+access to the requested resource is not authorized"}` when pulling images, plus the
+`TearDown : NullReferenceException` that follows a failed setup. Not a test at all; the runners
+could not pull from the registry. The same error hit every ubuntu run on
+`feed-sync-under-system-context` that day (e.g. 36045191834). Re-run once the registry is reachable.
 ## Every fixture that starts an S3 container (2026-09-24, all ubuntu CI jobs, all branches)
 
 **Symptom:** `OneTimeSetUp: Docker.DotNet.DockerApiException : Docker API responded with status
