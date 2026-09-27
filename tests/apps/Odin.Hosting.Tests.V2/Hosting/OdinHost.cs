@@ -22,6 +22,7 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Background;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -183,6 +184,16 @@ public sealed partial class OdinHost : IAsyncDisposable
 
                 cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>(), c.Resolve<TenantContext>()))
                     .As<IOdinHttpClientFactory>()
+                    .InstancePerLifetimeScope();
+
+                // The relying-party metadata fetch is a plain HTTPS GET to the client's apex host,
+                // not a peer (capi) call, so it has its own factory. Same trade as above: the
+                // production fetcher, with its HTTP handed to the in-process server, so a test
+                // identity can serve its own /.well-known/youauth-client.json to another.
+                cb.Register(c => new YouAuthClientMetadataFetcher(
+                        new InProcessDynamicHttpClientFactory(serverHolder),
+                        c.Resolve<ILogger<YouAuthClientMetadataFetcher>>()))
+                    .As<IYouAuthClientMetadataFetcher>()
                     .InstancePerLifetimeScope();
 
                 // Test-only services. Registered at root; tenant scopes resolve via parent fallback.

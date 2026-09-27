@@ -240,6 +240,8 @@ public static class TenantServices
         cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().InstancePerLifetimeScope();
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<YouAuthClientMetadataFetcher>().As<IYouAuthClientMetadataFetcher>().InstancePerLifetimeScope();
+        cb.RegisterType<YouAuthClientMetadataService>().InstancePerLifetimeScope();
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();

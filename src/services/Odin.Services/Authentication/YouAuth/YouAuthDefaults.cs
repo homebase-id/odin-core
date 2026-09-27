@@ -11,6 +11,17 @@ namespace Odin.Services.Authentication.YouAuth
         public const string Identity = "identity";
 
         /// <summary>
+        /// On the consent redirect only: the logo URL the redirect domain published for itself.
+        /// </summary>
+        public const string ClientLogo = "client_logo";
+
+        /// <summary>
+        /// Where a relying party publishes what it calls itself and which paths are its callbacks.
+        /// See docs/youauth-client-metadata-plan.md.
+        /// </summary>
+        public const string ClientMetadataPath = "/.well-known/youauth-client.json";
+
+        /// <summary>
         /// Query parameter carrying a failure back to the relying party's redirect URI; the codes
         /// below are its values. The reference client reads it.
         /// </summary>
