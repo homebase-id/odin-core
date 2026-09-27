@@ -1,6 +1,7 @@
 using System;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Exceptions;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Hosting.ApiExceptions.Client;
 
@@ -107,6 +108,18 @@ public sealed class YouAuthAuthorizeRequest
     
     public void Validate(string redirectUriHost)
     {
+        ValidateRedirectTarget(redirectUriHost);
+        ValidateRequest();
+    }
+
+    /// <summary>
+    /// The checks that decide whether the redirect URI may be trusted: a known client type, a client
+    /// id, and for a domain client a redirect host that is that client id. A failure here is answered
+    /// at the identity with a 400, because nobody has vouched for the redirect target yet and bouncing
+    /// the browser to it would make the endpoint an open redirector.
+    /// </summary>
+    public void ValidateRedirectTarget(string redirectUriHost)
+    {
         if (ClientType != ClientType.app && ClientType != ClientType.domain)
         {
             throw new BadRequestException($"Bad or missing {ClientTypeName}: {ClientType}");
@@ -114,6 +127,10 @@ public sealed class YouAuthAuthorizeRequest
         if (string.IsNullOrWhiteSpace(ClientId))
         {
             throw new BadRequestException($"Bad or missing {ClientIdName}");
+        }
+        if (string.IsNullOrWhiteSpace(RedirectUri))
+        {
+            throw new BadRequestException($"Bad or missing {RedirectUriName}");
         }
         if (ClientType == ClientType.domain && ClientId != redirectUriHost)
         {
@@ -123,17 +140,22 @@ public sealed class YouAuthAuthorizeRequest
                 throw new BadRequestException($"{ClientIdName} must equal host {redirectUriHost} when {ClientTypeName} is {ClientType.domain}");
             }
         }
+    }
+
+    /// <summary>
+    /// The rest of the request. A failure here is the relying party's to hear about, so it throws
+    /// the exception the authorize endpoint turns into an error redirect.
+    /// </summary>
+    public void ValidateRequest()
+    {
         if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(PermissionRequest))
         {
-            throw new BadRequestException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}");
+            throw new OdinClientException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}",
+                OdinClientErrorCode.ArgumentError);
         }
         if (string.IsNullOrWhiteSpace(PublicKey))
         {
-            throw new BadRequestException($"Bad or missing {PublicKeyName}");
-        }
-        if (string.IsNullOrWhiteSpace(RedirectUri))
-        {
-            throw new BadRequestException($"Bad or missing {RedirectUriName}");
+            throw new OdinClientException($"Bad or missing {PublicKeyName}", OdinClientErrorCode.ArgumentError);
         }
     }
 }
