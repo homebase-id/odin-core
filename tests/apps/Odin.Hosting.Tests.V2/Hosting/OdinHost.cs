@@ -169,12 +169,8 @@ public sealed partial class OdinHost : IAsyncDisposable
                             TenantServices.ConfigureTenantServices(cb, registration, cfg);
                             cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
 
-                            // The relying-party metadata fetch is a plain HTTPS GET to the client's
-                            // apex host, not a peer (capi) call, and ConfigureTenantServices registers
-                            // the fetcher per tenant, so the override has to be per tenant too or it is
-                            // shadowed. The production fetcher, with its HTTP handed to the in-process
-                            // server, so a test identity can serve /.well-known/youauth-client.json to
-                            // another.
+                            // Registered per tenant in ConfigureTenantServices, so overridden per
+                            // tenant: the production fetcher over the in-process server.
                             cb.Register(c => new YouAuthClientMetadataFetcher(
                                     new InProcessDynamicHttpClientFactory(serverHolder),
                                     c.Resolve<ILogger<YouAuthClientMetadataFetcher>>()))

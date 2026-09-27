@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,13 +34,9 @@ public sealed class YouAuthClientMetadataDocument
 
 /// <summary>
 /// A relying party's metadata as the identity accepted it: fetched from the redirect domain, so
-/// bound to that domain and nothing more. Every field survives only if it belongs to that domain.
+/// bound to that domain and nothing more. See docs/youauth-client-metadata-plan.md for why the
+/// consent page shows the name next to the domain and never in its place.
 /// </summary>
-/// <remarks>
-/// The trust is in the domain, never in whoever runs it. A document proves that the domain which
-/// will receive the token calls itself by this name; a phishing domain can publish one too. That is
-/// why the consent page shows the name next to the domain and never in its place.
-/// </remarks>
 public sealed class YouAuthClientMetadata
 {
     public static readonly YouAuthClientMetadata Empty = new();
@@ -86,10 +79,7 @@ public sealed class YouAuthClientMetadata
             return Empty;
         }
 
-        var redirectUris = document.RedirectUris?
-            .Where(uri => IsOwnHttpsUrl(clientId, uri))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        var redirectUris = document.RedirectUris?.Where(uri => IsOwnHttpsUrl(clientId, uri)).ToList();
 
         return new YouAuthClientMetadata
         {
@@ -127,8 +117,7 @@ public sealed class YouAuthClientMetadata
                && string.Equals(uri.Host, clientId.DomainName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
-
+    /// <summary>Control characters go, whitespace collapses, the ends are trimmed, the length is capped.</summary>
     private static string? CleanName(string? name)
     {
         if (name == null)
@@ -137,7 +126,7 @@ public sealed class YouAuthClientMetadata
         }
 
         var visible = new string(name.Where(c => !char.IsControl(c)).ToArray());
-        var collapsed = Whitespace.Replace(visible, " ").Trim();
+        var collapsed = string.Join(' ', visible.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (collapsed.Length == 0)
         {
             return null;
@@ -158,8 +147,10 @@ public interface IYouAuthClientMetadataFetcher
 
 /// <summary>
 /// One GET of <see cref="YouAuthDefaults.ClientMetadataPath"/> on the client's own host. A site
-/// that is down, absent, redirecting elsewhere, or answering with something other than a small
-/// JSON document is a site with no document; none of that may stall or fail a login.
+/// that is down, absent, or answering with something other than a small JSON document is a site
+/// with no document; none of that may stall or fail a login. Redirects are not followed
+/// (<c>DynamicHttpClientFactory</c> sets <c>AllowAutoRedirect = false</c>), so a redirect elsewhere
+/// is a 3xx and therefore no document.
 /// </summary>
 public sealed class YouAuthClientMetadataFetcher(
     IDynamicHttpClientFactory httpClientFactory,
@@ -176,58 +167,26 @@ public sealed class YouAuthClientMetadataFetcher(
 
         try
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(Timeout);
+            using var client = httpClientFactory.CreateClient($"{nameof(YouAuthClientMetadataFetcher)}:{clientId.DomainName}");
+            client.Timeout = Timeout;
+            client.MaxResponseContentBufferSize = MaxDocumentBytes;
 
-            var client = httpClientFactory.CreateClient($"{nameof(YouAuthClientMetadataFetcher)}:{clientId.DomainName}");
-            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            using var response = await client.GetAsync(url, cancellationToken);
 
-            if (!response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode
+                || !string.Equals(response.Content.Headers.ContentType?.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
             {
                 return YouAuthClientMetadata.Empty;
             }
 
-            // The document must come from the client's own host. A redirect that was followed to
-            // another host is somebody else's document.
-            var servedBy = response.RequestMessage?.RequestUri?.Host;
-            if (servedBy != null && !string.Equals(servedBy, clientId.DomainName, StringComparison.OrdinalIgnoreCase))
-            {
-                return YouAuthClientMetadata.Empty;
-            }
-
-            if (!string.Equals(response.Content.Headers.ContentType?.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
-            {
-                return YouAuthClientMetadata.Empty;
-            }
-
-            if (response.Content.Headers.ContentLength > MaxDocumentBytes)
-            {
-                return YouAuthClientMetadata.Empty;
-            }
-
-            var body = await ReadAtMostAsync(response, MaxDocumentBytes, timeout.Token);
-            return body == null ? YouAuthClientMetadata.Empty : YouAuthClientMetadata.Parse(clientId, body);
+            return YouAuthClientMetadata.Parse(clientId, await response.Content.ReadAsStringAsync(cancellationToken));
         }
-        catch (Exception e) when (e is HttpRequestException or OperationCanceledException or IOException)
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException)
         {
+            // Includes a body over MaxResponseContentBufferSize and the timeout.
             logger.LogDebug(e, "YouAuth: no client metadata from {clientId}: {message}", clientId, e.Message);
             return YouAuthClientMetadata.Empty;
         }
-    }
-
-    /// <summary>Reads the body, or null if it turns out to be longer than <paramref name="limit"/>.</summary>
-    private static async Task<string?> ReadAtMostAsync(HttpResponseMessage response, int limit, CancellationToken cancellationToken)
-    {
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var buffer = new byte[limit + 1];
-        var total = 0;
-        int read;
-        while (total < buffer.Length && (read = await stream.ReadAsync(buffer.AsMemory(total), cancellationToken)) > 0)
-        {
-            total += read;
-        }
-
-        return total > limit ? null : Encoding.UTF8.GetString(buffer, 0, total);
     }
 }
 
@@ -245,8 +204,8 @@ public sealed class YouAuthClientMetadataService(
 
     public async Task<YouAuthClientMetadata> GetAsync(AsciiDomainName clientId, CancellationToken cancellationToken = default)
     {
-        // An address is not a site that publishes a document, and it is the one client id that
-        // could point this server's fetch at something on its own network. Not fetched.
+        // The domain validator accepts "127.0.0.1": an address is not a site, and it is the one
+        // client id that could point this server's fetch into its own network.
         if (IPAddress.TryParse(clientId.DomainName, out _))
         {
             return YouAuthClientMetadata.Empty;

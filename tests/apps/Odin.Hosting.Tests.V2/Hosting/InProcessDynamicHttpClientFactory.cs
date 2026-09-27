@@ -11,12 +11,9 @@ using Odin.Core.Http;
 namespace Odin.Hosting.Tests.V2.Hosting;
 
 /// <summary>
-/// An <see cref="IDynamicHttpClientFactory"/> whose clients talk to the in-process
-/// <see cref="TestServerHolder.Server"/> rather than the network, so a service that fetches from
-/// "some host on the internet" fetches from a test identity instead. The multi-tenant middleware
-/// routes on the Host header, so an unknown host gets its 404 the same way an absent site would --
-/// unless a test has put a canned JSON document under that host in <see cref="CannedDocuments"/>,
-/// which is how a made-up relying party publishes a metadata document without being a tenant.
+/// Routes an <see cref="IDynamicHttpClientFactory"/> fetch into the in-process server; a host in
+/// <see cref="CannedDocuments"/> is answered with that JSON instead, so a made-up site can publish
+/// a document without being a tenant. An unknown host gets the server's 404, like an absent site.
 /// </summary>
 internal sealed class InProcessDynamicHttpClientFactory(TestServerHolder serverHolder) : IDynamicHttpClientFactory
 {

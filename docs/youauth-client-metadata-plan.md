@@ -83,7 +83,8 @@ therefore not trusted. `YouAuthAuthorizeRequest` stays a query-binding DTO; the 
 the set in.
 
 **Carry the verified name.** The app path already overwrites `client_info` with the app's friendly
-name before the consent redirect. The domain path does the same with the document's name. Two
+name for the token it issues. The domain path overwrites it with the document's name and, unlike
+the app path, sends the request as validated to the consent page, so the page sees it. Two
 consumers pick it up: the consent page reads it from the return URL, and `YouAuthUnifiedService`
 stores it as the registration's `Name` and the client's friendly name where today it stores the
 bare domain, so the owner's list of connected domains says "Amazon". The logo URL travels the same

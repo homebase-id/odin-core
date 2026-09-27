@@ -96,11 +96,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 throw new BadRequestException("Cannot YouAuth to self");
             }
 
-            // A domain has vouched for its own host by the check above, and may have said more
-            // about itself at /.well-known/youauth-client.json: what it calls itself, and which
-            // paths are its callbacks. Both come from the redirect domain, so the name is bound to
-            // it (not vouched for by anyone) and a published callback list narrows the trusted
-            // target from the host to those paths. See docs/youauth-client-metadata-plan.md.
+            // A domain may have said more about itself at /.well-known/youauth-client.json: a name,
+            // and which paths are its callbacks, which narrow the trusted target from the host to
+            // those paths. See docs/youauth-client-metadata-plan.md.
             var clientMetadata = YouAuthClientMetadata.Empty;
             if (authorize.ClientType == ClientType.domain)
             {
@@ -174,9 +172,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
                 if (needConsent)
                 {
-                    // For a domain, the request as validated here rather than as it arrived:
-                    // client_info now carries the name the redirect domain published, which is
-                    // what the consent page shows. An app's request goes back as it came.
+                    // For a domain, the request as validated here: client_info now carries the
+                    // published name for the consent page. An app's request goes back as it came;
+                    // its client_info overwrite above is for the token, not the page.
                     var returnUrl = authorize.ClientType == ClientType.domain
                         ? $"{Request.Scheme}://{Request.Host}{Request.Path}?{authorize.ToQueryString()}"
                         : Request.GetDisplayUrl();
