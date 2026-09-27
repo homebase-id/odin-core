@@ -109,13 +109,13 @@ public class YouAuthIntegrationTests : V2Fixture
         const string thirdParty = "frodo.dotyou.cloud";
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         {
             //
@@ -188,13 +188,13 @@ public class YouAuthIntegrationTests : V2Fixture
         var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         {
             //
@@ -249,13 +249,13 @@ public class YouAuthIntegrationTests : V2Fixture
         var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         {
             //
@@ -307,13 +307,13 @@ public class YouAuthIntegrationTests : V2Fixture
         var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         {
             //
@@ -394,7 +394,7 @@ public class YouAuthIntegrationTests : V2Fixture
         //
         {
             //
-            // [010] Generate key pair
+            // YouAuth [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
@@ -402,7 +402,7 @@ public class YouAuthIntegrationTests : V2Fixture
             Uri returnUrl;
 
             //
-            // [030] Request authorization code
+            // YouAuth [030] Request authorization code
             //
             var payload = new YouAuthAuthorizeRequest
             {
@@ -444,7 +444,7 @@ public class YouAuthIntegrationTests : V2Fixture
             }
 
             //
-            // [050] Consent needed
+            // YouAuth [050] Consent needed
             //
             {
                 //
@@ -490,13 +490,13 @@ public class YouAuthIntegrationTests : V2Fixture
         //
         {
             //
-            // [010] Generate key pair
+            // YouAuth [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             //
-            // [030] Request authorization code, consent not needed
+            // YouAuth [030] Request authorization code, consent not needed
             //
             var payload = new YouAuthAuthorizeRequest
             {
@@ -567,7 +567,7 @@ public class YouAuthIntegrationTests : V2Fixture
         //
         {
             //
-            // [010] Generate key pair
+            // YouAuth [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
@@ -575,7 +575,7 @@ public class YouAuthIntegrationTests : V2Fixture
             Uri returnUrl;
 
             //
-            // [030] Request authorization code
+            // YouAuth [030] Request authorization code
             //
             var payload = new YouAuthAuthorizeRequest
             {
@@ -617,7 +617,7 @@ public class YouAuthIntegrationTests : V2Fixture
             }
 
             //
-            // [050] Consent needed
+            // YouAuth [050] Consent needed
             //
             Uri authorizeUri;
             {
@@ -660,7 +660,7 @@ public class YouAuthIntegrationTests : V2Fixture
             }
 
             //
-            // [070] Create auth code
+            // YouAuth [070] Create auth code
             //
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
@@ -700,7 +700,7 @@ public class YouAuthIntegrationTests : V2Fixture
         //
         {
             //
-            // [010] Generate key pair
+            // YouAuth [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
@@ -708,7 +708,7 @@ public class YouAuthIntegrationTests : V2Fixture
             Uri returnUrl;
 
             //
-            // [030] Request authorization code
+            // YouAuth [030] Request authorization code
             //
             var payload = new YouAuthAuthorizeRequest
             {
@@ -761,7 +761,7 @@ public class YouAuthIntegrationTests : V2Fixture
         var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
@@ -771,7 +771,7 @@ public class YouAuthIntegrationTests : V2Fixture
         var finalRedirectUri = new Uri($"https://{thirdParty}:{HttpsPort}/authorization/code/callback");
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         var payload = new YouAuthAuthorizeRequest
         {
@@ -813,7 +813,7 @@ public class YouAuthIntegrationTests : V2Fixture
         }
 
         //
-        // [050] Consent needed
+        // YouAuth [050] Consent needed
         //
         Uri authorizeUri;
         {
@@ -855,7 +855,7 @@ public class YouAuthIntegrationTests : V2Fixture
         }
 
         //
-        // [070] Create auth code
+        // YouAuth [070] Create auth code
         //
         string remotePublicKey, remoteSalt;
         {
@@ -890,8 +890,8 @@ public class YouAuthIntegrationTests : V2Fixture
 
         //
         // [90] Calculate shared secret and digtest for token exchange
-        // [100] Exchange auth code for access token
-        // [140] Return client access token to client
+        // YouAuth [100] Exchange auth code for access token
+        // YouAuth [140] Return client access token to client
         //
         byte[] sharedSecret, clientAuthToken;
         {
@@ -961,7 +961,7 @@ public class YouAuthIntegrationTests : V2Fixture
         await ConnectHobbits();
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
@@ -970,9 +970,9 @@ public class YouAuthIntegrationTests : V2Fixture
         var finalRedirectUri = new Uri($"https://{thirdParty}:{HttpsPort}/authorization/code/callback");
 
         //
-        // [030] Request authorization code
-        // [050] Consent not needed because Hobbits are connected
-        // [070] Create auth code
+        // YouAuth [030] Request authorization code
+        // YouAuth [050] Consent not needed because Hobbits are connected
+        // YouAuth [070] Create auth code
         //
         var payload = new YouAuthAuthorizeRequest
         {
@@ -1025,8 +1025,8 @@ public class YouAuthIntegrationTests : V2Fixture
 
         //
         // [90] Calculate shared secret and digtest for token exchange
-        // [100] Exchange auth code for access token
-        // [140] Return client access token to client
+        // YouAuth [100] Exchange auth code for access token
+        // YouAuth [140] Return client access token to client
         //
         {
             var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);
@@ -1082,13 +1082,13 @@ public class YouAuthIntegrationTests : V2Fixture
         var driveType = Guid.NewGuid();
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         {
             //
@@ -1167,13 +1167,13 @@ public class YouAuthIntegrationTests : V2Fixture
         await RegisterApp(hobbit, Guid.Parse(appId), Guid.Parse(driveAlias), Guid.Parse(driveType));
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         {
             //
@@ -1273,13 +1273,13 @@ public class YouAuthIntegrationTests : V2Fixture
         await RegisterApp(hobbit, Guid.Parse(appId), Guid.Parse(driveAlias), Guid.Parse(driveType));
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         {
             //
@@ -1378,7 +1378,7 @@ public class YouAuthIntegrationTests : V2Fixture
         await RegisterApp(hobbit, appId, driveAlias, driveType);
 
         //
-        // [010] Generate key pair
+        // YouAuth [010] Generate key pair
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
@@ -1397,7 +1397,7 @@ public class YouAuthIntegrationTests : V2Fixture
         };
 
         //
-        // [030] Request authorization code
+        // YouAuth [030] Request authorization code
         //
         Uri returnUrl;
         {
@@ -1479,8 +1479,8 @@ public class YouAuthIntegrationTests : V2Fixture
         }
 
         //
-        // [070] Create auth code
-        // [080] return auth code to client
+        // YouAuth [070] Create auth code
+        // YouAuth [080] return auth code to client
         //
         string remotePublicKey, remoteSalt;
         {
@@ -1522,8 +1522,8 @@ public class YouAuthIntegrationTests : V2Fixture
 
         //
         // [90] Calculate shared secret and digtest for token exchange
-        // [100] Exchange auth code for access token
-        // [140] Return client access token to client
+        // YouAuth [100] Exchange auth code for access token
+        // YouAuth [140] Return client access token to client
         //
         {
             var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);

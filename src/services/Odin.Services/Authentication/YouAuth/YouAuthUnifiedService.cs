@@ -28,11 +28,6 @@ public sealed class YouAuthUnifiedService(
 {
     //
 
-    public Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest)
-    {
-        throw new NotImplementedException();
-    }
-
     public async Task<bool> NeedConsent(
         string tenant,
         ClientType clientType,
@@ -230,7 +225,8 @@ public sealed class YouAuthUnifiedService(
         {
             if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest, odinContext))
             {
-                throw new OdinSystemException("App must be registered before consent check is possible");
+                throw new OdinClientException("App must be registered before consent check is possible",
+                    OdinClientErrorCode.AppNotRegistered);
             }
         }
     }

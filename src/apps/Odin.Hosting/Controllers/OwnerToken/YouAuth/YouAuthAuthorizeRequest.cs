@@ -105,7 +105,11 @@ public sealed class YouAuthAuthorizeRequest
 
     //
     
-    public void Validate(string redirectUriHost)
+    /// <summary>
+    /// The checks that decide whether the redirect URI may be trusted. Fails with a 400: the redirect
+    /// target is not yet trusted (see <c>YouAuthUnifiedController.Authorize</c>).
+    /// </summary>
+    public void ValidateRedirectTarget(string redirectUriHost)
     {
         if (ClientType != ClientType.app && ClientType != ClientType.domain)
         {
@@ -115,6 +119,10 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"Bad or missing {ClientIdName}");
         }
+        if (string.IsNullOrWhiteSpace(RedirectUri))
+        {
+            throw new BadRequestException($"Bad or missing {RedirectUriName}");
+        }
         if (ClientType == ClientType.domain && ClientId != redirectUriHost)
         {
             // Make it easier to do local app development
@@ -123,6 +131,14 @@ public sealed class YouAuthAuthorizeRequest
                 throw new BadRequestException($"{ClientIdName} must equal host {redirectUriHost} when {ClientTypeName} is {ClientType.domain}");
             }
         }
+    }
+
+    /// <summary>
+    /// The rest of the request, checked once the redirect target is trusted; the authorize endpoint
+    /// reports a failure here to the relying party.
+    /// </summary>
+    public void ValidateRequest()
+    {
         if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(PermissionRequest))
         {
             throw new BadRequestException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}");
@@ -130,10 +146,6 @@ public sealed class YouAuthAuthorizeRequest
         if (string.IsNullOrWhiteSpace(PublicKey))
         {
             throw new BadRequestException($"Bad or missing {PublicKeyName}");
-        }
-        if (string.IsNullOrWhiteSpace(RedirectUri))
-        {
-            throw new BadRequestException($"Bad or missing {RedirectUriName}");
         }
     }
 }

@@ -55,7 +55,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         }
 
         //
-        // [080] Return authorization code, public key and salt to frontend.
+        // YouAuth [080] Return authorization code, public key and salt to frontend.
         //
         [HttpGet(HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName)]
         public async Task<IActionResult> HandleAuthorizationCodeCallback(string identity, string public_key, [FromQuery] string state,
@@ -76,7 +76,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
-                //[100] Request exchange auth code for access token
+                // YouAuth [100] Request exchange auth code for access token
                 var odinId = new OdinId(identity);
                 var tokenResponse = await this.ExchangeDigestForToken(odinId, exchangeSecretDigest);
 
