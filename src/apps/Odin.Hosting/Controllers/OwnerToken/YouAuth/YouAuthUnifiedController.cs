@@ -120,9 +120,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             try
             {
                 authorize.ValidateRequest();
+                var cipher = authorize.ParsedCipher();
 
-                _logger.LogDebug("YouAuth: authorizing client_type={client_type} client_id={client_id}, redirect_uri={redirect_uri}",
-                    authorize.ClientType, authorize.ClientId, authorize.RedirectUri);
+                // The raw cipher value is logged so CBC can be retired on evidence: "absent" is a client
+                // that predates the choice, "aes-cbc" one that made it.
+                _logger.LogDebug("YouAuth: authorizing client_type={client_type} client_id={client_id}, redirect_uri={redirect_uri}, cipher={cipher}",
+                    authorize.ClientType, authorize.ClientId, authorize.RedirectUri,
+                    string.IsNullOrEmpty(authorize.Cipher) ? "absent" : authorize.Cipher);
 
                 //
                 // YouAuth [040] Logged in?
@@ -189,7 +193,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 //
                 // YouAuth [070]
                 // Create ECC private/public key pair, random salt and shared secret based on public_key from step 30.
-                // Create client access token and store it encrypted with shared secret in cache for later lookup.
+                // Create client access token and store it encrypted with shared secret in cache for later lookup,
+                // sealed with the cipher the client named at [030].
                 //
                 var (exchangePublicKey, exchangeSalt) = await _youAuthService.CreateClientAccessTokenAsync(
                     authorize.ClientType,
@@ -197,6 +202,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     authorize.ClientInfo,
                     authorize.PermissionRequest,
                     authorize.PublicKey,
+                    cipher,
                     WebOdinContext);
 
                 //
@@ -355,18 +361,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 return NotFound();
             }
 
-            var result = new YouAuthTokenResponse
-            {
-                Base64SharedSecretCipher = Convert.ToBase64String(accessToken.SharedSecretCipher),
-                Base64SharedSecretIv = Convert.ToBase64String(accessToken.SharedSecretIv),
-                Base64ClientAuthTokenCipher = Convert.ToBase64String(accessToken.ClientAuthTokenCipher),
-                Base64ClientAuthTokenIv = Convert.ToBase64String(accessToken.ClientAuthTokenIv),
-            };
-
             //
-            // YouAuth [140] Return client access token to client
+            // YouAuth [140] Return client access token to client, saying which cipher sealed it
             //
-            return result;
+            return YouAuthTokenResponse.From(accessToken);
         }
 
         //

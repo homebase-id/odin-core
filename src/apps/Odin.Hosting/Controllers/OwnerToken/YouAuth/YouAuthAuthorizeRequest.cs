@@ -38,6 +38,11 @@ public sealed class YouAuthAuthorizeRequest
     [BindProperty(Name = StateName, SupportsGet = true)]
     public string State { get; set; } = "";
 
+    /// <summary>
+    /// Which cipher the client can open the token response with; see <see cref="YouAuthDefaults.Cipher"/>.
+    /// Empty when the client sent nothing, and then left out of <see cref="ToQueryString"/> so such a
+    /// request comes back from the consent page byte for byte.
+    /// </summary>
     [BindProperty(Name = YouAuthDefaults.Cipher, SupportsGet = true)]
     public string Cipher { get; set; } = "";
 
@@ -57,7 +62,8 @@ public sealed class YouAuthAuthorizeRequest
         string publicKey,
         string permissionRequest,
         string clientInfo,
-        string state)
+        string state,
+        string cipher)
     {
         RedirectUri = redirectUri;
         ClientType = clientType;
@@ -66,6 +72,7 @@ public sealed class YouAuthAuthorizeRequest
         PermissionRequest = permissionRequest;
         ClientInfo = clientInfo;
         State = state;
+        Cipher = cipher;
     }
     
     //
@@ -81,6 +88,10 @@ public sealed class YouAuthAuthorizeRequest
         qs[PermissionRequestName] = PermissionRequest;
         qs[PublicKeyName] = PublicKey;
         qs[StateName] = State;
+        if (!string.IsNullOrEmpty(Cipher))
+        {
+            qs[YouAuthDefaults.Cipher] = Cipher;
+        }
 
         return qs.ToString() ?? string.Empty;
     }
@@ -103,7 +114,8 @@ public sealed class YouAuthAuthorizeRequest
             permissionRequest: qs[PermissionRequestName] ?? string.Empty,
             publicKey: qs[PublicKeyName] ?? string.Empty,
             redirectUri: qs[RedirectUriName] ?? string.Empty,
-            state: qs[StateName] ?? string.Empty);
+            state: qs[StateName] ?? string.Empty,
+            cipher: qs[YouAuthDefaults.Cipher] ?? string.Empty);
     }
 
     //
@@ -150,6 +162,18 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"Bad or missing {PublicKeyName}");
         }
+        if (!YouAuthCipherExtensions.TryParse(Cipher, out _))
+        {
+            throw new BadRequestException($"Unknown {YouAuthDefaults.Cipher} '{Cipher}': {YouAuthDefaults.CipherAesCbc} or {YouAuthDefaults.CipherAesGcm}");
+        }
+    }
+
+    /// <summary>The cipher the client asked for; call after <see cref="ValidateRequest"/>.</summary>
+    public YouAuthCipher ParsedCipher()
+    {
+        return YouAuthCipherExtensions.TryParse(Cipher, out var cipher)
+            ? cipher
+            : throw new BadRequestException($"Unknown {YouAuthDefaults.Cipher} '{Cipher}'");
     }
 }
 

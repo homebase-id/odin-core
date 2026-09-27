@@ -45,6 +45,13 @@ public sealed class YouAuthAuthorizeRequest
     [BindProperty(Name = StateName, SupportsGet = true)]
     public string State { get; set; } = "";
 
+    /// <summary>
+    /// Which cipher we can open the token response with: aes-gcm, or aes-cbc / absent for the
+    /// padded bytes every client got before the choice existed.
+    /// </summary>
+    [BindProperty(Name = YouAuthDefaults.Cipher, SupportsGet = true)]
+    public string Cipher { get; set; } = "";
+
     //
 
     public YouAuthAuthorizeRequest()
@@ -65,6 +72,10 @@ public sealed class YouAuthAuthorizeRequest
         qs[PermissionRequestName] = PermissionRequest;
         qs[PublicKeyName] = PublicKey;
         qs[StateName] = State;
+        if (!string.IsNullOrEmpty(Cipher))
+        {
+            qs[YouAuthDefaults.Cipher] = Cipher;
+        }
 
         return qs.ToString() ?? string.Empty;
     }

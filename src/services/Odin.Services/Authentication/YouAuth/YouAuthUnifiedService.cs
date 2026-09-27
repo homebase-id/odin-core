@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -112,6 +113,7 @@ public sealed class YouAuthUnifiedService(
         string clientInfo,
         string permissionRequest,
         string jwkbase64UrlPublicKey,
+        YouAuthCipher cipher,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -169,21 +171,28 @@ public sealed class YouAuthUnifiedService(
         var exchangeSharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, exchangeSalt);
         var exchangeSharedSecretDigest = SHA256.Create().ComputeHash(exchangeSharedSecret.GetKey()).ToBase64();
 
-        var sharedSecretPlain = token.SharedSecret.GetKey();
-        var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, exchangeSharedSecret);
-
-        var clientAuthTokenPlain = token.ToAuthenticationToken().ToPortableBytes();
-        var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, exchangeSharedSecret);
+        // Sealed with what the client said it can open at [030]. GCM's IV is 16 bytes of which the
+        // first 12 are the nonce, and its ciphertext carries the 16-byte tag at the end; CBC is the
+        // padded bytes every client got before the choice existed.
+        var (sharedSecretIv, sharedSecretCipher) = Seal(token.SharedSecret.GetKey());
+        var (clientAuthTokenIv, clientAuthTokenCipher) = Seal(token.ToAuthenticationToken().ToPortableBytes());
 
         var encryptedTokenExchange = new EncryptedTokenExchange(
             sharedSecretCipher,
             sharedSecretIv,
             clientAuthTokenCipher,
-            clientAuthTokenIv);
+            clientAuthTokenIv,
+            cipher);
 
         await level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 
         return (keyPair.PublicKeyJwkBase64Url(), Convert.ToBase64String(exchangeSalt));
+
+        (byte[] iv, byte[] cipherText) Seal(byte[] plain) => cipher switch
+        {
+            YouAuthCipher.AesGcm => AesGcm.Encrypt(plain, exchangeSharedSecret),
+            _ => AesCbc.Encrypt(plain, exchangeSharedSecret)
+        };
     }
 
     //

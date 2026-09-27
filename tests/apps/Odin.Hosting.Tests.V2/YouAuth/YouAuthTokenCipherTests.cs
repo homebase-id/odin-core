@@ -163,8 +163,9 @@ public class YouAuthTokenCipherTests : V2Fixture
 
         AssertRedirectsToConsent(await AuthorizeAsync(Host, owner, request));
 
+        // Serilog renders a string property in quotes; they are dropped so the assertion reads as the line does.
         var authorizeLines = Host.LogStore.GetLogEvents()[LogEventLevel.Debug]
-            .Select(e => e.RenderMessage())
+            .Select(e => e.RenderMessage().Replace("\"", ""))
             .Where(m => m.Contains($"client_id={clientId}"))
             .ToList();
         Assert.That(authorizeLines, Is.Not.Empty, "the authorize Debug line names the client");
