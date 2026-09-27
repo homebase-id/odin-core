@@ -11,6 +11,15 @@ namespace Odin.Services.Authentication.YouAuth
         public const string Identity = "identity";
 
         /// <summary>
+        /// Optional on the authorize request: which cipher seals the token response. Absent means
+        /// <see cref="CipherAesCbc"/>, what every client got before the parameter existed. Echoed
+        /// in every token response so a client can refuse a downgrade.
+        /// </summary>
+        public const string Cipher = "cipher";
+        public const string CipherAesCbc = "aes-cbc";
+        public const string CipherAesGcm = "aes-gcm";
+
+        /// <summary>
         /// Where a relying party publishes what it calls itself and which paths are its callbacks.
         /// See docs/youauth-client-metadata-plan.md.
         /// </summary>

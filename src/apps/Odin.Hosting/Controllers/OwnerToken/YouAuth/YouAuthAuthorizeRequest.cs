@@ -38,6 +38,9 @@ public sealed class YouAuthAuthorizeRequest
     [BindProperty(Name = StateName, SupportsGet = true)]
     public string State { get; set; } = "";
 
+    [BindProperty(Name = YouAuthDefaults.Cipher, SupportsGet = true)]
+    public string Cipher { get; set; } = "";
+
     //
 
     public YouAuthAuthorizeRequest()
