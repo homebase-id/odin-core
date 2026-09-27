@@ -59,7 +59,8 @@ public class TestEccPrivateJwk
 
         Assert.That(restored.PublicKeyJwk(), Is.EqualTo(original.PublicKeyJwk()), "the public half is rebuilt, not copied");
         Assert.That(restored.PrivateKeyJwk(password), Is.EqualTo(original.PrivateKeyJwk(password)));
-        Assert.That(restored.crc32c, Is.EqualTo(original.crc32c));
+        Assert.That(restored.crc32c, Is.EqualTo(original.crc32c), "the CRC that identifies the key survives: the public DER is rebuilt exactly");
+        Assert.That(restored.privateDerBase64(password), Is.EqualTo(original.privateDerBase64(password)));
     }
 
     [Test]
