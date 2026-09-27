@@ -18,6 +18,7 @@ using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Math.EC;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities;
 using Org.BouncyCastle.X509;
 
 namespace Odin.Core.Cryptography.Data
@@ -39,21 +40,38 @@ namespace Odin.Core.Cryptography.Data
         public UInt32 crc32c { get; set; } // The CRC32C of the public key
         public UnixTimeUtc expiration { get; set; } // Time when this key expires
 
+        protected static readonly JsonSerializerOptions JwkJsonOptions = new()
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            WriteIndented = false
+        };
+
+        /// <summary>
+        /// The members every EC JWK has, checked and decoded; the private import adds <c>d</c>.
+        /// </summary>
+        protected static (EccKeySize size, byte[] x, byte[] y, Dictionary<string, string> members) ReadEcJwk(string jwk)
+        {
+            var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
+
+            if (jwkObject["kty"] != "EC")
+                throw new InvalidOperationException("Invalid key type, kty must be EC");
+
+            var curveIndex = Array.IndexOf(eccKeyTypeNames, jwkObject["crv"]);
+            if (curveIndex < 0)
+                throw new InvalidOperationException("Invalid curve, crv must be P-384 OR P-256");
+
+            byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
+            byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
+
+            return ((EccKeySize)curveIndex, x, y, jwkObject);
+        }
+
         public static EccPublicKeyData FromJwkPublicKey(string jwk, int hours = 1)
         {
             try
             {
-                var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
-
-                if (jwkObject["kty"] != "EC")
-                    throw new InvalidOperationException("Invalid key type, kty must be EC");
-
-                string curveName = jwkObject["crv"];
-                if ((curveName != "P-384") && (curveName != "P-256"))
-                    throw new InvalidOperationException("Invalid curve, crv must be P-384 OR P-256");
-
-                byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
-                byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
+                var (curveSize, x, y, _) = ReadEcJwk(jwk);
+                string curveName = eccKeyTypeNames[(int)curveSize];
 
                 X9ECParameters x9ECParameters = NistNamedCurves.GetByName(curveName);
                 ECCurve curve = x9ECParameters.Curve;
@@ -115,46 +133,26 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
+        protected static int CoordinateBytes(EccKeySize size) => size == EccKeySize.P384 ? 384 / 8 : 256 / 8;
+
+        /// <summary>The public JWK's members: the curve and the coordinates, zero-padded to the curve size, base64url.</summary>
+        protected (EccKeySize size, string crv, string x, string y) PublicJwkMembers()
+        {
+            var publicKeyParameters = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(publicKey);
+            var curveSize = GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve);
+            var bytes = CoordinateBytes(curveSize);
+
+            return (
+                curveSize,
+                eccKeyTypeNames[(int)curveSize],
+                Base64UrlEncoder.Encode(BigIntegers.AsUnsignedByteArray(bytes, publicKeyParameters.Q.AffineXCoord.ToBigInteger())),
+                Base64UrlEncoder.Encode(BigIntegers.AsUnsignedByteArray(bytes, publicKeyParameters.Q.AffineYCoord.ToBigInteger())));
+        }
+
         public string PublicKeyJwk()
         {
-            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
-            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
-
-            // Extract the key parameters
-            BigInteger x = publicKeyParameters.Q.AffineXCoord.ToBigInteger();
-            BigInteger y = publicKeyParameters.Q.AffineYCoord.ToBigInteger();
-
-            var curveSize = GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve);
-
-            int expectedBytes;
-            if (curveSize == EccKeySize.P384)
-                expectedBytes = 384 / 8;
-            else
-                expectedBytes = 256 / 8;
-
-            var xBytes = EnsureLength(x.ToByteArrayUnsigned(), expectedBytes);
-            var yBytes = EnsureLength(y.ToByteArrayUnsigned(), expectedBytes);
-
-            string curveName = eccKeyTypeNames[(int)curveSize];
-
-            // Create a JSON object to represent the JWK
-            var jwk = new
-            {
-                kty = "EC",
-                crv = curveName, // P-256 or P-384
-                x = Base64UrlEncoder.Encode(xBytes),
-                y = Base64UrlEncoder.Encode(yBytes)
-            };
-
-            var options = new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                WriteIndented = false
-            };
-
-            string jwkJson = JsonSerializer.Serialize(jwk, options);
-
-            return jwkJson;
+            var (_, crv, x, y) = PublicJwkMembers();
+            return JsonSerializer.Serialize(new { kty = "EC", crv, x, y }, JwkJsonOptions);
         }
 
         public string GenerateEcdsaBase64Url()
@@ -264,48 +262,43 @@ namespace Odin.Core.Cryptography.Data
         /// <param name="minutes">Lifespan of the key, optional</param>
         /// <param name="seconds">Lifespan of the key, optional</param>
         public EccFullKeyData(SensitiveByteArray key, EccKeySize keySize, int hours, int minutes = 0, int seconds = 0)
+            : this(key, Generate(keySize), hours, minutes, seconds)
         {
-            // Generate an EC key with Bouncy Castle, curve secp384r1
-            ECKeyPairGenerator generator = new ECKeyPairGenerator();
-            X9ECParameters ecp = SecNamedCurves.GetByName(eccCurveIdentifiers[(int)keySize]);
-
-            var domainParams = new ECDomainParameters(ecp.Curve, ecp.G, ecp.N, ecp.H, ecp.GetSeed());
-            generator.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
-            AsymmetricCipherKeyPair keys = generator.GenerateKeyPair();
-
-            // Extract the public and the private keys
-            var privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(keys.Private);
-            var publicKeyInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keys.Public);
-
-            // Save the DER encoded private and public keys in our own data structure
-            createdTimeStamp = UnixTimeUtc.Now();
-            expiration = createdTimeStamp;
-            expiration = expiration.AddSeconds(hours * 3600 + minutes * 60 + seconds);
-            if (expiration <= createdTimeStamp)
-                throw new Exception("Expiration must be > 0");
-
-            CreatePrivate(key, privateKeyInfo.GetDerEncoded()); // TODO: Can we cleanup the generated key?
-
-            publicKey = publicKeyInfo.GetDerEncoded();
-            crc32c = KeyCRC();
-
             EccKeyManagement.noKeysCreated++;
         }
 
         /// <summary>
-        /// Hack used only for TESTING.
+        /// The key from its two halves, held under <paramref name="key"/> for the given lifetime:
+        /// what the generating constructor and the JWK import have in common.
         /// </summary>
-        public EccFullKeyData(SensitiveByteArray key, byte[] derEncodedFullKey)
+        private EccFullKeyData(SensitiveByteArray key, AsymmetricCipherKeyPair keys, int hours, int minutes, int seconds)
         {
-            // ONLY USE FOR TESTING. DOES NOT CREATE PUBLIC KEY PROPERLY
-            CreatePrivate(key, derEncodedFullKey);
+            createdTimeStamp = UnixTimeUtc.Now();
+            expiration = createdTimeStamp.AddSeconds(hours * 3600 + minutes * 60 + seconds);
+            if (expiration <= createdTimeStamp)
+                throw new Exception("Expiration must be > 0");
 
-            //_privateKey = new SensitiveByteArray(derEncodedFullKey);
-            // createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
-            //var pkRestored = PublicKeyFactory.CreateKey(derEncodedFulKey);
-            //var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
-            //publicKey = pk.GetDerEncoded();
-            Interlocked.Increment(ref SimplePerformanceCounter.noRsaKeysCreatedTest);
+            CreatePrivate(key, PrivateKeyInfoFactory.CreatePrivateKeyInfo(keys.Private).GetDerEncoded()); // TODO: Can we cleanup the generated key?
+
+            publicKey = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keys.Public).GetDerEncoded();
+            crc32c = KeyCRC();
+        }
+
+        /// <summary>
+        /// The curve as this class encodes it, seed included: what every full key's DER, and so its
+        /// CRC, is written against, whether generated here or rebuilt from a JWK.
+        /// </summary>
+        private static ECDomainParameters DomainParameters(EccKeySize keySize)
+        {
+            X9ECParameters ecp = SecNamedCurves.GetByName(eccCurveIdentifiers[(int)keySize]);
+            return new ECDomainParameters(ecp.Curve, ecp.G, ecp.N, ecp.H, ecp.GetSeed());
+        }
+
+        private static AsymmetricCipherKeyPair Generate(EccKeySize keySize)
+        {
+            var generator = new ECKeyPairGenerator();
+            generator.Init(new ECKeyGenerationParameters(DomainParameters(keySize), new SecureRandom()));
+            return generator.GenerateKeyPair();
         }
 
 
@@ -346,27 +339,11 @@ namespace Odin.Core.Cryptography.Data
         /// </summary>
         public string PrivateKeyJwk(SensitiveByteArray key)
         {
+            var (curveSize, crv, x, y) = PublicJwkMembers();
             var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(GetFullKey(key).GetKey());
-            var curveSize = GetCurveEnum((ECCurve)privateKeyParameters.Parameters.Curve);
-            int expectedBytes = curveSize == EccKeySize.P384 ? 384 / 8 : 256 / 8;
+            var d = Base64UrlEncoder.Encode(BigIntegers.AsUnsignedByteArray(CoordinateBytes(curveSize), privateKeyParameters.D));
 
-            // The public point from the private scalar, so it is right however the key was built.
-            var q = privateKeyParameters.Parameters.G.Multiply(privateKeyParameters.D).Normalize();
-
-            var jwk = new
-            {
-                kty = "EC",
-                crv = eccKeyTypeNames[(int)curveSize],
-                x = Base64UrlEncoder.Encode(EnsureLength(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), expectedBytes)),
-                y = Base64UrlEncoder.Encode(EnsureLength(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), expectedBytes)),
-                d = Base64UrlEncoder.Encode(EnsureLength(privateKeyParameters.D.ToByteArrayUnsigned(), expectedBytes)),
-            };
-
-            return JsonSerializer.Serialize(jwk, new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                WriteIndented = false
-            });
+            return JsonSerializer.Serialize(new { kty = "EC", crv, x, y, d }, JwkJsonOptions);
         }
 
         public string PrivateKeyJwkBase64Url(SensitiveByteArray key)
@@ -383,44 +360,17 @@ namespace Odin.Core.Cryptography.Data
         {
             try
             {
-                var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
-
-                if (jwkObject["kty"] != "EC")
-                    throw new InvalidOperationException("Invalid key type, kty must be EC");
-
-                string curveName = jwkObject["crv"];
-                if ((curveName != "P-384") && (curveName != "P-256"))
-                    throw new InvalidOperationException("Invalid curve, crv must be P-384 OR P-256");
-
-                if (!jwkObject.TryGetValue("d", out var dText))
+                var (curveSize, x, y, members) = ReadEcJwk(jwk);
+                if (!members.TryGetValue("d", out var dText))
                     throw new InvalidOperationException("Not a private key, d is missing");
-
-                byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
-                byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
                 byte[] d = Base64UrlEncoder.Decode(dText);
 
-                // The generating constructor's domain parameters, seed included, so the DER forms and
-                // the CRC that identifies the key are the same after the round trip.
-                var curveSize = curveName == "P-384" ? EccKeySize.P384 : EccKeySize.P256;
-                X9ECParameters x9ECParameters = SecNamedCurves.GetByName(eccCurveIdentifiers[(int)curveSize]);
-                var domainParams = new ECDomainParameters(x9ECParameters.Curve, x9ECParameters.G, x9ECParameters.N, x9ECParameters.H, x9ECParameters.GetSeed());
-                var privateKeyParameters = new ECPrivateKeyParameters(new BigInteger(1, d), domainParams);
-                var publicKeyParameters = new ECPublicKeyParameters(
-                    x9ECParameters.Curve.CreatePoint(new BigInteger(1, x), new BigInteger(1, y)), domainParams);
+                var domainParams = DomainParameters(curveSize);
+                var keys = new AsymmetricCipherKeyPair(
+                    new ECPublicKeyParameters(domainParams.Curve.CreatePoint(new BigInteger(1, x), new BigInteger(1, y)), domainParams),
+                    new ECPrivateKeyParameters(new BigInteger(1, d), domainParams));
 
-                var fullKey = new EccFullKeyData
-                {
-                    createdTimeStamp = UnixTimeUtc.Now()
-                };
-                fullKey.expiration = fullKey.createdTimeStamp.AddSeconds(hours * 3600);
-                if (fullKey.expiration <= fullKey.createdTimeStamp)
-                    throw new Exception("Expiration must be > 0");
-
-                fullKey.CreatePrivate(key, PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameters).GetDerEncoded());
-                fullKey.publicKey = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKeyParameters).GetDerEncoded();
-                fullKey.crc32c = fullKey.KeyCRC();
-
-                return fullKey;
+                return new EccFullKeyData(key, keys, hours, 0, 0);
             }
             catch (FormatException)
             {

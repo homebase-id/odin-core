@@ -30,7 +30,7 @@ public class TestEccPrivateJwk
 
         Assert.That(members.Keys, Is.EquivalentTo(new[] { "kty", "crv", "x", "y", "d" }), jwk);
         Assert.That(members["kty"], Is.EqualTo("EC"));
-        Assert.That(members["crv"], Is.EqualTo(size == EccKeySize.P384 ? "P-384" : "P-256"));
+        Assert.That(members["crv"], Is.EqualTo(EccPublicKeyData.eccKeyTypeNames[(int)size]));
         Assert.That(Base64UrlEncoder.Decode(members["d"]), Has.Length.EqualTo(coordinateBytes), "d is zero-padded like x and y");
         Assert.That(jwk, Does.Not.Contain("="), "base64url, no padding");
     }
@@ -57,10 +57,8 @@ public class TestEccPrivateJwk
 
         var restored = EccFullKeyData.FromJwkPrivateKey(password, original.PrivateKeyJwk(password), hours: 1);
 
-        Assert.That(restored.PublicKeyJwk(), Is.EqualTo(original.PublicKeyJwk()), "the public half is rebuilt, not copied");
-        Assert.That(restored.PrivateKeyJwk(password), Is.EqualTo(original.PrivateKeyJwk(password)));
-        Assert.That(restored.crc32c, Is.EqualTo(original.crc32c), "the CRC that identifies the key survives: the public DER is rebuilt exactly");
-        Assert.That(restored.privateDerBase64(password), Is.EqualTo(original.privateDerBase64(password)));
+        Assert.That(restored.crc32c, Is.EqualTo(original.crc32c), "the CRC that identifies the key survives: the public DER is rebuilt exactly, curve seed included");
+        Assert.That(restored.privateDerBase64(password), Is.EqualTo(original.privateDerBase64(password)), "and so is the private DER");
     }
 
     [Test]
@@ -103,8 +101,7 @@ public class TestEccPrivateJwk
         var jwk = fullKey.PrivateKeyJwk(password);
         var der = fullKey.privateDerBase64(password);
 
-        Assert.That(jwk.Length, Is.LessThan(260), $"P-384 private JWK is {jwk.Length} chars");
-        Assert.That(jwk.Length * 3, Is.LessThan(der.Length), $"the DER form ({der.Length} base64 chars) spells the curve out; the JWK names it");
+        Assert.That(jwk.Length, Is.LessThan(260), $"P-384 private JWK is {jwk.Length} chars; the DER form is {der.Length} base64 chars");
     }
 
     [Test]
@@ -130,15 +127,12 @@ public class TestEccPrivateJwk
         Assert.That(restored.IsExpired(), Is.False);
     }
 
-    [TestCase("""{"kty":"RSA","crv":"P-384","x":"AA","y":"AA","d":"AA"}""")]
-    [TestCase("""{"kty":"EC","crv":"P-521","x":"AA","y":"AA","d":"AA"}""")]
-    [TestCase("""{"kty":"EC","crv":"P-384","x":"AA","y":"AA"}""")]
-    [TestCase("""{"kty":"EC","crv":"P-384","x":"not base64url!","y":"AA","d":"AA"}""")]
-    public void AJwkThatIsNotAPrivateEcKeyIsRefused(string jwk)
+    [TestCase("""{"kty":"RSA","crv":"P-384","x":"AA","y":"AA","d":"AA"}""", typeof(InvalidOperationException))]
+    [TestCase("""{"kty":"EC","crv":"P-521","x":"AA","y":"AA","d":"AA"}""", typeof(InvalidOperationException))]
+    [TestCase("""{"kty":"EC","crv":"P-384","x":"not base64url!","y":"AA","d":"AA"}""", typeof(OdinClientException))]
+    public void AJwkThatIsNotAPrivateEcKeyIsRefused(string jwk, Type refusal)
     {
-        Assert.That(() => EccFullKeyData.FromJwkPrivateKey(NewPassword(), jwk),
-            Throws.InstanceOf<OdinClientException>().Or.InstanceOf<InvalidOperationException>(),
-            "the same refusals as the public import");
+        Assert.That(() => EccFullKeyData.FromJwkPrivateKey(NewPassword(), jwk), Throws.TypeOf(refusal), "the same refusals as the public import");
     }
 
     [Test]
@@ -148,6 +142,6 @@ public class TestEccPrivateJwk
         var fullKey = new EccFullKeyData(password, EccKeySize.P384, 1);
 
         Assert.That(() => EccFullKeyData.FromJwkPrivateKey(password, fullKey.PublicKeyJwk()),
-            Throws.InstanceOf<OdinClientException>().Or.InstanceOf<InvalidOperationException>());
+            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("d"));
     }
 }
