@@ -89,11 +89,18 @@ namespace Odin.Services.Membership.YouAuth
             return reg.Redacted();
         }
 
+        /// <param name="publishedName">
+        /// The name the domain published for itself (docs/youauth-client-metadata-plan.md), when the
+        /// caller has fetched one. It becomes the registration's name if that differs: consent
+        /// registers a domain under its host name before the authorize flow, which has the verified
+        /// name, gets here. Null leaves the name alone.
+        /// </param>
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(
             AsciiDomainName domain,
             string friendlyName,
             YouAuthDomainRegistrationRequest? request,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            string? publishedName = null)
         {
             OdinValidationUtils.AssertNotNullOrEmpty(friendlyName, nameof(friendlyName));
             odinContext.Caller.AssertHasMasterKey();
@@ -110,6 +117,11 @@ namespace Odin.Services.Membership.YouAuth
                 reg = await GetDomainRegistrationInternalAsync(domain);
             }
 
+            if (publishedName != null && reg!.Name != publishedName)
+            {
+                reg.Name = publishedName;
+                await SaveRegistrationAsync(reg, odinContext);
+            }
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);

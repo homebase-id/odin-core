@@ -26,6 +26,8 @@ sequenceDiagram
 
     samsBackendAuthorize-->>client: [030] Redirect target not trusted?<br/> HTTP 400 at the identity when redirect_uri does not parse, client_type<br/> or client_id is missing, a domain's redirect host is not its client_id,<br/> or the client is this identity. Nobody has vouched for redirect_uri yet,<br/> so the browser is not sent there, not even with an error.
 
+    samsBackendAuthorize->>frodosBackend: [030] What does the redirect domain say about itself?<br/> GET https://<client_id>/.well-known/youauth-client.json (domain clients, cached)<br/> name = what the domain calls itself (shown small, under the domain, never instead)<br/> redirect_uris = its callbacks; when published, redirect_uri must be one of them<br/> (scheme, host and path; query ignored) or it is HTTP 400 as above.<br/> No document, or a bad one, means none of this: the host rule and the bare domain.
+
     samsBackendAuthorize-->>samsFrontend: [040] Logged in?<br/>If Sam is not logged in (no owner-cookie), redirect (302) to<br/> https://samwise.me/owner/login?returnUrl=<current uri>
 
     samsFrontend-->>samsBackendAuthorize: [042] Log in and redirect back<br/> Sam logs in and the browser is redirected back to 'returnUrl'
@@ -34,7 +36,7 @@ sequenceDiagram
 
     samsFrontend-->>samsBackendAuthorize: [047] Approve app registration<br/> Sam is shown approval screen. If Sam clicks OK,<br/> app is registered.<br/> Redirect browser back to 'return'.<br/> If Sam declines: redirect (302) to redirect_uri<br/> error = cancelled-by-user
 
-    samsBackendAuthorize-->>samsFrontend: [050] Consent needed?<br/> If backend determines that Sam needs to consent, redirect (302) to<br/> https://samwise.me/owner/youauth/consent?returnUrl=<current uri><br/> (client_id, client_info and permission_request travel inside returnUrl)
+    samsBackendAuthorize-->>samsFrontend: [050] Consent needed?<br/> If backend determines that Sam needs to consent, redirect (302) to<br/> https://samwise.me/owner/youauth/consent?returnUrl=<request as validated><br/> (client_id, client_info and permission_request travel inside returnUrl;<br/> for a domain, client_info is the name from [030], not what the link said)
 
     samsFrontend-->>samsBackendAuthorize: [055] Give consent and redirect back<br/> Sam is shown consent screen. If Sam clicks OK,<br/> consent to/for client_id and permission_request are stored in database<br/> by POST'ing to /authorize.<br/> Finally redirect browser back to 'returnUrl'.<br/> If Sam declines: redirect (302) to redirect_uri<br/> error = cancelled-by-user
 
@@ -92,7 +94,7 @@ The purpose of YouAuth is to:
 - `public_key` (required): Base64 encoded ECC public key.
 - `state` (optional): A value included in the request that is also returned in the authorization callback response/redirect.
 - `permission_request` (required for `app`, otherwise optional): for an app, the JSON `YouAuthAppParameters` (app id, name, slug, origin, friendly client name, drives, circles, permissions) the app-registration page shows Sam. For a domain it is not used today.
-- `client_info` (optional): for an app it is overwritten with the friendly client name from `permission_request`. For a domain it is accepted but not stored; the consent page shows the domain.
+- `client_info` (optional): for an app it is overwritten with the friendly client name from `permission_request`. For a domain it is overwritten with the name the domain published for itself (below), or emptied when it published none; what the link said is never shown, since anyone can put anything in a link.
 
 The response to the `authorize` endpoint is delivered using `HTTP 302 Redirect` to `redirect_uri` parameter with the following query parameters. Any query `redirect_uri` already carried is kept.
 
@@ -108,6 +110,21 @@ When something is wrong (step 060), the redirect carries these instead:
 - `state`: Copy of the user defined state data.
 
 A request that fails before the redirect target is trusted (step 030: `redirect_uri` does not parse, `client_type` or `client_id` missing, a domain's redirect host is not its `client_id`, the client is the identity itself, or the app is not registered) is answered with `HTTP 400` at the identity instead, because bouncing the browser to an unvouched-for address would make the endpoint an open redirector.
+
+## The relying party's own document
+
+A domain client may publish `https://<client_id>/.well-known/youauth-client.json`:
+
+```json
+{
+  "name": "Amazon",
+  "redirect_uris": ["https://amazon.com/auth/homebase/callback"]
+}
+```
+
+Every field is optional. The identity fetches it from the redirect domain at step 030 (cached for an hour when found, a few minutes when not), so each field is bound to that domain and nothing more: each `redirect_uris` entry must be https on the domain itself or it is dropped; `name` is trimmed, cleaned of control characters and capped at 64 characters. When `redirect_uris` is present, the request's `redirect_uri` must match one on scheme, host and path (the query is ignored) or the request is a 400. The name goes to the consent page as `client_info` and onto the domain registration. There is deliberately no logo: it would add persuasion and no information, since any site can serve another's. Not published, absent, unreachable, oversized, or not JSON: today's behaviour, the host rule and the bare domain. Nothing is registered anywhere.
+
+The trust is in the domain, never in whoever runs it. A document proves that the domain which will receive the token calls itself by that name, which is why the consent page leads with the domain, large and with its non-ASCII characters painted, and shows the name small beneath it as "Calling itself '...'", never in its place. Every Homebase identity serves such a document about itself (the owner's public name; no callback list, since an identity host has one relying party on it, itself) so a peer signing in on another's home site sees a name too. Client ids that are IP addresses are never fetched. See `docs/youauth-client-metadata-plan.md`.
 
 ## `token` endpoint
 

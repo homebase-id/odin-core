@@ -139,15 +139,21 @@ public sealed class YouAuthUnifiedService(
             }
             else
             {
+                // clientInfo is the name the domain published for itself, fetched from that domain
+                // by the authorize endpoint, or empty when it published none. It names the
+                // registration and the client; the bare host is the fallback.
+                var publishedName = string.IsNullOrWhiteSpace(clientInfo) ? null : clientInfo;
+                var name = publishedName ?? domain.DomainName;
+
                 var request = new YouAuthDomainRegistrationRequest()
                 {
                     Domain = domain.DomainName,
-                    Name = domain.DomainName,
+                    Name = name,
                     CorsHostName = clientId,
                     CircleIds = default //TODO: should we set a circle here?
                 };
 
-                (token, _) = await domainRegistrationService.RegisterClientAsync(domain, domain.DomainName, request, odinContext);
+                (token, _) = await domainRegistrationService.RegisterClientAsync(domain, name, request, odinContext, publishedName);
             }
         }
         else

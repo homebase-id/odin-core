@@ -1,20 +1,15 @@
 #nullable enable
 using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.Tests.YouAuthApi;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
+using static Odin.Hosting.Tests.V2.YouAuth.YouAuthFlow;
 
 namespace Odin.Hosting.Tests.V2.YouAuth;
 
@@ -38,11 +33,11 @@ public class YouAuthErrorRedirectTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var request = DomainRequest();
+        var request = DomainRequest(Domain, DomainCallback);
         request.PublicKey = "";
         request.State = "state-4711";
 
-        var location = AssertRedirectsTo(await Authorize(owner, request), DomainCallback);
+        var location = AssertRedirectsTo(await AuthorizeAsync(Host, owner, request), DomainCallback);
         Assert.That(location[YouAuthDefaults.Error], Is.EqualTo(YouAuthDefaults.ErrorInvalidRequest));
         Assert.That(location[YouAuthDefaults.State], Is.EqualTo("state-4711"), "the relying party matches the answer to its request by state");
     }
@@ -52,11 +47,10 @@ public class YouAuthErrorRedirectTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var request = DomainRequest();
+        var request = DomainRequest(Domain, $"{DomainCallback}?session=abc");
         request.PublicKey = "";
-        request.RedirectUri = $"{DomainCallback}?session=abc";
 
-        var location = AssertRedirectsTo(await Authorize(owner, request), DomainCallback);
+        var location = AssertRedirectsTo(await AuthorizeAsync(Host, owner, request), DomainCallback);
         Assert.That(location["session"], Is.EqualTo("abc"), "what the relying party put on its redirect URI comes back with the error");
     }
 
@@ -76,7 +70,7 @@ public class YouAuthErrorRedirectTests : V2Fixture
             DrivesParam = "[]"
         }));
 
-        var location = AssertRedirectsTo(await Authorize(owner, request), AppCallback);
+        var location = AssertRedirectsTo(await AuthorizeAsync(Host, owner, request), AppCallback);
         Assert.That(location[YouAuthDefaults.Error], Is.EqualTo(YouAuthDefaults.ErrorAppRevoked),
             "a registered app is a trusted redirect target, and revoked is a reason the app can act on");
     }
@@ -86,10 +80,7 @@ public class YouAuthErrorRedirectTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var request = DomainRequest();
-        request.RedirectUri = "https://somewhere-else.org/callback";
-
-        var response = await Authorize(owner, request);
+        var response = await AuthorizeAsync(Host, owner, DomainRequest(Domain, "https://somewhere-else.org/callback"));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
             "nobody has vouched for that host, so it must not be redirected to, not even with an error");
     }
@@ -99,26 +90,10 @@ public class YouAuthErrorRedirectTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var response = await Authorize(owner, AppRequest(Guid.NewGuid(), "this is not json"));
+        var response = await AuthorizeAsync(Host, owner, AppRequest(Guid.NewGuid(), "this is not json"));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
             "an app nobody has registered has no redirect target the identity can trust");
     }
-
-    // -------------------------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------------------------
-
-    /// <summary>
-    /// A well-formed domain-client request; a test breaks the one field it is about.
-    /// </summary>
-    private static YouAuthAuthorizeRequest DomainRequest() => new()
-    {
-        ClientId = Domain,
-        ClientType = ClientType.domain,
-        PublicKey = NewPublicKey(),
-        State = "s",
-        RedirectUri = DomainCallback
-    };
 
     private static YouAuthAuthorizeRequest AppRequest(Guid appId, string permissionRequest) => new()
     {
@@ -129,40 +104,4 @@ public class YouAuthErrorRedirectTests : V2Fixture
         State = "s",
         RedirectUri = AppCallback
     };
-
-    private static string NewPublicKey()
-    {
-        var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        return new EccFullKeyData(privateKey, EccKeySize.P384, 1).PublicKeyJwkBase64Url();
-    }
-
-    private async Task<HttpResponseMessage> Authorize(OwnerSession owner, YouAuthAuthorizeRequest payload)
-    {
-        var uri = new UriBuilder($"https://{owner.Identity.DomainName}{OwnerApiPathConstants.YouAuthV1Authorize}")
-        {
-            Query = payload.ToQueryString()
-        }.ToString();
-
-        var request = new HttpRequestMessage(HttpMethod.Get, uri)
-        {
-            Headers = { { "Cookie", new Cookie(OwnerAuthConstants.CookieName, owner.Token.ToString()).ToString() } },
-        };
-
-        using var client = Host.CreateClient();
-        return await client.SendAsync(request);
-    }
-
-    /// <summary>
-    /// The response is a redirect to the relying party's redirect URI; returns its query for the
-    /// caller to assert on.
-    /// </summary>
-    private static Dictionary<string, string> AssertRedirectsTo(HttpResponseMessage response, string expectedUriWithoutQuery)
-    {
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), "a failure after the redirect target is trusted goes back to the relying party");
-
-        var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
-        Assert.That(location.Split('?')[0], Is.EqualTo(expectedUriWithoutQuery));
-
-        return YouAuthTestHelper.ParseQueryString(location);
-    }
 }
