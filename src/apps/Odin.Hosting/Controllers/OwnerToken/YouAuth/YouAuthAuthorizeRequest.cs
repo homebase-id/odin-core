@@ -1,7 +1,6 @@
 using System;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Exceptions;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Hosting.ApiExceptions.Client;
 
@@ -106,17 +105,9 @@ public sealed class YouAuthAuthorizeRequest
 
     //
     
-    public void Validate(string redirectUriHost)
-    {
-        ValidateRedirectTarget(redirectUriHost);
-        ValidateRequest();
-    }
-
     /// <summary>
-    /// The checks that decide whether the redirect URI may be trusted: a known client type, a client
-    /// id, and for a domain client a redirect host that is that client id. A failure here is answered
-    /// at the identity with a 400, because nobody has vouched for the redirect target yet and bouncing
-    /// the browser to it would make the endpoint an open redirector.
+    /// The checks that decide whether the redirect URI may be trusted. Fails with a 400: the redirect
+    /// target is not yet trusted (see <c>YouAuthUnifiedController.Authorize</c>).
     /// </summary>
     public void ValidateRedirectTarget(string redirectUriHost)
     {
@@ -143,19 +134,18 @@ public sealed class YouAuthAuthorizeRequest
     }
 
     /// <summary>
-    /// The rest of the request. A failure here is the relying party's to hear about, so it throws
-    /// the exception the authorize endpoint turns into an error redirect.
+    /// The rest of the request, checked once the redirect target is trusted; the authorize endpoint
+    /// reports a failure here to the relying party.
     /// </summary>
     public void ValidateRequest()
     {
         if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(PermissionRequest))
         {
-            throw new OdinClientException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}",
-                OdinClientErrorCode.ArgumentError);
+            throw new BadRequestException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}");
         }
         if (string.IsNullOrWhiteSpace(PublicKey))
         {
-            throw new OdinClientException($"Bad or missing {PublicKeyName}", OdinClientErrorCode.ArgumentError);
+            throw new BadRequestException($"Bad or missing {PublicKeyName}");
         }
     }
 }

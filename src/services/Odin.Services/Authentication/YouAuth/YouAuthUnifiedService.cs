@@ -226,7 +226,7 @@ public sealed class YouAuthUnifiedService(
             if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest, odinContext))
             {
                 throw new OdinClientException("App must be registered before consent check is possible",
-                    OdinClientErrorCode.ArgumentError);
+                    OdinClientErrorCode.AppNotRegistered);
             }
         }
     }

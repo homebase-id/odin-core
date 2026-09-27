@@ -11,9 +11,8 @@ namespace Odin.Services.Authentication.YouAuth
         public const string Identity = "identity";
 
         /// <summary>
-        /// Query parameter carrying a failure back to the relying party's redirect URI. The codes
-        /// below are its values; the consent page's cancel and the home-site login use the same
-        /// parameter, and the reference client reads it.
+        /// Query parameter carrying a failure back to the relying party's redirect URI; the codes
+        /// below are its values. The reference client reads it.
         /// </summary>
         public const string Error = "error";
         public const string ErrorDescription = "error_description";
@@ -22,6 +21,11 @@ namespace Odin.Services.Authentication.YouAuth
         public const string ErrorAppRevoked = "app-revoked";
         public const string ErrorAccessDenied = "access-denied";
         public const string ErrorServerError = "server-error";
+
+        /// <summary>
+        /// Never sent by this server: the owner app's consent and app-registration pages send it
+        /// when the owner declines. Recorded here so the vocabulary is in one place.
+        /// </summary>
         public const string ErrorCancelledByUser = "cancelled-by-user";
     }
 }

@@ -6,7 +6,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -173,38 +172,34 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     { YouAuthDefaults.State, authorize.State },
                 });
             }
-            // A revoked app is by definition a registered one, so its redirect is trusted whatever
-            // the flag says; the app can act on the code, which is why it gets its own.
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.AppRevoked)
+            // A revoked app is by definition a registered one, so its redirect is trusted whether or
+            // not step [045] got as far as saying so.
+            catch (Exception e) when (redirectTrusted || e is OdinClientException { ErrorCode: OdinClientErrorCode.AppRevoked })
             {
-                return ErrorRedirect(redirectUri, authorize.State, YouAuthDefaults.ErrorAppRevoked, e.Message);
+                var (code, description) = e switch
+                {
+                    OdinClientException { ErrorCode: OdinClientErrorCode.AppRevoked } => (YouAuthDefaults.ErrorAppRevoked, e.Message),
+                    OdinClientException or BadRequestException => (YouAuthDefaults.ErrorInvalidRequest, e.Message),
+                    OdinSecurityException => (YouAuthDefaults.ErrorAccessDenied, null),
+                    _ => ServerError(e)
+                };
+
+                return ErrorRedirect(redirectUri, authorize.State, code, description);
             }
-            catch (OdinClientException e) when (redirectTrusted)
-            {
-                return ErrorRedirect(redirectUri, authorize.State, YouAuthDefaults.ErrorInvalidRequest, e.Message);
-            }
-            catch (BadRequestException e) when (redirectTrusted)
-            {
-                return ErrorRedirect(redirectUri, authorize.State, YouAuthDefaults.ErrorInvalidRequest, e.Message);
-            }
-            catch (OdinSecurityException) when (redirectTrusted)
-            {
-                return ErrorRedirect(redirectUri, authorize.State, YouAuthDefaults.ErrorAccessDenied);
-            }
-            catch (Exception e) when (redirectTrusted)
+
+            (string, string?) ServerError(Exception e)
             {
                 // The detail belongs in the log, not on the relying party's URL.
                 _logger.LogError(e, "YouAuth: authorize failed for client_type={client_type} client_id={client_id}",
                     authorize.ClientType, authorize.ClientId);
-                return ErrorRedirect(redirectUri, authorize.State, YouAuthDefaults.ErrorServerError);
+                return (YouAuthDefaults.ErrorServerError, null);
             }
         }
 
         //
 
-        private ActionResult ErrorRedirect(Uri redirectUri, string state, string code, string? description = null)
+        private ActionResult ErrorRedirect(Uri redirectUri, string state, string code, string? description)
         {
-            _logger.LogDebug("YouAuth: reporting {code} to {redirect_uri}", code, redirectUri);
             return RedirectToRelyingParty(redirectUri, new Dictionary<string, string?>
             {
                 { YouAuthDefaults.Error, code },
@@ -263,7 +258,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             {
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
             }
-            authorize.Validate(redirectUri.Host);
+            authorize.ValidateRedirectTarget(redirectUri.Host);
+            authorize.ValidateRequest();
 
             // Sanity #3
             if (authorize.ClientId.Equals(Request.Host.Host, StringComparison.CurrentCultureIgnoreCase))
