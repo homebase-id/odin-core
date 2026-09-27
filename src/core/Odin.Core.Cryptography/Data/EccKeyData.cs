@@ -339,6 +339,36 @@ namespace Odin.Core.Cryptography.Data
             return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(key) + "\n-----END PRIVATE KEY-----";
         }
 
+        /// <summary>
+        /// The key as a private JWK (RFC 7518 section 6.2.2): the public key's members plus <c>d</c>,
+        /// the private scalar, base64url and zero-padded to the curve size like the coordinates.
+        /// Small and portable, where the DER form spells the curve parameters out.
+        /// </summary>
+        public string PrivateKeyJwk(SensitiveByteArray key)
+        {
+            throw new NotImplementedException();
+        }
+
+        public string PrivateKeyJwkBase64Url(SensitiveByteArray key)
+        {
+            return Base64UrlEncoder.Encode(PrivateKeyJwk(key));
+        }
+
+        /// <summary>
+        /// A key from its private JWK, held under <paramref name="key"/> like a generated one; the
+        /// public half is rebuilt from <c>x</c> and <c>y</c>. The lifetime is the caller's, as for
+        /// <see cref="EccPublicKeyData.FromJwkPublicKey"/>: a JWK carries none.
+        /// </summary>
+        public static EccFullKeyData FromJwkPrivateKey(SensitiveByteArray key, string jwk, int hours = 1)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static EccFullKeyData FromJwkBase64UrlPrivateKey(SensitiveByteArray key, string jwkBase64Url, int hours = 1)
+        {
+            return FromJwkPrivateKey(key, Base64UrlEncoder.DecodeString(jwkBase64Url), hours);
+        }
+
         public string privateDerBase64(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
