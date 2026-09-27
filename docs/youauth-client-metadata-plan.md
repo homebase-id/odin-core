@@ -1,0 +1,159 @@
+# YouAuth client metadata: a name the owner can trust, and a pinned callback
+
+Status: plan, 2026-09-27. Implements items 3 and 4 of the YouAuth review that produced PR #1804
+(token lifetime) and PR #1817 (error redirects). Decisions taken with the owner of the protocol:
+a domain with standing consent re-fetches its document on every login, from cache; and every
+Homebase identity serves its own document by default.
+
+## The two problems
+
+**The approval dialog cannot name the site.** When amazon.com asks to authenticate an owner, the
+consent page says "amazon.com", a bare domain. The display name the site sends in `client_info` is
+discarded, and rightly: anything in the query string was chosen by whoever built the link, so a
+phishing page on `arnazon-login.com` could send `client_info=Amazon` and have the dialog print it.
+The only name the identity can safely show is one it fetched from the site's own domain, where only
+the site's owner can put it.
+
+**The callback is pinned to a host, not a path.** The authorize endpoint checks that the redirect
+host equals the client id and accepts any path on it (`YouAuthAuthorizeRequest.ValidateRedirectTarget`).
+Fine for amazon.com. On a host where different people own different paths -- GitHub Pages user
+sites, a university's `people.example.edu/~name`, any shared host -- anyone with a path can start the
+flow in the host's name, get the owner's approval under that name, and receive a token issued to the
+whole host.
+
+Neither fix adds registration. A site still meets an identity for the first time with nothing
+provisioned on either side; the owner is still met with the approval dialog. What changes is that
+the dialog can show a name the site itself vouched for, and the site can say which path is its
+callback.
+
+## The document
+
+A site that wants more than a bare domain publishes `https://<client_id>/.well-known/youauth-client.json`:
+
+```json
+{
+  "name": "Amazon",
+  "logo": "https://amazon.com/youauth-logo.png",
+  "redirect_uris": ["https://amazon.com/auth/homebase/callback"]
+}
+```
+
+- Every field is optional. A document with none of them is the same as no document.
+- `name`: shown on the dialog and stored as the domain registration's name. Capped at 64 characters,
+  control characters stripped, whitespace collapsed. Never shown in place of the domain, only next to it.
+- `logo`: an https URL on the client's own host. Any other value is dropped.
+- `redirect_uris`: absolute https URLs on the client's own host. Any other entry is dropped. When the
+  list is present and non-empty, the request's `redirect_uri` must match one of them on scheme, host
+  and path; the relying party's own query is ignored in the comparison, since it is kept on the way
+  back. When the list is absent, the host rule stands.
+- No document, a non-200, a wrong content type, a body over 16 KB, or JSON that does not parse all
+  mean "no document": today's behaviour, unchanged.
+
+The shape is deliberately the one Bluesky landed on for ATProto OAuth (a client metadata document
+at a URL the client controls), so a site that already publishes one for that ecosystem has nothing
+new to learn. The trust model stays "what the site serves on its own domain".
+
+## What the identity does with it
+
+**Fetch, at step [030] after the trust checks.** `YouAuthClientMetadataService` in Odin.Services,
+one method: `GetAsync(AsciiDomainName clientId)` returning `YouAuthClientMetadata` (name, logo,
+redirect URIs, all nullable) or an empty instance. It fetches through `IOdinHttpClientFactory` with
+a typed Refit client, which is how every other call to a peer's host is made and what the V2 test
+host routes in-process. Short timeout (3 s), redirects not followed, response size capped before
+parsing, strict parser that drops fields rather than failing the whole document.
+
+The fetch is only ever made for a client id that is a domain client whose redirect host has
+already passed `ValidateRedirectTarget`, so the identity never fetches from a host nobody asked
+it to. `localhost` is exempt from the fetch as it is from the host rule.
+
+**Cache, in the tenant's level-2 cache, per client id.** One hour when a document was found; five
+minutes when it was absent or malformed. A site's outage or a typo therefore cannot stall logins,
+and a renamed site or a newly published `redirect_uris` takes effect within the hour without the
+owner revoking anything. This is the "re-fetch on every login" decision: every login reads the
+cache, the cache reads the site.
+
+**Pin the callback.** `ValidateRedirectTarget` gains an optional set of allowed redirect URIs. With
+the set present, a request whose redirect URI is not in it is refused with a 400, the same answer as
+a host mismatch, because the site itself said that path is not its callback and the target is
+therefore not trusted. `YouAuthAuthorizeRequest` stays a query-binding DTO; the controller passes
+the set in.
+
+**Carry the verified name.** The app path already overwrites `client_info` with the app's friendly
+name before the consent redirect. The domain path does the same with the document's name. Two
+consumers pick it up: the consent page reads it from the return URL, and `YouAuthUnifiedService`
+stores it as the registration's `Name` and the client's friendly name where today it stores the
+bare domain, so the owner's list of connected domains says "Amazon". The logo URL travels the same
+way, as `client_logo` on the consent redirect only; it is not stored.
+
+**Identities publish one too.** An anonymous endpoint next to the WebFinger and DID controllers
+serves the identity's own document: the owner's display name from the public profile, the public
+image the consent page already fetches, and the home-site login callback path. Every Homebase
+identity is thereby a relying party that names itself, and a peer signing in on another's home site
+sees "Sam Gamgee" rather than a host. This is the "on by default" decision.
+
+## The consent page, in odin-js
+
+`YouAuthConsent.tsx` today names the site by the redirect host and fetches `/pub/image` then
+`/favicon.ico` from it. Changes:
+
+- Read `client_info` and `client_logo` from the return URL. Show the name as the heading with the
+  domain always visible beneath it, never replaced by it, so "Amazon" over `arnazon-login.com` still
+  reads as what it is.
+- Use `client_logo` when present, falling back to the two fetches it makes today.
+- Fix the cancel path to keep the relying party's `state` and query. It strips the whole query
+  today, the follow-up noted on PR #1817.
+
+Same for the app-registration page's cancel.
+
+## Tests, red first
+
+All in Odin.Hosting.Tests.V2, the fixture style of `YouAuthErrorRedirectTests`, step numbers in
+the names per `docs/youauth-unified-authorization.md`.
+
+**Parser and fetcher**, against a canned response, in `YouAuthClientMetadataTests`:
+
+- absent (404) gives an empty document and is cached as such;
+- a valid document round-trips name, logo and redirect URIs;
+- a body over the size cap, a non-JSON body and a wrong content type each give an empty document;
+- a redirect URI on a foreign host, an http one, and a logo on a foreign host are each dropped
+  while the rest of the document survives;
+- a name with control characters and runs of whitespace comes back cleaned and capped.
+
+**Integration**, Sam as the relying party because his identity now serves a document:
+
+- `YouAuth030_AVerifiedNameReachesTheConsentPage`: Frodo authorizing a login from Sam is redirected
+  to consent with `client_info` equal to Sam's display name and `client_logo` set.
+- `YouAuth055_TheVerifiedNameIsStoredOnTheRegistration`: after consent, Frodo's registration for
+  Sam's domain carries that name, and the connected-domains list shows it.
+- `YouAuth030_ARedirectPathTheSiteDidNotPublishIsRefused`: a redirect URI on Sam's host but not in
+  his `redirect_uris` gets a 400.
+- `YouAuth030_TheRelyingPartysQueryDoesNotBreakThePin`: Sam's published callback plus `?session=abc`
+  is accepted.
+- `YouAuth030_ADomainWithNoDocumentBehavesAsToday`: a throwaway domain gets the host rule and the
+  bare domain on the consent redirect.
+
+**Own document**: `GET /.well-known/youauth-client.json` on Frodo, anonymously, returns his name,
+image and callback; an identity with no public profile still returns a valid document with the
+callback only.
+
+## Order of work
+
+1. Tests, committed red.
+2. The parser and fetcher, with the cache.
+3. The well-known endpoint.
+4. The controller and service changes.
+5. Simplify pass, `SIMPLIFY:` prefixed.
+6. The odin-js PR against the consent and app-registration pages, which can land independently:
+   without it the server change is invisible but harmless, since the page ignores `client_info` for
+   domains today.
+7. Update `docs/youauth-unified-authorization.md` step [030] and the prose for the document, in the
+   same PR as the server change.
+
+## Not in this PR
+
+- Rejecting a site that publishes no document. The fallback is the whole point of no registration.
+- Signing the document or serving it over DNS.
+- Using the document to pre-fill the permission request. `permission_request` is still the
+  request's, not the site's.
+- The LSD draft's `/.well-known/youauth` for identity-host metadata, which is a different document
+  about the other party.
