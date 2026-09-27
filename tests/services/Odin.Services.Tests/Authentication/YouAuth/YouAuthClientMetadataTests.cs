@@ -205,17 +205,19 @@ public class YouAuthClientMetadataTests
     }
 
     [Test]
-    public async Task LocalhostIsNeverFetched()
+    public async Task AnAddressIsNeverFetched()
     {
+        // "127.0.0.1" and "10.0.0.5" pass the domain validator (labels of digits), so the client id
+        // can be an address. Nothing legitimate publishes a document at one, and a fetch there would
+        // be this server making a request into whatever network it sits on.
         await using var container = BuildContainerWithCaches();
         var fetcher = new Mock<IYouAuthClientMetadataFetcher>(MockBehavior.Strict);
 
         var service = new YouAuthClientMetadataService(fetcher.Object,
             container.Resolve<ITenantLevel2Cache<YouAuthClientMetadataService>>());
 
-        var doc = await service.GetAsync(new AsciiDomainName("localhost"));
-
-        Assert.That(doc.IsEmpty, Is.True);
+        Assert.That((await service.GetAsync(new AsciiDomainName("127.0.0.1"))).IsEmpty, Is.True);
+        Assert.That((await service.GetAsync(new AsciiDomainName("10.0.0.5"))).IsEmpty, Is.True);
         fetcher.VerifyNoOtherCalls();
     }
 

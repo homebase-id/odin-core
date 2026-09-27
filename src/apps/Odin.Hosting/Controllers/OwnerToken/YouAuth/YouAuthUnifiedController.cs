@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Util;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
@@ -44,18 +45,20 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
     {
         private readonly ILogger<YouAuthUnifiedController> _logger;
         private readonly IYouAuthUnifiedService _youAuthService;
+        private readonly YouAuthClientMetadataService _clientMetadata;
 
         private readonly string _currentTenant;
 
         public YouAuthUnifiedController(
             ILogger<YouAuthUnifiedController> logger,
             ITenantProvider tenantProvider,
-            IYouAuthUnifiedService youAuthService)
+            IYouAuthUnifiedService youAuthService,
+            YouAuthClientMetadataService clientMetadata)
         {
             _logger = logger;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
-            
+            _clientMetadata = clientMetadata;
         }
 
         //
@@ -93,9 +96,27 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 throw new BadRequestException("Cannot YouAuth to self");
             }
 
-            // A domain has vouched for its own host by the check above. An app vouches for its
-            // redirect by being registered here, which is only known once step [045] has looked.
-            // Until then a failure is a 400 at the identity; from then on it is step [060].
+            // A domain has vouched for its own host by the check above, and may have said more
+            // about itself at /.well-known/youauth-client.json: what it calls itself, and which
+            // paths are its callbacks. Both come from the redirect domain, so the name is bound to
+            // it (not vouched for by anyone) and a published callback list narrows the trusted
+            // target from the host to those paths. See docs/youauth-client-metadata-plan.md.
+            var clientMetadata = YouAuthClientMetadata.Empty;
+            if (authorize.ClientType == ClientType.domain)
+            {
+                clientMetadata = await _clientMetadata.GetAsync(new AsciiDomainName(authorize.ClientId));
+                if (!clientMetadata.AllowsRedirect(redirectUri))
+                {
+                    throw new BadRequestException($"{YouAuthAuthorizeRequest.RedirectUriName} is not a callback {authorize.ClientId} has published");
+                }
+
+                // Only the domain's own word about its name counts; what the query string said does not.
+                authorize.ClientInfo = clientMetadata.Name ?? "";
+            }
+
+            // An app vouches for its redirect by being registered here, which is only known once
+            // step [045] has looked. Until then a failure is a 400 at the identity; from then on it
+            // is step [060].
             var redirectTrusted = authorize.ClientType == ClientType.domain;
 
             try
@@ -153,10 +174,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
                 if (needConsent)
                 {
-                    var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
+                    // For a domain, the request as validated here rather than as it arrived:
+                    // client_info now carries the name the redirect domain published, which is
+                    // what the consent page shows. An app's request goes back as it came.
+                    var returnUrl = authorize.ClientType == ClientType.domain
+                        ? $"{Request.Scheme}://{Request.Host}{Request.Path}?{authorize.ToQueryString()}"
+                        : Request.GetDisplayUrl();
 
-                    var consentPage =
-                        $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Consent}?returnUrl={returnUrl}";
+                    var consentQuery = new Dictionary<string, string?>
+                    {
+                        { "returnUrl", returnUrl },
+                        { YouAuthDefaults.ClientLogo, clientMetadata.Logo },
+                    };
+
+                    var consentPage = QueryHelpers.AddQueryString(
+                        $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Consent}", consentQuery);
 
                     _logger.LogDebug("YouAuth: redirecting to {redirect}", consentPage);
                     return Redirect(consentPage);

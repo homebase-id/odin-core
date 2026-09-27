@@ -167,6 +167,25 @@ namespace Odin.Services.Membership.YouAuth
             await ResetPermissionContextCacheAsync();
         }
 
+        /// <summary>
+        /// Gives the registration the name the domain published for itself, when that is not the
+        /// name it was registered under. Consent registers a domain under its own host name before
+        /// the authorize flow, which has the verified name, completes.
+        /// </summary>
+        public async Task RenameAsync(AsciiDomainName domain, string name, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var domainReg = await this.GetDomainRegistrationInternalAsync(domain);
+            if (domainReg == null || domainReg.Name == name)
+            {
+                return;
+            }
+
+            domainReg.Name = name;
+            await SaveRegistrationAsync(domainReg, odinContext);
+        }
+
         public async Task RevokeDomainAsync(AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();

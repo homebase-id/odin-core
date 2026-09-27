@@ -168,6 +168,18 @@ public sealed partial class OdinHost : IAsyncDisposable
                         {
                             TenantServices.ConfigureTenantServices(cb, registration, cfg);
                             cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
+
+                            // The relying-party metadata fetch is a plain HTTPS GET to the client's
+                            // apex host, not a peer (capi) call, and ConfigureTenantServices registers
+                            // the fetcher per tenant, so the override has to be per tenant too or it is
+                            // shadowed. The production fetcher, with its HTTP handed to the in-process
+                            // server, so a test identity can serve /.well-known/youauth-client.json to
+                            // another.
+                            cb.Register(c => new YouAuthClientMetadataFetcher(
+                                    new InProcessDynamicHttpClientFactory(serverHolder),
+                                    c.Resolve<ILogger<YouAuthClientMetadataFetcher>>()))
+                                .As<IYouAuthClientMetadataFetcher>()
+                                .InstancePerLifetimeScope();
                             return cb;
                         },
                         sp.GetRequiredService<OdinConfiguration>())));
@@ -184,16 +196,6 @@ public sealed partial class OdinHost : IAsyncDisposable
 
                 cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>(), c.Resolve<TenantContext>()))
                     .As<IOdinHttpClientFactory>()
-                    .InstancePerLifetimeScope();
-
-                // The relying-party metadata fetch is a plain HTTPS GET to the client's apex host,
-                // not a peer (capi) call, so it has its own factory. Same trade as above: the
-                // production fetcher, with its HTTP handed to the in-process server, so a test
-                // identity can serve its own /.well-known/youauth-client.json to another.
-                cb.Register(c => new YouAuthClientMetadataFetcher(
-                        new InProcessDynamicHttpClientFactory(serverHolder),
-                        c.Resolve<ILogger<YouAuthClientMetadataFetcher>>()))
-                    .As<IYouAuthClientMetadataFetcher>()
                     .InstancePerLifetimeScope();
 
                 // Test-only services. Registered at root; tenant scopes resolve via parent fallback.

@@ -17,6 +17,7 @@ using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.YouAuthApi;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
@@ -31,8 +32,10 @@ namespace Odin.Hosting.Tests.V2.YouAuth;
 /// See docs/youauth-client-metadata-plan.md; step numbers in the names are the flow diagram's.
 /// </summary>
 /// <remarks>
-/// Sam is the relying party throughout, because his identity serves a document and the test host
-/// routes Frodo's fetch of it in-process. A throwaway domain stands in for a site with no document.
+/// Sam is the relying party for the name tests, because his identity serves a document and the test
+/// host routes Frodo's fetch of it in-process. A made-up site with a canned document, served by the
+/// test host's fetch factory, is the relying party for the callback pin, since an identity's own
+/// document publishes no callback list. A throwaway domain stands in for a site with no document.
 /// </remarks>
 [TestFixture]
 public class YouAuthClientMetadataTests : V2Fixture
@@ -41,8 +44,19 @@ public class YouAuthClientMetadataTests : V2Fixture
 
     private const string SamsName = "Samwise Gamgee";
 
+    /// <summary>The home-site login's callback: what a peer signing in on Sam's home site redirects to.</summary>
     private static string SamsCallback =>
         $"https://{Identities.Sam}{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName}";
+
+    private const string PinnedSite = "pinned-site.org";
+    private const string PinnedSiteCallback = $"https://{PinnedSite}/auth/callback";
+
+    [OneTimeSetUp]
+    public void PublishThePinnedSite()
+    {
+        InProcessDynamicHttpClientFactory.CannedDocuments[PinnedSite] =
+            $$"""{"name":"Pinned Site","redirect_uris":["{{PinnedSiteCallback}}"]}""";
+    }
 
     // ---------------------------------------------------------------------------------------
     // The identity's own document
@@ -63,19 +77,19 @@ public class YouAuthClientMetadataTests : V2Fixture
         var doc = OdinSystemSerializer.Deserialize<YouAuthClientMetadataDocument>(await response.Content.ReadAsStringAsync())!;
         Assert.That(doc.Name, Is.EqualTo(SamsName), "the owner's public name is what peers see on their consent page");
         Assert.That(doc.Logo, Is.EqualTo($"https://{Identities.Sam}/pub/image"), "the public image the consent page already fetches");
-        Assert.That(doc.RedirectUris, Is.EqualTo(new[] { SamsCallback }), "the home-site login's callback is the only one");
+        Assert.That(doc.RedirectUris, Is.Null, "an identity host has one relying party on it, itself; a pin would protect nothing");
     }
 
     [Test]
-    public async Task AnIdentityWithNoPublicProfileStillServesItsCallback()
+    public async Task AnIdentityWithNoPublicProfileStillServesItsLogo()
     {
         using var anonymous = Host.CreateAnonymousClient(Identities.Frodo);
         var response = await anonymous.GetAsync(YouAuthDefaults.ClientMetadataPath);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var doc = OdinSystemSerializer.Deserialize<YouAuthClientMetadataDocument>(await response.Content.ReadAsStringAsync())!;
-        Assert.That(doc.RedirectUris, Has.Count.EqualTo(1));
-        Assert.That(doc.Name, Is.Null.Or.Empty, "no profile, no name; the callback is still worth publishing");
+        Assert.That(doc.Logo, Is.EqualTo($"https://{Identities.Frodo}/pub/image"));
+        Assert.That(doc.Name, Is.Null.Or.Empty, "no profile, no name; the document is still worth serving");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -141,7 +155,10 @@ public class YouAuthClientMetadataTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
 
-        var response = await Authorize(frodo, SamAsRelyingParty($"https://{Identities.Sam}/somewhere/else"));
+        var request = SamAsRelyingParty($"https://{PinnedSite}/somewhere/else");
+        request.ClientId = PinnedSite;
+
+        var response = await Authorize(frodo, request);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
             "the domain said which path is its callback; another path on the same host is not trusted");
@@ -152,9 +169,11 @@ public class YouAuthClientMetadataTests : V2Fixture
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
 
-        var response = await Authorize(frodo, SamAsRelyingParty($"{SamsCallback}?session=abc"));
+        var request = SamAsRelyingParty($"{PinnedSiteCallback}?session=abc");
+        request.ClientId = PinnedSite;
 
-        AssertRedirectsToConsent(response);
+        var returnUrl = AssertRedirectsToConsent(await Authorize(frodo, request));
+        Assert.That(returnUrl.ClientInfo, Is.EqualTo("Pinned Site"));
     }
 
     [Test]

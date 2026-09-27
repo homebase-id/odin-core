@@ -90,10 +90,12 @@ bare domain, so the owner's list of connected domains says "Amazon". The logo UR
 way, as `client_logo` on the consent redirect only; it is not stored.
 
 **Identities publish one too.** An anonymous endpoint next to the WebFinger and DID controllers
-serves the identity's own document: the owner's display name from the public profile, the public
-image the consent page already fetches, and the home-site login callback path. Every Homebase
-identity is thereby a relying party that names itself, and a peer signing in on another's home site
-sees "Sam Gamgee" rather than a host. This is the "on by default" decision.
+serves the identity's own document: the owner's display name from the public profile and the public
+image the consent page already fetches. No callback list: an identity host has exactly one relying
+party on it, itself, so a pin there protects nothing, and it would force every peer to match a port
+the identity cannot know (the test host, for one, echoes the request's port into redirects). Every
+Homebase identity is thereby a relying party that names itself, and a peer signing in on another's
+home site sees "Sam Gamgee" rather than a host. This is the "on by default" decision.
 
 ## The consent page, in odin-js
 
@@ -133,16 +135,17 @@ the names per `docs/youauth-unified-authorization.md`.
   to consent with `client_info` equal to Sam's display name and `client_logo` set.
 - `YouAuth055_TheVerifiedNameIsStoredOnTheRegistration`: after consent, Frodo's registration for
   Sam's domain carries that name, and the connected-domains list shows it.
-- `YouAuth030_ARedirectPathTheSiteDidNotPublishIsRefused`: a redirect URI on Sam's host but not in
-  his `redirect_uris` gets a 400.
-- `YouAuth030_TheRelyingPartysQueryDoesNotBreakThePin`: Sam's published callback plus `?session=abc`
-  is accepted.
+- `YouAuth030_ARedirectPathTheDomainDidNotPublishIsRefused`: a redirect URI on a made-up site's host
+  but not in its canned `redirect_uris` gets a 400. The test host's fetch factory serves canned
+  documents for made-up hosts, since identities publish no callback list.
+- `YouAuth030_TheRelyingPartysQueryDoesNotBreakThePin`: that site's published callback plus
+  `?session=abc` is accepted.
 - `YouAuth030_ADomainWithNoDocumentBehavesAsToday`: a throwaway domain gets the host rule and the
   bare domain on the consent redirect.
 
-**Own document**: `GET /.well-known/youauth-client.json` on Frodo, anonymously, returns his name,
-image and callback; an identity with no public profile still returns a valid document with the
-callback only.
+**Own document**: `GET /.well-known/youauth-client.json` on Sam, anonymously, returns his name and
+image and no callback list; an identity with no public profile still returns a valid document with
+the image only.
 
 ## Order of work
 
