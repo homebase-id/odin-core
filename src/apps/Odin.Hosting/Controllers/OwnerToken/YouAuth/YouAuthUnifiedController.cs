@@ -22,8 +22,20 @@ using Odin.Hosting.Extensions;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 {
-    // https://github.com/YouFoundation/stories-and-architecture-docs/blob/master/concepts/YouAuth/unified-authorization.md
-
+    /// <summary>
+    /// The identity's side of the YouAuth unified authorization flow: the <c>authorize</c> endpoint
+    /// (GET, and POST for consent) and the <c>token</c> endpoint.
+    /// </summary>
+    /// <remarks>
+    /// The <c>Step [nnn]</c> comments below are the step numbers of the protocol flow diagram at
+    /// https://github.com/YouFoundation/stories-and-architecture-docs/blob/master/concepts/YouAuth/unified-authorization.md
+    /// and read in that order: [030] the request arrives here, [040] to [055] bounce through the
+    /// owner's login, app-registration and consent pages, [070] to [080] answer the relying party,
+    /// and [100] to [140] are the token exchange. Steps not numbered here -- [010], [042], [047],
+    /// [090], [150], [400] -- happen in the owner's browser or at the relying party. [060] is the
+    /// one out of sequence: the diagram's "show error if something is wrong" is the catch at the end
+    /// of <see cref="Authorize"/>, which any earlier step can fall into.
+    /// </remarks>
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.YouAuthV1)]
     [ApiExplorerSettings(GroupName = "owner-v1")]
@@ -82,6 +94,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
             // A domain has vouched for its own host by the check above. An app vouches for its
             // redirect by being registered here, which is only known once step [045] has looked.
+            // Until then a failure is a 400 at the identity; from then on it is step [060].
             var redirectTrusted = authorize.ClientType == ClientType.domain;
 
             try
@@ -149,7 +162,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 }
 
                 //
-                // [070]
+                // Step [070]
                 // Create ECC private/public key pair, random salt and shared secret based on public_key from step 30.
                 // Create client access token and store it encrypted with shared secret in cache for later lookup.
                 //
@@ -162,7 +175,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     WebOdinContext);
 
                 //
-                // [080] Return authorization code, public key and salt to client
+                // Step [080] Return identity, public key, salt and state to the relying party
                 //
                 return RedirectToRelyingParty(redirectUri, new Dictionary<string, string?>
                 {
@@ -172,8 +185,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     { YouAuthDefaults.State, authorize.State },
                 });
             }
-            // A revoked app is by definition a registered one, so its redirect is trusted whether or
-            // not step [045] got as far as saying so.
+            //
+            // Step [060] Show error if something is wrong.
+            // Anything from [030] onward that failed lands here and goes back to the relying party,
+            // provided its redirect is trusted (see the top of the method). A revoked app is by
+            // definition a registered one, so its redirect is trusted whether or not step [045] got
+            // as far as saying so.
+            //
             catch (Exception e) when (redirectTrusted || e is OdinClientException { ErrorCode: OdinClientErrorCode.AppRevoked })
             {
                 var (code, description) = e switch
