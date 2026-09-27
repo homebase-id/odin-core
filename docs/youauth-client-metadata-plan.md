@@ -103,6 +103,10 @@ sees "Sam Gamgee" rather than a host. This is the "on by default" decision.
 - Read `client_info` and `client_logo` from the return URL. Show the name as the heading with the
   domain always visible beneath it, never replaced by it, so "Amazon" over `arnazon-login.com` still
   reads as what it is.
+- Render the name through `DomainHighlighter`, the component that already colours non-ASCII
+  characters in the domain so `amazon` and `amazón` cannot be confused. The name is free text from
+  the redirect domain and can carry the same homoglyph tricks; it must be flagged the same way and
+  never styled more prominently than the domain it sits over.
 - Use `client_logo` when present, falling back to the two fetches it makes today.
 - Fix the cancel path to keep the relying party's `state` and query. It strips the whole query
   today, the follow-up noted on PR #1817.
