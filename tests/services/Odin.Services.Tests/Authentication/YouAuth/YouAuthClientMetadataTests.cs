@@ -36,10 +36,9 @@ public class YouAuthClientMetadataTests
     public void AValidDocumentRoundTrips()
     {
         var doc = YouAuthClientMetadata.Parse(Amazoom,
-            """{"name":"Amazoom","logo":"https://amazoom.org/logo.png","redirect_uris":["https://amazoom.org/auth/callback"]}""");
+            """{"name":"Amazoom","redirect_uris":["https://amazoom.org/auth/callback"]}""");
 
         Assert.That(doc.Name, Is.EqualTo("Amazoom"));
-        Assert.That(doc.Logo, Is.EqualTo("https://amazoom.org/logo.png"));
         Assert.That(doc.RedirectUris, Is.EqualTo(new[] { "https://amazoom.org/auth/callback" }));
     }
 
@@ -63,13 +62,13 @@ public class YouAuthClientMetadataTests
     }
 
     [Test]
-    public void ALogoOnAnotherHostIsDropped()
+    public void FieldsTheDocumentDoesNotDefineAreIgnored()
     {
-        var doc = YouAuthClientMetadata.Parse(Amazoom, """{"logo":"https://cdn.example/logo.png"}""");
-        Assert.That(doc.Logo, Is.Null);
-
-        var plain = YouAuthClientMetadata.Parse(Amazoom, """{"logo":"http://amazoom.org/logo.png"}""");
-        Assert.That(plain.Logo, Is.Null, "https only");
+        // A logo was once part of the document and was dropped: it adds persuasion and no
+        // information, since any site can serve another's logo. A site still publishing one is
+        // simply not read.
+        var doc = YouAuthClientMetadata.Parse(Amazoom, """{"name":"Amazoom","logo":"https://amazoom.org/logo.png"}""");
+        Assert.That(doc.Name, Is.EqualTo("Amazoom"));
     }
 
     [Test]

@@ -33,7 +33,6 @@ public class YouAuthClientMetadataTests : V2Fixture
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     private const string SamsName = "Samwise Gamgee";
-    private static string SamsLogo => $"https://{Identities.Sam}/pub/image";
     private static string SamsCallback => $"https://{Identities.Sam}/api/guest/v1/builtin/home/auth/auth-code-callback";
 
     private const string PinnedSite = "pinned-site.org";
@@ -58,16 +57,15 @@ public class YouAuthClientMetadataTests : V2Fixture
 
         var doc = await OwnDocumentAsync(Identities.Sam);
         Assert.That(doc.Name, Is.EqualTo(SamsName), "the owner's public name is what peers see on their consent page");
-        Assert.That(doc.Logo, Is.EqualTo(SamsLogo), "the public image the consent page already fetches");
         Assert.That(doc.RedirectUris, Is.Null, "an identity host has one relying party on it, itself; a pin would protect nothing");
     }
 
     [Test]
-    public async Task AnIdentityWithNoPublicProfileStillServesItsLogo()
+    public async Task AnIdentityWithNoPublicProfileServesAnEmptyDocument()
     {
         var doc = await OwnDocumentAsync(Identities.Frodo);
-        Assert.That(doc.Logo, Is.EqualTo($"https://{Identities.Frodo}/pub/image"));
-        Assert.That(doc.Name, Is.Null.Or.Empty, "no profile, no name; the document is still worth serving");
+        Assert.That(doc.Name, Is.Null.Or.Empty, "no profile, no name; the document is still there to be read");
+        Assert.That(doc.RedirectUris, Is.Null);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -86,9 +84,6 @@ public class YouAuthClientMetadataTests : V2Fixture
         var returnUrl = AssertRedirectsToConsent(response);
         Assert.That(returnUrl.ClientInfo, Is.EqualTo(SamsName),
             "the name the redirect domain gives itself, fetched from that domain, not what the query string said");
-
-        var consentQuery = YouAuthTestHelper.ParseQueryString(response.GetHeaderValue("Location")!);
-        Assert.That(consentQuery.GetValueOrDefault(YouAuthDefaults.ClientLogo), Is.EqualTo(SamsLogo));
     }
 
     [Test]

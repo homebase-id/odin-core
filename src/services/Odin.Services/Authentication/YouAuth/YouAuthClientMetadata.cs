@@ -25,9 +25,6 @@ public sealed class YouAuthClientMetadataDocument
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
-    [JsonPropertyName("logo")]
-    public string? Logo { get; set; }
-
     [JsonPropertyName("redirect_uris")]
     public List<string>? RedirectUris { get; set; }
 }
@@ -47,16 +44,13 @@ public sealed class YouAuthClientMetadata
     /// <summary>What the redirect domain calls itself; null when it says nothing.</summary>
     public string? Name { get; init; }
 
-    /// <summary>An https URL on the redirect domain, or null.</summary>
-    public string? Logo { get; init; }
-
     /// <summary>
     /// The callbacks the domain says are its own, as absolute https URLs on that domain; null when
     /// it published none, in which case any path on the host is accepted.
     /// </summary>
     public List<string>? RedirectUris { get; init; }
 
-    public bool IsEmpty => Name == null && Logo == null && RedirectUris == null;
+    public bool IsEmpty => Name == null && RedirectUris == null;
 
     /// <summary>
     /// Parses a document fetched from <paramref name="clientId"/>. Anything that is not that domain's
@@ -84,7 +78,6 @@ public sealed class YouAuthClientMetadata
         return new YouAuthClientMetadata
         {
             Name = CleanName(document.Name),
-            Logo = IsOwnHttpsUrl(clientId, document.Logo) ? document.Logo : null,
             // An empty list is no list: publishing no callbacks must not lock every callback out.
             RedirectUris = redirectUris is { Count: > 0 } ? redirectUris : null
         };

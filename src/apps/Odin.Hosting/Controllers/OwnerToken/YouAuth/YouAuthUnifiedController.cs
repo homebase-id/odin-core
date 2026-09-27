@@ -179,14 +179,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                         ? $"{Request.Scheme}://{Request.Host}{Request.Path}?{authorize.ToQueryString()}"
                         : Request.GetDisplayUrl();
 
-                    var consentQuery = new Dictionary<string, string?>
-                    {
-                        { "returnUrl", returnUrl },
-                        { YouAuthDefaults.ClientLogo, clientMetadata.Logo },
-                    };
-
                     var consentPage = QueryHelpers.AddQueryString(
-                        $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Consent}", consentQuery);
+                        $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Consent}", "returnUrl", returnUrl);
 
                     _logger.LogDebug("YouAuth: redirecting to {redirect}", consentPage);
                     return Redirect(consentPage);

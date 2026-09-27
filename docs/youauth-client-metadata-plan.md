@@ -36,7 +36,6 @@ A site that wants more than a bare domain publishes `https://<client_id>/.well-k
 ```json
 {
   "name": "Amazon",
-  "logo": "https://amazon.com/youauth-logo.png",
   "redirect_uris": ["https://amazon.com/auth/homebase/callback"]
 }
 ```
@@ -44,7 +43,7 @@ A site that wants more than a bare domain publishes `https://<client_id>/.well-k
 - Every field is optional. A document with none of them is the same as no document.
 - `name`: shown on the dialog and stored as the domain registration's name. Capped at 64 characters,
   control characters stripped, whitespace collapsed. Never shown in place of the domain, only next to it.
-- `logo`: an https URL on the client's own host. Any other value is dropped.
+- There is no logo, by decision (below): it would add persuasion and no information.
 - `redirect_uris`: absolute https URLs on the client's own host. Any other entry is dropped. When the
   list is present and non-empty, the request's `redirect_uri` must match one of them on scheme, host
   and path; the relying party's own query is ignored in the comparison, since it is kept on the way
@@ -60,7 +59,7 @@ trusts that the document came from that domain, and nothing more.
 ## What the identity does with it
 
 **Fetch, at step [030] after the trust checks.** `YouAuthClientMetadataService` in Odin.Services,
-one method: `GetAsync(AsciiDomainName clientId)` returning `YouAuthClientMetadata` (name, logo,
+one method: `GetAsync(AsciiDomainName clientId)` returning `YouAuthClientMetadata` (name,
 redirect URIs, all nullable) or an empty instance. It fetches through `IOdinHttpClientFactory` with
 a typed Refit client, which is how every other call to a peer's host is made and what the V2 test
 host routes in-process. Short timeout (3 s), redirects not followed, response size capped before
@@ -87,8 +86,7 @@ name for the token it issues. The domain path overwrites it with the document's 
 the app path, sends the request as validated to the consent page, so the page sees it. Two
 consumers pick it up: the consent page reads it from the return URL, and `YouAuthUnifiedService`
 stores it as the registration's `Name` and the client's friendly name where today it stores the
-bare domain, so the owner's list of connected domains says "Amazon". The logo URL travels the same
-way, as `client_logo` on the consent redirect only; it is not stored.
+bare domain, so the owner's list of connected domains says "Amazon".
 
 **Identities publish one too.** An anonymous endpoint next to the WebFinger and DID controllers
 serves the identity's own document: the owner's display name from the public profile and the public
@@ -100,21 +98,19 @@ home site sees "Sam Gamgee" rather than a host. This is the "on by default" deci
 
 ## The consent page, in odin-js
 
-`YouAuthConsent.tsx` today names the site by the redirect host and fetches `/pub/image` then
-`/favicon.ico` from it. Changes:
+The dialog answers one question first: where is this login going? The domain leads, large and
+painted by `DomainHighlighter`, exactly as today. Everything the redirect domain says about itself is
+subordinate to that, in size and in wording, so the owner is not led cognitively by a claim.
 
-- Read `client_info` and `client_logo` from the return URL. Show the name as the heading with the
-  domain always visible beneath it, never replaced by it, so "Amazon" over `arnazon-login.com` still
-  reads as what it is.
-- Render the name through `DomainHighlighter`, the component that already colours non-ASCII
-  characters in the domain so `amazon` and `amazón` cannot be confused. The name is free text from
-  the redirect domain and can carry the same homoglyph tricks; it must be flagged the same way and
-  never styled more prominently than the domain it sits over.
-- Use `client_logo` when present, falling back to the two fetches it makes today.
-- Fix the cancel path to keep the relying party's `state` and query. It strips the whole query
-  today, the follow-up noted on PR #1817.
-
-Same for the app-registration page's cancel.
+- **Lead:** the redirect domain, large, through `DomainHighlighter`. Unchanged.
+- **Below it, small:** "Calling itself 'Amazon'", only when the server passed a name in `client_info`.
+  The same highlighter on the name, so a homoglyph inside the quotes is painted too. The phrasing does
+  the work: it says this is the domain's claim, not a fact the identity checked.
+- **No logo.** Dropped from the document, the fetch and the redirect by decision: a logo is the most
+  persuasive and least verifiable thing a domain can publish, since any site can serve another's. The
+  page keeps its small favicon fetch, which the owner reads as decoration, and nothing larger.
+- **Cancel** keeps the relying party's `state` and query, on this page and on the app-registration
+  page. It strips the whole query today, the follow-up noted on PR #1817.
 
 ## Tests, red first
 
@@ -124,16 +120,16 @@ the names per `docs/youauth-unified-authorization.md`.
 **Parser and fetcher**, against a canned response, in `YouAuthClientMetadataTests`:
 
 - absent (404) gives an empty document and is cached as such;
-- a valid document round-trips name, logo and redirect URIs;
+- a valid document round-trips name and redirect URIs; a logo, if still published, is ignored;
 - a body over the size cap, a non-JSON body and a wrong content type each give an empty document;
-- a redirect URI on a foreign host, an http one, and a logo on a foreign host are each dropped
-  while the rest of the document survives;
+- a redirect URI on a foreign host and an http one are each dropped while the rest of the document
+  survives;
 - a name with control characters and runs of whitespace comes back cleaned and capped.
 
 **Integration**, Sam as the relying party because his identity now serves a document:
 
 - `YouAuth030_AVerifiedNameReachesTheConsentPage`: Frodo authorizing a login from Sam is redirected
-  to consent with `client_info` equal to Sam's display name and `client_logo` set.
+  to consent with `client_info` equal to Sam's display name.
 - `YouAuth055_TheVerifiedNameIsStoredOnTheRegistration`: after consent, Frodo's registration for
   Sam's domain carries that name, and the connected-domains list shows it.
 - `YouAuth030_ARedirectPathTheDomainDidNotPublishIsRefused`: a redirect URI on a made-up site's host
@@ -145,8 +141,7 @@ the names per `docs/youauth-unified-authorization.md`.
   bare domain on the consent redirect.
 
 **Own document**: `GET /.well-known/youauth-client.json` on Sam, anonymously, returns his name and
-image and no callback list; an identity with no public profile still returns a valid document with
-the image only.
+no callback list; an identity with no public profile still returns a valid, empty document.
 
 ## Order of work
 
