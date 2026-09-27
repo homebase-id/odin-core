@@ -162,18 +162,20 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"Bad or missing {PublicKeyName}");
         }
-        if (!YouAuthCipherExtensions.TryParse(Cipher, out _))
-        {
-            throw new BadRequestException($"Unknown {YouAuthDefaults.Cipher} '{Cipher}': {YouAuthDefaults.CipherAesCbc} or {YouAuthDefaults.CipherAesGcm}");
-        }
+        ParsedCipher();
     }
 
-    /// <summary>The cipher the client asked for; call after <see cref="ValidateRequest"/>.</summary>
+    /// <summary>The cipher the client asked for, CBC when it asked for none; a 400 for one the identity does not know.</summary>
     public YouAuthCipher ParsedCipher()
     {
-        return YouAuthCipherExtensions.TryParse(Cipher, out var cipher)
-            ? cipher
-            : throw new BadRequestException($"Unknown {YouAuthDefaults.Cipher} '{Cipher}'");
+        try
+        {
+            return YouAuthCiphers.Parse(Cipher);
+        }
+        catch (ArgumentException e)
+        {
+            throw new BadRequestException(e.Message);
+        }
     }
 }
 

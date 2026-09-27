@@ -48,8 +48,7 @@ public class YouAuthTokenCipherTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var keyPair = NewKeyPair();
-        var request = DomainRequest(Domain, DomainCallback);
-        request.PublicKey = keyPair.PublicKeyJwk;
+        var request = DomainRequest(Domain, DomainCallback, keyPair);
         request.Cipher = cipher;
 
         var callback = await AuthorizeWithConsentAsync(Host, owner, request);
@@ -77,8 +76,7 @@ public class YouAuthTokenCipherTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var keyPair = NewKeyPair();
-        var request = DomainRequest(Domain, DomainCallback);
-        request.PublicKey = keyPair.PublicKeyJwk;
+        var request = DomainRequest(Domain, DomainCallback, keyPair);
         request.Cipher = YouAuthDefaults.CipherAesGcm;
 
         var callback = await AuthorizeWithConsentAsync(Host, owner, request);
@@ -104,30 +102,13 @@ public class YouAuthTokenCipherTests : V2Fixture
     public async Task YouAuth050_TheCipherSurvivesTheConsentRoundTrip()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
-        var keyPair = NewKeyPair();
         var request = DomainRequest(Domain, DomainCallback);
-        request.PublicKey = keyPair.PublicKeyJwk;
         request.Cipher = YouAuthDefaults.CipherAesGcm;
 
         var returnUrl = AssertRedirectsToConsent(await AuthorizeAsync(Host, owner, request));
         Assert.That(returnUrl.Cipher, Is.EqualTo(YouAuthDefaults.CipherAesGcm), "the consent page's return URL carries the request as validated, cipher included");
-        Assert.That(returnUrl.ToQueryString(), Does.Contain($"{YouAuthDefaults.Cipher}={YouAuthDefaults.CipherAesGcm}"));
-
-        await GiveConsentAsync(Host, owner, returnUrl);
-        var callback = AssertRedirectsTo(await AuthorizeAsync(Host, owner, request), DomainCallback);
-        var (token, _) = await ExchangeTokenAsync(Host, Identities.Frodo, keyPair, callback);
-
-        Assert.That(token.Cipher, Is.EqualTo(YouAuthDefaults.CipherAesGcm), "what the client asked for at [030] is what sealed the token after the detour");
-    }
-
-    [Test]
-    public void YouAuth030_ARequestWithoutACipherBuildsTheSameQueryStringAsToday()
-    {
-        var request = DomainRequest(Domain, DomainCallback);
-
-        var queryString = request.ToQueryString();
-        Assert.That(queryString, Does.Not.Contain(YouAuthDefaults.Cipher), $"a request that sent nothing round-trips through the consent detour byte for byte: {queryString}");
-        Assert.That(YouAuthAuthorizeRequest.FromQueryString(queryString).Cipher, Is.Empty);
+        Assert.That(returnUrl.ToQueryString(), Does.Contain($"{YouAuthDefaults.Cipher}={YouAuthDefaults.CipherAesGcm}"),
+            "and it is what the consent page posts back, so the re-entered authorize seals with it (the GCM test above completes that flow)");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -196,5 +177,23 @@ public class YouAuthTokenCipherTests : V2Fixture
         var token = ClientAuthenticationToken.FromPortableBytes(plain);
         Assert.That(token.Id, Is.Not.EqualTo(Guid.Empty));
         Assert.That(token.ClientTokenType, Is.EqualTo(ClientTokenType.YouAuth), "a domain the owner is not connected to gets a YouAuth token");
+    }
+}
+
+/// <summary>
+/// The request DTO alone, no host: what a request that sent no <c>cipher</c> looks like on the
+/// wire. It guards the consent detour's promise that such a request comes back byte for byte.
+/// </summary>
+[TestFixture]
+public class YouAuthAuthorizeRequestCipherTests
+{
+    [Test]
+    public void YouAuth030_ARequestWithoutACipherBuildsTheSameQueryStringAsToday()
+    {
+        var request = DomainRequest("amazoom.org", "https://amazoom.org/callback");
+
+        var queryString = request.ToQueryString();
+        Assert.That(queryString, Does.Not.Contain(YouAuthDefaults.Cipher), $"a request that sent nothing round-trips through the consent detour byte for byte: {queryString}");
+        Assert.That(YouAuthAuthorizeRequest.FromQueryString(queryString).Cipher, Is.Empty);
     }
 }

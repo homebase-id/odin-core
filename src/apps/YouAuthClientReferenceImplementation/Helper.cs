@@ -79,14 +79,11 @@ public static class Helper
     /// </summary>
     public static byte[] OpenTokenField(string? cipher, string base64CipherText, SensitiveByteArray exchangeSecret, string base64Iv)
     {
-        var cipherText = Convert.FromBase64String(base64CipherText);
-        var iv = Convert.FromBase64String(base64Iv);
-        return cipher switch
+        if (!YouAuthCiphers.TryParse(cipher, out var parsed))
         {
-            YouAuthDefaults.CipherAesGcm => AesGcm.Decrypt(cipherText, exchangeSecret, iv),
-            null or "" or YouAuthDefaults.CipherAesCbc => AesCbc.Decrypt(cipherText, exchangeSecret, iv),
-            _ => throw new Exception($"Token sealed with a cipher this client does not know: '{cipher}'")
-        };
+            throw new Exception($"Token sealed with a cipher this client does not know: '{cipher}'");
+        }
+        return parsed.Open(Convert.FromBase64String(base64CipherText), exchangeSecret, Convert.FromBase64String(base64Iv));
     }
 
     //

@@ -51,12 +51,15 @@ internal static class YouAuthFlow
 
     public static string NewPublicKey() => NewKeyPair().PublicKeyJwk;
 
-    /// <summary>A well-formed domain-client request; a test breaks the one field it is about.</summary>
-    public static YouAuthAuthorizeRequest DomainRequest(string clientId, string redirectUri) => new()
+    /// <summary>
+    /// A well-formed domain-client request; a test breaks the one field it is about. A test that
+    /// goes on to exchange the token passes the key pair it will open it with.
+    /// </summary>
+    public static YouAuthAuthorizeRequest DomainRequest(string clientId, string redirectUri, KeyPair? keyPair = null) => new()
     {
         ClientId = clientId,
         ClientType = ClientType.domain,
-        PublicKey = NewPublicKey(),
+        PublicKey = (keyPair ?? NewKeyPair()).PublicKeyJwk,
         State = "s",
         RedirectUri = redirectUri
     };
@@ -80,23 +83,27 @@ internal static class YouAuthFlow
 
     /// <summary>
     /// The whole owner-side detour for a domain the owner has not consented to yet: authorize,
-    /// consent, authorize again. Returns the query the relying party's callback receives at [080].
+    /// consent, authorize again. Returns the callback URL the browser is sent to at [080], query
+    /// and all.
     /// </summary>
-    public static async Task<Dictionary<string, string>> AuthorizeWithConsentAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest payload)
+    public static async Task<string> AuthorizeWithConsentAsync(OdinHost host, OwnerSession owner, YouAuthAuthorizeRequest payload)
     {
         var returnUrl = AssertRedirectsToConsent(await AuthorizeAsync(host, owner, payload));
         await GiveConsentAsync(host, owner, returnUrl);
 
-        return AssertRedirectsTo(await AuthorizeAsync(host, owner, payload), payload.RedirectUri.Split('?')[0]);
+        var response = await AuthorizeAsync(host, owner, payload);
+        AssertRedirectsTo(response, payload.RedirectUri.Split('?')[0]);
+        return response.GetHeaderValue("Location")!;
     }
 
     /// <summary>
-    /// YouAuth [090] to [140]: derive the exchange secret from what the callback received, and
+    /// YouAuth [090] to [140]: derive the exchange secret from what the callback URL carries, and
     /// swap its digest for the token at the identity's anonymous token endpoint.
     /// </summary>
     public static async Task<(YouAuthTokenResponse token, SensitiveByteArray exchangeSecret)> ExchangeTokenAsync(
-        OdinHost host, string identity, KeyPair keyPair, Dictionary<string, string> callbackQuery)
+        OdinHost host, string identity, KeyPair keyPair, string callbackUrl)
     {
+        var callbackQuery = YouAuthTestHelper.ParseQueryString(callbackUrl);
         Assert.That(callbackQuery, Does.ContainKey(YouAuthDefaults.PublicKey), $"callback query: {string.Join(", ", callbackQuery.Keys)}");
         var exchangeSecret = keyPair.ExchangeSecretWith(callbackQuery[YouAuthDefaults.PublicKey], callbackQuery[YouAuthDefaults.Salt]);
         var digest = SHA256.HashData(exchangeSecret.GetKey()).ToBase64();

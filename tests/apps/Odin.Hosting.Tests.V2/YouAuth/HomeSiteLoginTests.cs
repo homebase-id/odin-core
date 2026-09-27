@@ -1,6 +1,6 @@
 #nullable enable
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -8,8 +8,8 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
-using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.YouAuthApi;
 using Odin.Services.Authentication.YouAuth;
@@ -59,22 +59,22 @@ public class HomeSiteLoginTests : V2Fixture
         // base64 is a '+', which is also how the public app must read it.
         var r = Uri.UnescapeDataString(location[(location.IndexOf("?r=", StringComparison.Ordinal) + 3)..location.IndexOf("&ecc=", StringComparison.Ordinal)]);
         var eccJson = Uri.UnescapeDataString(location[(location.IndexOf("&ecc=", StringComparison.Ordinal) + 5)..]);
-        var ecc = OdinSystemSerializer.Deserialize<EccInfo>(eccJson);
-        Assert.That(ecc, Is.Not.Null, eccJson);
-        Assert.That(ecc!.Cipher, Is.EqualTo(pageCipher ?? YouAuthDefaults.CipherAesCbc), $"ecc echoes what sealed the payload: {eccJson}");
+        // The keys as the controller writes them and the public app reads them; every value is a string.
+        var ecc = OdinSystemSerializer.Deserialize<Dictionary<string, string>>(eccJson)!;
+        Assert.That(ecc.GetValueOrDefault("cipher"), Is.EqualTo(pageCipher ?? YouAuthDefaults.CipherAesCbc), $"ecc echoes what sealed the payload: {eccJson}");
 
-        var transferSecret = pageKeyPair.ExchangeSecretWith(ecc.Pk!, ecc.Salt!);
-        var iv = Convert.FromBase64String(ecc.Iv!);
+        // Opened with the raw primitive, not the server's helper: the page is the other party here.
+        var transferSecret = pageKeyPair.ExchangeSecretWith(ecc["pk"], ecc["salt"]);
+        var iv = Convert.FromBase64String(ecc["iv"]);
         var cipherText = Convert.FromBase64String(r);
         var plain = pageCipher == YouAuthDefaults.CipherAesGcm
             ? AesGcm.Decrypt(cipherText, transferSecret, iv)
             : AesCbc.Decrypt(cipherText, transferSecret, iv);
 
-        var payload = OdinSystemSerializer.Deserialize<Payload>(plain.ToStringFromUtf8Bytes());
-        Assert.That(payload, Is.Not.Null);
-        Assert.That(payload!.Identity, Is.EqualTo(Identities.Sam));
-        Assert.That(Convert.FromBase64String(payload.Ss64!), Has.Length.EqualTo(16), "the browser's shared secret with Frodo's identity");
-        Assert.That(payload.ReturnUrl, Is.EqualTo("/"));
+        var payload = OdinSystemSerializer.Deserialize<Dictionary<string, string>>(plain.ToStringFromUtf8Bytes())!;
+        Assert.That(payload.GetValueOrDefault("identity"), Is.EqualTo(Identities.Sam));
+        Assert.That(Convert.FromBase64String(payload["ss64"]), Has.Length.EqualTo(16), "the browser's shared secret with Frodo's identity");
+        Assert.That(payload.GetValueOrDefault("returnUrl"), Is.EqualTo("/"));
     }
 
     // ---------------------------------------------------------------------------------------
@@ -102,12 +102,8 @@ public class HomeSiteLoginTests : V2Fixture
             Cipher = pageCipher
         });
 
-        var returnUrl = AssertRedirectsToConsent(await AuthorizeAsync(Host, sam, request));
-        await GiveConsentAsync(Host, sam, returnUrl);
-
-        var authorized = await AuthorizeAsync(Host, sam, request);
-        var callback = authorized.GetHeaderValue("Location") ?? throw new Exception("missing location");
-        Assert.That(callback, Does.StartWith(FrodosCallback), "Sam's identity sends the browser to Frodo's callback");
+        // Sam's identity sends the browser to Frodo's callback; the test plays the browser.
+        var callback = await AuthorizeWithConsentAsync(Host, sam, request);
 
         using var browser = Host.CreateClient();
         var response = await browser.GetAsync(callback);
@@ -116,11 +112,9 @@ public class HomeSiteLoginTests : V2Fixture
 
     private async Task<string> FrodosOfflineEccPublicKeyAsync()
     {
-        using var client = Host.CreateClient();
-        var response = await client.GetAsync($"https://{Identities.Frodo}{GuestApiPathConstantsV1.PublicKeysV1}/offline_ecc");
-        var content = await response.Content.ReadAsStringAsync();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), content);
-        return content.Trim('"');
+        var response = await Host.AnonymousRefitFor<IPublicPrivateKeyHttpClientForOwner>(Identities.Frodo).GetEccOfflinePublicKey();
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"offline_ecc: {response.StatusCode}");
+        return response.Content!;
     }
 
     private static string AssertSignedIn(HttpResponseMessage response)
@@ -130,23 +124,8 @@ public class HomeSiteLoginTests : V2Fixture
         Assert.That(location, Does.StartWith(FrodosPage));
         Assert.That(location, Does.Not.Contain("error="), $"the sign-in failed: {location}");
 
-        var cookies = response.Headers.TryGetValues("Set-Cookie", out var values) ? values.ToList() : [];
-        Assert.That(cookies, Has.Some.StartsWith($"{YouAuthDefaults.XTokenCookieName}="), $"the browser is signed in on Frodo's site; cookies: {string.Join(" | ", cookies)}");
+        var cookies = response.GetCookies();
+        Assert.That(cookies, Does.ContainKey(YouAuthDefaults.XTokenCookieName), $"the browser is signed in on Frodo's site; cookies: {string.Join(", ", cookies.Keys)}");
         return location;
-    }
-
-    private sealed class EccInfo
-    {
-        public string? Pk { get; set; }
-        public string? Salt { get; set; }
-        public string? Iv { get; set; }
-        public string? Cipher { get; set; }
-    }
-
-    private sealed class Payload
-    {
-        public string? Identity { get; set; }
-        public string? Ss64 { get; set; }
-        public string? ReturnUrl { get; set; }
     }
 }
