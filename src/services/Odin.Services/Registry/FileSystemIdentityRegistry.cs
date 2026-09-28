@@ -19,6 +19,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Storage.PubSub;
 using Odin.Core.Threading;
@@ -245,6 +246,16 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
+            // PostgreSQL keeps every identity's rows in one shared database, so deleting the tenant folder below does
+            // not remove them (#1792). Purged first, while the registration exists: if it fails, the delete fails
+            // and can be retried, instead of leaving rows behind that nothing knows the id of.
+            if (_config.Database.Type == DatabaseType.Postgres)
+            {
+                await using var tenantScope = GetOrCreateMultiTenantScope(registration)
+                    .BeginLifetimeScope($"PurgeIdentity:{registration.PrimaryDomainName}");
+                await tenantScope.Resolve<IdentityDatabase>().PurgeIdentityAsync(registration.Id);
+            }
+
             long version;
             await _registryLock.WaitAsync();
             try
