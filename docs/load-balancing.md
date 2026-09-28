@@ -83,11 +83,11 @@ and then fails to announce logs an **error** (after retries). So every node also
 version every `Registry:CatchUpIntervalSeconds` (default 30; `RegistryCatchUpBackgroundService`),
 a single-row read that reconciles only when behind. That bounds how long any node can serve an
 identity the others have paused, which is what an export relies on: pause, wait longer than the
-interval, then export (`TenantStatusTests.AChangeNobodyAnnouncedIsAppliedByTheCatchUp`). Verified
-two ways: `TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` passes,
-and `RegistryChangeMissedWhileRedisWasDown_ConvergesOnReconnect` stops Redis, changes the
+interval, then export. Verified three ways: `TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` passes;
+`RegistryChangeMissedWhileRedisWasDown_ConvergesOnReconnect` stops Redis, changes the
 registration with nothing able to announce it, confirms both nodes are stale, starts Redis and
-asserts both converge.
+asserts both converge; and `TenantStatusTests.AChangeNobodyAnnouncedIsAppliedByTheCatchUp` writes a
+pause nobody announces and asserts the catch-up applies it.
 
 **A new registration is announced the moment its row commits.** It used to be announced last,
 after `InitializeCertificate`, which reached the new domain over HTTPS through the balancer. Routed

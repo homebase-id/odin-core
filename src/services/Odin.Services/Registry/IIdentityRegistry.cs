@@ -19,8 +19,8 @@ namespace Odin.Services.Registry
 
         /// <summary>
         /// Applies any registry change this node missed: reconciles if the database is ahead of it,
-        /// and costs a single-row read if not. Announcements are at most once, so this is what
-        /// guarantees that a pause holds on every node.
+        /// and costs a single-row read if not. Announcements are at most once (a publish can fail
+        /// after its retries), so this is what guarantees that a pause holds on every node.
         /// </summary>
         Task CatchUpAsync();
 

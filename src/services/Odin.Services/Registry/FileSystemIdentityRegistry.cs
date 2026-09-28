@@ -702,7 +702,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
 
             // Only claim the version if every tenant actually came up; otherwise the next
-            // announcement or reconnect re-check retries the ones that failed.
+            // catch-up (or announcement, or reconnect) retries the ones that failed.
             if (allLoaded)
             {
                 RaiseLocalVersion(version);
@@ -818,7 +818,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// Starts listening for registry version announcements from other nodes, and re-checks the
     /// version whenever the Redis connection is restored. Call before <see cref="LoadRegistrations"/>:
     /// an announcement arriving mid-load is either at or below the version load reads, and dropped,
-    /// or above it, and reconciled after, so there is no startup window to close with a timer.
+    /// or above it, and reconciled after, so the ordering alone closes the startup window.
     /// </summary>
     public async Task SubscribeToRegistryChangesAsync()
     {
@@ -862,11 +862,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         });
     }
 
+    /// <inheritdoc/>
     public Task CatchUpAsync()
     {
-        // A lost announcement (a publish that failed after its retries, a drop the reconnect event
-        // does not cover) would otherwise leave this node serving an identity every other node
-        // has paused, until the next registry change anywhere
         return ReconcileWithDatabaseAsync(null, "periodic catch-up");
     }
 
@@ -925,14 +923,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
 
     /// <summary>
-    /// Brings the in-memory registry up to the database, which is the source of truth. Reads the
-    /// version before the rows for the same reason as <see cref="LoadRegistrations"/>. Single-flight:
-    /// concurrent announcements and reconnect events collapse into one pass.
-    /// </summary>
-    /// <summary>
     /// Brings the in-memory registry up to the database if the database is known (or suspected)
     /// to be past <paramref name="floor"/>. Announcements pass the version they carry; a redis
-    /// reconnect passes nothing and lets the database say. The floor is checked again once the
+    /// reconnect or the periodic catch-up passes nothing and lets the database say. The floor is checked again once the
     /// lock is held, before any scope or query, so a burst of announcements collapses into one
     /// pass and the rest return without touching the database.
     /// </summary>
