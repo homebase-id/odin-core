@@ -106,6 +106,30 @@ public class LinkMeta
     }
 
     /// <summary>
+    /// The only image types a preview may carry, whether embedded in the page or fetched from og:image.
+    /// </summary>
+    private static readonly string[] ValidImageMimeTypes = ["image/png", "image/jpeg", "image/gif"];
+
+    /// <summary>
+    /// The type of <paramref name="bytes"/> if they begin like one of <see cref="ValidImageMimeTypes"/>,
+    /// otherwise null. A fetched image is judged by its bytes, because the response's Content-Type can be
+    /// missing, or wrong, as when an og:image URL answers 200 with an HTML login page (#1754).
+    /// </summary>
+    public static string? SniffImageMimeType(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.StartsWith((ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))
+            return "image/png";
+
+        if (bytes.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xD8, 0xFF]))
+            return "image/jpeg";
+
+        if (bytes.StartsWith("GIF87a"u8) || bytes.StartsWith("GIF89a"u8))
+            return "image/gif";
+
+        return null;
+    }
+
+    /// <summary>
     /// Validates whether the given data URI is a valid embedded image.
     /// Checks the MIME type and ensures the size is within limits.
     /// </summary>
@@ -117,8 +141,6 @@ public class LinkMeta
         if (!dataUri.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        var validMimeTypes = new[] { "image/png", "image/jpeg", "image/gif" };
-
         try
         {
             // Extract MIME type
@@ -126,7 +148,7 @@ public class LinkMeta
             if (mimeTypeEnd < 0) return false;
 
             var mimeType = dataUri.Substring(5, mimeTypeEnd - 5); // Extract MIME type
-            if (!Array.Exists(validMimeTypes, type => type.Equals(mimeType, StringComparison.OrdinalIgnoreCase)))
+            if (!Array.Exists(ValidImageMimeTypes, type => type.Equals(mimeType, StringComparison.OrdinalIgnoreCase)))
                 return false;
 
             // Check size
