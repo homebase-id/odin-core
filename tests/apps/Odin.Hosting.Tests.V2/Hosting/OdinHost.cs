@@ -79,6 +79,9 @@ public sealed partial class OdinHost : IAsyncDisposable
     /// </summary>
     public ILogEventMemoryStore LogStore => Server.Services.GetRequiredService<ILogEventMemoryStore>();
 
+    /// <summary>Makes chosen peer calls between this host's identities fail; see <see cref="Peer.PeerFaults"/>.</summary>
+    public Peer.PeerFaults PeerFaults => Server.Services.GetRequiredService<TestServerHolder>().PeerFaults;
+
     private OdinHost(IHost host, string[] identities, string dataRoot)
     {
         _host = host;

@@ -715,7 +715,8 @@ namespace Odin.Services.Membership.Connections
             ConnectionRequestOrigin connectionRequestOrigin,
             OdinId? introducerOdinId,
             byte[] verificationHash,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            bool announce = true)
         {
             //TODO: need to add security that this method can be called
 
@@ -742,11 +743,33 @@ namespace Odin.Services.Membership.Connections
 
             await this.SaveIcrAsync(newConnection, odinContext);
 
+            if (announce)
+            {
+                await AnnounceConnectionFinalizedAsync(odinId, odinContext);
+            }
+        }
+
+        /// <summary>
+        /// Tells the rest of the identity that the connection to <paramref name="odinId"/> is in place. Called by
+        /// <see cref="ConnectAsync"/> unless the caller passed <c>announce: false</c> to do it once the other side
+        /// has confirmed.
+        /// </summary>
+        public async Task AnnounceConnectionFinalizedAsync(OdinId odinId, IOdinContext odinContext)
+        {
             await mediator.Publish(new ConnectionFinalizedNotification()
             {
                 OdinId = odinId,
                 OdinContext = odinContext,
             });
+        }
+
+        /// <summary>
+        /// Puts back a connection record exactly as it was read by <see cref="GetIcrAsync(OdinId, IOdinContext, bool, bool)"/>,
+        /// undoing an unannounced <see cref="ConnectAsync"/>. A record read as <see cref="ConnectionStatus.None"/> is deleted.
+        /// </summary>
+        public async Task RestoreIcrAsync(IdentityConnectionRegistration previous, IOdinContext odinContext)
+        {
+            await this.SaveIcrAsync(previous, odinContext);
         }
 
         /// <summary>

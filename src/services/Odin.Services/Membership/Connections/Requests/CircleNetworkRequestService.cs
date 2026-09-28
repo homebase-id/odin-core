@@ -954,6 +954,13 @@ namespace Odin.Services.Membership.Connections.Requests
                 eccEncryptedKeys = (Token: eccEncryptedCat, KeyStoreKey: eccEncryptedKeyStoreKey);
             }
 
+            // Our half is written before the requester is asked to write theirs (below). If that call fails,
+            // this is put back, so we never hold a connection the requester has no record of -- and the
+            // pending request, which is only deleted on success, can be accepted again (#1778).
+            var previousIcr = await _cns.GetIcrAsync(senderOdinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
+
+            // Not announced until the requester has confirmed: the finalized handlers reset caches, delete the
+            // introduction this accept came from and tell the owner's apps we are connected.
             await _cns.ConnectAsync(senderOdinId,
                 accessGrant,
                 keys: (encryptedCat, eccEncryptedKeys),
@@ -961,7 +968,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 incomingRequest.ConnectionRequestOrigin,
                 incomingRequest.IntroducerOdinId,
                 verificationHash,
-                odinContext);
+                odinContext,
+                announce: false);
 
             if (markReviewed)
             {
@@ -981,6 +989,53 @@ namespace Odin.Services.Membership.Connections.Requests
                 VerificationHash = verificationHash
             };
 
+            try
+            {
+                await SendEstablishConnectionAsync(senderOdinId, acceptedReq, remoteClientAccessToken, odinContext);
+            }
+            catch
+            {
+                await RestoreAfterFailedAcceptAsync(previousIcr, odinContext);
+                throw;
+            }
+
+            await _cns.AnnounceConnectionFinalizedAsync(senderOdinId, odinContext);
+
+            await this.DeleteSentRequestInternalAsync(senderOdinId);
+            await this.DeletePendingRequestInternal(senderOdinId);
+
+            // Materialize a contact for the now-connected sender from the card they sent (best-effort).
+            await TryUpsertConnectionContactAsync(senderOdinId, CardFromRequestData(incomingRequest.ContactData),
+                odinContext, enrichFromPublicIfNoName: false);
+
+            // Fetching the new contact's channels is not this request's work. Inline it meant two
+            // retry-wrapped peer calls on a user-facing accept -- three attempts each against a 100s
+            // default timeout, no cancellation -- so an unreachable sender could hold the accept open for
+            // minutes. Scheduled instead, and the accept returns.
+            //
+            // The job cannot reach the ICR key that authenticates the channel query -- it is master-key
+            // protected and there is no caller once the request ends -- so it carries this caller's token,
+            // encrypted under the tenant's temporal key, the way VersionUpgradeJob carries the owner's.
+            await ScheduleChannelSyncAsync(senderOdinId, callerToken);
+
+            // Only now that both sides hold the connection: an app told to come and finish an enrollment
+            // must find a connection to finish it on.
+            if (accessGrant.HasPendingEnrollments)
+            {
+                await _cns.PublishPendingEnrollmentNotificationsAsync(senderOdinId, alreadyQueued: [], odinContext);
+            }
+
+            remoteClientAccessToken.AccessTokenHalfKey.Wipe();
+            remoteClientAccessToken.SharedSecret.Wipe();
+        }
+
+        /// <summary>
+        /// Asks the requester to write their half of the connection this accept just wrote ours of. Throws if they
+        /// did not.
+        /// </summary>
+        private async Task SendEstablishConnectionAsync(OdinId senderOdinId, ConnectionRequestReply acceptedReq,
+            ClientAccessToken remoteClientAccessToken, IOdinContext odinContext)
+        {
             var authenticationToken64 = remoteClientAccessToken.ToAuthenticationToken().ToPortableBytes64();
 
             ApiResponse<NoResultResponse> httpResponse = null;
@@ -1038,7 +1093,9 @@ namespace Odin.Services.Membership.Connections.Requests
                 }
 
                 var sentNow = await GetSentRequestInternalAsync(senderOdinId);
-                var icrNow = await _cns.GetIcrAsync(senderOdinId, odinContext, true);
+                // No encryption upgrade: that needs the ICR key, which an auto-accept does not hold, and a
+                // diagnostic must not throw in place of the failure it is describing.
+                var icrNow = await _cns.GetIcrAsync(senderOdinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
 
                 logger.LogWarning(
                     "[DEBUG-754] EstablishConnection failed. peer={peer} httpStatus={status} httpReason={reason} " +
@@ -1067,33 +1124,24 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinSystemException("Failed to establish connection request.  Either " +
                                               "response was empty or server returned a failure");
             }
+        }
 
-            await this.DeleteSentRequestInternalAsync(senderOdinId);
-            await this.DeletePendingRequestInternal(senderOdinId);
-
-            // Materialize a contact for the now-connected sender from the card they sent (best-effort).
-            await TryUpsertConnectionContactAsync(senderOdinId, CardFromRequestData(incomingRequest.ContactData),
-                odinContext, enrichFromPublicIfNoName: false);
-
-            // Fetching the new contact's channels is not this request's work. Inline it meant two
-            // retry-wrapped peer calls on a user-facing accept -- three attempts each against a 100s
-            // default timeout, no cancellation -- so an unreachable sender could hold the accept open for
-            // minutes. Scheduled instead, and the accept returns.
-            //
-            // The job cannot reach the ICR key that authenticates the channel query -- it is master-key
-            // protected and there is no caller once the request ends -- so it carries this caller's token,
-            // encrypted under the tenant's temporal key, the way VersionUpgradeJob carries the owner's.
-            await ScheduleChannelSyncAsync(senderOdinId, callerToken);
-
-            // Only now that both sides hold the connection: an app told to come and finish an enrollment
-            // must find a connection to finish it on.
-            if (accessGrant.HasPendingEnrollments)
+        /// <summary>
+        /// Undoes the local half of an accept whose requester never recorded theirs: puts the connection
+        /// record back as it was before <see cref="AcceptConnectionRequestAsync"/> overwrote it.
+        /// </summary>
+        private async Task RestoreAfterFailedAcceptAsync(IdentityConnectionRegistration previousIcr, IOdinContext odinContext)
+        {
+            try
             {
-                await _cns.PublishPendingEnrollmentNotificationsAsync(senderOdinId, alreadyQueued: [], odinContext);
+                await _cns.RestoreIcrAsync(previousIcr, odinContext);
             }
-
-            remoteClientAccessToken.AccessTokenHalfKey.Wipe();
-            remoteClientAccessToken.SharedSecret.Wipe();
+            catch (Exception e)
+            {
+                // The accept's own failure is what the caller sees; this one is only ours to report.
+                logger.LogError(e, "Accepting the connection request from {sender} failed, and restoring the " +
+                                   "connection record to its state before the accept failed too", previousIcr.OdinId);
+            }
         }
 
         /// <summary>
