@@ -32,8 +32,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (null == referencedFile)
             {
-                // Resolved above, so the caller most likely cannot read it. Like the S2040 case below, a
-                // resend will not change that, so it is a 400 rather than a retried 503.
+                // Resolved above, yet withheld: expired but not yet tombstoned, deleted in between, or
+                // encrypted and the caller has no storage key. (A caller the ACL denies gets a security
+                // exception instead.) None is fixed by a resend, so a 400 rather than a retried 503.
                 throw new OdinClientException("Referenced file missing or caller does not have access",
                     OdinClientErrorCode.InvalidReferenceFile);
             }
