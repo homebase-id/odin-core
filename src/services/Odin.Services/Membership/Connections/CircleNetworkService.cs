@@ -518,10 +518,8 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
-            // The upgrade re-encrypts the token under the ICR key, so only a caller holding that key can do it.
-            // Many callers do not (peer, outbox and auto-accept contexts); for them this is a plain read, and
-            // the record is upgraded by the next caller that has the key.
-            if (tryUpgradeEncryption && odinContext.PermissionsContext.GetIcrKey(failIfNotFound: false) != null)
+            // Only upgrades when the caller holds the ICR key; see UpgradeTokenEncryptionIfNeededAsync.
+            if (tryUpgradeEncryption)
             {
                 await this.UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
                 icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
@@ -3311,12 +3309,21 @@ namespace Odin.Services.Membership.Connections
         {
             if (identity.TemporaryWeakClientAccessToken != null && identity.EncryptedClientAccessToken == null)
             {
+                // The upgrade re-encrypts the token under the ICR key, so only a caller holding that key can do it.
+                // Many callers do not (peer, outbox and auto-accept contexts); for them the read goes ahead without
+                // it, and the next caller that has the key upgrades the record. Asked only here, once an upgrade is
+                // needed: resolving the key decrypts it, which can itself fail in contexts that never use it.
+                var rawIcrKey = odinContext.PermissionsContext.GetIcrKey(failIfNotFound: false);
+                if (rawIcrKey == null)
+                {
+                    return;
+                }
+
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 
                 var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
-                var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
 
                 await circleNetworkStorage.UpdateClientAccessTokenAsync(identity.OdinId, identity.Status, encryptedCat);
