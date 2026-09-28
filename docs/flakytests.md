@@ -123,6 +123,10 @@ stashed clean tree, so the failure reproduces on neither the change nor its abse
 as the parameter. Same family as the timing-sensitive entries above: the test asserts on work
 it does not wait for.
 
+**Seen again 2026-09-28** (local, macOS, `Odin.Services.Tests` full run, while fixing #1754). The
+change touches only the link extractor and its controllers, which the job manager doesn't reach.
+The test alone then passed 5/5.
+
 ---
 
 ## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
@@ -703,3 +707,25 @@ precomputed bool, so the failure prints `Expected: True` and never says which of
 "listening" signal to await before probing, take an ephemeral port instead of 38080, and assert on
 `error` before `connected` so the message survives. Note the file already carries a retry for
 external flakiness (`843ab7f64`, #1328), so this area has a history.
+
+## `Odin.Services.Tests.LinkMetaExtractor.LinkMetaExtractorTests` — the live-website tests
+
+- `TestFacebookUrl` (and, by the same mechanism, every test in this file that calls `ExtractAsync`
+  on a real URL: Twitter/X, Instagram, LinkedIn, Google Meet, GitHub, ...)
+
+**Where:** local only. These tests sit under `#if !CI_GITHUB`, so CI never compiles them. Seen
+2026-09-28 while fixing #1754.
+
+**Symptom:** `NullReferenceException` at `ogp.Title` -- `ExtractAsync` returned null because the
+page fetch itself failed. Once in six runs; the other five fetched the page.
+
+**Not caused by the change in flight:** a null `ogp` means the page fetch failed, and #1754 touches
+only the controllers' status and the image step, which runs after a successful page fetch and can
+null `ImageUrl` but never the whole result. The one failure was the first run of the session; the
+next five reached the image step. **Cause, inferred:** the test depends on a third-party site
+answering an anonymous crawler, and nothing retries or isolates that.
+
+**Separately, a real change in what this test sees (not flakiness):** Facebook's `og:image` URL
+(`lookaside.fbsbx.com/lookaside/crawler/media/...`) answers this crawler with `text/html`. Before
+#1754 that HTML went out as `data:text/html;base64,...` and `ClassicAssert.NotNull(ogp.ImageUrl)`
+passed on it. #1754 rejects it, so the assertion is now "no image, or a real png/jpeg/gif".
