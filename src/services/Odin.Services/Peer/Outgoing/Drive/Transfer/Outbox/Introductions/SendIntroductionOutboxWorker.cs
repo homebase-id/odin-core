@@ -23,28 +23,20 @@ public class SendIntroductionOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        try
-        {
-            AssertHasRemainingAttempts();
-            return await SendIntroduction(cancellationToken);
-        }
-        catch (OdinOutboxProcessingException e)
-        {
-            // Settle it as the other peer workers do. Escaping to the processor would retry it at once,
-            // logged at Error (#1778).
-            return await HandleOutboxProcessingException(odinContext, e);
-        }
+        return SendHandledAsync(SendInternalAsync, odinContext, cancellationToken);
     }
 
-    private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendIntroduction(CancellationToken cancellationToken)
+    private async Task<OutboxProcessingResult> SendInternalAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
         var introduction = OdinSystemSerializer.Deserialize<Introduction>(data);
         var file = FileItem.File;
         var recipient = FileItem.Recipient;
+
+        AssertHasRemainingAttempts();
 
         try
         {
@@ -67,7 +59,7 @@ public class SendIntroductionOutboxWorker(
 
             if (response.IsSuccessStatusCode)
             {
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -79,12 +71,13 @@ public class SendIntroductionOutboxWorker(
                 logger.LogInformation(
                     "SendIntroduction to {recipient} returned 403; dropping outbox item. body={body}",
                     recipient, body);
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             throw new OdinOutboxProcessingException("Failed while enqueuing notification")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = default,
                 Recipient = recipient,
@@ -115,6 +108,7 @@ public class SendIntroductionOutboxWorker(
                 File = file
             };
         }
+
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)
@@ -124,8 +118,6 @@ public class SendIntroductionOutboxWorker(
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e, IOdinContext odinContext)
     {
-        logger.LogWarning("SendIntroduction to {recipient} gave up after {attempts} attempts ({status})",
-            FileItem.Recipient, FileItem.AttemptCount, e.TransferStatus);
         return Task.CompletedTask;
     }
 }

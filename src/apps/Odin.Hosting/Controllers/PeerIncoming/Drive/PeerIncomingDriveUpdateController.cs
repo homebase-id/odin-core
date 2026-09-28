@@ -27,6 +27,7 @@ using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
+using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
@@ -42,6 +43,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     {
         private readonly ILoggerFactory _loggerFactory;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
+        private readonly TenantQuotaGuard _quotaGuard;
         private readonly ILogger<PeerIncomingDriveUpdateController> _logger;
         private readonly IDriveManager _driveManager;
 
@@ -55,6 +57,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public PeerIncomingDriveUpdateController(IDriveManager driveManager,
             IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
             ILoggerFactory loggerFactory, TransitInboxBoxStorage transitInboxBoxStorage,
+            TenantQuotaGuard quotaGuard,
             ILogger<PeerIncomingDriveUpdateController> logger)
         {
             _driveManager = driveManager;
@@ -64,6 +67,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _pushNotificationService = pushNotificationService;
             _loggerFactory = loggerFactory;
             _transitInboxBoxStorage = transitInboxBoxStorage;
+            _quotaGuard = quotaGuard;
             _logger = logger;
         }
 
@@ -361,7 +365,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _mediator,
                 _fileSystemResolver,
                 _pushNotificationService,
-                _transitInboxBoxStorage);
+                _transitInboxBoxStorage,
+                _quotaGuard);
         }
     }
 }

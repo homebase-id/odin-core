@@ -11,4 +11,7 @@ public class YouAuthTokenResponse
 
     public string? Base64ClientAuthTokenCipher { get; set; }
     public string? Base64ClientAuthTokenIv { get; set; }
+
+    /// <summary>What sealed the fields above; an identity that predates the field sends none (CBC).</summary>
+    public string? Cipher { get; set; }
 }

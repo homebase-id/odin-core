@@ -39,6 +39,8 @@ public sealed class NonNotifyingBackgroundServiceManager(IBackgroundServiceManag
 
     public Task ShutdownAsync() => inner.ShutdownAsync();
 
+    public bool IsRunning => inner.IsRunning;
+
     // The whole point: ignore "work available" instead of spinning 30s and throwing.
     public Task NotifyWorkAvailableAsync(string serviceIdentifier) => Task.CompletedTask;
 

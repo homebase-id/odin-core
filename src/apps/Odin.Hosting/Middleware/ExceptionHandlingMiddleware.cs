@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
@@ -98,6 +99,13 @@ namespace Odin.Hosting.Middleware
                 problemDetails.Status = 499;
                 problemDetails.Title = "Operation was cancelled";
             }
+            else if (exception is OdinRetryLaterException rl)
+            {
+                // A refusal the caller can wait out (e.g. out of quota): the status the service chose,
+                // plus Retry-After. Not a server error, so logged at Debug below.
+                problemDetails.Status = (int)rl.StatusCode;
+                problemDetails.Title = rl.Message;
+            }
             else if (exception is ApiException ae)
             {
                 problemDetails.Status = (int)ae.HttpStatusCode;
@@ -121,6 +129,12 @@ namespace Odin.Hosting.Middleware
 
             switch (problemDetails.Status)
             {
+                case not null when exception is OdinRetryLaterException:
+                    logger.LogDebug(exception, "Refused {method} {path} until later: {message}",
+                        context.Request.Method,
+                        context.Request.Path,
+                        exception.Message);
+                    break;
                 case 499:
                     logger.LogWarning("{WarningText} [origin: {method} {path}]",
                         exception.Message,
@@ -135,7 +149,7 @@ namespace Odin.Hosting.Middleware
                     break;
             }
 
-            if (_sendInternalErrorDetailsToClient)
+            if (_sendInternalErrorDetailsToClient && exception is not OdinRetryLaterException)
             {
                 problemDetails.Title = exception.Message;
                 problemDetails.Extensions["stackTrace"] = exception.StackTrace;
@@ -148,6 +162,11 @@ namespace Odin.Hosting.Middleware
                 // Avoids error "Headers are read-only, response has already started."
                 context.Response.ContentType = "application/problem+json";
                 context.Response.StatusCode = problemDetails.Status.Value;
+                if (exception is OdinRetryLaterException retryLater)
+                {
+                    context.Response.Headers.RetryAfter =
+                        ((int)Math.Ceiling(retryLater.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+                }
             }
 
 

@@ -209,6 +209,7 @@ public static class TenantServices
         cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+        cb.RegisterType<TenantQuotaGuard>().AsSelf().SingleInstance();
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
@@ -240,6 +241,8 @@ public static class TenantServices
         cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().InstancePerLifetimeScope();
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<YouAuthClientMetadataFetcher>().As<IYouAuthClientMetadataFetcher>().InstancePerLifetimeScope();
+        cb.RegisterType<YouAuthClientMetadataService>().InstancePerLifetimeScope();
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
@@ -428,6 +431,7 @@ public static class TenantServices
 
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
+        cb.RegisterType<OwnClientMetadataService>().As<IOwnClientMetadataService>().InstancePerLifetimeScope();
         cb.RegisterType<EmailPublicKeyService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<MailActivationService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<EmailHealthVerifier>().AsSelf().InstancePerLifetimeScope();

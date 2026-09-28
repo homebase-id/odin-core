@@ -35,6 +35,7 @@ public interface IYouAuthUnifiedService
         string clientInfo,
         string permissionRequest,
         string jwkbase64UrlPublicKey,
+        YouAuthCipher cipher,
         IOdinContext odinContext);
 
     Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest);
@@ -47,15 +48,20 @@ public sealed class EncryptedTokenExchange
     public byte[] ClientAuthTokenCipher { get; set; }
     public byte[] ClientAuthTokenIv { get; set; }
 
+    /// <summary>What sealed the two ciphers; an entry written before the field existed reads back as CBC.</summary>
+    public YouAuthCipher Cipher { get; set; }
+
     public EncryptedTokenExchange(
         byte[] sharedSecretCipher,
         byte[] sharedSecretIv,
         byte[] clientAuthTokenCipher,
-        byte[] clientAuthTokenIv)
+        byte[] clientAuthTokenIv,
+        YouAuthCipher cipher)
     {
         SharedSecretCipher = sharedSecretCipher;
         SharedSecretIv = sharedSecretIv;
         ClientAuthTokenCipher = clientAuthTokenCipher;
         ClientAuthTokenIv = clientAuthTokenIv;
+        Cipher = cipher;
     }
 }
