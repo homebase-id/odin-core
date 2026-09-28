@@ -41,7 +41,7 @@ public class DeleteTenantJob(
 
         logger.LogDebug("Starting delete tenant {domain}", Data.Domain);
         var sw = Stopwatch.StartNew();
-        await identityRegistry.SetStatusAsync(Data.Domain, TenantStatus.Disabled, DisabledReason.PendingDeletion);
+        // Disables the identity before deleting anything
         await identityRegistry.DeleteRegistration(Data.Domain);
         // Email ride-along (docs/email-keys-plan.md): mailbox + DKIM cleanup,
         // best-effort like the DNS cleanup below - never blocks deletion

@@ -246,6 +246,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
+            // Disabled before anything is deleted, whoever is deleting: requests get a 503 and background services
+            // stop, so nothing writes to the identity while its rows and storage are removed.
+            if (registration.Status != TenantStatus.Disabled || registration.DisabledReason != DisabledReason.PendingDeletion)
+            {
+                await SetStatusAsync(domain, TenantStatus.Disabled, DisabledReason.PendingDeletion);
+            }
+
             // PostgreSQL keeps every identity's rows in one shared database, so deleting the tenant folder below does
             // not remove them (#1792). Purged first, while the registration exists: if it fails, the delete fails
             // and can be retried, instead of leaving rows behind that nothing knows the id of.
