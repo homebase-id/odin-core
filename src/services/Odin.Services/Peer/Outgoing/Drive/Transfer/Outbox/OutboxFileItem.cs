@@ -18,7 +18,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         public int Priority { get; set; }
 
-        public UnixTimeUtc AddedTimestamp { get; set; } = UnixTimeUtc.Now().seconds;
+        /// <summary>
+        /// When the item was added to the outbox (the outbox row's created). The retry-later deadline is
+        /// measured from here, so this must be milliseconds: assigning .seconds reads back as 1970.
+        /// </summary>
+        public UnixTimeUtc AddedTimestamp { get; set; } = UnixTimeUtc.Now();
 
         public Guid Marker { get; set; }
 
@@ -52,7 +56,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public int Priority { get; set; }
 
-        public UnixTimeUtc AddedTimestamp { get; set; } = UnixTimeUtc.Now().seconds;
+        public UnixTimeUtc AddedTimestamp { get; set; } = UnixTimeUtc.Now();
 
         public Guid Marker { get; set; }
 

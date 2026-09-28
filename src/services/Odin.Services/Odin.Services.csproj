@@ -39,8 +39,9 @@
     <!-- The V2 in-process test framework calls internal members for its test-only drain hooks
          and replacement-factory wiring. Keep this list tight; production never relies on it. -->
     <InternalsVisibleTo Include="Odin.Hosting.Tests.V2" />
-    <!-- V1 tests make the registry's background-service alignment fail once, to prove it is retried.
-         Its test seams are internal so production code cannot reach them. -->
+    <!-- V1 tests reach two internal test seams: the registry's background-service alignment, which
+         a test makes fail once to prove it is retried, and the outbox drain hook, because an item
+         deferred by a retry-later answer sits for minutes, which no test can wait out. -->
     <InternalsVisibleTo Include="Odin.Hosting.Tests" />
   </ItemGroup>
 

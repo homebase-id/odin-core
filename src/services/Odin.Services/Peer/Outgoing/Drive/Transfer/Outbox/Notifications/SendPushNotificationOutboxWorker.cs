@@ -22,7 +22,7 @@ public class SendPushNotificationOutboxWorker(
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         await PerformanceCounter.MeasureExecutionTime("Notifications SendPushNotification",
             async () =>
@@ -31,7 +31,7 @@ public class SendPushNotificationOutboxWorker(
                 await PushItem(newContext, cancellationToken);
             });
 
-        return (true, UnixTimeUtc.ZeroTime);
+        return OutboxProcessingResult.Complete();
     }
 
     private async Task PushItem(IOdinContext odinContext, CancellationToken cancellationToken)

@@ -65,6 +65,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             PerformanceCounter.IncrementCounter("Outbox Mark Failure");
         }
 
+        /// <summary>
+        /// Put an item back in the queue because the recipient asked us to retry later; this does not
+        /// count as an attempt.
+        /// </summary>
+        public async Task MarkDeferredAsync(Guid marker, UnixTimeUtc nextRun)
+        {
+            await tblOutbox.CheckInAsDeferredAsync(marker, nextRun);
+
+            PerformanceCounter.IncrementCounter("Outbox Mark Deferred");
+        }
+
         public async Task<int> RecoverDeadAsync(UnixTimeUtc time)
         {
             var recovered = await tblOutbox.RecoverCheckedOutDeadItemsAsync(time);
@@ -165,7 +176,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 Recipient = (OdinId)record.recipient,
                 Priority = record.priority,
-                AddedTimestamp = record.created.seconds,
+                AddedTimestamp = record.created,
                 Type = (OutboxItemType)record.type,
 
                 AttemptCount = record.checkOutCount,
