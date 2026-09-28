@@ -518,8 +518,10 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
-            // 
-            if (tryUpgradeEncryption)
+            // The upgrade re-encrypts the token under the ICR key, so only a caller holding that key can do it.
+            // Many callers do not (peer, outbox and auto-accept contexts); for them this is a plain read, and
+            // the record is upgraded by the next caller that has the key.
+            if (tryUpgradeEncryption && odinContext.PermissionsContext.GetIcrKey(failIfNotFound: false) != null)
             {
                 await this.UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
                 icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
