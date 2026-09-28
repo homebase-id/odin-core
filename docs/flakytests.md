@@ -552,8 +552,11 @@ only when the send failed with an `OdinClientException`. A network, timeout or o
 the worker as `OdinOutboxProcessingException`. The processor then rescheduled it for "now" and
 logged it at Error, so `HandleRecoverableTransferStatus` never ran. Measured with a throwaway probe
 against an identity no host serves: all 30 attempts went in ~350 ms, with 32 Error lines, and then
-the item was dropped. Both introduction workers now settle their own failures on the backoff, which
-`Isolation/ConnectIntroduceeRetryTests` pins. Whether that path is what reddened these three
+the item was dropped. #1752 then routed the worker through `SendHandledAsync`, which
+stopped the fast loop but classes such a failure as `UnknownServerError` and drops it on the
+**first** attempt, logged only at Debug -- the PR's tests, run against `main` on 2026-09-28, showed
+exactly that. `ConnectIntroduceeOutboxWorker` now retries every failure on the backoff and logs a
+Warning when it gives up, which `Isolation/ConnectIntroduceeRetryTests` pins. Whether that path is what reddened these three
 fixtures is still **not confirmed**. It would explain "the introduction simply never landed" (a
 brief failure burning every attempt at once), but no captured failure names it.
 
