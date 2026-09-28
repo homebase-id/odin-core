@@ -1099,17 +1099,72 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             return;
         }
 
-        _ = Task.Run(async () =>
+        _ = Task.Run(() => ConvergeBackgroundServicesAsync(identityId));
+    }
+
+    /// <summary>
+    /// Test seam: runs at the start of each attempt in <see cref="ConvergeBackgroundServicesAsync"/>,
+    /// so a test can make an attempt fail and prove it is retried.
+    /// </summary>
+    internal Func<Guid, Task> BeforeAligningBackgroundServices { get; set; }
+
+    /// <summary>
+    /// Wait before the first retry of a failed alignment; doubles per attempt up to five minutes.
+    /// Settable so a test does not have to wait out the production delay.
+    /// </summary>
+    internal TimeSpan AlignRetryBaseDelay { get; set; } = TimeSpan.FromSeconds(5);
+
+    private static readonly TimeSpan AlignRetryMaxDelay = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Aligns this node's background services with a status another node set, and keeps retrying
+    /// until that succeeds. A single attempt that failed used to be logged and dropped, leaving this
+    /// node wrong until the next status change or a restart: a failed pause kept workers running on a
+    /// paused identity, a failed resume left an active one with none.
+    /// <para>
+    /// It never gives up. A node that cannot honour a pause is exactly what has to stay visible, so
+    /// every failure logs an Error, backing off to one attempt every five minutes. Each attempt re-reads
+    /// the status under the per-identity gate, so a retry converges on the latest status, not the one
+    /// that failed, and two loops for the same identity are harmless: once one succeeds, the other finds
+    /// nothing left to do. It ends on success, when the identity is unloaded (the attempt returns
+    /// without work), or when the host shuts down.
+    /// </para>
+    /// </summary>
+    private async Task ConvergeBackgroundServicesAsync(Guid identityId)
+    {
+        var delay = AlignRetryBaseDelay;
+        for (var attempt = 1; ; attempt++)
         {
             try
             {
+                if (BeforeAligningBackgroundServices != null)
+                {
+                    await BeforeAligningBackgroundServices(identityId);
+                }
+
                 await EnsureBackgroundServicesMatchStatusAsync(identityId);
+                if (attempt > 1)
+                {
+                    _logger.LogInformation("Aligned background services of {id} with its status after {attempt} attempts",
+                        identityId, attempt);
+                }
+
+                return;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The host is shutting down
+                return;
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Could not align background services of {id} with its status: {error}", identityId, e.Message);
+                _logger.LogError(e, "Could not align background services of {id} with its status (attempt {attempt}); " +
+                                    "retrying in {delay}: {error}", identityId, attempt, delay, e.Message);
             }
-        });
+
+            await Task.Delay(delay);
+            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, AlignRetryMaxDelay.Ticks));
+        }
     }
 
     private static async Task<long> ReadRegistryVersionAsync(SystemDatabase systemDatabase)

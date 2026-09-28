@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
@@ -490,6 +491,38 @@ public class TenantStatusTests
 
         await WaitUntilAsync(() => Registry.AreBackgroundServicesRunning(id), "background services restarted");
         Assert.That((await ProbeAsync(identity, ProbePaths[0])).StatusCode, Is.Not.EqualTo(HttpStatusCode.ServiceUnavailable));
+    }
+
+    [Test]
+    public async Task AFailedAlignmentAfterAnotherNodesChangeIsRetried()
+    {
+        // Another node's status change is applied here in the background. If aligning the workers
+        // fails, it has to be retried, not logged and dropped: a failed pause would otherwise leave
+        // this node running workers on a paused identity until the next change or a restart.
+        // Fails without the retry: the first attempt throws and the workers never stop.
+        var identity = TestIdentities.Samwise;
+        var id = IdOf(identity);
+        var attempts = 0;
+        var baseDelay = Registry.AlignRetryBaseDelay;
+        Registry.AlignRetryBaseDelay = TimeSpan.FromMilliseconds(50);
+        Registry.BeforeAligningBackgroundServices = forId =>
+            forId == id && Interlocked.Increment(ref attempts) == 1
+                ? throw new InvalidOperationException("simulated failure to align background services")
+                : Task.CompletedTask;
+        try
+        {
+            await WriteRowAsOtherNodeAsync(identity, disabled: false,
+                json: "{\"status\":\"paused\",\"statusChangedAt\":1757000000000}");
+
+            await WaitUntilAsync(() => !Registry.AreBackgroundServicesRunning(id),
+                "background services stopped although the first attempt failed");
+            Assert.That(attempts, Is.GreaterThanOrEqualTo(2), "the failed attempt was retried");
+        }
+        finally
+        {
+            Registry.BeforeAligningBackgroundServices = null;
+            Registry.AlignRetryBaseDelay = baseDelay;
+        }
     }
 
     [Test]
