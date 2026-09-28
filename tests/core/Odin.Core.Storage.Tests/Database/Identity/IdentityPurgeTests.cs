@@ -1,11 +1,11 @@
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
@@ -38,12 +38,12 @@ public class IdentityPurgeTests : IocTestBase
         var otherIdentityId = Guid.NewGuid();
         await InsertKeyValueForAsync(db, otherIdentityId);
 
-        Assert.That(await db.CountIdentityRowsAsync(IdentityId), Is.GreaterThanOrEqualTo(2));
+        Assert.That(await db.CountRowsForIdentityAsync(IdentityId), Is.GreaterThanOrEqualTo(2));
 
         await db.PurgeIdentityAsync(IdentityId);
 
-        Assert.That(await db.CountIdentityRowsAsync(IdentityId), Is.EqualTo(0));
-        Assert.That(await db.CountIdentityRowsAsync(otherIdentityId), Is.EqualTo(1), "another identity's rows must survive");
+        Assert.That(await db.CountRowsForIdentityAsync(IdentityId), Is.EqualTo(0));
+        Assert.That(await db.CountRowsForIdentityAsync(otherIdentityId), Is.EqualTo(1), "another identity's rows must survive");
     }
 
     [Test]
@@ -75,13 +75,14 @@ public class IdentityPurgeTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var db = scope.Resolve<IdentityDatabase>();
 
-        var withIdentityId = await TablesWithIdentityIdAsync(db, databaseType);
+        var withIdentityId = (await db.TablesWithIdentityIdAsync()).Select(t => t.ToLowerInvariant()).ToList();
         var purged = (await db.GetPurgeTablesAsync()).Select(t => t.ToLowerInvariant()).ToHashSet();
 
         // In the tests the system tables can share the database; they, and migrations' copies of them, are not an
         // identity's to purge.
         var system = SystemDatabase.TableTypes.Select(t => t.Name["Table".Length..].ToLowerInvariant()).ToList();
-        bool IsSystem(string table) => system.Any(s => table == s || table.StartsWith(s + "migrationsv"));
+        var infix = MigrationBase.BackupTableInfix.ToLowerInvariant();
+        bool IsSystem(string table) => system.Any(s => table == s || table.StartsWith(s + infix));
 
         var missed = withIdentityId.Where(t => !IsSystem(t) && !purged.Contains(t)).ToList();
         Assert.That(missed, Is.Empty, "tables with an identityId column that PurgeIdentityAsync does not cover");
@@ -98,25 +99,5 @@ public class IdentityPurgeTests : IocTestBase
         cmd.AddParameter("@key", DbType.Binary, Guid.NewGuid().ToByteArray());
         cmd.AddParameter("@data", DbType.Binary, new byte[] { 1 });
         await cmd.ExecuteNonQueryAsync();
-    }
-
-    private static async Task<List<string>> TablesWithIdentityIdAsync(IdentityDatabase db, DatabaseType databaseType)
-    {
-        await using var cn = await db.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-        cmd.CommandText = databaseType == DatabaseType.Sqlite
-            ? "SELECT m.name FROM sqlite_master m JOIN pragma_table_info(m.name) p " +
-              "WHERE m.type = 'table' AND lower(p.name) = 'identityid';"
-            : "SELECT table_name FROM information_schema.columns " +
-              "WHERE table_schema = current_schema() AND lower(column_name) = 'identityid';";
-
-        var tables = new List<string>();
-        await using var rdr = await cmd.ExecuteReaderAsync();
-        while (await rdr.ReadAsync())
-        {
-            tables.Add(rdr.GetString(0).ToLowerInvariant());
-        }
-
-        return tables;
     }
 }

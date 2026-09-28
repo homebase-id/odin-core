@@ -28,15 +28,20 @@ public partial class IdentityDatabase
         await using var cn = await CreateScopedConnectionAsync();
 
         var tables = await GetPurgeTablesAsync();
+        long remaining = 0;
         foreach (var table in tables)
         {
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = $"DELETE FROM {table} WHERE identityId = @identityId;";
-            cmd.AddParameter("@identityId", DbType.Binary, identityId);
-            await cmd.ExecuteNonQueryAsync();
+            await using var delete = cn.CreateCommand();
+            delete.CommandText = $"DELETE FROM {table} WHERE identityId = @identityId;";
+            delete.AddParameter("@identityId", DbType.Binary, identityId);
+            await delete.ExecuteNonQueryAsync();
+
+            await using var count = cn.CreateCommand();
+            count.CommandText = $"SELECT COUNT(*) FROM {table} WHERE identityId = @identityId;";
+            count.AddParameter("@identityId", DbType.Binary, identityId);
+            remaining += Convert.ToInt64(await count.ExecuteScalarAsync());
         }
 
-        var remaining = await CountIdentityRowsAsync(identityId, tables);
         if (remaining > 0)
         {
             throw new OdinSystemException($"Purging identity {identityId} left {remaining} rows in the identity database");
@@ -46,22 +51,23 @@ public partial class IdentityDatabase
     }
 
     /// <summary>
-    /// How many rows <paramref name="identityId"/> owns across <see cref="GetPurgeTablesAsync"/>.
+    /// The tables an identity's rows live in: the generated <see cref="ExportableTables"/>, so one the generator adds
+    /// is covered, and the copies migrations keep of them (<see cref="MigrationBase.BackupTableInfix"/>), which hold
+    /// rows as of that migration.
     /// </summary>
-    public async Task<long> CountIdentityRowsAsync(Guid identityId)
+    internal async Task<IReadOnlyList<string>> GetPurgeTablesAsync()
     {
-        return await CountIdentityRowsAsync(identityId, await GetPurgeTablesAsync());
+        var backups = (await TablesWithIdentityIdAsync()).Where(name => ExportableTables.Any(table =>
+            name.StartsWith(table + MigrationBase.BackupTableInfix, StringComparison.OrdinalIgnoreCase)));
+
+        return [..ExportableTables, ..backups];
     }
 
     /// <summary>
-    /// The tables an identity's rows live in: the generated <see cref="ExportableTables"/>, so one the generator adds
-    /// is covered, and the copies migrations keep of them. A migration renames the table it replaces to
-    /// <c>{Table}MigrationsV{version}</c> for its down step, so those copies hold rows as of that migration.
+    /// Every table in this database with an identityId column.
     /// </summary>
-    public async Task<IReadOnlyList<string>> GetPurgeTablesAsync()
+    internal async Task<List<string>> TablesWithIdentityIdAsync()
     {
-        var backupPrefixes = ExportableTables.Select(t => t.ToLowerInvariant() + "migrationsv").ToList();
-
         await using var cn = await CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
         cmd.CommandText = cmd.DatabaseType == DatabaseType.Sqlite
@@ -70,35 +76,13 @@ public partial class IdentityDatabase
             : "SELECT table_name FROM information_schema.columns " +
               "WHERE table_schema = current_schema() AND lower(column_name) = 'identityid';";
 
-        var backups = new List<string>();
-        await using (var rdr = await cmd.ExecuteReaderAsync())
+        var tables = new List<string>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
         {
-            while (await rdr.ReadAsync())
-            {
-                var name = rdr.GetString(0);
-                if (backupPrefixes.Any(prefix => name.ToLowerInvariant().StartsWith(prefix)))
-                {
-                    backups.Add(name);
-                }
-            }
+            tables.Add(rdr.GetString(0));
         }
 
-        return [..ExportableTables, ..backups];
-    }
-
-    private async Task<long> CountIdentityRowsAsync(Guid identityId, IEnumerable<string> tables)
-    {
-        await using var cn = await CreateScopedConnectionAsync();
-
-        long total = 0;
-        foreach (var table in tables)
-        {
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = $"SELECT COUNT(*) FROM {table} WHERE identityId = @identityId;";
-            cmd.AddParameter("@identityId", DbType.Binary, identityId);
-            total += Convert.ToInt64(await cmd.ExecuteScalarAsync());
-        }
-
-        return total;
+        return tables;
     }
 }

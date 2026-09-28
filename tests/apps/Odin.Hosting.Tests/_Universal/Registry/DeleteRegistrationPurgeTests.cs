@@ -1,13 +1,11 @@
 #if RUN_POSTGRES_TESTS
 using System;
-using System.Data;
 using System.IO;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Identity;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Certificate;
@@ -48,8 +46,10 @@ public class DeleteRegistrationPurgeTests
         // so none is requested for it.
         const string domain = "dev.dotyou.cloud";
         var certificates = Path.Combine(_scaffold.Services.GetRequiredService<OdinConfiguration>().Development.SslSourcePath, domain);
+        var id = Guid.NewGuid();
         await registry.AddRegistration(new IdentityRegistrationRequest
         {
+            Id = id,
             OdinId = new OdinId(domain),
             Email = $"purge@{domain}",
             PlanId = "",
@@ -59,9 +59,6 @@ public class DeleteRegistrationPurgeTests
                 PrivateKey = await File.ReadAllTextAsync(Path.Combine(certificates, "private.key"))
             }
         });
-
-        // AddRegistration returns the first-run token, not the id the identity's rows carry
-        var id = (await registry.GetAsync(domain)).Id;
 
         var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
         await using (var scope = container.GetTenantScope(domain).BeginLifetimeScope("DeleteRegistrationPurgeTests:write"))
@@ -80,28 +77,13 @@ public class DeleteRegistrationPurgeTests
         Assert.That(await CountRowsAsync(id), Is.EqualTo(0), "the deleted identity's rows must be gone");
     }
 
-    /// <summary>
-    /// Every identity table's rows for <paramref name="identityId"/>, counted through a surviving identity's
-    /// connection: on PostgreSQL they all read the same database.
-    /// </summary>
+    // Through a surviving identity's connection: on PostgreSQL they all read the same database.
     private async Task<long> CountRowsAsync(Guid identityId)
     {
         var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
         await using var scope = container.GetTenantScope(TestIdentities.Frodo.OdinId.DomainName)
             .BeginLifetimeScope("DeleteRegistrationPurgeTests:count");
-        var db = scope.Resolve<IdentityDatabase>();
-        await using var cn = await db.CreateScopedConnectionAsync();
-
-        long total = 0;
-        foreach (var table in IdentityDatabase.ExportableTables)
-        {
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = $"SELECT COUNT(*) FROM {table} WHERE identityId = @identityId;";
-            cmd.AddParameter("@identityId", DbType.Binary, identityId);
-            total += Convert.ToInt64(await cmd.ExecuteScalarAsync());
-        }
-
-        return total;
+        return await scope.Resolve<IdentityDatabase>().CountRowsForIdentityAsync(identityId);
     }
 }
 #endif
