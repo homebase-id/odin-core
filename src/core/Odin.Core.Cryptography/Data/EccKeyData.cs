@@ -122,10 +122,13 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        // Method to ensure byte array length
+        // Left-pads key material that lost its leading zero bytes. Longer than the field is not a short encoding
+        // but a wrong key, curve or parse, and passing it on yields a silently wrong key -- so it is rejected (#1812).
         protected static byte[] EnsureLength(byte[] bytes, int length)
         {
-            if (bytes.Length >= length) return bytes;
+            if (bytes.Length > length)
+                throw new OdinSystemException($"Key material is {bytes.Length} bytes, expected at most {length}");
+            if (bytes.Length == length) return bytes;
 
             byte[] paddedBytes = new byte[length];
             Array.Copy(bytes, 0, paddedBytes, length - bytes.Length, bytes.Length);
