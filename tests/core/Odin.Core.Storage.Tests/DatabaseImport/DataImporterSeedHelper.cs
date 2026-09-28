@@ -37,6 +37,8 @@ internal static class DataImporterSeedHelper
         await SeedAppNotificationsAsync(db);
         await SeedClientRegistrationsAsync(db);
         await SeedAppRegistrationsAsync(db);
+        await SeedBundleTokensAsync(db);
+        await SeedBundleTokenAppsAsync(db);
         await SeedCircleAsync(db);
         await SeedCircleMemberAsync(db);
         await SeedConnectionsAsync(db);
@@ -199,6 +201,28 @@ internal static class DataImporterSeedHelper
             CorsHostName = null,
             grantJson = "{}",
             detailsJson = null,
+        });
+    }
+
+    private static async Task SeedBundleTokensAsync(IdentityDatabase db)
+    {
+        await db.BundleTokens.InsertAsync(new BundleTokensRecord
+        {
+            tokenId = Guid.NewGuid(),
+            primaryAppId = Guid.NewGuid(),
+            friendlyName = "Seed Bundle Token",
+            accessRegistrationJson = "{}",
+            expiresAt = UnixTimeUtc.Now(),
+        });
+    }
+
+    private static async Task SeedBundleTokenAppsAsync(IdentityDatabase db)
+    {
+        await db.BundleTokenApps.InsertAsync(new BundleTokenAppsRecord
+        {
+            tokenId = Guid.NewGuid(),
+            appId = Guid.NewGuid(),
+            encryptedKeyStoreKeyJson = "{}",
         });
     }
 

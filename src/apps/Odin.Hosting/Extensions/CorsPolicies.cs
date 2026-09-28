@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Services.Authorization.BundleTokens;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.Extensions;
@@ -25,6 +26,7 @@ public static class CorsPolicies
         OdinHeaderNames.UpgradeIsRunning,
         YouAuthConstants.AppCookieName,
         YouAuthConstants.SubscriberCookieName,
+        BundleTokenAuthenticator.ActingAppHeader,
     ];
 
     public static IServiceCollection AddCorsPolicies(this IServiceCollection services)
