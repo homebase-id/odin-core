@@ -307,9 +307,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             throw new OdinSystemException("Copying registrations with S3 payloads is not supported yet.");
         }
 
-        // Hold the identity still while copying: a paused identity serves nothing and runs no background
-        // services on this node; other nodes follow once they apply the change. An already disabled one
-        // is left as it is.
+        // Pause for the copy: new requests get a 503 and this node stops the identity's background
+        // services; other nodes follow once they apply the change. An already disabled one is left as it is.
+        // This copies straight away rather than waiting for in-flight requests to finish (see
+        // TenantStatus.Paused), so a write already under way when the pause lands can still reach the copy.
         var previous = registration.StatusState;
         UnixTimeUtc? pausedForCopyAt = null;
         if (registration.Status is TenantStatus.Active or TenantStatus.OutOfQuota)

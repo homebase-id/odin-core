@@ -24,8 +24,13 @@ public enum TenantStatus
     OutOfQuota = 1,
 
     /// <summary>
-    /// Temporary maintenance hold (e.g. while the identity is being moved). Callers are told to
-    /// retry later and the identity's background services are stopped, so its data does not change.
+    /// Temporary maintenance hold (e.g. while the identity is being moved). New requests are told to
+    /// retry later and the identity's background services are stopped.
+    /// <para>
+    /// Requests already in flight are allowed to finish: a pause never breaks them. So the data
+    /// settles shortly after the pause, not at the moment it is set. Anything that needs a still copy
+    /// (an export) pauses, waits for in-flight work to finish, and only then begins.
+    /// </para>
     /// </summary>
     Paused = 2,
 
