@@ -94,10 +94,13 @@ namespace Odin.Services.Registry
         Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken);
 
         /// <summary>
-        /// Toggles disabled on/off
+        /// Sets the identity's <see cref="TenantStatus"/> and, before returning, brings this node's background services
+        /// in line with it: stopped when paused or disabled, running otherwise. Other nodes follow once they apply the change. A disabled status without a reason means
+        /// <see cref="DisabledReason.Admin"/>. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/> on a
+        /// transition <see cref="TenantStatusRules.Validate"/> refuses.
         /// </summary>
-        /// /// <returns>Previous state or null if not found</returns>
-        Task<bool?> ToggleDisabled(string domain, bool disabled);
+        /// <returns>Previous state or null if not found</returns>
+        Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null);
 
         /// <summary>
         /// Sets whether the identity is allowed a public home page

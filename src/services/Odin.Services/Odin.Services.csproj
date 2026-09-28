@@ -39,6 +39,9 @@
     <!-- The V2 in-process test framework calls internal members for its test-only drain hooks
          and replacement-factory wiring. Keep this list tight; production never relies on it. -->
     <InternalsVisibleTo Include="Odin.Hosting.Tests.V2" />
+    <!-- V1 tests make the registry's background-service alignment fail once, to prove it is retried.
+         Its test seams are internal so production code cannot reach them. -->
+    <InternalsVisibleTo Include="Odin.Hosting.Tests" />
   </ItemGroup>
 
 </Project>
