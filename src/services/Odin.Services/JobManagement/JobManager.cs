@@ -19,7 +19,13 @@ namespace Odin.Services.JobManagement;
 
 public interface IJobManager
 {
+    /// <summary>A job that belongs to no identity: it runs whatever any identity's status is.</summary>
     T NewJob<T>() where T : AbstractJob;
+
+    /// <summary>
+    /// A job for an identity: it waits while the identity is paused or disabled. Jobs that must act on a
+    /// stopped identity (deleting or exporting it) use the other overload.
+    /// </summary>
     T NewJob<T>(Guid identityId) where T : AbstractJob;
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
