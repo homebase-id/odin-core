@@ -15,9 +15,11 @@ public class V2LinkPreviewController(ILinkMetaExtractor linkMetaExtractor) : Odi
 {
     [HttpGet("extract")]
     [SwaggerOperation(Tags = [SwaggerInfo.Links])]
-    public async Task<LinkMeta> ExtractLinkInfo(string url)
+    public async Task<ActionResult<LinkMeta>> ExtractLinkInfo(string url)
     {
+        // "Nothing to preview" is a status, not an empty body: a null here would go out as a 204 that
+        // clients then try to deserialize (#1754).
         var meta = await linkMetaExtractor.ExtractAsync(url);
-        return meta;
+        return meta == null ? NotFound() : meta;
     }
 }
