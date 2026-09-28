@@ -123,17 +123,17 @@ namespace Odin.Services.LinkMetaExtractor
                     logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize, request.RequestUri);
                     return null;
                 }
-                var mimeType = response.Content.Headers.ContentType?.ToString();
-                if (string.IsNullOrEmpty(mimeType))
-                    mimeType = "image/png";
-                var imageBase64 = Convert.ToBase64String(image);
-                if (string.IsNullOrWhiteSpace(imageBase64))
+                // Judged by the bytes, not the Content-Type header, which may be missing or wrong (#1754).
+                var mimeType = LinkMeta.SniffImageMimeType(image);
+                if (mimeType == null)
                 {
-                    logger.LogDebug("LinkExtractor: No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", request.RequestUri, originalUrl);
+                    logger.LogDebug("LinkExtractor: imageUrl {Url} did not return a png, jpeg or gif (Content-Type: {ContentType}). " +
+                                    "Original Link URL {OriginalUrl}",
+                        request.RequestUri, response.Content.Headers.ContentType, originalUrl);
                     return null;
                 }
-                var imageUri = $"data:{mimeType};base64,{imageBase64}";
-                return imageUri;
+
+                return $"data:{mimeType};base64,{Convert.ToBase64String(image)}";
             }
             catch (Exception e)
             {
