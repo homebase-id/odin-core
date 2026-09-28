@@ -833,8 +833,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (_config.Redis.Enabled)
         {
             // Pub/sub has no replay: anything announced while this connection was down is gone.
-            // The version row says whether we missed something, and this is the only moment we
-            // could have, so re-check it here rather than on a timer.
+            // The version row says whether we missed something, so re-check it the moment we are
+            // back rather than waiting for the next CatchUpAsync.
             _serviceProvider.Resolve<IConnectionMultiplexer>().ConnectionRestored += OnRedisConnectionRestored;
         }
 
@@ -860,6 +860,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 _logger.LogError(ex, "Registry re-check after redis reconnect failed: {error}", ex.Message);
             }
         });
+    }
+
+    public Task CatchUpAsync()
+    {
+        // A lost announcement (a publish that failed after its retries, a drop the reconnect event
+        // does not cover) would otherwise leave this node serving an identity every other node
+        // has paused, until the next registry change anywhere
+        return ReconcileWithDatabaseAsync(null, "periodic catch-up");
     }
 
     private async Task OnRegistryVersionAnnouncedAsync(JsonEnvelope envelope)
@@ -904,12 +912,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
             catch (Exception e)
             {
-                // The change is committed and applied here, but no other node will hear about it
-                // until the next registry change anywhere, a redis reconnect, or a restart. That is
-                // the one gap this design accepts, and it has to be findable in the logs.
+                // The change is committed and applied here; other nodes pick it up on their next
+                // CatchUpAsync instead of straight away, so it has to be findable in the logs.
                 _logger.LogError(e,
                     "Could not publish registry version {version} after {domain} changed; other nodes stay stale " +
-                    "until the next registry change, a redis reconnect, or a restart: {error}",
+                    "until their next periodic catch-up: {error}",
                     version, primaryDomain, e.Message);
                 return;
             }
@@ -1406,6 +1413,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         reg.DisabledReason = fallback.DisabledReason;
         reg.StatusChangedAt = fallback.StatusChangedAt;
         return false;
+    }
+
+    public TenantStatus? GetStatus(Guid identityId)
+    {
+        return _cache.GetValueOrDefault(identityId)?.Status;
     }
 
     /// <summary>

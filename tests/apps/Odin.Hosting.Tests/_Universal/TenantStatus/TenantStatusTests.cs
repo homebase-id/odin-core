@@ -51,6 +51,7 @@ public class TenantStatusTests
     {
         _scaffold = new WebScaffold(GetType().Name);
         var env = AdminEnv();
+        env["Registry__CatchUpIntervalSeconds"] = "1";
         _scaffold.RunBeforeAnyTests(envOverrides: env,
             testIdentities: [TestIdentities.Frodo, TestIdentities.Samwise, TestIdentities.Pippin]);
     }
@@ -521,6 +522,25 @@ public class TenantStatusTests
     }
 
     [Test]
+    public async Task AChangeNobodyAnnouncedIsAppliedByTheCatchUp()
+    {
+        // Announcements are at most once. A node that never hears about a pause must still apply
+        // it, or it keeps serving an identity every other node has paused. Fails without the
+        // periodic catch-up: nothing tells this node, so the status stays Active.
+        var identity = TestIdentities.Samwise;
+        var id = IdOf(identity);
+
+        await WriteRowAsOtherNodeAsync(identity, disabled: false,
+            json: "{\"status\":\"paused\",\"statusChangedAt\":1757000000000}", announce: false);
+
+        await WaitUntilAsync(() => Registry.GetStatus(id) == Status.Paused, "the unannounced pause applied",
+            TimeSpan.FromSeconds(10));
+        await WaitUntilAsync(() => !Registry.AreBackgroundServicesRunning(id), "background services stopped");
+        var response = await ProbeAsync(identity, ProbePaths[0]);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable), await response.Content.ReadAsStringAsync());
+    }
+
+    [Test]
     public async Task LegacyDisabledRowWithoutJsonReadsAsDisabledByAdmin()
     {
         // What a node without the json column writes
@@ -593,8 +613,9 @@ public class TenantStatusTests
     }
 
     // Changes the row and bumps the registry version the way another node would, then announces it
-    // with a foreign node id, so this node reconciles from the database instead of its own write path
-    private async Task WriteRowAsOtherNodeAsync(TestIdentity identity, bool disabled, string json)
+    // with a foreign node id, so this node reconciles from the database instead of its own write path.
+    // Without the announcement, only the periodic catch-up can find the change.
+    private async Task WriteRowAsOtherNodeAsync(TestIdentity identity, bool disabled, string json, bool announce = true)
     {
         var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
         long version;
@@ -609,6 +630,11 @@ public class TenantStatusTests
             await systemDatabase.Registrations.UpdateAsync(record);
             (_, version) = await systemDatabase.Settings.BumpMonotonicAsync("registry-version");
             tx.Commit();
+        }
+
+        if (!announce)
+        {
+            return;
         }
 
         var pubSub = container.Resolve<ISystemPubSub>();

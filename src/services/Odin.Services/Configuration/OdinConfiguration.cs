@@ -190,6 +190,13 @@ public class OdinConfiguration
         public List<string> DnsResolvers { get; init; } = [];
         public long DaysUntilAccountDeletion { get; init; } = long.MaxValue;
 
+        /// <summary>
+        /// How often each node checks for a registry change it was never told about (see
+        /// <see cref="Odin.Services.Registry.IIdentityRegistry.CatchUpAsync"/>). It bounds how long a
+        /// node can keep serving an identity the others have paused, so an export waits at least this long.
+        /// </summary>
+        public int CatchUpIntervalSeconds { get; init; } = 30;
+
         public RegistrySection()
         {
             // Mockable support
@@ -219,6 +226,7 @@ public class OdinConfiguration
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
+            CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)

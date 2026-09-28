@@ -66,7 +66,7 @@ Consequences behind a balancer, with N nodes:
   every other node restarts.
 - **Deleting a tenant** leaves the other nodes serving it from cache.
 
-**Fixed** with one mechanism and one event handler, and no timer. A registry version lives in
+**Fixed** with one mechanism, one event handler and one slow safety-net timer. A registry version lives in
 the system `Settings` row `registry-version`, bumped in the **same transaction** as every
 registration write. The bump locks the row (`SELECT ... FOR UPDATE`; SQLite's write lock does the
 same) before reading and advancing it, so it is atomic and returns the value it advanced from; a
@@ -75,12 +75,16 @@ unapplied and reconciles before claiming the new version. A plain read-then-upse
 consistent "before" under READ COMMITTED, which is why the read is locked. After commit,
 the node announces the new version over `ISystemPubSub`. A node that hears a version above its
 own reconciles from the database; anything at or below is dropped, which makes duplicate and
-out-of-order delivery harmless. Because pub/sub has no replay, the only way to miss an
+out-of-order delivery harmless. Because pub/sub has no replay, the common way to miss an
 announcement is to be disconnected, so each node re-reads the version once on startup and
 whenever its Redis connection is restored (`IConnectionMultiplexer.ConnectionRestored`), and
-reconciles if behind. The one accepted gap: a node that commits and then fails to announce logs
-an **error** (after retries), and other nodes learn on the next registry change anywhere, a
-reconnect, or a restart. Verified two ways: `TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` passes,
+reconciles if behind. Announcements can still be lost without a disconnect: a node that commits
+and then fails to announce logs an **error** (after retries). So every node also re-reads the
+version every `Registry:CatchUpIntervalSeconds` (default 30; `RegistryCatchUpBackgroundService`),
+a single-row read that reconciles only when behind. That bounds how long any node can serve an
+identity the others have paused, which is what an export relies on: pause, wait longer than the
+interval, then export (`TenantStatusTests.AChangeNobodyAnnouncedIsAppliedByTheCatchUp`). Verified
+two ways: `TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` passes,
 and `RegistryChangeMissedWhileRedisWasDown_ConvergesOnReconnect` stops Redis, changes the
 registration with nothing able to announce it, confirms both nodes are stale, starts Redis and
 asserts both converge.
