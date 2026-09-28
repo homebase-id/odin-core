@@ -238,6 +238,72 @@ public class TenantQuotaTests
         }
     }
 
+    /// <summary>
+    /// The 507 goes out while the payload is still arriving. With the tiny payload above, the whole body
+    /// is sent before the recipient can answer, so the early response never happens. This one sends a
+    /// body larger than the loopback kernel buffers (tcp_rmem tops out at 32 MB plus 4 MB of tcp_wmem on
+    /// the machine it was written on), so real Kestrel answers while the production peer client is still
+    /// writing, and checks the sender still sees a 507 it can defer on, not a transport error that would
+    /// spend an attempt and drop the item after ~3.8 h.
+    /// <para>
+    /// WebScaffold is what makes this meaningful: the host sends peer calls through the production
+    /// DynamicHttpClientFactory over loopback TLS, which the in-process framework cannot reproduce. When
+    /// written it was run at 8, 64 and 160 MB, three times each, all green; 64 MB is kept as the case
+    /// clearly past the buffers. Production's balancer is layer 4 (docs/proxy-protocol.md), so HTTP there
+    /// is end to end between the same two stacks.
+    /// </para>
+    /// </summary>
+    [TestCase(64)]
+    public async Task ALargePayloadIsDeferredNotSpentAsATransportError(int megabytes)
+    {
+        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await PrepareScenarioAsync(sender, recipient, targetDrive);
+
+        try
+        {
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.OutOfQuota);
+
+            var uploadResult = await SendWithPayloadAsync(sender, targetDrive, recipient.OdinId, new TestPayloadDefinition
+            {
+                Key = "test_key_1",
+                ContentType = "application/octet-stream",
+                Content = ByteArrayUtil.GetRndByteArray(megabytes * 1024 * 1024),
+                Thumbnails = []
+            });
+
+            // Wait for the first attempt to finish either way: a deferral pushes nextRunTime out by ~1h, a
+            // transport error spends an attempt. Assert on the row itself so a failure shows which it was.
+            await WaitUntilAsync(async () => (await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive))
+                .Any(r => r.checkOutCount > 0 ||
+                          r.nextRunTime.milliseconds > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 60 * 1000),
+                "the sender's first attempt to finish");
+
+            var row = (await ReadOutboxAsync(_scaffold, sender.Identity, targetDrive)).Single();
+            var inMinutes = (row.nextRunTime.milliseconds - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) / 60000.0;
+            Assert.That(row.checkOutCount, Is.EqualTo(0),
+                $"{megabytes} MB: the attempt was spent (next run in {inMinutes:F1} min), so the sender saw a transport error, not the 507");
+            Assert.That(inMinutes, Is.EqualTo(TenantStatusRules.OutOfQuotaRetryAfterSeconds / 60.0).Within(2),
+                $"{megabytes} MB: deferred by the Retry-After it was sent");
+
+            // Room again: the large payload is delivered intact
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Active);
+            await DrainOutboxAsync(_scaffold, sender.Identity);
+            await recipient.DriveRedux.ProcessInbox(targetDrive);
+
+            var received = await recipient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
+            var file = received.Content.SearchResults.SingleOrDefault();
+            Assert.That(file, Is.Not.Null, $"{megabytes} MB: recipient has the file once it has room");
+            Assert.That(file!.FileMetadata.Payloads.Single().BytesWritten, Is.EqualTo(megabytes * 1024 * 1024),
+                $"{megabytes} MB: and the whole payload");
+        }
+        finally
+        {
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
+        }
+    }
+
     [Test]
     public async Task APausedRecipientAlsoDefersTheItemWithoutSpendingAttempts()
     {
@@ -306,13 +372,14 @@ public class TenantQuotaTests
         return response.Content;
     }
 
-    private static async Task<UploadResult> SendWithPayloadAsync(OwnerApiClientRedux sender, TargetDrive targetDrive, OdinId recipient)
+    private static async Task<UploadResult> SendWithPayloadAsync(OwnerApiClientRedux sender, TargetDrive targetDrive, OdinId recipient,
+        TestPayloadDefinition payload = null)
     {
         var metadata = MetadataWith("chat with an attachment");
         metadata.AllowDistribution = true;
         metadata.AccessControlList = AccessControlList.Connected;
 
-        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        payload ??= SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var response = await sender.DriveRedux.UploadNewFile(
             targetDrive,
             metadata,
