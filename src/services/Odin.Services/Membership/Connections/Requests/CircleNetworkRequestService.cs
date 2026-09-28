@@ -959,7 +959,7 @@ namespace Odin.Services.Membership.Connections.Requests
             // pending request, which is only deleted on success, can be accepted again (#1778).
             var previousIcr = await _cns.GetIcrAsync(senderOdinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
 
-            // Not announced until the requester has confirmed: the finalized handlers reset caches, delete the
+            // Announced below, once the requester has confirmed: the finalized handlers reset caches, delete the
             // introduction this accept came from and tell the owner's apps we are connected.
             await _cns.ConnectAsync(senderOdinId,
                 accessGrant,
@@ -968,8 +968,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 incomingRequest.ConnectionRequestOrigin,
                 incomingRequest.IntroducerOdinId,
                 verificationHash,
-                odinContext,
-                announce: false);
+                odinContext);
 
             if (markReviewed)
             {
@@ -1304,6 +1303,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 originalRequest.IntroducerOdinId,
                 originalRequest.VerificationHash,
                 odinContext);
+            await _cns.AnnounceConnectionFinalizedAsync((OdinId)reply.SenderOdinId, odinContext);
 
             // The sender's half of the review.  An IdentityOwner-origin request is one the owner sent
             // deliberately, naming the circles this connection is about to be enrolled in -- so by the time

@@ -244,30 +244,4 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
         Assert.That(await IsConnectedWithExpectedOrigin(merry, sam.Identity, ConnectionRequestOrigin.Introduction), Is.True,
             $"{merry.Identity} must hold {sam.Identity} as an introduced connection");
     }
-
-    /// <summary>
-    /// The act every test in this fixture shares: the introducer introduces Sam and Merry to each
-    /// other, hears success for both, and all three outboxes are drained — the introducer's to deliver
-    /// the introductions, each introducee's to send the connection request it produced.
-    /// </summary>
-    private static async Task SendIntroductionsAndDrainAsync(
-        IV2Caller caller, OwnerSession introducer, OwnerSession sam, OwnerSession merry)
-    {
-        var response = await caller.RefitFor<IRefitUniversalCircleNetworkRequests>()
-            .SendIntroductions(new IntroductionGroup
-            {
-                Message = "test message from frodo",
-                Recipients = [sam.Identity, merry.Identity]
-            });
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await introducer.Sync.DrainOutboxAsync();
-
-        var introResult = response.Content!;
-        Assert.That(introResult.RecipientStatus[sam.Identity], Is.True);
-        Assert.That(introResult.RecipientStatus[merry.Identity], Is.True);
-
-        await sam.Sync.DrainOutboxAsync();
-        await merry.Sync.DrainOutboxAsync();
-    }
 }

@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Services.Membership.Connections;
-using Odin.Services.Membership.Connections.Requests;
 using static Odin.Hosting.Tests.V2.Ported.Connections.Introductions.IntroductionTestUtils;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
@@ -51,7 +48,7 @@ public class IntroductionPeerFaultTests : V2Fixture
 
         Host.PeerFaults.FailNext(from: merry.Identity, to: sam.Identity, EstablishConnectionPath);
 
-        await IntroduceAndDrainAsync(frodo, sam, merry);
+        await SendIntroductionsAndDrainAsync(frodo, frodo, sam, merry);
 
         await AssertConnectedBothWaysAsync(sam, merry);
     }
@@ -67,7 +64,7 @@ public class IntroductionPeerFaultTests : V2Fixture
 
         Host.PeerFaults.FailNext(from: sam.Identity, to: merry.Identity, EstablishConnectionPath);
 
-        await IntroduceAndDrainAsync(frodo, sam, merry);
+        await SendIntroductionsAndDrainAsync(frodo, frodo, sam, merry);
 
         await AssertConnectedBothWaysAsync(sam, merry);
     }
@@ -90,9 +87,9 @@ public class IntroductionPeerFaultTests : V2Fixture
         var failedAccept = await merry.Connections.AcceptConnectionRequest(sam.Identity);
         Assert.That(failedAccept.IsSuccessStatusCode, Is.False, "the accept cannot succeed while its callback fails");
 
-        Assert.That(await StatusAsync(merry, sam.Identity), Is.Not.EqualTo(ConnectionStatus.Connected),
+        Assert.That(await IsConnected(merry, sam.Identity), Is.False,
             $"{merry.Identity} must not hold a connection {sam.Identity} never recorded");
-        Assert.That(await StatusAsync(sam, merry.Identity), Is.Not.EqualTo(ConnectionStatus.Connected));
+        Assert.That(await IsConnected(sam, merry.Identity), Is.False);
 
         var incoming = await merry.Connections.GetIncomingRequestFrom(sam.Identity);
         Assert.That(incoming.StatusCode, Is.EqualTo(HttpStatusCode.OK),
@@ -113,37 +110,14 @@ public class IntroductionPeerFaultTests : V2Fixture
         return (frodo, sam, merry);
     }
 
-    private static async Task IntroduceAndDrainAsync(OwnerSession frodo, OwnerSession sam, OwnerSession merry)
-    {
-        var response = await Requests(frodo).SendIntroductions(new IntroductionGroup
-        {
-            Message = "test message from frodo",
-            Recipients = [sam.Identity, merry.Identity]
-        });
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.DrainOutboxAsync();
-        await merry.Sync.DrainOutboxAsync();
-    }
-
-    private static async Task<ConnectionStatus> StatusAsync(OwnerSession owner, OdinId other)
-    {
-        var info = await owner.Connections.GetConnectionInfo(other);
-        Assert.That(info.IsSuccessStatusCode, Is.True);
-        return info.Content!.Status;
-    }
-
     /// <summary>
     /// Connected on both sides, and each side's credentials are the ones the other side issued --
     /// a status of Connected alone does not show the two records belong to the same handshake.
     /// </summary>
     private static async Task AssertConnectedBothWaysAsync(OwnerSession a, OwnerSession b)
     {
-        Assert.That(await StatusAsync(a, b.Identity), Is.EqualTo(ConnectionStatus.Connected),
-            $"{a.Identity} must hold {b.Identity} as a connection");
-        Assert.That(await StatusAsync(b, a.Identity), Is.EqualTo(ConnectionStatus.Connected),
-            $"{b.Identity} must hold {a.Identity} as a connection");
+        Assert.That(await IsConnected(a, b.Identity), Is.True, $"{a.Identity} must hold {b.Identity} as a connection");
+        Assert.That(await IsConnected(b, a.Identity), Is.True, $"{b.Identity} must hold {a.Identity} as a connection");
 
         foreach (var (from, to) in new[] { (a, b), (b, a) })
         {

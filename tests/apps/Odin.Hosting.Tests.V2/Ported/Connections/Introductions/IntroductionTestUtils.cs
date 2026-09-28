@@ -101,6 +101,32 @@ internal static class IntroductionTestUtils
     }
 
     /// <summary>
+    /// The act the introduction fixtures share: the introducer introduces Sam and Merry to each
+    /// other, hears success for both, and all three outboxes are drained — the introducer's to deliver
+    /// the introductions, each introducee's to send the connection request it produced.
+    /// </summary>
+    public static async Task SendIntroductionsAndDrainAsync(
+        IV2Caller caller, OwnerSession introducer, OwnerSession sam, OwnerSession merry)
+    {
+        var response = await caller.RefitFor<IRefitUniversalCircleNetworkRequests>()
+            .SendIntroductions(new IntroductionGroup
+            {
+                Message = "test message from frodo",
+                Recipients = [sam.Identity, merry.Identity]
+            });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        await introducer.Sync.DrainOutboxAsync();
+
+        var introResult = response.Content!;
+        Assert.That(introResult.RecipientStatus[sam.Identity], Is.True);
+        Assert.That(introResult.RecipientStatus[merry.Identity], Is.True);
+
+        await sam.Sync.DrainOutboxAsync();
+        await merry.Sync.DrainOutboxAsync();
+    }
+
+    /// <summary>
     /// The V1 connection-requests surface as this owner. The introductions endpoints are the system
     /// under test in these fixtures, so they go through Refit rather than <c>owner.Admin</c>.
     /// </summary>

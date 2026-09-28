@@ -715,8 +715,7 @@ namespace Odin.Services.Membership.Connections
             ConnectionRequestOrigin connectionRequestOrigin,
             OdinId? introducerOdinId,
             byte[] verificationHash,
-            IOdinContext odinContext,
-            bool announce = true)
+            IOdinContext odinContext)
         {
             //TODO: need to add security that this method can be called
 
@@ -742,17 +741,12 @@ namespace Odin.Services.Membership.Connections
             };
 
             await this.SaveIcrAsync(newConnection, odinContext);
-
-            if (announce)
-            {
-                await AnnounceConnectionFinalizedAsync(odinId, odinContext);
-            }
         }
 
         /// <summary>
-        /// Tells the rest of the identity that the connection to <paramref name="odinId"/> is in place. Called by
-        /// <see cref="ConnectAsync"/> unless the caller passed <c>announce: false</c> to do it once the other side
-        /// has confirmed.
+        /// Tells the rest of the identity that the connection to <paramref name="odinId"/> is in place. Separate from
+        /// <see cref="ConnectAsync"/> so a caller whose connection still needs the other side's confirmation can
+        /// announce it only once it has that.
         /// </summary>
         public async Task AnnounceConnectionFinalizedAsync(OdinId odinId, IOdinContext odinContext)
         {

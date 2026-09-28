@@ -551,19 +551,11 @@ rollback-journal mode, where readers and writers block each other ("database is 
 That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
 failure of these three fixtures names it. If one goes red again, the Warning above says why.
 
-**Update 2026-09-28 -- a mechanism that produces this exact symptom, reproduced and fixed.** An
-introducee auto-accepts the other's request on arrival: it writes its own connection, then calls the
-requester back (`establishconnection`) to write theirs. When that callback failed once, the accepting
-side kept its `Connected` record, and the requester had `None` -- the symptom above. Two things made it
-permanent rather than self-healing. The `[DEBUG-754]` diagnostic on the failure path read the ICR with
-an encryption upgrade, which needs the ICR key an auto-accept does not hold, so it threw "No access
-permitted to the Icr Key" in place of the real failure. And the finalized notification had already
-deleted the introduction. `IntroductionPeerFaultTests` fails the callback once with the new
-`Host.PeerFaults` hook: on `main` Sam ends at `None`, and it passes with the fix. The fix restores the
-accepting side's record when the callback fails, and announces the connection only once it succeeds,
-so the pending request stays and the introducee's own `ConnectIntroducee` accepts it. **Measured:**
-the mechanism. **Inferred, not confirmed:** that this is what failed in the three fixtures above. The
-reproduction injects the fault, and no captured run of those fixtures names the callback.
+**Update 2026-09-28 -- a mechanism that produces this exact symptom, reproduced and fixed.** One failed
+`establishconnection` callback on an auto-accept left the accepter `Connected` and the requester `None`,
+with nothing to retry it. Reproduced by `IntroductionPeerFaultTests` (the fault injected with
+`Host.PeerFaults`) and fixed in #1825. **Inferred, not confirmed:** that this is what failed in the three
+fixtures above -- no captured run of them names the callback.
 
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them
