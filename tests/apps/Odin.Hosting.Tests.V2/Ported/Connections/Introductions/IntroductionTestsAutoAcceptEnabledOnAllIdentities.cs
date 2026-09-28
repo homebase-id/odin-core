@@ -7,6 +7,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using static Odin.Hosting.Tests.V2.Ported.Connections.Introductions.IntroductionTestUtils;
 
@@ -66,6 +67,43 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities : V2Fixture
     {
         yield return [CallerSpec.Owner(DriveSpec.Anon())];
         yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.None, PermissionKeys.All)];
+    }
+
+    /// <summary>
+    /// Sam's introductory request connects the two. Merry's own, queued before that, must then find the
+    /// connection and not send a second request -- which Sam would accept, re-keying a working connection.
+    /// <c>ConnectAsync</c> stamps <c>LastUpdated</c> on every write, so a re-accept shows as a changed value.
+    /// </summary>
+    [Test]
+    public async Task IntroduceeAlreadyConnectedDoesNotSendASecondRequest()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        var merry = await LoginAsOwner(Identities.Merry);
+        await PrepareIntroducer(frodo, sam, merry);
+
+        var response = await Requests(frodo).SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [sam.Identity, merry.Identity]
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        await frodo.Sync.DrainOutboxAsync();
+        await sam.Sync.DrainOutboxAsync();
+
+        var samsBefore = (await sam.Connections.GetConnectionInfo(merry.Identity)).Content!;
+        var merrysBefore = (await merry.Connections.GetConnectionInfo(sam.Identity)).Content!;
+        Assert.That(samsBefore.Status, Is.EqualTo(ConnectionStatus.Connected), "Sam's request must have connected them");
+        Assert.That(merrysBefore.Status, Is.EqualTo(ConnectionStatus.Connected), "Sam's request must have connected them");
+
+        await merry.Sync.DrainOutboxAsync();
+
+        var samsAfter = (await sam.Connections.GetConnectionInfo(merry.Identity)).Content!;
+        var merrysAfter = (await merry.Connections.GetConnectionInfo(sam.Identity)).Content!;
+        Assert.That(samsAfter.LastUpdated, Is.EqualTo(samsBefore.LastUpdated),
+            $"{sam.Identity}'s connection to {merry.Identity} was rewritten by a second request");
+        Assert.That(merrysAfter.LastUpdated, Is.EqualTo(merrysBefore.LastUpdated),
+            $"{merry.Identity}'s connection to {sam.Identity} was rewritten by a second request");
     }
 
     [Test, TestCaseSource(nameof(IntroducerCases))]

@@ -248,6 +248,15 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
+                // Checked again here, not only when the introduction arrived (ReceiveIntroductions): the other
+                // introducee's request may have connected us since. Sending anyway would have them accept a
+                // second request and re-key a working connection.
+                if (existingConnection.IsConnected())
+                {
+                    logger.LogInformation("Introduction connect: already connected to {recipient}; not sending a request", recipient);
+                    return;
+                }
+
                 await HandleConnectionRequestInternalForIntroductionAsync(header, odinContext);
                 return;
             }

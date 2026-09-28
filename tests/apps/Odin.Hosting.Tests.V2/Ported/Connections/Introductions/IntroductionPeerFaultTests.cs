@@ -54,22 +54,6 @@ public class IntroductionPeerFaultTests : V2Fixture
     }
 
     /// <summary>
-    /// Sam and Merry are connected by the first request; Merry's own introductory request then reaches
-    /// Sam, who accepts it again, and his callback to Merry fails.
-    /// </summary>
-    [Test]
-    public async Task IntroduceesStayConnectedWhenTheSecondCallbackFailsOnce()
-    {
-        var (frodo, sam, merry) = await PrepareAsync();
-
-        Host.PeerFaults.FailNext(from: sam.Identity, to: merry.Identity, EstablishConnectionPath);
-
-        await SendIntroductionsAndDrainAsync(frodo, frodo, sam, merry);
-
-        await AssertConnectedBothWaysAsync(sam, merry);
-    }
-
-    /// <summary>
     /// The same fault on an owner's own accept: the accept fails, so the accepting side must not be left
     /// claiming a connection the requester never recorded -- and accepting again must work.
     /// </summary>
