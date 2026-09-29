@@ -499,8 +499,11 @@ public static class HostExtensions
         // Subscribe before loading: a change announced mid-load is either at or below the version
         // load reads, and dropped, or above it, and reconciled after.
         registry.SubscribeToRegistryChangesAsync().BlockingWait();
-        registry.LoadRegistrations().BlockingWait();
+        // Same ordering for certificates: LoadRegistrations warms the certificate cache, and a
+        // certificate another node writes after that must evict what was cached here.
         var certificateStore = services.GetRequiredService<ICertificateStore>();
+        certificateStore.SubscribeToCertificateChangesAsync().BlockingWait();
+        registry.LoadRegistrations().BlockingWait();
         DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry, certificateStore);
 
         // Check for singleton dependencies

@@ -18,6 +18,10 @@ namespace Odin.Hosting.Tests._V2.Tests.LiveRelay;
 /// Coverage for the Live Relay primitive: app-initiated, ephemeral, last-value-wins data sharing
 /// between connected identities. Exercises delivery, server-enforced app isolation, automatic
 /// flush-on-(re)connect, and the not-connected guard.
+///
+/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>),
+/// because every case here receives over a real WebSocket — and WebSockets are an explicit non-goal
+/// of the fast framework, which runs TLS-less over <c>TestServer</c> and hosts no WS endpoint.
 /// </summary>
 [TestFixture]
 public class V2LiveRelayTests

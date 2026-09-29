@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,6 +9,7 @@ using NSubstitute;
 using NUnit.Framework;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Util;
+using Odin.Core.X509;
 using Odin.Services.Background;
 using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Certificate;
@@ -129,5 +131,63 @@ public class CertificateServiceContentionTests
         var completed = await Task.WhenAny(reacquire, Task.Delay(TimeSpan.FromSeconds(5)));
         Assert.That(completed, Is.SameAs(reacquire), "The order lock was still held after a failed order");
         await (await reacquire).DisposeAsync();
+    }
+
+    //
+
+    // #1747: the re-check after the lock must read the database, not this node's cache
+    [Test]
+    public async Task RenewIfAboutToExpireAsync_DoesNotReorder_WhenAnotherNodeAlreadyRenewed()
+    {
+        const string domain = "renewed-elsewhere.example.com";
+
+        using var aboutToExpire = AboutToExpire(domain);
+        using var renewedByOtherNode = X509Extensions.CreateSelfSignedEcDsaCertificate(
+            domain, DateTimeOffset.Now - TimeSpan.FromMinutes(1), DateTimeOffset.Now + TimeSpan.FromDays(90));
+
+        // This node's cache is stale; the database has what the other node wrote.
+        _certificateStore.GetCertificateAsync(domain).Returns(aboutToExpire);
+        _certificateStore.ReloadCertificateAsync(domain).Returns(renewedByOtherNode);
+
+        var renewed = await _certificateService.RenewIfAboutToExpireAsync(domain);
+
+        Assert.That(renewed, Is.False, "Nothing should have been renewed here: the other node already did it");
+
+        // No order, and no attempt at one - see the control test below for what an attempt looks like
+        await _certesAcme.DidNotReceiveWithAnyArgs()
+            .CreateCertificateAsync(default!, default!, default);
+        await _certificateStore.DidNotReceiveWithAnyArgs()
+            .StoreFailedCertificateUpdateAsync(default!, default!);
+        await _certificateStore.Received(1).ReloadCertificateAsync(domain);
+    }
+
+    //
+
+    // The control for the test above: when the database agrees the certificate is about to
+    // expire, the renewal must go ahead. The substituted IServiceProvider cannot load an ACME
+    // account, so "went ahead" shows up here as a recorded failure rather than an order.
+    [Test]
+    public async Task RenewIfAboutToExpireAsync_GoesAhead_WhenTheDatabaseAlsoSaysAboutToExpire()
+    {
+        const string domain = "still-expiring.example.com";
+
+        using var aboutToExpire = AboutToExpire(domain);
+
+        _certificateStore.GetCertificateAsync(domain).Returns(aboutToExpire);
+        _certificateStore.ReloadCertificateAsync(domain).Returns(aboutToExpire);
+
+        var renewed = await _certificateService.RenewIfAboutToExpireAsync(domain);
+
+        Assert.That(renewed, Is.False);
+        await _certificateStore.Received(1).StoreFailedCertificateUpdateAsync(domain, Arg.Any<string>());
+        await _certificateStore.Received(1).ReloadCertificateAsync(domain);
+    }
+
+    //
+
+    private static X509Certificate2 AboutToExpire(string domain)
+    {
+        return X509Extensions.CreateSelfSignedEcDsaCertificate(
+            domain, DateTimeOffset.Now - TimeSpan.FromDays(89), DateTimeOffset.Now + TimeSpan.FromDays(1));
     }
 }

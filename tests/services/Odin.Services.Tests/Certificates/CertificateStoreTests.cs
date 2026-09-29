@@ -1,9 +1,11 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -13,11 +15,11 @@ using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.PubSub;
 using Odin.Core.Time;
 using Odin.Core.X509;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
-using Serilog.Events;
 using Testcontainers.PostgreSql;
 
 namespace Odin.Services.Tests.Certificates;
@@ -41,7 +43,7 @@ public class CertificateStoreTests
     [TearDown]
     public async Task TearDown()
     {
-        _autofacContainer.Dispose();
+        _autofacContainer?.Dispose(); // null when a test needs no database
 
         if (_postgresContainer != null)
         {
@@ -54,9 +56,7 @@ public class CertificateStoreTests
 
     //
 
-    private async Task RegisterServicesAsync(
-        DatabaseType databaseType,
-        LogEventLevel logEventLevel = LogEventLevel.Debug)
+    private async Task RegisterServicesAsync(DatabaseType databaseType)
     {
         var config = new OdinConfiguration
         {
@@ -89,6 +89,7 @@ public class CertificateStoreTests
         cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
         cb.RegisterInstance(new CertificateStorageKey(config.CertificateRenewal.StorageKey)).SingleInstance();
         cb.AddDatabaseServices();
+        cb.AddSystemPubSub(redisEnabled: false);
         cb.RegisterModule(new LoggingAutofacModule());
 
 
@@ -315,4 +316,135 @@ public class CertificateStoreTests
         }
     }
 
+    //
+
+    // A second node: its own CertificateStore, and so its own cache, over the same database and
+    // the same pub/sub as _certificateStore.
+    private ICertificateStore CreateSecondNode()
+    {
+        return new CertificateStore(
+            _autofacContainer.Resolve<IServiceProvider>(),
+            _autofacContainer.Resolve<CertificateStorageKey>());
+    }
+
+    //
+
+    private const string Domain = "frodo.dotyou.cloud";
+
+    private static async Task<string> PutNewCertificateAsync(ICertificateStore node)
+    {
+        var x509 = X509Extensions.CreateSelfSignedEcDsaCertificate(Domain);
+        var (pemKey, pemCertificate) = x509.ExtractEcDsaPemData();
+        return (await node.PutCertificateAsync(Domain, pemKey, pemCertificate)).Thumbprint;
+    }
+
+    //
+
+    // Node B has cached the first certificate; node A then replaces it with the second.
+    private async Task<(ICertificateStore nodeA, ICertificateStore nodeB, string first, string second)>
+        ArrangeNodeBHoldingReplacedCertificateAsync(DatabaseType databaseType, bool subscribe)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        var nodeA = _certificateStore;
+        var nodeB = CreateSecondNode();
+        if (subscribe)
+        {
+            await nodeA.SubscribeToCertificateChangesAsync();
+            await nodeB.SubscribeToCertificateChangesAsync();
+        }
+
+        var first = await PutNewCertificateAsync(nodeA);
+        Assert.That((await nodeB.GetCertificateAsync(Domain))?.Thumbprint, Is.EqualTo(first),
+            "Node B should have loaded (and cached) the first certificate from the database");
+
+        var second = await PutNewCertificateAsync(nodeA);
+        Assert.That(second, Is.Not.EqualTo(first));
+
+        return (nodeA, nodeB, first, second);
+    }
+
+    //
+
+    // #1747: without the announcement, node B serves what it has in memory until that expires.
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task PutCertificateAsync_RefreshesTheCertificateCachedOnOtherNodes(DatabaseType databaseType)
+    {
+        var (nodeA, nodeB, first, second) = await ArrangeNodeBHoldingReplacedCertificateAsync(databaseType, subscribe: true);
+
+        // Delivery is asynchronous, so poll - but only ever through the cache-first read.
+        string? served = null;
+        var sw = Stopwatch.StartNew();
+        while (sw.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            served = (await nodeB.GetCertificateAsync(Domain))?.Thumbprint;
+            if (served == second)
+            {
+                break;
+            }
+            await Task.Delay(20);
+        }
+
+        Assert.That(served, Is.EqualTo(second),
+            $"Node B is still serving a certificate node A replaced (first was {first})");
+
+        // Node A hears its own announcement too, and must still be serving what it wrote
+        Assert.That((await nodeA.GetCertificateAsync(Domain))?.Thumbprint, Is.EqualTo(second));
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ReloadCertificateAsync_IgnoresTheCache_AndRefreshesIt(DatabaseType databaseType)
+    {
+        // Nobody subscribes, so nothing but ReloadCertificateAsync can correct node B's cache
+        var (_, nodeB, first, second) = await ArrangeNodeBHoldingReplacedCertificateAsync(databaseType, subscribe: false);
+
+        Assert.That((await nodeB.GetCertificateAsync(Domain))?.Thumbprint, Is.EqualTo(first),
+            "The cache-first read is expected to be stale here; that is what the reload is for");
+        Assert.That((await nodeB.ReloadCertificateAsync(Domain))?.Thumbprint, Is.EqualTo(second),
+            "The reload must answer from the database, not from node B's cache");
+        Assert.That((await nodeB.GetCertificateAsync(Domain))?.Thumbprint, Is.EqualTo(second),
+            "The reload must leave the fresh certificate in the cache");
+    }
+
+    //
+
+    [Test]
+    public async Task ReloadCertificateAsync_ShouldReturnNull_WhenNoCertificateExists()
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+        Assert.That(await _certificateStore.ReloadCertificateAsync("frodo.dotyou.cloud"), Is.Null);
+    }
+
+    //
+
+    // Loads finish in any order. On CI a change announcement's reload that read the FIRST
+    // certificate completed after the one that read the second, and left node B serving the
+    // certificate node A had replaced.
+    [Test]
+    public void ALoadThatFinishesLate_DoesNotReplaceANewerCachedCertificate()
+    {
+        var store = new CertificateStore(Substitute.For<IServiceProvider>(), new CertificateStorageKey(new byte[32]));
+        using var older = X509Extensions.CreateSelfSignedEcDsaCertificate(Domain);
+        using var newer = X509Extensions.CreateSelfSignedEcDsaCertificate(Domain);
+
+        Assert.That(store.CacheUnlessNewerCached(Domain, newer, version: 2).Thumbprint, Is.EqualTo(newer.Thumbprint));
+
+        Assert.That(store.CacheUnlessNewerCached(Domain, older, version: 1).Thumbprint, Is.EqualTo(newer.Thumbprint),
+            "A certificate read at an older row version must not replace the cached one");
+        Assert.That(store.CacheUnlessNewerCached(Domain, newer, version: 2).Thumbprint, Is.EqualTo(newer.Thumbprint),
+            "Re-reading the same version is a no-op, not a rejection");
+
+        using var newest = X509Extensions.CreateSelfSignedEcDsaCertificate(Domain);
+        Assert.That(store.CacheUnlessNewerCached(Domain, newest, version: 3).Thumbprint, Is.EqualTo(newest.Thumbprint));
+    }
 }

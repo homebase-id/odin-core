@@ -66,7 +66,7 @@ Consequences behind a balancer, with N nodes:
   every other node restarts.
 - **Deleting a tenant** leaves the other nodes serving it from cache.
 
-**Fixed** with one mechanism and one event handler, and no timer. A registry version lives in
+**Fixed** with one mechanism, one event handler and one slow safety-net timer. A registry version lives in
 the system `Settings` row `registry-version`, bumped in the **same transaction** as every
 registration write. The bump locks the row (`SELECT ... FOR UPDATE`; SQLite's write lock does the
 same) before reading and advancing it, so it is atomic and returns the value it advanced from; a
@@ -75,15 +75,28 @@ unapplied and reconciles before claiming the new version. A plain read-then-upse
 consistent "before" under READ COMMITTED, which is why the read is locked. After commit,
 the node announces the new version over `ISystemPubSub`. A node that hears a version above its
 own reconciles from the database; anything at or below is dropped, which makes duplicate and
-out-of-order delivery harmless. Because pub/sub has no replay, the only way to miss an
+out-of-order delivery harmless. Because pub/sub has no replay, the common way to miss an
 announcement is to be disconnected, so each node re-reads the version once on startup and
 whenever its Redis connection is restored (`IConnectionMultiplexer.ConnectionRestored`), and
-reconciles if behind. The one accepted gap: a node that commits and then fails to announce logs
-an **error** (after retries), and other nodes learn on the next registry change anywhere, a
-reconnect, or a restart. Verified two ways: `TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` passes,
-and `RegistryChangeMissedWhileRedisWasDown_ConvergesOnReconnect` stops Redis, changes the
+reconciles if behind. Announcements can still be lost without a disconnect: a node that commits
+and then fails to announce logs an **error** (after retries). So every node also re-reads the
+version every `Registry:CatchUpIntervalSeconds` (default 30; `RegistryCatchUpBackgroundService`),
+a single-row read that reconciles only when behind. That bounds how long any node can serve an
+identity the others have paused, which is what an export relies on: pause, wait longer than the
+interval, then export. Verified three ways: `TenantDisabledOnNodeA_IsAlsoBlockedOnNodeB` passes;
+`RegistryChangeMissedWhileRedisWasDown_ConvergesOnReconnect` stops Redis, changes the
 registration with nothing able to announce it, confirms both nodes are stale, starts Redis and
-asserts both converge.
+asserts both converge; and `TenantStatusTests.AChangeNobodyAnnouncedIsAppliedByTheCatchUp` writes a
+pause nobody announces and asserts the catch-up applies it.
+
+**A new registration is announced the moment its row commits.** It used to be announced last,
+after `InitializeCertificate`, which reached the new domain over HTTPS through the balancer. Routed
+to a node that had not heard of the identity, that request could never succeed, so the other
+nodes stayed blind for its full 90 s deadline - a 2-minute sign-up spinner on the EU cluster,
+while NA was fast by luck of routing. A peer builds the tenant from the row alone, so it needs
+nothing the registering node does after the commit. `InitializeCertificate` now also waits
+locally: it asks its own node's issuer and checks the certificate store, which sees a
+certificate whichever node obtained it.
 
 ## Notes and constraints (not breaks)
 
@@ -100,10 +113,10 @@ asserts both converge.
   nothing shared.
 - **`Host:SystemProcessApiKey` defaults to a fresh GUID per process** and is not in the ansible
   template, so each node would generate its own. `SystemAuthenticationHandler` validates inbound
-  calls against it and `SystemHttpClient` sends it. Its one caller is the registry's certificate
-  status check (`FileSystemIdentityRegistry.InitializeCertificate`), which calls the tenant's own
-  host and so may land on a different node behind a balancer and be rejected. Pin the value
-  across the cluster.
+  calls against it and `SystemHttpClient` sends it. Its only user today is
+  `FileSystemIdentityRegistry.GetRegistrationStatus`, which nothing calls; anything that calls a
+  tenant's own host through it may land on another node and be rejected. Pin the value across
+  the cluster.
 - **Every node runs every background service** (43 each in this run), including the
   inbox/outbox reconciliation, orphan scan and temp-folder cleanup. Outbox and inbox are safe
   because items are checked out with a DB update, and no contention errors appeared in either

@@ -48,8 +48,21 @@ public class PeerKeyStore
     /// </summary>
     public List<DepositedGrant> DepositedGrants { get; set; } = new();
 
+    /// <summary>
+    /// Circles the owner chose that the caller could not grant at all, awaiting the app that can.
+    /// </summary>
+    /// <remarks>
+    /// The third state a circle can be in for a connection, and the furthest from granted:
+    /// <see cref="CircleGrants"/> are in effect, <see cref="DepositedGrants"/> hold real key material and
+    /// only await the Peer Key, and these hold nothing and await an app that can source the keys.
+    /// </remarks>
+    public List<PendingEnrollment> PendingEnrollments { get; set; } = new();
+
     [JsonIgnore]
     public bool HasPendingDeposits => DepositedGrants?.Count > 0;
+
+    [JsonIgnore]
+    public bool HasPendingEnrollments => PendingEnrollments?.Count > 0;
 
     public void AddUpdateAppCircleGrant(AppCircleGrant appCircleGrant)
     {
@@ -75,7 +88,12 @@ public class PeerKeyStore
             IsRevoked = this.IsRevoked,
             CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
             AppGrants = this.AppGrants.ToDictionary(k => k.Key, pair => pair.Value.Values.Select(v => v.Redacted())),
-            PendingCircleIds = this.DepositedGrants.Select(d => d.CircleId.Value).ToList()
+            PendingCircleIds = this.DepositedGrants.Select(d => d.CircleId.Value).ToList(),
+            // Ids only here; the names need lookups this type has no business doing. CircleNetworkService
+            // fills them in on the way out.
+            AwaitingApps = (this.PendingEnrollments ?? [])
+                .Select(p => new AwaitingAppEnrollment { CircleId = p.CircleId.Value, AppId = p.OwningAppId })
+                .ToList()
         };
     }
 
@@ -97,4 +115,35 @@ public class RedactedPeerKeyStore
     /// soon as the Peer Key is next in scope (owner grant touch or peer CAT auth).
     /// </summary>
     public List<Guid> PendingCircleIds { get; set; }
+
+    /// <summary>
+    /// Circles the owner asked for that nothing has been able to grant yet, because the caller could not
+    /// source their drives' storage keys — they wait on the owning app running, or on the owner.  Also
+    /// not a member of these, but further away than <see cref="PendingCircleIds"/>: those hold real key
+    /// material and need only the Peer Key.
+    /// </summary>
+    public List<AwaitingAppEnrollment> AwaitingApps { get; set; }
+}
+
+/// <summary>
+/// A circle waiting on the app that owns it, named well enough for a person to read.
+/// </summary>
+/// <remarks>
+/// Ids alone let a client say "waiting" and nothing more, because there is no app-id-to-name lookup on
+/// the client side; the names are here so it can say <i>waiting on Moments</i>.  They are resolved when
+/// the connection is read rather than stored on the entry, so a renamed circle or app reads correctly
+/// instead of showing whatever it was called when the review happened.
+/// </remarks>
+public class AwaitingAppEnrollment
+{
+    public Guid CircleId { get; set; }
+
+    /// <summary>Null if the circle has been deleted since the review.</summary>
+    public string CircleName { get; set; }
+
+    /// <summary>The app that owns the circle and is the only one that can complete this.</summary>
+    public Guid? AppId { get; set; }
+
+    /// <summary>Null for an owner circle, which has no app, or for an app since deleted.</summary>
+    public string AppName { get; set; }
 }

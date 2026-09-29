@@ -41,6 +41,12 @@ public enum ClientNotificationType
     /// public_image.json, public_profile.json) was republished.
     /// </summary>
     PublicProfileContentPublished = 5004,
+    /// <summary>
+    /// A review recorded circle enrollments that only the receiving app can complete.  A hint to call
+    /// connections/enrollments/process (or send the ProcessEnrollments socket command) while it is
+    /// running; the queue is durable, so missing this costs only time.
+    /// </summary>
+    PendingEnrollmentsAwaiting = 5005,
     /// An opaque live-relay data point (e.g. live GPS) pushed by a connected identity to an app.
     /// Carries the sending identity, a channel key, the opaque blob, and the server-received time.
     /// </summary>

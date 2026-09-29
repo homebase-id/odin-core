@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Membership.Circles;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
@@ -20,6 +21,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 
         [Post(RootPath + "/create")]
         Task<ApiResponse<HttpContent>> CreateCircleDefinition([Body] CreateCircleRequest request);
+
+        [Post(RootPath + "/reassign-owner")]
+        Task<ApiResponse<HttpContent>> ReassignCircleOwningApp([Body] SetCircleOwningAppRequest request);
 
         [Post(RootPath + "/update")]
         Task<ApiResponse<HttpContent>> UpdateCircleDefinition([Body] CircleDefinition circleDefinition);

@@ -17,6 +17,7 @@ using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.PubSub;
 using Odin.Core.X509;
 using Odin.Services.Background;
 using Odin.Services.Background.BackgroundServices.System;
@@ -168,6 +169,7 @@ public class CertificateServiceTests
                 .As<ICertesAcme>().SingleInstance();
             cb.RegisterInstance(new CertificateStorageKey(config.CertificateRenewal.StorageKey)).SingleInstance();
             cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
+            cb.AddSystemPubSub(useRedis);
             cb.RegisterType<CertificateService>().As<ICertificateService>().SingleInstance();
             // The real notifier needs the background-service manager, which this harness does
             // not start; the tests call the service directly and never need a pulse delivered.

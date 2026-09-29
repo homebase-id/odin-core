@@ -124,6 +124,16 @@ namespace Odin.Services.Drives.Management
         }
 
         /// <summary>
+        /// The readable form of a drive's type, never null: every drive carries a type slug, so a drive
+        /// whose type is not one we know falls back to <see cref="DefaultTypeSlug"/>.
+        /// </summary>
+        public static string TypeSlugOrDefault(Guid driveId, Guid driveType) =>
+            TypeSlugFor(driveId, driveType) ?? DefaultTypeSlug;
+
+        /// <summary>The type slug for a drive of no recognised type.</summary>
+        public const string DefaultTypeSlug = "drive";
+
+        /// <summary>
         /// Resolves a slug for every drive in one pass, so a collision is found before anything is written.
         /// </summary>
         /// <exception cref="OdinSystemException">

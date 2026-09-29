@@ -38,7 +38,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceNotifier<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.FileReaderWriter), "3af801d3"},
-        {typeof(Odin.Services.Registry.IIdentityRegistry), "0e9b3bc1"},
+        {typeof(Odin.Services.Registry.IIdentityRegistry), "3a8b5178"},
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},

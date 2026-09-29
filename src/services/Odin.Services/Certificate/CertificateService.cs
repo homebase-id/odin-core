@@ -64,30 +64,17 @@ public class CertificateService : ICertificateService
     private sealed record BackoffState(DateTimeOffset Until, int ConsecutiveFailures);
 
     //
-    // When the CA refuses an optional SAN we drop it and issue without it. That leaves a
-    // certificate which is, by NeedsRenewalAsync's reckoning, missing a SAN it ought to have -
-    // so the next sweep would renew to re-add it, fail, drop it again, and issue yet another
-    // certificate. Every 12h sweep would mint a duplicate, and Let's Encrypt allows five
-    // duplicate certificates (identical name set) per week. Seven days holds that to one.
-    //
-    // Node-local and lost on restart, like the backoff: an operator who has just fixed the
-    // record and bounced the service gets an immediate retry, which is the behaviour they want.
-    //
-    // One pulse per domain per minute. The pulse wakes a whole-registry sweep - a registry read,
-    // a Redis lock attempt per domain, and a DNS lookup per tenant still missing its mta-sts SAN
-    // - and SleepAsync returns immediately when the wake event is already set, so unthrottled
-    // pulses run sweeps back to back.
-    //
-    // NOT an attacker control: ServerCertificateSelector only reaches RequestIssuanceAsync after
-    // ResolveIdentityRegistration or IsKnownSystemDomain succeeds, so the reachable set is
-    // domains this host already serves that currently have no certificate. This is a bound on
-    // ordinary traffic to a newly provisioned identity, not a defence.
     // A hard floor between sweeps, for the whole host. One pulse wakes a whole-registry sweep -
     // a registry read, a certificate-store read per tenant, and a DNS lookup per tenant still
     // missing its mta-sts SAN - and SleepAsync returns immediately when the wake event is
     // already set, so unthrottled pulses run sweeps back to back. A per-domain throttle was
     // tried alongside this and removed: it bounds one domain while still admitting one pulse per
     // domain per minute, so this single global bound is the one that actually holds.
+    //
+    // NOT an attacker control: ServerCertificateSelector only reaches RequestIssuanceAsync after
+    // ResolveIdentityRegistration or IsKnownSystemDomain succeeds, so the reachable set is
+    // domains this host already serves that currently have no certificate. This is a bound on
+    // ordinary traffic to a newly provisioned identity, not a defence.
     private static readonly TimeSpan GlobalPulseFloor = TimeSpan.FromSeconds(10);
     private long _lastGlobalPulseTicks;
 
@@ -267,10 +254,11 @@ public class CertificateService : ICertificateService
             return null;
         }
 
-        var x509 = await GetCertificateAsync(domain);
+        // From the database, not this node's cache: see RenewIfAboutToExpireAsync.
+        var x509 = await _certificateStore.ReloadCertificateAsync(domain);
         if (x509 != null)
         {
-            _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
+            _logger.LogDebug("Create certificate: {domain} completed on another thread or node", domain);
             return x509;
         }
 
@@ -338,11 +326,14 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        x509 = await GetCertificateAsync(domain);
+        // From the database, not this node's cache: the lock is cluster-wide, the cache is not,
+        // and another node may have renewed while we waited (#1747). See
+        // docs/certificate-issuance-locking.md.
+        x509 = await _certificateStore.ReloadCertificateAsync(domain);
 
         if (x509 != null && !await NeedsRenewalAsync(domain, x509, sans, cancellationToken))
         {
-            _logger.LogDebug("Background renew of certificate {domain} completed on another thread", domain);
+            _logger.LogDebug("Background renew of certificate {domain} completed on another thread or node", domain);
             return false;
         }
 

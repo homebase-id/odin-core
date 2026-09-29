@@ -135,25 +135,4 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
         Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK));
     }
 
-    private async Task<Odin.Services.Base.IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<Odin.Services.Authentication.Owner.OwnerAuthenticationService>();
-        var odinContext = new Odin.Services.Base.OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new Odin.Services.Base.OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }

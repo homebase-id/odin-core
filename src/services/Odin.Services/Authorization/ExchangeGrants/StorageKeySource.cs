@@ -27,13 +27,15 @@ public interface IStorageKeySource
 public static class StorageKeySource
 {
     /// <summary>
-    /// The pre-existing implicit contract, made explicit: source via the master key when
-    /// present, otherwise mint keyless. Use only where a null master key is a legitimate
-    /// state (e.g. introduction/auto-connect accept before the deferred upgrade).
+    /// For connection-request grants (send and accept), where the caller may be an app or an
+    /// introduction with no master key: source via the master key when present, otherwise via the
+    /// caller's own drive access, minting keyless only for drives the caller cannot read.
     /// </summary>
-    public static IStorageKeySource FromMasterKeyOrNone(SensitiveByteArray? masterKey)
+    public static IStorageKeySource FromMasterKeyOrCaller(SensitiveByteArray? masterKey, IOdinContext odinContext)
     {
-        return masterKey == null ? NoStorageKeySource.Instance : new MasterKeyStorageKeySource(masterKey);
+        return masterKey == null
+            ? new PermissionContextOrNoStorageKeySource(odinContext)
+            : new MasterKeyStorageKeySource(masterKey);
     }
 }
 
@@ -68,9 +70,25 @@ public sealed class PermissionContextStorageKeySource(IOdinContext odinContext) 
 }
 
 /// <summary>
+/// Caller-scoped with a keyless fallback: the storage key comes from the caller's own permission
+/// context when it has one, and is null otherwise.  Unlike <see cref="PermissionContextStorageKeySource"/>
+/// it does not throw, because connection-request grants always include the system circles, whose
+/// drives (e.g. the profile drive) an app normally cannot read.
+/// </summary>
+public sealed class PermissionContextOrNoStorageKeySource(IOdinContext odinContext) : IStorageKeySource
+{
+    public SensitiveByteArray? GetStorageKey(StorageDrive drive)
+    {
+        return odinContext.PermissionsContext?.TryGetDriveStorageKey(drive.Id, out var storageKey) == true
+            ? storageKey
+            : null;
+    }
+}
+
+/// <summary>
 /// Deliberately keyless: mints grants without storage keys. Only for grants that carry no
-/// read access (write-only, anonymous-drive permission groups) or that are re-minted with
-/// real keys later (introduction/auto-connect accept before the master key is online).
+/// read access (write-only, anonymous-drive permission groups) or whose read keys are
+/// filled in by a later owner-present re-mint (e.g. app circle grants at peer-CAT conversion).
 /// </summary>
 public sealed class NoStorageKeySource : IStorageKeySource
 {

@@ -42,7 +42,7 @@ public class EncryptedContentTests : V2Fixture
         fileMetadata.AppData.Content = "data data data";
         var keyHeader = KeyHeader.NewRandom16();
 
-        var ownerV1 = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var ownerV1 = owner.V1.Drive;
         var (uploadResponse, _) = await ownerV1.UploadNewEncryptedMetadata(spec.TargetDrive, fileMetadata, keyHeader);
         Assert.That(uploadResponse.IsSuccessStatusCode, Is.True);
         var file = uploadResponse.Content!.File;
@@ -72,7 +72,7 @@ public class EncryptedContentTests : V2Fixture
         fileMetadata.AppData.Content = "data data data";
         var keyHeader = KeyHeader.NewRandom16();
 
-        var ownerV1 = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var ownerV1 = owner.V1.Drive;
         var (uploadResponse, _) = await ownerV1.UploadNewEncryptedMetadata(spec.TargetDrive, fileMetadata, keyHeader);
         Assert.That(uploadResponse.IsSuccessStatusCode, Is.True);
         var file = uploadResponse.Content!.File;

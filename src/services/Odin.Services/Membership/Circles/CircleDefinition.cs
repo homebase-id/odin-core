@@ -6,6 +6,7 @@ using Odin.Core;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Drives;
 
 namespace Odin.Services.Membership.Circles
 {
@@ -43,6 +44,24 @@ namespace Odin.Services.Membership.Circles
         public Guid? AppId { get; set; }
 
         /// <summary>
+        /// True when the app tree declares this circle, so its owner, grant rule and designation are
+        /// re-applied on every version upgrade.
+        /// </summary>
+        /// <remarks>
+        /// Derived at read time from <see cref="Apps.Builtin.BuiltinApps.IsTreeDeclaredCircle"/>, never
+        /// stored -- <c>CircleDefinitionService.ToRecord</c> clears it along with the promoted columns,
+        /// for a related reason: the tree changes with the build, not with the row, so a copy at rest
+        /// could disagree with the catalogue it came from.
+        /// <para>
+        /// A client needs this before offering to edit any of those three.  Editing a declared circle is
+        /// undone by the next upgrade without saying so, whereas an app's runtime circle -- the feed app
+        /// minting one per channel, say -- is owned by an app but named by nobody and stays as the owner
+        /// leaves it.  <see cref="AppId"/> alone does not separate the two.
+        /// </para>
+        /// </remarks>
+        public bool IsTreeDeclared { get; set; }
+
+        /// <summary>
         /// When the owning app wants members enrolled.  See <see cref="CircleGrantOn"/>.
         /// </summary>
         public CircleGrantOn GrantOn { get; set; } = CircleGrantOn.None;
@@ -67,6 +86,29 @@ namespace Odin.Services.Membership.Circles
         /// The permissions to be granted to members of this Circle
         /// </summary>
         public PermissionSet Permissions { get; set; }
+
+        /// <summary>
+        /// True when minting this circle's grant needs the connection's Peer Key -- i.e. when some drive
+        /// grant carries a storage key that has to be wrapped for the member.
+        /// </summary>
+        /// <remarks>
+        /// This is the line between a grant an app can mint on its own and one it cannot.  A read grant
+        /// escrows the drive's storage key under the Peer Key, which only the owner (master key) and the
+        /// peer (their CAT) can reach -- so an app has to deposit it instead and let conversion finish the
+        /// job.  A write/react grant carries no key material at all: it is a plaintext
+        /// <c>{driveId, permission}</c> record, and the Peer Key never enters into it.
+        /// <para>
+        /// Permission keys are deliberately not counted.  They live in clear on the grant, so they need no
+        /// Peer Key either; whether an app may hand them out is a policy question, and the deposit path
+        /// already answers it "yes" by carrying <c>PermissionSet</c> through untouched.
+        /// </para>
+        /// </remarks>
+        public bool RequiresPeerKey()
+        {
+            return DriveGrants?.Any(g =>
+                g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) ||
+                g.PermissionedDrive.Permission.HasFlag(DrivePermission.ConditionalTemporalRead)) ?? false;
+        }
 
         public bool Equals(CircleDefinition other)
         {
@@ -111,6 +153,7 @@ namespace Odin.Services.Membership.Circles
                 Description = Description,
                 Disabled = Disabled,
                 AppId = AppId,
+                IsTreeDeclared = IsTreeDeclared,
                 GrantOn = GrantOn,
                 Designation = Designation,
                 Emoji = Emoji,
@@ -131,6 +174,12 @@ namespace Odin.Services.Membership.Circles
 
         /// <summary>The app that owns this circle; null means an owner circle.</summary>
         public Guid? AppId { get; set; }
+
+        /// <summary>
+        /// True when the app tree declares this circle, so the next version upgrade re-applies its owner,
+        /// grant rule and designation -- and silently undoes any edit to them.  Derived, never stored.
+        /// </summary>
+        public bool IsTreeDeclared { get; set; }
 
         /// <summary>When the owning app wants members enrolled.</summary>
         public CircleGrantOn GrantOn { get; set; }

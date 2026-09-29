@@ -19,7 +19,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
-    private static readonly TimeSpan MinL2Duration = TimeSpan.FromSeconds(2);
+    /// <summary>
+    /// The shortest lifetime an entry can be given. Shorter is not "cache briefly", it is an error
+    /// (see <see cref="GuardDurationForL2"/>), so a caller with less time than this left should not
+    /// cache at all.
+    /// </summary>
+    public static readonly TimeSpan MinL2Duration = TimeSpan.FromSeconds(2);
     private void GuardDurationForL2(TimeSpan duration, FusionCacheEntryOptions options)
     {
         if (duration < MinL2Duration)

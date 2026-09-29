@@ -1141,7 +1141,7 @@ public class ContactTests : V2Fixture
 
         // Sam publishes a public profile card (served at pub/profile); the recipient returns it on the
         // DeliverConnectionRequest response, so the sender names the contact in the same round-trip.
-        var samStatic = new UniversalStaticFileApiClient(sam.Identity, sam.Factory);
+        var samStatic = sam.V1.StaticFiles;
         var publish = await samStatic.PublishPublicProfileCard(new PublishPublicProfileCardRequest
         {
             ProfileCardJson = "{\"name\":\"Samwise Gamgee\"}"

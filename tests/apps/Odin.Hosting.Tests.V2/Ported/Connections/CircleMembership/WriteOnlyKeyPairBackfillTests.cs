@@ -1,11 +1,11 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
@@ -172,29 +172,4 @@ public class WriteOnlyKeyPairBackfillTests : V2Fixture
             "the pre-existing (real) write-only keypair from the normal accept flow must be left untouched");
     }
 
-    /// <summary>
-    /// Builds an owner context carrying the master key by replaying the production path used by
-    /// <c>VersionUpgradeService</c> (<see cref="OwnerAuthenticationService.UpdateOdinContextAsync"/>).
-    /// </summary>
-    private async Task<IOdinContext> BuildOwnerContextAsync(Autofac.ILifetimeScope scope, OwnerSession owner)
-    {
-        var authService = scope.Resolve<OwnerAuthenticationService>();
-        var odinContext = new OdinContext
-        {
-            Tenant = default,
-            AuthTokenCreated = null,
-            Caller = null
-        };
-        var clientContext = new OdinClientContext
-        {
-            CorsHostName = null,
-            AccessRegistrationId = null,
-            DevicePushNotificationKey = null,
-            ClientIdOrDomain = null
-        };
-
-        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
-        odinContext.Caller!.AssertHasMasterKey();
-        return odinContext;
-    }
 }

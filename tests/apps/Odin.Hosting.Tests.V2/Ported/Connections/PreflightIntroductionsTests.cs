@@ -67,21 +67,17 @@ public class PreflightIntroductionsTests : V2Fixture
     }
 
     /// <summary>
-    /// The headline case behind the "thomas does not allow introductions from you" report: an
-    /// auto-connection that the recipient's owner has never confirmed. Both sides are healthy and the
-    /// recipient decided nothing — AllowIntroductions is simply not carried by the Auto-connected circle,
-    /// and confirming requires the recipient owner's master key. This must not report as
-    /// <see cref="IntroductionPreflightStatus.IntroductionsNotPermitted"/>.
+    /// An auto-connection the recipient's owner never confirmed, on a recipient that does not auto-accept.
+    /// Neither the missing Confirmed Connections circle nor the auto-accept setting decides introductions --
+    /// <see cref="TenantConfigFlagNames.DisableAllowIntroductions"/> does, and it is off, so Frodo may introduce.
     ///
     /// <para>
     /// Sam's auto-accept is turned off <b>after</b> the auto-connect (auto-connect itself needs it on, or
-    /// it returns PendingManualApproval instead of connecting). A recipient that still auto-accepts
-    /// permits its auto-connections to introduce — see
-    /// <see cref="Preflight_WhenRecipientAutoConnectedAndAutoAccepts_ReturnsReady"/>.
+    /// it returns PendingManualApproval instead of connecting).
     /// </para>
     /// </summary>
     [Test]
-    public async Task Preflight_WhenRecipientAutoConnectedButNotConfirmed_ReturnsRecipientConnectionNotConfirmed()
+    public async Task Preflight_WhenRecipientAutoConnectedAndAutoAcceptDisabled_ReturnsReady()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -96,22 +92,17 @@ public class PreflightIntroductionsTests : V2Fixture
         });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.RecipientConnectionNotConfirmed);
+        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.Ready);
 
         var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
-        Assert.That(samStatus.IsConfigured, Is.True);
-        Assert.That(samStatus.AllowsIntroductions, Is.False, "auto-connected circle carries no AllowIntroductions");
-        Assert.That(samStatus.IsCallerConnected, Is.True, "the connection is healthy on both sides");
-        Assert.That(samStatus.IsCallerConfirmed, Is.False);
-        Assert.That(samStatus.CallerConnectionState, Is.EqualTo(PeerCallerConnectionState.Connected));
-        Assert.That(samStatus.RemedyActor, Is.EqualTo(PreflightRemedyActor.Recipient));
-        Assert.That(samStatus.IsTransient, Is.False);
+        Assert.That(samStatus.AllowsIntroductions, Is.True);
+        Assert.That(samStatus.IsCallerConnected, Is.True);
+        Assert.That(samStatus.IsCallerAutoConnected, Is.True);
+        Assert.That(samStatus.IsCallerConfirmed, Is.False, "still nothing but an auto-connection");
     }
 
     /// <summary>
-    /// The same unconfirmed auto-connection, but Sam still auto-accepts connection requests (the default).
-    /// Having already decided to connect to whoever asks, Sam has nothing left to withhold from the
-    /// identities that decision auto-connected, so Frodo may introduce without waiting on a confirm.
+    /// The same unconfirmed auto-connection, with Sam still auto-accepting connection requests (the default).
     /// </summary>
     [Test]
     public async Task Preflight_WhenRecipientAutoConnectedAndAutoAccepts_ReturnsReady()
@@ -137,23 +128,22 @@ public class PreflightIntroductionsTests : V2Fixture
     }
 
     [Test]
-    public async Task Preflight_WhenRecipientConfirmsAutoConnection_FlipsToReady()
+    public async Task Preflight_WhenRecipientReenablesIntroductions_FlipsToReady()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
 
-        await AutoConnectAsync(frodo, sam);
-        await DisableAutoAcceptAsync(sam);
+        await ConnectAsync(frodo, sam);
+        await SetDisableAllowIntroductionsAsync(sam, true);
 
         var before = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
         {
             Message = "preflight",
             Recipients = [sam.Identity]
         });
-        AssertStatus(before.Content!, sam.Identity, IntroductionPreflightStatus.RecipientConnectionNotConfirmed);
+        AssertStatus(before.Content!, sam.Identity, IntroductionPreflightStatus.IntroductionsNotPermitted);
 
-        var confirm = await sam.Connections.ConfirmConnection(frodo.Identity);
-        Assert.That(confirm.IsSuccessStatusCode, Is.True, $"confirm failed: {confirm.StatusCode}");
+        await SetDisableAllowIntroductionsAsync(sam, false);
 
         var after = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
         {
@@ -165,7 +155,6 @@ public class PreflightIntroductionsTests : V2Fixture
         AssertStatus(after.Content!, sam.Identity, IntroductionPreflightStatus.Ready);
 
         var samStatus = after.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
-        Assert.That(samStatus.IsCallerConfirmed, Is.True);
         Assert.That(samStatus.AllowsIntroductions, Is.True);
     }
 
@@ -234,7 +223,7 @@ public class PreflightIntroductionsTests : V2Fixture
     }
 
     [Test]
-    public async Task Preflight_WhenRecipientRevokedAllowIntroductions_ReturnsIntroductionsNotPermitted()
+    public async Task Preflight_WhenRecipientDisablesIntroductions_ReturnsIntroductionsNotPermitted()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -243,10 +232,9 @@ public class PreflightIntroductionsTests : V2Fixture
         await ConnectAsync(frodo, sam);
         await ConnectAsync(frodo, merry);
 
-        // Sam revokes the system circle that grants AllowIntroductions to Frodo. Frodo's ICR with
-        // Sam stays in place, but introductions from Frodo would be rejected at Sam's side.
-        var revoke = await sam.Connections.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
-        Assert.That(revoke.IsSuccessStatusCode, Is.True, $"revoke failed: {revoke.StatusCode}");
+        // Sam turns introductions off. Frodo's ICR with Sam stays in place, but introductions from Frodo are
+        // refused at Sam's side; Merry has changed nothing.
+        await SetDisableAllowIntroductionsAsync(sam, true);
 
         var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
         {
@@ -261,11 +249,38 @@ public class PreflightIntroductionsTests : V2Fixture
         var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
         Assert.That(samStatus.IsConfigured, Is.True);
         Assert.That(samStatus.AllowsIntroductions, Is.False);
-
-        // The control case for RecipientConnectionNotConfirmed: Sam confirmed Frodo and then took the
-        // permission away, so IntroductionsNotPermitted is describing an actual decision here.
         Assert.That(samStatus.IsCallerConnected, Is.True);
         Assert.That(samStatus.CallerConnectionState, Is.EqualTo(PeerCallerConnectionState.Connected));
+    }
+
+    /// <summary>
+    /// Taking Frodo out of Confirmed Connections drops the <c>AllowIntroductions</c> permission key he held
+    /// there. That key no longer decides anything, so with introductions allowed he may still introduce.
+    /// </summary>
+    [Test]
+    public async Task Preflight_WhenRecipientRevokedConfirmedCircle_ReturnsReady()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        await ConnectAsync(frodo, sam);
+
+        var revoke = await sam.Connections.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
+        Assert.That(revoke.IsSuccessStatusCode, Is.True, $"revoke failed: {revoke.StatusCode}");
+
+        var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
+        {
+            Message = "preflight",
+            Recipients = [sam.Identity]
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.Ready);
+
+        var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
+        Assert.That(samStatus.AllowsIntroductions, Is.True);
+        Assert.That(samStatus.IsCallerConnected, Is.True);
+        Assert.That(samStatus.IsCallerConfirmed, Is.False);
     }
 
     [Test]
@@ -375,14 +390,25 @@ public class PreflightIntroductionsTests : V2Fixture
     }
 
     /// <summary>
-    /// Turns off the recipient's auto-accept, which is what otherwise lets its auto-connections introduce
-    /// without a confirm. Call it after <see cref="AutoConnectAsync"/> -- auto-connect needs the flag on.
-    /// The fixture restores tenant settings between tests, so there is nothing to undo here.
+    /// Turns off the recipient's auto-accept of connection requests. Call it after <see cref="AutoConnectAsync"/>
+    /// -- auto-connect needs the flag on. The fixture restores tenant settings between tests, so there is
+    /// nothing to undo here.
     /// </summary>
     private static async Task DisableAutoAcceptAsync(OwnerSession recipient)
     {
         var flagSet = await recipient.Admin.UpdateTenantSettingsFlag(
             TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "true");
+        Assert.That(flagSet.IsSuccessStatusCode, Is.True, $"flag update failed: {flagSet.StatusCode}");
+    }
+
+    /// <summary>
+    /// Sets the recipient's <see cref="TenantConfigFlagNames.DisableAllowIntroductions"/>. The fixture restores
+    /// tenant settings between tests, so a test only turns it back off when it checks the change reverses.
+    /// </summary>
+    private static async Task SetDisableAllowIntroductionsAsync(OwnerSession recipient, bool disabled)
+    {
+        var flagSet = await recipient.Admin.UpdateTenantSettingsFlag(
+            TenantConfigFlagNames.DisableAllowIntroductions, disabled.ToString());
         Assert.That(flagSet.IsSuccessStatusCode, Is.True, $"flag update failed: {flagSet.StatusCode}");
     }
 

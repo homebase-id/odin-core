@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -26,6 +27,7 @@ public sealed class AppSession : IV2Caller
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
+    public V1Handles V1 { get; }
 
     /// <summary>
     /// App-scoped drain hooks. Mirrors <see cref="OwnerSession.Sync"/>: outbox via direct service
@@ -38,9 +40,11 @@ public sealed class AppSession : IV2Caller
     {
         Identity = identity;
         AppId = appId;
-        Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token, sharedSecret.ToSensitiveByteArray());
+        Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token,
+            sharedSecret.ToSensitiveByteArray(), AppApiPathConstantsV1.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        V1 = new V1Handles(Identity, Factory);
         Sync = new AppSync(host.GetTestSync(identity), this);
     }
 
@@ -61,9 +65,12 @@ public sealed class AppSession : IV2Caller
         DrivePermission drivePermission,
         IReadOnlyList<int>? permissionKeys = null,
         List<Guid>? authorizedCircles = null,
-        PermissionSetGrantRequest? circleMemberGrantRequest = null)
+        PermissionSetGrantRequest? circleMemberGrantRequest = null,
+        Guid? knownAppId = null)
     {
-        var appId = Guid.NewGuid();
+        // Pinnable, because a circle this app owns must name its id while the app may in turn have to
+        // name the circle (authorizedCircles) -- so one of the two has to be known before either exists.
+        var appId = knownAppId ?? Guid.NewGuid();
         var permissions = new PermissionSetGrantRequest
         {
             Drives = new List<DriveGrantRequest>
@@ -79,6 +86,23 @@ public sealed class AppSession : IV2Caller
             },
             PermissionSet = new PermissionSet(permissionKeys is null ? new List<int>() : new List<int>(permissionKeys))
         };
+
+        return await SetupAsync(owner, permissions, authorizedCircles, circleMemberGrantRequest, appId);
+    }
+
+    /// <summary>
+    /// As the drive-scoped overload, but takes the whole <see cref="PermissionSetGrantRequest"/> —
+    /// for an app whose grant cannot be expressed as one drive plus one permission, e.g. a
+    /// batch-collection query that has to span three drives at once.
+    /// </summary>
+    public static async Task<AppSession> SetupAsync(
+        OwnerSession owner,
+        PermissionSetGrantRequest permissions,
+        List<Guid>? authorizedCircles = null,
+        PermissionSetGrantRequest? circleMemberGrantRequest = null,
+        Guid? knownAppId = null)
+    {
+        var appId = knownAppId ?? Guid.NewGuid();
 
         await owner.Admin.RegisterApp(appId, permissions, authorizedCircles, circleMemberGrantRequest);
         var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);

@@ -166,6 +166,39 @@ public class ExceptionHandlingMiddlewareTest
             Times.Never);
     }
 
+    /// <summary>
+    /// A payload version replaced mid-read is a 404, not the 400 its base type would give (#1772).
+    /// </summary>
+    /// <remarks>
+    /// <c>OdinPayloadVersionGoneException</c> derives from <c>OdinClientException</c>, so it only
+    /// answers 404 because its catch is ordered ahead of that one. Reorder them and every caller
+    /// silently starts getting 400 instead -- which is why the ordering is pinned here rather than
+    /// left to reading the middleware.
+    /// </remarks>
+    [Test]
+    public async Task PayloadVersionGoneExceptionIsNotFound()
+    {
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            throw new OdinPayloadVersionGoneException("that version is gone", new Exception("inner"));
+        });
+        var client = server.CreateClient();
+
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo((int)HttpStatusCode.NotFound));
+        Assert.That(problems.Title, Is.EqualTo("that version is gone"));
+        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!, true),
+            Is.EqualTo(OdinClientErrorCode.PayloadVersionGone),
+            "the code is what tells a client to re-read the header rather than retry the same url");
+    }
+
     [Test]
     public async Task InternalServerErrorExceptionInProduction()
     {

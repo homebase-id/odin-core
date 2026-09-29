@@ -187,7 +187,16 @@ namespace Odin.Hosting
 
         //
 
-        public static IHostBuilder CreateHostBuilder(string[] args)
+        /// <param name="args">Command-line arguments passed through to the host builder.</param>
+        /// <param name="preserveStaticLogger">
+        /// When false (production), Serilog assigns the process-wide <c>Log.Logger</c> to this host's
+        /// logger. That is fine for a process that hosts one server, and wrong for a test process that
+        /// boots many in parallel: Serilog builds its <c>ILoggerFactory</c> with a null logger in that
+        /// mode, so an injected <c>ILogger&lt;T&gt;</c> resolves <c>Log.Logger</c> at each write and
+        /// every already-booted host starts writing into the newest host's sinks. Pass true to leave
+        /// the static logger alone and keep each host's events in its own sinks. See issue #1775.
+        /// </param>
+        public static IHostBuilder CreateHostBuilder(string[] args, bool preserveStaticLogger = false)
         {
             var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
 
@@ -208,7 +217,7 @@ namespace Odin.Hosting
                 .UseSerilog((context, services, loggerConfiguration) =>
                 {
                     CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
-                })
+                }, preserveStaticLogger: preserveStaticLogger)
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory())
                 .ConfigureWebHostDefaults(webBuilder =>
                 {

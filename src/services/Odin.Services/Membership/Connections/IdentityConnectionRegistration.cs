@@ -81,6 +81,18 @@ namespace Odin.Services.Membership.Connections
         public UnixTimeUtc Created { get; set; }
 
         /// <summary>
+        /// When the owner completed the connection review; null means New (never reviewed).
+        /// </summary>
+        /// <remarks>
+        /// Promoted from the <c>Connections.ReviewedAt</c> column, which is its only at-rest home.
+        /// <see cref="CircleNetworkStorage"/> maps it into this object on read and back to the column on
+        /// write; it is deliberately absent from <c>IcrAccessRecord</c> -- the type that becomes the row's
+        /// <c>data</c> blob -- because a second copy in there would let the pagination query (column) and
+        /// the hydrated object disagree.  See docs/drive-addressing.md, "One at-rest copy".
+        /// </remarks>
+        public UnixTimeUtc? ReviewedAt { get; set; }
+
+        /// <summary>
         /// The contact data received when the connection was established 
         /// </summary>
         public ContactRequestData OriginalContactData { get; set; }
@@ -119,9 +131,36 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// The shape a third-party viewer gets: the identity and its public contact card, and nothing else.
+        /// </summary>
+        /// <remarks>
+        /// The connections list a peer may see is a list of identities, never a list of the owner's
+        /// judgments (docs/connection-defaults.md, "Viewer-scoped redaction").  So everything that records
+        /// what the owner thinks or how the relationship came about -- the review, the introducer, the
+        /// origin, the grants and their circles -- is absent here, rather than being present-but-empty.
+        ///
+        /// <para>
+        /// Note that <c>omitContactData</c> is the wrong axis for this and always was: it strips the
+        /// harmless half (the public card the viewer is there for) and keeps the sensitive half.  This
+        /// method is the right axis, and the flag stays only for its owner-side use.
+        /// </para>
+        /// </remarks>
+        public RedactedIdentityConnectionRegistration RedactedForExternalViewer()
+        {
+            return new RedactedIdentityConnectionRegistration()
+            {
+                OdinId = this.OdinId,
+                OriginalContactData = this.OriginalContactData
+            };
+        }
+
+        /// <summary>
         /// Returns the minimal info needed for external systems using this data.
         /// </summary>
-        /// <returns></returns>
+        /// <remarks>
+        /// Owner-side shape: it carries the owner's judgments and must only be served to the owner's own
+        /// clients.  Use <see cref="RedactedForExternalViewer"/> for anyone else.
+        /// </remarks>
         public RedactedIdentityConnectionRegistration Redacted(bool omitContactData = true)
         {
             return new RedactedIdentityConnectionRegistration()
@@ -136,6 +175,7 @@ namespace Odin.Services.Membership.Connections
                 AccessGrant = this.PeerKeyStore?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
+                ReviewedAt = this.ReviewedAt,
                 Vetted = this.IsConnected() && this.IsConfirmedConnection()
             };
         }
@@ -163,8 +203,22 @@ namespace Odin.Services.Membership.Connections
         public bool Rku { get; init; }
 
         /// <summary>
-        /// True if the identity is connected and is a member of the Confirmed Connections system circle
+        /// When the owner completed the connection review; null means New.  Owner-private -- this shape is
+        /// served to the owner's own clients only, never to a peer (docs/connection-defaults.md).
         /// </summary>
+        public UnixTimeUtc? ReviewedAt { get; init; }
+
+        /// <summary>
+        /// True if the identity is connected and is a member of the Confirmed Connections system circle.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately unchanged from what it has always meant, rather than re-expressed as
+        /// <see cref="ReviewedAt"/> != null.  Existing clients read this field and must keep seeing exactly
+        /// what they see today; the two can disagree during the transition, because they answer different
+        /// questions -- this one asks about Confirmed-circle membership, <see cref="ReviewedAt"/> asks
+        /// whether the owner has reviewed.  New clients should read <see cref="ReviewedAt"/>; this retires
+        /// with the Confirmed circle.
+        /// </remarks>
         public bool Vetted { get; init; }
     }
 }

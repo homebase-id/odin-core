@@ -190,6 +190,13 @@ public class OdinConfiguration
         public List<string> DnsResolvers { get; init; } = [];
         public long DaysUntilAccountDeletion { get; init; } = long.MaxValue;
 
+        /// <summary>
+        /// How often each node checks for a registry change it was never told about (see
+        /// <see cref="Odin.Services.Registry.IIdentityRegistry.CatchUpAsync"/>). It bounds how long a
+        /// node can keep serving an identity the others have paused, so an export waits at least this long.
+        /// </summary>
+        public int CatchUpIntervalSeconds { get; init; } = 30;
+
         public RegistrySection()
         {
             // Mockable support
@@ -219,6 +226,7 @@ public class OdinConfiguration
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
+            CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
@@ -286,6 +294,14 @@ public class OdinConfiguration
         public int PeerOperationMaxAttempts { get; init; }
         public int OutboxOperationMaxAttempts { get; init; }
 
+        /// <summary>
+        /// How long an outbox item may keep being deferred while the recipient answers "retry later"
+        /// (503/507 with a Retry-After header). Such a deferral does not count against
+        /// <see cref="OutboxOperationMaxAttempts"/>, so this is what bounds it: measured from the time
+        /// the item was added to the outbox. Long enough for a human to free up storage.
+        /// </summary>
+        public TimeSpan OutboxRetryLaterMaxAge { get; init; }
+
         public TimeSpan PeerOperationDelayMs { get; init; }
 
         /// <summary>
@@ -346,6 +362,13 @@ public class OdinConfiguration
             PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
 
             OutboxOperationMaxAttempts = config.GetOrDefault("Host:OutboxOperationMaxAttempts", 30);
+
+            OutboxRetryLaterMaxAge =
+                TimeSpan.FromSeconds(config.GetOrDefault("Host:OutboxRetryLaterMaxAgeSeconds", 7 * 24 * 60 * 60));
+            if (OutboxRetryLaterMaxAge <= TimeSpan.Zero)
+            {
+                throw new OdinConfigException("Invalid OutboxRetryLaterMaxAgeSeconds");
+            }
 
             ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
 

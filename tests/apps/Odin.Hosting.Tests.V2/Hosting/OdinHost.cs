@@ -18,9 +18,11 @@ using Autofac;
 using Autofac.Builder;
 using Odin.Core.Http;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Background;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -70,6 +72,13 @@ public sealed partial class OdinHost : IAsyncDisposable
     public string[] Identities { get; }
     public string DataRoot { get; }
 
+    /// <summary>
+    /// This host's in-memory Serilog sink — the store behind <c>V2Fixture</c>'s no-error-log
+    /// invariant, and the only place the <c>#if DEBUG</c> recovery nonces surface. Saves every
+    /// consumer digging it out of <see cref="Server"/>'s service provider by hand.
+    /// </summary>
+    public ILogEventMemoryStore LogStore => Server.Services.GetRequiredService<ILogEventMemoryStore>();
+
     private OdinHost(IHost host, string[] identities, string dataRoot)
     {
         _host = host;
@@ -112,7 +121,12 @@ public sealed partial class OdinHost : IAsyncDisposable
         // long as no peer call fires during host startup.
         var serverHolder = new TestServerHolder();
 
-        var builder = Program.CreateHostBuilder([])
+        // preserveStaticLogger: fixtures run in parallel, and without this every host boot repoints
+        // Serilog's process-wide Log.Logger -- which is what an injected ILogger<T> resolves at write
+        // time in that mode -- so all hosts' events funnel into the newest host's in-memory sink.
+        // That made the log-event invariant both noisy (a fixture failing on a neighbour's error) and
+        // lossy (a neighbour's per-test Clear() discarding evidence before it was asserted on). #1775.
+        var builder = Program.CreateHostBuilder([], preserveStaticLogger: true)
             .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
             // Match production: SystemServices.cs sets AllowSynchronousIO=true on Kestrel for the
             // upload/payload streaming pipeline. TestServer's default rejects sync IO, so without
@@ -148,13 +162,20 @@ public sealed partial class OdinHost : IAsyncDisposable
                     new FileSystemIdentityRegistry(
                         sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
                         sp.GetRequiredService<ICertificateService>(),
-                        sp.GetRequiredService<IDynamicHttpClientFactory>(),
                         sp.GetRequiredService<ISystemHttpClient>(),
                         sp.GetRequiredService<IMultiTenantContainer>(),
                         (cb, registration, cfg) =>
                         {
                             TenantServices.ConfigureTenantServices(cb, registration, cfg);
                             cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
+
+                            // Registered per tenant in ConfigureTenantServices, so overridden per
+                            // tenant: the production fetcher over the in-process server.
+                            cb.Register(c => new YouAuthClientMetadataFetcher(
+                                    new InProcessDynamicHttpClientFactory(serverHolder),
+                                    c.Resolve<ILogger<YouAuthClientMetadataFetcher>>()))
+                                .As<IYouAuthClientMetadataFetcher>()
+                                .InstancePerLifetimeScope();
                             return cb;
                         },
                         sp.GetRequiredService<OdinConfiguration>())));
@@ -162,7 +183,14 @@ public sealed partial class OdinHost : IAsyncDisposable
             .ConfigureContainer<ContainerBuilder>(cb =>
             {
                 cb.RegisterInstance(serverHolder).SingleInstance();
-                cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>()))
+
+                // Same trade as the tenant decorator above, for the SYSTEM manager — a separate root
+                // singleton from AddSystemBackgroundServices, which the per-tenant registration cannot
+                // reach. JobRunnerBackgroundService hangs off this one, so without it every scheduled
+                // job pays the full 30s poll.
+                cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
+
+                cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>(), c.Resolve<TenantContext>()))
                     .As<IOdinHttpClientFactory>()
                     .InstancePerLifetimeScope();
 

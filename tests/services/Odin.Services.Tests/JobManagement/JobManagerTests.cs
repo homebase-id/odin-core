@@ -23,8 +23,10 @@ using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
+using Odin.Services.Registry;
 using Odin.Services.Tests.JobManagement.Jobs;
 using Odin.Test.Helpers.Logging;
+using NSubstitute;
 using Serilog.Events;
 using Testcontainers.PostgreSql;
 
@@ -38,6 +40,7 @@ public class JobManagerTests
     private JobCleanUpBackgroundService? _jobCleanUpBackgroundService;
     private JobRunnerBackgroundService? _jobRunnerBackgroundService;
     private PostgreSqlContainer? _postgresContainer;
+    private readonly Dictionary<Guid, TenantStatus> _identityStatuses = new();
     
     [SetUp]
     public void Setup()
@@ -122,6 +125,10 @@ public class JobManagerTests
             .SingleInstance();
 
         builder.RegisterType<JobManager>().As<IJobManager>().InstancePerDependency();
+        var identityRegistry = Substitute.For<IIdentityRegistry>();
+        identityRegistry.GetStatus(Arg.Any<Guid>())
+            .Returns(call => _identityStatuses.TryGetValue(call.Arg<Guid>(), out var status) ? status : null);
+        builder.RegisterInstance(identityRegistry).As<IIdentityRegistry>();
         builder.RegisterType<ScopedJobTestDependency>().InstancePerLifetimeScope();
 
         var jobTypeRegistry = new JobTypeRegistry();
@@ -472,6 +479,47 @@ public class JobManagerTests
     
     //
     
+    [Test]
+    [TestCase(DatabaseType.Sqlite, TenantStatus.Paused)]
+    [TestCase(DatabaseType.Sqlite, TenantStatus.Disabled)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, TenantStatus.Paused)]
+    #endif
+    public async Task ItShouldDeferAJobWhileItsIdentityIsStopped(DatabaseType databaseType, TenantStatus status)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        var identityId = Guid.NewGuid();
+        _identityStatuses[identityId] = status;
+        var jobId = await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>(identityId));
+
+        // Act
+        var before = DateTimeOffset.Now;
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+
+        // Assert: not run, back in the schedule, and no run spent
+        var deferred = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(deferred, Is.Not.Null);
+        Assert.That(deferred!.State, Is.EqualTo(JobState.Scheduled));
+        Assert.That(deferred.JobData.SomeJobData, Is.EqualTo("uninitialized"), "the job ran on a stopped identity");
+        Assert.That(deferred.Record!.runCount, Is.EqualTo(0));
+        Assert.That(deferred.Record!.lastError, Is.EqualTo($"identity is {status}"));
+        var deferredFor = TimeSpan.FromMilliseconds(deferred.Record!.nextRun.milliseconds - before.ToUnixTimeMilliseconds());
+        Assert.That(deferredFor, Is.InRange(TimeSpan.FromSeconds(590), TimeSpan.FromSeconds(610)), $"deferred for {deferredFor}");
+
+        // Once the identity runs again, so does the job
+        _identityStatuses[identityId] = TenantStatus.Active;
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+        var completed = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(completed!.State, Is.EqualTo(JobState.Succeeded));
+        Assert.That(completed.JobData.SomeJobData, Is.EqualTo("hurrah!"));
+
+        AssertLogEvents();
+    }
+
+    //
+
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     #if RUN_POSTGRES_TESTS

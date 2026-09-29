@@ -85,6 +85,10 @@ using Odin.Services.Configuration.VersionUpgrade.Version11tov12;
 using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Configuration.VersionUpgrade.Version13tov14;
 using Odin.Services.Configuration.VersionUpgrade.Version14tov15;
+using Odin.Services.Configuration.VersionUpgrade.Version15tov16;
+using Odin.Services.Configuration.VersionUpgrade.Version16tov17;
+using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
+using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -205,6 +209,7 @@ public static class TenantServices
         cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+        cb.RegisterType<TenantQuotaGuard>().AsSelf().SingleInstance();
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
@@ -236,6 +241,8 @@ public static class TenantServices
         cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().InstancePerLifetimeScope();
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<YouAuthClientMetadataFetcher>().As<IYouAuthClientMetadataFetcher>().InstancePerLifetimeScope();
+        cb.RegisterType<YouAuthClientMetadataService>().InstancePerLifetimeScope();
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
@@ -410,6 +417,10 @@ public static class TenantServices
         cb.RegisterType<V12ToV13VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V13ToV14VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V14ToV15VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V15ToV16VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V16ToV17VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V17ToV18VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V18ToV19VersionMigrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<VersionUpgradeRunState>().AsSelf().SingleInstance();
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
@@ -420,6 +431,7 @@ public static class TenantServices
 
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
+        cb.RegisterType<OwnClientMetadataService>().As<IOwnClientMetadataService>().InstancePerLifetimeScope();
         cb.RegisterType<EmailPublicKeyService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<MailActivationService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<EmailHealthVerifier>().AsSelf().InstancePerLifetimeScope();

@@ -12,6 +12,14 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using MediatR;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
+using Odin.Services.AppNotifications.SystemNotifications;
+using Odin.Core.Time;
+using Odin.Services.Peer;
+using Odin.Services.Mediator;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -41,7 +49,9 @@ namespace Odin.Services.DataSubscription.Follower
         PeerDriveQueryService peerDriveQueryService,
         CircleNetworkService circleNetworkService,
         IdentityDatabase db,
-        FeedWriter feedWriter)
+        FeedWriter feedWriter,
+        TransitInboxBoxStorage inboxBoxStorage,
+        IMediator mediator)
     {
         private const int MaxRecordsPerChannel = 100; //TODO:config
 
@@ -356,7 +366,8 @@ namespace Odin.Services.DataSubscription.Follower
             await this.SynchronizeChannelFilesAsync(identityIFollow, odinContext, sharedSecret: sharedSecret);
         }
 
-        public async Task SynchronizeChannelFilesAsync(OdinId identityIFollow, IOdinContext odinContext, SensitiveByteArray sharedSecret)
+        public async Task SynchronizeChannelFilesAsync(OdinId identityIFollow, IOdinContext odinContext,
+            SensitiveByteArray sharedSecret)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
@@ -405,6 +416,15 @@ namespace Odin.Services.DataSubscription.Follower
                     odinContext,
                     sharedSecret: sharedSecret);
 
+            // Sealing a file into the feed drive needs that drive's storage key, so a caller without one
+            // can write the unencrypted posts and none of the encrypted ones. Asked once: it is a fact
+            // about the caller, not about any file, and discovering it per file means an exception and an
+            // Error line each time. The same split inbound distribution makes -- FeedDistributionPerimeterService
+            // writes an unencrypted post and routes an encrypted one to the inbox for a keyed pass.
+            var canWriteEncrypted = patchedContext.PermissionsContext
+                .TryGetDriveStorageKey(WellKnownAppDrives.FeedDrive.Alias, out _);
+            var deferredEncrypted = 0;
+
             foreach (var results in collection.Results)
             {
                 if (results.InvalidDrive)
@@ -415,6 +435,23 @@ namespace Odin.Services.DataSubscription.Follower
 
                 foreach (var dsr in results.SearchResults)
                 {
+                    if (dsr.FileMetadata.IsEncrypted && !canWriteEncrypted)
+                    {
+                        try
+                        {
+                            await DepositEncryptedFeedFileAsync(identityIFollow, dsr, Guid.Parse(results.Name),
+                                patchedContext);
+                            deferredEncrypted++;
+                        }
+                        catch (Exception e)
+                        {
+                            logger.LogError(e, "SynchronizeChannelFiles - could not deposit encrypted file gtid:{gtid}",
+                                dsr.FileMetadata.GlobalTransitId);
+                        }
+
+                        continue;
+                    }
+
                     try
                     {
                         var channelId = Guid.Parse(results.Name); //name above is the channelId
@@ -428,24 +465,96 @@ namespace Odin.Services.DataSubscription.Follower
                     }
                 }
             }
+
+            if (deferredEncrypted > 0)
+            {
+                logger.LogInformation(
+                    "SynchronizeChannelFiles - deposited {count} encrypted file(s) from {identity} to the inbox for a " +
+                    "caller that can seal to the feed drive", deferredEncrypted, identityIFollow);
+
+                await mediator.Publish(new InboxItemReceivedNotification
+                {
+                    TargetDrive = WellKnownAppDrives.FeedDrive,
+                    TransferFileType = TransferFileType.EncryptedFileForFeed,
+                    FileSystemType = FileSystemType.Standard,
+                });
+            }
         }
 
-        ///
-        private async Task TryWriteFeedFileAsync(OdinId identityIFollow, SharedSecretEncryptedFileHeader dsr, Guid channelId,
-            IOdinContext odinContext)
+        /// <summary>
+        /// Puts an encrypted channel file on the inbox instead of writing it, for a caller that cannot
+        /// seal to the feed drive.
+        /// </summary>
+        /// <remarks>
+        /// Sealing needs the feed drive's storage key, which an app accepting a connection on the owner's
+        /// behalf has no way to produce. Rather than drop the post, hand it over the way an encrypted feed
+        /// post already arrives from a peer: <c>FeedDistributionPerimeterService</c> routes those to the
+        /// inbox too, and <c>PeerInboxProcessor.ProcessEccEncryptedFeedInboxItem</c> writes them when
+        /// something that can seal drains it.
+        /// <para>
+        /// The key header is re-sealed under this identity's <see cref="PublicPrivateKeyType.OfflineKey"/>
+        /// -- a server-held key, so the drain needs no owner and no master key, only feed-drive access.
+        /// </para>
+        /// </remarks>
+        private async Task DepositEncryptedFeedFileAsync(OdinId identityIFollow, SharedSecretEncryptedFileHeader dsr,
+            Guid channelId, IOdinContext odinContext)
         {
             var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            var keyHeader = KeyHeader.Empty();
-            if (dsr.FileMetadata.IsEncrypted)
+            if (null == sharedSecret)
             {
-                if (null == sharedSecret)
-                {
-                    throw new OdinSystemException("File is encrypted but shared secret is not set");
-                }
-
-                keyHeader = dsr.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+                throw new OdinSystemException("File is encrypted but shared secret is not set");
             }
 
+            var keyHeader = dsr.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+
+            var feedPayload = new FeedItemPayload
+            {
+                KeyHeaderBytes = keyHeader.Combine().GetKey(),
+                DriveOriginWasCollaborative = false
+            };
+
+            var encryptedPayload = await publicPrivatePublicKeyService.EccEncryptPayload(
+                PublicPrivateKeyType.OfflineKey,
+                OdinSystemSerializer.Serialize(feedPayload).ToUtf8ByteArray());
+
+            var feedDriveId = WellKnownAppDrives.FeedDrive.Alias;
+            var file = await standardFileSystem.Storage.CreateInternalFileId(feedDriveId, odinContext);
+
+            await inboxBoxStorage.AddAsync(new TransferInboxItem
+            {
+                Id = Guid.NewGuid(),
+                AddedTimestamp = UnixTimeUtc.Now(),
+                Sender = identityIFollow,
+                InstructionType = TransferInstructionType.SaveFile,
+
+                FileId = file.FileId,
+                DriveId = file.DriveId,
+                GlobalTransitId = dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                FileSystemType = FileSystemType.Standard,
+
+                // As with the inbound path, the metadata rides on the row rather than an inbox-folder file.
+                FileMetadata = BuildFeedFileMetadata(identityIFollow, dsr, channelId),
+
+                Priority = 200,
+                Marker = default,
+                TransferFileType = TransferFileType.EncryptedFileForFeed,
+
+                TransferInstructionSet = new EncryptedRecipientTransferInstructionSet
+                {
+                    FileSystemType = FileSystemType.Standard,
+                    TransferFileType = TransferFileType.EncryptedFileForFeed
+                },
+
+                EncryptedFeedPayload = encryptedPayload
+            });
+        }
+
+        /// <summary>
+        /// The feed-drive shape of a followed identity's channel file. Shared by the write path and the
+        /// deposit path so an inbox row and a direct write describe the same file.
+        /// </summary>
+        private FileMetadata BuildFeedFileMetadata(OdinId identityIFollow, SharedSecretEncryptedFileHeader dsr, Guid channelId)
+        {
             var fm = dsr.FileMetadata;
 
             var newFileMetadata = new FileMetadata()
@@ -489,6 +598,27 @@ namespace Odin.Services.DataSubscription.Follower
                     };
                 }
             }
+
+            return newFileMetadata;
+        }
+
+        ///
+        private async Task TryWriteFeedFileAsync(OdinId identityIFollow, SharedSecretEncryptedFileHeader dsr, Guid channelId,
+            IOdinContext odinContext)
+        {
+            var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
+            var keyHeader = KeyHeader.Empty();
+            if (dsr.FileMetadata.IsEncrypted)
+            {
+                if (null == sharedSecret)
+                {
+                    throw new OdinSystemException("File is encrypted but shared secret is not set");
+                }
+
+                keyHeader = dsr.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            }
+
+            var newFileMetadata = BuildFeedFileMetadata(identityIFollow, dsr, channelId);
 
             var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(
                 WellKnownAppDrives.FeedDrive.Alias,

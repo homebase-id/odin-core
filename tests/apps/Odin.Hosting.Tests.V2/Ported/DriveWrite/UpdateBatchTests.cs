@@ -298,7 +298,7 @@ public class UpdateBatchTests : V2Fixture
         seed.AppData.Content = "some new content here...";
         var keyHeader = KeyHeader.NewRandom16();
 
-        var ownerV1 = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var ownerV1 = owner.V1.Drive;
         var (uploadResponse, _) = await ownerV1.UploadNewEncryptedMetadata(spec.TargetDrive, seed, keyHeader);
         Assert.That(uploadResponse.IsSuccessStatusCode, Is.True);
         var uploadResult = uploadResponse.Content!;
@@ -319,7 +319,7 @@ public class UpdateBatchTests : V2Fixture
         };
 
         keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
-        var callerV1 = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerV1 = caller.V1.Drive;
         var (updateResponse, updatedEncryptedContent64, _, _) = await callerV1.UpdateEncryptedFile(instructionSet, updated, [], keyHeader);
         Assert.That(updateResponse.StatusCode, Is.EqualTo(expected), $"actual {updateResponse.StatusCode}");
         if (expected != HttpStatusCode.OK) return;
@@ -346,7 +346,7 @@ public class UpdateBatchTests : V2Fixture
         var seedManifest = new UploadManifest { PayloadDescriptors = [payloadToBeDeleted.ToPayloadDescriptor()] };
         var keyHeader = KeyHeader.NewRandom16();
 
-        var ownerV1 = new UniversalDriveApiClient(owner.Identity, owner.Factory);
+        var ownerV1 = owner.V1.Drive;
         var (uploadResponse, _, _, _) = await ownerV1.UploadNewEncryptedFile(spec.TargetDrive, keyHeader, seed, seedManifest, [payloadToBeDeleted]);
         Assert.That(uploadResponse.IsSuccessStatusCode, Is.True);
         var uploadResult = uploadResponse.Content!;
@@ -381,7 +381,7 @@ public class UpdateBatchTests : V2Fixture
         };
 
         keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
-        var callerV1 = new UniversalDriveApiClient(caller.Identity, caller.Factory);
+        var callerV1 = caller.V1.Drive;
         var (updateResponse, updatedEncryptedContent64, encryptedPayloads, encryptedThumbnails) =
             await callerV1.UpdateEncryptedFile(instructionSet, updated, [payloadToAdd], keyHeader);
         Assert.That(updateResponse.StatusCode, Is.EqualTo(expected), $"actual {updateResponse.StatusCode}");

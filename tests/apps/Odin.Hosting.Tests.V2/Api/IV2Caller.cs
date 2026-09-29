@@ -15,4 +15,7 @@ public interface IV2Caller
     InProcessApiClientFactory Factory { get; }
     AuthV2Client Auth { get; }
     DriveHandles Drives { get; }
+
+    /// <summary>V1-shaped clients for fixtures whose system under test is a V1 endpoint.</summary>
+    V1Handles V1 { get; }
 }

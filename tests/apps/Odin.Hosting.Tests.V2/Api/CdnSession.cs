@@ -25,6 +25,7 @@ public sealed class CdnSession : IV2Caller
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
+    public V1Handles V1 { get; }
     public CdnV2Client Cdn { get; }
 
     private CdnSession(OdinHost host, OdinId identity)
@@ -40,6 +41,7 @@ public sealed class CdnSession : IV2Caller
             sharedSecret: null);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        V1 = new V1Handles(Identity, Factory);
         Cdn = new CdnV2Client(Identity, Factory);
     }
 

@@ -108,7 +108,7 @@ public class PeerScenarioTests : V2Fixture
         // PeerDriveIncomingTransferService.MarkFileAsReadAsync, which AssertCanWriteToDrive on
         // Frodo's local drive — Sam needs Write on Frodo's drive too, not just the other direction.
         var drive = await PeerFlow.CreatePeerDriveAsync(
-            frodo, sam, DrivePermission.Write, "receipts", bidirectional: true);
+            frodo, sam, DrivePermission.Write, "receipts", recipientPermissionOnSenderDrive: DrivePermission.Write);
 
         var (frodoFile, gtid) = await UploadAndDeliverAsync(frodo, sam, drive, fileType: 400);
 

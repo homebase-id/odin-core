@@ -24,21 +24,24 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
 /// <summary>
-/// SUPERSEDED — ported to
-/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/InboxDrainOnQueryTests.cs</c> on 2026-05-13.
-/// Five of the six cases were ported (QueryBatch / QuerySmartBatch / QueryBatchCollection drain,
-/// empty-inbox no-op, Guest-doesn't-drain regression). The Overflow_FirstQueryDrains50_BackgroundFinishesRest
-/// case stays on the V1 framework: it asserts <c>PeerInboxProcessorBackgroundService</c> drains the
-/// items beyond the 50-item inline cap, but the in-process framework deliberately doesn't start
-/// background services. The QueryBatchCollection port is also reduced to a single section because
-/// a single connection covering two drives needs a custom-circle helper that the framework's
-/// <c>PeerFlow</c> doesn't currently expose; the contract under test (drain runs per section) is
-/// still covered.
+/// Verifies the inline inbox drain that fires from the V2 query endpoints (<c>InboxDrainOnQuery</c>).
+/// The recipient's inbox is left non-empty deliberately — no ProcessInbox call — so the only way the
+/// file shows up in the V2 query response is the inline drain running before the query executes.
+///
+/// FLAGGED: this lives in the OLD WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>).
+/// Most of the class was ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/InboxDrainOnQueryTests.cs</c> on 2026-05-13 and has
+/// been removed from here. Two cases stay:
+/// <list type="bullet">
+/// <item>the overflow case, which asserts <c>PeerInboxProcessorBackgroundService</c> finishes the items
+/// beyond the 50-item inline cap — the in-process framework deliberately never starts background
+/// services;</item>
+/// <item>the collection case, which drains <b>two</b> drives in two sections. Its port is reduced to a
+/// single section because one connection granting two drives needs a custom-circle helper that the
+/// framework's <c>PeerFlow</c> doesn't expose yet, so per-section drain across distinct drive inboxes
+/// is only covered here.</item>
+/// </list>
 /// </summary>
-// Verifies the inline inbox drain that fires from the V2 query endpoints
-// (InboxDrainOnQuery). The recipient's inbox is left non-empty deliberately —
-// no ProcessInbox call — so the only way the file shows up in the V2 query
-// response is the inline drain running before the query executes.
 public class InboxDrainOnQueryTests
 {
     private WebScaffold _scaffold;
@@ -64,83 +67,6 @@ public class InboxDrainOnQueryTests
 
     [TearDown]
     public void TearDown() => _scaffold.AssertLogEvents();
-
-    [Test]
-    public async Task QueryBatch_DrainsInbox_OnRecipient()
-    {
-        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await PrepareScenario(sender, recipient, targetDrive, DrivePermission.Write);
-
-        var uploadResult = await SendFileFromSenderToRecipient(sender, recipient, targetDrive,
-            fileType: 7771);
-
-        // Sender knows the file is delivered to the recipient's host. The recipient's
-        // inbox now holds the transfer item — but we deliberately do NOT call
-        // recipient.DriveRedux.ProcessInbox here. The V2 query path is responsible
-        // for draining inline.
-        await sender.DriveRedux.WaitForEmptyOutbox(targetDrive);
-
-        var v2Reader = await BuildOwnerV2Reader(recipient, targetDrive);
-
-        var queryResponse = await v2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = targetDrive,
-                GlobalTransitId = [uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        ClassicAssert.IsTrue(queryResponse.IsSuccessStatusCode,
-            $"Expected 2xx; got {queryResponse.StatusCode}");
-
-        var hit = queryResponse.Content.SearchResults.SingleOrDefault();
-        ClassicAssert.IsNotNull(hit,
-            "Recipient's V2 GetBatch should see the file because InboxDrainOnQuery drained the inbox inline. " +
-            "If this assert fails, the inline drain is broken.");
-
-        await DeleteScenario(sender, recipient);
-    }
-
-    [Test]
-    public async Task QuerySmartBatch_DrainsInbox_OnRecipient()
-    {
-        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await PrepareScenario(sender, recipient, targetDrive, DrivePermission.Write);
-
-        var uploadResult = await SendFileFromSenderToRecipient(sender, recipient, targetDrive,
-            fileType: 7772);
-
-        await sender.DriveRedux.WaitForEmptyOutbox(targetDrive);
-
-        var v2Reader = await BuildOwnerV2Reader(recipient, targetDrive);
-
-        var queryResponse = await v2Reader.GetSmartBatchAsync(targetDrive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = targetDrive,
-                GlobalTransitId = [uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        ClassicAssert.IsTrue(queryResponse.IsSuccessStatusCode,
-            $"Expected 2xx; got {queryResponse.StatusCode}");
-
-        var hit = queryResponse.Content.SearchResults.SingleOrDefault();
-        ClassicAssert.IsNotNull(hit,
-            "Recipient's V2 GetSmartBatch should see the file because InboxDrainOnQuery drained the inbox inline.");
-
-        await DeleteScenario(sender, recipient);
-    }
 
     [Test]
     public async Task QueryBatchCollection_DrainsInbox_PerSection_OnRecipient()
@@ -211,43 +137,6 @@ public class InboxDrainOnQueryTests
             "sectionB should drain driveB's inbox inline before its query runs.");
 
         await DeleteScenario(sender, recipient);
-    }
-
-    [Test]
-    public async Task QueryBatch_EmptyInbox_DoesNotError()
-    {
-        // Hot path: drive exists, inbox is empty. Helper should bail out at the
-        // GetReadyCountAsync<=0 gate without touching ProcessInboxAsync. We can't
-        // observe "didn't call processor" directly, but we can assert the query
-        // returns successfully and with zero results — i.e. the no-op path works
-        // on a drive that has never received a peer transfer.
-        var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        var targetDrive = TargetDrive.NewTargetDrive();
-
-        var driveResponse = await owner.DriveManager.CreateDrive(
-            targetDrive: targetDrive,
-            name: "empty inbox drive",
-            metadata: "",
-            allowAnonymousReads: false,
-            allowSubscriptions: false,
-            ownerOnly: false);
-        ClassicAssert.IsTrue(driveResponse.IsSuccessStatusCode);
-
-        var v2Reader = await BuildOwnerV2Reader(owner, targetDrive);
-
-        var queryResponse = await v2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = targetDrive,
-                FileType = [9999]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        ClassicAssert.IsTrue(queryResponse.IsSuccessStatusCode,
-            $"Expected 2xx; got {queryResponse.StatusCode}");
-        ClassicAssert.AreEqual(0, queryResponse.Content.SearchResults.Count());
     }
 
     [Test]
@@ -334,71 +223,6 @@ public class InboxDrainOnQueryTests
 
         ClassicAssert.AreEqual(totalFiles, lastSeen,
             "Background should drain the overflow within the timeout — proves PeerInboxProcessorBackgroundService got notified.");
-
-        await DeleteScenario(sender, recipient);
-    }
-
-    [Test]
-    public async Task GuestCaller_DoesNotTriggerInlineDrain_AndDoesNotDropInboxItems()
-    {
-        // Regression guard: a non-owner caller must not drive inbox processing on
-        // the V2 query path. Without InboxDrainOnQuery's auth gate, the helper would
-        // call ProcessInboxAsync under the guest's context — which throws inside the
-        // storage layer and causes PeerInboxProcessor to silently DeleteFromInbox
-        // the item. The test proves the inbox item survives a guest query and is
-        // still processable by the owner afterwards.
-        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await PrepareScenario(sender, recipient, targetDrive, DrivePermission.Write);
-
-        var uploadResult = await SendFileFromSenderToRecipient(sender, recipient, targetDrive,
-            fileType: 7790);
-
-        await sender.DriveRedux.WaitForEmptyOutbox(targetDrive);
-        // Recipient's inbox now holds the transfer item.
-
-        // Guest of the recipient queries via V2. With the auth gate in place,
-        // InboxDrainOnQuery skips the inline drain entirely.
-        var guestCtx = new GuestTestCase(targetDrive, DrivePermission.Read);
-        await guestCtx.Initialize(recipient);
-        var guestV2Reader = new DriveReaderV2Client(recipient.Identity.OdinId, guestCtx.GetFactory());
-
-        var guestQuery = await guestV2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = targetDrive,
-                GlobalTransitId = [uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        ClassicAssert.IsTrue(guestQuery.IsSuccessStatusCode,
-            $"Guest query should succeed (drain was skipped); got {guestQuery.StatusCode}");
-        ClassicAssert.AreEqual(0, guestQuery.Content.SearchResults.Count(),
-            "Guest query should see no file yet — drain was skipped, so the inbox item is still pending.");
-
-        // Owner now queries via V2. This time InboxDrainOnQuery runs (caller is owner
-        // with ReadWrite) and the file becomes visible. If the guest call had silently
-        // dropped the item, this assertion would fail.
-        var ownerV2Reader = await BuildOwnerV2Reader(recipient, targetDrive);
-        var ownerQuery = await ownerV2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1
-            {
-                TargetDrive = targetDrive,
-                GlobalTransitId = [uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId]
-            },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
-        });
-
-        ClassicAssert.IsTrue(ownerQuery.IsSuccessStatusCode);
-        var hit = ownerQuery.Content.SearchResults.SingleOrDefault();
-        ClassicAssert.IsNotNull(hit,
-            "Owner's V2 query should drain inline and surface the file. " +
-            "If null, the earlier guest query silently dropped the item from the inbox.");
 
         await DeleteScenario(sender, recipient);
     }
@@ -536,12 +360,9 @@ public class InboxDrainOnQueryTests
         ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
         // Sender → Recipient connection request, then recipient accepts into the circle.
-        // If we already connected from a prior PrepareScenario in this test, the second
-        // SendConnectionRequest call would error; tests using two drives should be aware
-        // of that. (See QueryBatchCollection_DrainsInbox_PerSection_OnRecipient — it
-        // calls PrepareScenario twice but the connection survives the second call
-        // because Connections.SendConnectionRequest tolerates an already-pending state
-        // in current code paths used by these tests.)
+        // Only one connection per identity pair: calling this twice in a single test throws
+        // CannotSendConnectionRequestToValidConnection on the second SendConnectionRequest.
+        // A test needing two drives on one connection uses PrepareScenarioMultiDrive instead.
         await senderOwnerClient.Connections.SendConnectionRequest(
             recipientOwnerClient.Identity.OdinId, new List<GuidId>());
 
