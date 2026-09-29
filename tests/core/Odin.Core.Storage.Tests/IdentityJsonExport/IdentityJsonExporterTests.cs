@@ -10,6 +10,7 @@ using NUnit.Framework;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.DatabaseImport;
 using Odin.Core.Storage.Tests.DatabaseImport;
@@ -163,5 +164,101 @@ public class IdentityJsonExporterTests
                 _scope.Resolve<SystemDatabase>(), _scope.Resolve<IdentityDatabase>(),
                 identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: false);
         });
+    }
+    [Test]
+    public async Task ExportAsync_ReachesTheStreamRowByRow()
+    {
+        // Memory stays flat only if rows leave the writer as they are written. Serializing a value
+        // into a Utf8JsonWriter flushes it; if that ever stops, the whole export would sit in memory
+        // and reach the stream in one write at the end
+        _scope = await _services.RegisterServicesAsync(DatabaseType.Sqlite, _tempFolder, _identityId);
+        var sys = _scope.Resolve<SystemDatabase>();
+        var id = _scope.Resolve<IdentityDatabase>();
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
+        for (var i = 0; i < 8; i++)
+        {
+            await id.KeyValue.InsertAsync(new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = System.Security.Cryptography.RandomNumberGenerator.GetBytes(512 * 1024) });
+        }
+
+        var stream = new WriteRecordingStream();
+        await IdentityJsonExporter.ExportAsync(
+            _scope.Resolve<ILogger<IdentityJsonExporterTests>>(), stream, _identityId, IdentityDomain, sys, id,
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
+
+        var writes = string.Join(", ", stream.Writes);
+        const int oneRow = 1024 * 1024; // a 512 KB value, base64 encoded, plus its envelope
+        Assert.That(stream.Length, Is.GreaterThan(4 * oneRow), $"export too small to test: {stream.Length} bytes");
+        Assert.That(stream.Writes.Max(), Is.LessThan(oneRow), $"writes: {writes}");
+    }
+
+    [Test]
+    public async Task ExportToFileAsync_WritesTheFileOnlyOnceComplete()
+    {
+        var path = Path.Combine(_tempFolder, "frodo.json");
+        await SeedAndExportToFileAsync(path, callerCheckedIdentityIsStill: true);
+
+        Assert.That(File.Exists(path), Is.True);
+        Assert.That(File.Exists(path + ".partial"), Is.False);
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.That(File.GetUnixFileMode(path), Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite));
+        }
+
+        using var doc = JsonDocument.Parse(await File.ReadAllBytesAsync(path));
+        Assert.That(doc.RootElement.GetArrayLength(), Is.GreaterThan(1));
+    }
+
+    [Test]
+    public void ExportToFileAsync_LeavesNothingBehindWhenTheExportFails()
+    {
+        var path = Path.Combine(_tempFolder, "frodo.json");
+        Assert.ThrowsAsync<InvalidOperationException>(() => SeedAndExportToFileAsync(path, callerCheckedIdentityIsStill: false));
+
+        Assert.That(File.Exists(path), Is.False);
+        Assert.That(File.Exists(path + ".partial"), Is.False);
+    }
+
+    [Test]
+    public async Task ExportToFileAsync_RefusesAPartialFileLeftByACrash()
+    {
+        var path = Path.Combine(_tempFolder, "frodo.json");
+        await File.WriteAllTextAsync(path + ".partial", "left over");
+
+        var e = Assert.ThrowsAsync<IOException>(() => SeedAndExportToFileAsync(path, callerCheckedIdentityIsStill: true));
+
+        Assert.That(e!.Message, Does.Contain("left over from an export that did not finish"));
+        Assert.That(await File.ReadAllTextAsync(path + ".partial"), Is.EqualTo("left over"), "the partial file was touched");
+        Assert.That(File.Exists(path), Is.False);
+    }
+
+    private async Task SeedAndExportToFileAsync(string path, bool callerCheckedIdentityIsStill)
+    {
+        _scope = await _services.RegisterServicesAsync(DatabaseType.Sqlite, _tempFolder, _identityId);
+        var sys = _scope.Resolve<SystemDatabase>();
+        var id = _scope.Resolve<IdentityDatabase>();
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
+        await DataImporterSeedHelper.SeedAllIdentityTablesAsync(id);
+
+        await IdentityJsonExporter.ExportToFileAsync(
+            _scope.Resolve<ILogger<IdentityJsonExporterTests>>(), path, _identityId, IdentityDomain, sys, id,
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill);
+    }
+
+    // Records the size of every write the exporter makes (MemoryStream's async writes land in these)
+    private sealed class WriteRecordingStream : MemoryStream
+    {
+        public List<int> Writes { get; } = [];
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            Writes.Add(count);
+            base.Write(buffer, offset, count);
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            Writes.Add(buffer.Length);
+            base.Write(buffer);
+        }
     }
 }

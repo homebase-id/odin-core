@@ -66,12 +66,6 @@ public static class IdentityJsonTransfer
             return false;
         }
 
-        if (File.Exists(filePath))
-        {
-            logger.LogError("Refusing to overwrite existing file: {path}", filePath);
-            return false;
-        }
-
         // The CLI builds its own root container; nothing has populated the registry's trie
         // yet, so GetAsync would return null for every domain. Every other verb that reaches
         // for an identity does this first (CommandLine.LoadTenants). It also creates the
@@ -107,29 +101,21 @@ public static class IdentityJsonTransfer
         var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
         var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
 
-        // Owner-only from the moment the file exists. The file is the identity, and setting
-        // the mode after the export would leave it umask-readable (typically 0644) for the
-        // whole write, which on a real identity is minutes.
-        var streamOptions = new FileStreamOptions
+        try
         {
-            Mode = FileMode.CreateNew,
-            Access = FileAccess.Write,
-        };
-        if (!OperatingSystem.IsWindows())
-        {
-            streamOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-        }
-
-        await using (var stream = new FileStream(filePath, streamOptions))
-        {
-            var rows = await IdentityJsonExporter.ExportAsync(
-                logger, stream, registration.Id, domain,
+            var rows = await IdentityJsonExporter.ExportToFileAsync(
+                logger, filePath, registration.Id, domain,
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
                 callerCheckedIdentityIsStill: true);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
+        }
+        catch (IOException e)
+        {
+            logger.LogError("Export of {domain} failed, no file written: {error}", domain, e.Message);
+            return false;
         }
 
         return true;

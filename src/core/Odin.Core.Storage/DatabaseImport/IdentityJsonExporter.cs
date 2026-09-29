@@ -16,8 +16,9 @@ namespace Odin.Core.Storage.DatabaseImport;
 
 // Writes one identity's tables to a single JSON file.
 //
-// Streams throughout: rows go straight from the reader to the Utf8JsonWriter, so
-// memory is flat in the number of rows.
+// Streams throughout: rows go straight from the reader to the Utf8JsonWriter, and
+// serializing each row's data flushes the writer to the stream, so memory is flat in the
+// number of rows.
 //
 // The export runs inside one RepeatableRead transaction per database so all tables
 // come from a single snapshot. Without the explicit isolation level the default is
@@ -30,6 +31,69 @@ namespace Odin.Core.Storage.DatabaseImport;
 // in flight have finished (TenantStatusRules.WhyExportMustWait).
 public static class IdentityJsonExporter
 {
+    // Writes the export to filePath, owner-only, and only once it is complete: it goes to
+    // filePath + ".partial" first and is renamed on success, so a failed or interrupted
+    // export never leaves a file that looks finished. A failed export deletes its partial
+    // file. One left behind by a crash is refused rather than overwritten or deleted: it
+    // holds key material, so the operator should see it and delete it.
+    public static async Task<long> ExportToFileAsync(
+        ILogger logger,
+        string filePath,
+        Guid identityId,
+        string domain,
+        SystemDatabase systemDatabase,
+        IdentityDatabase identityDatabase,
+        long identitySchemaVersion,
+        long systemSchemaVersion,
+        bool callerCheckedIdentityIsStill)
+    {
+        var partialPath = filePath + ".partial";
+        if (File.Exists(filePath))
+        {
+            throw new IOException($"Refusing to overwrite existing file: {filePath}");
+        }
+
+        if (File.Exists(partialPath))
+        {
+            throw new IOException(
+                $"{partialPath} is left over from an export that did not finish. It holds key material: "
+                + "delete it, then export again.");
+        }
+
+        // Owner-only from the moment the file exists. The file is the identity, and setting
+        // the mode after the export would leave it umask-readable (typically 0644) for the
+        // whole write, which on a real identity is minutes.
+        var streamOptions = new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            streamOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        // Outside the try: if this throws, the partial file is not ours to delete
+        var stream = new FileStream(partialPath, streamOptions);
+        try
+        {
+            long rows;
+            await using (stream)
+            {
+                rows = await ExportAsync(logger, stream, identityId, domain, systemDatabase, identityDatabase,
+                    identitySchemaVersion, systemSchemaVersion, callerCheckedIdentityIsStill);
+            }
+
+            File.Move(partialPath, filePath, overwrite: false);
+            return rows;
+        }
+        catch
+        {
+            File.Delete(partialPath);
+            throw;
+        }
+    }
+
     public static async Task<long> ExportAsync(
         ILogger logger,
         Stream output,
