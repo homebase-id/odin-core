@@ -49,6 +49,34 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
     }
 
     [Test]
+    public async Task OpenRead_StreamsTheFile()
+    {
+        var sut = new DiskFileStore(_fileReaderWriter);
+        var path = Path.Combine(TestRootPath, "d", "f.payload");
+        await sut.EnsureDirectoryAsync(Path.GetDirectoryName(path)!);
+        var bytes = new byte[100_000];
+        Random.Shared.NextBytes(bytes);
+        await sut.WriteBytesAsync(path, bytes);
+
+        await using var stream = await sut.OpenReadAsync(path);
+        using var copy = new MemoryStream();
+        await stream.CopyToAsync(copy);
+
+        Assert.That(stream.Length, Is.EqualTo(bytes.Length));
+        Assert.That(copy.ToArray(), Is.EqualTo(bytes));
+    }
+
+    [Test]
+    public void OpenRead_MissingFileThrowsLikeReadAll()
+    {
+        var sut = new DiskFileStore(_fileReaderWriter);
+        var path = Path.Combine(TestRootPath, "d", "missing.payload");
+        var readAll = Assert.CatchAsync(() => sut.ReadAllBytesAsync(path));
+        var open = Assert.CatchAsync(() => sut.OpenReadAsync(path));
+        Assert.That(open!.GetType(), Is.EqualTo(readAll!.GetType()), open.Message);
+    }
+
+    [Test]
     public async Task DeleteSet_RemovesOnlyMatchingFileId()
     {
         var sut = new DiskFileStore(_fileReaderWriter);
@@ -161,6 +189,7 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         public Task WriteBytesAsync(string path, byte[] bytes, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<byte[]> ReadAllBytesAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<byte[]> ReadBytesAsync(string path, long start, long length, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Stream> OpenReadAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ExistsAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<long> LengthAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
