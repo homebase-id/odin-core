@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Background;
 using Odin.Services.JobManagement.Jobs;
+using Odin.Services.Registry;
 
 namespace Odin.Services.JobManagement;
 
@@ -18,7 +19,13 @@ namespace Odin.Services.JobManagement;
 
 public interface IJobManager
 {
+    /// <summary>A job that belongs to no identity: it runs whatever any identity's status is.</summary>
     T NewJob<T>() where T : AbstractJob;
+
+    /// <summary>
+    /// A job for an identity: it waits while the identity is paused or disabled. Jobs that must act on a
+    /// stopped identity (deleting or exporting it) use the other overload.
+    /// </summary>
     T NewJob<T>(Guid identityId) where T : AbstractJob;
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
@@ -29,11 +36,13 @@ public interface IJobManager
     Task<bool> DeleteJobByIdAsync(Guid jobId, Guid identityId);
     Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt);
     Task<bool> DeleteJobByHashAsync(string jobHash);
+    Task<JobsRecord?> GetJobByHashAsync(string jobHash);
     Task<int> DeleteJobsByIdentityIdAsync(Guid identityId);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
     Task DeleteExpiredJobsAsync();
     Task<int> LogOrphanedJobsAsync();
+    Task<int> RescheduleOrphanedJobsAsync();
 }
 
 //
@@ -43,7 +52,8 @@ public class JobManager(
     ICorrelationContext correlationContext,
     ILifetimeScope lifetimeScope,
     TableJobs tableJobs,
-    IBackgroundServiceNotifier<JobRunnerBackgroundService> backgroundServiceNotifier)
+    IBackgroundServiceNotifier<JobRunnerBackgroundService> backgroundServiceNotifier,
+    IIdentityRegistry identityRegistry)
     : IJobManager
 {
 
@@ -241,8 +251,23 @@ public class JobManager(
         try
         {
             // DO NOT RELOAD THE JOB AFTER THIS POINT!
-            logger.LogInformation("JobManager starting job '{name}' id:{jobId}", record.name, record.id);
-            result = await job.Run(cancellationToken);
+            if (job.IdentityId is { } identityId &&
+                !job.RunsWhileIdentityStopped &&
+                identityRegistry.GetStatus(identityId) is { } status &&
+                !TenantStatusRules.RunsBackgroundServices(status))
+            {
+                // A paused or disabled identity must stay still (an export may be reading it), so its
+                // jobs wait like its background services do. Deferring does not spend a run.
+                logger.LogInformation("JobManager deferring job '{name}' id:{jobId}: identity is {status}",
+                    record.name, record.id, status);
+                result = JobExecutionResult.Defer(DateTimeOffset.Now.AddSeconds(TenantStatusRules.PausedRetryAfterSeconds));
+                errorMessage = $"identity is {status}";
+            }
+            else
+            {
+                logger.LogInformation("JobManager starting job '{name}' id:{jobId}", record.name, record.id);
+                result = await job.Run(cancellationToken);
+            }
         }
         catch (OperationCanceledException ex)
         {
@@ -481,13 +506,59 @@ public class JobManager(
 
     //
 
+    public async Task<int> RescheduleOrphanedJobsAsync()
+    {
+        // Only jobs that opted in (AbstractJob.RescheduleIfOrphanedAfter); each decides its own threshold,
+        // so read everything stuck for a minute and let the job type say
+        var now = UnixTimeUtc.Now();
+        var cutoff = now.AddMilliseconds(-(long)TimeSpan.FromMinutes(1).TotalMilliseconds).milliseconds;
+        var rescheduled = 0;
+        foreach (var record in await tableJobs.GetOrphanedJobsAsync(cutoff, cutoff))
+        {
+            TimeSpan? after;
+            try
+            {
+                using var job = AbstractJob.CreateInstance(lifetimeScope, record);
+                after = job.RescheduleIfOrphanedAfter;
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "JobManager could not inspect stuck job id:{jobId}: {message}", record.id, e.Message);
+                continue;
+            }
+
+            if (after == null || now.milliseconds - record.modified.milliseconds < (long)after.Value.TotalMilliseconds)
+            {
+                continue;
+            }
+
+            if (await tableJobs.RescheduleIfUnchangedAsync(record.id, record.state, record.modified.milliseconds) > 0)
+            {
+                rescheduled++;
+                logger.LogWarning("JobManager rescheduled orphaned job '{name}' id:{jobId}, stuck in {state} since {modified}",
+                    record.name, record.id, (JobState)record.state,
+                    DateTimeOffset.FromUnixTimeMilliseconds(record.modified.milliseconds).ToString("O"));
+            }
+        }
+
+        if (rescheduled > 0)
+        {
+            await backgroundServiceNotifier.NotifyWorkAvailableAsync();
+        }
+
+        return rescheduled;
+    }
+
+    //
+
     // Surface jobs whose worker died mid-flight. A crash between GetNextScheduledJobAsync
     // (state -> Preflight) and the end of ExecuteAsync leaves a row pinned in Preflight or Running
     // forever — DeleteExpiredJobsAsync won't clean it up because expiresAt is only set on terminal
     // states.
     //
-    // We do NOT auto-retry: replaying an arbitrary job hours later can corrupt data if the job
-    // isn't idempotent. Log it and let a human decide.
+    // Jobs that opted in (AbstractJob.RescheduleIfOrphanedAfter) were rescheduled first; the rest are not
+    // retried automatically: replaying an arbitrary job hours later can corrupt data if the job isn't
+    // idempotent. Log them and let a human decide.
     public async Task<int> LogOrphanedJobsAsync()
     {
         // A job in Preflight should transition to Running within milliseconds. Anything still
@@ -546,6 +617,13 @@ public class JobManager(
     {
         var result = await tableJobs.UpdateAsync(jobId, identityId, jobData, newRunAt.ToUnixTimeMilliseconds());
         return result > 0;
+    }
+
+    //
+
+    public async Task<JobsRecord?> GetJobByHashAsync(string jobHash)
+    {
+        return await tableJobs.GetJobByHashAsync(jobHash);
     }
 
     //

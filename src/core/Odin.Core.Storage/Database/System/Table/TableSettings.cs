@@ -14,6 +14,22 @@ public class TableSettings(ScopedSystemConnectionFactory scopedConnectionFactory
     private readonly ScopedSystemConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
     /// <summary>
+    /// Replaces the value only if it is still <paramref name="expectedValue"/>, for a read-modify-write that
+    /// must not lose a concurrent change. Returns false if the row changed (or went) since it was read.
+    /// </summary>
+    public async Task<bool> UpdateIfUnchangedAsync(string key, string expectedValue, string newValue)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var update = cn.CreateCommand();
+        var now = update.SqlNow();
+        update.CommandText = $"UPDATE Settings SET value = @newValue, modified = {now} WHERE key = @key AND value = @expectedValue;";
+        update.AddParameter("@key", DbType.String, key);
+        update.AddParameter("@expectedValue", DbType.String, expectedValue);
+        update.AddParameter("@newValue", DbType.String, newValue);
+        return await update.ExecuteNonQueryAsync() == 1;
+    }
+
+    /// <summary>
     /// Atomically advances a monotonic counter kept in the row's <c>modified</c> stamp and returns
     /// the value it advanced from and the value it has now. Must run inside the caller's
     /// transaction: the row is locked for update before it is read, so a concurrent bump cannot
