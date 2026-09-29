@@ -132,7 +132,7 @@ public class IdentityJsonRoundTripTests
         _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
         var tgtSys = _targetScope.Resolve<SystemDatabase>();
         var tgtId = _targetScope.Resolve<IdentityDatabase>();
-        var logger = _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
+        var logger = new RecordingLogger();
 
         var result = await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, tgtId, commit: true);
 
@@ -141,6 +141,13 @@ public class IdentityJsonRoundTripTests
         Assert.That(result.SkippedRowsByTable.Keys, Does.Contain("Nonce"));
         Assert.That(result.SkippedRowsByTable["Outbox"], Is.GreaterThan(0),
             "Skipped tables must report a row count so the operator sees what was dropped");
+
+        // Queued messages that do not move are worth a warning; stale nonces are not
+        var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).Select(e => e.Message).ToList();
+        var all = string.Join(Environment.NewLine, logger.Entries.Select(e => $"{e.Level}: {e.Message}"));
+        Assert.That(warnings.Count(w => w.Contains("Inbox") && w.Contains("queued")), Is.EqualTo(1), all);
+        Assert.That(warnings.Count(w => w.Contains("Outbox") && w.Contains("queued")), Is.EqualTo(1), all);
+        Assert.That(warnings.Any(w => w.Contains("Nonce")), Is.False, all);
     }
 
     [Test]
@@ -368,5 +375,18 @@ public class IdentityJsonRoundTripTests
         _identityId = Guid.NewGuid();
         _sourceServices = new TestServices();
         _targetServices = new TestServices();
+    }
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception,
+            Func<TState, Exception, string> formatter)
+        {
+            Entries.Add((logLevel, formatter(state, exception)));
+        }
     }
 }

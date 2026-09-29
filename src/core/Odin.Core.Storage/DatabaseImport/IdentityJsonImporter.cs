@@ -38,6 +38,8 @@ public static class IdentityJsonImporter
     public static readonly IReadOnlySet<string> DefaultSkippedTables =
         new HashSet<string> { "Inbox", "Outbox", "Nonce" };
 
+    private static readonly IReadOnlySet<string> QueueTables = new HashSet<string> { "Inbox", "Outbox" };
+
     public static async Task<ImportResult> ImportAsync(
         ILogger logger,
         Stream input,
@@ -151,7 +153,15 @@ public static class IdentityJsonImporter
 
         foreach (var (table, count) in result.SkippedRowsByTable.OrderBy(kv => kv.Key))
         {
-            logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
+            if (QueueTables.Contains(table))
+            {
+                // Messages still waiting to be received or sent: they do not arrive on the target
+                logger.LogWarning("  skipped {table}: {count} queued item(s), which do not move with the identity", table, count);
+            }
+            else
+            {
+                logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
+            }
         }
     }
 
