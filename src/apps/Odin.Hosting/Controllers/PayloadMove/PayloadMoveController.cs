@@ -36,7 +36,7 @@ public class PayloadMoveController(
     OdinConfiguration config,
     ILogger<PayloadMoveController> logger) : ControllerBase
 {
-    public const string RootPath = "/api/payload-move";
+    public const string RootPath = PayloadMoveProtocol.RootPath;
 
     // A storage provider that throttles us is passed on as a 429, so the target slows down instead of
     // taking the source for broken
