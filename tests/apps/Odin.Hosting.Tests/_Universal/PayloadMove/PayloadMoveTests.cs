@@ -18,7 +18,10 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Configuration;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Tenant.Container;
@@ -28,10 +31,11 @@ using Status = Odin.Services.Registry.TenantStatus;
 namespace Odin.Hosting.Tests._Universal.PayloadMove;
 
 /// <summary>
-/// The source side of a payload move on a real host: the endpoint on the provisioning domain serves a paused
-/// identity's payloads to whoever redeemed its handoff token, and nothing else to anybody.
+/// A payload move on a real host. The source side: the endpoint on the provisioning domain serves a paused
+/// identity's payloads to whoever redeemed its handoff token, and nothing else to anybody. The target side:
+/// a payload that has not arrived yet is a 404 nobody caches.
 /// </summary>
-public class PayloadMoveEndpointTests
+public class PayloadMoveTests
 {
     private const string ProvisioningHost = "provisioning.dotyou.cloud";
     private WebScaffold _scaffold = null!;
@@ -124,9 +128,47 @@ public class PayloadMoveEndpointTests
         // Not deleting frodo: the fixture shares it
     }
 
+    [Test]
+    public async Task APayloadNotHereYetIsAnUncacheable404WhileAMoveIsBringingIt()
+    {
+        var (file, payload, targetDrive) = await UploadWithDriveAsync();
+        var identityId = IdOf(TestIdentities.Frodo);
+        var config = _scaffold.Services.GetRequiredService<OdinConfiguration>();
+        System.IO.File.Delete(new TenantPathManager(config, identityId)
+            .GetPayloadDirectoryAndFileName(file.driveId, file.fileId, payload.Key, payload.Uid));
+        var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var fileId = new ExternalFileIdentifier { FileId = file.fileId, TargetDrive = targetDrive };
+
+        // No move: a missing payload is what it always was, a server error
+        var withoutMove = await owner.DriveRedux.GetPayload(fileId, payload.Key);
+        Assert.That(withoutMove.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        _scaffold.ClearLogEvents();
+
+        // A move bringing it (its source unreachable, so it stays unfinished)
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+        await PayloadMoveJob.ScheduleAsync(jobManager, identityId, "https://127.0.0.1:1", "token", file.rowId);
+        try
+        {
+            var duringMove = await owner.DriveRedux.GetPayload(fileId, payload.Key);
+            Assert.That(duringMove.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(duringMove.Headers.CacheControl?.NoStore, Is.True, duringMove.Headers.ToString());
+            Assert.That(duringMove.Headers.RetryAfter?.Delta, Is.EqualTo(TimeSpan.FromMinutes(1)));
+        }
+        finally
+        {
+            await jobManager.DeleteJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
+        }
+    }
+
     //
 
     private async Task<(DriveMainIndexRecord file, PayloadDescriptor payload)> UploadAsync()
+    {
+        var (file, payload, _) = await UploadWithDriveAsync();
+        return (file, payload);
+    }
+
+    private async Task<(DriveMainIndexRecord file, PayloadDescriptor payload, TargetDrive targetDrive)> UploadWithDriveAsync()
     {
         var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var targetDrive = TargetDrive.NewTargetDrive();
@@ -149,7 +191,7 @@ public class PayloadMoveEndpointTests
         var (rows, _) = await scope.Resolve<IdentityDatabase>().DriveMainIndex.PagingByRowIdAsync(1000, null);
         var row = rows.Single(r => r.fileId == fileId);
         var fileMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(row.hdrFileMetaData)!;
-        return (row, fileMetadata.Payloads.Single());
+        return (row, fileMetadata.Payloads.Single(), targetDrive);
     }
 
     private PayloadMoveSource Source() => _scaffold.Services.GetRequiredService<PayloadMoveSource>();

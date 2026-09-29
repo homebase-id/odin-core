@@ -5,7 +5,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using System.Net;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.System.Table;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -28,7 +31,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         TableDriveTransferHistory tableDriveTransferHistory,
         TableDriveMainIndexCached driveMainIndex,
         TenantContext tenantContext,
-        IForgottenTasks forgottenTasks)
+        IForgottenTasks forgottenTasks,
+        TableJobs tableJobs)
     {
         private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
@@ -363,6 +367,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// moved on, which this layer cannot see. <c>DriveStorageServiceBase</c> decides, and says so.
         /// </para>
         /// </remarks>
+        private static readonly TimeSpan PayloadStillArrivingRetryAfter = TimeSpan.FromMinutes(1);
+
         private async Task<Exception> MissingFileOrNullAsync(string path, Exception e)
         {
             if (await longTermPayloadStore.ExistsAsync(path))
@@ -372,6 +378,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
 
             logger.LogDebug(e, "The file named by the header is not there: {path}", path);
+
+            // Moving to this host and not here yet: a 404 nobody caches, to ask again soon
+            if (await tableJobs.HasUnfinishedJobAsync(tenantContext.DotYouRegistryId, PayloadMoveJob.JobTypeId.ToString()))
+            {
+                return new OdinRetryLaterException("This payload is still being moved to this host", HttpStatusCode.NotFound,
+                    PayloadStillArrivingRetryAfter);
+            }
+
             return new OdinFileHeaderHasCorruptPayloadException($"File is missing: {path}", e);
         }
 

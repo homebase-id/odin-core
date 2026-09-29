@@ -73,7 +73,8 @@ public class LongTermStorageManagerTests : PayloadReaderWriterBaseTestFixture
             tableDriveTransferHistory: null!,
             driveMainIndex: null!,
             _tenantContext,
-            forgottenTasks: null!);
+            forgottenTasks: null!,
+            tableJobs: null!);
     }
 
     [TearDown]
