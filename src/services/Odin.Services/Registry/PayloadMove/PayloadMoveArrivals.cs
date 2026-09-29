@@ -16,7 +16,7 @@ namespace Odin.Services.Registry.PayloadMove;
 /// </summary>
 public class PayloadMoveArrivals(TableJobs tableJobs, TenantContext tenantContext)
 {
-    public static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(1);
 
     /// <summary>Call when a payload or thumbnail the header names is missing.</summary>
     public async Task AssertNotStillArrivingAsync()
