@@ -22,7 +22,7 @@ sequenceDiagram
 
     frodosBackend->>frodosBackend: [010] Generate or use ECC private/public key pair<br/>
 
-    client->>samsBackendAuthorize: [030] Request authorization code<br/> Browser: GET /authorize?<br/> client_id = uuid_or_domain<br/> client_type = app_or_domain<br/> client_info = json_or_url_with_client_info<br/> permission_request = list_of_permissions_to_consent_to<br/> public_key = public_key_from_previous_step<br/> state = user defined value<br/> redirect_uri = callback_url_with_authorize_response
+    client->>samsBackendAuthorize: [030] Request authorization code<br/> Browser: GET /authorize?<br/> client_id = uuid_or_domain<br/> client_type = app_or_domain<br/> client_info = json_or_url_with_client_info<br/> permission_request = list_of_permissions_to_consent_to<br/> public_key = public_key_from_previous_step<br/> state = user defined value<br/> redirect_uri = callback_url_with_authorize_response<br/> cipher = aes-cbc | aes-gcm (optional; absent is aes-cbc)
 
     samsBackendAuthorize-->>client: [030] Redirect target not trusted?<br/> HTTP 400 at the identity when redirect_uri does not parse, client_type<br/> or client_id is missing, a domain's redirect host is not its client_id,<br/> or the client is this identity. Nobody has vouched for redirect_uri yet,<br/> so the browser is not sent there, not even with an error.
 
@@ -42,7 +42,7 @@ sequenceDiagram
 
     samsBackendAuthorize->>frodosBackend: [060] Something wrong from [030] on?<br/> Redirect (http 302) to redirect_uri<br/> error = invalid-request | app-revoked | access-denied | server-error<br/> error_description = human-readable detail (not for server-error)<br/> state = user defined value from above<br/> Only once the redirect target is trusted (see [030] and [045]);<br/> the query redirect_uri already carried is kept.
 
-    samsBackendAuthorize->>samsBackendAuthorize: [070] Create ECC private/public key pair, random salt<br/> and shared secret based on public_key from step 30.<br/> Create client access token and store it encrypted<br/> with shared secret in cache for later lookup.
+    samsBackendAuthorize->>samsBackendAuthorize: [070] Create ECC private/public key pair, random salt<br/> and shared secret based on public_key from step 30.<br/> Create client access token and store it encrypted<br/> with shared secret in cache for later lookup,<br/> sealed with the cipher named at [030].
 
     note over client, samsBackendAuthorize: (below: redirect because native app must be able to intercept it)
 
@@ -56,13 +56,13 @@ sequenceDiagram
 
     samsBackendToken-->>frodosBackend: [120] Return 404 if lookup failed
 
-    samsBackendToken->>frodosBackend: [140] Return encrypted cat and new shared secret<br/> Return(http 200)
+    samsBackendToken->>frodosBackend: [140] Return encrypted cat and new shared secret<br/> and the cipher that sealed them<br/> Return(http 200)
 
-    frodosBackend->>frodosBackend: [150] Decrypt token with ECC exchange shared secret
+    frodosBackend->>frodosBackend: [150] Decrypt token with ECC exchange shared secret,<br/> with the cipher the response names
 
     note over frodosBackend: Authentication and authorization now complete. Program now has proof of Sam's identity.
 
-    frodosBackend->>frodosBackend: [400] Post-YouAuth for homepage login:<br/> fetch remote half key in order to unlock Sam's key-box on Frodo's homepage.<br/> Then we can generate CAT from Frodo's server to Sam's browser. Set the cookies.
+    frodosBackend->>frodosBackend: [400] Post-YouAuth for homepage login:<br/> fetch remote half key in order to unlock Sam's key-box on Frodo's homepage.<br/> Then we can generate CAT from Frodo's server to Sam's browser. Set the cookies.<br/> The result goes to the page sealed with the cipher the page declared in state; ecc names it.
 
 ```
 
@@ -94,6 +94,7 @@ The purpose of YouAuth is to:
 - `public_key` (required): Base64 encoded ECC public key.
 - `state` (optional): A value included in the request that is also returned in the authorization callback response/redirect.
 - `permission_request` (required for `app`, otherwise optional): for an app, the JSON `YouAuthAppParameters` (app id, name, slug, origin, friendly client name, drives, circles, permissions) the app-registration page shows Sam. For a domain it is not used today.
+- `cipher` (optional): which cipher the client can open the token response with, `aes-cbc` or `aes-gcm`. Absent means `aes-cbc`, so a client written before the parameter existed keeps getting exactly the bytes it got then. Any other value is `invalid-request` (step 060). Use `aes-gcm` in new clients; `aes-cbc` has no integrity check and will be retired once the identities' logs show no client still relies on it.
 - `client_info` (optional): for an app it is overwritten with the friendly client name from `permission_request`. For a domain it is overwritten with the name the domain published for itself (below), or emptied when it published none; what the link said is never shown, since anyone can put anything in a link.
 
 The response to the `authorize` endpoint is delivered using `HTTP 302 Redirect` to `redirect_uri` parameter with the following query parameters. Any query `redirect_uri` already carried is kept.
@@ -134,10 +135,18 @@ The trust is in the domain, never in whoever runs it. A document proves that the
 
 The response to the `token` endpoint is a JSON object with the following members:
 
-- `base64SharedSecretCipher`: The AES CBC encrypted new shared secret. Use base64SharedSecretIv (below) and shared secret from step 90 to decrypt.
+- `base64SharedSecretCipher`: The encrypted new shared secret. Use base64SharedSecretIv (below) and shared secret from step 90 to decrypt.
 - `base64SharedSecretIv`: (see above)
-- `base64ClientAuthTokenCipher`: The AES CBC encrypted CAT. Use base64ClientAuthTokenIv (below) and shared secret from step 90 to decrypt.
+- `base64ClientAuthTokenCipher`: The encrypted CAT. Use base64ClientAuthTokenIv (below) and shared secret from step 90 to decrypt.
 - `base64ClientAuthTokenIv`: (see above)
+- `cipher`: which cipher sealed the two, `aes-cbc` or `aes-gcm`: what the client asked for at step 030, so a client can refuse a downgrade. An identity that predates the field sends no member, which means `aes-cbc`.
+
+Both ciphers use the 16-byte shared secret from step 90 as the AES-128 key.
+
+- `aes-cbc`: PKCS#7 padding; the IV member is the 16-byte CBC IV. No integrity check: a wrong key yields a padding error or garbage.
+- `aes-gcm`: the IV member is 16 bytes of which the first 12 are the GCM nonce (the last 4 are unused); the cipher member is the ciphertext with the 16-byte authentication tag appended; no associated data. A wrong key or a modified byte fails authentication.
+
+The home-site login uses the same two layouts a second time at step 400: the page declares `cipher` in the `state` it sends to its own identity, and the `ecc` JSON that comes back with the sealed result (`pk`, `salt`, `iv`, `cipher`) names what was used. An older page bundle declares nothing and gets `aes-cbc`.
 
 ## `Shared secret` calculation
 Both the identity host and the third-party site compute the shared secret independently using their private keys and the other party's public key, combined with a random salt provided by the identity host. The formula for the shared secret could be expressed as:

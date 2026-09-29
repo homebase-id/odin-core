@@ -165,7 +165,10 @@ public class LinkMetaExtractorTests
         var ogp = await linkMetaExtractor.ExtractAsync("https://www.facebook.com/share/p/14txkE59vN4/");
         ClassicAssert.NotNull(ogp.Title);
         ClassicAssert.NotNull(ogp.Description);
-        ClassicAssert.NotNull(ogp.ImageUrl);
+        // Facebook's og:image answers this crawler with text/html (2026-09-28), which used to go out as
+        // data:text/html. Whatever image there is must be a real one; none at all is fine (#1754).
+        Assert.That(ogp.ImageUrl == null || LinkMeta.IsValidEmbeddedImage(ogp.ImageUrl), Is.True,
+            $"not an image: {ogp.ImageUrl?[..Math.Min(40, ogp.ImageUrl.Length)]}");
     }
 #endif
     
@@ -812,6 +815,32 @@ public class LinkMetaExtractorTests
         ClassicAssert.AreEqual("Test", sanitizedMetadata["title"]);
         ClassicAssert.AreEqual("<script>alert('test')</script> This is a description.", sanitizedMetadata["description"]);
         ClassicAssert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
+    }
+
+    // A fetched og:image is labelled by its bytes, never by its Content-Type header (#1754).
+    [TestCase(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00 }, "image/png")]
+    [TestCase(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }, "image/jpeg")]
+    [TestCase(new byte[] { 0x47, 0x49, 0x46, 0x38, 0x37, 0x61 }, "image/gif")] // GIF87a
+    [TestCase(new byte[] { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61 }, "image/gif")] // GIF89a
+    public void SniffImageMimeType_RecognisesAllowedRasterImages(byte[] bytes, string expected)
+    {
+        Assert.That(LinkMeta.SniffImageMimeType(bytes), Is.EqualTo(expected));
+    }
+
+    [TestCase("<!DOCTYPE html><html><body>Please log in</body></html>")] // a login page answering 200
+    [TestCase("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>")] // not on the allowlist
+    [TestCase("RIFF\0\0\0\0WEBPVP8 ")] // webp: not on the allowlist either
+    [TestCase("")]
+    public void SniffImageMimeType_RejectsAnythingElse(string content)
+    {
+        Assert.That(LinkMeta.SniffImageMimeType(Encoding.Latin1.GetBytes(content)), Is.Null);
+    }
+
+    [TestCase(new byte[] { 0x89, 0x50, 0x4E, 0x47 })] // png, cut short
+    [TestCase(new byte[] { 0xFF, 0xD8 })] // jpeg, cut short
+    public void SniffImageMimeType_RejectsATruncatedSignature(byte[] bytes)
+    {
+        Assert.That(LinkMeta.SniffImageMimeType(bytes), Is.Null);
     }
 
     [Test]

@@ -112,6 +112,7 @@ public sealed class YouAuthUnifiedService(
         string clientInfo,
         string permissionRequest,
         string jwkbase64UrlPublicKey,
+        YouAuthCipher cipher,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -169,17 +170,16 @@ public sealed class YouAuthUnifiedService(
         var exchangeSharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, exchangeSalt);
         var exchangeSharedSecretDigest = SHA256.Create().ComputeHash(exchangeSharedSecret.GetKey()).ToBase64();
 
-        var sharedSecretPlain = token.SharedSecret.GetKey();
-        var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, exchangeSharedSecret);
-
-        var clientAuthTokenPlain = token.ToAuthenticationToken().ToPortableBytes();
-        var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, exchangeSharedSecret);
+        // Sealed with what the client said it can open at [030].
+        var (sharedSecretIv, sharedSecretCipher) = cipher.Seal(token.SharedSecret.GetKey(), exchangeSharedSecret);
+        var (clientAuthTokenIv, clientAuthTokenCipher) = cipher.Seal(token.ToAuthenticationToken().ToPortableBytes(), exchangeSharedSecret);
 
         var encryptedTokenExchange = new EncryptedTokenExchange(
             sharedSecretCipher,
             sharedSecretIv,
             clientAuthTokenCipher,
-            clientAuthTokenIv);
+            clientAuthTokenIv,
+            cipher);
 
         await level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 

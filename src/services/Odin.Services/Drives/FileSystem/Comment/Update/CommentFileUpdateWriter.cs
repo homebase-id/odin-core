@@ -7,6 +7,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Registry;
 
 namespace Odin.Services.Drives.FileSystem.Comment.Update;
 
@@ -18,8 +19,9 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
         CommentFileSystem fileSystem,
         PeerOutgoingTransferService peerOutgoingTransferService,
         IDriveManager driveManager,
+        TenantQuotaGuard quotaGuard,
         ILogger<CommentFileUpdateWriter> logger)
-        : base(fileSystem, driveManager, peerOutgoingTransferService, logger)
+        : base(fileSystem, driveManager, peerOutgoingTransferService, quotaGuard, logger)
     {
     }
 

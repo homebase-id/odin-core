@@ -333,6 +333,29 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
 
     //
 
+    // Puts a job that is stuck in Preflight or Running back in the schedule, due now, but only if the row
+    // has not changed since the caller read it: a live worker that meanwhile finished or rescheduled the job
+    // wins, and so does another node doing the same rescue.
+    public async Task<int> RescheduleIfUnchangedAsync(Guid id, int state, long modified)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            """
+            UPDATE jobs
+            SET state = @scheduled, nextRun = @now, modified = @now
+            WHERE id = @id AND state = @state AND modified = @modified;
+            """;
+        cmd.AddParameter("@scheduled", DbType.Int32, (int)JobState.Scheduled);
+        cmd.AddParameter("@now", DbType.Int64, UnixTimeUtc.Now().milliseconds);
+        cmd.AddParameter("@id", DbType.Binary, id);
+        cmd.AddParameter("@state", DbType.Int32, state);
+        cmd.AddParameter("@modified", DbType.Int64, modified);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+    //
+
     // Replaces a job's data and due time in place (same id, same identityId ownership check as
     // DeleteAsync above), resetting it to a fresh Scheduled state so it runs again regardless of
     // whatever state it was previously in (including a terminal Succeeded/Failed).

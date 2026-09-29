@@ -26,6 +26,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Authorization.ExchangeGrants;
 
+using Odin.Services.Registry.PayloadMove;
+
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
@@ -39,7 +41,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         IdentityDatabase db,
         InboxFileStore inboxFileStore,
         UploadFileStore uploadFileStore,
-        FileExpiryScheduler fileExpiryScheduler) : RequirePermissionsBase
+        FileExpiryScheduler fileExpiryScheduler,
+        PayloadMoveArrivals payloadMoveArrivals) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = logger;
 
@@ -563,6 +566,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                     return (Stream.Null, thumb);
                 }
 
+                if (e is OdinFileHeaderHasCorruptPayloadException)
+                {
+                    await payloadMoveArrivals.AssertNotStillArrivingAsync();
+                }
+
                 await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, payloadUid, odinContext, e,
                     header.FileMetadata.GetPayloadDescriptor(payloadKey));
                 throw;
@@ -721,6 +729,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     return null;
                 }
 
+                await payloadMoveArrivals.AssertNotStillArrivingAsync();
                 await AssertPayloadVersionHasNotMovedAsync(file, key, descriptor.Uid, odinContext, e);
                 throw;
             }

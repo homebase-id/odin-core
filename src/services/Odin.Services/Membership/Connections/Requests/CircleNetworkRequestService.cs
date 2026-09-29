@@ -1115,7 +1115,7 @@ namespace Odin.Services.Membership.Connections.Requests
                         callerToken.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
                 }
 
-                var job = jobManager.NewJob<SyncChannelFilesJob>();
+                var job = jobManager.NewJob<SyncChannelFilesJob>(tenantContext.DotYouRegistryId);
                 job.Data = new SyncChannelFilesJobData
                 {
                     Tenant = tenantContext.HostOdinId,

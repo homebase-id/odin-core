@@ -123,6 +123,19 @@ stashed clean tree, so the failure reproduces on neither the change nor its abse
 as the parameter. Same family as the timing-sensitive entries above: the test asserts on work
 it does not wait for.
 
+**Seen again 2026-09-28** (local, macOS, `Odin.Services.Tests` full run, while fixing #1754). The
+change touches only the link extractor and its controllers, which the job manager doesn't reach.
+The test alone then passed 5/5.
+
+**Seen again 2026-09-29** (local, Linux, full `dotnet test ./odin-core.sln`, while finishing the
+identity JSON export, #1665). The change touches the export/import, the CLI and
+`ScopedTransaction.DisposeAsync`, not the job manager. The machine was heavily loaded (every test
+project in parallel, dev servers up). The test alone then passed 5/5.
+
+**Seen again 2026-09-29** (local, Linux, a focused `JobManagerTests` run on the payload move branch,
+which added an orphan-rescue step to the same clean-up service). Not reproduced after: 10/10 alone and
+5/5 for the whole class, with the change and without it (stashed).
+
 ---
 
 ## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
@@ -547,6 +560,19 @@ rollback-journal mode, where readers and writers block each other ("database is 
 That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
 failure of these three fixtures names it. If one goes red again, the Warning above says why.
 
+**Update 2026-09-26 -- the 2026-09-25 fix covered only one failure path.** The backoff above applied
+only when the send failed with an `OdinClientException`. A network, timeout or other failure left
+the worker as `OdinOutboxProcessingException`. The processor then rescheduled it for "now" and
+logged it at Error, so `HandleRecoverableTransferStatus` never ran. Measured with a throwaway probe
+against an identity no host serves: all 30 attempts went in ~350 ms, with 32 Error lines, and then
+the item was dropped. #1752 then routed the worker through `SendHandledAsync`, which
+stopped the fast loop but classes such a failure as `UnknownServerError` and drops it on the
+**first** attempt, logged only at Debug -- the PR's tests, run against `main` on 2026-09-28, showed
+exactly that. `ConnectIntroduceeOutboxWorker` now retries every failure on the backoff and logs a
+Warning when it gives up, which `Isolation/ConnectIntroduceeRetryTests` pins. Whether that path is what reddened these three
+fixtures is still **not confirmed**. It would explain "the introduction simply never landed" (a
+brief failure burning every attempt at once), but no captured failure names it.
+
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them
 visible, by prompting the repeated full-suite runs that surfaced them.
@@ -659,6 +685,13 @@ code, and the next commit (`edcb0b130`, no drive changes either) passed all thre
 not traced: a writer cleaning up a payload version another writer had already replaced -- the same
 concurrent-writers-on-one-drive shape as #1780, surfacing as a missing file rather than a 500.
 
+**Same symptom on Linux, 2026-09-29.** PR #1833 commit `65ffe4044`, run 36566548856,
+`ubuntu/sqlite/release` (S3 payloads): two `HardDeletePayloadFile -> source payload does not exist`
+events in the teardown, 1 failure in 1472. So it is not Windows-only. Not caused by the PR: its drive
+changes add `IDriveFileStore.OpenReadAsync` and a check on the payload *read* path when a payload is
+missing; nothing on the overwrite or hard-delete path that logs this (`LongTermStorageManager.cs:210`)
+changed.
+
 ---
 
 ## `Odin.SetupHelper.Tests.TcpProbeTests`
@@ -700,3 +733,25 @@ precomputed bool, so the failure prints `Expected: True` and never says which of
 "listening" signal to await before probing, take an ephemeral port instead of 38080, and assert on
 `error` before `connected` so the message survives. Note the file already carries a retry for
 external flakiness (`843ab7f64`, #1328), so this area has a history.
+
+## `Odin.Services.Tests.LinkMetaExtractor.LinkMetaExtractorTests` — the live-website tests
+
+- `TestFacebookUrl` (and, by the same mechanism, every test in this file that calls `ExtractAsync`
+  on a real URL: Twitter/X, Instagram, LinkedIn, Google Meet, GitHub, ...)
+
+**Where:** local only. These tests sit under `#if !CI_GITHUB`, so CI never compiles them. Seen
+2026-09-28 while fixing #1754.
+
+**Symptom:** `NullReferenceException` at `ogp.Title` -- `ExtractAsync` returned null because the
+page fetch itself failed. Once in six runs; the other five fetched the page.
+
+**Not caused by the change in flight:** a null `ogp` means the page fetch failed, and #1754 touches
+only the controllers' status and the image step, which runs after a successful page fetch and can
+null `ImageUrl` but never the whole result. The one failure was the first run of the session; the
+next five reached the image step. **Cause, inferred:** the test depends on a third-party site
+answering an anonymous crawler, and nothing retries or isolates that.
+
+**Separately, a real change in what this test sees (not flakiness):** Facebook's `og:image` URL
+(`lookaside.fbsbx.com/lookaside/crawler/media/...`) answers this crawler with `text/html`. Before
+#1754 that HTML went out as `data:text/html;base64,...` and `ClassicAssert.NotNull(ogp.ImageUrl)`
+passed on it. #1754 rejects it, so the assertion is now "no image, or a real png/jpeg/gif".
