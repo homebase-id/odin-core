@@ -30,6 +30,12 @@ public static class IdentityImportPreconditions
                 $"File formatVersion {header.FormatVersion} is newer than this binary understands "
                 + $"({IdentityExportFile.CurrentFormatVersion}).");
         }
+        else if (header.FormatVersion < IdentityExportFile.CurrentFormatVersion)
+        {
+            violations.Add(
+                $"File formatVersion {header.FormatVersion} is older than this binary reads "
+                + $"({IdentityExportFile.CurrentFormatVersion}): export the identity again with this version.");
+        }
 
         // 1. Registrations: identityId or domain, either is a hard stop.
         var registrations = await targetSystemDatabase.Registrations.GetAllAsync();

@@ -7,6 +7,23 @@ The database rows move in a file (export, then import). The payloads (files, pho
 follow on their own: the target pulls them from the source over HTTPS in the background, starting
 the moment the import commits. See **Payloads** below.
 
+## Email does not move (yet)
+
+**We do not yet export an identity's email.** An identity moved with email activated arrives on the
+target **without working email**:
+
+- **Left behind:** the mailbox and every message in it (they live in the mail server, not in
+  Homebase), the mailbox's account, aliases and app passwords, and the DKIM signing keys (the export
+  leaves the `DkimKeys` rows out on purpose, and says so for each key).
+- **Carried, but not working:** the email setup record and the email drive's files are ordinary
+  identity data and move with the rest. The target can therefore look as if email is set up while
+  it has no mailbox and no DKIM keys.
+- **Not checked:** what happens to the identity's mail DNS records (MX, SPF, DMARC, DKIM TXT) when
+  DNS is repointed.
+
+Until email transfer is built, move only identities without email activated. If the export prints
+`Leaving DKIM key ... behind`, the identity has email: stop and ask the operator.
+
 ## Before you start
 
 You need:
@@ -15,15 +32,31 @@ You need:
   `-I <Admin:Domain>:<Admin:ApiPort>` and `-K <Admin:ApiKey>`, or `ODIN_ADMIN_IDENTITY_HOST` /
   `ODIN_ADMIN_API_KEY`. The admin API answers only on that host name and port, so the name must
   resolve to the host (an `/etc/hosts` entry, or `curl --resolve`; see `docs/admin-tenant-metrics.md`).
-- **A shell on a source host and a target host**, to run the host binary's CLI verbs. They read the
-  host's own configuration. *Unverified:* in the Docker deployment that is
-  `docker exec -it <container> dotnet /app/web/Odin.Hosting.dll <verb> ...`, with files written under
-  the mounted `/homebase` so they survive the container. Confirm with ops before the first move.
+- **A shell on a source host and a target host**, to run the host binary's CLI verbs inside the running
+  container (checked by ops on every cluster, 2026-09-29):
+
+  ```
+  sudo docker exec -i <container> dotnet /app/web/Odin.Hosting.dll <verb> ...
+  ```
+
+  - `<container>` is `identity-host-identity-host-1` on OVH (NA and EU, either core) and
+    `identity-host` on Hetzner.
+  - Use `-i` or no flags. `-t` needs a terminal and fails in scripts and over ssh.
+  - The verb runs with the container's environment, so the host's own configuration applies. `-e NAME=value`
+    adds a setting for that one command only, never for the running host.
+  - Write export files under **`/identity-host/tmp`**: a bind mount at the same path inside and outside
+    the container, which survives redeploys. Anywhere else inside the container is wiped by the next
+    deploy (the root filesystem is writable, so a write there seems to work). Never write into
+    `/identity-host/data/...`.
+
+  Below, `Odin.Hosting <verb>` is short for that whole command.
 - **PowerDNS API access** (`Registry:PowerDnsHostAddress`, `Registry:PowerDnsApiKey`) for the TTL step.
 - **The same odin-core version on both hosts.** Import refuses if any table version differs.
-- **`PayloadMove:SourceEnabled=true` on the source**, and the source's provisioning domain
-  (`Registry:ProvisioningDomain`) reachable from the target over HTTPS. That is where the target pulls
-  the payloads from. Export refuses while it is off.
+- **`PayloadMove:SourceEnabled=true` in the source host's configuration**: the running host serves the
+  payloads, so passing it to the export command with `-e` is not enough. Export refuses while it is off.
+  The target pulls from the source's provisioning domain (`Registry:ProvisioningDomain`) over public
+  HTTPS; ops checked that `createme.na.ravenhosting.cloud`, `createme.eu.ravenhosting.cloud` and
+  `createme.ravenhosting.cloud` all reach each other (2026-09-29).
 
 Throughout, `<domain>` is the identity's domain, for example `frodo.id.pub`.
 
@@ -95,22 +128,24 @@ Wait **at least 2 minutes**: the export refuses until the identity has been paus
 ### 5. Export on the source
 
 ```
-Odin.Hosting identity-export <domain> <file.json>
+Odin.Hosting identity-export <domain> /identity-host/tmp/<domain>.json
 ```
 
 - Refuses while the identity is not paused (or disabled) long enough, and says why.
-- Writes `<file.json>.partial` first and renames it when complete. If it fails, nothing is left
+- Writes `<domain>.json.partial` first and renames it when complete. If it fails, nothing is left
   behind; if a `.partial` from a crash is in the way, it refuses: look at it and delete it.
 - Mints a single-use handoff token for the payloads and puts it in the file, with the source's address.
   Exporting again replaces it (the older file can then no longer fetch payloads).
-- **The file is the identity**: it holds password data, private keys and the TLS certificate key.
-  Mode 0600. Move it only over an encrypted channel, and delete every copy when the move is done.
+- **The file is the identity**: it holds password data, private keys and the TLS certificate key, the
+  last in the clear so the target can re-encrypt it under its own storage key.
+  Mode 0600. Move it only over an encrypted channel (`scp` to the target's `/identity-host/tmp`), and
+  delete every copy when the move is done.
 
 ### 6. Import on the target, dry run first
 
 ```
-Odin.Hosting identity-import <file.json>          # dry run: checks everything, writes nothing
-Odin.Hosting identity-import <file.json> commit
+Odin.Hosting identity-import /identity-host/tmp/<domain>.json          # dry run: checks everything, writes nothing
+Odin.Hosting identity-import /identity-host/tmp/<domain>.json commit
 ```
 
 - The target hosts keep running. The identity lands **paused**, and every target node loads it
@@ -134,7 +169,13 @@ Odin.Hosting create-own-domain-zones commit             # own domains delegated 
 
 Both walk every identity registered on that host and write its records idempotently. The moved
 identity's records now point at the target, **with the TTL back at 3600**. Run without `commit`
-first to see what it would do.
+first to see what it would do. For an own domain the dry run prints `EXISTS` (the source created
+the zone); `commit` still rewrites its records with the target's values.
+
+**Run these two commands on target hosts only, now and later.** They write every identity the host
+has registered, and the source still has the moved identity (paused, then disabled). Run on a
+source host, even months later as a routine backfill, they point the moved identity's DNS back at
+the source.
 
 Verify from outside: `dig +short <domain>` (and `capi.<domain>`, `file.<domain>`) answers the
 target's values, and the registration API on the target reports the domain valid (step 1).
@@ -177,8 +218,11 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
 
 ## What is not covered yet
 
+- **Email:** the mailbox and its messages, the mailbox account and settings, and the DKIM keys. See
+  **Email does not move (yet)** above.
 - Purging the source's copy (payloads and registration, never DNS) once the transfer is complete.
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.
 - A DNS command that lowers and restores the TTL, and one that repoints a single identity rather
-  than walking every identity on the host.
+  than walking every identity on the host. Until then, the host-wide commands also skip nothing:
+  a moved (disabled) identity is rewritten like any other.
