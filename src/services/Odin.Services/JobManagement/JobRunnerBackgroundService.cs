@@ -25,6 +25,10 @@ public class JobRunnerBackgroundService(
             {
                 logger.LogDebug("{service} is running", GetType().Name);
 
+                // Here rather than in the clean-up (whose interval is hours): an opted-in job's threshold (minutes) is only kept if
+                // something looks at least that often
+                await RescheduleOrphanedJobsAsync();
+
                 while (!stoppingToken.IsCancellationRequested && await tableJobs.GetNextScheduledJobAsync() is { } job)
                 {
                     var task = jobManager.RunJobNowAsync(job.id, stoppingToken);
@@ -54,6 +58,18 @@ public class JobRunnerBackgroundService(
     // move it schedules) or another node. So look at the table at least this often, however far off the next
     // known job is.
     private static readonly TimeSpan MaxPollInterval = TimeSpan.FromMinutes(1);
+
+    private async Task RescheduleOrphanedJobsAsync()
+    {
+        try
+        {
+            await jobManager.RescheduleOrphanedJobsAsync();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "{service} could not reschedule orphaned jobs: {message}", GetType().Name, e.Message);
+        }
+    }
 
     private static TimeSpan CalculateSleepDuration(long? nextRun)
     {

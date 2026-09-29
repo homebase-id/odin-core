@@ -580,6 +580,36 @@ public class JobManagerTests
         AssertLogEvents();
     }
 
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task TheRunnerRescuesAnOrphanedJobThatOptedInWithoutWaitingForTheCleanUp(DatabaseType databaseType)
+    {
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        await StartBackgroundServices();
+        await Task.Delay(300); // the clean-up has done its first pass and sleeps for 120 s now
+
+        // Stuck after that pass, as a node dying mid-run would leave it: only the runner can notice in time
+        var stale = await jobManager.ScheduleJobAsync(jobManager.NewJob<ResumableJobTest>(),
+            new JobSchedule { RunAt = DateTimeOffset.Now.AddDays(1) });
+        await SetStuckAsync(stale, JobState.Running, TimeSpan.FromHours(1));
+        await _container.Resolve<IBackgroundServiceNotifier<JobRunnerBackgroundService>>().NotifyWorkAvailableAsync();
+
+        var sw = Stopwatch.StartNew();
+        JobState state;
+        do
+        {
+            await Task.Delay(100);
+            state = (await jobManager.GetJobAsync<ResumableJobTest>(stale))!.State;
+        } while (state != JobState.Succeeded && sw.Elapsed < TimeSpan.FromSeconds(10));
+
+        Assert.That(state, Is.EqualTo(JobState.Succeeded), $"after {sw.Elapsed}");
+        AssertLogEvents();
+    }
+
     // What a node that died mid-run leaves behind: the row in a working state, last touched long ago
     private async Task SetStuckAsync(Guid jobId, JobState state, TimeSpan ago)
     {

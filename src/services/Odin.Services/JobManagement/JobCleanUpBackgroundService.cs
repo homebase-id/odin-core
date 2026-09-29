@@ -21,7 +21,6 @@ public class JobCleanUpBackgroundService(
             logger.LogDebug("{service} is running", GetType().Name);
             
             await jobManager.DeleteExpiredJobsAsync();
-            await jobManager.RescheduleOrphanedJobsAsync();
             await jobManager.LogOrphanedJobsAsync();
 
             logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
