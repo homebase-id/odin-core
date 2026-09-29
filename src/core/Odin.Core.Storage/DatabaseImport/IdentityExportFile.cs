@@ -17,7 +17,9 @@ public static class IdentityExportFile
 {
     // Describes the envelope only: header fields and row shape. Independent of the
     // per-table schema versions, which live in the header's TableVersions.
-    public const int CurrentFormatVersion = 1;
+    // 2: the header names where the payloads can be fetched (payloadSource), which an older binary would
+    // ignore and so import the identity without them.
+    public const int CurrentFormatVersion = 2;
 
     public const string KindHeader = "header";
     public const string KindRow = "row";
@@ -40,4 +42,14 @@ public class ExportHeader
     // all-or-nothing compatibility check on import.
     [JsonPropertyName("tableVersions")]
     public Dictionary<string, Dictionary<string, long>> TableVersions { get; set; } = new();
+
+    // Where the target fetches the identity's payloads, and the single-use token it redeems there.
+    // Null in an export that carries no payload source.
+    [JsonPropertyName("payloadSource")] public ExportPayloadSource? PayloadSource { get; set; }
+}
+
+public class ExportPayloadSource
+{
+    [JsonPropertyName("baseUrl")] public string BaseUrl { get; set; } = "";
+    [JsonPropertyName("handoffToken")] public string HandoffToken { get; set; } = "";
 }

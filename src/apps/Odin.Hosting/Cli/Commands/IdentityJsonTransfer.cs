@@ -14,6 +14,7 @@ using Odin.Core.Time;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Cli.Commands;
@@ -61,6 +62,15 @@ public static class IdentityJsonTransfer
         });
     }
 
+    // Where this host serves moved payloads: its provisioning domain, on the public HTTPS port
+    private static string PayloadSourceBaseUrl(OdinConfiguration config)
+    {
+        var port = config.Host.DefaultHttpsPort;
+        return port == 443
+            ? $"https://{config.Registry.ProvisioningDomain}"
+            : $"https://{config.Registry.ProvisioningDomain}:{port}";
+    }
+
     // True when the export file was written. False means it was refused, and the caller
     // turns that into a non-zero exit code.
     internal static async Task<bool> ExportAsync(IServiceProvider services, string domain, string filePath)
@@ -70,6 +80,15 @@ public static class IdentityJsonTransfer
 
         if (!PayloadsAreOnS3(logger, config, "export"))
         {
+            return false;
+        }
+
+        // The file tells the target where to fetch the payloads; never promise what this host will not serve
+        if (!config.PayloadMove.SourceEnabled)
+        {
+            logger.LogError(
+                "Refusing to export {domain}: PayloadMove:SourceEnabled is off, so the target could not fetch the "
+                + "identity's payloads from this host", domain);
             return false;
         }
 
@@ -107,6 +126,14 @@ public static class IdentityJsonTransfer
         var identityDatabase = identityScope.Resolve<IdentityDatabase>();
         var identityMigrator = identityScope.Resolve<IdentityMigrator>();
 
+        // Minted before the file exists, so it can go in it. Exporting again replaces it, which revokes
+        // whatever an earlier file could redeem.
+        var payloadSource = new ExportPayloadSource
+        {
+            BaseUrl = PayloadSourceBaseUrl(config),
+            HandoffToken = await services.GetRequiredService<PayloadMoveSource>().MintHandoffAsync(registration.Id)
+        };
+
         try
         {
             var rows = await IdentityJsonExporter.ExportToFileAsync(
@@ -114,7 +141,8 @@ public static class IdentityJsonTransfer
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
-                callerCheckedIdentityIsStill: true);
+                callerCheckedIdentityIsStill: true,
+                payloadSource);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }

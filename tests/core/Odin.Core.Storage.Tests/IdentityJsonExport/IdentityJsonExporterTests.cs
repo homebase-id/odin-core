@@ -180,6 +180,25 @@ public class IdentityJsonExporterTests
     }
 
     [Test]
+    public async Task ExportAsync_NamesWhereThePayloadsCanBeFetched()
+    {
+        _scope = await _services.RegisterServicesAsync(DatabaseType.Sqlite, _tempFolder, _identityId);
+        var sys = _scope.Resolve<SystemDatabase>();
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
+        var source = new ExportPayloadSource { BaseUrl = "https://provisioning.example.com", HandoffToken = "the-token" };
+
+        var output = new MemoryStream();
+        await IdentityJsonExporter.ExportAsync(output, _identityId, IdentityDomain, sys, _scope.Resolve<IdentityDatabase>(),
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true, payloadSource: source);
+        output.Position = 0;
+
+        var header = await IdentityJsonImporter.ReadHeaderAsync(output);
+        Assert.That(header.FormatVersion, Is.EqualTo(2), "an older binary must refuse a file whose payloads it would ignore");
+        Assert.That(header.PayloadSource?.BaseUrl, Is.EqualTo(source.BaseUrl));
+        Assert.That(header.PayloadSource?.HandoffToken, Is.EqualTo(source.HandoffToken));
+    }
+
+    [Test]
     public async Task ReadHeaderAsync_ReadsOnlyTheStartOfALargeFile()
     {
         // The CLI reads the header to learn which identity it is importing before the import proper;
