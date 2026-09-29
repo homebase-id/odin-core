@@ -25,7 +25,8 @@ public enum TenantStatus
 
     /// <summary>
     /// Temporary maintenance hold (e.g. while the identity is being moved). New requests are told to
-    /// retry later and the identity's background services are stopped.
+    /// retry later, the identity's background services are stopped and its jobs wait. Every node
+    /// applies it, at the latest after <c>Registry:CatchUpIntervalSeconds</c>.
     /// <para>
     /// Requests already in flight are allowed to finish: a pause never breaks them. So the data
     /// settles shortly after the pause, not at the moment it is set. Anything that needs a still copy
@@ -100,6 +101,39 @@ public static class TenantStatusRules
             TenantStatus.Disabled => false,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Decide whether this status runs background services")
         };
+    }
+
+    /// <summary>
+    /// How long an identity must have been stopped before an export may read it: one catch-up interval
+    /// for a node that missed the announcement, a second as margin, and a minute for requests that
+    /// were in flight when it stopped (a pause lets them finish rather than breaking them).
+    /// </summary>
+    public static TimeSpan ExportSettleTime(int catchUpIntervalSeconds)
+    {
+        return TimeSpan.FromSeconds(2 * catchUpIntervalSeconds + 60);
+    }
+
+    /// <summary>
+    /// Null when the identity has been stopped for at least <paramref name="settle"/>, so an export gets a
+    /// still copy; otherwise why the export has to wait. <paramref name="statusChangedAt"/> is the wall clock
+    /// of the node that changed the status, so clock skew between nodes eats into the margin.
+    /// </summary>
+    public static string? WhyExportMustWait(TenantStatus status, UnixTimeUtc? statusChangedAt, UnixTimeUtc now, TimeSpan settle)
+    {
+        if (RunsBackgroundServices(status))
+        {
+            return $"the identity is {status}; pause it first";
+        }
+
+        if (statusChangedAt == null)
+        {
+            return $"the identity is {status} but has no status change time, so there is no telling how long it has been still; pause it again";
+        }
+
+        var still = TimeSpan.FromMilliseconds(Math.Max(0, now.milliseconds - statusChangedAt.Value.milliseconds));
+        return still < settle
+            ? $"the identity became {status} {still.TotalSeconds:0} s ago; export is allowed in {(settle - still).TotalSeconds:0} s"
+            : null;
     }
 
     /// <summary>

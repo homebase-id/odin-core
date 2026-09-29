@@ -6,6 +6,7 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.Security;
@@ -22,6 +23,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 public class SecurityVerificationController(
     OwnerSecurityHealthService securityHealthService,
     TenantConfigService tenantConfigService,
+    TenantContext tenantContext,
     IJobManager jobManager) : OdinControllerBase
 {
     [HttpPost("verify-password")]
@@ -70,7 +72,7 @@ public class SecurityVerificationController(
     [HttpPost("force-send-monthly-security-health-report")]
     public async Task<IActionResult> ForceMonthlyReportSend()
     {
-        var job = jobManager.NewJob<SecurityHealthCheckJob>();
+        var job = jobManager.NewJob<SecurityHealthCheckJob>(tenantContext.DotYouRegistryId);
         job.Data = new SecurityHealthCheckJobData()
         {
             Tenant =  WebOdinContext.Tenant,

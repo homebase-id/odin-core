@@ -17,7 +17,7 @@ public class SystemDomains(OdinConfiguration config) : ISystemDomains
     {
         var result = new List<string>();
 
-        if (config.Registry.ProvisioningEnabled)
+        if (config.ServesProvisioningDomain)
         {
             result.Add(config.Registry.ProvisioningDomain);
         }
@@ -34,7 +34,7 @@ public class SystemDomains(OdinConfiguration config) : ISystemDomains
 
     public bool IsKnownSystemDomain(string hostName)
     {
-        if (config.Registry.ProvisioningEnabled && hostName == config.Registry.ProvisioningDomain)
+        if (config.ServesProvisioningDomain && hostName == config.Registry.ProvisioningDomain)
         {
             return true;
         }

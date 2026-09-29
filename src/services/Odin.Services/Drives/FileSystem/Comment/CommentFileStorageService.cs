@@ -11,6 +11,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Drives.Management;
+using Odin.Services.Registry.PayloadMove;
 
 namespace Odin.Services.Drives.FileSystem.Comment;
 
@@ -26,7 +27,8 @@ public class CommentFileStorageService(
     IdentityDatabase db,
     InboxFileStore inboxFileStore,
     UploadFileStore uploadFileStore,
-    FileExpiryScheduler fileExpiryScheduler
+    FileExpiryScheduler fileExpiryScheduler,
+    PayloadMoveArrivals payloadMoveArrivals
 )
     : DriveStorageServiceBase(
         logger,
@@ -40,7 +42,8 @@ public class CommentFileStorageService(
         db,
         inboxFileStore,
         uploadFileStore,
-        fileExpiryScheduler)
+        fileExpiryScheduler,
+        payloadMoveArrivals)
 {
     public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
     {

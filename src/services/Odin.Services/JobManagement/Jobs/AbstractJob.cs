@@ -58,6 +58,16 @@ public abstract class AbstractJob : IDisposable
         return null;
     }
     
+    // Override to true for a job that must run although its identity is paused or disabled (identity jobs
+    // otherwise wait while it is). The job keeps its identity, so it is still found and purged with it.
+    public virtual bool RunsWhileIdentityStopped => false;
+
+    // Override to have a job that was left in Preflight or Running (its node died mid-run) put back in the
+    // schedule once it has been stuck this long, instead of only being logged as orphaned. Only for a job
+    // that is safe to run again from its last saved state, and set it well above the job's longest run:
+    // a live run that outlasts it would run twice.
+    public virtual TimeSpan? RescheduleIfOrphanedAfter => null;
+
     // Override this to tweak the response object used by the API 
     public virtual JobApiResponse CreateApiResponseObject()
     {

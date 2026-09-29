@@ -12,6 +12,8 @@ using Odin.Services.Security.Job;
 using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Email.Relay;
 
+using Odin.Services.Registry.PayloadMove;
+
 namespace Odin.Services.JobManagement;
 
 public static class JobExtensions
@@ -43,6 +45,7 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<ExpireFileJob>(cb, ExpireFileJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ReapFileJob>(cb, ReapFileJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<SyncChannelFilesJob>(cb, SyncChannelFilesJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<PayloadMoveJob>(cb, PayloadMoveJob.JobTypeId);
 
 
         //
