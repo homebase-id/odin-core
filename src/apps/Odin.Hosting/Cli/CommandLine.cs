@@ -291,12 +291,10 @@ public class CommandLine
         //
         // Command line: Export one identity's tables to a single JSON file
         //
-        // THE HOST MUST BE STOPPED. Nothing here can stop a running host's tenant
-        // background workers: they live in that host's container, and on more than one
-        // host they are out of reach entirely. Exporting underneath them silently loses
-        // whatever they commit after the snapshot, so the export aborts if it can see a
-        // host listening on the configured ports. That probe is local-only; see
-        // IdentityJsonTransfer.HostIsStopped and HostLivenessCheck for what it cannot catch.
+        // THE IDENTITY MUST BE STILL. The hosts keep running, so the identity is paused
+        // first: every node then stops its workers and jobs and lets in-flight requests
+        // finish. The export refuses until the identity has been paused (or disabled) for
+        // TenantStatusRules.ExportSettleTime, and says how long is left.
         //
         // S3 PAYLOADS ONLY. Payloads are not in the file and move separately, which today
         // means a copy between S3 buckets, so a disk-based host is refused outright. See
@@ -333,11 +331,11 @@ public class CommandLine
         // Command line: Import an identity export file
         //
         // Refuses unless the target is empty of this identity and every table version
-        // matches. Dry run unless "commit" is passed. Like export, this aborts if a host
-        // is listening: the import writes the shared system tables, and a running host
-        // would neither see the new identity nor expect its registration to appear. Also
-        // like export, the target host must keep payloads on S3, since that is the only
-        // place the payloads can be copied to. See IdentityJsonTransfer.PayloadsAreOnS3.
+        // matches. Dry run unless "commit" is passed. The target host may keep running: the
+        // identity arrives with the status it was exported with, which the export gate
+        // requires to be paused or disabled, so it serves nothing until it is resumed. Like
+        // export, the target host must keep payloads on S3, since that is the only place the
+        // payloads can be copied to. See IdentityJsonTransfer.PayloadsAreOnS3.
         //
         // examples:
         //   dotnet run -- identity-import /path/to/frodo.json commit

@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.DatabaseImport;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
@@ -52,30 +53,6 @@ public static class IdentityJsonTransfer
         return false;
     }
 
-    // False unless the host looks stopped. Local probe only: it cannot see a host on
-    // another machine sharing the same database. See HostLivenessCheck.
-    //
-    // Export needs this because a running host's tenant background workers keep writing
-    // to the identity database and nothing here can stop them, so the snapshot would lose
-    // whatever they commit after it. Import needs it because it writes the shared system
-    // tables, and a running host would neither see the new identity nor expect its
-    // registration to appear.
-    private static bool HostIsStopped(ILogger logger, OdinConfiguration config, string verb)
-    {
-        var listening = HostLivenessCheck.FindListeningPorts(config);
-        if (listening.Count == 0)
-        {
-            return true;
-        }
-
-        logger.LogError(
-            "Refusing to {verb}: something is listening on port(s) {ports}, so a host is "
-            + "still running. Stop it first. A running host's tenant background workers keep "
-            + "writing to the identity database and this command cannot stop them.",
-            verb, string.Join(", ", listening));
-        return false;
-    }
-
     // True when the export file was written. False means it was refused, and the caller
     // turns that into a non-zero exit code.
     internal static async Task<bool> ExportAsync(IServiceProvider services, string domain, string filePath)
@@ -85,11 +62,6 @@ public static class IdentityJsonTransfer
         var config = services.GetRequiredService<OdinConfiguration>();
 
         if (!PayloadsAreOnS3(logger, config, "export"))
-        {
-            return false;
-        }
-
-        if (!HostIsStopped(logger, config, "export"))
         {
             return false;
         }
@@ -110,6 +82,16 @@ public static class IdentityJsonTransfer
         if (registration == null)
         {
             logger.LogError("No such identity: {domain}", domain);
+            return false;
+        }
+
+        // The hosts keep running, so the export needs the identity still instead: paused (or disabled)
+        // long enough that every node has stopped its workers and jobs and in-flight requests have finished
+        var settle = TenantStatusRules.ExportSettleTime(config.Registry.CatchUpIntervalSeconds);
+        var mustWait = TenantStatusRules.WhyExportMustWait(registration.Status, registration.StatusChangedAt, UnixTimeUtc.Now(), settle);
+        if (mustWait != null)
+        {
+            logger.LogError("Refusing to export {domain}: {reason}", domain, mustWait);
             return false;
         }
 
@@ -140,15 +122,12 @@ public static class IdentityJsonTransfer
 
         await using (var stream = new FileStream(filePath, streamOptions))
         {
-            // CommandLine already aborted if a host was listening. This process holds no
-            // background workers of its own (CommandLine disables them) and cannot stop
-            // another host's, so there is nothing to freeze here.
             var rows = await IdentityJsonExporter.ExportAsync(
                 logger, stream, registration.Id, domain,
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
-                callerHasFrozenIdentity: true);
+                callerCheckedIdentityIsStill: true);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
@@ -164,11 +143,6 @@ public static class IdentityJsonTransfer
         var config = services.GetRequiredService<OdinConfiguration>();
 
         if (!PayloadsAreOnS3(logger, config, "import"))
-        {
-            return false;
-        }
-
-        if (!HostIsStopped(logger, config, "import"))
         {
             return false;
         }
