@@ -50,10 +50,10 @@ Decided up front, not open:
 8. **Import fails if the `identityId` OR the domain already exists on the target.**
    Not one or the other, and not a merge. Either collision is a hard stop before
    any row is written. See **Import preconditions**.
-9. **Export refuses unless the identity is frozen.** Disabling an identity only
-   closes the HTTP front door; its background workers keep writing. Export requires
-   them stopped. No mechanism can do that across hosts today, so export requires a
-   stopped host. See **Freezing the identity, and export consistency**.
+9. **Export refuses unless the identity is still.** The hosts keep running, so the
+   identity is paused first, which stops its workers and jobs on every node, and the
+   export waits until it has been paused long enough for that to have happened and for
+   in-flight requests to finish. See **Freezing the identity, and export consistency**.
 10. **Every table's schema version must match between source and target, and the
     rule is all-or-nothing.** Not the database as a whole: each table individually.
     No row from any table is imported unless every table matches, including tables
@@ -289,22 +289,21 @@ the existing importer:
 **`Odin.Services`**, in `Registry/`:
 
 - **`IIdentityRegistry` / `FileSystemIdentityRegistry`** gain
-  nothing. The freeze pair was attempted and withdrawn. See **Freezing the
-  identity**.
+  nothing for this feature. The freeze pair was attempted and withdrawn; the tenant
+  status ladder (#1743) and the registry catch-up (#1823) replaced it. See
+  **Freezing the identity**.
 
 **`Odin.Hosting`**, CLI verbs in `Cli/CommandLine.cs` following the existing
-`sqlite2pg-*` pattern. This is the only layer that can both freeze and export,
-so it owns the sequencing:
+`sqlite2pg-*` pattern:
 
 ```
-dotnet run -- identity-export <domain> <file.json>   # aborts if a host is listening
-dotnet run -- identity-import <file.json> [commit]
+dotnet run -- identity-export <domain> <file.json>   # refuses until the identity has settled
+dotnet run -- identity-import <file.json> [commit]   # lands the identity paused
 ```
 
-Both verbs abort if anything is listening on the configured http/https ports, since
-nothing in the CLI can stop a running host's tenant workers. They log loudly about
-key material, since that
-needs an operator.
+The hosts keep running throughout. Export refuses until the identity has been paused
+(or disabled) for `TenantStatusRules.ExportSettleTime`; import lands it paused on the
+running target. Both log loudly about key material, since that needs an operator.
 
 ### 3. File format
 
@@ -438,10 +437,11 @@ snapshot holding up vacuum for the duration, acceptable for a one-off operator
 action on a single identity.
 
 **Problem two: are writes lost between the export and the cutover?** This is the
-one that actually requires stopping work, and the existing machinery does not do
-it.
+one that actually requires stopping work, and the machinery of August 2026 did not
+do it. What follows up to **What ships** is that history; the code it cites has since
+changed.
 
-Verified:
+Verified then:
 
 - `ToggleDisabled` (`FileSystemIdentityRegistry.cs:384`) only sets `reg.Disabled`
   and saves the registration. It never stops anything.
@@ -477,53 +477,38 @@ even calling it from inside one of them reaches only that host's workers.
 Moving the call into an admin endpoint fixes the single-host case and not the
 multi-host one, so it is not the answer either.
 
-**What the guarantee actually needs.** A tenant lifecycle model, not a better stop
-command:
+**What ships: pause, then settle** (2026-09-29, replacing a stopped-host check).
+The lifecycle model this section used to call for now exists:
 
-- An explicit lifecycle state, distinct from `Disabled`. One bit cannot mean both
-  "an admin suspended this tenant" and "this tenant is being migrated"; that
-  conflation is the only reason the withdrawn `UnfreezeIdentityAsync` needed a
-  `restoreDisabledTo` argument.
-- One source of truth for it, propagated across hosts. Registration state currently
-  lives in the `Registrations` table, `_trie`, `_cache`, and files on disk at once,
-  with nothing arbitrating between hosts. The Redis pub/sub already used for
-  `OdinContextCache` invalidation (`FileSystemIdentityRegistry.cs:693-698`) is the
-  obvious carrier.
-- Workers that observe the state at every write boundary and abandon the current
-  unit of work, rather than being stopped from outside.
-- A freeze acknowledgement, so a freeze blocks until every host confirms it is idle
-  for that tenant, with a timeout. A flag check alone gives an eventual freeze, not a
-  confirmed one: a worker that reads the flag and then writes for thirty seconds is
-  still writing when the export begins.
+- **One state, shared by every node.** `TenantStatus` (#1743: Active, OutOfQuota,
+  Paused, Disabled) lives in the `Registrations` json column. Every change bumps the
+  `registry-version` settings row and is announced over pub/sub; each node also
+  re-reads that version every `Registry:CatchUpIntervalSeconds` (default 30, #1823),
+  so a node that missed the announcement applies it within one interval.
+- **Paused stops everything that writes.** New requests get 503 with Retry-After;
+  the tenant's background workers stop on every node; its sockets close; its jobs are
+  deferred without spending a run (#1823). Requests already in flight are allowed to
+  finish: a pause never breaks them.
+- **The export waits for that to have happened.** `TenantStatusRules.WhyExportMustWait`
+  refuses unless the identity is paused or disabled and `StatusChangedAt` is at least
+  `ExportSettleTime` old: two catch-up intervals plus a minute (120 s by default), for
+  a node that missed the announcement, a margin, and in-flight requests. The refusal
+  says how long is left. `IdentityJsonExporter.ExportAsync` still takes a caller
+  assertion (`callerCheckedIdentityIsStill`) and refuses a false one.
 
-That work is a prerequisite for zero-downtime migration and is out of scope here.
+This is time-based, not a confirmed freeze. A per-node acknowledgement (each node
+records "quiet for this status change", and the export waits for every live node) was
+designed and deferred: it turns "waited long enough" into proof. Accepted until then:
 
-**What ships instead: export requires a stopped host, checked.** With the host down
-there are no writers, so the property holds trivially and problem two disappears.
-`HostLivenessCheck` reads the OS listener table and aborts both verbs if anything is
-listening on the configured http/https ports. Reading the table rather than trying to
-bind means the probe cannot steal a port from a host that is starting up.
-
-This is a step-1 guard, not a safety property. It sees only this machine's listeners,
-so a second host elsewhere sharing the same Postgres is invisible to it and keeps
-writing throughout. A crashed host with workers still draining, or one starting
-between the probe and the export, also slip through. `IdentityJsonExporter.ExportAsync`
-still takes a `callerHasFrozenIdentity` flag and refuses a false one, so the
-assertion stays explicit at the storage layer too.
-
-**Accepted residual risk: server-wide workers.** `StartSystemBackgroundServices`
-runs six more workers that are not tenant-scoped, so a tenant freeze does not stop
-them. Two touch data we export:
-
-- `UpdateCertificatesBackgroundService` writes the `Certificates` table for all
-  domains. A renewal during the migration window is lost, and self-heals when the
-  target renews on its own.
-- `JobRunnerBackgroundService` runs jobs from the system `Jobs` table, which can
-  touch any tenant's data.
-
-Stopping these per-identity would mean a job-runner exclusion and a cert-renewal
-skip, which is a materially bigger change than the export itself. Deliberately not
-built. Recorded here so it is a known gap rather than an oversight.
+- A request still running after the settle time (an upload over a very slow link) can
+  commit after the snapshot and be lost at cutover. Losing a message in a move is
+  tolerable; a node still serving a paused identity is not, which is what the catch-up
+  prevents.
+- `StatusChangedAt` is the pausing node's wall clock, compared with the CLI's; the
+  margin absorbs ordinary skew.
+- `UpdateCertificatesBackgroundService` keeps renewing certificates for a paused
+  identity (a paused identity still answers 503 over TLS). A renewal during the window
+  is lost and self-heals when the target renews its own.
 
 ### 7. Versioning
 
@@ -608,9 +593,14 @@ still recorded in the header for a cheap fast-fail and for human inspection, but
 - **Dry run by default.** Everything runs inside one stacked transaction on the
   target and rolls back unless `commit` is passed, matching `DataImporter`.
 
-One transaction for the whole import is the correct choice for atomicity. For a
-very large identity on Postgres this is a long-lived transaction; that is accepted
-for now and called out here so it is a known property rather than a surprise.
+The import holds one transaction per database, and they commit in order: the
+identity rows first, the system rows (the registration) last, so the registration is
+the commit point. If the identity commit fails, the registration never lands; if the
+system commit fails after it, the identity rows are left without a registration, and a
+rerun clears them (check 4 below). The registration lands **Paused** whatever status it
+was exported with, and the `registry-version` bump in the same transaction makes every
+running node's catch-up load it. For a very large identity on Postgres these are
+long-lived transactions; that is accepted and called out so it is a known property.
 
 **Import preconditions.** All of these run before a single row is written, and any
 one of them failing aborts with a message naming what collided:
@@ -629,10 +619,13 @@ one of them failing aborts with a message naming what collided:
    domain alongside the other two. Several rows per domain rather than one, so the
    check counts rather than testing for a single row, and the message reports the
    count.
-4. **The identity tables hold no rows for this `identityId`.** Checks 1 to 3 are
-   not sufficient on Postgres, for a reason that is easy to miss.
+4. **Identity rows for this `identityId` with no registration are cleared, not
+   refused.** Checks 1 to 3 establish that nothing serves them, so they are what a
+   failed earlier import (or, on Postgres, a deleted registration) left behind. The
+   import deletes them in its own identity transaction and logs a warning. Refusing
+   instead would make a failed import impossible to retry.
 
-**Why check 4 exists.** The two backends differ in a way that matters here:
+**Why check 4 is needed.** The two backends differ in a way that matters here:
 `AddSqliteIdentityDatabaseServices` takes a per-identity `databasePath`, so each
 SQLite identity is its own file. `AddPgsqlIdentityDatabaseServices` takes one
 shared `connectionString` and passes `identityId` only as a constructor parameter
@@ -651,16 +644,12 @@ So on a Postgres target, an identity that was previously deleted leaves no trace
 `Drives`, `Circle`, and the rest. That the subsequent import would then collide on
 unique constraints such as `Drives(identityId, DriveId)` is an **inference** from
 the schema, not something observed; what is verified is that `DeleteRegistration`
-leaves those rows behind. Either way the precondition should catch it cleanly
-rather than letting the import discover it mid-write.
+leaves those rows behind. Either way the import must deal with them before it writes,
+rather than discovering them mid-write.
 
-Check 4 is served by a generated helper, so it stays zero-maintenance and cannot
-miss a newly added table:
-
-```csharp
-// in IdentityDatabase.Export.Generated.cs
-public async Task<long> CountRowsForIdentityAsync(Guid identityId);  // SUM over ExportableTables
-```
+Check 4 iterates the generated `IdentityDatabase.ExportableTables`, so it cannot miss a
+newly added table: `CountRowsForIdentityAsync` is generated, and
+`DeleteRowsForIdentityAsync` (hand-written next to it) mirrors it.
 
 Out of scope for the importer but worth an operator warning: a leftover
 registration directory at `<RegistrationRoot>/<identityId>` also indicates a live
@@ -696,17 +685,19 @@ scope, so the CLI warns rather than the importer refusing.
   That a version mismatch on a table the skip list would drop still blocks the
   import. That the error lists **all** differences rather than the first. That `-1`
   matches `-1`. And that a `formatVersion` newer than the binary is refused.
-- **Freeze tests.** Withdrawn along with the freeze pair. Were to cover that
-  `FreezeIdentityAsync` stops the six tenant workers, and that unfreeze restores a
-  previously-disabled identity to disabled rather than enabling it; and that export
-  refuses against an identity that is not frozen.
+- **Settle tests** (`TenantStatusRulesTests`): export is refused for a running
+  identity, refused with the time left while it settles, allowed once it has, and
+  refused when the change time is unknown. The pause itself is covered by
+  `TenantStatusTests` and the catch-up by `AChangeNobodyAnnouncedIsAppliedByTheCatchUp`.
 - **Precondition tests.** Five cases, each asserting the import aborts before
   writing anything: a target whose `Registrations` already holds the `identityId`;
   one that holds the domain under different casing; one that holds a leftover
   `Certificates` row for the domain but no registration; one that holds leftover
-  `DkimKeys` rows for the domain but no registration; and, on Postgres only, one
-  whose identity tables still hold rows for the `identityId` after its registration
-  was deleted. The last is the case checks 1 to 3 miss.
+  `DkimKeys` rows for the domain but no registration. Leftover identity rows are
+  instead cleared, and a rerun succeeds without duplicating anything
+  (`Import_ClearsRowsAFailedEarlierImportLeftBehind`, SQLite and Postgres). The
+  commit order has its own test on Postgres, where a deferred constraint makes the
+  identity commit fail (`Import_LandsNoRegistrationWhenTheIdentityCommitFails`).
 - **Filter tests.** Assert the export file contains `Inbox`, `Outbox`, and `Nonce`
   rows even though the default import drops them; that the default skip list is
   honoured; that `--include Outbox` overrides it; and that every skipped table is
@@ -761,17 +752,12 @@ Deliberately out of this spec:
 - Migrating `DataImporter` itself onto the generated `ExportRowsAsync` /
   `ImportRowAsync` pair, which would delete its 25-table enumeration, both
   source-scanning tests, and its own `PageSize = 100` paging.
-- **Stopping server-wide workers per identity.** A job-runner exclusion and a
-  cert-renewal skip for a single domain. See the residual risk in **Freezing the
+- **Stopping certificate renewal for a moved identity.** Jobs already wait while an
+  identity is paused (#1823); renewal deliberately does not. See **Freezing the
   identity**.
-- **`CopyRegistration` has the same gap.** It calls `ToggleDisabled(domain, true)`
-  and copies while the tenant's background workers keep writing
-  (`FileSystemIdentityRegistry.cs:229`). Switching it to `FreezeIdentityAsync` is a
-  small follow-up once freeze exists, and is not done here to keep this change from
-  altering the behaviour of the existing export path.
+- **Whether to retire `CopyRegistration`** (`tenant export`, the older on-disk admin
+  snapshot). It now pauses the tenant while copying, but it is not the move path.
 - **Identity deletion.** `DeleteRegistration` leaving identity rows behind on
   Postgres is one of several known shortcomings in how identities are deleted.
-  Fixing that is acknowledged and deliberately deferred. Import precondition 3 is
-  a **guard** against the current behaviour, not a fix for it, and it should stay
-  in place even after deletion is cleaned up: an import must verify its target is
-  empty regardless of how it got that way.
+  Fixing that is acknowledged and deliberately deferred. Import check 4 clears what
+  it leaves behind, which is a workaround for the current behaviour, not a fix.
