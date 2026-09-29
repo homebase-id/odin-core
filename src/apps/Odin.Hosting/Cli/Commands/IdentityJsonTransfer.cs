@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,12 +51,21 @@ public static class IdentityJsonTransfer
         return false;
     }
 
+    // One identity's database services, without loading the registry
+    private static ILifetimeScope BeginIdentityScope(IServiceProvider services, OdinConfiguration config, Guid identityId, string domain)
+    {
+        return services.GetRequiredService<IMultiTenantContainer>().BeginLifetimeScope(cb =>
+        {
+            cb.RegisterInstance(new OdinIdentity(identityId, domain)).SingleInstance();
+            cb.ConfigureDatabaseServices(identityId, config);
+        });
+    }
+
     // True when the export file was written. False means it was refused, and the caller
     // turns that into a non-zero exit code.
     internal static async Task<bool> ExportAsync(IServiceProvider services, string domain, string filePath)
     {
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
-        var registry = services.GetRequiredService<IIdentityRegistry>();
         var config = services.GetRequiredService<OdinConfiguration>();
 
         if (!PayloadsAreOnS3(logger, config, "export"))
@@ -63,18 +73,19 @@ public static class IdentityJsonTransfer
             return false;
         }
 
-        // The CLI builds its own root container; nothing has populated the registry's trie
-        // yet, so GetAsync would return null for every domain. Every other verb that reaches
-        // for an identity does this first (CommandLine.LoadTenants). It also creates the
-        // tenant scope that GetTenantScope below depends on.
-        await registry.LoadRegistrations();
-
-        var registration = await registry.GetAsync(domain);
-        if (registration == null)
+        // Straight from the database: loading the registry would load every identity on the host
+        // (migrations, version-upgrade checks, caches) to export one
+        var systemDatabase = services.GetRequiredService<SystemDatabase>();
+        var record = (await systemDatabase.Registrations.GetAllAsync())
+            .SingleOrDefault(r => r.primaryDomainName.Equals(domain, StringComparison.OrdinalIgnoreCase));
+        if (record == null)
         {
             logger.LogError("No such identity: {domain}", domain);
             return false;
         }
+
+        var registration = new IdentityRegistration { Id = record.identityId, PrimaryDomainName = record.primaryDomainName };
+        RegistrationJsonMapper.Apply(registration, record.disabled, record.json);
 
         // The identity must be still: paused (or disabled) long enough that every node has stopped its
         // workers and jobs and requests that were in flight have finished
@@ -91,17 +102,15 @@ public static class IdentityJsonTransfer
             + "certificate private key and DKIM signing keys. Anyone holding it can become "
             + "this identity. Store it encrypted and delete it when the migration is done.");
 
-        var systemDatabase = services.GetRequiredService<SystemDatabase>();
         var systemMigrator = services.GetRequiredService<SystemMigrator>();
-
-        var tenantScope = services.GetRequiredService<IMultiTenantContainer>().GetTenantScope(domain);
-        var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
-        var identityMigrator = tenantScope.Resolve<IdentityMigrator>();
+        await using var identityScope = BeginIdentityScope(services, config, registration.Id, registration.PrimaryDomainName);
+        var identityDatabase = identityScope.Resolve<IdentityDatabase>();
+        var identityMigrator = identityScope.Resolve<IdentityMigrator>();
 
         try
         {
             var rows = await IdentityJsonExporter.ExportToFileAsync(
-                filePath, registration.Id, domain,
+                filePath, registration.Id, registration.PrimaryDomainName,
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
@@ -142,18 +151,13 @@ public static class IdentityJsonTransfer
         var header = await IdentityJsonImporter.ReadHeaderAsync(stream);
         stream.Position = 0;
 
-        var workContainer = services.GetRequiredService<IMultiTenantContainer>();
-
-        await using var targetScope = workContainer.BeginLifetimeScope(cb =>
+        if (config.Database.Type == DatabaseType.Sqlite)
         {
-            cb.RegisterInstance(new OdinIdentity(header.IdentityId, header.Domain)).SingleInstance();
-            if (config.Database.Type == DatabaseType.Sqlite)
-            {
-                // A new identity has no folder yet, and SQLite cannot create identity.db without one
-                new TenantPathManager(config, header.IdentityId).CreateDirectories();
-            }
-            cb.ConfigureDatabaseServices(header.IdentityId, config);
-        });
+            // A new identity has no folder yet, and SQLite cannot create identity.db without one
+            new TenantPathManager(config, header.IdentityId).CreateDirectories();
+        }
+
+        await using var targetScope = BeginIdentityScope(services, config, header.IdentityId, header.Domain);
 
         var targetIdentityDatabase = targetScope.Resolve<IdentityDatabase>();
         var targetSystemDatabase = services.GetRequiredService<SystemDatabase>();
