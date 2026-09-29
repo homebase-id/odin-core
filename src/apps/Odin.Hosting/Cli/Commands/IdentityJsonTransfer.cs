@@ -1,13 +1,10 @@
 using System;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.DatabaseImport;
@@ -144,10 +141,7 @@ public static class IdentityJsonTransfer
         ExportHeader header;
         await using (var peek = new FileStream(filePath, FileMode.Open, FileAccess.Read))
         {
-            using var document = await JsonDocument.ParseAsync(peek);
-            var first = document.RootElement[0].GetRawText();
-            header = OdinSystemSerializer.Deserialize<ExportHeader>(first)
-                ?? throw new InvalidOperationException("Export file has no readable header.");
+            header = await IdentityJsonImporter.ReadHeaderAsync(peek);
         }
 
         var workContainer = services.GetRequiredService<IMultiTenantContainer>();

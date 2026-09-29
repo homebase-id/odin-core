@@ -171,24 +171,29 @@ public class IdentityJsonExporterTests
         // Memory stays flat only if rows leave the writer as they are written. Serializing a value
         // into a Utf8JsonWriter flushes it; if that ever stops, the whole export would sit in memory
         // and reach the stream in one write at the end
-        _scope = await _services.RegisterServicesAsync(DatabaseType.Sqlite, _tempFolder, _identityId);
-        var sys = _scope.Resolve<SystemDatabase>();
-        var id = _scope.Resolve<IdentityDatabase>();
-        await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
-        for (var i = 0; i < 8; i++)
-        {
-            await id.KeyValue.InsertAsync(new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = System.Security.Cryptography.RandomNumberGenerator.GetBytes(512 * 1024) });
-        }
-
         var stream = new WriteRecordingStream();
-        await IdentityJsonExporter.ExportAsync(
-            _scope.Resolve<ILogger<IdentityJsonExporterTests>>(), stream, _identityId, IdentityDomain, sys, id,
-            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
+        await ExportLargeAsync(stream);
 
         var writes = string.Join(", ", stream.Writes);
         const int oneRow = 1024 * 1024; // a 512 KB value, base64 encoded, plus its envelope
         Assert.That(stream.Length, Is.GreaterThan(4 * oneRow), $"export too small to test: {stream.Length} bytes");
         Assert.That(stream.Writes.Max(), Is.LessThan(oneRow), $"writes: {writes}");
+    }
+
+    [Test]
+    public async Task ReadHeaderAsync_ReadsOnlyTheStartOfALargeFile()
+    {
+        // The CLI reads the header to learn which identity it is importing before the import proper;
+        // parsing the whole document for that would hold an entire export in memory
+        var export = new MemoryStream();
+        await ExportLargeAsync(export);
+
+        var input = new ReadCountingStream(export.ToArray());
+        var header = await IdentityJsonImporter.ReadHeaderAsync(input);
+
+        Assert.That(header.IdentityId, Is.EqualTo(_identityId));
+        Assert.That(header.Domain, Is.EqualTo(IdentityDomain));
+        Assert.That(input.BytesRead, Is.LessThan(input.Length / 10), $"read {input.BytesRead} of {input.Length} bytes");
     }
 
     [Test]
@@ -231,6 +236,27 @@ public class IdentityJsonExporterTests
         Assert.That(File.Exists(path), Is.False);
     }
 
+    // About 5.6 MB: eight 512 KB key-value rows
+    private async Task ExportLargeAsync(Stream output)
+    {
+        _scope = await _services.RegisterServicesAsync(DatabaseType.Sqlite, _tempFolder, _identityId);
+        var sys = _scope.Resolve<SystemDatabase>();
+        var id = _scope.Resolve<IdentityDatabase>();
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
+        for (var i = 0; i < 8; i++)
+        {
+            await id.KeyValue.InsertAsync(new KeyValueRecord
+            {
+                key = Guid.NewGuid().ToByteArray(),
+                data = System.Security.Cryptography.RandomNumberGenerator.GetBytes(512 * 1024)
+            });
+        }
+
+        await IdentityJsonExporter.ExportAsync(
+            _scope.Resolve<ILogger<IdentityJsonExporterTests>>(), output, _identityId, IdentityDomain, sys, id,
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
+    }
+
     private async Task SeedAndExportToFileAsync(string path, bool callerCheckedIdentityIsStill)
     {
         _scope = await _services.RegisterServicesAsync(DatabaseType.Sqlite, _tempFolder, _identityId);
@@ -242,6 +268,26 @@ public class IdentityJsonExporterTests
         await IdentityJsonExporter.ExportToFileAsync(
             _scope.Resolve<ILogger<IdentityJsonExporterTests>>(), path, _identityId, IdentityDomain, sys, id,
             identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill);
+    }
+
+    // Counts the bytes a reader takes from it (MemoryStream's async reads land in these)
+    private sealed class ReadCountingStream(byte[] content) : MemoryStream(content)
+    {
+        public long BytesRead { get; private set; }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = base.Read(buffer, offset, count);
+            BytesRead += read;
+            return read;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            var read = base.Read(buffer);
+            BytesRead += read;
+            return read;
+        }
     }
 
     // Records the size of every write the exporter makes (MemoryStream's async writes land in these)

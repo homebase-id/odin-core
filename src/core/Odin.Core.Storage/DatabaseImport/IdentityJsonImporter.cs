@@ -48,29 +48,11 @@ public static class IdentityJsonImporter
     {
         var skip = skipTables ?? DefaultSkippedTables;
 
-        // Streamed, not whole-document: DriveMainIndex carries hdrFileMetaData and
-        // hdrAppData for every file the identity owns, so a real export does not fit
-        // comfortably in memory. The file is a top-level array, which is exactly what
-        // DeserializeAsyncEnumerable consumes.
-        var enumerator = JsonSerializer
-            .DeserializeAsyncEnumerable<JsonElement>(input, OdinSystemSerializer.JsonSerializerOptions)
-            .GetAsyncEnumerator();
+        var enumerator = OpenElements(input);
 
         try
         {
-            if (!await enumerator.MoveNextAsync())
-            {
-                throw new InvalidOperationException("Export file is empty.");
-            }
-
-            var header = OdinSystemSerializer.Deserialize<ExportHeader>(enumerator.Current.GetRawText())
-                ?? throw new InvalidOperationException("Export file has no readable header.");
-
-            if (header.Kind != IdentityExportFile.KindHeader)
-            {
-                throw new InvalidOperationException(
-                    $"Expected the first element to be a header, found '{header.Kind}'.");
-            }
+            var header = await ReadHeaderAsync(enumerator);
 
             // Nothing is written until every precondition holds.
             var violations = await IdentityImportPreconditions.CheckAsync(
@@ -144,6 +126,44 @@ public static class IdentityJsonImporter
         {
             await enumerator.DisposeAsync();
         }
+    }
+
+    // Reads only the header, the file's first element: the rows after it are not parsed, and
+    // the reader holds no more of the file than that element.
+    public static async Task<ExportHeader> ReadHeaderAsync(Stream input)
+    {
+        await using var enumerator = OpenElements(input);
+        return await ReadHeaderAsync(enumerator);
+    }
+
+    // Streamed, not whole-document: DriveMainIndex carries hdrFileMetaData and hdrAppData
+    // for every file the identity owns, so a real export does not fit comfortably in
+    // memory. The file is a top-level array, which is exactly what
+    // DeserializeAsyncEnumerable consumes.
+    private static IAsyncEnumerator<JsonElement> OpenElements(Stream input)
+    {
+        return JsonSerializer
+            .DeserializeAsyncEnumerable<JsonElement>(input, OdinSystemSerializer.JsonSerializerOptions)
+            .GetAsyncEnumerator();
+    }
+
+    private static async Task<ExportHeader> ReadHeaderAsync(IAsyncEnumerator<JsonElement> elements)
+    {
+        if (!await elements.MoveNextAsync())
+        {
+            throw new InvalidOperationException("Export file is empty.");
+        }
+
+        var header = OdinSystemSerializer.Deserialize<ExportHeader>(elements.Current.GetRawText())
+            ?? throw new InvalidOperationException("Export file has no readable header.");
+
+        if (header.Kind != IdentityExportFile.KindHeader)
+        {
+            throw new InvalidOperationException(
+                $"Expected the first element to be a header, found '{header.Kind}'.");
+        }
+
+        return header;
     }
 
     private static object Deserialize(
