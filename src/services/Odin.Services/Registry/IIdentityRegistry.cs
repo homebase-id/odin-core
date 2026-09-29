@@ -37,6 +37,11 @@ namespace Odin.Services.Registry
         TenantStatus? GetStatus(Guid identityId);
 
         /// <summary>
+        /// The registration this node holds for the identity, or null if it does not know it.
+        /// </summary>
+        IdentityRegistration Get(Guid identityId);
+
+        /// <summary>
         /// Returns IdentityRegistration for *base* domain and prefix if any, e.g. www.frodo.me 
         /// </summary>
         /// <param name="domain">base domain to lookup, optionally with prefix</param>

@@ -166,6 +166,8 @@ namespace Odin.Hosting.Middleware
                 {
                     context.Response.Headers.RetryAfter =
                         ((int)Math.Ceiling(retryLater.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+                    // A temporary answer: a cache (the CDN in front of payloads) must not keep it
+                    context.Response.Headers.CacheControl = "no-store";
                 }
             }
 

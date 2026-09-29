@@ -48,6 +48,13 @@ public class OdinConfiguration
 
     public S3StorageSection S3Storage { get; init; } = new();
     public S3PayloadSection S3Payload { get; init; } = new();
+    public PayloadMoveSection PayloadMove { get; init; } = new();
+
+    /// <summary>
+    /// The provisioning domain is served (and needs its certificate) when this host provisions, and when it
+    /// serves moved payloads, whose endpoint is on that domain.
+    /// </summary>
+    public bool ServesProvisioningDomain => Registry.ProvisioningEnabled || PayloadMove.SourceEnabled;
 
     public CdnSection Cdn { get; init; } = new();
 
@@ -79,6 +86,7 @@ public class OdinConfiguration
         Cache = new CacheSection(config);
         S3Storage = new S3StorageSection(config);
         S3Payload = new S3PayloadSection(config);
+        PayloadMove = new PayloadMoveSection(config);
         Cdn = new CdnSection(config);
         OpenObserve = new OpenObserveSection(config);
     }
@@ -887,6 +895,35 @@ public class OdinConfiguration
     }
 
     //
+
+    /// <summary>
+    /// Moving an identity's payloads to another host: this host serving them as the source, and pulling
+    /// them as the target. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
+    /// </summary>
+    public class PayloadMoveSection
+    {
+        /// <summary>
+        /// Serve the payloads of identities exported from this host, on the provisioning domain, to the
+        /// host that imported them. Export refuses while this is off.
+        /// </summary>
+        public bool SourceEnabled { get; init; }
+
+        /// <summary>
+        /// How many payloads the target transfers at once.
+        /// </summary>
+        public int Parallelism { get; init; } = 5;
+
+        public PayloadMoveSection()
+        {
+            // Mockable support
+        }
+
+        public PayloadMoveSection(IConfiguration config)
+        {
+            SourceEnabled = config.GetOrDefault("PayloadMove:SourceEnabled", false);
+            Parallelism = Math.Max(1, config.GetOrDefault("PayloadMove:Parallelism", Parallelism));
+        }
+    }
 
     public class S3PayloadSection
     {

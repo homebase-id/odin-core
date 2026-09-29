@@ -13,7 +13,9 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Cli.Commands;
@@ -22,35 +24,6 @@ namespace Odin.Hosting.Cli.Commands;
 
 public static class IdentityJsonTransfer
 {
-    // False unless this host keeps payloads on S3.
-    //
-    // Identity transfer moves database rows only. The payload bytes those rows point at
-    // have to move by other means, and the only mechanism planned for that is a copy
-    // between S3 buckets. A host on local disk has no way to complete the move, so both
-    // verbs refuse rather than land an identity whose file headers point at bytes that
-    // were never carried across.
-    //
-    // This reads configuration, not storage. The flag says where this host reads and
-    // writes payloads today. It does not prove that every payload of this identity is in
-    // the bucket: a host that ran on disk before the flag was turned on still has its
-    // older payloads on disk, and nothing here sees that.
-    private static bool PayloadsAreOnS3(ILogger logger, OdinConfiguration config, string verb)
-    {
-        if (config.S3Payload.Enabled)
-        {
-            return true;
-        }
-
-        logger.LogError(
-            "Refusing to {verb}: this host stores payloads on local disk (S3Payload:Enabled "
-            + "is false). Identity transfer covers database tables only; payloads move "
-            + "separately, and only between S3 buckets. A disk-based host cannot complete "
-            + "the move, so the identity would arrive with file headers whose bytes are "
-            + "missing.",
-            verb);
-        return false;
-    }
-
     // One identity's database services, without loading the registry
     private static ILifetimeScope BeginIdentityScope(IServiceProvider services, OdinConfiguration config, Guid identityId, string domain)
     {
@@ -61,6 +34,13 @@ public static class IdentityJsonTransfer
         });
     }
 
+    // Where this host serves moved payloads: its provisioning domain, on the public HTTPS port
+    private static string PayloadSourceBaseUrl(OdinConfiguration config)
+    {
+        return new UriBuilder("https", config.Registry.ProvisioningDomain, config.Host.DefaultHttpsPort).Uri
+            .GetLeftPart(UriPartial.Authority);
+    }
+
     // True when the export file was written. False means it was refused, and the caller
     // turns that into a non-zero exit code.
     internal static async Task<bool> ExportAsync(IServiceProvider services, string domain, string filePath)
@@ -68,8 +48,12 @@ public static class IdentityJsonTransfer
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
         var config = services.GetRequiredService<OdinConfiguration>();
 
-        if (!PayloadsAreOnS3(logger, config, "export"))
+        // The file tells the target where to fetch the payloads; never promise what this host will not serve
+        if (!config.PayloadMove.SourceEnabled)
         {
+            logger.LogError(
+                "Refusing to export {domain}: PayloadMove:SourceEnabled is off, so the target could not fetch the "
+                + "identity's payloads from this host", domain);
             return false;
         }
 
@@ -107,6 +91,14 @@ public static class IdentityJsonTransfer
         var identityDatabase = identityScope.Resolve<IdentityDatabase>();
         var identityMigrator = identityScope.Resolve<IdentityMigrator>();
 
+        // Minted before the file exists, so it can go in it. Exporting again replaces it, which revokes
+        // whatever an earlier file could redeem.
+        var payloadSource = new ExportPayloadSource
+        {
+            BaseUrl = PayloadSourceBaseUrl(config),
+            HandoffToken = await services.GetRequiredService<PayloadMoveSource>().MintHandoffAsync(registration.Id)
+        };
+
         try
         {
             var rows = await IdentityJsonExporter.ExportToFileAsync(
@@ -114,7 +106,8 @@ public static class IdentityJsonTransfer
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
-                callerCheckedIdentityIsStill: true);
+                callerCheckedIdentityIsStill: true,
+                payloadSource);
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
@@ -133,11 +126,6 @@ public static class IdentityJsonTransfer
     {
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
         var config = services.GetRequiredService<OdinConfiguration>();
-
-        if (!PayloadsAreOnS3(logger, config, "import"))
-        {
-            return false;
-        }
 
         if (!File.Exists(filePath))
         {
@@ -190,13 +178,36 @@ public static class IdentityJsonTransfer
         try
         {
             await IdentityJsonImporter.ImportAsync(logger, stream, targetSystemDatabase, targetIdentityDatabase, commit,
-                beforeCommit: () => FileSystemIdentityRegistry.MarkImportedRegistrationPausedAsync(targetSystemDatabase, header.IdentityId));
+                beforeCommit: async () =>
+                {
+                    await FileSystemIdentityRegistry.MarkImportedRegistrationPausedAsync(targetSystemDatabase, header.IdentityId);
+
+                    // In the same transaction, so the transfer exists if and only if the import committed. It
+                    // starts as soon as a running host picks it up, paused or not, and fetches only the files the
+                    // import brought: those up to the highest rowId there is now.
+                    if (header.PayloadSource is { } payloadSource)
+                    {
+                        await PayloadMoveJob.ScheduleAsync(services.GetRequiredService<IJobManager>(), header.IdentityId,
+                            payloadSource.BaseUrl, payloadSource.HandoffToken,
+                            await targetIdentityDatabase.DriveMainIndex.GetMaxRowIdAsync());
+                    }
+                });
         }
         catch (IdentityImportRefusedException e)
         {
             // A failed precondition or an unreadable file; nothing was committed
             logger.LogError("{message}", e.Message);
             return false;
+        }
+
+        if (header.PayloadSource == null)
+        {
+            logger.LogWarning("The file names no payload source: {domain}'s payloads will not be moved", header.Domain);
+        }
+        else if (commit)
+        {
+            logger.LogInformation("{domain}'s payloads transfer from {source} in the background, starting now; " +
+                                  "follow it with odin-admin tenant payload-move", header.Domain, header.PayloadSource.BaseUrl);
         }
 
         if (commit)

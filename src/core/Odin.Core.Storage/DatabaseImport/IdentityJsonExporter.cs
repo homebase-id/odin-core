@@ -43,7 +43,8 @@ public static class IdentityJsonExporter
         IdentityDatabase identityDatabase,
         long identitySchemaVersion,
         long systemSchemaVersion,
-        bool callerCheckedIdentityIsStill)
+        bool callerCheckedIdentityIsStill,
+        ExportPayloadSource? payloadSource = null)
     {
         var partialPath = filePath + ".partial";
         if (File.Exists(filePath))
@@ -79,7 +80,7 @@ public static class IdentityJsonExporter
             await using (stream)
             {
                 rows = await ExportAsync(stream, identityId, domain, systemDatabase, identityDatabase,
-                    identitySchemaVersion, systemSchemaVersion, callerCheckedIdentityIsStill);
+                    identitySchemaVersion, systemSchemaVersion, callerCheckedIdentityIsStill, payloadSource);
             }
 
             File.Move(partialPath, filePath, overwrite: false);
@@ -100,7 +101,8 @@ public static class IdentityJsonExporter
         IdentityDatabase identityDatabase,
         long identitySchemaVersion,
         long systemSchemaVersion,
-        bool callerCheckedIdentityIsStill)
+        bool callerCheckedIdentityIsStill,
+        ExportPayloadSource? payloadSource = null)
     {
         if (!callerCheckedIdentityIsStill)
         {
@@ -120,6 +122,7 @@ public static class IdentityJsonExporter
             Domain = domain,
             IdentitySchemaVersion = identitySchemaVersion,
             SystemSchemaVersion = systemSchemaVersion,
+            PayloadSource = payloadSource,
             TableVersions = new Dictionary<string, Dictionary<string, long>>
             {
                 [IdentityExportFile.DbSystem] = await systemDatabase.GetTableVersionsAsync(),
