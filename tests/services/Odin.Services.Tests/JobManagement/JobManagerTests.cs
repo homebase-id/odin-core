@@ -16,6 +16,7 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
@@ -135,6 +136,7 @@ public class JobManagerTests
         builder.RegisterInstance(jobTypeRegistry).As<IJobTypeRegistry>();
 
         jobTypeRegistry.RegisterJobType<SimpleJobTest>(builder, SimpleJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<ResumableJobTest>(builder, ResumableJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<SimpleJobWithDelayTest>(builder, SimpleJobWithDelayTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<EventuallySucceedJobTest>(builder, EventuallySucceedJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<AbortingJobTest>(builder, AbortingJobTest.JobTypeId);
@@ -516,6 +518,79 @@ public class JobManagerTests
         Assert.That(completed.JobData.SomeJobData, Is.EqualTo("hurrah!"));
 
         AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldRunAJobThatOptsInWhileItsIdentityIsStopped(DatabaseType databaseType)
+    {
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        var identityId = Guid.NewGuid();
+        _identityStatuses[identityId] = TenantStatus.Paused;
+        var jobId = await jobManager.ScheduleJobAsync(jobManager.NewJob<ResumableJobTest>(identityId));
+
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+
+        var job = await jobManager.GetJobAsync<ResumableJobTest>(jobId);
+        Assert.That(job!.State, Is.EqualTo(JobState.Succeeded), job.LastError);
+        Assert.That(job.JobData.SomeJobData, Is.EqualTo("hurrah!"));
+        Assert.That(job.IdentityId, Is.EqualTo(identityId), "the job keeps its identity");
+
+        AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldRescheduleAnOrphanedJobOnlyIfItOptsInAndIsPastItsThreshold(DatabaseType databaseType)
+    {
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+
+        // Left Running by a dead node an hour ago: rescued. Same age, but a job that did not opt in: left alone.
+        // Opted in, but only ten minutes into its thirty-minute threshold: left alone.
+        var stale = await jobManager.ScheduleJobAsync(jobManager.NewJob<ResumableJobTest>());
+        var notOptedIn = await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>());
+        var recent = await jobManager.ScheduleJobAsync(jobManager.NewJob<ResumableJobTest>());
+        await SetStuckAsync(stale, JobState.Running, TimeSpan.FromHours(1));
+        await SetStuckAsync(notOptedIn, JobState.Running, TimeSpan.FromHours(1));
+        await SetStuckAsync(recent, JobState.Running, TimeSpan.FromMinutes(10));
+
+        var rescheduled = await jobManager.RescheduleOrphanedJobsAsync();
+
+        Assert.That(rescheduled, Is.EqualTo(1));
+        Assert.That((await jobManager.GetJobAsync<ResumableJobTest>(stale))!.State, Is.EqualTo(JobState.Scheduled));
+        Assert.That((await jobManager.GetJobAsync<SimpleJobTest>(notOptedIn))!.State, Is.EqualTo(JobState.Running));
+        Assert.That((await jobManager.GetJobAsync<ResumableJobTest>(recent))!.State, Is.EqualTo(JobState.Running));
+
+        // And it runs again
+        await jobManager.RunJobNowAsync(stale, CancellationToken.None);
+        Assert.That((await jobManager.GetJobAsync<ResumableJobTest>(stale))!.State, Is.EqualTo(JobState.Succeeded));
+
+        AssertLogEvents();
+    }
+
+    // What a node that died mid-run leaves behind: the row in a working state, last touched long ago
+    private async Task SetStuckAsync(Guid jobId, JobState state, TimeSpan ago)
+    {
+        var systemDatabase = _container.Resolve<SystemDatabase>();
+        await using var cn = await systemDatabase.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "UPDATE jobs SET state = @state, modified = @modified WHERE id = @id;";
+        cmd.AddParameter("@state", System.Data.DbType.Int32, (int)state);
+        cmd.AddParameter("@modified", System.Data.DbType.Int64, DateTimeOffset.UtcNow.Add(-ago).ToUnixTimeMilliseconds());
+        cmd.AddParameter("@id", System.Data.DbType.Binary, jobId);
+        Assert.That(await cmd.ExecuteNonQueryAsync(), Is.EqualTo(1));
     }
 
     //
