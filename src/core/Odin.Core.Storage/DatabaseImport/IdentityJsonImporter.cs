@@ -60,7 +60,7 @@ public static class IdentityJsonImporter
 
         if (violations.Count > 0)
         {
-            throw new InvalidOperationException(
+            throw new IdentityImportRefusedException(
                 $"Refusing to import {header.Domain}. {violations.Count} precondition(s) failed:"
                 + Environment.NewLine + string.Join(Environment.NewLine, violations.Select(v => "  - " + v)));
         }
@@ -110,14 +110,17 @@ public static class IdentityJsonImporter
         IReadOnlySet<string> skip,
         ImportResult result)
     {
-        while (await enumerator.MoveNextAsync())
+        while (await MoveNextAsync(enumerator))
         {
             var element = enumerator.Current;
-            var table = element.GetProperty("table").GetString()
-                ?? throw new InvalidOperationException("Row is missing its table name.");
-            var db = element.GetProperty("db").GetString()
-                ?? throw new InvalidOperationException($"Row for {table} is missing its db discriminator.");
-            var data = element.GetProperty("data");
+            var table = StringProperty(element, "table")
+                ?? throw new IdentityImportRefusedException("Row is missing its table name.");
+            var db = StringProperty(element, "db")
+                ?? throw new IdentityImportRefusedException($"Row for {table} is missing its db discriminator.");
+            if (!element.TryGetProperty("data", out var data))
+            {
+                throw new IdentityImportRefusedException($"Row for {table} is missing its data.");
+            }
 
             if (skip.Contains(table))
             {
@@ -139,7 +142,7 @@ public static class IdentityJsonImporter
                     break;
 
                 default:
-                    throw new InvalidOperationException($"Unknown db discriminator '{db}' for table {table}.");
+                    throw new IdentityImportRefusedException($"Unknown db discriminator '{db}' for table {table}.");
             }
         }
 
@@ -178,17 +181,17 @@ public static class IdentityJsonImporter
 
     private static async Task<ExportHeader> ReadHeaderAsync(IAsyncEnumerator<JsonElement> elements)
     {
-        if (!await elements.MoveNextAsync())
+        if (!await MoveNextAsync(elements))
         {
-            throw new InvalidOperationException("Export file is empty.");
+            throw new IdentityImportRefusedException("Export file is empty.");
         }
 
-        var header = OdinSystemSerializer.Deserialize<ExportHeader>(elements.Current.GetRawText())
-            ?? throw new InvalidOperationException("Export file has no readable header.");
+        var header = DeserializeOrRefuse<ExportHeader>(elements.Current, "the header")
+            ?? throw new IdentityImportRefusedException("Export file has no readable header.");
 
         if (header.Kind != IdentityExportFile.KindHeader)
         {
-            throw new InvalidOperationException(
+            throw new IdentityImportRefusedException(
                 $"Expected the first element to be a header, found '{header.Kind}'.");
         }
 
@@ -200,11 +203,50 @@ public static class IdentityJsonImporter
     {
         if (!recordTypes.TryGetValue(table, out var type))
         {
-            throw new InvalidOperationException(
+            throw new IdentityImportRefusedException(
                 $"Export file contains table '{table}', which this binary does not know about.");
         }
 
-        return data.Deserialize(type, OdinSystemSerializer.JsonSerializerOptions)
-            ?? throw new InvalidOperationException($"Row for table '{table}' deserialized to null.");
+        return DeserializeOrRefuse(data, type, $"a {table} row")
+            ?? throw new IdentityImportRefusedException($"Row for table '{table}' deserialized to null.");
+    }
+
+    // A file that is not valid JSON, or holds values of the wrong shape, is refused like any other bad file
+    private static async Task<bool> MoveNextAsync(IAsyncEnumerator<JsonElement> elements)
+    {
+        try
+        {
+            return await elements.MoveNextAsync();
+        }
+        catch (JsonException e)
+        {
+            throw new IdentityImportRefusedException($"Export file is not valid JSON: {e.Message}", e);
+        }
+    }
+
+    private static T? DeserializeOrRefuse<T>(JsonElement element, string what)
+    {
+        return (T?)DeserializeOrRefuse(element, typeof(T), what);
+    }
+
+    private static object? DeserializeOrRefuse(JsonElement element, Type type, string what)
+    {
+        try
+        {
+            return element.Deserialize(type, OdinSystemSerializer.JsonSerializerOptions);
+        }
+        catch (JsonException e)
+        {
+            throw new IdentityImportRefusedException($"Export file has an unreadable value in {what}: {e.Message}", e);
+        }
+    }
+
+    private static string? StringProperty(JsonElement element, string name)
+    {
+        return element.ValueKind == JsonValueKind.Object &&
+               element.TryGetProperty(name, out var value) &&
+               value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
     }
 }

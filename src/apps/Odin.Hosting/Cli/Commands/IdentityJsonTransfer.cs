@@ -148,7 +148,16 @@ public static class IdentityJsonTransfer
         // Read the header to learn which identity this file is for, then rewind: the importer
         // reads it again and validates it; this read is only to build the right scope.
         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        var header = await IdentityJsonImporter.ReadHeaderAsync(stream);
+        ExportHeader header;
+        try
+        {
+            header = await IdentityJsonImporter.ReadHeaderAsync(stream);
+        }
+        catch (IdentityImportRefusedException e)
+        {
+            logger.LogError("{message}", e.Message);
+            return false;
+        }
         stream.Position = 0;
 
         if (config.Database.Type == DatabaseType.Sqlite)
@@ -176,9 +185,9 @@ public static class IdentityJsonTransfer
             await IdentityJsonImporter.ImportAsync(logger, stream, targetSystemDatabase, targetIdentityDatabase, commit,
                 beforeCommit: () => FileSystemIdentityRegistry.MarkImportedRegistrationPausedAsync(targetSystemDatabase, header.IdentityId));
         }
-        catch (InvalidOperationException e)
+        catch (IdentityImportRefusedException e)
         {
-            // The importer's refusals (a failed precondition, an unreadable file); nothing was written
+            // A failed precondition or an unreadable file; nothing was committed
             logger.LogError("{message}", e.Message);
             return false;
         }

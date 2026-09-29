@@ -231,7 +231,7 @@ public class IdentityJsonRoundTripTests
         var rowsAfterFirst = await tgtId.CountRowsForIdentityAsync(_identityId);
 
         stream.Position = 0;
-        Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        Assert.ThrowsAsync<IdentityImportRefusedException>(async () =>
             await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, tgtId, commit: true));
 
         Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.EqualTo(rowsAfterFirst),
@@ -307,6 +307,33 @@ public class IdentityJsonRoundTripTests
         Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.EqualTo(sourceRows - skipped),
             $"source {sourceRows} rows, skipped {skipped}");
         Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Import_RefusesATruncatedFileAndWritesNothing()
+    {
+        // A copy cut short mid-row (a transfer that did not finish) fails part way through the rows
+        var full = (await SeedSourceAndExportAsync(DatabaseType.Sqlite)).ToArray();
+        var truncated = new MemoryStream(full[..(full.Length * 2 / 3)]);
+
+        _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var tgtId = _targetScope.Resolve<IdentityDatabase>();
+
+        var e = Assert.ThrowsAsync<IdentityImportRefusedException>(() => IdentityJsonImporter.ImportAsync(
+            _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>(), truncated, tgtSys, tgtId, commit: true));
+
+        Assert.That(e!.Message, Does.Contain("not valid JSON"), e.Message);
+        Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Null);
+        Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ReadHeader_RefusesAFileThatIsNotJson()
+    {
+        var e = Assert.ThrowsAsync<IdentityImportRefusedException>(() =>
+            IdentityJsonImporter.ReadHeaderAsync(new MemoryStream("this is not an export"u8.ToArray())));
+        Assert.That(e!.Message, Does.Contain("not valid JSON"), e.Message);
     }
 
     [TestCase(false)]
