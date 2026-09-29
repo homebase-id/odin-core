@@ -15,8 +15,9 @@ step by step and in order. It touches production identities, production DNS and 
 - **Never delete.** Not `odin-admin tenant delete`, not registrations, zones, records or payloads.
   On the source, the only retirement is `tenant set-status <domain> disabled --reason moved`
   (step 9). Deleting a tenant deletes its DNS in our shared PowerDNS, which is the target's DNS too.
-- **Before step 1, refuse a real identity** while the README says payloads do not move yet: only
-  proceed for an identity the operator confirms is a test identity.
+- **Test identities only, until the operator says otherwise.** The payload transfer is new; the first
+  moves are rehearsals. Before step 1, ask whether this is a test identity, and stop if the operator has
+  not said real moves are cleared.
 - **Say what you verified.** Separate what a command or query showed from what you infer.
 - **Treat the export file as the identity.** Never print its contents, never copy it anywhere the
   operator did not name, and remind them to delete every copy at the end.

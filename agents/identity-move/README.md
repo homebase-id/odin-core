@@ -3,10 +3,9 @@
 The runbook for moving one identity (tenant) from a source host (or cluster) to a target host.
 It is written for an operator, and for an agent working in this folder (see `CLAUDE.md`).
 
-> **Not ready for a real identity yet.** Export and import carry the identity's database rows
-> only. Its payloads (files, photos, thumbnails) do not move: the payload transfer is still to be
-> built. Until it is, run this only as a rehearsal, on a test identity whose payloads you can
-> lose. See **Payloads** below.
+The database rows move in a file (export, then import). The payloads (files, photos, thumbnails)
+follow on their own: the target pulls them from the source over HTTPS in the background, starting
+the moment the import commits. See **Payloads** below.
 
 ## Before you start
 
@@ -22,6 +21,9 @@ You need:
   the mounted `/homebase` so they survive the container. Confirm with ops before the first move.
 - **PowerDNS API access** (`Registry:PowerDnsHostAddress`, `Registry:PowerDnsApiKey`) for the TTL step.
 - **The same odin-core version on both hosts.** Import refuses if any table version differs.
+- **`PayloadMove:SourceEnabled=true` on the source**, and the source's provisioning domain
+  (`Registry:ProvisioningDomain`) reachable from the target over HTTPS. That is where the target pulls
+  the payloads from. Export refuses while it is off.
 
 Throughout, `<domain>` is the identity's domain, for example `frodo.id.pub`.
 
@@ -99,6 +101,8 @@ Odin.Hosting identity-export <domain> <file.json>
 - Refuses while the identity is not paused (or disabled) long enough, and says why.
 - Writes `<file.json>.partial` first and renames it when complete. If it fails, nothing is left
   behind; if a `.partial` from a crash is in the way, it refuses: look at it and delete it.
+- Mints a single-use handoff token for the payloads and puts it in the file, with the source's address.
+  Exporting again replaces it (the older file can then no longer fetch payloads).
 - **The file is the identity**: it holds password data, private keys and the TLS certificate key.
   Mode 0600. Move it only over an encrypted channel, and delete every copy when the move is done.
 
@@ -115,6 +119,9 @@ Odin.Hosting identity-import <file.json> commit
   or DKIM rows for the domain, a table version differs, or the file is not a complete export.
 - A failed import can simply be run again: it clears what the failed one left.
 - Check it arrived: `odin-admin tenant show <domain>` against the target shows `Paused`.
+- The payload transfer starts at once, while the identity is still paused. Follow it against the target:
+  `odin-admin tenant payload-move <domain>`. It runs newest files first, 5 at a time
+  (`PayloadMove:Parallelism`), survives restarts of either host, and waits out a throttling source.
 
 ### 7. Repoint DNS to the target
 
@@ -140,31 +147,37 @@ odin-admin tenant resume <domain>            # against the target's admin API
 
 Peers that queued messages retry within their `Retry-After` and now reach the target.
 
+You do not have to wait for the payload transfer to finish: until a payload arrives, reading it answers
+404 with `Cache-Control: no-store` and a `Retry-After`, so nothing caches its absence. Keep following
+`odin-admin tenant payload-move <domain>` until it reads `Complete`. If it ends `CompleteWithFailures`,
+read the failures it lists; `--retry` runs it again from the newest file, skipping everything that already
+arrived.
+
 ### 9. Retire the source copy
 
 ```
 odin-admin tenant set-status <domain> disabled --reason moved    # against the source's admin API
 ```
 
-A moved identity can never be enabled again on the source.
+A moved identity can never be enabled again on the source. The source keeps the identity's payloads, and
+refuses to delete it, until the target has reported the transfer `Complete` (see
+`odin-admin tenant payload-move <domain>` against the source).
 
 > **Never run `odin-admin tenant delete` on the source after a move.** Deleting a tenant also
 > deletes its DNS: its records in the apex zone (managed domain) or its whole zone (own domain).
-> Our PowerDNS is shared, so that deletes the **target's** live DNS. It would also delete the
-> source's payloads, which the payload transfer still needs.
+> Our PowerDNS is shared, so that deletes the **target's** live DNS. Purging the source's copy is a
+> separate command still to be written.
 
 ## Payloads
 
-Payload bytes live in the host's payload store (local disk or S3) under the identity's id, and the
-two hosts do not share a store. The design for moving them over HTTP between the hosts, in the
-background after the cutover, resumable and several at a time, is
-`docs/superpowers/specs/2026-08-31-payload-migration-design.md` (being revived). Until it ships,
-`identity-export` and `identity-import` refuse unless payloads are on S3, and an imported identity
-has file headers whose payloads are missing.
+Payload bytes live in each host's payload store (local disk or S3, chosen independently on each host) under the
+identity's id, and the two hosts do not share one. The target pulls them from the source's
+`https://<provisioning domain>/api/payload-move/...` with the credential it got for the handoff token,
+object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31-payload-migration-design.md`.
 
 ## What is not covered yet
 
-- Payload transfer (above).
+- Purging the source's copy (payloads and registration, never DNS) once the transfer is complete.
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.
 - A DNS command that lowers and restores the TTL, and one that repoints a single identity rather
