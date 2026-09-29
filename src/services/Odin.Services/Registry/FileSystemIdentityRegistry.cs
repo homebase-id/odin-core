@@ -1466,6 +1466,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return _cache.GetValueOrDefault(identityId)?.Status;
     }
 
+    public IdentityRegistration Get(Guid identityId)
+    {
+        return _cache.GetValueOrDefault(identityId);
+    }
+
     /// <summary>
     /// Whether this node is running the identity's background services. For diagnostics and tests.
     /// </summary>

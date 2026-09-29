@@ -27,6 +27,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory), "74c23c98"},
         {typeof(Odin.Core.Storage.Factory.DbConnectionPool), "37e46385"},
         {typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute), "e7045f27"},
+        {typeof(Odin.Hosting.Controllers.PayloadMove.PayloadMoveRestrictedAttribute), "1fc9cd29"},
         {typeof(Odin.Hosting.Controllers.Admin.AdminApiRestrictedAttribute), "509d6046"},
         {typeof(Odin.Services.Email.IEmailSender), "5a48691d"},
         {typeof(Odin.Services.Certificate.ICertesAcme), "5e485c26"},
