@@ -72,6 +72,29 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
 
     
     //
+    // Import
+    //
+
+    /// <summary>
+    /// Deletes every row this identity has in the exportable tables. For an import that finds rows left
+    /// by an earlier import that failed after its identity commit (or, on Postgres, by a deleted
+    /// registration, which never purges them). Mirrors the generated CountRowsForIdentityAsync.
+    /// </summary>
+    public async Task<long> DeleteRowsForIdentityAsync(Guid identityId)
+    {
+        await using var cn = await CreateScopedConnectionAsync();
+        long total = 0;
+        foreach (var name in ExportableTables)
+        {
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = $"DELETE FROM {name} WHERE identityId = @identityId;";
+            cmd.AddParameter("@identityId", DbType.Binary, identityId);
+            total += await cmd.ExecuteNonQueryAsync();
+        }
+        return total;
+    }
+
+    //
     // Connection
     //
     public override async Task<IConnectionWrapper> CreateScopedConnectionAsync(

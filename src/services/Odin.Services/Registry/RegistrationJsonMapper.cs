@@ -13,7 +13,12 @@ public static class RegistrationJsonMapper
 {
     public static string ToJson(IdentityRegistration registration)
     {
-        return OdinSystemSerializer.Serialize(registration.StatusState);
+        return ToJson(registration.StatusState);
+    }
+
+    public static string ToJson(TenantStatusState state)
+    {
+        return OdinSystemSerializer.Serialize(state);
     }
 
     /// <summary>

@@ -19,6 +19,10 @@ public interface IS3Storage
     Task<long> WriteStreamAsync(string path, System.IO.Stream stream, CancellationToken cancellationToken = default);
     Task<byte[]> ReadBytesAsync(string path, CancellationToken cancellationToken = default);
     Task<byte[]> ReadBytesAsync(string path, long offset, long length, CancellationToken cancellationToken = default);
+
+    /// Opens the object for reading without loading it into memory. The caller disposes the stream, which
+    /// releases the underlying response. Length is the object's size.
+    Task<System.IO.Stream> OpenReadAsync(string path, CancellationToken cancellationToken = default);
     Task DeleteFileAsync(string path, CancellationToken cancellationToken = default);
     Task DeleteDirectoryAsync(string path, CancellationToken cancellationToken = default);
     Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default);

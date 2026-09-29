@@ -12,7 +12,9 @@ using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Hosting.Cli.Commands;
 using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
+using Odin.Services.Background;
 using Odin.Services.Configuration;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Odin.Services.Util;
@@ -49,6 +51,9 @@ public class CommandLine
             cb =>
             {
                 cb.ConfigureSystemServices(_config);
+                cb.RegisterType<NothingToWakeNotifier<JobRunnerBackgroundService>>()
+                    .As<IBackgroundServiceNotifier<JobRunnerBackgroundService>>()
+                    .SingleInstance();
             });
         _serviceProvider = _serviceProviders.ServiceProvider;
         _multiTenantContainer = _serviceProviders.MultiTenantContainer;
@@ -286,6 +291,82 @@ public class CommandLine
         {
             CreateTestIdentity.ExecuteAsync(_serviceProvider, Guid.Parse(args[1]), args[2]).BlockingWait();
             return (true, 0);
+        }
+
+        //
+        // Command line: Export one identity's tables to a single JSON file
+        //
+        // THE IDENTITY MUST BE STILL: paused (or disabled) for at least
+        // TenantStatusRules.ExportSettleTime, so every node has stopped its workers and jobs
+        // and requests that were in flight have finished. The export refuses until then and
+        // says how long is left.
+        //
+        // Payloads are not in the file: the target pulls them from this host afterwards, which
+        // needs PayloadMove:SourceEnabled here. The file carries where and a single-use token.
+        //
+        // The file contains key material; see the warning it prints.
+        //
+        // examples:
+        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
+        //
+        if (args.Length >= 1 && args[0] == "identity-export")
+        {
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            if (operands.Count != 2)
+            {
+                _logger.LogError("Usage: identity-export <domain> <file.json>");
+                return (true, 1);
+            }
+
+            var exported = IdentityJsonTransfer.ExportAsync(
+                _serviceProvider, operands[0], operands[1]).BlockingWait();
+            return (true, exported ? 0 : 1);
+        }
+
+        //
+        // Command line: Import an identity export file
+        //
+        // Refuses unless the target is empty of this identity and every table version
+        // matches. Dry run unless "commit" is passed. The target hosts may keep running: the
+        // identity lands paused, and every node loads it within Registry:CatchUpIntervalSeconds.
+        // Resume it once DNS points at the target. A rerun after a failed import clears what
+        // the failed one left. The identity's payloads then transfer from the source in the
+        // background (PayloadMoveJob), starting at once, paused or not.
+        //
+        // examples:
+        //   dotnet run -- identity-import /path/to/frodo.json commit
+        //
+        if (args.Length >= 1 && args[0] == "identity-import")
+        {
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            // "commit" is a positional keyword, not a flag: anything else after the path
+            // is a typo, and treating a typo as a dry run would be the wrong way to fail.
+            if (operands.Count < 1 || operands.Count > 2 ||
+                (operands.Count == 2 && operands[1] != "commit"))
+            {
+                _logger.LogError("Usage: identity-import <file.json> [commit]");
+                return (true, 1);
+            }
+
+            var commit = operands.Count == 2;
+            var imported = IdentityJsonTransfer.ImportAsync(_serviceProvider, operands[0], commit).BlockingWait();
+            return (true, imported ? 0 : 1);
         }
 
         //

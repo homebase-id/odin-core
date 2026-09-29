@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Tests.Registry;
@@ -152,5 +153,53 @@ public class TenantStatusRulesTests
     {
         Assert.That(TenantStatusRules.TryParse<DisabledReason>(value, out var reason), Is.True);
         Assert.That(reason, Is.EqualTo(expected));
+    }
+    [Test]
+    public void ExportSettleTimeCoversTwoCatchUpsAndAMinute()
+    {
+        Assert.That(TenantStatusRules.ExportSettleTime(30), Is.EqualTo(TimeSpan.FromSeconds(120)));
+        Assert.That(TenantStatusRules.ExportSettleTime(1), Is.EqualTo(TimeSpan.FromSeconds(62)));
+    }
+
+    private static readonly UnixTimeUtc Now = new(1_760_000_000_000);
+    private static readonly TimeSpan Settle = TimeSpan.FromSeconds(120);
+
+    [TestCase(TenantStatus.Active)]
+    [TestCase(TenantStatus.OutOfQuota)]
+    public void ExportMustWaitForARunningIdentityToBePaused(TenantStatus status)
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(status, Now.AddSeconds(-3600), Now, Settle);
+        Assert.That(reason, Does.Contain("pause it first"), reason);
+    }
+
+    [TestCase(TenantStatus.Paused)]
+    [TestCase(TenantStatus.Disabled)]
+    public void ExportMustWaitUntilTheIdentityHasSettled(TenantStatus status)
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(status, Now.AddSeconds(-40), Now, Settle);
+        Assert.That(reason, Does.Contain("40 s ago").And.Contain("allowed in 80 s"), reason);
+    }
+
+    [TestCase(TenantStatus.Paused)]
+    [TestCase(TenantStatus.Disabled)]
+    public void ExportMayStartOnceTheIdentityHasSettled(TenantStatus status)
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(status, Now.AddSeconds(-120), Now, Settle);
+        Assert.That(reason, Is.Null, reason);
+    }
+
+    [Test]
+    public void ExportMustWaitWhenItCannotTellHowLongTheIdentityHasBeenStill()
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(TenantStatus.Paused, null, Now, Settle);
+        Assert.That(reason, Does.Contain("pause it again"), reason);
+    }
+
+    [Test]
+    public void ExportWaitsTheFullSettleTimeWhenTheChangeIsStampedInTheFuture()
+    {
+        // Another node's clock ahead of this one
+        var reason = TenantStatusRules.WhyExportMustWait(TenantStatus.Paused, Now.AddSeconds(30), Now, Settle);
+        Assert.That(reason, Does.Contain("0 s ago").And.Contain("allowed in 120 s"), reason);
     }
 }
