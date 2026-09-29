@@ -13,11 +13,15 @@ public interface ISystemDomains
 
 public class SystemDomains(OdinConfiguration config) : ISystemDomains
 {
+    // The provisioning domain also serves the payload move endpoint, whether or not this host provisions,
+    // so it needs its certificate for either
+    private bool ServesProvisioningDomain => config.Registry.ProvisioningEnabled || config.PayloadMove.SourceEnabled;
+
     public List<string> Get()
     {
         var result = new List<string>();
 
-        if (config.Registry.ProvisioningEnabled)
+        if (ServesProvisioningDomain)
         {
             result.Add(config.Registry.ProvisioningDomain);
         }
@@ -34,7 +38,7 @@ public class SystemDomains(OdinConfiguration config) : ISystemDomains
 
     public bool IsKnownSystemDomain(string hostName)
     {
-        if (config.Registry.ProvisioningEnabled && hostName == config.Registry.ProvisioningDomain)
+        if (ServesProvisioningDomain && hostName == config.Registry.ProvisioningDomain)
         {
             return true;
         }
