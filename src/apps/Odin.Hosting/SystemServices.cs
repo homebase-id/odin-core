@@ -50,6 +50,7 @@ using Odin.Services.Email.Relay;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
@@ -259,6 +260,7 @@ public static class SystemServices
         services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
 
         services.AddTransient<ITenantAdmin, TenantAdmin>();
+        services.AddTransient<PayloadMoveSource>();
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 

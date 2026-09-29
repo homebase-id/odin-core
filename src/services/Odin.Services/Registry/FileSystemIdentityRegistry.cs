@@ -32,6 +32,7 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
@@ -245,6 +246,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
+            // Deleting purges the payloads, which a target may still be pulling after a move
+            await using (var guardScope = _serviceProvider.BeginLifetimeScope($"DeleteRegistrationGuard:{registration.PrimaryDomainName}"))
+            {
+                if (await new PayloadMoveSource(guardScope.Resolve<SystemDatabase>()).IsTransferPendingAsync(registration.Id))
+                {
+                    throw new OdinClientException(
+                        $"{domain} was exported and its payloads have not all reached the target yet; " +
+                        "it can be deleted once the target reports the transfer complete");
+                }
+            }
+
             long version;
             await _registryLock.WaitAsync();
             try
