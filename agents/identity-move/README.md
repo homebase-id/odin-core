@@ -24,6 +24,11 @@ You need:
 - **`PayloadMove:SourceEnabled=true` on the source**, and the source's provisioning domain
   (`Registry:ProvisioningDomain`) reachable from the target over HTTPS. That is where the target pulls
   the payloads from. Export refuses while it is off.
+- **The same `CertificateRenewal:StorageKey` and `Email:DkimStorageKey` on both hosts.** The TLS
+  certificate key and the DKIM keys travel in the export encrypted under the source's keys, as they
+  are stored, and nothing checks that the target can decrypt them. The target loads the certificate
+  during the TLS handshake (`Program.cs`), so with different keys its TLS for the identity breaks.
+  Compare fingerprints, not the keys: `printf %s "<hex key>" | sha256sum` on each host.
 
 Throughout, `<domain>` is the identity's domain, for example `frodo.id.pub`.
 
@@ -134,7 +139,13 @@ Odin.Hosting create-own-domain-zones commit             # own domains delegated 
 
 Both walk every identity registered on that host and write its records idempotently. The moved
 identity's records now point at the target, **with the TTL back at 3600**. Run without `commit`
-first to see what it would do.
+first to see what it would do. For an own domain the dry run prints `EXISTS` (the source created
+the zone); `commit` still rewrites its records with the target's values.
+
+**Run these two commands on target hosts only, now and later.** They write every identity the host
+has registered, and the source still has the moved identity (paused, then disabled). Run on a
+source host, even months later as a routine backfill, they point the moved identity's DNS back at
+the source.
 
 Verify from outside: `dig +short <domain>` (and `capi.<domain>`, `file.<domain>`) answers the
 target's values, and the registration API on the target reports the domain valid (step 1).
@@ -181,4 +192,5 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.
 - A DNS command that lowers and restores the TTL, and one that repoints a single identity rather
-  than walking every identity on the host.
+  than walking every identity on the host. Until then, the host-wide commands also skip nothing:
+  a moved (disabled) identity is rewritten like any other.
