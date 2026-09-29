@@ -689,31 +689,55 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // version newer than the rows we hold and silently skip that change.
             var version = await ReadRegistryVersionAsync(systemDatabase);
             var registrations = await systemDatabase.Registrations.GetAllAsync();
-            var allLoaded = true;
+            int loaded = 0, alreadyLoaded = 0, failed = 0;
             foreach (var registrationRecord in registrations)
             {
                 // A reconcile that queued behind an early announcement may already have loaded it.
                 if (_cache.ContainsKey(registrationRecord.identityId))
                 {
+                    alreadyLoaded++;
                     continue;
                 }
 
-                allLoaded &= await LoadRegistrationRecordAsync(registrationRecord);
+                if (await LoadRegistrationRecordAsync(registrationRecord))
+                {
+                    loaded++;
+                }
+                else
+                {
+                    failed++;
+                }
             }
 
             // Only claim the version if every tenant actually came up; otherwise the next
             // catch-up (or announcement, or reconnect) retries the ones that failed.
-            if (allLoaded)
+            if (failed == 0)
             {
                 RaiseLocalVersion(version);
             }
 
-            _logger.LogInformation("Registry loaded at version {version} (all loaded: {allLoaded})", version, allLoaded);
+            // Each failure logs its own error; this line is the aggregate, so a host serving nothing says so (#1701).
+            _logger.Log(LoadSummaryLevel(loaded, alreadyLoaded, failed),
+                "Registry loaded at version {version}: {loaded} loaded, {alreadyLoaded} already loaded, {failed} failed " +
+                "of {total} registrations", version, loaded, alreadyLoaded, failed, registrations.Count);
         }
         finally
         {
             _registryLock.Release();
         }
+    }
+
+    /// <summary>
+    /// The level of the load summary: Error when registrations exist and none is serving, Warning when some failed.
+    /// </summary>
+    internal static LogLevel LoadSummaryLevel(int loaded, int alreadyLoaded, int failed)
+    {
+        if (failed == 0)
+        {
+            return LogLevel.Information;
+        }
+
+        return loaded + alreadyLoaded == 0 ? LogLevel.Error : LogLevel.Warning;
     }
 
     /// <summary>

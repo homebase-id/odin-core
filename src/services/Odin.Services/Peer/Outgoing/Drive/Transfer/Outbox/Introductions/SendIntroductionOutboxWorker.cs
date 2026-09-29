@@ -118,6 +118,8 @@ public class SendIntroductionOutboxWorker(
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e, IOdinContext odinContext)
     {
+        logger.LogWarning("SendIntroduction to {recipient} gave up after {attempts} attempts ({status})",
+            FileItem.Recipient, FileItem.AttemptCount, e.TransferStatus);
         return Task.CompletedTask;
     }
 }
