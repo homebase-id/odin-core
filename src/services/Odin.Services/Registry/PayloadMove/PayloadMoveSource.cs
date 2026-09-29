@@ -44,7 +44,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     /// </summary>
     public async Task<string?> RedeemAsync(Guid identityId, string handoffToken)
     {
-        var state = await LoadAsync(identityId);
+        var (state, stored) = await LoadWithStoredValueAsync(identityId);
         if (state == null || state.RedeemedAt != null || state.CompletedAt != null ||
             state.HandoffExpiresAt < UnixTimeUtc.Now() ||
             !Matches(state.HandoffHash, handoffToken))
@@ -55,8 +55,9 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
         var credential = NewSecret();
         state.CredentialHash = Hash(credential);
         state.RedeemedAt = UnixTimeUtc.Now();
-        await SaveAsync(identityId, state);
-        return credential;
+
+        // Two concurrent redemptions must not both succeed: only the one whose write finds the row unchanged
+        return await SaveIfUnchangedAsync(identityId, stored!, state) ? credential : null;
     }
 
     /// <summary>True if the credential is the identity's live transfer credential.</summary>
@@ -71,7 +72,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     /// </summary>
     public async Task<bool> CompleteAsync(Guid identityId, string? credential)
     {
-        var state = await LoadAsync(identityId);
+        var (state, stored) = await LoadWithStoredValueAsync(identityId);
         if (!IsLive(state, credential))
         {
             return false;
@@ -79,8 +80,9 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
 
         state!.CompletedAt = UnixTimeUtc.Now();
         state.CredentialHash = null;
-        await SaveAsync(identityId, state);
-        return true;
+
+        // A re-export may have minted a new handoff since the read; do not write the old state over it
+        return await SaveIfUnchangedAsync(identityId, stored!, state);
     }
 
     /// <summary>
@@ -100,8 +102,18 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
 
     public async Task<SourceState?> LoadAsync(Guid identityId)
     {
+        return (await LoadWithStoredValueAsync(identityId)).state;
+    }
+
+    private async Task<(SourceState? state, string? stored)> LoadWithStoredValueAsync(Guid identityId)
+    {
         var record = await systemDatabase.Settings.GetAsync(KeyPrefix + identityId);
-        return record == null ? null : OdinSystemSerializer.Deserialize<SourceState>(record.value);
+        return record == null ? (null, null) : (OdinSystemSerializer.Deserialize<SourceState>(record.value), record.value);
+    }
+
+    private Task<bool> SaveIfUnchangedAsync(Guid identityId, string stored, SourceState state)
+    {
+        return systemDatabase.Settings.UpdateIfUnchangedAsync(KeyPrefix + identityId, stored, OdinSystemSerializer.Serialize(state));
     }
 
     private async Task SaveAsync(Guid identityId, SourceState state)

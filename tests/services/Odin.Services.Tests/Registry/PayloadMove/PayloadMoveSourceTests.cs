@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
@@ -94,6 +95,43 @@ public class PayloadMoveSourceTests
         Assert.That(await _source.AuthorizeAsync(_identityId, credential), Is.False);
         Assert.That(await _source.RedeemAsync(_identityId, first), Is.Null);
         Assert.That(await _source.RedeemAsync(_identityId, second), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task OfConcurrentRedemptionsExactlyOneGetsACredential()
+    {
+        var token = await _source.MintHandoffAsync(_identityId);
+
+        // Each on its own scope, so its own connection: the check and the write of one can interleave with another's
+        var scopes = Enumerable.Range(0, 10).Select(i => _container.BeginLifetimeScope($"redeem{i}")).ToList();
+        try
+        {
+            var credentials = await Task.WhenAll(scopes.Select(scope =>
+                Task.Run(() => new PayloadMoveSource(scope.Resolve<SystemDatabase>()).RedeemAsync(_identityId, token))));
+
+            var winners = credentials.Where(c => c != null).ToList();
+            Assert.That(winners.Count, Is.EqualTo(1), $"{winners.Count} redemptions succeeded");
+            Assert.That(await _source.AuthorizeAsync(_identityId, winners[0]), Is.True, "and it is the one that works");
+        }
+        finally
+        {
+            foreach (var scope in scopes)
+            {
+                await scope.DisposeAsync();
+            }
+        }
+    }
+
+    [Test]
+    public async Task ASettingIsOnlyReplacedIfUnchangedSinceItWasRead()
+    {
+        var settings = _container.Resolve<SystemDatabase>().Settings;
+        await settings.UpsertAsync(new SettingsRecord { key = "cas-test", value = "one" });
+
+        Assert.That(await settings.UpdateIfUnchangedAsync("cas-test", "one", "two"), Is.True);
+        Assert.That(await settings.UpdateIfUnchangedAsync("cas-test", "one", "three"), Is.False, "someone changed it since");
+        Assert.That((await settings.GetAsync("cas-test"))!.value, Is.EqualTo("two"));
+        Assert.That(await settings.UpdateIfUnchangedAsync("missing", "one", "two"), Is.False);
     }
 
     [Test]
