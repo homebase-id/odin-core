@@ -62,6 +62,10 @@ namespace Odin.Hosting.Tests
         // private readonly string _password = "EnSøienØ";
         private IHost _webserver;
 
+        // What this fixture's envOverrides replaced: environment variables are process-wide, so without putting
+        // them back one fixture's configuration leaks into every fixture that runs after it
+        private readonly Dictionary<string, string> _environmentBeforeOverrides = new();
+
         private readonly OwnerApiTestUtils _oldOwnerApi;
 
         // private readonly OwnerApiClient _ownerApiClient;
@@ -233,6 +237,7 @@ namespace Odin.Hosting.Tests
             {
                 foreach (var (key, value) in envOverrides)
                 {
+                    _environmentBeforeOverrides.TryAdd(key, Environment.GetEnvironmentVariable(key));
                     Environment.SetEnvironmentVariable(key, value);
                 }
             }
@@ -274,6 +279,12 @@ namespace Odin.Hosting.Tests
                 _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
+
+            foreach (var (key, value) in _environmentBeforeOverrides)
+            {
+                Environment.SetEnvironmentVariable(key, value);
+            }
+            _environmentBeforeOverrides.Clear();
 
 #if RUN_POSTGRES_TESTS
             PostgresContainer?.DisposeAsync().AsTask().Wait();
