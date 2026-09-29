@@ -1,569 +1,364 @@
-# Payload Migration Design
+# Payload Move Design
 
-Date: 2026-08-31
+Date: 2026-08-31 (Sebastian), revised 2026-09-29 for the pause model, disk-or-S3 hosts, and a
+resumable parallel transfer.
 Repo touched: `odin-core`
 
-Follows `docs/superpowers/specs/2026-08-19-identity-json-export-design.md`, which
-covers the database half of moving an identity. This spec covers the payload half.
+Follows `docs/superpowers/specs/2026-08-19-identity-json-export-design.md`, which covers the database
+half of moving an identity. This spec covers the payload half. The operator procedure is
+`agents/identity-move/README.md`.
 
 ## Problem
 
-`identity-export` and `identity-import` move an identity's database rows. They do
-not move the payload bytes those rows point at. An imported identity has file
-headers whose payloads are absent, which the export design listed as its first
-deferred item.
+`identity-export` and `identity-import` move an identity's database rows. They do not move the payload
+bytes those rows point at, so an imported identity has file headers whose payloads are absent.
 
-The obvious approach does not work. The target host cannot read the source's S3
-bucket, because the buckets are private and the two hosts hold different
-credentials. Nor can the source simply push into the target's bucket, for the same
-reason.
+The two hosts do not share a payload store, and either may keep payloads on local disk or in S3, in any
+combination. Neither can read the other's store: the buckets are private, the hosts hold different
+credentials, and a disk is local to its host. The bytes therefore travel over HTTP between the two hosts.
 
-The bytes therefore have to travel over HTTP between the two hosts. That collides
-with the existing cutover model: `identity-export` requires the source host to be
-stopped (`IdentityJsonTransfer.HostIsStopped`, committed in 1fc6d4587), so a host
-that is stopped cannot serve payloads. Resolving that collision is most of this
-design.
+## Decisions
 
-Related, and fixed by the same work: `IIdentityRegistry.CopyRegistration` throws
-outright when S3 payloads are enabled (`FileSystemIdentityRegistry.cs:244-248`,
-"SEB:TODO update for S3 payloads").
+1. **The target pulls.** The source serves a read-only endpoint for the one identity being moved; the
+   target fetches from it. Push was rejected: it needs a *write* endpoint into an identity that is live
+   on the target after cutover (anyone holding its credential could plant or replace files, including
+   unencrypted public content the CDN serves), and a credential the target mints would have to be
+   carried back to the source by hand. With pull, the credential travels one way, inside the export file
+   that already has to be handled as the identity itself.
+2. **The endpoint is on the source's provisioning domain**, on the normal public port, behind its own
+   feature flag and host check. The admin API port was rejected: it is normally firewalled.
+3. **Cutover first, payloads after.** Export and import move the rows while the identity is paused. The
+   transfer then runs in the background, starting at import, before DNS moves, and keeps running after
+   the target is resumed.
+4. **Partial availability is acceptable during the transfer.** A payload that has not arrived yet returns
+   404 with `Cache-Control: no-store` and a `Retry-After`. The identity is otherwise fully functional.
+5. **Newest content first**, so what users are most likely to reach arrives first.
+6. **Disk or S3 on either side.** Objects are addressed by what they are, not by where they are stored;
+   each host builds its own path.
+7. **Resumable.** The transfer checkpoints as it goes. A stop, a crash or a restart on either side
+   resumes from the last checkpoint, and objects already on the target are skipped.
+8. **N objects in parallel**, 5 by default (`PayloadMove:Parallelism`).
+9. **The export file stays self-contained.** Everything the target needs to start the transfer travels in
+   the file. No second secret for the operator to carry.
+10. **The source keeps its payloads until they have all arrived, and after.** Deleting the source is
+    refused until the target reports the transfer complete. Purging the source is a separate, explicit
+    step (a follow-up).
 
-## Requirements
+## Revisions since the first version
 
-Decided up front, not open:
-
-1. **Two phases, and the second one runs in the background.** Phase 1 is the
-   existing database export and import with both hosts stopped. Phase 2 drains the
-   payloads while both hosts are running again. Phase 1 is the cutover; after it,
-   the identity is live on the target and nowhere else.
-2. **Partial availability is acceptable during the drain.** A payload that has not
-   arrived yet returns 404. The identity is otherwise fully functional. A large
-   identity is expected to take a long time to become whole.
-3. **Newest content first.** The drain transfers the most recently created files
-   before older ones, so the content users are most likely to reach is restored
-   first.
-4. **S3 on both ends.** Disk-backed hosts are refused outright, already enforced by
-   `IdentityJsonTransfer.PayloadsAreOnS3`.
-5. **The export file stays self contained.** Everything the target needs to start
-   the drain travels in the file. No out of band secret for the operator to
-   mishandle.
-6. **The source cannot lose the payloads while they are still needed.** Deleting a
-   source registration purges its entire payload prefix, so that has to be blocked
-   until the drain completes.
-
-## Non-goals
-
-- **Zero downtime.** Phase 1 still stops both hosts. This spec shortens the window
-  by taking payloads out of it, not by removing it. Removing it is a stated goal for
-  later, and section 13 constrains this design so that work is additive rather than a
-  rewrite.
-- **Parallel transfer.** One object at a time, accepted deliberately. See
-  **Open follow-ups** for what a per-drive cursor would buy.
-- **Moving orphaned objects.** Objects in the source bucket that no imported row
-  references never transfer. Those are `Defragment`'s problem, not this one.
-- **Cross-provider migration.** Both hosts speak HTTP to each other, so their S3
-  providers need not match, but neither is required to reach the other's provider
-  directly and no attempt is made to optimise for the case where they could.
-- **Presigned URL transfer.** Considered and deferred. See **Open follow-ups**.
+- **No schema changes.** The first version added `Registrations.lifecycleState` and a `PayloadMigration`
+  table through the SQL generator. Both are gone. `TenantStatus` (#1743) already distinguishes a paused
+  or moved identity; the source's state is one `Settings` row; the target's state is the transfer job
+  itself (the jobs table already persists, claims and reschedules work).
+- **No stopped hosts.** Export requires the identity paused and settled, not the host stopped (#1665),
+  and the imported identity lands paused on a running target.
+- **Structured addressing instead of store-relative keys.** The first version sent store-relative keys
+  and confined them by normalizing the path. The endpoint now takes `(driveId, fileId, payloadKey, uid[,
+  width, height])` and builds the path itself, so there is no path to traverse.
+- **Parallel instead of one object at a time**, and resumable by design rather than by a cursor alone.
+- **Disk-backed hosts are supported** on both sides. The "S3 on both ends" requirement and #1665's
+  `PayloadsAreOnS3` guard are dropped.
 
 ## Verified groundwork
 
-Read from the code, not assumed:
+Read from the code (2026-09-29), not assumed:
 
-- **The S3 key layout is derivable from database rows.** A long-term payload lives
-  at `<store root>/<tenantId>/drives/<driveId:N>/files/<hi>/<lo>/<fileId:N>-<payloadKey>-<uid>.payload`,
-  built by `TenantPathManager.GetPayloadDirectoryAndFileName` from
-  `PayloadsDrivesPath`, `GetPayloadDirectoryFromGuid` (the last two nibbles of the
-  fileId), and `GetPayloadFileName`. Thumbnails share the directory and the
-  `<payloadKey>-<uid>` stem, adding `-<w>x<h>.thumb`
-  (`GetThumbnailFileNameAndExtension`). When S3 is enabled `RootPayloadsPath` is
-  empty and `PayloadsDrivesPath` is `<tenantId>/drives`
-  (`TenantPathManager.cs:82-86`); the store's own `rootPath`, from
-  `S3Payload:RootPath`, is applied separately by `IS3Storage.GetFullKey`.
-- **There is no payloads table.** Payload descriptors live inside `hdrFileMetaData`,
-  a serialized column on `DriveMainIndex`. Payload uid is therefore not orderable in
-  SQL, and any enumeration has to go through file headers.
-- **`DriveMainIndex.rowId` is a usable cursor key on the target.**
-  `ExportRowsAsync` reads `ORDER BY rowId ASC` and `ImportRowAsync` does not carry
-  `rowId` across, so the target assigns its own in import order, which preserves
-  source order. `rowId` is immutable, unlike `modified`.
-- **Payload paths are built from `(fileId, Key, Uid)`** and `Uid` is "a sequential
-  guid used for each instance of this payload" (`PayloadDescriptor.cs:49,71`), so an
-  updated payload is written under a new key rather than over the old one.
-- **Deleting a registration purges the payload prefix.** `DeleteRegistration` calls
-  `DeletePayloads`, which on S3 does `DeleteDirectoryAsync(id + "/")`
-  (`FileSystemIdentityRegistry.cs:213-233,594-607`).
-- **`Disabled` is not sufficient as a migration state.** It closes the HTTP front
-  door but does not stop `DeleteRegistration`, and it already means "an admin
-  suspended this tenant". The withdrawn Task 10 of the export plan reached the same
-  conclusion about freeze from a different direction.
-- **Not all payloads are encrypted.** `IsEncrypted` is a per-file flag on
-  `FileMetadata` (`FileMetadata.cs:86`). Public drive content, which the CDN serves,
-  is not ciphertext. Encryption at rest is therefore not an authorization model for
-  the transfer endpoint.
-- **The admin API is unsuitable as the transport.** `AdminApiRestrictedAttribute`
-  requires a specific domain and a specific local port, and that port is normally
-  not exposed through the firewall.
-- **There is a pattern for a public, domain-gated controller.**
-  `Controllers/Registration` is served on the provisioning domain over the normal
-  public port, blocked by domain in `Startup.cs` and gated a second time by
-  `RegistrationRestrictedAttribute` reading `Registry:ProvisioningEnabled`.
-- **Tenant background services are registered and started per tenant** in
-  `BackgroundServiceExtensions.cs:76-106`, alongside `PeerOutboxProcessorBackgroundService`
-  and others.
-- **`IS3Storage` exposes no enumeration.** `ListObjectsV2Async` is used internally
-  by `S3AwsStorage` but is not on the interface. This design needs none.
-
-## Schema changes
-
-One column and one table. Everything else in this design is `odin-core` code.
-
-### `Registrations` gains `lifecycleState`
-
-An `Int32` on the existing System table (`Program.cs:3357`), `notNull`, with
-`defaultValue = "0"` meaning Active so the migration lands on existing rows without a
-backfill. `Registrations.migrationVersion` bumps from `202607101000`.
-
-The state belongs here rather than in a side table because the serving path has to
-know an identity has migrated away, and `IdentityRegistration` is already held in
-`_trie` and `_cache` loaded from this table. A side table would mean either a second
-lookup on a hot path or a parallel cache to keep coherent.
-
-`Registrations` sets no `exportScopeColumn`, so it inherits the `"identityId"` default
-and stays exportable, and the new column therefore travels in export files. That is
-made harmless by one rule rather than by a schema trick: **export refuses when the
-state is not Active.** An identity that has already migrated away cannot be exported,
-which is true regardless. The state is set after the export snapshot, so the file
-always carries Active and the target always imports Active. No import-time transform
-is needed.
-
-The enum values live in `odin-core`, not the generator, which stores only the int.
-Per section 13 the enum names `Freezing` and `Frozen` from the start even though
-nothing sets them, so live export adds values rather than changing signatures.
-
-### New table `PayloadMigration`
-
-Non-exportable (`exportScopeColumn = null`, as `Settings()` already does in this
-namespace), keyed by `identityId`. Source hosts populate one half, target hosts the
-other, and each leaves the rest null:
-
-- Source side: handoff token hash, expiry, consumed flag, drain credential hash.
-- Target side: source base URL, credential, `startRowId`, `cursorRowId`, status,
-  failures as JSON.
-
-This half does not belong on `Registrations`. A cursor, a failure list and a bearer
-credential are job state, not registration data, and putting them there would drag all
-of it into every future export file permanently.
-
-Because the table is non-exportable it gets no `ExportRowsAsync` or `ImportRowAsync`
-emitted (`Program.cs:5894`), stays out of `ExportableTables` (`Program.cs:6445`), and
-is absent from `GetTableVersionsAsync`, which iterates only `ExportableTables`. The
-export header's version map is unaffected by it.
-
-The Task 6 coverage test should gain a case asserting this table is excluded from the
-aggregate, since "non-exportable" is now load bearing rather than incidental.
-
-Nothing is needed in the Identity database. The drain reads `DriveMainIndex`, which
-already has `rowId` for the cursor and `hdrFileMetaData` for the payload descriptors.
-
-## Sequencing
-
-The generator change and its generated output land on `main` in both repos before any
-feature work starts. Nothing in this design may be built against an unmerged schema.
-
-1. `Odin-SQLite-Generator`: the column and the table, to that repo's `main`.
-2. `odin-core`: regenerate, to that repo's `main`.
-3. Only then, the feature work in the Design sections.
-
-The `Registrations` version bump is free only until `identity-json-export` ships.
-That branch is currently unmerged and 26 commits ahead of `odin-core` main, so no
-export file exists anywhere whose version map this invalidates. After it ships, the
-same bump breaks compatibility between hosts on either side of it.
-
-That gives a prerequisite ordering: **merge `identity-json-export` to `odin-core`
-main first, then do the generator round trip onto a main that already contains it.**
-The alternative, landing generated files on main while the branch is outstanding,
-forces a rebase of 26 commits onto new generated code including a version-map change,
-for no benefit. This ordering is an assumption, not a decision that has been
-confirmed.
+- **One store interface hides disk and S3.** `IDriveFileStore`, implemented by `DiskFileStore` and
+  `S3FileStore`, is chosen per tenant from `S3Payload:Enabled` behind `LongTermPayloadStore`
+  (`TenantServices.cs`). Writes stream (`WriteStreamAsync`). **Reads do not**: every read loads the whole
+  object into memory (`LongTermStorageManager.GetPayloadStreamAsync`), so the endpoint needs a streaming
+  read. A disk `WriteStreamAsync` checks the byte count against `stream.Length`, so it needs a stream of
+  known length.
+- **The layout below the store root is the same on both backends.** A long-term payload is
+  `<tenantId>/drives/<driveId:N>/files/<hi>/<lo>/<fileId:N>-<key>-<uid>.payload`, and a thumbnail shares
+  the stem with `-<w>x<h>.thumb` (`TenantPathManager.GetPayloadDirectoryAndFileName`,
+  `GetThumbnailDirectoryAndFileName`). The root is `<TenantDataRootPath>/payloads/` on disk and the
+  bucket's `S3Payload:RootPath` on S3.
+- **There is no payloads table.** Descriptors live in `DriveMainIndex.hdrFileMetaData` as
+  `FileMetadata.Payloads` (`PayloadDescriptor`: `Key`, `Uid`, `BytesWritten`, up to five `Thumbnails`
+  with their own `BytesWritten`). Files with `DataSource.PayloadsAreRemote` hold no local objects;
+  soft-deleted rows have no payloads. Inline preview thumbnails and CDN static files are database
+  content and move with the export.
+- **`DriveMainIndex.rowId` orders files on the target.** Export reads `ORDER BY rowId ASC` and import
+  inserts in that order without carrying `rowId`, so the target's rowIds follow the source's order. Rows
+  created on the target after import get higher rowIds. There is no descending query yet.
+- **Payload objects are write-once per uid**, with one benign exception: a peer that retransmits a file
+  rewrites the same path with the same bytes (`PayloadStorage.cs`). Updates always mint a new uid, and the
+  replaced version is deleted after the header commits.
+- **A missing object is usually a 500.** `LongTermStorageManager.MissingFileOrNullAsync` turns it into
+  `OdinFileHeaderHasCorruptPayloadException`, unless the header has moved on to a new uid (then 404). It is
+  the one place every long-term read passes through when an object is missing.
+- **`OdinRetryLaterException` maps to any status with `Retry-After`** in `ExceptionHandlingMiddleware`,
+  but sets no `Cache-Control`.
+- **The provisioning branch bypasses the tenant middleware.** Its `MapWhen` runs before
+  `UseMultiTenancy` (`Startup.cs`), so a paused or disabled identity's 503/409 does not apply there. It
+  exists only when `Registry:ProvisioningEnabled`, and `RegistrationRestrictedAttribute` does not check
+  the host.
+- **A paused or disabled identity keeps its tenant scope** (`FileSystemIdentityRegistry.LoadRegistrationRecordAsync`);
+  only its background services stop. So the source can still resolve the identity's storage.
+- **Jobs.** One node claims a job at a time; `jobData` is saved on `Repeat` and `Defer` (a checkpoint
+  between runs) and is capped at 64 KB; `jobHash` deduplicates; a run cancelled by shutdown is deferred.
+  A job whose node dies while it is `Running` stays `Running`: `LogOrphanedJobsAsync` only logs it. And
+  since #1823 a job tagged with an identity is deferred while that identity is paused or disabled, which
+  is exactly when the target's transfer must run.
+- **Tenant background services cannot carry the transfer.** They stop while the identity is paused and
+  run on every node of a cluster.
+- **Deleting a registration purges its payload prefix** (`FileSystemIdentityRegistry.DeletePayloads`, on
+  disk and S3).
 
 ## Design
 
-### 1. Source lifecycle state
+### 1. Source state and the delete guard
 
-A tenant lifecycle state on the registration, distinct from `Disabled`. This work
-needs one value, `MigratedAway`, recording that the identity has been exported away
-and its payloads have not finished draining.
+The source keeps one `Settings` row per identity being moved, `payload-move-source:<identityId>`, holding
+JSON: the handoff token's hash and expiry, the transfer credential's hash, when it was redeemed, and when the
+target reported completion. `Settings` is not exported, so the row stays on the source.
 
-Build it as a state machine with one inhabited value, not as a boolean. Section 12
-explains why: live export needs more values on this same machine, and a boolean here
-means rewriting rather than extending. The cost of the general shape now is small and
-the states it will need are already known.
+`FileSystemIdentityRegistry.DeleteRegistration` refuses while that row exists without a completion time.
+Without the guard, an operator tidying up the source after cutover would destroy every payload not yet
+transferred, and the target would 404 forever with nothing to recover from.
 
-While it is set:
+The identity's status is not extended for this. The source is Paused from export until the operator
+retires it as `Disabled/Moved` (`TenantStatus`, #1743); the endpoint serves either.
 
-- The domain does not resolve to a tenant on that host. The identity is served
-  by the target and nowhere else.
-- `DeleteRegistration` refuses. This is the point of the state. Without it, an
-  operator tidying up the source after cutover silently destroys every payload that
-  has not yet transferred, and the target 404s forever with nothing to recover from.
-- The payload prefix is retained untouched.
-- The migration endpoint will serve this identity's objects. It serves no others.
+### 2. The endpoint on the source
 
-`identity-export` sets it as part of a successful export. It clears when the target
-reports the drain complete, at which point the registration becomes deletable.
+`PayloadMoveController`, served on the provisioning domain over the normal public port, in its own
+`MapWhen` branch for `/api/payload-move` that does not depend on `Registry:ProvisioningEnabled`:
 
-`Disabled` is left alone and keeps its current meaning. An identity can be both
-disabled and migrated away; they are independent facts.
+- `POST /api/payload-move/v1/{identityId}/redeem` exchanges the handoff token for a transfer credential.
+  Single use (section 3).
+- `HEAD|GET /api/payload-move/v1/{identityId}/payload/{driveId}/{fileId}/{key}/{uid}` returns one payload.
+- `HEAD|GET /api/payload-move/v1/{identityId}/thumb/{driveId}/{fileId}/{key}/{uid}/{width}x{height}`
+  returns one thumbnail.
+- `POST /api/payload-move/v1/{identityId}/complete` records that the target has everything (section 8).
 
-If the source runs more than one host, this state has to propagate. That is the
-tenant lifecycle model the withdrawn Task 10 described, and the Redis pub/sub
-already used for `OdinContextCache` invalidation is the carrier. A single-host
-source needs no propagation, and the design works without it.
+Objects are streamed with a `Content-Length`, through a streaming read added to `IDriveFileStore`
+(`OpenReadAsync`: a `FileStream` on disk, the object's response stream on S3).
 
-### 2. Migration endpoint on the source
+Every request is checked, and any failure is a 404, in keeping with `AdminApiRestrictedAttribute`'s
+convention of not confirming that anything is there:
 
-A new controller beside `Controllers/Registration`, served on the provisioning
-domain over the normal public port. It copies the registration controller's shape:
-blocked by domain in `Startup.cs`, gated a second time by its own restricted
-attribute reading a new feature flag.
+1. The feature is enabled on this host (`PayloadMove:SourceEnabled`), and the request came in on the
+   provisioning domain (`PayloadMoveRestrictedAttribute`, which checks the host itself).
+2. The credential is valid and bound to this `identityId`.
+3. The identity is **Paused or Disabled** on this host. An active identity is never served: if someone
+   resumed the source, its data is live again and must not leak into a second copy.
+4. The ids parse as GUIDs, the payload key matches the payload-key character set, and the dimensions are
+   numbers.
 
-Four routes:
-
-- `POST /api/migration/v1/redeem/{identityId}` exchanges a handoff token for a
-  drain credential. Single use, see section 3.
-- `HEAD /api/migration/v1/payloads/{identityId}/{*key}` returns size and existence.
-- `GET  /api/migration/v1/payloads/{identityId}/{*key}` streams the object.
-- `POST /api/migration/v1/complete/{identityId}` reports the drain finished, which
-  clears `MigratedAway` and revokes the drain credential. See section 8.
-
-The two payload routes address a single object by store-relative key.
-
-The key on the wire is store-relative, without either host's `S3Payload:RootPath`.
-Each side applies its own root through `IS3Storage.GetFullKey`, so the two hosts may
-configure different roots and different buckets.
-
-Every payload request is checked three ways, independently:
-
-1. The bearer credential is valid and bound to this `identityId`.
-2. The identity is in the `MigratedAway` state on this host.
-3. The key resolves under that identity's own prefix, after normalization.
-
-Any failure returns 404, matching the existing convention in
-`AdminApiRestrictedAttribute` of not confirming that something interesting is there.
-Check 3 is what stops the endpoint from becoming a general read primitive over the
-bucket, and it must reject traversal (`..`) and absolute keys before use rather than
-relying on the key looking well formed.
+The path is built by that identity's own `TenantPathManager` from those values. The client never supplies
+a path, so the endpoint cannot read outside the identity's files, and no key normalization is needed.
 
 ### 3. Tokens
 
 Two credentials, deliberately split.
 
-**The handoff token** is minted by `identity-export`, which stores its hash, its
-expiry and the identity id on the source and writes the token itself into the export
-file. It is single use and short lived, sized to the gap between export and import
-rather than to the drain.
+**The handoff token** is minted by `identity-export`, which stores its hash and a 7-day expiry on the
+source and writes the token into the export file (`ExportHeader.payloadSource`, together with the source's
+base URL). It is single use and sized to the gap between export and import, not to the transfer.
 
-**The drain credential** is what the source returns when the handoff token is
-redeemed. It is bound to the redeeming target, lives as long as the drain needs
-(days, potentially), and is stored only in the target's system database. It never
-appears in a file.
+**The transfer credential** is what the source returns when the handoff token is redeemed. It is bound to
+the identity, lives as long as the transfer needs (days, potentially), and is stored only in the target's
+transfer job. It never appears in a file or a log.
 
-The split matters. A token that had to survive a multi-day drain would have to be
-long lived, and it sits in a file that already grants identity takeover. Redeeming
-it at the start of the drain means a file that leaks afterwards is no better for
-payload access than the file is today. Single use also means a second import of the
-same file fails loudly, so two targets cannot both drain the same identity.
+A token that had to survive a multi-day transfer would have to be long-lived, in a file that already
+grants identity takeover. Redeeming it at the start means a file that leaks afterwards gives no payload
+access. Single use also means a second import of the same file fails loudly, so two targets cannot both
+transfer the identity.
 
-The export file already carries password data, private keys, the TLS certificate
-private key and DKIM signing keys, and `identity-export` already warns about exactly
-that. The handoff token does not change the sensitivity class of the file. It does
-add payload read access to what a file holder can reach, which is the reason for the
-single-use redemption rather than a bare long-lived secret.
+The export file already carries password data, private keys and the TLS certificate key, and
+`identity-export` warns about exactly that. The token does not change the file's sensitivity class; it
+adds payload read access to what a holder can reach, which is why it is redeemed once rather than being a
+bare long-lived secret. Export refuses unless `PayloadMove:SourceEnabled`, so a file never promises
+payloads its source will not serve. The export format version goes to 2, so an older target refuses the
+file instead of ignoring the payload source.
 
-### 4. Drain state on the target
+### 4. Import
 
-`identity-import` writes one drain record into the system database, next to the
-`Registrations`, `Certificates` and `DkimKeys` rows it already writes there:
+When the export file names a payload source, `identity-import` schedules the transfer job inside its own
+transaction (the `beforeCommit` hook), so the job exists if and only if the import committed. It records:
 
-- source base URL,
-- the handoff token, replaced by the drain credential once redeemed,
-- `StartRowId`, the highest `DriveMainIndex.rowId` present at import,
-- `CursorRowId`, initially `StartRowId`,
-- a failure list,
-- status: `Pending`, `Draining`, `Complete`, or `Failed`.
+- the source base URL and the handoff token,
+- `startRowId`, the highest `DriveMainIndex.rowId` the import created, and
+- a cursor starting just above it.
 
-The import performs no network calls. It only records what the drain will need.
-Redemption happens on the worker's first pass, so a source that is unreachable at
-import time does not fail an import that has already written rows, and the retry
-lives where retries already are.
+The import makes no network calls. Redemption happens on the job's first run, so a source that is
+unreachable at import time does not fail an import that has already written rows; the retry lives where
+retries already are.
 
-`StartRowId` is the boundary that makes the cursor correct. Files created on the
-target after cutover receive rowIds above it and are excluded automatically; their
-payloads were written locally and were never on the source.
+`startRowId` is the boundary that keeps the transfer honest. Files created on the target after cutover get
+higher rowIds and are excluded automatically: their payloads were written locally and were never on the
+source.
 
-### 5. The drain worker
+### 5. The transfer job
 
-`PayloadDrainBackgroundService`, registered in `AddTenantBackgroundServices` and
-started in `StartTenantBackgroundServices` beside the existing tenant workers. Its
-first act on startup is to read the drain record; absent, `Complete` or `Failed`, it
-exits immediately, so it costs nothing for the identities that are not migrating.
+`PayloadMoveJob` is a system job, tagged with the identity and deduplicated by `payload-move:<identityId>`.
+A job, rather than a background service, because the jobs table already gives exactly one runner per job
+across a cluster, a persisted checkpoint between runs, and rescheduling across restarts. Two small
+additions to the job framework make it fit:
 
-Each pass:
+- **`RunsWhileIdentityStopped`**: the job runs although its identity is paused, which is how the target
+  identity lands. Other identity jobs keep deferring while paused (#1823).
+- **`RescheduleIfOrphanedAfter`**: a job left in `Running` or `Preflight` by a dead node is moved back to
+  `Scheduled` after that long (30 minutes here) by the job clean-up service, instead of only being logged.
 
-1. Take the highest `rowId` at or below `CursorRowId` from `DriveMainIndex` for this
-   identity.
-2. Deserialize its `hdrFileMetaData` and read the payload descriptors, each with its
-   key, uid and thumbnail list.
-3. For each payload and each thumbnail, build the store-relative key through
-   `TenantPathManager`.
-4. Skip any key already present in the target bucket. This makes the pass
-   idempotent and makes a resumed drain cheap.
-5. Fetch the rest from the source endpoint and write them into the target bucket.
-6. Advance `CursorRowId` past that row and commit.
+Each run is a slice, bounded to a few minutes or a few hundred files, and ends by saving its checkpoint
+and asking to run again. One slice:
 
-Because step 2 re-reads the header at transfer time rather than working from a
-manifest built at import, files deleted on the target after cutover simply are not
-there, and no stale entry has to be reconciled. This is why the design has no
-manifest table.
+1. On the first run, redeem the handoff token for the transfer credential and keep the credential in place of
+   the token. A token already redeemed is recorded as a loud failure: it means a second import.
+2. Take the next files below the cursor, newest first (`DriveMainIndex`, `rowId` descending).
+3. From each file's descriptors, list its payload and thumbnail objects. Skip files whose payloads are
+   remote, and soft-deleted files.
+4. Skip any object the target store already holds with the expected length. This makes a slice idempotent
+   and a resumed transfer cheap.
+5. Fetch the rest, at most `PayloadMove:Parallelism` at a time: each into a local temporary file, checked
+   against the descriptor's byte count, then written to the target store from that file (a stream of known
+   length, which both backends accept) and the temporary file deleted.
+6. Advance the cursor past the batch and save the checkpoint.
 
-The cursor is committed per file, so a crash re-transfers at most one file's objects,
-and step 4 makes that re-transfer nearly free.
+Because each slice re-reads headers at transfer time rather than working from a manifest built at import,
+files deleted on the target in the meantime are simply not there, and nothing has to be reconciled.
 
-Completion is `CursorRowId` exhausted and the failure list empty.
+The checkpoint holds the source URL, the credential, `startRowId`, the cursor, counters (files, objects,
+bytes, skipped), the first 200 failures with a total count, the current backoff, and a status:
+`Transferring`, `Throttled`, `Complete` or `CompleteWithFailures`. It stays far below the jobs table's
+64 KB limit.
+
+The job is complete when the cursor is exhausted. With no failures, the target calls the source's
+`complete` and the status becomes `Complete`; otherwise `CompleteWithFailures`, and the source is not
+released. Either way the job row is kept for the operator.
 
 ### 6. Throttling and backpressure
 
-The drain reads every object an identity owns, one after another, for as long as it
-takes. That is exactly the traffic shape an S3 provider throttles. Assume it will
-happen and treat it as an expected operating condition rather than an error.
+The transfer reads every object an identity owns, for as long as it takes. That is exactly the traffic
+shape a storage provider throttles. Treat it as an expected condition, not an error.
 
-**Throttle is a third outcome, not a failure.** Each object attempt ends as
-transferred, throttled, or failed. Only failed goes on the failure list. A throttled
-object is retried and the cursor does not advance past it. Conflating the two would
-mean a single throttling episode marks thousands of objects failed, the cursor races
-to the end, and the drain reports `Failed` having transferred almost nothing.
+**Throttled is a third outcome, not a failure.** Each object ends as transferred, throttled, or failed.
+Only failed goes on the failure list. Conflating them would mean a single throttling episode marks
+thousands of objects failed, the cursor races to the end, and the transfer reports failure having moved
+almost nothing.
 
-**The source translates its own throttling honestly.** When the source host's S3 read
-is throttled, the migration endpoint returns 429 with `Retry-After` rather than a
-500. The target then knows to slow down instead of concluding the source is broken.
-The source's own rate limiting on the endpoint uses the same response, so the target
-cannot tell the two apart and does not need to.
+- A **429 or 503** from the source ends the slice without advancing the cursor, and the job is deferred
+  by the `Retry-After`, or else by a backoff that doubles up to a ceiling (10 minutes) and resets after a
+  successful slice. When the backoff sits at its ceiling the status reads `Throttled`, so an operator can
+  see why a transfer is slow instead of inferring it.
+- A **network error, timeout or other 5xx** is retried a few times within the slice, then treated as
+  throttled. Timeouts are caught inside the job, so they never reach the job runner as a cancellation
+  (which it would reschedule after three seconds, forever).
+- A **404 from the source, or a size mismatch**, is a failure: the object is recorded and the transfer
+  moves on. One bad object must not block the thousands behind it.
 
-**The target paces itself with AIMD.** The worker holds a delay between objects. A
-429, a 503, or any `Retry-After` multiplies it; a run of successes decrements it. The
-delay has a ceiling, and `Retry-After` when present overrides the computed value.
-Because the drain is a background task with days available, the correct posture is
-generous backoff and unlimited patience rather than a bounded attempt count.
+The source translates its own storage throttling into a 429 with `Retry-After` rather than a 500, so the
+target slows down instead of concluding the source is broken. The global per-IP rate limiter answers the
+same way, so the target does not need to tell the two apart.
 
-**Sustained throttling is visible, not silent.** When the delay sits at its ceiling
-beyond a threshold, the drain record moves to a `Throttled` status. It keeps working.
-The point is that an operator watching a drain that will now take a week can see why,
-rather than inferring it from throughput.
+### 7. Reads during the transfer
 
-**The existing per-operation retry stays underneath** and is unchanged in kind, but
-`S3FileStore.CreateRetry` needs to learn 429. Today its predicate returns false for
-all 4xx, so a provider that signals throttling as 429 rather than 503 gets no retry
-at all. That fix benefits every S3 caller, not just the drain. It does add latency to
-user-facing reads that hit a throttle, which is the right trade but is a change to
-live serving behaviour and should be called out as such rather than slipped in.
+On the target, a read of a payload or thumbnail that is missing while the identity's transfer is still
+running returns **404 with `Cache-Control: no-store` and `Retry-After`**.
+`LongTermStorageManager.MissingFileOrNullAsync` asks a small tenant-scoped check whether an unfinished
+transfer job exists (cached for 30 seconds; it only runs when an object is missing) and throws
+`OdinRetryLaterException` with 404; `ExceptionHandlingMiddleware` adds `no-store` for that exception.
 
-Both ends throttle independently. The target's writes go through `S3FileStore` and
-inherit whatever that policy becomes; the source's reads surface to the target as
-429s. The worker's pacing responds to both because it responds to the outcome of the
-whole object, not to which side produced it.
+Plain 404 was rejected: the CDN sits in front of public payloads, and a cacheable negative answer could
+keep a payload invisible for the TTL after it has actually landed. A 5xx was rejected too: clients and
+peers may treat it as a host fault and back off from the identity entirely rather than from one object.
+When no transfer is running, the existing behaviour is unchanged.
 
-### 7. Reads during the drain
-
-A payload read that misses in the target bucket, while a drain is active for that
-identity, returns 404 with `Cache-Control: no-store` and a `Retry-After`.
-
-Plain 404 was rejected. The CDN sits in front of public payloads
-(`Cdn:PayloadBaseUrl`), and a cacheable negative answer can keep a payload invisible
-for the TTL after it has actually landed. Peers fetching over transit may likewise
-record the file as gone rather than retrying. A distinct retryable status such as
-503 was also rejected: older clients and peers may treat 5xx as a host fault and
-back off from the identity entirely rather than from the one object.
-
-When no drain is active, the existing missing-object behaviour is unchanged.
+A peer that fetches the payload over transit gets a 404 and passes it on as 404 to its client; the
+`Retry-After` is not forwarded. That is acceptable: the peer asks again the next time its user opens the
+file.
 
 ### 8. Completion and purge
 
-On completion the target calls the source once to report it. The source clears
-`MigratedAway`, revokes the drain credential, and the registration becomes
-deletable.
+On completion the target calls `complete` once. The source records the time, revokes the credential, and
+the registration becomes deletable.
 
-The source payloads are then deleted by an explicit operator action, not
-automatically. `DeleteRegistration` wipes the whole prefix and cannot be undone, and
-a migration that reported complete against a subtly wrong cursor would be
-unrecoverable if the purge fired on its own.
+The source payloads are then removed only by an explicit operator action, never automatically: a
+transfer that reported complete against a subtly wrong cursor would be unrecoverable if the purge fired
+on its own. `odin-admin tenant delete` is not that action: it also deletes the identity's DNS in the
+shared PowerDNS, which after a move is the target's. A purge command that removes payloads and the
+registration but never DNS is a follow-up.
 
 ### 9. Operator flow
 
-1. Stop the source host. Run `identity-export`. It writes the file, sets
-   `MigratedAway`, and embeds a handoff token.
-2. Move the file. Stop the target host, run `identity-import`, start the target.
-3. Repoint DNS. Start the source host. It serves every identity except this one.
-4. The target drains in the background, newest first. Missing payloads 404
-   uncacheably until they land.
-5. On completion the operator deletes the source registration, which purges the
-   prefix.
+`agents/identity-move/README.md`, in short: pause the source, wait out the settle time, export (which
+mints the handoff token), import on the target (which lands paused and schedules the transfer, which
+starts at once), repoint DNS, resume the target, retire the source as `Disabled/Moved`. Watch the transfer
+with `odin-admin tenant payload-move <domain>`; `--retry` re-arms a finished or stuck transfer from the
+top, which is cheap because objects already present are skipped.
 
 ### 10. Error handling
 
-- **Source unreachable.** The worker backs off and retries. The drain record
-  persists, so this survives restarts on either side.
-- **A single object fails.** It goes on the failure list and the cursor advances.
-  One bad object must not block the thousands of older ones behind it. A drain that
-  reaches the end with a non-empty list is `Failed`, not `Complete`, and does not
-  release the source.
-- **A single object is throttled.** Not a failure. It is retried, the cursor does not
-  advance, and the worker's pacing widens. See section 6.
-- **An object is missing on the source.** Treated as a failure, not as success.
-  Silently completing a drain that skipped objects would release the source
-  registration and destroy the only remaining copy of whatever was actually there.
-- **Handoff token already redeemed.** The source refuses, and the target records
-  `Failed` with a message naming the cause. This is the second-import case and
-  should be loud.
-- **Target restarted mid-drain.** Resumes from the committed cursor.
+- **Source unreachable.** The job backs off and retries; the checkpoint survives restarts on either side.
+- **A single object fails.** It goes on the failure list and the transfer moves on. A transfer that ends
+  with failures is `CompleteWithFailures`, and the source is not released.
+- **A single object is throttled.** Not a failure (section 6).
+- **An object is missing on the source.** A failure, not a success. Silently completing a transfer that
+  skipped objects would release the source and destroy the only remaining copy of whatever was there.
+- **Handoff token already redeemed.** The source refuses; the target records the cause loudly. This is
+  the second-import case.
+- **Target restarted mid-transfer.** Resumes from the last checkpoint. A node that died mid-slice leaves
+  the job `Running`; the orphan rescue reschedules it.
 
 ### 11. Testing
 
-- Key derivation: a payload descriptor plus its file and drive ids produce exactly
-  the key the S3 store reads today. Pin payload and thumbnail forms both.
-- Cursor: descends, is committed per file, resumes from the committed value, and
-  excludes rows above `StartRowId`.
-- Cursor immutability: a file edited on the target after cutover, whose payloads
-  have not drained, still transfers. This is the property that ruled out `modified`
-  as the ordering key and it should have a test that fails if someone switches to it.
-- `DeleteRegistration` refuses while `MigratedAway`.
-- Endpoint: rejects a wrong identity id, a key outside the identity's prefix, a
-  traversal attempt, an unknown credential, and an identity not in `MigratedAway`.
-  All five return 404.
-- Handoff token: redeems once, refuses the second time.
-- Failure handling: a failing object does not stall the cursor, and a drain ending
-  with a non-empty failure list does not release the source.
-- Throttle handling: a 429 does not put the object on the failure list, does not
-  advance the cursor, and widens the pacing. A drain that is throttled throughout and
-  then recovers still completes with an empty failure list.
-- `Retry-After` on a 429 is honoured in preference to the computed backoff.
-- `S3FileStore.CreateRetry` retries a 429 rather than failing it outright.
-- Missing-payload read returns 404 with `no-store` while draining, and normal
-  behaviour when not.
-- End to end: two hosts, export, import, drain, verify every referenced object
-  arrives and the target reads them back.
+- Streaming read: returns the object's bytes on disk and on S3; a missing object throws as reads do today.
+- Jobs: an opted-in job runs while its identity is paused; the orphan rescue reschedules only opted-in
+  jobs, and only after their threshold.
+- Tokens: a handoff token redeems once, refuses the second time and after expiry; a credential is bound
+  to its identity.
+- Delete guard: `DeleteRegistration` refuses while the source row is incomplete.
+- Endpoint (a real host): streams the right bytes; returns 404 for a wrong identity, an active identity,
+  an unknown or wrong credential, an unknown object and a malformed key.
+- Transfer job (a fake source, a real disk target): newest first; never more than N transfers in flight;
+  resumes after a cancelled slice; a 429 defers without advancing or failing; a source 404 and a size
+  mismatch become failures; objects already present are skipped; rows above `startRowId` are excluded;
+  completion calls the source and nothing else releases it.
+- Reads: a missing payload during a transfer returns 404 with `no-store` and `Retry-After`; without a
+  transfer, behaviour is unchanged.
+- End to end: two local hosts; move a test identity disk to disk and disk to S3; kill the target
+  mid-transfer and restart it; every object arrives and reads back byte-identical.
 
 ### 12. Security
 
-- The endpoint is internet facing, so the three independent checks in section 2 are
-  the security boundary, not the obscurity of the route.
-- Prefix confinement must be enforced on the normalized key. This is the check that
-  stands between one identity's migration and a read primitive over the bucket.
-- The drain credential is stored in the target's system database. It is not written
-  to any file, and it must not appear in logs.
-- The handoff token is in the export file, which was already sensitive enough to
-  warrant the warning `identity-export` prints. Single-use redemption bounds its
-  usefulness to the export-to-import window.
-- Rate limiting belongs on the endpoint. It serves whole identities one object at a
-  time to a caller that is by definition automated.
-
-### 13. Path to live export
-
-Running export and import without stopping the hosts is a stated goal. It is not in
-this spec, but this spec must not make it harder, because it is already building part
-of the machinery.
-
-The withdrawn Task 10 of the export plan listed four things live export needs. This
-design delivers the first two as a side effect of what it needs for itself:
-
-1. **An explicit lifecycle state, distinct from `Disabled`.** Built here, section 1.
-   One bit cannot mean both "an admin suspended this tenant" and "this tenant is
-   being migrated", which is the conflation that made the withdrawn
-   `UnfreezeIdentityAsync` need a `restoreDisabledTo` argument.
-2. **One source of truth for that state, propagated across hosts.** Needed here the
-   moment a source runs more than one host, and carried by the Redis pub/sub already
-   used for `OdinContextCache` invalidation.
-
-Two remain, and both are additions to the machine rather than changes to it:
-
-3. **Workers observing the state at every write boundary** and abandoning the current
-   unit of work, rather than being told to stop from outside. `StopBackgroundServices`
-   cannot do this: it shuts down the caller's own container, which from the CLI is a
-   throwaway container whose workers never started.
-4. **A freeze acknowledgement**, so a freeze blocks until every host confirms it is
-   idle for that tenant, with a timeout.
-
-Why 4 is not optional: the export already takes `RepeatableRead` snapshots of both
-databases, so a live export would not produce an *inconsistent* file. The failure is
-lost writes. Anything a worker commits after the snapshot is absent from the file, and
-the source is then abandoned, so those writes are gone. Checking a flag alone gives an
-eventual freeze, not a confirmed one, and a worker that reads the flag and then writes
-for thirty seconds is still writing when the export begins.
-
-Three constraints this design accepts so that work stays additive:
-
-- **The lifecycle state is a state machine from the start**, with `Frozen` and
-  `Freezing` named in the type even though nothing sets them yet. Adding a value must
-  not mean changing every call site.
-- **The host-stopped check stays a single decision point.**
-  `IdentityJsonTransfer.HostIsStopped` is one function called from two places, and
-  live export replaces it with a freeze-confirmed check at the same seam. It must not
-  spread into the exporter or the importer.
-- **`IdentityJsonExporter.ExportAsync` keeps `callerHasFrozenIdentity` as a caller
-  assertion.** It is already the right shape: today the CLI justifies it with a
-  stopped host, later it justifies it with a confirmed freeze, and the exporter does
-  not change either way.
-
-The implementation plan should carry these as explicit constraints on the tasks that
-touch the lifecycle state, the guards and the exporter signature, so that a later live
-export plan starts from a machine with two values rather than from a boolean.
+- The endpoint is internet facing. Its checks in section 2 are the boundary, not the obscurity of the
+  route.
+- Structured addressing is what stops the endpoint from being a read primitive over the store: the host
+  builds the path from validated ids under one identity's root.
+- An active identity is never served, so the endpoint cannot be used against an identity that was not
+  handed off.
+- The transfer credential is stored only in the target's job data and must not appear in logs.
+- The handoff token is in the export file, which is already sensitive enough to warrant the warning
+  `identity-export` prints. Single-use redemption bounds its usefulness to the export-to-import window.
+- The global per-IP rate limiter covers the endpoint.
 
 ## To verify before implementing
 
-Each of these is an assumption this design rests on that has not been confirmed in
-code. The implementation plan should verify them as early tasks, and the design
-changes if any is false.
-
-1. **No code path overwrites a payload object in place.** The path construction from
-   `(fileId, Key, Uid)` and the per-instance `Uid` strongly imply write-once, and the
-   design relies on it: an object rewritten on the source after the cursor passed it
-   would leave the target holding a stale copy. Verified: the path construction and
-   the `Uid` comment. Not verified: that no writer reuses a uid.
-2. **The CDN honours `Cache-Control: no-store` on a 404.** If it does not, section 6
-   needs a different answer for public payloads specifically.
-3. **What the current read path does on a missing S3 object.** Section 7 assumes
-   there is a single place to intercept. Not yet located.
-4. **Whether the deployed S3 provider signals throttling as 429 or 503, and whether
-   it sends `Retry-After`.** Section 6 handles both, but the retry predicate fix is
-   only needed for 429, and the pacing falls back to a computed backoff without a
-   `Retry-After` header. Worth knowing which case is the real one before tuning
-   anything.
-5. **How peers over transit treat a 404 for a payload.** If a peer records the file
-   as permanently gone rather than retrying, the drain silently degrades peer copies
-   and this needs handling on the peer path too.
+1. **The CLI's job manager joins the import's system transaction**, so scheduling the job commits and
+   rolls back with the import. If it does not, schedule after commit and rely on `--retry` as the
+   fallback.
+2. **`OdinRetryLaterException` with 404** passes through `ExceptionHandlingMiddleware` as 404 with
+   `Retry-After`.
+3. **The CDN honours `Cache-Control: no-store` on a 404.** If it does not, public payloads need a
+   different answer during the transfer. (Ops.)
+4. **Every host has a provisioning domain with a certificate**, reachable from the other cluster. (Ops.)
+5. **Whether the deployed S3 provider throttles with 429 or 503, and sends `Retry-After`.** The design
+   handles both; this only tunes the backoff.
 
 ## Open follow-ups
 
-- **Per-drive cursors for parallelism.** One cursor per identity means strictly
-  serial transfer. A media-heavy identity can hold hundreds of thousands of objects,
-  and at a read plus a write each that is days of draining during which the source
-  registration is pinned. A cursor per drive would allow drive-level parallelism
-  without complicating any single cursor. Deliberately not in this design.
-- **Presigned URLs instead of proxying.** The source could mint time-limited GET
-  URLs so the target pulls straight from the source bucket and the source host
-  carries metadata only. AWSSDK.S3 4.0.17 is referenced and `IAmazonS3` is
-  registered (`S3AwsStorage.cs:751`), so it is available in principle. Nothing in
-  the repo uses presigning today and it has not been confirmed against the deployed
-  provider. Because the target derives its own keys and fetches one object per
-  request, swapping the fetch for a presigned redirect would not disturb the cursor
-  or the drain record.
-- **`CopyRegistration` on S3.** Still throws. The migration endpoint and the key
-  derivation built here are most of what it needs.
-- **Progress reporting to an operator.** The drain record holds enough to report
-  percentage complete and failures. No surface exposes it.
-- **Automatic purge on completion.** Deliberately manual. Revisit once the drain has
-  proven its completion signal in practice.
-- **Live export and import.** Its own spec, building on section 12. It needs worker
-  observation at write boundaries and a freeze acknowledgement across hosts, and it is
-  the prerequisite for zero-downtime migration and for fixing `CopyRegistration`,
-  which also runs while the host is live.
+- **Purge the source** after completion: payloads and registration, never DNS.
+- **Push**, for a source the target cannot reach (for example a disk-only box behind NAT). The target's
+  side barely changes.
+- **Per-drive cursors**, if one identity-wide cursor ever limits throughput.
+- **Presigned URLs**, so an S3 source serves bytes straight from its bucket and the host carries metadata
+  only. Nothing in the repo presigns today.
+- **`S3FileStore`'s retry predicate and 429.** It retries 5xx and timeouts only; a provider that throttles
+  with 429 gets no retry. That fix helps every S3 caller but changes live read latency, so it is its own
+  change.
+- **Passing `Retry-After` through peers.**
+- **`CopyRegistration` on S3.** Still refuses; the streaming read and the addressing built here are most
+  of what it needs (and whether to keep it at all is an open question).
