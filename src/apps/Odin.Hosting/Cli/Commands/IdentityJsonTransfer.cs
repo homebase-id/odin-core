@@ -173,10 +173,17 @@ public static class IdentityJsonTransfer
 
         // A fresh identity has version -1 until its per-identity migrations run. Bring the
         // target to the latest schema before comparing table versions, exactly as
-        // Sqlite2Pg.ImportIdentityAsync does. The system database too: a target host that has
-        // never started has none yet, and on one that runs this is a no-op (the host migrated it).
-        await targetSystemDatabase.MigrateDatabaseAsync();
+        // Sqlite2Pg.ImportIdentityAsync does.
         await targetScope.Resolve<IdentityMigrator>().MigrateAsync();
+
+        // The system database only if it was never set up (a target host that has not started yet).
+        // A running target's schema belongs to its hosts: migrating it here would upgrade it to this
+        // binary's version under them, and hide a version mismatch from the preconditions.
+        if ((await targetSystemDatabase.GetTableVersionsAsync()).Values.All(version => version == -1))
+        {
+            logger.LogInformation("The target system database is empty; creating it");
+            await targetSystemDatabase.MigrateDatabaseAsync();
+        }
 
         // The identity lands paused whatever status it was exported with, so it serves nothing until
         // DNS points here and the operator resumes it; running hosts load it from the database
