@@ -19,7 +19,9 @@ public static class IdentityExportFile
     // per-table schema versions, which live in the header's TableVersions.
     // 2: the header names where the payloads can be fetched (payloadSource), which an older binary would
     // ignore and so import the identity without them.
-    public const int CurrentFormatVersion = 2;
+    // 3: the certificate's private key is in the clear, so a host with another storage key can re-encrypt it
+    // under its own; a version 2 file has it encrypted under the source's key. Older files are refused.
+    public const int CurrentFormatVersion = 3;
 
     public const string KindHeader = "header";
     public const string KindRow = "row";
@@ -27,6 +29,12 @@ public static class IdentityExportFile
     public const string DbIdentity = "identity";
     public const string DbSystem = "system";
 }
+
+/// <summary>
+/// Lets the caller change a row on its way into or out of the file, or leave it out (null): key material kept
+/// under a host's own key is re-keyed here, by the host layer that owns those keys.
+/// </summary>
+public delegate object? RowRewriter(string db, string table, object record);
 
 public class ExportHeader
 {

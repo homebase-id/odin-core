@@ -7,6 +7,23 @@ The database rows move in a file (export, then import). The payloads (files, pho
 follow on their own: the target pulls them from the source over HTTPS in the background, starting
 the moment the import commits. See **Payloads** below.
 
+## Email does not move (yet)
+
+**We do not yet export an identity's email.** An identity moved with email activated arrives on the
+target **without working email**:
+
+- **Left behind:** the mailbox and every message in it (they live in the mail server, not in
+  Homebase), the mailbox's account, aliases and app passwords, and the DKIM signing keys (the export
+  leaves the `DkimKeys` rows out on purpose, and says so for each key).
+- **Carried, but not working:** the email setup record and the email drive's files are ordinary
+  identity data and move with the rest. The target can therefore look as if email is set up while
+  it has no mailbox and no DKIM keys.
+- **Not checked:** what happens to the identity's mail DNS records (MX, SPF, DMARC, DKIM TXT) when
+  DNS is repointed.
+
+Until email transfer is built, move only identities without email activated. If the export prints
+`Leaving DKIM key ... behind`, the identity has email: stop and ask the operator.
+
 ## Before you start
 
 You need:
@@ -40,11 +57,10 @@ You need:
   The target pulls from the source's provisioning domain (`Registry:ProvisioningDomain`) over public
   HTTPS; ops checked that `createme.na.ravenhosting.cloud`, `createme.eu.ravenhosting.cloud` and
   `createme.ravenhosting.cloud` all reach each other (2026-09-29).
-- **The same `CertificateRenewal:StorageKey` and `Email:DkimStorageKey` on both hosts.** The TLS
-  certificate key and the DKIM keys travel in the export encrypted under the source's keys, as they
-  are stored, and nothing checks that the target can decrypt them. The target loads the certificate
-  during the TLS handshake (`Program.cs`), so with different keys its TLS for the identity breaks.
-  Compare fingerprints, not the keys: `printf %s "<hex key>" | sha256sum` on each host.
+- **Nothing to align between the hosts' storage keys.** Each cluster keeps certificate keys under its
+  own `CertificateRenewal:StorageKey`, by design. The export decrypts the TLS certificate's key with
+  the source's key and the import encrypts it with the target's, and refuses if the key does not fit
+  its certificate.
 
 Throughout, `<domain>` is the identity's domain, for example `frodo.id.pub`.
 
@@ -124,7 +140,8 @@ Odin.Hosting identity-export <domain> /identity-host/tmp/<domain>.json
   behind; if a `.partial` from a crash is in the way, it refuses: look at it and delete it.
 - Mints a single-use handoff token for the payloads and puts it in the file, with the source's address.
   Exporting again replaces it (the older file can then no longer fetch payloads).
-- **The file is the identity**: it holds password data, private keys and the TLS certificate key.
+- **The file is the identity**: it holds password data, private keys and the TLS certificate key, the
+  last in the clear so the target can re-encrypt it under its own storage key.
   Mode 0600. Move it only over an encrypted channel (`scp` to the target's `/identity-host/tmp`), and
   delete every copy when the move is done.
 
@@ -205,6 +222,8 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
 
 ## What is not covered yet
 
+- **Email:** the mailbox and its messages, the mailbox account and settings, and the DKIM keys. See
+  **Email does not move (yet)** above.
 - Purging the source's copy (payloads and registration, never DNS) once the transfer is complete.
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.

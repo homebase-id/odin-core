@@ -148,9 +148,7 @@ public class CertificateStore(
             return null;
         }
 
-        var iv = IvFromString(record.certificate);
-        var decryptedKeyPem =
-            AesCbc.Decrypt(Convert.FromHexString(record.privateKey), _storageKey, iv).ToStringFromUtf8Bytes();
+        var decryptedKeyPem = DecryptPrivateKey(record.privateKey, record.certificate, _storageKey);
 
         var x509 = X509FromPem(domain, decryptedKeyPem, record.certificate);
         if (IsValid(x509))
@@ -193,8 +191,7 @@ public class CertificateStore(
             throw new OdinSystemException($"Certificate for {domain} is not valid. Did it expire?");
         }
 
-        var iv = IvFromString(certificatePem);
-        var encryptedKeyPem = Convert.ToHexString(AesCbc.Encrypt(Encoding.UTF8.GetBytes(keyPem), _storageKey, iv));
+        var encryptedKeyPem = EncryptPrivateKey(keyPem, certificatePem, _storageKey);
 
         var correlationContext = serviceProvider.GetRequiredService<ICorrelationContext>();
 
@@ -230,6 +227,28 @@ public class CertificateStore(
         using var scope = serviceProvider.CreateScope();
         var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
         await tableCertificates.FailCertificateUpdate(odinId, UnixTimeUtc.Now(), correlationContext.Id, errorText);
+    }
+
+    //
+
+    // How a certificate's private key is kept at rest: AES-CBC under the host's CertificateRenewal:StorageKey,
+    // hex, with the IV derived from the certificate. Public for identity export and import, which carry the key
+    // from one host's storage key to another's.
+
+    public static string EncryptPrivateKey(string keyPem, string certificatePem, byte[] storageKey)
+    {
+        return Convert.ToHexString(AesCbc.Encrypt(Encoding.UTF8.GetBytes(keyPem), storageKey, IvFromString(certificatePem)));
+    }
+
+    public static string DecryptPrivateKey(string encryptedKeyHex, string certificatePem, byte[] storageKey)
+    {
+        return AesCbc.Decrypt(Convert.FromHexString(encryptedKeyHex), storageKey, IvFromString(certificatePem)).ToStringFromUtf8Bytes();
+    }
+
+    /// <summary>Throws unless the key is the certificate's own (the pair signs and verifies); <paramref name="domain"/> names it in the error.</summary>
+    public static void AssertKeyFitsCertificate(string domain, string keyPem, string certificatePem)
+    {
+        X509FromPem(domain, keyPem, certificatePem).Dispose();
     }
 
     //

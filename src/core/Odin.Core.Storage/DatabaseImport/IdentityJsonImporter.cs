@@ -47,7 +47,8 @@ public static class IdentityJsonImporter
         IdentityDatabase targetIdentityDatabase,
         bool commit,
         IReadOnlySet<string>? skipTables = null,
-        Func<Task>? beforeCommit = null)
+        Func<Task>? beforeCommit = null,
+        RowRewriter? rewriteRow = null)
     {
         var skip = skipTables ?? DefaultSkippedTables;
 
@@ -81,7 +82,7 @@ public static class IdentityJsonImporter
                     leftovers, header.Domain);
             }
 
-            await ImportRowsAsync(logger, enumerator, targetSystemDatabase, targetIdentityDatabase, skip, result);
+            await ImportRowsAsync(logger, enumerator, targetSystemDatabase, targetIdentityDatabase, skip, rewriteRow, result);
 
             if (beforeCommit != null)
             {
@@ -108,6 +109,7 @@ public static class IdentityJsonImporter
         SystemDatabase targetSystemDatabase,
         IdentityDatabase targetIdentityDatabase,
         IReadOnlySet<string> skip,
+        RowRewriter? rewriteRow,
         ImportResult result)
     {
         while (await MoveNextAsync(enumerator))
@@ -124,26 +126,31 @@ public static class IdentityJsonImporter
 
             if (skip.Contains(table))
             {
-                result.SkippedRowsByTable.TryGetValue(table, out var soFar);
-                result.SkippedRowsByTable[table] = soFar + 1;
+                CountSkipped(result, table);
                 continue;
             }
 
-            switch (db)
+            var record = db switch
             {
-                case IdentityExportFile.DbIdentity:
-                    result.RowsImported += await targetIdentityDatabase.ImportRowAsync(
-                        table, Deserialize(IdentityDatabase.ExportableRecordTypes, table, data));
-                    break;
+                IdentityExportFile.DbIdentity => Deserialize(IdentityDatabase.ExportableRecordTypes, table, data),
+                IdentityExportFile.DbSystem => Deserialize(SystemDatabase.ExportableRecordTypes, table, data),
+                _ => throw new IdentityImportRefusedException($"Unknown db discriminator '{db}' for table {table}.")
+            };
 
-                case IdentityExportFile.DbSystem:
-                    result.RowsImported += await targetSystemDatabase.ImportRowAsync(
-                        table, Deserialize(SystemDatabase.ExportableRecordTypes, table, data));
-                    break;
-
-                default:
-                    throw new IdentityImportRefusedException($"Unknown db discriminator '{db}' for table {table}.");
+            if (rewriteRow != null)
+            {
+                var rewritten = rewriteRow(db, table, record);
+                if (rewritten == null)
+                {
+                    CountSkipped(result, table);
+                    continue;
+                }
+                record = rewritten;
             }
+
+            result.RowsImported += db == IdentityExportFile.DbIdentity
+                ? await targetIdentityDatabase.ImportRowAsync(table, record)
+                : await targetSystemDatabase.ImportRowAsync(table, record);
         }
 
         foreach (var (table, count) in result.SkippedRowsByTable.OrderBy(kv => kv.Key))
@@ -158,6 +165,12 @@ public static class IdentityJsonImporter
                 logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
             }
         }
+    }
+
+    private static void CountSkipped(ImportResult result, string table)
+    {
+        result.SkippedRowsByTable.TryGetValue(table, out var soFar);
+        result.SkippedRowsByTable[table] = soFar + 1;
     }
 
     // Reads only the header, the file's first element: the rows after it are not parsed, and

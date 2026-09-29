@@ -18,6 +18,8 @@ step by step and in order. It touches production identities, production DNS and 
 - **Never run `populate-managed-domain-records` or `create-own-domain-zones` on a source host.** They
   rewrite the DNS of every identity the host has registered, the moved one included, back to the
   source.
+- **Email does not move.** If the export prints `Leaving DKIM key ... behind`, the identity has email
+  activated: stop and ask the operator before importing it (README, "Email does not move (yet)").
 - **Test identities only, until the operator says otherwise.** The payload transfer is new; the first
   moves are rehearsals. Before step 1, ask whether this is a test identity, and stop if the operator has
   not said real moves are cleared.

@@ -44,7 +44,8 @@ public static class IdentityJsonExporter
         long identitySchemaVersion,
         long systemSchemaVersion,
         bool callerCheckedIdentityIsStill,
-        ExportPayloadSource? payloadSource = null)
+        ExportPayloadSource? payloadSource = null,
+        RowRewriter? rewriteRow = null)
     {
         var partialPath = filePath + ".partial";
         if (File.Exists(filePath))
@@ -80,7 +81,7 @@ public static class IdentityJsonExporter
             await using (stream)
             {
                 rows = await ExportAsync(stream, identityId, domain, systemDatabase, identityDatabase,
-                    identitySchemaVersion, systemSchemaVersion, callerCheckedIdentityIsStill, payloadSource);
+                    identitySchemaVersion, systemSchemaVersion, callerCheckedIdentityIsStill, payloadSource, rewriteRow);
             }
 
             File.Move(partialPath, filePath, overwrite: false);
@@ -102,7 +103,8 @@ public static class IdentityJsonExporter
         long identitySchemaVersion,
         long systemSchemaVersion,
         bool callerCheckedIdentityIsStill,
-        ExportPayloadSource? payloadSource = null)
+        ExportPayloadSource? payloadSource = null,
+        RowRewriter? rewriteRow = null)
     {
         if (!callerCheckedIdentityIsStill)
         {
@@ -138,6 +140,16 @@ public static class IdentityJsonExporter
 
         Task WriteRow(string db, string table, object record)
         {
+            if (rewriteRow != null)
+            {
+                var rewritten = rewriteRow(db, table, record);
+                if (rewritten == null)
+                {
+                    return Task.CompletedTask; // left out
+                }
+                record = rewritten;
+            }
+
             writer.WriteStartObject();
             writer.WriteString("kind", IdentityExportFile.KindRow);
             writer.WriteString("db", db);

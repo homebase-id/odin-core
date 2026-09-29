@@ -82,8 +82,8 @@ public static class IdentityJsonTransfer
         }
 
         logger.LogWarning(
-            "The export file contains this identity's password data, private keys, TLS "
-            + "certificate private key and DKIM signing keys. Anyone holding it can become "
+            "The export file contains this identity's password data, private keys and TLS "
+            + "certificate private key, in the clear. Anyone holding it can become "
             + "this identity. Store it encrypted and delete it when the migration is done.");
 
         var systemMigrator = services.GetRequiredService<SystemMigrator>();
@@ -107,11 +107,12 @@ public static class IdentityJsonTransfer
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
                 callerCheckedIdentityIsStill: true,
-                payloadSource);
+                payloadSource,
+                IdentityKeyMaterial.ForExport(config.CertificateRenewal.StorageKey, logger));
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
-        catch (IOException e)
+        catch (Exception e) when (e is IOException or InvalidOperationException)
         {
             logger.LogError("Export of {domain} failed, no file written: {error}", domain, e.Message);
             return false;
@@ -191,7 +192,8 @@ public static class IdentityJsonTransfer
                             payloadSource.BaseUrl, payloadSource.HandoffToken,
                             await targetIdentityDatabase.DriveMainIndex.GetMaxRowIdAsync());
                     }
-                });
+                },
+                rewriteRow: IdentityKeyMaterial.ForImport(config.CertificateRenewal.StorageKey));
         }
         catch (IdentityImportRefusedException e)
         {
