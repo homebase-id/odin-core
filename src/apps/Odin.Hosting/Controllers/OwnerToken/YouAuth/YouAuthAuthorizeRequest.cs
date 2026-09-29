@@ -38,6 +38,14 @@ public sealed class YouAuthAuthorizeRequest
     [BindProperty(Name = StateName, SupportsGet = true)]
     public string State { get; set; } = "";
 
+    /// <summary>
+    /// Which cipher the client can open the token response with; see <see cref="YouAuthDefaults.Cipher"/>.
+    /// Empty when the client sent nothing, and then left out of <see cref="ToQueryString"/> so such a
+    /// request comes back from the consent page byte for byte.
+    /// </summary>
+    [BindProperty(Name = YouAuthDefaults.Cipher, SupportsGet = true)]
+    public string Cipher { get; set; } = "";
+
     //
 
     public YouAuthAuthorizeRequest()
@@ -54,7 +62,8 @@ public sealed class YouAuthAuthorizeRequest
         string publicKey,
         string permissionRequest,
         string clientInfo,
-        string state)
+        string state,
+        string cipher)
     {
         RedirectUri = redirectUri;
         ClientType = clientType;
@@ -63,6 +72,7 @@ public sealed class YouAuthAuthorizeRequest
         PermissionRequest = permissionRequest;
         ClientInfo = clientInfo;
         State = state;
+        Cipher = cipher;
     }
     
     //
@@ -78,6 +88,10 @@ public sealed class YouAuthAuthorizeRequest
         qs[PermissionRequestName] = PermissionRequest;
         qs[PublicKeyName] = PublicKey;
         qs[StateName] = State;
+        if (!string.IsNullOrEmpty(Cipher))
+        {
+            qs[YouAuthDefaults.Cipher] = Cipher;
+        }
 
         return qs.ToString() ?? string.Empty;
     }
@@ -100,12 +114,17 @@ public sealed class YouAuthAuthorizeRequest
             permissionRequest: qs[PermissionRequestName] ?? string.Empty,
             publicKey: qs[PublicKeyName] ?? string.Empty,
             redirectUri: qs[RedirectUriName] ?? string.Empty,
-            state: qs[StateName] ?? string.Empty);
+            state: qs[StateName] ?? string.Empty,
+            cipher: qs[YouAuthDefaults.Cipher] ?? string.Empty);
     }
 
     //
     
-    public void Validate(string redirectUriHost)
+    /// <summary>
+    /// The checks that decide whether the redirect URI may be trusted. Fails with a 400: the redirect
+    /// target is not yet trusted (see <c>YouAuthUnifiedController.Authorize</c>).
+    /// </summary>
+    public void ValidateRedirectTarget(string redirectUriHost)
     {
         if (ClientType != ClientType.app && ClientType != ClientType.domain)
         {
@@ -115,6 +134,10 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"Bad or missing {ClientIdName}");
         }
+        if (string.IsNullOrWhiteSpace(RedirectUri))
+        {
+            throw new BadRequestException($"Bad or missing {RedirectUriName}");
+        }
         if (ClientType == ClientType.domain && ClientId != redirectUriHost)
         {
             // Make it easier to do local app development
@@ -123,6 +146,14 @@ public sealed class YouAuthAuthorizeRequest
                 throw new BadRequestException($"{ClientIdName} must equal host {redirectUriHost} when {ClientTypeName} is {ClientType.domain}");
             }
         }
+    }
+
+    /// <summary>
+    /// The rest of the request, checked once the redirect target is trusted; the authorize endpoint
+    /// reports a failure here to the relying party.
+    /// </summary>
+    public void ValidateRequest()
+    {
         if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(PermissionRequest))
         {
             throw new BadRequestException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}");
@@ -131,9 +162,19 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"Bad or missing {PublicKeyName}");
         }
-        if (string.IsNullOrWhiteSpace(RedirectUri))
+        ParsedCipher();
+    }
+
+    /// <summary>The cipher the client asked for, CBC when it asked for none; a 400 for one the identity does not know.</summary>
+    public YouAuthCipher ParsedCipher()
+    {
+        try
         {
-            throw new BadRequestException($"Bad or missing {RedirectUriName}");
+            return YouAuthCiphers.Parse(Cipher);
+        }
+        catch (ArgumentException e)
+        {
+            throw new BadRequestException(e.Message);
         }
     }
 }

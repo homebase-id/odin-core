@@ -1,0 +1,112 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.System;
+
+#nullable enable
+
+namespace Odin.Core.Storage.DatabaseImport;
+
+// Everything that must hold before a single row is written.
+//
+// Returns every violation rather than throwing on the first, so one run tells the
+// operator the full extent of the problem instead of making them re-run to discover
+// the next one.
+public static class IdentityImportPreconditions
+{
+    public static async Task<List<string>> CheckAsync(
+        ExportHeader header,
+        SystemDatabase targetSystemDatabase,
+        IdentityDatabase targetIdentityDatabase)
+    {
+        var violations = new List<string>();
+
+        if (header.FormatVersion > IdentityExportFile.CurrentFormatVersion)
+        {
+            violations.Add(
+                $"File formatVersion {header.FormatVersion} is newer than this binary understands "
+                + $"({IdentityExportFile.CurrentFormatVersion}).");
+        }
+        else if (header.FormatVersion < IdentityExportFile.CurrentFormatVersion)
+        {
+            violations.Add(
+                $"File formatVersion {header.FormatVersion} is older than this binary reads "
+                + $"({IdentityExportFile.CurrentFormatVersion}): export the identity again with this version.");
+        }
+
+        // 1. Registrations: identityId or domain, either is a hard stop.
+        var registrations = await targetSystemDatabase.Registrations.GetAllAsync();
+        if (registrations.Any(r => r.identityId == header.IdentityId))
+        {
+            violations.Add($"Target already has a registration with identityId {header.IdentityId}.");
+        }
+        if (registrations.Any(r => r.primaryDomainName.Equals(header.Domain, StringComparison.OrdinalIgnoreCase)))
+        {
+            violations.Add($"Target already has a registration for domain {header.Domain}.");
+        }
+
+        // 2. Certificates is keyed by domain, so it survives independently of the
+        //    registration. DataImporter.DeleteIdentityFromSystemDataAsync has to delete
+        //    both rows for exactly this reason.
+        var certificate = await targetSystemDatabase.Certificates.GetAsync(new OdinId(header.Domain));
+        if (certificate != null)
+        {
+            violations.Add($"Target already has a Certificates row for domain {header.Domain}.");
+        }
+
+        // 3. DkimKeys is keyed by (domain, selector) and outlives the registration for
+        //    the same reason Certificates does; DataImporter.DeleteIdentityFromSystemDataAsync
+        //    deletes it by domain too. One identity owns several rows here, so count them
+        //    rather than testing for a single row.
+        var dkimKeys = await targetSystemDatabase.DkimKeys.GetByDomainAsync(new OdinId(header.Domain));
+        if (dkimKeys.Count > 0)
+        {
+            violations.Add($"Target already has {dkimKeys.Count} DkimKeys row(s) for domain {header.Domain}.");
+        }
+
+        // Identity rows for this identityId are not a violation. With no registration,
+        // certificate or DKIM rows (checks 1-3), nothing serves them: they are left by an
+        // import that failed after its identity commit, or on Postgres, where every identity
+        // shares one set of tables, by a DeleteRegistration, which never purges them. The
+        // importer clears them in its own transaction, which is what makes a failed import
+        // retryable.
+
+        // 4. All-or-nothing table version match, in both directions.
+        violations.AddRange(CompareTableVersions(header, IdentityExportFile.DbSystem,
+            await targetSystemDatabase.GetTableVersionsAsync()));
+        violations.AddRange(CompareTableVersions(header, IdentityExportFile.DbIdentity,
+            await targetIdentityDatabase.GetTableVersionsAsync()));
+
+        return violations;
+    }
+
+    // Table sets must be identical, not merely overlapping. A table present on one
+    // side and absent on the other is as much a mismatch as a differing version.
+    private static IEnumerable<string> CompareTableVersions(
+        ExportHeader header,
+        string db,
+        Dictionary<string, long> onTarget)
+    {
+        var fromFile = header.TableVersions.GetValueOrDefault(db) ?? new Dictionary<string, long>();
+
+        foreach (var (table, fileVersion) in fromFile.OrderBy(kv => kv.Key))
+        {
+            if (!onTarget.TryGetValue(table, out var targetVersion))
+            {
+                yield return $"{db}.{table}: present in the file, absent on the target.";
+            }
+            else if (fileVersion != targetVersion)
+            {
+                yield return $"{db}.{table}: file version {fileVersion}, target version {targetVersion}.";
+            }
+        }
+
+        foreach (var table in onTarget.Keys.Where(t => !fromFile.ContainsKey(t)).OrderBy(t => t))
+        {
+            yield return $"{db}.{table}: present on the target, absent from the file.";
+        }
+    }
+}

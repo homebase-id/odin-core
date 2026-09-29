@@ -27,11 +27,19 @@ internal class MultiTenantContainerMiddleware(
             return;
         }
 
-        if (registration.Disabled)
+        switch (registration.Status)
         {
-            context.Response.StatusCode = StatusCodes.Status409Conflict;
-            await context.Response.WriteAsync($"{host} is disabled");
-            return;
+            case TenantStatus.Disabled:
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                await context.Response.WriteAsync($"{host} is disabled");
+                return;
+
+            case TenantStatus.Paused:
+                // Temporary: tell callers, peers included, to come back later
+                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                context.Response.Headers.RetryAfter = TenantStatusRules.PausedRetryAfterSeconds.ToString();
+                await context.Response.WriteAsync($"{host} is paused");
+                return;
         }
 
         // Begin new scope for the request (this is where e.g. OdinContext is created)

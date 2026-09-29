@@ -1,0 +1,190 @@
+using System;
+using System.Linq;
+using Odin.Core.Exceptions;
+using Odin.Core.Time;
+
+#nullable enable
+
+namespace Odin.Services.Registry;
+
+/// <summary>
+/// Operational state of an identity (shared by every node), ordered from least to most restricted.
+/// Persisted in the Registrations json column; the legacy disabled column mirrors <see cref="Disabled"/>.
+/// </summary>
+public enum TenantStatus
+{
+    /// <summary>
+    /// Normal operation.
+    /// </summary>
+    Active = 0,
+
+    /// <summary>
+    /// Over its storage quota. Everything that does not add payload bytes keeps working.
+    /// </summary>
+    OutOfQuota = 1,
+
+    /// <summary>
+    /// Temporary maintenance hold (e.g. while the identity is being moved). New requests are told to
+    /// retry later, the identity's background services are stopped and its jobs wait. Every node
+    /// applies it, at the latest after <c>Registry:CatchUpIntervalSeconds</c>.
+    /// <para>
+    /// Requests already in flight are allowed to finish: a pause never breaks them. So the data
+    /// settles shortly after the pause, not at the moment it is set. Anything that needs a still copy
+    /// (an export) pauses, waits for in-flight work to finish, and only then begins.
+    /// </para>
+    /// </summary>
+    Paused = 2,
+
+    /// <summary>
+    /// Administrative end state: this copy of the identity does not serve and its background
+    /// services are stopped. See <see cref="DisabledReason"/>.
+    /// </summary>
+    Disabled = 3
+}
+
+public enum DisabledReason
+{
+    /// <summary>
+    /// Disabled by an administrator.
+    /// </summary>
+    Admin = 0,
+
+    /// <summary>
+    /// Disabled because the identity is being deleted.
+    /// </summary>
+    PendingDeletion = 1,
+
+    /// <summary>
+    /// The identity now lives on another host. This copy must never serve again.
+    /// </summary>
+    Moved = 2
+}
+
+public sealed record TenantStatusState(TenantStatus Status, DisabledReason? DisabledReason, UnixTimeUtc? StatusChangedAt);
+
+public static class TenantStatusRules
+{
+    /// <summary>
+    /// Retry-After sent to callers of a paused identity.
+    /// </summary>
+    public const int PausedRetryAfterSeconds = 600;
+
+    /// <summary>
+    /// Retry-After sent when an identity is over quota. Longer than <see cref="PausedRetryAfterSeconds"/>,
+    /// because a human has to free space or raise the quota.
+    /// </summary>
+    public const int OutOfQuotaRetryAfterSeconds = 3600;
+
+    /// <summary>
+    /// Parses a status name case-insensitively, ignoring '-' and '_' (so "out-of-quota" works). Numbers and
+    /// Enum.TryParse's comma-separated flag syntax are refused.
+    /// </summary>
+    public static bool TryParse<TEnum>(string? value, out TEnum result) where TEnum : struct, Enum
+    {
+        result = default;
+        var normalized = value?.Replace("-", "").Replace("_", "").Trim();
+        if (string.IsNullOrEmpty(normalized) || !normalized.All(char.IsLetter))
+        {
+            return false;
+        }
+
+        return Enum.TryParse(normalized, ignoreCase: true, out result) && Enum.IsDefined(result);
+    }
+
+    public static bool RunsBackgroundServices(TenantStatus status)
+    {
+        return status switch
+        {
+            TenantStatus.Active => true,
+            TenantStatus.OutOfQuota => true,
+            TenantStatus.Paused => false,
+            TenantStatus.Disabled => false,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Decide whether this status runs background services")
+        };
+    }
+
+    /// <summary>
+    /// How long an identity must have been stopped before an export may read it: one catch-up interval
+    /// for a node that missed the announcement, a second as margin, and a minute for requests that
+    /// were in flight when it stopped (a pause lets them finish rather than breaking them).
+    /// </summary>
+    public static TimeSpan ExportSettleTime(int catchUpIntervalSeconds)
+    {
+        return TimeSpan.FromSeconds(2 * catchUpIntervalSeconds + 60);
+    }
+
+    /// <summary>
+    /// Null when the identity has been stopped for at least <paramref name="settle"/>, so an export gets a
+    /// still copy; otherwise why the export has to wait. <paramref name="statusChangedAt"/> is the wall clock
+    /// of the node that changed the status, so clock skew between nodes eats into the margin.
+    /// </summary>
+    public static string? WhyExportMustWait(TenantStatus status, UnixTimeUtc? statusChangedAt, UnixTimeUtc now, TimeSpan settle)
+    {
+        if (RunsBackgroundServices(status))
+        {
+            return $"the identity is {status}; pause it first";
+        }
+
+        if (statusChangedAt == null)
+        {
+            return $"the identity is {status} but has no status change time, so there is no telling how long it has been still; pause it again";
+        }
+
+        var still = TimeSpan.FromMilliseconds(Math.Max(0, now.milliseconds - statusChangedAt.Value.milliseconds));
+        return still < settle
+            ? $"the identity became {status} {still.TotalSeconds:0} s ago; export is allowed in {(settle - still).TotalSeconds:0} s"
+            : null;
+    }
+
+    /// <summary>
+    /// A disabled status always carries a reason; any other status carries none.
+    /// </summary>
+    public static DisabledReason? NormalizeReason(TenantStatus status, DisabledReason? reason)
+    {
+        return status == TenantStatus.Disabled ? reason ?? DisabledReason.Admin : reason;
+    }
+
+    /// <summary>
+    /// Throws <see cref="OdinClientException"/> if the transition is not allowed.
+    /// Expects <paramref name="toReason"/> to be normalized with <see cref="NormalizeReason"/>.
+    /// </summary>
+    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason)
+    {
+        if (!Enum.IsDefined(toStatus))
+        {
+            throw new OdinClientException($"Unknown tenant status '{toStatus}'");
+        }
+
+        if (toReason.HasValue && !Enum.IsDefined(toReason.Value))
+        {
+            throw new OdinClientException($"Unknown disabled reason '{toReason}'");
+        }
+
+        if (toStatus != TenantStatus.Disabled && toReason.HasValue)
+        {
+            throw new OdinClientException("A disabled reason is only valid for the disabled status");
+        }
+
+        if (toStatus == TenantStatus.Disabled && !toReason.HasValue)
+        {
+            throw new OdinClientException("The disabled status requires a reason");
+        }
+
+        // A moved identity lives elsewhere; serving this copy again would split it in two.
+        // Deleting the leftover copy is still allowed.
+        var isMoved = fromStatus == TenantStatus.Disabled && fromReason == DisabledReason.Moved;
+        var staysDisabled = toStatus == TenantStatus.Disabled &&
+                            toReason is DisabledReason.Moved or DisabledReason.PendingDeletion;
+        if (isMoved && !staysDisabled)
+        {
+            throw new OdinClientException("This identity has moved to another host and cannot be re-enabled here");
+        }
+
+        // Leaving disabled is a deliberate re-enable, straight to active. Otherwise pause-then-resume
+        // would re-enable a disabled identity without anyone saying so.
+        if (fromStatus == TenantStatus.Disabled && toStatus is TenantStatus.OutOfQuota or TenantStatus.Paused)
+        {
+            throw new OdinClientException($"A disabled identity can only be enabled (set active), not set to {toStatus}");
+        }
+    }
+}

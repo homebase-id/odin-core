@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Services.Admin;
 using Odin.Services.Admin.Tenants;
+using Odin.Services.Registry.PayloadMove;
+using Odin.Services.Registry;
 using Odin.Hosting.Controllers.Job;
 
 namespace Odin.Hosting.Controllers.Admin;
@@ -18,10 +20,12 @@ public class AdminController : ControllerBase
 {
     private const string AdminJobStateRouteName = "AdminJobStateRoute";
     private readonly ITenantAdmin _tenantAdmin;
+    private readonly PayloadMoveAdmin _payloadMoveAdmin;
 
-    public AdminController(ITenantAdmin tenantAdmin)
+    public AdminController(ITenantAdmin tenantAdmin, PayloadMoveAdmin payloadMoveAdmin)
     {
         _tenantAdmin = tenantAdmin;
+        _payloadMoveAdmin = payloadMoveAdmin;
     }
 
     //
@@ -111,7 +115,7 @@ public class AdminController : ControllerBase
     //
 
     [HttpPatch("tenants/{domain}/disable")]
-    public async Task<ActionResult> ResumeTenant(string domain)
+    public async Task<ActionResult> DisableTenant(string domain)
     {
         if (!await _tenantAdmin.TenantExists(domain))
         {
@@ -121,6 +125,52 @@ public class AdminController : ControllerBase
         await _tenantAdmin.DisableTenant(domain);
 
         return Ok();
+    }
+
+    //
+
+    /// <summary>
+    /// The tenant's payload move: its handoff and completion here if it was exported from this host, the
+    /// transfer's progress if it was imported into it.
+    /// </summary>
+    [HttpGet("tenants/{domain}/payload-move")]
+    public async Task<ActionResult<PayloadMoveReport>> GetPayloadMove(string domain)
+    {
+        var report = await _payloadMoveAdmin.GetAsync(domain);
+        return report == null ? NotFound() : report;
+    }
+
+    /// <summary>
+    /// Runs the tenant's payload transfer again from the newest file (what already arrived is skipped).
+    /// 404 if it has none here, 409 while a slice is running.
+    /// </summary>
+    [HttpPost("tenants/{domain}/payload-move/retry")]
+    public async Task<IActionResult> RetryPayloadMove(string domain)
+    {
+        return await _payloadMoveAdmin.RetryAsync(domain) switch
+        {
+            PayloadMoveRetryResult.Rearmed => Ok(),
+            PayloadMoveRetryResult.Running => Conflict(),
+            _ => NotFound()
+        };
+    }
+
+    //
+
+    /// <summary>
+    /// Sets the tenant's status and returns the previous one. 400 if the transition is not allowed.
+    /// </summary>
+    [HttpPatch("tenants/{domain}/status")]
+    public async Task<ActionResult<TenantStatusState>> SetTenantStatus(string domain, [FromBody] SetTenantStatusRequest request)
+    {
+        // A missing status is a 400 before we get here: [Required] on the property, [ApiController] on the class
+        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status!.Value, request.DisabledReason);
+        if (previous == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(previous);
     }
 
     //

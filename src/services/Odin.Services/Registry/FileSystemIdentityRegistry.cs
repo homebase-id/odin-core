@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.WebSockets;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -19,15 +21,18 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Storage.PubSub;
+using Odin.Core.Threading;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
+using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
@@ -51,6 +56,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     // the initial load and reconcile. Without it a reconcile could copy a not-yet-committed row
     // back over a field a writer set in memory a moment earlier.
     private readonly SemaphoreSlim _registryLock = new(1, 1);
+    // Serializes starting and stopping one identity's background services
+    private readonly KeyedAsyncLock _backgroundServiceGate = new();
     private IPubSubSubscription _registryChangeSubscription;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
@@ -228,10 +235,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         await CacheCertificateAsync(registration);
         await InitializeOdinContextCache(registration);
-        if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
-        {
-            await StartBackgroundServices(registration);
-        }
+        await EnsureBackgroundServicesMatchStatusAsync(registration.Id);
 
         return registration.FirstRunToken.GetValueOrDefault();
     }
@@ -242,6 +246,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
+            // Deleting purges the payloads, which a target may still be pulling after a move
+            await using (var guardScope = _serviceProvider.BeginLifetimeScope($"DeleteRegistrationGuard:{registration.PrimaryDomainName}"))
+            {
+                if (await guardScope.Resolve<PayloadMoveSource>().IsTransferPendingAsync(registration.Id))
+                {
+                    throw new OdinClientException(
+                        $"{domain} was exported and its payloads have not all reached the target yet; " +
+                        "it can be deleted once the target reports the transfer complete");
+                }
+            }
+
             long version;
             await _registryLock.WaitAsync();
             try
@@ -304,8 +319,19 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             throw new OdinSystemException("Copying registrations with S3 payloads is not supported yet.");
         }
 
-        var disabled = registration.Disabled;
-        await ToggleDisabled(domain, true);
+        // Pause for the copy: new requests get a 503 and this node stops the identity's background
+        // services; other nodes follow once they apply the change. An already disabled one is left as it is.
+        // This copies straight away rather than waiting for in-flight requests to finish (see
+        // TenantStatus.Paused), so a write already under way when the pause lands can still reach the copy.
+        var previous = registration.StatusState;
+        UnixTimeUtc? pausedForCopyAt = null;
+        if (registration.Status is TenantStatus.Active or TenantStatus.OutOfQuota)
+        {
+            await SetStatusAsync(domain, TenantStatus.Paused);
+            pausedForCopyAt = registration.StatusChangedAt;
+        }
+
+        var copied = false;
         try
         {
             var targetPath = Path.Combine(targetRootPath, domain);
@@ -338,11 +364,39 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
             }
 
+            copied = true;
             return targetPath;
         }
         finally
         {
-            await ToggleDisabled(domain, disabled);
+            await RestoreStatusAfterCopyAsync(domain, pausedForCopyAt, previous, throwOnFailure: copied);
+        }
+    }
+
+    private async Task RestoreStatusAfterCopyAsync(string domain, UnixTimeUtc? pausedForCopyAt, TenantStatusState previous, bool throwOnFailure)
+    {
+        if (pausedForCopyAt == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Only undo our own pause, recognised by its timestamp and checked under the registry lock:
+            // any status set during the copy, including pausing again, records a new timestamp and stays
+            await SetStatusCoreAsync(domain, previous.Status, previous.DisabledReason,
+                precondition: r => r.Status == TenantStatus.Paused && r.StatusChangedAt == pausedForCopyAt);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Could not restore {domain} to {status} after copying; it stays paused: {error}",
+                domain, previous.Status, e.Message);
+
+            // A failed copy's own exception is already on its way out; don't replace it
+            if (throwOnFailure)
+            {
+                throw;
+            }
         }
     }
 
@@ -418,6 +472,23 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return RegistrationStatus.Unknown;
     }
 
+    /// <summary>
+    /// For identity-import, which writes the registration row itself inside its own transaction on
+    /// <paramref name="systemDatabase"/>: marks it paused as of now and bumps the registry version in that
+    /// same transaction, so every running node's catch-up loads the identity, paused, once it commits.
+    /// </summary>
+    public static async Task MarkImportedRegistrationPausedAsync(SystemDatabase systemDatabase, Guid identityId)
+    {
+        var record = await systemDatabase.Registrations.GetAsync(identityId)
+                     ?? throw new InvalidOperationException($"There is no registration for identity {identityId}");
+        var state = new TenantStatusState(TenantStatus.Paused, null, UnixTimeUtc.Now());
+        // Superseded by the status in json; written as a mirror for nodes on older versions
+        record.disabled = state.Status == TenantStatus.Disabled;
+        record.json = RegistrationJsonMapper.ToJson(state);
+        await systemDatabase.Registrations.UpdateAsync(record);
+        await systemDatabase.Settings.BumpMonotonicAsync(RegistryVersionKey);
+    }
+
     private async Task<long> SaveRegistrationInternal(IdentityRegistration registration)
     {
         await using var scope = GetOrCreateMultiTenantScope(registration)
@@ -431,10 +502,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 primaryDomainName = registration.PrimaryDomainName.ToLower(),
                 email = registration.Email?.ToLower(),
                 firstRunToken = registration.FirstRunToken?.ToString(),
-                disabled = registration.Disabled,
+                // Superseded by the status in json; written as a mirror for nodes on older versions
+                disabled = registration.Status == TenantStatus.Disabled,
                 markedForDeletionDate = registration.MarkedForDeletionDate,
                 planId = registration.PlanId ?? "free",
-                enablePublicWebPresence = registration.EnablePublicWebPresence
+                enablePublicWebPresence = registration.EnablePublicWebPresence,
+                json = RegistrationJsonMapper.ToJson(registration)
             }));
 
         _logger.LogInformation("Wrote registration record for [{registrationId}] at registry version {version}",
@@ -461,22 +534,65 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(reg);
     }
 
-    public async Task<bool?> ToggleDisabled(string domain, bool disabled)
+    public Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null)
     {
-        bool? result = null;
+        return SetStatusCoreAsync(domain, status, reason, precondition: null);
+    }
+
+    /// <summary>
+    /// Sets the status. Setting the current status again still records a new <see cref="IdentityRegistration.StatusChangedAt"/>,
+    /// which is how a deliberate re-pause is told apart from an earlier pause (see <see cref="CopyRegistration"/>).
+    /// </summary>
+    /// <param name="precondition">Checked under the registry lock; when it fails nothing changes and the current state is returned</param>
+    private async Task<TenantStatusState> SetStatusCoreAsync(string domain, TenantStatus status, DisabledReason? reason,
+        Func<IdentityRegistration, bool> precondition)
+    {
+        reason = TenantStatusRules.NormalizeReason(status, reason);
+
+        TenantStatusState previous;
+        IdentityRegistration reg;
         long? version = null;
+        ExceptionDispatchInfo saveError = null;
+        var committed = false;
         await _registryLock.WaitAsync();
         try
         {
-            var reg = _trie.LookupExactName(domain);
-            if (reg != null)
+            reg = _trie.LookupExactName(domain);
+            if (reg == null)
             {
-                result = reg.Disabled;
-                if (reg.Disabled != disabled)
-                {
-                    reg.Disabled = disabled;
-                    version = await SaveRegistrationInternal(reg);
-                }
+                return null;
+            }
+
+            previous = reg.StatusState;
+            if (precondition != null && !precondition(reg))
+            {
+                return previous;
+            }
+
+            TenantStatusRules.Validate(reg.Status, reg.DisabledReason, status, reason);
+
+            reg.Status = status;
+            reg.DisabledReason = reason;
+            reg.StatusChangedAt = UnixTimeUtc.Now();
+            var versionBefore = Volatile.Read(ref _localVersion);
+            try
+            {
+                version = await SaveRegistrationInternal(reg);
+            }
+            catch (Exception e)
+            {
+                saveError = ExceptionDispatchInfo.Capture(e);
+
+                // The trie holds this object, and the save can fail before or after its commit. A raised
+                // local version proves the commit; otherwise ask the database.
+                committed = Volatile.Read(ref _localVersion) > versionBefore ||
+                            await RefreshStatusFromDatabaseAsync(reg, previous, e);
+            }
+
+            if (saveError == null)
+            {
+                _logger.LogInformation("Status of {domain} set to {status} (reason: {reason}), was {previous}",
+                    domain, status, reason, previous.Status);
             }
         }
         finally
@@ -484,8 +600,24 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             _registryLock.Release();
         }
 
+        if (saveError != null)
+        {
+            if (committed)
+            {
+                // A step after the commit failed: other nodes and this node's background services must
+                // still follow the committed status, even though the caller gets the error
+                await AnnounceCommittedChangeAfterFailureAsync(reg);
+            }
+
+            saveError.Throw();
+        }
+
         await AnnounceAsync(version, domain);
-        return result;
+
+        // Outside the registry lock: stopping waits for in-flight work, which must not stall other registry writes
+        await EnsureBackgroundServicesMatchStatusAsync(reg.Id);
+
+        return previous;
     }
 
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
@@ -586,31 +718,55 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // version newer than the rows we hold and silently skip that change.
             var version = await ReadRegistryVersionAsync(systemDatabase);
             var registrations = await systemDatabase.Registrations.GetAllAsync();
-            var allLoaded = true;
+            int loaded = 0, alreadyLoaded = 0, failed = 0;
             foreach (var registrationRecord in registrations)
             {
                 // A reconcile that queued behind an early announcement may already have loaded it.
                 if (_cache.ContainsKey(registrationRecord.identityId))
                 {
+                    alreadyLoaded++;
                     continue;
                 }
 
-                allLoaded &= await LoadRegistrationRecordAsync(registrationRecord);
+                if (await LoadRegistrationRecordAsync(registrationRecord))
+                {
+                    loaded++;
+                }
+                else
+                {
+                    failed++;
+                }
             }
 
             // Only claim the version if every tenant actually came up; otherwise the next
-            // announcement or reconnect re-check retries the ones that failed.
-            if (allLoaded)
+            // catch-up (or announcement, or reconnect) retries the ones that failed.
+            if (failed == 0)
             {
                 RaiseLocalVersion(version);
             }
 
-            _logger.LogInformation("Registry loaded at version {version} (all loaded: {allLoaded})", version, allLoaded);
+            // Each failure logs its own error; this line is the aggregate, so a host serving nothing says so (#1701).
+            _logger.Log(LoadSummaryLevel(loaded, alreadyLoaded, failed),
+                "Registry loaded at version {version}: {loaded} loaded, {alreadyLoaded} already loaded, {failed} failed " +
+                "of {total} registrations", version, loaded, alreadyLoaded, failed, registrations.Count);
         }
         finally
         {
             _registryLock.Release();
         }
+    }
+
+    /// <summary>
+    /// The level of the load summary: Error when registrations exist and none is serving, Warning when some failed.
+    /// </summary>
+    internal static LogLevel LoadSummaryLevel(int loaded, int alreadyLoaded, int failed)
+    {
+        if (failed == 0)
+        {
+            return LogLevel.Information;
+        }
+
+        return loaded + alreadyLoaded == 0 ? LogLevel.Error : LogLevel.Warning;
     }
 
     /// <summary>
@@ -662,10 +818,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             await CacheCertificateAsync(registration);
             await InitializeOdinContextCache(registration);
 
-            if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
-            {
-                await StartBackgroundServices(registration);
-            }
+            // A paused or disabled identity loads without its background services
+            await EnsureBackgroundServicesMatchStatusAsync(registration.Id);
         }
         catch (Exception e)
         {
@@ -717,7 +871,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// Starts listening for registry version announcements from other nodes, and re-checks the
     /// version whenever the Redis connection is restored. Call before <see cref="LoadRegistrations"/>:
     /// an announcement arriving mid-load is either at or below the version load reads, and dropped,
-    /// or above it, and reconciled after, so there is no startup window to close with a timer.
+    /// or above it, and reconciled after, so the ordering alone closes the startup window.
     /// </summary>
     public async Task SubscribeToRegistryChangesAsync()
     {
@@ -732,8 +886,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (_config.Redis.Enabled)
         {
             // Pub/sub has no replay: anything announced while this connection was down is gone.
-            // The version row says whether we missed something, and this is the only moment we
-            // could have, so re-check it here rather than on a timer.
+            // The version row says whether we missed something, so re-check it the moment we are
+            // back rather than waiting for the next CatchUpAsync.
             _serviceProvider.Resolve<IConnectionMultiplexer>().ConnectionRestored += OnRedisConnectionRestored;
         }
 
@@ -759,6 +913,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 _logger.LogError(ex, "Registry re-check after redis reconnect failed: {error}", ex.Message);
             }
         });
+    }
+
+    /// <inheritdoc/>
+    public Task CatchUpAsync()
+    {
+        return ReconcileWithDatabaseAsync(null, "periodic catch-up");
     }
 
     private async Task OnRegistryVersionAnnouncedAsync(JsonEnvelope envelope)
@@ -803,12 +963,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
             catch (Exception e)
             {
-                // The change is committed and applied here, but no other node will hear about it
-                // until the next registry change anywhere, a redis reconnect, or a restart. That is
-                // the one gap this design accepts, and it has to be findable in the logs.
+                // The change is committed and applied here; other nodes pick it up on their next
+                // CatchUpAsync instead of straight away, so it has to be findable in the logs.
                 _logger.LogError(e,
                     "Could not publish registry version {version} after {domain} changed; other nodes stay stale " +
-                    "until the next registry change, a redis reconnect, or a restart: {error}",
+                    "until their next periodic catch-up: {error}",
                     version, primaryDomain, e.Message);
                 return;
             }
@@ -817,14 +976,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
 
     /// <summary>
-    /// Brings the in-memory registry up to the database, which is the source of truth. Reads the
-    /// version before the rows for the same reason as <see cref="LoadRegistrations"/>. Single-flight:
-    /// concurrent announcements and reconnect events collapse into one pass.
-    /// </summary>
-    /// <summary>
     /// Brings the in-memory registry up to the database if the database is known (or suspected)
     /// to be past <paramref name="floor"/>. Announcements pass the version they carry; a redis
-    /// reconnect passes nothing and lets the database say. The floor is checked again once the
+    /// reconnect or the periodic catch-up passes nothing and lets the database say. The floor is checked again once the
     /// lock is held, before any scope or query, so a burst of announcements collapses into one
     /// pass and the rest return without touching the database.
     /// </summary>
@@ -939,13 +1093,16 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await UnloadRegistration(registration);
     }
 
-    private static void CopyFields(IdentityRegistration target, RegistrationsRecord record)
+    private void CopyFields(IdentityRegistration target, RegistrationsRecord record)
     {
         target.PrimaryDomainName = record.primaryDomainName;
         target.Email = record.email;
         target.FirstRunToken = string.IsNullOrEmpty(record.firstRunToken) ? null : Guid.Parse(record.firstRunToken);
         target.PlanId = record.planId;
-        target.Disabled = record.disabled;
+        if (!RegistrationJsonMapper.Apply(target, record.disabled, record.json))
+        {
+            _logger.LogWarning("Registration {id} has unreadable json; its status was taken from the disabled column", record.identityId);
+        }
         target.EnablePublicWebPresence = record.enablePublicWebPresence;
         target.MarkedForDeletionDate = record.markedForDeletionDate;
         target.Created = record.created;
@@ -966,13 +1123,101 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         // The trie holds this same object, so the field copy is already visible to lookups.
+        var previousStatus = known.Status;
+        var previousReason = known.DisabledReason;
         CopyFields(known, record);
+        if (known.Status != previousStatus || known.DisabledReason != previousReason)
+        {
+            // Normal when another node changed it. A node running a version without the json column
+            // resets the status to what its disabled flag says on every save, so make that visible.
+            var byOldNode = string.IsNullOrEmpty(record.json);
+            _logger.Log(byOldNode ? LogLevel.Warning : LogLevel.Information,
+                "Status of {domain} changed from {previous} ({previousReason}) to {status} ({reason}) by {who}",
+                known.PrimaryDomainName, previousStatus, previousReason, known.Status, known.DisabledReason,
+                byOldNode ? "a node running a version without registration json" : "another node");
+        }
 
         // TenantContext is a per-scope singleton with its own copy of FirstRunToken, Email and the
         // public-web-presence flag; the local write path refreshes it in CacheIdentityAsync, and a
         // remote change must too or those readers stay stale here until restart.
         var scope = _serviceProvider.LookupTenantScope(known.PrimaryDomainName);
         scope?.Resolve<TenantContext>().Update(CreateTenantContext(known.PrimaryDomainName));
+
+        // Another node may have paused or resumed this identity. We hold the registry lock here, and
+        // stopping waits for in-flight work, so converge in the background instead of stalling the reconcile.
+        var identityId = known.Id;
+        if (!_config.BackgroundServices.TenantBackgroundServicesEnabled ||
+            TenantStatusRules.RunsBackgroundServices(known.Status) == AreBackgroundServicesRunning(identityId))
+        {
+            return;
+        }
+
+        _ = Task.Run(() => ConvergeBackgroundServicesAsync(identityId));
+    }
+
+    /// <summary>
+    /// Test seam: runs at the start of each attempt in <see cref="ConvergeBackgroundServicesAsync"/>,
+    /// so a test can make an attempt fail and prove it is retried.
+    /// </summary>
+    internal Func<Guid, Task> BeforeAligningBackgroundServices { get; set; }
+
+    /// <summary>
+    /// Wait before the first retry of a failed alignment; doubles per attempt up to five minutes.
+    /// Settable so a test does not have to wait out the production delay.
+    /// </summary>
+    internal TimeSpan AlignRetryBaseDelay { get; set; } = TimeSpan.FromSeconds(5);
+
+    private static readonly TimeSpan AlignRetryMaxDelay = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Aligns this node's background services with a status another node set, and keeps retrying
+    /// until that succeeds. A single attempt that failed used to be logged and dropped, leaving this
+    /// node wrong until the next status change or a restart: a failed pause kept workers running on a
+    /// paused identity, a failed resume left an active one with none.
+    /// <para>
+    /// It never gives up. A node that cannot honour a pause is exactly what has to stay visible, so
+    /// every failure logs an Error, backing off to one attempt every five minutes. Each attempt re-reads
+    /// the status under the per-identity gate, so a retry converges on the latest status, not the one
+    /// that failed, and two loops for the same identity are harmless: once one succeeds, the other finds
+    /// nothing left to do. It ends on success, when the identity is unloaded (the attempt returns
+    /// without work), or when the host shuts down.
+    /// </para>
+    /// </summary>
+    private async Task ConvergeBackgroundServicesAsync(Guid identityId)
+    {
+        var delay = AlignRetryBaseDelay;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                if (BeforeAligningBackgroundServices != null)
+                {
+                    await BeforeAligningBackgroundServices(identityId);
+                }
+
+                await EnsureBackgroundServicesMatchStatusAsync(identityId);
+                if (attempt > 1)
+                {
+                    _logger.LogInformation("Aligned background services of {id} with its status after {attempt} attempts",
+                        identityId, attempt);
+                }
+
+                return;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The host is shutting down
+                return;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Could not align background services of {id} with its status (attempt {attempt}); " +
+                                    "retrying in {delay}: {error}", identityId, attempt, delay, e.Message);
+            }
+
+            await Task.Delay(delay);
+            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, AlignRetryMaxDelay.Ticks));
+        }
     }
 
     private static async Task<long> ReadRegistryVersionAsync(SystemDatabase systemDatabase)
@@ -1016,8 +1261,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task UnloadRegistration(IdentityRegistration registration)
     {
+        // Out of the cache first, so a concurrent EnsureBackgroundServicesMatchStatusAsync finds nothing to start
         _cache.TryRemove(registration.Id, out _);
-        await StopBackgroundServices(registration);
+
+        using (await _backgroundServiceGate.LockAsync(registration.Id.ToString()))
+        {
+            await StopBackgroundServices(registration);
+        }
+
         RemoveMultiTenantScope(registration.PrimaryDomainName);
     }
 
@@ -1158,10 +1409,164 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     //
 
-    private async Task StartBackgroundServices(IdentityRegistration registration)
+    private async Task AnnounceCommittedChangeAfterFailureAsync(IdentityRegistration reg)
     {
-        var scope = _serviceProvider.GetTenantScope(registration.PrimaryDomainName);
-        await scope.StartTenantBackgroundServices();
+        try
+        {
+            long version;
+            await using (var scope = _serviceProvider.BeginLifetimeScope("AnnounceAfterFailure"))
+            {
+                version = await ReadRegistryVersionAsync(scope.Resolve<SystemDatabase>());
+            }
+
+            await AnnounceAsync(version, reg.PrimaryDomainName);
+            await EnsureBackgroundServicesMatchStatusAsync(reg.Id);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Could not propagate the committed status of {domain} after a failed save: {error}",
+                reg.PrimaryDomainName, e.Message);
+        }
+    }
+
+    // Caller holds _registryLock. Returns true if the database holds the status the failed save tried to write.
+    private async Task<bool> RefreshStatusFromDatabaseAsync(IdentityRegistration reg, TenantStatusState fallback, Exception saveError)
+    {
+        var attempted = reg.StatusState;
+        try
+        {
+            RegistrationsRecord record;
+            await using (var scope = _serviceProvider.BeginLifetimeScope("RefreshStatus"))
+            {
+                record = await scope.Resolve<SystemDatabase>().Registrations.GetAsync(reg.Id);
+            }
+
+            if (record != null)
+            {
+                RegistrationJsonMapper.Apply(reg, record.disabled, record.json);
+                _logger.LogWarning(saveError, "Saving the status of {domain} failed; status is now {status} as read back from the database",
+                    reg.PrimaryDomainName, reg.Status);
+                return reg.StatusChangedAt == attempted.StatusChangedAt && reg.Status == attempted.Status;
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Could not read back the status of {domain} after a failed save: {error}", reg.PrimaryDomainName, e.Message);
+        }
+
+        // The local version did not move and the database is unreachable: the commit most likely did not happen
+        reg.Status = fallback.Status;
+        reg.DisabledReason = fallback.DisabledReason;
+        reg.StatusChangedAt = fallback.StatusChangedAt;
+        return false;
+    }
+
+    public TenantStatus? GetStatus(Guid identityId)
+    {
+        return _cache.GetValueOrDefault(identityId)?.Status;
+    }
+
+    public IdentityRegistration Get(Guid identityId)
+    {
+        return _cache.GetValueOrDefault(identityId);
+    }
+
+    /// <summary>
+    /// Whether this node is running the identity's background services. For diagnostics and tests.
+    /// </summary>
+    public bool AreBackgroundServicesRunning(Guid identityId)
+    {
+        return _cache.TryGetValue(identityId, out var registration) &&
+               _serviceProvider.LookupTenantScope(registration.PrimaryDomainName)?.Resolve<IBackgroundServiceManager>().IsRunning == true;
+    }
+
+    /// <summary>
+    /// Starts or stops the identity's background services so they match its current status: running
+    /// when active or out of quota, stopped when paused or disabled. Idempotent, and serialized per
+    /// identity; it reads the status after taking the gate, so concurrent transitions converge on the
+    /// last one. Stopping uses <see cref="IBackgroundServiceManager.StopAllAsync"/> rather than
+    /// <see cref="IBackgroundServiceManager.ShutdownAsync"/>, which cannot be undone.
+    /// </summary>
+    private async Task EnsureBackgroundServicesMatchStatusAsync(Guid identityId)
+    {
+        if (!_config.BackgroundServices.TenantBackgroundServicesEnabled)
+        {
+            return;
+        }
+
+        using (await _backgroundServiceGate.LockAsync(identityId.ToString()))
+        {
+            var registration = _cache.GetValueOrDefault(identityId);
+            if (registration == null)
+            {
+                // Unloaded meanwhile
+                return;
+            }
+
+            var scope = _serviceProvider.LookupTenantScope(registration.PrimaryDomainName);
+            if (scope == null)
+            {
+                return;
+            }
+
+            var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+            var shouldRun = TenantStatusRules.RunsBackgroundServices(registration.Status);
+            var isRunning = backgroundServiceManager.IsRunning;
+            if (shouldRun && isRunning)
+            {
+                return;
+            }
+
+            if (shouldRun)
+            {
+                try
+                {
+                    await scope.StartTenantBackgroundServices();
+                }
+                catch
+                {
+                    // Leave nothing half-started, so the next attempt can start them all again
+                    await backgroundServiceManager.StopAllAsync();
+                    throw;
+                }
+
+                _logger.LogInformation("Started background services for {domain} ({status})",
+                    registration.PrimaryDomainName, registration.Status);
+            }
+            else
+            {
+                // Also when nothing was started (a paused identity loaded this way): it tells the manager
+                // its services are stopped on purpose, so work notifications return instead of waiting
+                await backgroundServiceManager.StopAllAsync();
+
+                // Open sockets were accepted before the status changed and can still issue commands
+                // (e.g. process the inbox); the middleware refuses their reconnects
+                await CloseClientSocketsAsync(scope, registration);
+
+                if (isRunning)
+                {
+                    _logger.LogInformation("Stopped background services for {domain} ({status})",
+                        registration.PrimaryDomainName, registration.Status);
+                }
+            }
+        }
+    }
+
+    //
+
+    private async Task CloseClientSocketsAsync(ILifetimeScope scope, IdentityRegistration registration)
+    {
+        var message = $"identity is {registration.Status}";
+        var counts = await Task.WhenAll(
+            scope.Resolve<SharedDeviceSocketCollection<AppNotificationHandler>>()
+                .RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, message),
+            scope.Resolve<SharedDeviceSocketCollection<PeerAppNotificationHandler>>()
+                .RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, message));
+        var closed = counts.Sum();
+        if (closed > 0)
+        {
+            _logger.LogInformation("Closed {count} client sockets of {domain} ({status})", closed, registration.PrimaryDomainName, registration.Status);
+        }
     }
 
     //
