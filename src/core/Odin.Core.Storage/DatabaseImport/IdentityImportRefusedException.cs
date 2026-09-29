@@ -10,3 +10,8 @@ namespace Odin.Core.Storage.DatabaseImport;
 /// target does not accept it (a failed precondition). Anything else the import throws is a fault.
 /// </summary>
 public class IdentityImportRefusedException(string message, Exception? inner = null) : OdinException(message, inner!);
+
+/// <summary>
+/// The export was refused and no file was written: something in the identity cannot be carried as it is.
+/// </summary>
+public class IdentityExportRefusedException(string message, Exception? inner = null) : OdinException(message, inner!);

@@ -70,6 +70,11 @@ Decided up front, not open:
   is embedded as text inside JSON blobs (`hdrFileMetaData`, `hdrAppData`,
   `senderId`), so a rename is a content rewrite, not a column update.
 - Merging into a target that already holds this identity. Import refuses.
+- **Email.** Not exported yet: the mailbox and its messages (in the mail server, not in Homebase),
+  the mailbox account and settings, and the DKIM signing keys. The CLI leaves the `DkimKeys` rows
+  out of the file (`leaveOutTables`, in `IdentityJsonTransfer`) and warns for each key. The email setup record and the
+  email drive are ordinary identity data and do move, so a moved identity can look set up for email
+  on a target where it has no mailbox and no keys. See `agents/identity-move/README.md`.
 - Encrypting the file. See **Security**; this is the caller's responsibility and
   is documented, not implemented.
 
@@ -721,23 +726,22 @@ Therefore:
   in the CLI output rather than left implicit. If we later want it built in, the
   natural seam is an `age`-style recipient passed to the export command.
 
-**One exported secret is not portable, and it is the only such case.**
-`DkimKeys.privateKey` is AES-CBC ciphertext under `Email:DkimStorageKey`
-(`DkimStore.cs`), which is a **server-wide** config value rather than anything
-derived from the identity. Every other secret in the file is either plaintext or
-encrypted under a key that travels with the identity, so it survives the move
-untouched. DKIM does not: import replays the ciphertext faithfully, but a target
-configured with a different `Email:DkimStorageKey` gets rows that are intact and
-undecryptable, and `DkimStore` throws the next time the identity signs mail.
+**Two secrets are kept under a host's key rather than the identity's, and clusters' keys differ by
+design.** `Certificates.privateKey` is AES-CBC ciphertext under `CertificateRenewal:StorageKey`
+(`CertificateStore.cs`), and `DkimKeys.privateKey` under `Email:DkimStorageKey` (`DkimStore.cs`).
+Every other secret in the file is plaintext or encrypted under a key that travels with the identity.
+Replayed as stored, the certificate would be undecryptable on another cluster: the target would fail
+every TLS handshake for the identity, and renewal, which loads the stored certificate first, would
+fail the same way instead of issuing a new one.
 
-The importer cannot detect this. It never holds the storage key, and the key lives
-in `Odin.Services` configuration, which `Odin.Core.Storage` must not reference. So
-this is documented rather than checked. The operator has two ways out: configure
-the target with the same `Email:DkimStorageKey`, or rotate the identity's DKIM keys
-on the target and republish the DNS TXT records, which `MailActivationService`
-already does. Deliberately not solved here, because both remedies are operational
-and the alternative, re-encrypting the column during import, would drag the storage
-key down into the storage layer.
+So the host layer re-keys them with a `RowRewriter` the storage layer calls on each row
+(`IdentityKeyMaterial` in the CLI, over `CertificateStore.WithKeyInTheClear` / `WithKeyEncrypted`;
+the storage layer never holds a storage key):
+
+- **Certificate:** the export decrypts the key with the source's key and writes it in the clear;
+  the import checks that it fits its certificate and encrypts it with the target's key. Format
+  version 3; older files are refused.
+- **DKIM:** left out of the export, because email does not move yet (see **Non-goals**).
 
 ## Open follow-ups
 

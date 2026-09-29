@@ -342,9 +342,14 @@ top, which is cheap because objects already present are skipped.
    fallback.
 2. **`OdinRetryLaterException` with 404** passes through `ExceptionHandlingMiddleware` as 404 with
    `Retry-After`.
-3. **The CDN honours `Cache-Control: no-store` on a 404.** If it does not, public payloads need a
-   different answer during the transfer. (Ops.)
-4. **Every host has a provisioning domain with a certificate**, reachable from the other cluster. (Ops.)
+3. **The CDN honours `Cache-Control: no-store` on a 404.** Answered by ops, 2026-09-29: the CDN (a
+   Cloudflare Worker, homebase-id/cloudflare-cdn) caches only 200 and 206 and ignores the origin's
+   `Cache-Control` altogether, so a 404 always reaches the origin. `no-store` is harmless and still
+   keeps browsers and other caches from holding the absence. A cached 200 stays valid across a move:
+   an object's bytes are the same on both hosts.
+4. **Every host has a provisioning domain with a certificate**, reachable from the other cluster.
+   Answered by ops, 2026-09-29: `createme.na.`, `createme.eu.` and `createme.ravenhosting.cloud` reach
+   each other over public HTTPS in every direction.
 5. **Whether the deployed S3 provider throttles with 429 or 503, and sends `Retry-After`.** The design
    handles both; this only tunes the backoff.
 
