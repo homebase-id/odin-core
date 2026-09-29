@@ -263,6 +263,7 @@ public static class SystemServices
 
         services.AddTransient<ITenantAdmin, TenantAdmin>();
         services.AddTransient<PayloadMoveSource>();
+        services.AddTransient<PayloadMoveAdmin>();
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 

@@ -160,6 +160,45 @@ public class PayloadMoveTests
         }
     }
 
+    [Test]
+    public async Task TheAdminApiShowsBothSidesWithoutTheSecrets()
+    {
+        var domain = TestIdentities.Frodo.OdinId.DomainName;
+        var identityId = IdOf(TestIdentities.Frodo);
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+
+        var none = await SendAdminAsync(HttpMethod.Get, $"tenants/{TestIdentities.Samwise.OdinId.DomainName}/payload-move");
+        var noneReport = OdinSystemSerializer.Deserialize<PayloadMoveReport>(await none.Content.ReadAsStringAsync())!;
+        Assert.That(noneReport.Source, Is.Null);
+        Assert.That(noneReport.Target, Is.Null);
+
+        await MintAsync(); // as the source
+        await PayloadMoveJob.ScheduleAsync(jobManager, identityId, "https://127.0.0.1:1", "the-secret-token", 7); // and the target
+        try
+        {
+            var response = await SendAdminAsync(HttpMethod.Get, $"tenants/{domain}/payload-move");
+            var json = await response.Content.ReadAsStringAsync();
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), json);
+            Assert.That(json, Does.Not.Contain("the-secret-token"));
+
+            var report = OdinSystemSerializer.Deserialize<PayloadMoveReport>(json)!;
+            Assert.That(report.Source!.Pending, Is.True);
+            Assert.That(report.Source.RedeemedAt, Is.Null);
+            Assert.That(report.Target!.Progress.StartRowId, Is.EqualTo(7));
+            Assert.That(report.Target.Progress.BaseUrl, Is.EqualTo("https://127.0.0.1:1"));
+
+            var retry = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
+            Assert.That(retry.StatusCode, Is.AnyOf(HttpStatusCode.OK, HttpStatusCode.Conflict), "conflict only if the runner holds it right now");
+        }
+        finally
+        {
+            await jobManager.DeleteJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
+        }
+
+        var noJob = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
+        Assert.That(noJob.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
     //
 
     private async Task<(DriveMainIndexRecord file, PayloadDescriptor payload)> UploadAsync()
