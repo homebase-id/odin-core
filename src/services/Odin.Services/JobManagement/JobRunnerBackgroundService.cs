@@ -50,11 +50,16 @@ public class JobRunnerBackgroundService(
     
     //
     
+    // A job can be written by something that cannot wake this runner: the import command line (the payload
+    // move it schedules) or another node. So look at the table at least this often, however far off the next
+    // known job is.
+    public static readonly TimeSpan MaxPollInterval = TimeSpan.FromMinutes(1);
+
     private static TimeSpan CalculateSleepDuration(long? nextRun)
     {
         if (nextRun == null)
         {
-            return MaxSleepDuration;
+            return MaxPollInterval;
         }
         
         var now = DateTimeOffset.Now;
@@ -66,7 +71,7 @@ public class JobRunnerBackgroundService(
         }
 
         var duration = nextRunTime - now;
-        return duration > MaxSleepDuration ? MaxSleepDuration : duration;
+        return duration > MaxPollInterval ? MaxPollInterval : duration;
     }
     
     //

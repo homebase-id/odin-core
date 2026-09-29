@@ -12,7 +12,9 @@ using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Hosting.Cli.Commands;
 using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
+using Odin.Services.Background;
 using Odin.Services.Configuration;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Odin.Services.Util;
@@ -49,6 +51,9 @@ public class CommandLine
             cb =>
             {
                 cb.ConfigureSystemServices(_config);
+                cb.RegisterType<NothingToWakeNotifier<JobRunnerBackgroundService>>()
+                    .As<IBackgroundServiceNotifier<JobRunnerBackgroundService>>()
+                    .SingleInstance();
             });
         _serviceProvider = _serviceProviders.ServiceProvider;
         _multiTenantContainer = _serviceProviders.MultiTenantContainer;
@@ -296,9 +301,8 @@ public class CommandLine
         // and requests that were in flight have finished. The export refuses until then and
         // says how long is left.
         //
-        // S3 PAYLOADS ONLY. Payloads are not in the file and move separately, which today
-        // means a copy between S3 buckets, so a disk-based host is refused outright. See
-        // IdentityJsonTransfer.PayloadsAreOnS3.
+        // Payloads are not in the file: the target pulls them from this host afterwards, which
+        // needs PayloadMove:SourceEnabled here. The file carries where and a single-use token.
         //
         // The file contains key material; see the warning it prints.
         //
@@ -334,9 +338,8 @@ public class CommandLine
         // matches. Dry run unless "commit" is passed. The target hosts may keep running: the
         // identity lands paused, and every node loads it within Registry:CatchUpIntervalSeconds.
         // Resume it once DNS points at the target. A rerun after a failed import clears what
-        // the failed one left. Like export, the target host must keep payloads on S3, since
-        // that is the only place the payloads can be copied to. See
-        // IdentityJsonTransfer.PayloadsAreOnS3.
+        // the failed one left. The identity's payloads then transfer from the source in the
+        // background (PayloadMoveJob), starting at once, paused or not.
         //
         // examples:
         //   dotnet run -- identity-import /path/to/frodo.json commit
