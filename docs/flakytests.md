@@ -132,6 +132,10 @@ identity JSON export, #1665). The change touches the export/import, the CLI and
 `ScopedTransaction.DisposeAsync`, not the job manager. The machine was heavily loaded (every test
 project in parallel, dev servers up). The test alone then passed 5/5.
 
+**Seen again 2026-09-29** (local, Linux, a focused `JobManagerTests` run on the payload move branch,
+which added an orphan-rescue step to the same clean-up service). Not reproduced after: 10/10 alone and
+5/5 for the whole class, with the change and without it (stashed).
+
 ---
 
 ## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
