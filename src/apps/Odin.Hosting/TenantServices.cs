@@ -67,6 +67,7 @@ using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.PublicPage.Posts;
@@ -277,6 +278,7 @@ public static class TenantServices
             .AsSelf().SingleInstance();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
+        cb.RegisterType<PayloadMoveArrivals>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
         cb.RegisterType<InboxStorageManager>().InstancePerLifetimeScope();
         // cb.RegisterType<OrphanTestUtil>().InstancePerLifetimeScope();

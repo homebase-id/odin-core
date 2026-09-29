@@ -333,26 +333,6 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
 
     //
 
-    // True if the identity has a job of this type that has not finished (scheduled, or being run)
-    public async Task<bool> HasUnfinishedJobAsync(Guid identityId, string jobType)
-    {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-        cmd.CommandText =
-            """
-            SELECT COUNT(*) FROM jobs
-            WHERE identityId = @identityId AND jobType = @jobType AND state IN (@scheduled, @preflight, @running);
-            """;
-        cmd.AddParameter("@identityId", DbType.Binary, identityId);
-        cmd.AddParameter("@jobType", DbType.String, jobType);
-        cmd.AddParameter("@scheduled", DbType.Int32, (int)JobState.Scheduled);
-        cmd.AddParameter("@preflight", DbType.Int32, (int)JobState.Preflight);
-        cmd.AddParameter("@running", DbType.Int32, (int)JobState.Running);
-        return Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
-    }
-
-    //
-
     // Puts a job that is stuck in Preflight or Running back in the schedule, due now, but only if the row
     // has not changed since the caller read it: a live worker that meanwhile finished or rescheduled the job
     // wins, and so does another node doing the same rescue.
