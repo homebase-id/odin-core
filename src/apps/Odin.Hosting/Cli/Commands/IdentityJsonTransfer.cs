@@ -167,7 +167,9 @@ public static class IdentityJsonTransfer
 
         // A fresh identity has version -1 until its per-identity migrations run. Bring the
         // target to the latest schema before comparing table versions, exactly as
-        // Sqlite2Pg.ImportIdentityAsync does.
+        // Sqlite2Pg.ImportIdentityAsync does. The system database too: a target host that has
+        // never started has none yet, and on one that runs this is a no-op (the host migrated it).
+        await targetSystemDatabase.MigrateDatabaseAsync();
         await targetScope.Resolve<IdentityMigrator>().MigrateAsync();
 
         // The target hosts keep running and pick the identity up from the database. It lands paused
@@ -184,8 +186,18 @@ public static class IdentityJsonTransfer
         }
 
         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        var result = await IdentityJsonImporter.ImportAsync(
-            logger, stream, targetSystemDatabase, targetIdentityDatabase, commit, beforeCommit: LandPausedAsync);
+        ImportResult result;
+        try
+        {
+            result = await IdentityJsonImporter.ImportAsync(
+                logger, stream, targetSystemDatabase, targetIdentityDatabase, commit, beforeCommit: LandPausedAsync);
+        }
+        catch (InvalidOperationException e)
+        {
+            // The importer's refusals (a failed precondition, an unreadable file); nothing was written
+            logger.LogError("{message}", e.Message);
+            return false;
+        }
 
         logger.LogInformation("Imported {rows} rows for {domain} (commit: {commit})",
             result.RowsImported, result.Header.Domain, commit);
