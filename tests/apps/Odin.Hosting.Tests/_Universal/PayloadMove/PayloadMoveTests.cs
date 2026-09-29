@@ -134,8 +134,13 @@ public class PayloadMoveTests
         var (file, payload, targetDrive) = await UploadWithDriveAsync();
         var identityId = IdOf(TestIdentities.Frodo);
         var config = _scaffold.Services.GetRequiredService<OdinConfiguration>();
-        System.IO.File.Delete(new TenantPathManager(config, identityId)
-            .GetPayloadDirectoryAndFileName(file.driveId, file.fileId, payload.Key, payload.Uid));
+        // Through the identity's own store: on disk here, on S3 under RUN_S3_TESTS
+        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
+        await using (var scope = container.GetTenantScope(TestIdentities.Frodo.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests:delete"))
+        {
+            await scope.Resolve<LongTermPayloadStore>().DeleteAsync(new TenantPathManager(config, identityId)
+                .GetPayloadDirectoryAndFileName(file.driveId, file.fileId, payload.Key, payload.Uid));
+        }
         var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var fileId = new ExternalFileIdentifier { FileId = file.fileId, TargetDrive = targetDrive };
 
