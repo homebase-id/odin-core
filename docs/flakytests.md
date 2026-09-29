@@ -127,6 +127,11 @@ it does not wait for.
 change touches only the link extractor and its controllers, which the job manager doesn't reach.
 The test alone then passed 5/5.
 
+**Seen again 2026-09-29** (local, Linux, full `dotnet test ./odin-core.sln`, while finishing the
+identity JSON export, #1665). The change touches the export/import, the CLI and
+`ScopedTransaction.DisposeAsync`, not the job manager. The machine was heavily loaded (every test
+project in parallel, dev servers up). The test alone then passed 5/5.
+
 ---
 
 ## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`

@@ -460,6 +460,23 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return RegistrationStatus.Unknown;
     }
 
+    /// <summary>
+    /// For identity-import, which writes the registration row itself inside its own transaction on
+    /// <paramref name="systemDatabase"/>: marks it paused as of now and bumps the registry version in that
+    /// same transaction, so every running node's catch-up loads the identity, paused, once it commits.
+    /// </summary>
+    public static async Task MarkImportedRegistrationPausedAsync(SystemDatabase systemDatabase, Guid identityId)
+    {
+        var record = await systemDatabase.Registrations.GetAsync(identityId)
+                     ?? throw new InvalidOperationException($"There is no registration for identity {identityId}");
+        var state = new TenantStatusState(TenantStatus.Paused, null, UnixTimeUtc.Now());
+        // Superseded by the status in json; written as a mirror for nodes on older versions
+        record.disabled = state.Status == TenantStatus.Disabled;
+        record.json = RegistrationJsonMapper.ToJson(state);
+        await systemDatabase.Registrations.UpdateAsync(record);
+        await systemDatabase.Settings.BumpMonotonicAsync(RegistryVersionKey);
+    }
+
     private async Task<long> SaveRegistrationInternal(IdentityRegistration registration)
     {
         await using var scope = GetOrCreateMultiTenantScope(registration)
