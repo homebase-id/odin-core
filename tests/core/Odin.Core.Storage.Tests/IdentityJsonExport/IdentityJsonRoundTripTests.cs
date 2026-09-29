@@ -60,7 +60,7 @@ public class IdentityJsonRoundTripTests
         GC.Collect();
     }
 
-    private async Task<MemoryStream> SeedSourceAndExportAsync(DatabaseType sourceType, RowRewriter rewriteRow = null)
+    private async Task<MemoryStream> SeedSourceAndExportAsync(DatabaseType sourceType)
     {
         _sourceScope = await _sourceServices.RegisterServicesAsync(sourceType, _sourceTempFolder, _identityId);
         var sys = _sourceScope.Resolve<SystemDatabase>();
@@ -73,52 +73,51 @@ public class IdentityJsonRoundTripTests
         var stream = new MemoryStream();
         await IdentityJsonExporter.ExportAsync(
             stream, _identityId, IdentityDomain, sys, id,
-            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true, rewriteRow: rewriteRow);
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
         stream.Position = 0;
         return stream;
     }
 
+    private static readonly RowRewriter RewriteCertificateKey = (_, _, record) =>
+        record is CertificatesRecord c ? c with { privateKey = "rewritten" } : record;
+
     [Test]
-    public async Task Export_WritesWhatTheRewriterReturnsAndLeavesOutWhatItDrops()
+    public async Task Export_WritesWhatTheRewriterReturnsAndLeavesOutTheTablesItIsTold()
     {
-        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite, (db, table, record) => (db, table, record) switch
-        {
-            (IdentityExportFile.DbSystem, "DkimKeys", _) => null,
-            (IdentityExportFile.DbSystem, "Certificates", CertificatesRecord c) => c with { privateKey = "rewritten on export" },
-            _ => record
-        });
+        _sourceScope = await _sourceServices.RegisterServicesAsync(DatabaseType.Sqlite, _sourceTempFolder, _identityId);
+        var sys = _sourceScope.Resolve<SystemDatabase>();
+        var id = _sourceScope.Resolve<IdentityDatabase>();
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
+        await DataImporterSeedHelper.SeedAllIdentityTablesAsync(id);
+        var stream = new MemoryStream();
+        await IdentityJsonExporter.ExportAsync(stream, _identityId, IdentityDomain, sys, id,
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true,
+            rewriteRow: RewriteCertificateKey, leaveOutTables: new HashSet<string> { "DkimKeys" });
+        stream.Position = 0;
+
         _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
         var tgtSys = _targetScope.Resolve<SystemDatabase>();
         var logger = _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
-
         await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, _targetScope.Resolve<IdentityDatabase>(), commit: true);
 
         var certificate = await tgtSys.Certificates.GetAsync(new OdinId(IdentityDomain));
-        Assert.That(certificate?.privateKey, Is.EqualTo("rewritten on export"));
+        Assert.That(certificate?.privateKey, Is.EqualTo("rewritten"));
         Assert.That(await tgtSys.DkimKeys.GetByDomainAsync(new OdinId(IdentityDomain)), Is.Empty);
     }
 
     [Test]
-    public async Task Import_WritesWhatTheRewriterReturnsAndCountsWhatItDropsAsSkipped()
+    public async Task Import_WritesWhatTheRewriterReturns()
     {
         var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
         _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
         var tgtSys = _targetScope.Resolve<SystemDatabase>();
         var logger = _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
 
-        var result = await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, _targetScope.Resolve<IdentityDatabase>(),
-            commit: true, rewriteRow: (db, table, record) => (db, table, record) switch
-            {
-                (IdentityExportFile.DbSystem, "DkimKeys", _) => null,
-                (IdentityExportFile.DbSystem, "Certificates", CertificatesRecord c) => c with { privateKey = "rewritten on import" },
-                _ => record
-            });
+        await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, _targetScope.Resolve<IdentityDatabase>(),
+            commit: true, rewriteRow: RewriteCertificateKey);
 
         var certificate = await tgtSys.Certificates.GetAsync(new OdinId(IdentityDomain));
-        Assert.That(certificate?.privateKey, Is.EqualTo("rewritten on import"));
-        Assert.That(await tgtSys.DkimKeys.GetByDomainAsync(new OdinId(IdentityDomain)), Is.Empty);
-        Assert.That(result.SkippedRowsByTable.GetValueOrDefault("DkimKeys"), Is.GreaterThan(0),
-            string.Join(", ", result.SkippedRowsByTable.Select(kv => $"{kv.Key}={kv.Value}")));
+        Assert.That(certificate?.privateKey, Is.EqualTo("rewritten"));
     }
 
     [Test]

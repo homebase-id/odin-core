@@ -1,12 +1,10 @@
 using System;
-using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.DatabaseImport;
 using Odin.Core.X509;
 using Odin.Hosting.Cli.Commands;
-using Odin.Services.Certificate;
 
 namespace Odin.Hosting.Tests.Cli;
 
@@ -24,40 +22,32 @@ public class IdentityKeyMaterialTests
     public void TheCertificateKeyTravelsFromTheSourcesStorageKeyToTheTargets()
     {
         var (keyPem, certificatePem) = NewCertificate();
-        var stored = CertificateRow(CertificateStore.EncryptPrivateKey(keyPem, certificatePem, SourceKey), certificatePem);
+        var storedOnSource = Import(CertificateRow(keyPem, certificatePem), SourceKey);
+        Assert.That(storedOnSource.privateKey, Is.Not.EqualTo(keyPem), "kept encrypted at rest");
 
-        var exported = (CertificatesRecord)Export(stored)!;
+        var exported = Export(storedOnSource, SourceKey);
         Assert.That(exported.privateKey, Is.EqualTo(keyPem), "the file carries the key in the clear");
 
-        var imported = (CertificatesRecord)IdentityKeyMaterial.ForImport(TargetKey)(IdentityExportFile.DbSystem, "Certificates", exported)!;
-        Assert.That(CertificateStore.DecryptPrivateKey(imported.privateKey, certificatePem, TargetKey), Is.EqualTo(keyPem),
-            "the target reads it with its own key");
-        Assert.That(imported.certificate, Is.EqualTo(certificatePem));
+        var storedOnTarget = Import(exported, TargetKey);
+        Assert.That(Export(storedOnTarget, TargetKey).privateKey, Is.EqualTo(keyPem), "the target reads it with its own key");
+        Assert.That(storedOnTarget.certificate, Is.EqualTo(certificatePem));
     }
 
     [Test]
     public void ARowWithoutAKeyPassesThroughUnchanged()
     {
         var failedIssuance = CertificateRow("", "");
-        Assert.That(Export(failedIssuance), Is.SameAs(failedIssuance));
-        Assert.That(IdentityKeyMaterial.ForImport(TargetKey)(IdentityExportFile.DbSystem, "Certificates", failedIssuance),
-            Is.SameAs(failedIssuance));
-    }
-
-    [Test]
-    public void TheExportLeavesDkimKeysBehind()
-    {
-        var dkim = new DkimKeysRecord { domain = new OdinId(Domain), selector = "hb1", privateKey = "encrypted" };
-        Assert.That(Export(dkim, "DkimKeys"), Is.Null);
+        Assert.That(Export(failedIssuance, SourceKey), Is.SameAs(failedIssuance));
+        Assert.That(Import(failedIssuance, TargetKey), Is.SameAs(failedIssuance));
     }
 
     [Test]
     public void TheExportRefusesACertificateKeyItCannotRead()
     {
         var (keyPem, certificatePem) = NewCertificate();
-        var storedUnderAnotherKey = CertificateRow(CertificateStore.EncryptPrivateKey(keyPem, certificatePem, TargetKey), certificatePem);
+        var storedUnderAnotherKey = Import(CertificateRow(keyPem, certificatePem), TargetKey);
 
-        var e = Assert.Throws<InvalidOperationException>(() => Export(storedUnderAnotherKey));
+        var e = Assert.Throws<IdentityExportRefusedException>(() => Export(storedUnderAnotherKey, SourceKey));
         Assert.That(e!.Message, Does.Contain("CertificateRenewal:StorageKey"));
     }
 
@@ -67,15 +57,17 @@ public class IdentityKeyMaterialTests
         var (_, certificatePem) = NewCertificate();
         var (otherKeyPem, _) = NewCertificate();
 
-        var e = Assert.Throws<IdentityImportRefusedException>(() =>
-            IdentityKeyMaterial.ForImport(TargetKey)(IdentityExportFile.DbSystem, "Certificates", CertificateRow(otherKeyPem, certificatePem)));
+        var e = Assert.Throws<IdentityImportRefusedException>(() => Import(CertificateRow(otherKeyPem, certificatePem), TargetKey));
         Assert.That(e!.Message, Does.Contain("does not fit its certificate"));
     }
 
     //
 
-    private static object? Export(object record, string table = "Certificates") =>
-        IdentityKeyMaterial.ForExport(SourceKey, NullLogger.Instance)(IdentityExportFile.DbSystem, table, record);
+    private static CertificatesRecord Export(CertificatesRecord row, byte[] key) =>
+        (CertificatesRecord)IdentityKeyMaterial.ForExport(key)(IdentityExportFile.DbSystem, "Certificates", row);
+
+    private static CertificatesRecord Import(CertificatesRecord row, byte[] key) =>
+        (CertificatesRecord)IdentityKeyMaterial.ForImport(key)(IdentityExportFile.DbSystem, "Certificates", row);
 
     private static (string keyPem, string certificatePem) NewCertificate()
     {

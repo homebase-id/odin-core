@@ -72,7 +72,7 @@ Decided up front, not open:
 - Merging into a target that already holds this identity. Import refuses.
 - **Email.** Not exported yet: the mailbox and its messages (in the mail server, not in Homebase),
   the mailbox account and settings, and the DKIM signing keys. The CLI leaves the `DkimKeys` rows
-  out of the file (`IdentityKeyMaterial`) and warns for each one. The email setup record and the
+  out of the file (`leaveOutTables`, in `IdentityJsonTransfer`) and warns for each key. The email setup record and the
   email drive are ordinary identity data and do move, so a moved identity can look set up for email
   on a target where it has no mailbox and no keys. See `agents/identity-move/README.md`.
 - Encrypting the file. See **Security**; this is the caller's responsibility and
@@ -735,7 +735,8 @@ every TLS handshake for the identity, and renewal, which loads the stored certif
 fail the same way instead of issuing a new one.
 
 So the host layer re-keys them with a `RowRewriter` the storage layer calls on each row
-(`IdentityKeyMaterial` in the CLI; the storage layer never holds a storage key):
+(`IdentityKeyMaterial` in the CLI, over `CertificateStore.WithKeyInTheClear` / `WithKeyEncrypted`;
+the storage layer never holds a storage key):
 
 - **Certificate:** the export decrypts the key with the source's key and writes it in the clear;
   the import checks that it fits its certificate and encrypts it with the target's key. Format

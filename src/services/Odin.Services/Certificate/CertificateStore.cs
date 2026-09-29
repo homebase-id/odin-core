@@ -231,24 +231,40 @@ public class CertificateStore(
 
     //
 
-    // How a certificate's private key is kept at rest: AES-CBC under the host's CertificateRenewal:StorageKey,
-    // hex, with the IV derived from the certificate. Public for identity export and import, which carry the key
-    // from one host's storage key to another's.
+    // An identity moving between hosts carries its certificate: each host keeps the key under its own
+    // CertificateRenewal:StorageKey, and clusters' keys differ by design. A row without a key (a failed first
+    // issuance) passes through both unchanged.
 
-    public static string EncryptPrivateKey(string keyPem, string certificatePem, byte[] storageKey)
+    /// <summary>For identity export: the row with its key decrypted, so another host can encrypt it under its own.</summary>
+    public static CertificatesRecord WithKeyInTheClear(CertificatesRecord record, byte[] storageKey)
+    {
+        return string.IsNullOrEmpty(record.privateKey)
+            ? record
+            : record with { privateKey = DecryptPrivateKey(record.privateKey, record.certificate, storageKey) };
+    }
+
+    /// <summary>For identity import: the row with its key checked against its certificate and encrypted under this host's key.</summary>
+    public static CertificatesRecord WithKeyEncrypted(CertificatesRecord record, byte[] storageKey)
+    {
+        if (string.IsNullOrEmpty(record.privateKey))
+        {
+            return record;
+        }
+
+        X509FromPem(record.domain.DomainName, record.privateKey, record.certificate).Dispose();
+        return record with { privateKey = EncryptPrivateKey(record.privateKey, record.certificate, storageKey) };
+    }
+
+    // At rest: AES-CBC under the storage key, hex, with the IV derived from the certificate
+
+    private static string EncryptPrivateKey(string keyPem, string certificatePem, byte[] storageKey)
     {
         return Convert.ToHexString(AesCbc.Encrypt(Encoding.UTF8.GetBytes(keyPem), storageKey, IvFromString(certificatePem)));
     }
 
-    public static string DecryptPrivateKey(string encryptedKeyHex, string certificatePem, byte[] storageKey)
+    private static string DecryptPrivateKey(string encryptedKeyHex, string certificatePem, byte[] storageKey)
     {
         return AesCbc.Decrypt(Convert.FromHexString(encryptedKeyHex), storageKey, IvFromString(certificatePem)).ToStringFromUtf8Bytes();
-    }
-
-    /// <summary>Throws unless the key is the certificate's own (the pair signs and verifies); <paramref name="domain"/> names it in the error.</summary>
-    public static void AssertKeyFitsCertificate(string domain, string keyPem, string certificatePem)
-    {
-        X509FromPem(domain, keyPem, certificatePem).Dispose();
     }
 
     //

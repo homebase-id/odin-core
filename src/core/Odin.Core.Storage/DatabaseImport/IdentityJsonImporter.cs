@@ -35,6 +35,8 @@ public static class IdentityJsonImporter
     //   Outbox - rows reference long-term files that ARE exported, so replay is structurally
     //            sound once payloads land. Skipped because we cannot verify payloads are
     //            present, nor whether the source is still live and also sending.
+    //
+    // The export can leave tables out too (leaveOutTables): the CLI leaves DkimKeys out (IdentityKeyMaterial).
     public static readonly IReadOnlySet<string> DefaultSkippedTables =
         new HashSet<string> { "Inbox", "Outbox", "Nonce" };
 
@@ -126,7 +128,8 @@ public static class IdentityJsonImporter
 
             if (skip.Contains(table))
             {
-                CountSkipped(result, table);
+                result.SkippedRowsByTable.TryGetValue(table, out var soFar);
+                result.SkippedRowsByTable[table] = soFar + 1;
                 continue;
             }
 
@@ -137,17 +140,7 @@ public static class IdentityJsonImporter
                 _ => throw new IdentityImportRefusedException($"Unknown db discriminator '{db}' for table {table}.")
             };
 
-            if (rewriteRow != null)
-            {
-                var rewritten = rewriteRow(db, table, record);
-                if (rewritten == null)
-                {
-                    CountSkipped(result, table);
-                    continue;
-                }
-                record = rewritten;
-            }
-
+            record = rewriteRow?.Invoke(db, table, record) ?? record;
             result.RowsImported += db == IdentityExportFile.DbIdentity
                 ? await targetIdentityDatabase.ImportRowAsync(table, record)
                 : await targetSystemDatabase.ImportRowAsync(table, record);
@@ -165,12 +158,6 @@ public static class IdentityJsonImporter
                 logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
             }
         }
-    }
-
-    private static void CountSkipped(ImportResult result, string table)
-    {
-        result.SkippedRowsByTable.TryGetValue(table, out var soFar);
-        result.SkippedRowsByTable[table] = soFar + 1;
     }
 
     // Reads only the header, the file's first element: the rows after it are not parsed, and

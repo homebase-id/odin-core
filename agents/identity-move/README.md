@@ -57,10 +57,6 @@ You need:
   The target pulls from the source's provisioning domain (`Registry:ProvisioningDomain`) over public
   HTTPS; ops checked that `createme.na.ravenhosting.cloud`, `createme.eu.ravenhosting.cloud` and
   `createme.ravenhosting.cloud` all reach each other (2026-09-29).
-- **Nothing to align between the hosts' storage keys.** Each cluster keeps certificate keys under its
-  own `CertificateRenewal:StorageKey`, by design. The export decrypts the TLS certificate's key with
-  the source's key and the import encrypts it with the target's, and refuses if the key does not fit
-  its certificate.
 
 Throughout, `<domain>` is the identity's domain, for example `frodo.id.pub`.
 

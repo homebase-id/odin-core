@@ -31,10 +31,10 @@ public static class IdentityExportFile
 }
 
 /// <summary>
-/// Lets the caller change a row on its way into or out of the file, or leave it out (null): key material kept
-/// under a host's own key is re-keyed here, by the host layer that owns those keys.
+/// Lets the caller change a row on its way into or out of the file: key material kept under a host's own key is
+/// re-keyed here, by the host layer that owns those keys. Returns the row to write or insert.
 /// </summary>
-public delegate object? RowRewriter(string db, string table, object record);
+public delegate object RowRewriter(string db, string table, object record);
 
 public class ExportHeader
 {
