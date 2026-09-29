@@ -231,4 +231,16 @@ public class IdentityImportPreconditionTests
         var violations = await IdentityImportPreconditions.CheckAsync(header, sys, id);
         Assert.That(violations.Any(v => v.Contains("formatVersion")), Is.True);
     }
+
+    [Test]
+    public async Task CheckAsync_FailsWhenFormatVersionIsOlderThanThisBinary()
+    {
+        // A version 2 file has the certificate key encrypted under the source's key, which the target cannot read
+        var (sys, id) = await InitAsync();
+        var header = await MatchingHeaderAsync(sys, id);
+        header.FormatVersion = IdentityExportFile.CurrentFormatVersion - 1;
+
+        var violations = await IdentityImportPreconditions.CheckAsync(header, sys, id);
+        Assert.That(violations, Has.Some.Contains("is older than this binary reads"), string.Join("; ", violations));
+    }
 }

@@ -148,9 +148,7 @@ public class CertificateStore(
             return null;
         }
 
-        var iv = IvFromString(record.certificate);
-        var decryptedKeyPem =
-            AesCbc.Decrypt(Convert.FromHexString(record.privateKey), _storageKey, iv).ToStringFromUtf8Bytes();
+        var decryptedKeyPem = DecryptPrivateKey(record.privateKey, record.certificate, _storageKey);
 
         var x509 = X509FromPem(domain, decryptedKeyPem, record.certificate);
         if (IsValid(x509))
@@ -193,8 +191,7 @@ public class CertificateStore(
             throw new OdinSystemException($"Certificate for {domain} is not valid. Did it expire?");
         }
 
-        var iv = IvFromString(certificatePem);
-        var encryptedKeyPem = Convert.ToHexString(AesCbc.Encrypt(Encoding.UTF8.GetBytes(keyPem), _storageKey, iv));
+        var encryptedKeyPem = EncryptPrivateKey(keyPem, certificatePem, _storageKey);
 
         var correlationContext = serviceProvider.GetRequiredService<ICorrelationContext>();
 
@@ -230,6 +227,44 @@ public class CertificateStore(
         using var scope = serviceProvider.CreateScope();
         var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
         await tableCertificates.FailCertificateUpdate(odinId, UnixTimeUtc.Now(), correlationContext.Id, errorText);
+    }
+
+    //
+
+    // An identity moving between hosts carries its certificate: each host keeps the key under its own
+    // CertificateRenewal:StorageKey, and clusters' keys differ by design. A row without a key (a failed first
+    // issuance) passes through both unchanged.
+
+    /// <summary>For identity export: the row with its key decrypted, so another host can encrypt it under its own.</summary>
+    public static CertificatesRecord WithKeyInTheClear(CertificatesRecord record, byte[] storageKey)
+    {
+        return string.IsNullOrEmpty(record.privateKey)
+            ? record
+            : record with { privateKey = DecryptPrivateKey(record.privateKey, record.certificate, storageKey) };
+    }
+
+    /// <summary>For identity import: the row with its key checked against its certificate and encrypted under this host's key.</summary>
+    public static CertificatesRecord WithKeyEncrypted(CertificatesRecord record, byte[] storageKey)
+    {
+        if (string.IsNullOrEmpty(record.privateKey))
+        {
+            return record;
+        }
+
+        X509FromPem(record.domain.DomainName, record.privateKey, record.certificate).Dispose();
+        return record with { privateKey = EncryptPrivateKey(record.privateKey, record.certificate, storageKey) };
+    }
+
+    // At rest: AES-CBC under the storage key, hex, with the IV derived from the certificate
+
+    private static string EncryptPrivateKey(string keyPem, string certificatePem, byte[] storageKey)
+    {
+        return Convert.ToHexString(AesCbc.Encrypt(Encoding.UTF8.GetBytes(keyPem), storageKey, IvFromString(certificatePem)));
+    }
+
+    private static string DecryptPrivateKey(string encryptedKeyHex, string certificatePem, byte[] storageKey)
+    {
+        return AesCbc.Decrypt(Convert.FromHexString(encryptedKeyHex), storageKey, IvFromString(certificatePem)).ToStringFromUtf8Bytes();
     }
 
     //
