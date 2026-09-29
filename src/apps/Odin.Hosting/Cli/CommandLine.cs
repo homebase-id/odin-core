@@ -331,11 +331,12 @@ public class CommandLine
         // Command line: Import an identity export file
         //
         // Refuses unless the target is empty of this identity and every table version
-        // matches. Dry run unless "commit" is passed. The target host may keep running: the
-        // identity arrives with the status it was exported with, which the export gate
-        // requires to be paused or disabled, so it serves nothing until it is resumed. Like
-        // export, the target host must keep payloads on S3, since that is the only place the
-        // payloads can be copied to. See IdentityJsonTransfer.PayloadsAreOnS3.
+        // matches. Dry run unless "commit" is passed. The target hosts may keep running: the
+        // identity lands paused, and every node loads it within Registry:CatchUpIntervalSeconds.
+        // Resume it once DNS points at the target. A rerun after a failed import clears what
+        // the failed one left. Like export, the target host must keep payloads on S3, since
+        // that is the only place the payloads can be copied to. See
+        // IdentityJsonTransfer.PayloadsAreOnS3.
         //
         // examples:
         //   dotnet run -- identity-import /path/to/frodo.json commit

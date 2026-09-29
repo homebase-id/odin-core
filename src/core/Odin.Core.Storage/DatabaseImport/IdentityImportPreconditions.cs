@@ -61,17 +61,14 @@ public static class IdentityImportPreconditions
             violations.Add($"Target already has {dkimKeys.Count} DkimKeys row(s) for domain {header.Domain}.");
         }
 
-        // 4. On Postgres every identity shares one set of physical tables, and
-        //    DeleteRegistration never purges them, so identity rows can outlive the
-        //    registration and checks 1 and 2 would both pass.
-        var orphanRows = await targetIdentityDatabase.CountRowsForIdentityAsync(header.IdentityId);
-        if (orphanRows > 0)
-        {
-            violations.Add(
-                $"Target identity tables already hold {orphanRows} row(s) for identityId {header.IdentityId}.");
-        }
+        // Identity rows for this identityId are not a violation. With no registration,
+        // certificate or DKIM rows (checks 1-3), nothing serves them: they are left by an
+        // import that failed after its identity commit, or on Postgres, where every identity
+        // shares one set of tables, by a DeleteRegistration, which never purges them. The
+        // importer clears them in its own transaction, which is what makes a failed import
+        // retryable.
 
-        // 5. All-or-nothing table version match, in both directions.
+        // 4. All-or-nothing table version match, in both directions.
         violations.AddRange(CompareTableVersions(
             IdentityExportFile.DbSystem,
             header.TableVersions.GetValueOrDefault(IdentityExportFile.DbSystem) ?? new Dictionary<string, long>(),

@@ -44,7 +44,8 @@ public static class IdentityJsonImporter
         SystemDatabase targetSystemDatabase,
         IdentityDatabase targetIdentityDatabase,
         bool commit,
-        IReadOnlySet<string>? skipTables = null)
+        IReadOnlySet<string>? skipTables = null,
+        Func<Task>? beforeCommit = null)
     {
         var skip = skipTables ?? DefaultSkippedTables;
 
@@ -67,64 +68,90 @@ public static class IdentityJsonImporter
 
             var result = new ImportResult { Header = header };
 
+            // The identity rows commit first and the system rows (the registration) last, so the
+            // registration is the commit point: if the identity commit fails, the registration never
+            // lands, and a rerun clears what did. Commit() only marks a transaction; it commits when
+            // disposed, which is why the identity transaction is disposed before the system one is marked.
             await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
-            await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
-
-            while (await enumerator.MoveNextAsync())
+            await using (var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync())
             {
-                var element = enumerator.Current;
-                var table = element.GetProperty("table").GetString()
-                    ?? throw new InvalidOperationException("Row is missing its table name.");
-                var db = element.GetProperty("db").GetString()
-                    ?? throw new InvalidOperationException($"Row for {table} is missing its db discriminator.");
-                var data = element.GetProperty("data");
-
-                if (skip.Contains(table))
+                var leftovers = await targetIdentityDatabase.DeleteRowsForIdentityAsync(header.IdentityId);
+                if (leftovers > 0)
                 {
-                    result.SkippedRowsByTable.TryGetValue(table, out var soFar);
-                    result.SkippedRowsByTable[table] = soFar + 1;
-                    continue;
+                    logger.LogWarning("Cleared {count} row(s) {domain} had left in the identity tables without a registration",
+                        leftovers, header.Domain);
                 }
 
-                switch (db)
+                await ImportRowsAsync(logger, enumerator, targetSystemDatabase, targetIdentityDatabase, skip, result);
+
+                if (beforeCommit != null)
                 {
-                    case IdentityExportFile.DbIdentity:
-                        result.RowsImported += await targetIdentityDatabase.ImportRowAsync(
-                            table, Deserialize(IdentityDatabase.ExportableRecordTypes, table, data));
-                        break;
-
-                    case IdentityExportFile.DbSystem:
-                        result.RowsImported += await targetSystemDatabase.ImportRowAsync(
-                            table, Deserialize(SystemDatabase.ExportableRecordTypes, table, data));
-                        break;
-
-                    default:
-                        throw new InvalidOperationException($"Unknown db discriminator '{db}' for table {table}.");
+                    await beforeCommit();
                 }
-            }
 
-            foreach (var (table, count) in result.SkippedRowsByTable.OrderBy(kv => kv.Key))
-            {
-                logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
-            }
+                if (!commit)
+                {
+                    logger.LogInformation("Dry run: rolling back {count} rows for {domain}", result.RowsImported, header.Domain);
+                    return result;
+                }
 
-            if (!commit)
-            {
-                logger.LogInformation("Dry run: rolling back {count} rows for {domain}",
-                    result.RowsImported, header.Domain);
-            }
-            else
-            {
-                logger.LogInformation("Imported {count} rows for {domain}", result.RowsImported, header.Domain);
-                systemTransaction.Commit();
                 identityTransaction.Commit();
             }
 
+            systemTransaction.Commit();
+            logger.LogInformation("Imported {count} rows for {domain}", result.RowsImported, header.Domain);
             return result;
         }
         finally
         {
             await enumerator.DisposeAsync();
+        }
+    }
+
+    private static async Task ImportRowsAsync(
+        ILogger logger,
+        IAsyncEnumerator<JsonElement> enumerator,
+        SystemDatabase targetSystemDatabase,
+        IdentityDatabase targetIdentityDatabase,
+        IReadOnlySet<string> skip,
+        ImportResult result)
+    {
+        while (await enumerator.MoveNextAsync())
+        {
+            var element = enumerator.Current;
+            var table = element.GetProperty("table").GetString()
+                ?? throw new InvalidOperationException("Row is missing its table name.");
+            var db = element.GetProperty("db").GetString()
+                ?? throw new InvalidOperationException($"Row for {table} is missing its db discriminator.");
+            var data = element.GetProperty("data");
+
+            if (skip.Contains(table))
+            {
+                result.SkippedRowsByTable.TryGetValue(table, out var soFar);
+                result.SkippedRowsByTable[table] = soFar + 1;
+                continue;
+            }
+
+            switch (db)
+            {
+                case IdentityExportFile.DbIdentity:
+                    result.RowsImported += await targetIdentityDatabase.ImportRowAsync(
+                        table, Deserialize(IdentityDatabase.ExportableRecordTypes, table, data));
+                    break;
+
+                case IdentityExportFile.DbSystem:
+                    result.RowsImported += await targetSystemDatabase.ImportRowAsync(
+                        table, Deserialize(SystemDatabase.ExportableRecordTypes, table, data));
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unknown db discriminator '{db}' for table {table}.");
+            }
+        }
+
+        foreach (var (table, count) in result.SkippedRowsByTable.OrderBy(kv => kv.Key))
+        {
+            logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
         }
     }
 

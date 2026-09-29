@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.DatabaseImport;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Tests.DatabaseImport;
@@ -269,5 +270,103 @@ public class IdentityJsonRoundTripTests
             logger, inFile, tgtSys, tgtId, commit: true);
 
         Assert.That(result.RowsImported, Is.GreaterThan(2000));
+    }
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task Import_ClearsRowsAFailedEarlierImportLeftBehind(DatabaseType targetType)
+    {
+        // An import whose identity commit landed but whose system commit did not leaves identity
+        // rows with no registration. A rerun has to succeed, and without duplicating anything.
+        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
+        var sourceRows = await _sourceScope.Resolve<IdentityDatabase>().CountRowsForIdentityAsync(_identityId);
+
+        _targetScope = await _targetServices.RegisterServicesAsync(targetType, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var tgtId = _targetScope.Resolve<IdentityDatabase>();
+        await DataImporterSeedHelper.SeedAllIdentityTablesAsync(tgtId);
+        Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.GreaterThan(0), "sanity: leftovers seeded");
+
+        var result = await IdentityJsonImporter.ImportAsync(
+            _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>(), stream, tgtSys, tgtId, commit: true);
+
+        var skipped = result.SkippedRowsByTable.Values.Sum();
+        Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.EqualTo(sourceRows - skipped),
+            $"source {sourceRows} rows, skipped {skipped}");
+        Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Import_RunsBeforeCommitInsideItsTransactions()
+    {
+        foreach (var commit in new[] { false, true })
+        {
+            var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
+            _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
+            var tgtSys = _targetScope.Resolve<SystemDatabase>();
+            var tgtId = _targetScope.Resolve<IdentityDatabase>();
+
+            var ran = false;
+            await IdentityJsonImporter.ImportAsync(
+                _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>(), stream, tgtSys, tgtId, commit,
+                beforeCommit: async () =>
+                {
+                    ran = true;
+                    Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Not.Null, "the rows are in when it runs");
+                    await tgtSys.Settings.UpsertAsync(new SettingsRecord { key = "import-marker", value = "x" });
+                });
+
+            Assert.That(ran, Is.True);
+            var marker = await tgtSys.Settings.GetAsync("import-marker");
+            Assert.That(marker != null, Is.EqualTo(commit), $"commit: {commit}; the hook's write must share the import's fate");
+
+            ResetServices();
+        }
+    }
+
+#if RUN_POSTGRES_TESTS
+    [Test]
+    public async Task Import_LandsNoRegistrationWhenTheIdentityCommitFails()
+    {
+        // The registration is the commit point: if the identity rows fail to commit, the system rows must
+        // not commit either. A deferred constraint violated in the identity transaction makes exactly
+        // that commit fail (Postgres only: SQLite enforces no deferred constraint here).
+        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
+        _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Postgres, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var tgtId = _targetScope.Resolve<IdentityDatabase>();
+
+        Assert.CatchAsync(() => IdentityJsonImporter.ImportAsync(
+            _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>(), stream, tgtSys, tgtId, commit: true,
+            beforeCommit: async () =>
+            {
+                await using var cn = await tgtId.CreateScopedConnectionAsync();
+                await using var cmd = cn.CreateCommand();
+                cmd.CommandText =
+                    "CREATE TEMP TABLE import_fail_parent (id int PRIMARY KEY);" +
+                    "CREATE TEMP TABLE import_fail_child (parent int REFERENCES import_fail_parent (id) DEFERRABLE INITIALLY DEFERRED);" +
+                    "INSERT INTO import_fail_child VALUES (1);";
+                await cmd.ExecuteNonQueryAsync();
+            }));
+
+        Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Null, "the registration committed without its identity");
+        Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.EqualTo(0));
+    }
+#endif
+
+    private void ResetServices()
+    {
+        _sourceServices.Dispose();
+        _targetServices.Dispose();
+        foreach (var folder in new[] { _sourceTempFolder, _targetTempFolder })
+        {
+            Directory.Delete(folder, true);
+            Directory.CreateDirectory(folder);
+        }
+        _identityId = Guid.NewGuid();
+        _sourceServices = new TestServices();
+        _targetServices = new TestServices();
     }
 }

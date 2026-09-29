@@ -48,7 +48,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
-    private const string RegistryVersionKey = "registry-version";
+    /// <summary>
+    /// The Settings row whose bump tells every node the registry changed. A writer outside the registry
+    /// (identity-import) bumps it in the same transaction as its registration write, and each node's
+    /// catch-up then loads the change.
+    /// </summary>
+    public const string RegistryVersionKey = "registry-version";
     private readonly Guid _nodeId = Guid.NewGuid();
     private long _localVersion;
     // Guards every mutation of _trie/_cache and the registration objects they hold: writers,

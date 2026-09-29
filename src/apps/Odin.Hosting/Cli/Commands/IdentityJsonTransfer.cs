@@ -155,9 +155,10 @@ public static class IdentityJsonTransfer
             }
             else
             {
-                cb.AddSqliteIdentityDatabaseServices(
-                    header.IdentityId,
-                    new TenantPathManager(config, header.IdentityId).GetIdentityDatabasePath());
+                // A new identity has no folder yet, and SQLite cannot create identity.db without one
+                var paths = new TenantPathManager(config, header.IdentityId);
+                paths.CreateDirectories();
+                cb.AddSqliteIdentityDatabaseServices(header.IdentityId, paths.GetIdentityDatabasePath());
             }
         });
 
@@ -169,12 +170,31 @@ public static class IdentityJsonTransfer
         // Sqlite2Pg.ImportIdentityAsync does.
         await targetScope.Resolve<IdentityMigrator>().MigrateAsync();
 
+        // The target hosts keep running and pick the identity up from the database. It lands paused
+        // whatever status it was exported with, so it serves nothing until DNS points here and the
+        // operator resumes it. The version bump is what makes every node's catch-up load it.
+        async Task LandPausedAsync()
+        {
+            var registration = await targetSystemDatabase.Registrations.GetAsync(header.IdentityId)
+                ?? throw new InvalidOperationException($"The export file has no registration for {header.Domain}.");
+            registration.disabled = false;
+            registration.json = RegistrationJsonMapper.ToJson(new TenantStatusState(TenantStatus.Paused, null, UnixTimeUtc.Now()));
+            await targetSystemDatabase.Registrations.UpdateAsync(registration);
+            await targetSystemDatabase.Settings.BumpMonotonicAsync(FileSystemIdentityRegistry.RegistryVersionKey);
+        }
+
         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
         var result = await IdentityJsonImporter.ImportAsync(
-            logger, stream, targetSystemDatabase, targetIdentityDatabase, commit);
+            logger, stream, targetSystemDatabase, targetIdentityDatabase, commit, beforeCommit: LandPausedAsync);
 
         logger.LogInformation("Imported {rows} rows for {domain} (commit: {commit})",
             result.RowsImported, result.Header.Domain, commit);
+        if (commit)
+        {
+            logger.LogInformation(
+                "{domain} is paused. Running hosts load it within {interval} s. Resume it once DNS points here.",
+                result.Header.Domain, config.Registry.CatchUpIntervalSeconds);
+        }
 
         return true;
     }
