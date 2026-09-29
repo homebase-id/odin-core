@@ -513,12 +513,16 @@ public class JobManager(
         var now = UnixTimeUtc.Now();
         var cutoff = now.AddMilliseconds(-(long)TimeSpan.FromMinutes(1).TotalMilliseconds).milliseconds;
         var rescheduled = 0;
+
+        // Jobs are disposable, and this manager may live in the root scope (the job runner's), which would keep
+        // every instance made here; as in RunJobNowAsync, make them in a scope of their own
+        await using var scope = lifetimeScope.BeginLifetimeScope($"RescheduleOrphanedJobsAsync:{Guid.NewGuid()}");
         foreach (var record in await tableJobs.GetOrphanedJobsAsync(cutoff, cutoff))
         {
             TimeSpan? after;
             try
             {
-                using var job = AbstractJob.CreateInstance(lifetimeScope, record);
+                using var job = AbstractJob.CreateInstance(scope, record);
                 after = job.RescheduleIfOrphanedAfter;
             }
             catch (Exception e)
@@ -556,8 +560,8 @@ public class JobManager(
     // forever — DeleteExpiredJobsAsync won't clean it up because expiresAt is only set on terminal
     // states.
     //
-    // Jobs that opted in (AbstractJob.RescheduleIfOrphanedAfter) were rescheduled first; the rest are not
-    // retried automatically: replaying an arbitrary job hours later can corrupt data if the job isn't
+    // Jobs that opted in (AbstractJob.RescheduleIfOrphanedAfter) are rescued by the job runner
+    // (RescheduleOrphanedJobsAsync); the rest are not retried automatically: replaying an arbitrary job hours later can corrupt data if the job isn't
     // idempotent. Log them and let a human decide.
     public async Task<int> LogOrphanedJobsAsync()
     {
