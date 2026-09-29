@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -61,7 +60,7 @@ public class IdentityJsonExporterTests
         var logger = _scope.Resolve<ILogger<IdentityJsonExporterTests>>();
         var stream = new MemoryStream();
         await IdentityJsonExporter.ExportAsync(
-            logger, stream, _identityId, IdentityDomain, sys, id,
+            stream, _identityId, IdentityDomain, sys, id,
             identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
         stream.Position = 0;
         return stream;
@@ -160,7 +159,7 @@ public class IdentityJsonExporterTests
             _scope = await _services.RegisterServicesAsync(DatabaseType.Sqlite, _tempFolder, _identityId);
             var logger = _scope.Resolve<ILogger<IdentityJsonExporterTests>>();
             await IdentityJsonExporter.ExportAsync(
-                logger, new MemoryStream(), _identityId, IdentityDomain,
+                new MemoryStream(), _identityId, IdentityDomain,
                 _scope.Resolve<SystemDatabase>(), _scope.Resolve<IdentityDatabase>(),
                 identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: false);
         });
@@ -253,7 +252,7 @@ public class IdentityJsonExporterTests
         }
 
         await IdentityJsonExporter.ExportAsync(
-            _scope.Resolve<ILogger<IdentityJsonExporterTests>>(), output, _identityId, IdentityDomain, sys, id,
+            output, _identityId, IdentityDomain, sys, id,
             identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
     }
 
@@ -266,7 +265,7 @@ public class IdentityJsonExporterTests
         await DataImporterSeedHelper.SeedAllIdentityTablesAsync(id);
 
         await IdentityJsonExporter.ExportToFileAsync(
-            _scope.Resolve<ILogger<IdentityJsonExporterTests>>(), path, _identityId, IdentityDomain, sys, id,
+            path, _identityId, IdentityDomain, sys, id,
             identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill);
     }
 

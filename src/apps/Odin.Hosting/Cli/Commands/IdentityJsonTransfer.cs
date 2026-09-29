@@ -76,8 +76,8 @@ public static class IdentityJsonTransfer
             return false;
         }
 
-        // The hosts keep running, so the export needs the identity still instead: paused (or disabled)
-        // long enough that every node has stopped its workers and jobs and in-flight requests have finished
+        // The identity must be still: paused (or disabled) long enough that every node has stopped its
+        // workers and jobs and requests that were in flight have finished
         var settle = TenantStatusRules.ExportSettleTime(config.Registry.CatchUpIntervalSeconds);
         var mustWait = TenantStatusRules.WhyExportMustWait(registration.Status, registration.StatusChangedAt, UnixTimeUtc.Now(), settle);
         if (mustWait != null)
@@ -101,7 +101,7 @@ public static class IdentityJsonTransfer
         try
         {
             var rows = await IdentityJsonExporter.ExportToFileAsync(
-                logger, filePath, registration.Id, domain,
+                filePath, registration.Id, domain,
                 systemDatabase, identityDatabase,
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
@@ -136,30 +136,23 @@ public static class IdentityJsonTransfer
             return false;
         }
 
-        // Peek at the header to learn which identity this file is for. The importer
-        // re-reads it and re-validates; this read is only to build the right scope.
-        ExportHeader header;
-        await using (var peek = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-        {
-            header = await IdentityJsonImporter.ReadHeaderAsync(peek);
-        }
+        // Read the header to learn which identity this file is for, then rewind: the importer
+        // reads it again and validates it; this read is only to build the right scope.
+        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        var header = await IdentityJsonImporter.ReadHeaderAsync(stream);
+        stream.Position = 0;
 
         var workContainer = services.GetRequiredService<IMultiTenantContainer>();
 
         await using var targetScope = workContainer.BeginLifetimeScope(cb =>
         {
             cb.RegisterInstance(new OdinIdentity(header.IdentityId, header.Domain)).SingleInstance();
-            if (config.Database.Type == DatabaseType.Postgres)
-            {
-                cb.AddPgsqlIdentityDatabaseServices(header.IdentityId, config.Database.ConnectionString);
-            }
-            else
+            if (config.Database.Type == DatabaseType.Sqlite)
             {
                 // A new identity has no folder yet, and SQLite cannot create identity.db without one
-                var paths = new TenantPathManager(config, header.IdentityId);
-                paths.CreateDirectories();
-                cb.AddSqliteIdentityDatabaseServices(header.IdentityId, paths.GetIdentityDatabasePath());
+                new TenantPathManager(config, header.IdentityId).CreateDirectories();
             }
+            cb.ConfigureDatabaseServices(header.IdentityId, config);
         });
 
         var targetIdentityDatabase = targetScope.Resolve<IdentityDatabase>();
@@ -172,25 +165,12 @@ public static class IdentityJsonTransfer
         await targetSystemDatabase.MigrateDatabaseAsync();
         await targetScope.Resolve<IdentityMigrator>().MigrateAsync();
 
-        // The target hosts keep running and pick the identity up from the database. It lands paused
-        // whatever status it was exported with, so it serves nothing until DNS points here and the
-        // operator resumes it. The version bump is what makes every node's catch-up load it.
-        async Task LandPausedAsync()
-        {
-            var registration = await targetSystemDatabase.Registrations.GetAsync(header.IdentityId)
-                ?? throw new InvalidOperationException($"The export file has no registration for {header.Domain}.");
-            registration.disabled = false;
-            registration.json = RegistrationJsonMapper.ToJson(new TenantStatusState(TenantStatus.Paused, null, UnixTimeUtc.Now()));
-            await targetSystemDatabase.Registrations.UpdateAsync(registration);
-            await targetSystemDatabase.Settings.BumpMonotonicAsync(FileSystemIdentityRegistry.RegistryVersionKey);
-        }
-
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        ImportResult result;
+        // The identity lands paused whatever status it was exported with, so it serves nothing until
+        // DNS points here and the operator resumes it; running hosts load it from the database
         try
         {
-            result = await IdentityJsonImporter.ImportAsync(
-                logger, stream, targetSystemDatabase, targetIdentityDatabase, commit, beforeCommit: LandPausedAsync);
+            await IdentityJsonImporter.ImportAsync(logger, stream, targetSystemDatabase, targetIdentityDatabase, commit,
+                beforeCommit: () => FileSystemIdentityRegistry.MarkImportedRegistrationPausedAsync(targetSystemDatabase, header.IdentityId));
         }
         catch (InvalidOperationException e)
         {
@@ -199,13 +179,11 @@ public static class IdentityJsonTransfer
             return false;
         }
 
-        logger.LogInformation("Imported {rows} rows for {domain} (commit: {commit})",
-            result.RowsImported, result.Header.Domain, commit);
         if (commit)
         {
             logger.LogInformation(
                 "{domain} is paused. Running hosts load it within {interval} s. Resume it once DNS points here.",
-                result.Header.Domain, config.Registry.CatchUpIntervalSeconds);
+                header.Domain, config.Registry.CatchUpIntervalSeconds);
         }
 
         return true;

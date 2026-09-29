@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
@@ -16,6 +15,9 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Tests.DatabaseImport;
 using Odin.Core.Util;
 using Odin.Test.Helpers;
+using Odin.Test.Helpers.Logging;
+using Odin.Core.Logging.Statistics.Serilog;
+using Serilog.Events;
 
 namespace Odin.Core.Storage.Tests.IdentityJsonExport;
 
@@ -69,7 +71,7 @@ public class IdentityJsonRoundTripTests
         var logger = _sourceScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
         var stream = new MemoryStream();
         await IdentityJsonExporter.ExportAsync(
-            logger, stream, _identityId, IdentityDomain, sys, id,
+            stream, _identityId, IdentityDomain, sys, id,
             identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
         stream.Position = 0;
         return stream;
@@ -132,7 +134,8 @@ public class IdentityJsonRoundTripTests
         _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
         var tgtSys = _targetScope.Resolve<SystemDatabase>();
         var tgtId = _targetScope.Resolve<IdentityDatabase>();
-        var logger = new RecordingLogger();
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<IdentityJsonRoundTripTests>(logStore);
 
         var result = await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, tgtId, commit: true);
 
@@ -143,8 +146,9 @@ public class IdentityJsonRoundTripTests
             "Skipped tables must report a row count so the operator sees what was dropped");
 
         // Queued messages that do not move are worth a warning; stale nonces are not
-        var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).Select(e => e.Message).ToList();
-        var all = string.Join(Environment.NewLine, logger.Entries.Select(e => $"{e.Level}: {e.Message}"));
+        var events = logStore.GetLogEvents();
+        var warnings = events[LogEventLevel.Warning].Select(e => e.RenderMessage()).ToList();
+        var all = string.Join(Environment.NewLine, events.SelectMany(kv => kv.Value.Select(e => $"{kv.Key}: {e.RenderMessage()}")));
         Assert.That(warnings.Count(w => w.Contains("Inbox") && w.Contains("queued")), Is.EqualTo(1), all);
         Assert.That(warnings.Count(w => w.Contains("Outbox") && w.Contains("queued")), Is.EqualTo(1), all);
         Assert.That(warnings.Any(w => w.Contains("Nonce")), Is.False, all);
@@ -196,7 +200,7 @@ public class IdentityJsonRoundTripTests
         // No seeding at all: empty identity, empty system tables.
         var stream = new MemoryStream();
         await IdentityJsonExporter.ExportAsync(
-            logger, stream, _identityId, IdentityDomain, srcSys, srcId,
+            stream, _identityId, IdentityDomain, srcSys, srcId,
             identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
         stream.Position = 0;
 
@@ -263,7 +267,7 @@ public class IdentityJsonRoundTripTests
         await using (var outFile = new FileStream(path, FileMode.CreateNew, FileAccess.Write))
         {
             await IdentityJsonExporter.ExportAsync(
-                logger, outFile, _identityId, IdentityDomain, srcSys, srcId,
+                outFile, _identityId, IdentityDomain, srcSys, srcId,
                 identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
         }
 
@@ -305,32 +309,28 @@ public class IdentityJsonRoundTripTests
         Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Not.Null);
     }
 
-    [Test]
-    public async Task Import_RunsBeforeCommitInsideItsTransactions()
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Import_RunsBeforeCommitInsideItsTransactions(bool commit)
     {
-        foreach (var commit in new[] { false, true })
-        {
-            var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
-            _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
-            var tgtSys = _targetScope.Resolve<SystemDatabase>();
-            var tgtId = _targetScope.Resolve<IdentityDatabase>();
+        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
+        _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var tgtId = _targetScope.Resolve<IdentityDatabase>();
 
-            var ran = false;
-            await IdentityJsonImporter.ImportAsync(
-                _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>(), stream, tgtSys, tgtId, commit,
-                beforeCommit: async () =>
-                {
-                    ran = true;
-                    Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Not.Null, "the rows are in when it runs");
-                    await tgtSys.Settings.UpsertAsync(new SettingsRecord { key = "import-marker", value = "x" });
-                });
+        var ran = false;
+        await IdentityJsonImporter.ImportAsync(
+            _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>(), stream, tgtSys, tgtId, commit,
+            beforeCommit: async () =>
+            {
+                ran = true;
+                Assert.That(await tgtSys.Registrations.GetAsync(_identityId), Is.Not.Null, "the rows are in when it runs");
+                await tgtSys.Settings.UpsertAsync(new SettingsRecord { key = "import-marker", value = "x" });
+            });
 
-            Assert.That(ran, Is.True);
-            var marker = await tgtSys.Settings.GetAsync("import-marker");
-            Assert.That(marker != null, Is.EqualTo(commit), $"commit: {commit}; the hook's write must share the import's fate");
-
-            ResetServices();
-        }
+        Assert.That(ran, Is.True);
+        var marker = await tgtSys.Settings.GetAsync("import-marker");
+        Assert.That(marker != null, Is.EqualTo(commit), "the hook's write must share the import's fate");
     }
 
 #if RUN_POSTGRES_TESTS
@@ -362,31 +362,4 @@ public class IdentityJsonRoundTripTests
         Assert.That(await tgtId.CountRowsForIdentityAsync(_identityId), Is.EqualTo(0));
     }
 #endif
-
-    private void ResetServices()
-    {
-        _sourceServices.Dispose();
-        _targetServices.Dispose();
-        foreach (var folder in new[] { _sourceTempFolder, _targetTempFolder })
-        {
-            Directory.Delete(folder, true);
-            Directory.CreateDirectory(folder);
-        }
-        _identityId = Guid.NewGuid();
-        _sourceServices = new TestServices();
-        _targetServices = new TestServices();
-    }
-    private sealed class RecordingLogger : ILogger
-    {
-        public List<(LogLevel Level, string Message)> Entries { get; } = [];
-
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => null;
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception,
-            Func<TState, Exception, string> formatter)
-        {
-            Entries.Add((logLevel, formatter(state, exception)));
-        }
-    }
 }

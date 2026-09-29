@@ -48,12 +48,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
-    /// <summary>
-    /// The Settings row whose bump tells every node the registry changed. A writer outside the registry
-    /// (identity-import) bumps it in the same transaction as its registration write, and each node's
-    /// catch-up then loads the change.
-    /// </summary>
-    public const string RegistryVersionKey = "registry-version";
+    private const string RegistryVersionKey = "registry-version";
     private readonly Guid _nodeId = Guid.NewGuid();
     private long _localVersion;
     // Guards every mutation of _trie/_cache and the registration objects they hold: writers,
@@ -463,6 +458,23 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         //TODO: Log system error here?
 
         return RegistrationStatus.Unknown;
+    }
+
+    /// <summary>
+    /// For identity-import, which writes the registration row itself inside its own transaction on
+    /// <paramref name="systemDatabase"/>: marks it paused as of now and bumps the registry version in that
+    /// same transaction, so every running node's catch-up loads the identity, paused, once it commits.
+    /// </summary>
+    public static async Task MarkImportedRegistrationPausedAsync(SystemDatabase systemDatabase, Guid identityId)
+    {
+        var record = await systemDatabase.Registrations.GetAsync(identityId)
+                     ?? throw new InvalidOperationException($"There is no registration for identity {identityId}");
+        var state = new TenantStatusState(TenantStatus.Paused, null, UnixTimeUtc.Now());
+        // Superseded by the status in json; written as a mirror for nodes on older versions
+        record.disabled = state.Status == TenantStatus.Disabled;
+        record.json = RegistrationJsonMapper.ToJson(state);
+        await systemDatabase.Registrations.UpdateAsync(record);
+        await systemDatabase.Settings.BumpMonotonicAsync(RegistryVersionKey);
     }
 
     private async Task<long> SaveRegistrationInternal(IdentityRegistration registration)

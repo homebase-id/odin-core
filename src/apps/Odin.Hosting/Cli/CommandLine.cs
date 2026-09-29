@@ -291,10 +291,10 @@ public class CommandLine
         //
         // Command line: Export one identity's tables to a single JSON file
         //
-        // THE IDENTITY MUST BE STILL. The hosts keep running, so the identity is paused
-        // first: every node then stops its workers and jobs and lets in-flight requests
-        // finish. The export refuses until the identity has been paused (or disabled) for
-        // TenantStatusRules.ExportSettleTime, and says how long is left.
+        // THE IDENTITY MUST BE STILL: paused (or disabled) for at least
+        // TenantStatusRules.ExportSettleTime, so every node has stopped its workers and jobs
+        // and requests that were in flight have finished. The export refuses until then and
+        // says how long is left.
         //
         // S3 PAYLOADS ONLY. Payloads are not in the file and move separately, which today
         // means a copy between S3 buckets, so a disk-based host is refused outright. See

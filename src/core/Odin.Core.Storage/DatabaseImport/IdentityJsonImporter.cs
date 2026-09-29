@@ -51,63 +51,55 @@ public static class IdentityJsonImporter
     {
         var skip = skipTables ?? DefaultSkippedTables;
 
-        var enumerator = OpenElements(input);
+        await using var enumerator = OpenElements(input);
+        var header = await ReadHeaderAsync(enumerator);
 
-        try
+        // Nothing is written until every precondition holds.
+        var violations = await IdentityImportPreconditions.CheckAsync(
+            header, targetSystemDatabase, targetIdentityDatabase);
+
+        if (violations.Count > 0)
         {
-            var header = await ReadHeaderAsync(enumerator);
+            throw new InvalidOperationException(
+                $"Refusing to import {header.Domain}. {violations.Count} precondition(s) failed:"
+                + Environment.NewLine + string.Join(Environment.NewLine, violations.Select(v => "  - " + v)));
+        }
 
-            // Nothing is written until every precondition holds.
-            var violations = await IdentityImportPreconditions.CheckAsync(
-                header, targetSystemDatabase, targetIdentityDatabase);
+        var result = new ImportResult { Header = header };
 
-            if (violations.Count > 0)
+        // The identity rows commit first and the system rows (the registration) last, so the
+        // registration is the commit point: if the identity commit fails, the registration never
+        // lands, and a rerun clears what did. Commit() only marks a transaction; it commits when
+        // disposed, which is why the identity transaction is disposed before the system one is marked.
+        await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
+        await using (var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync())
+        {
+            var leftovers = await targetIdentityDatabase.DeleteRowsForIdentityAsync(header.IdentityId);
+            if (leftovers > 0)
             {
-                throw new InvalidOperationException(
-                    $"Refusing to import {header.Domain}. {violations.Count} precondition(s) failed:"
-                    + Environment.NewLine + string.Join(Environment.NewLine, violations.Select(v => "  - " + v)));
+                logger.LogWarning("Cleared {count} row(s) {domain} had left in the identity tables without a registration",
+                    leftovers, header.Domain);
             }
 
-            var result = new ImportResult { Header = header };
+            await ImportRowsAsync(logger, enumerator, targetSystemDatabase, targetIdentityDatabase, skip, result);
 
-            // The identity rows commit first and the system rows (the registration) last, so the
-            // registration is the commit point: if the identity commit fails, the registration never
-            // lands, and a rerun clears what did. Commit() only marks a transaction; it commits when
-            // disposed, which is why the identity transaction is disposed before the system one is marked.
-            await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
-            await using (var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync())
+            if (beforeCommit != null)
             {
-                var leftovers = await targetIdentityDatabase.DeleteRowsForIdentityAsync(header.IdentityId);
-                if (leftovers > 0)
-                {
-                    logger.LogWarning("Cleared {count} row(s) {domain} had left in the identity tables without a registration",
-                        leftovers, header.Domain);
-                }
-
-                await ImportRowsAsync(logger, enumerator, targetSystemDatabase, targetIdentityDatabase, skip, result);
-
-                if (beforeCommit != null)
-                {
-                    await beforeCommit();
-                }
-
-                if (!commit)
-                {
-                    logger.LogInformation("Dry run: rolling back {count} rows for {domain}", result.RowsImported, header.Domain);
-                    return result;
-                }
-
-                identityTransaction.Commit();
+                await beforeCommit();
             }
 
-            systemTransaction.Commit();
-            logger.LogInformation("Imported {count} rows for {domain}", result.RowsImported, header.Domain);
-            return result;
+            if (!commit)
+            {
+                logger.LogInformation("Dry run: rolling back {count} rows for {domain}", result.RowsImported, header.Domain);
+                return result;
+            }
+
+            identityTransaction.Commit();
         }
-        finally
-        {
-            await enumerator.DisposeAsync();
-        }
+
+        systemTransaction.Commit();
+        logger.LogInformation("Imported {count} rows for {domain}", result.RowsImported, header.Domain);
+        return result;
     }
 
     private static async Task ImportRowsAsync(
@@ -212,7 +204,7 @@ public static class IdentityJsonImporter
                 $"Export file contains table '{table}', which this binary does not know about.");
         }
 
-        return OdinSystemSerializer.Deserialize(data.GetRawText(), type)
+        return data.Deserialize(type, OdinSystemSerializer.JsonSerializerOptions)
             ?? throw new InvalidOperationException($"Row for table '{table}' deserialized to null.");
     }
 }

@@ -4,7 +4,6 @@ using System.Data;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
@@ -37,7 +36,6 @@ public static class IdentityJsonExporter
     // file. One left behind by a crash is refused rather than overwritten or deleted: it
     // holds key material, so the operator should see it and delete it.
     public static async Task<long> ExportToFileAsync(
-        ILogger logger,
         string filePath,
         Guid identityId,
         string domain,
@@ -80,7 +78,7 @@ public static class IdentityJsonExporter
             long rows;
             await using (stream)
             {
-                rows = await ExportAsync(logger, stream, identityId, domain, systemDatabase, identityDatabase,
+                rows = await ExportAsync(stream, identityId, domain, systemDatabase, identityDatabase,
                     identitySchemaVersion, systemSchemaVersion, callerCheckedIdentityIsStill);
             }
 
@@ -95,7 +93,6 @@ public static class IdentityJsonExporter
     }
 
     public static async Task<long> ExportAsync(
-        ILogger logger,
         Stream output,
         Guid identityId,
         string domain,
@@ -159,8 +156,6 @@ public static class IdentityJsonExporter
 
         writer.WriteEndArray();
         await writer.FlushAsync();
-
-        logger.LogInformation("Exported {count} rows for {domain}", rowCount, domain);
         return rowCount;
     }
 }

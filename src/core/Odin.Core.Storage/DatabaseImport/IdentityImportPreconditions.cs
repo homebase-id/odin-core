@@ -69,14 +69,9 @@ public static class IdentityImportPreconditions
         // retryable.
 
         // 4. All-or-nothing table version match, in both directions.
-        violations.AddRange(CompareTableVersions(
-            IdentityExportFile.DbSystem,
-            header.TableVersions.GetValueOrDefault(IdentityExportFile.DbSystem) ?? new Dictionary<string, long>(),
+        violations.AddRange(CompareTableVersions(header, IdentityExportFile.DbSystem,
             await targetSystemDatabase.GetTableVersionsAsync()));
-
-        violations.AddRange(CompareTableVersions(
-            IdentityExportFile.DbIdentity,
-            header.TableVersions.GetValueOrDefault(IdentityExportFile.DbIdentity) ?? new Dictionary<string, long>(),
+        violations.AddRange(CompareTableVersions(header, IdentityExportFile.DbIdentity,
             await targetIdentityDatabase.GetTableVersionsAsync()));
 
         return violations;
@@ -85,10 +80,12 @@ public static class IdentityImportPreconditions
     // Table sets must be identical, not merely overlapping. A table present on one
     // side and absent on the other is as much a mismatch as a differing version.
     private static IEnumerable<string> CompareTableVersions(
+        ExportHeader header,
         string db,
-        Dictionary<string, long> fromFile,
         Dictionary<string, long> onTarget)
     {
+        var fromFile = header.TableVersions.GetValueOrDefault(db) ?? new Dictionary<string, long>();
+
         foreach (var (table, fileVersion) in fromFile.OrderBy(kv => kv.Key))
         {
             if (!onTarget.TryGetValue(table, out var targetVersion))

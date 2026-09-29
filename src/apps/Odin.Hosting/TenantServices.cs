@@ -452,7 +452,7 @@ public static class TenantServices
         cb.AddTenantBackgroundServices(registration);
 
         // Tenant database services
-        cb.ConfigureDatabaseServices(registration, odinConfig);
+        cb.ConfigureDatabaseServices(registration.Id, odinConfig);
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
@@ -465,22 +465,22 @@ public static class TenantServices
 
     //
 
-    private static void ConfigureDatabaseServices(
+    internal static void ConfigureDatabaseServices(
         this ContainerBuilder cb,
-        IdentityRegistration registration,
+        Guid identityId,
         OdinConfiguration config)
     {
         switch (config.Database.Type)
         {
             case DatabaseType.Sqlite:
             {
-                var tenantPathManager = new TenantPathManager(config, registration.Id);
-                cb.AddSqliteIdentityDatabaseServices(registration.Id, tenantPathManager.GetIdentityDatabasePath());
+                var tenantPathManager = new TenantPathManager(config, identityId);
+                cb.AddSqliteIdentityDatabaseServices(identityId, tenantPathManager.GetIdentityDatabasePath());
                 break;
             }
             case DatabaseType.Postgres:
                 cb.AddPgsqlIdentityDatabaseServices(
-                    registration.Id,
+                    identityId,
                     config.Database.ConnectionString);
                 break;
             default:
