@@ -675,6 +675,13 @@ code, and the next commit (`edcb0b130`, no drive changes either) passed all thre
 not traced: a writer cleaning up a payload version another writer had already replaced -- the same
 concurrent-writers-on-one-drive shape as #1780, surfacing as a missing file rather than a 500.
 
+**Same symptom on Linux, 2026-09-29.** PR #1833 commit `65ffe4044`, run 36566548856,
+`ubuntu/sqlite/release` (S3 payloads): two `HardDeletePayloadFile -> source payload does not exist`
+events in the teardown, 1 failure in 1472. So it is not Windows-only. Not caused by the PR: its drive
+changes add `IDriveFileStore.OpenReadAsync` and a check on the payload *read* path when a payload is
+missing; nothing on the overwrite or hard-delete path that logs this (`LongTermStorageManager.cs:210`)
+changed.
+
 ---
 
 ## `Odin.SetupHelper.Tests.TcpProbeTests`
