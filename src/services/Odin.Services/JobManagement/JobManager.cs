@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Background;
 using Odin.Services.JobManagement.Jobs;
+using Odin.Services.Registry;
 
 namespace Odin.Services.JobManagement;
 
@@ -18,7 +19,13 @@ namespace Odin.Services.JobManagement;
 
 public interface IJobManager
 {
+    /// <summary>A job that belongs to no identity: it runs whatever any identity's status is.</summary>
     T NewJob<T>() where T : AbstractJob;
+
+    /// <summary>
+    /// A job for an identity: it waits while the identity is paused or disabled. Jobs that must act on a
+    /// stopped identity (deleting or exporting it) use the other overload.
+    /// </summary>
     T NewJob<T>(Guid identityId) where T : AbstractJob;
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
@@ -43,7 +50,8 @@ public class JobManager(
     ICorrelationContext correlationContext,
     ILifetimeScope lifetimeScope,
     TableJobs tableJobs,
-    IBackgroundServiceNotifier<JobRunnerBackgroundService> backgroundServiceNotifier)
+    IBackgroundServiceNotifier<JobRunnerBackgroundService> backgroundServiceNotifier,
+    IIdentityRegistry identityRegistry)
     : IJobManager
 {
 
@@ -241,8 +249,22 @@ public class JobManager(
         try
         {
             // DO NOT RELOAD THE JOB AFTER THIS POINT!
-            logger.LogInformation("JobManager starting job '{name}' id:{jobId}", record.name, record.id);
-            result = await job.Run(cancellationToken);
+            if (job.IdentityId is { } identityId &&
+                identityRegistry.GetStatus(identityId) is { } status &&
+                !TenantStatusRules.RunsBackgroundServices(status))
+            {
+                // A paused or disabled identity must stay still (an export may be reading it), so its
+                // jobs wait like its background services do. Deferring does not spend a run.
+                logger.LogInformation("JobManager deferring job '{name}' id:{jobId}: identity is {status}",
+                    record.name, record.id, status);
+                result = JobExecutionResult.Defer(DateTimeOffset.Now.AddSeconds(TenantStatusRules.PausedRetryAfterSeconds));
+                errorMessage = $"identity is {status}";
+            }
+            else
+            {
+                logger.LogInformation("JobManager starting job '{name}' id:{jobId}", record.name, record.id);
+                result = await job.Run(cancellationToken);
+            }
         }
         catch (OperationCanceledException ex)
         {

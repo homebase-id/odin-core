@@ -23,7 +23,7 @@ public sealed class SecurityHealthCheckBackgroundScheduler(
 #if !DEBUG
         await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
 #endif
-        var job = jobManager.NewJob<SecurityHealthCheckJob>();
+        var job = jobManager.NewJob<SecurityHealthCheckJob>(tenantContext.DotYouRegistryId);
         job.Data = new SecurityHealthCheckJobData()
         {
             Tenant = tenantContext.HostOdinId

@@ -710,7 +710,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
 
             // Only claim the version if every tenant actually came up; otherwise the next
-            // announcement or reconnect re-check retries the ones that failed.
+            // catch-up (or announcement, or reconnect) retries the ones that failed.
             if (failed == 0)
             {
                 RaiseLocalVersion(version);
@@ -842,7 +842,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// Starts listening for registry version announcements from other nodes, and re-checks the
     /// version whenever the Redis connection is restored. Call before <see cref="LoadRegistrations"/>:
     /// an announcement arriving mid-load is either at or below the version load reads, and dropped,
-    /// or above it, and reconciled after, so there is no startup window to close with a timer.
+    /// or above it, and reconciled after, so the ordering alone closes the startup window.
     /// </summary>
     public async Task SubscribeToRegistryChangesAsync()
     {
@@ -857,8 +857,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (_config.Redis.Enabled)
         {
             // Pub/sub has no replay: anything announced while this connection was down is gone.
-            // The version row says whether we missed something, and this is the only moment we
-            // could have, so re-check it here rather than on a timer.
+            // The version row says whether we missed something, so re-check it the moment we are
+            // back rather than waiting for the next CatchUpAsync.
             _serviceProvider.Resolve<IConnectionMultiplexer>().ConnectionRestored += OnRedisConnectionRestored;
         }
 
@@ -884,6 +884,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 _logger.LogError(ex, "Registry re-check after redis reconnect failed: {error}", ex.Message);
             }
         });
+    }
+
+    /// <inheritdoc/>
+    public Task CatchUpAsync()
+    {
+        return ReconcileWithDatabaseAsync(null, "periodic catch-up");
     }
 
     private async Task OnRegistryVersionAnnouncedAsync(JsonEnvelope envelope)
@@ -928,12 +934,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
             catch (Exception e)
             {
-                // The change is committed and applied here, but no other node will hear about it
-                // until the next registry change anywhere, a redis reconnect, or a restart. That is
-                // the one gap this design accepts, and it has to be findable in the logs.
+                // The change is committed and applied here; other nodes pick it up on their next
+                // CatchUpAsync instead of straight away, so it has to be findable in the logs.
                 _logger.LogError(e,
                     "Could not publish registry version {version} after {domain} changed; other nodes stay stale " +
-                    "until the next registry change, a redis reconnect, or a restart: {error}",
+                    "until their next periodic catch-up: {error}",
                     version, primaryDomain, e.Message);
                 return;
             }
@@ -942,14 +947,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
 
     /// <summary>
-    /// Brings the in-memory registry up to the database, which is the source of truth. Reads the
-    /// version before the rows for the same reason as <see cref="LoadRegistrations"/>. Single-flight:
-    /// concurrent announcements and reconnect events collapse into one pass.
-    /// </summary>
-    /// <summary>
     /// Brings the in-memory registry up to the database if the database is known (or suspected)
     /// to be past <paramref name="floor"/>. Announcements pass the version they carry; a redis
-    /// reconnect passes nothing and lets the database say. The floor is checked again once the
+    /// reconnect or the periodic catch-up passes nothing and lets the database say. The floor is checked again once the
     /// lock is held, before any scope or query, so a burst of announcements collapses into one
     /// pass and the rest return without touching the database.
     /// </summary>
@@ -1430,6 +1430,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         reg.DisabledReason = fallback.DisabledReason;
         reg.StatusChangedAt = fallback.StatusChangedAt;
         return false;
+    }
+
+    public TenantStatus? GetStatus(Guid identityId)
+    {
+        return _cache.GetValueOrDefault(identityId)?.Status;
     }
 
     /// <summary>

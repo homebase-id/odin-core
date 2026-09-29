@@ -25,7 +25,8 @@ public enum TenantStatus
 
     /// <summary>
     /// Temporary maintenance hold (e.g. while the identity is being moved). New requests are told to
-    /// retry later and the identity's background services are stopped.
+    /// retry later, the identity's background services are stopped and its jobs wait. Every node
+    /// applies it, at the latest after <c>Registry:CatchUpIntervalSeconds</c>.
     /// <para>
     /// Requests already in flight are allowed to finish: a pause never breaks them. So the data
     /// settles shortly after the pause, not at the moment it is set. Anything that needs a still copy
