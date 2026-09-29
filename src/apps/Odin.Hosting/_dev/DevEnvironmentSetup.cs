@@ -83,7 +83,7 @@ public static class DevEnvironmentSetup
     private static void ConfigureSystemSsl(OdinConfiguration odinConfiguration, ICertificateStore certificateStore)
     {
         // Provisioning system, whose domain also serves the payload move endpoint
-        if (odinConfiguration.Registry.ProvisioningEnabled || odinConfiguration.PayloadMove.SourceEnabled)
+        if (odinConfiguration.ServesProvisioningDomain)
         {
             try
             {

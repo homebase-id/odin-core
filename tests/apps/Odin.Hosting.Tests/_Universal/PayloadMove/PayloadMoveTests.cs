@@ -64,7 +64,7 @@ public class PayloadMoveTests
     [Test]
     public async Task ServesAPausedIdentitysPayloadsAndThumbnailsToTheRedeemer()
     {
-        var (file, payload) = await UploadAsync();
+        var (file, payload, _) = await UploadWithDriveAsync();
         await SetStatusAsync(TestIdentities.Frodo.OdinId.DomainName, Status.Paused);
         var credential = await RedeemAsync(await MintAsync());
 
@@ -85,7 +85,7 @@ public class PayloadMoveTests
     [Test]
     public async Task RefusesEverythingElseWithA404()
     {
-        var (file, payload) = await UploadAsync();
+        var (file, payload, _) = await UploadWithDriveAsync();
         var domain = TestIdentities.Frodo.OdinId.DomainName;
         await SetStatusAsync(domain, Status.Paused);
         var token = await MintAsync();
@@ -201,12 +201,6 @@ public class PayloadMoveTests
 
     //
 
-    private async Task<(DriveMainIndexRecord file, PayloadDescriptor payload)> UploadAsync()
-    {
-        var (file, payload, _) = await UploadWithDriveAsync();
-        return (file, payload);
-    }
-
     private async Task<(DriveMainIndexRecord file, PayloadDescriptor payload, TargetDrive targetDrive)> UploadWithDriveAsync()
     {
         var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -254,14 +248,14 @@ public class PayloadMoveTests
         return SendAsync(HttpMethod.Post, $"{Root()}/redeem", null, body);
     }
 
-    private string Root() => $"/api/payload-move/v1/{IdOf(TestIdentities.Frodo)}";
+    private string Root() => PayloadMoveProtocol.IdentityPath(IdOf(TestIdentities.Frodo));
 
-    private string PayloadPath(DriveMainIndexRecord file, PayloadDescriptor payload) =>
-        $"/api/payload-move/v1/{file.identityId}/payload/{file.driveId}/{file.fileId}/{payload.Key}/{payload.Uid.uniqueTime}";
+    private static string PayloadPath(DriveMainIndexRecord file, PayloadDescriptor payload) =>
+        new PayloadObject(file.driveId, file.fileId, payload.Key, payload.Uid, 0).SourcePath(file.identityId);
 
-    private string ThumbnailPath(DriveMainIndexRecord file, PayloadDescriptor payload, ThumbnailDescriptor thumbnail) =>
-        $"/api/payload-move/v1/{file.identityId}/thumb/{file.driveId}/{file.fileId}/{payload.Key}/{payload.Uid.uniqueTime}/" +
-        $"{thumbnail.PixelWidth}x{thumbnail.PixelHeight}";
+    private static string ThumbnailPath(DriveMainIndexRecord file, PayloadDescriptor payload, ThumbnailDescriptor thumbnail) =>
+        new PayloadObject(file.driveId, file.fileId, payload.Key, payload.Uid, 0, thumbnail.PixelWidth, thumbnail.PixelHeight)
+            .SourcePath(file.identityId);
 
     private static async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string credential,
         HttpContent content = null, string host = ProvisioningHost)

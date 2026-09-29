@@ -56,13 +56,8 @@ public class PayloadMoveJob(
     {
         await jobManager.DeleteJobByHashAsync(JobHashFor(identityId));
         var job = jobManager.NewJob<PayloadMoveJob>(identityId);
-        job.Data = new PayloadMoveState
-        {
-            BaseUrl = baseUrl,
-            HandoffToken = handoffToken,
-            StartRowId = startRowId,
-            CursorRowId = startRowId + 1,
-        };
+        job.Data = new PayloadMoveState { BaseUrl = baseUrl, HandoffToken = handoffToken };
+        job.Data.StartFrom(startRowId);
 
         return await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
@@ -113,9 +108,7 @@ public class PayloadMoveJob(
             new HttpPayloadMoveSourceClient(client, Data.BaseUrl, identityId),
             scope.Resolve<LongTermPayloadStore>(),
             (belowRowId, count) => identityDatabase.DriveMainIndex.GetFilePayloadRowsBelowAsync(belowRowId, count),
-            o => o.IsThumbnail
-                ? paths.GetThumbnailDirectoryAndFileName(o.DriveId, o.FileId, o.Key, o.Uid, o.Width, o.Height)
-                : paths.GetPayloadDirectoryAndFileName(o.DriveId, o.FileId, o.Key, o.Uid),
+            o => o.PathIn(paths),
             config.PayloadMove.Parallelism,
             logger);
 

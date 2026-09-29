@@ -65,38 +65,40 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
         var grid = new Grid();
         grid.AddColumn();
         grid.AddColumn();
-        grid.AddRow(new Text("Domain", new Style(Color.Blue)), new Text(report.Domain));
+        void Row(string label, Text value) => grid.AddRow(new Text(label, new Style(Color.Blue)), value);
+
+        Row("Domain", new Text(report.Domain));
 
         if (report.Source == null && report.Target == null)
         {
-            grid.AddRow(new Text("Payload move", new Style(Color.Blue)), new Text("none on this host"));
+            Row("Payload move", new Text("none on this host"));
         }
 
         if (report.Source is { } source)
         {
-            grid.AddRow(new Text("Source", new Style(Color.Blue)), new Text(source.CompletedAt != null
+            Row("Source", new Text(source.CompletedAt != null
                 ? $"complete {Show(source.CompletedAt)}"
                 : source.RedeemedAt != null
                     ? $"transferring since {Show(source.RedeemedAt)}"
                     : $"exported; handoff expires {Show(source.HandoffExpiresAt)}"));
-            grid.AddRow(new Text("Deletable", new Style(Color.Blue)), new Text(source.Pending ? "no, a target may still need the payloads" : "yes"));
+            Row("Deletable", new Text(source.Pending ? "no, a target may still need the payloads" : "yes"));
         }
 
         if (report.Target is { } target)
         {
             var p = target.Progress;
-            grid.AddRow(new Text("Transfer", new Style(Color.Blue)), new Text($"{p.Status} (job {target.JobState}, next run {Show(target.NextRun)})"));
-            grid.AddRow(new Text("From", new Style(Color.Blue)), new Text(p.BaseUrl));
-            grid.AddRow(new Text("Files", new Style(Color.Blue)), new Text($"{p.Files} (newest first, down from row {p.StartRowId}; now below {p.CursorRowId})"));
-            grid.AddRow(new Text("Objects", new Style(Color.Blue)), new Text($"{p.Objects} moved, {p.Bytes.HumanReadableBytes()}; {p.Skipped} already here"));
-            grid.AddRow(new Text("Failures", new Style(Color.Blue)), new Text(p.FailureCount.ToString()));
+            Row("Transfer", new Text($"{p.Status} (job {target.JobState}, next run {Show(target.NextRun)})"));
+            Row("From", new Text(p.BaseUrl));
+            Row("Files", new Text($"{p.Files} (newest first, down from row {p.StartRowId}; now below {p.CursorRowId})"));
+            Row("Objects", new Text($"{p.Objects} moved, {p.Bytes.HumanReadableBytes()}; {p.Skipped} already here"));
+            Row("Failures", new Text(p.FailureCount.ToString()));
             if (p.BackoffSeconds > 0)
             {
-                grid.AddRow(new Text("Waiting", new Style(Color.Blue)), new Text($"{p.BackoffSeconds} s on the source"));
+                Row("Waiting", new Text($"{p.BackoffSeconds} s on the source"));
             }
             if (!string.IsNullOrEmpty(target.LastError))
             {
-                grid.AddRow(new Text("Last error", new Style(Color.Blue)), new Text(target.LastError));
+                Row("Last error", new Text(target.LastError));
             }
         }
 
@@ -115,5 +117,5 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
     }
 
     private static string Show(UnixTimeUtc? time) =>
-        time == null ? "-" : DateTimeOffset.FromUnixTimeMilliseconds(time.Value.milliseconds).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+        time == null ? "-" : time.Value.ToDateTimeOffset().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
 }

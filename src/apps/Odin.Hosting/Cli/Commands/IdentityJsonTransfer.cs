@@ -37,10 +37,8 @@ public static class IdentityJsonTransfer
     // Where this host serves moved payloads: its provisioning domain, on the public HTTPS port
     private static string PayloadSourceBaseUrl(OdinConfiguration config)
     {
-        var port = config.Host.DefaultHttpsPort;
-        return port == 443
-            ? $"https://{config.Registry.ProvisioningDomain}"
-            : $"https://{config.Registry.ProvisioningDomain}:{port}";
+        return new UriBuilder("https", config.Registry.ProvisioningDomain, config.Host.DefaultHttpsPort).Uri
+            .GetLeftPart(UriPartial.Authority);
     }
 
     // True when the export file was written. False means it was refused, and the caller

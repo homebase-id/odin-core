@@ -50,6 +50,12 @@ public class OdinConfiguration
     public S3PayloadSection S3Payload { get; init; } = new();
     public PayloadMoveSection PayloadMove { get; init; } = new();
 
+    /// <summary>
+    /// The provisioning domain is served (and needs its certificate) when this host provisions, and when it
+    /// serves moved payloads, whose endpoint is on that domain.
+    /// </summary>
+    public bool ServesProvisioningDomain => Registry.ProvisioningEnabled || PayloadMove.SourceEnabled;
+
     public CdnSection Cdn { get; init; } = new();
 
     public OpenObserveSection OpenObserve { get; init; } = new();

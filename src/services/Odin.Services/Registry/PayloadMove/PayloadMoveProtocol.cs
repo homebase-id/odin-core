@@ -1,5 +1,6 @@
 using System;
 using Odin.Core.Time;
+using Odin.Services.Drives.FileSystem.Base;
 
 #nullable enable
 
@@ -39,6 +40,11 @@ public sealed record PayloadObject(
     int Height = 0)
 {
     public bool IsThumbnail => Width > 0;
+
+    /// <summary>Where this host keeps it: each host builds its own path from what the object is.</summary>
+    public string PathIn(TenantPathManager paths) => IsThumbnail
+        ? paths.GetThumbnailDirectoryAndFileName(DriveId, FileId, Key, Uid, Width, Height)
+        : paths.GetPayloadDirectoryAndFileName(DriveId, FileId, Key, Uid);
 
     public string SourcePath(Guid identityId) => IsThumbnail
         ? $"{PayloadMoveProtocol.IdentityPath(identityId)}/thumb/{DriveId}/{FileId}/{Key}/{Uid.uniqueTime}/{Width}x{Height}"

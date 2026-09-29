@@ -249,7 +249,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // Deleting purges the payloads, which a target may still be pulling after a move
             await using (var guardScope = _serviceProvider.BeginLifetimeScope($"DeleteRegistrationGuard:{registration.PrimaryDomainName}"))
             {
-                if (await new PayloadMoveSource(guardScope.Resolve<SystemDatabase>()).IsTransferPendingAsync(registration.Id))
+                if (await guardScope.Resolve<PayloadMoveSource>().IsTransferPendingAsync(registration.Id))
                 {
                     throw new OdinClientException(
                         $"{domain} was exported and its payloads have not all reached the target yet; " +

@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.PayloadMove;
 /// See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
 /// </summary>
 [ApiController]
-[Route(RootPath + "/v1/{identityId:guid}")]
+[Route(PayloadMoveProtocol.RootPath + "/v1/{identityId:guid}")]
 [ServiceFilter(typeof(PayloadMoveRestrictedAttribute))]
 [ApiExplorerSettings(IgnoreApi = true)]
 public class PayloadMoveController(
@@ -36,8 +36,6 @@ public class PayloadMoveController(
     OdinConfiguration config,
     ILogger<PayloadMoveController> logger) : ControllerBase
 {
-    public const string RootPath = PayloadMoveProtocol.RootPath;
-
     // A storage provider that throttles us is passed on as a 429, so the target slows down instead of
     // taking the source for broken
     private const int ThrottledRetryAfterSeconds = 30;
@@ -77,31 +75,30 @@ public class PayloadMoveController(
     [HttpHead("payload/{driveId:guid}/{fileId:guid}/{key}/{uid:long}")]
     public Task<IActionResult> GetPayload(Guid identityId, Guid driveId, Guid fileId, string key, long uid)
     {
-        return ServeAsync(identityId, key,
-            paths => paths.GetPayloadDirectoryAndFileName(driveId, fileId, key, new UnixTimeUtcUnique(uid)));
+        return ServeAsync(identityId, new PayloadObject(driveId, fileId, key, new UnixTimeUtcUnique(uid), 0));
     }
 
     [HttpGet("thumb/{driveId:guid}/{fileId:guid}/{key}/{uid:long}/{width:int}x{height:int}")]
     [HttpHead("thumb/{driveId:guid}/{fileId:guid}/{key}/{uid:long}/{width:int}x{height:int}")]
     public Task<IActionResult> GetThumbnail(Guid identityId, Guid driveId, Guid fileId, string key, long uid, int width, int height)
     {
-        return ServeAsync(identityId, key,
-            paths => paths.GetThumbnailDirectoryAndFileName(driveId, fileId, key, new UnixTimeUtcUnique(uid), width, height));
+        return ServeAsync(identityId, new PayloadObject(driveId, fileId, key, new UnixTimeUtcUnique(uid), 0, width, height));
     }
 
     //
 
-    private async Task<IActionResult> ServeAsync(Guid identityId, string key, Func<TenantPathManager, string> pathOf)
+    private async Task<IActionResult> ServeAsync(Guid identityId, PayloadObject payloadObject)
     {
         var registration = ServableRegistration(identityId);
-        if (registration == null || !TenantPathManager.IsValidPayloadKey(key) || !await source.AuthorizeAsync(identityId, Credential()))
+        if (registration == null || !TenantPathManager.IsValidPayloadKey(payloadObject.Key) ||
+            !await source.AuthorizeAsync(identityId, Credential()))
         {
             return NotFound();
         }
 
         await using var scope = tenants.GetTenantScope(registration.PrimaryDomainName).BeginLifetimeScope("PayloadMove");
         var store = scope.Resolve<LongTermPayloadStore>();
-        var path = pathOf(new TenantPathManager(config, identityId));
+        var path = payloadObject.PathIn(new TenantPathManager(config, identityId));
 
         try
         {

@@ -53,10 +53,7 @@ public class PayloadMoveTransferTests
         // the target after the import (40), whose payloads were never on the source
         _index = [File(10), File(20), File(30), File(40)];
         _source = new FakeSource();
-        foreach (var o in _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf))
-        {
-            _source.Objects[o.SourcePath(Guid.Empty)] = Bytes(o);
-        }
+        Seed(ImportedObjects());
     }
 
     [TearDown]
@@ -75,7 +72,7 @@ public class PayloadMoveTransferTests
         Assert.That(state.Credential, Is.EqualTo("credential"));
         Assert.That(state.HandoffToken, Is.Null, "the token is spent");
 
-        var moved = _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf).ToList();
+        var moved = ImportedObjects().ToList();
         foreach (var o in moved)
         {
             Assert.That(await _target.ReadAllBytesAsync(PathOf(o)), Is.EqualTo(Bytes(o)), o.ToString());
@@ -92,10 +89,7 @@ public class PayloadMoveTransferTests
     public async Task NeverHasMoreThanNTransfersInFlight()
     {
         _index = Enumerable.Range(1, 10).Select(i => File(i)).ToList();
-        foreach (var o in _index.SelectMany(ObjectsOf))
-        {
-            _source.Objects[o.SourcePath(Guid.Empty)] = Bytes(o);
-        }
+        Seed(_index.SelectMany(ObjectsOf));
 
         _source.Delay = TimeSpan.FromMilliseconds(30);
         var state = NewState(startRowId: 10);
@@ -146,7 +140,7 @@ public class PayloadMoveTransferTests
 
         _source.AfterFetch = null;
         var fetchedBeforeTheStop = _source.Fetched.Count;
-        var all = _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf).ToList();
+        var all = ImportedObjects().ToList();
         var landed = 0;
         foreach (var o in all)
         {
@@ -166,7 +160,7 @@ public class PayloadMoveTransferTests
     [Test]
     public async Task AMissingOrWrongSizedObjectIsAFailureThatKeepsTheSource()
     {
-        var objects = _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf).ToList();
+        var objects = ImportedObjects().ToList();
         _source.Objects.Remove(objects[0].SourcePath(Guid.Empty), out _);
         _source.Objects[objects[1].SourcePath(Guid.Empty)] = [1, 2, 3];
         var state = NewState();
@@ -226,6 +220,17 @@ public class PayloadMoveTransferTests
 
     //
 
+    // What the source has: every object of the files the import brought
+    private IEnumerable<PayloadObject> ImportedObjects() => _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf);
+
+    private void Seed(IEnumerable<PayloadObject> objects)
+    {
+        foreach (var o in objects)
+        {
+            _source.Objects[o.SourcePath(Guid.Empty)] = Bytes(o);
+        }
+    }
+
     private PayloadMoveTransfer Transfer(int parallelism = 5) => new(
         _source,
         _target,
@@ -234,13 +239,12 @@ public class PayloadMoveTransferTests
         parallelism,
         NullLogger.Instance);
 
-    private static PayloadMoveState NewState(long startRowId = StartRowId) => new()
+    private static PayloadMoveState NewState(long startRowId = StartRowId)
     {
-        BaseUrl = "https://source.example",
-        HandoffToken = "token",
-        StartRowId = startRowId,
-        CursorRowId = startRowId + 1
-    };
+        var state = new PayloadMoveState { BaseUrl = "https://source.example", HandoffToken = "token" };
+        state.StartFrom(startRowId);
+        return state;
+    }
 
     private string PathOf(PayloadObject o) => Path.Combine(_root, "payloads",
         o.IsThumbnail ? $"{o.FileId:N}-{o.Key}-{o.Uid.uniqueTime}-{o.Width}x{o.Height}.thumb" : $"{o.FileId:N}-{o.Key}-{o.Uid.uniqueTime}.payload");

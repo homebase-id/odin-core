@@ -33,7 +33,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
         await SaveAsync(identityId, new SourceState
         {
             HandoffHash = Hash(token),
-            HandoffExpiresAt = UnixTimeUtc.Now().AddMilliseconds((long)HandoffLifetime.TotalMilliseconds),
+            HandoffExpiresAt = UnixTimeUtc.Now().AddSeconds((long)HandoffLifetime.TotalSeconds),
         });
         return token;
     }
@@ -46,7 +46,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     {
         var state = await LoadAsync(identityId);
         if (state == null || state.RedeemedAt != null || state.CompletedAt != null ||
-            state.HandoffExpiresAt.milliseconds < UnixTimeUtc.Now().milliseconds ||
+            state.HandoffExpiresAt < UnixTimeUtc.Now() ||
             !Matches(state.HandoffHash, handoffToken))
         {
             return null;
@@ -62,8 +62,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     /// <summary>True if the credential is the identity's live transfer credential.</summary>
     public async Task<bool> AuthorizeAsync(Guid identityId, string? credential)
     {
-        var state = await LoadAsync(identityId);
-        return state is { CompletedAt: null, CredentialHash: not null } && Matches(state.CredentialHash, credential);
+        return IsLive(await LoadAsync(identityId), credential);
     }
 
     /// <summary>
@@ -73,12 +72,12 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     public async Task<bool> CompleteAsync(Guid identityId, string? credential)
     {
         var state = await LoadAsync(identityId);
-        if (state is not { CompletedAt: null, CredentialHash: not null } || !Matches(state.CredentialHash, credential))
+        if (!IsLive(state, credential))
         {
             return false;
         }
 
-        state.CompletedAt = UnixTimeUtc.Now();
+        state!.CompletedAt = UnixTimeUtc.Now();
         state.CredentialHash = null;
         await SaveAsync(identityId, state);
         return true;
@@ -90,10 +89,14 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     /// </summary>
     public async Task<bool> IsTransferPendingAsync(Guid identityId)
     {
-        var state = await LoadAsync(identityId);
-        return state is { CompletedAt: null } &&
-               (state.RedeemedAt != null || state.HandoffExpiresAt.milliseconds >= UnixTimeUtc.Now().milliseconds);
+        return IsPending(await LoadAsync(identityId));
     }
+
+    public static bool IsPending(SourceState? state) =>
+        state is { CompletedAt: null } && (state.RedeemedAt != null || state.HandoffExpiresAt >= UnixTimeUtc.Now());
+
+    private static bool IsLive(SourceState? state, string? credential) =>
+        state is { CompletedAt: null, CredentialHash: not null } && Matches(state.CredentialHash, credential);
 
     public async Task<SourceState?> LoadAsync(Guid identityId)
     {

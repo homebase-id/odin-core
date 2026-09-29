@@ -36,6 +36,7 @@ public interface IJobManager
     Task<bool> DeleteJobByIdAsync(Guid jobId, Guid identityId);
     Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt);
     Task<bool> DeleteJobByHashAsync(string jobHash);
+    Task<JobsRecord?> GetJobByHashAsync(string jobHash);
     Task<int> DeleteJobsByIdentityIdAsync(Guid identityId);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
@@ -505,13 +506,6 @@ public class JobManager(
 
     //
 
-    // Surface jobs whose worker died mid-flight. A crash between GetNextScheduledJobAsync
-    // (state -> Preflight) and the end of ExecuteAsync leaves a row pinned in Preflight or Running
-    // forever — DeleteExpiredJobsAsync won't clean it up because expiresAt is only set on terminal
-    // states.
-    //
-    // We do NOT auto-retry: replaying an arbitrary job hours later can corrupt data if the job
-    // isn't idempotent. Log it and let a human decide.
     public async Task<int> RescheduleOrphanedJobsAsync()
     {
         // Only jobs that opted in (AbstractJob.RescheduleIfOrphanedAfter); each decides its own threshold,
@@ -557,6 +551,14 @@ public class JobManager(
 
     //
 
+    // Surface jobs whose worker died mid-flight. A crash between GetNextScheduledJobAsync
+    // (state -> Preflight) and the end of ExecuteAsync leaves a row pinned in Preflight or Running
+    // forever — DeleteExpiredJobsAsync won't clean it up because expiresAt is only set on terminal
+    // states.
+    //
+    // Jobs that opted in (AbstractJob.RescheduleIfOrphanedAfter) were rescheduled first; the rest are not
+    // retried automatically: replaying an arbitrary job hours later can corrupt data if the job isn't
+    // idempotent. Log them and let a human decide.
     public async Task<int> LogOrphanedJobsAsync()
     {
         // A job in Preflight should transition to Running within milliseconds. Anything still
@@ -615,6 +617,13 @@ public class JobManager(
     {
         var result = await tableJobs.UpdateAsync(jobId, identityId, jobData, newRunAt.ToUnixTimeMilliseconds());
         return result > 0;
+    }
+
+    //
+
+    public async Task<JobsRecord?> GetJobByHashAsync(string jobHash)
+    {
+        return await tableJobs.GetJobByHashAsync(jobHash);
     }
 
     //

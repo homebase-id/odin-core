@@ -29,7 +29,7 @@ using Odin.Hosting._dev;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Hosting.Controllers.PayloadMove;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Background;
 using Odin.Services.PublicPage;
 using Odin.Core.Storage.Database.System;
@@ -110,7 +110,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         {
             app.MapWhen(
                 context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&
-                           context.Request.Path.StartsWithSegments(PayloadMoveController.RootPath),
+                           context.Request.Path.StartsWithSegments(PayloadMoveProtocol.RootPath),
                 appBranch =>
                 {
                     appBranch.UseRouting();

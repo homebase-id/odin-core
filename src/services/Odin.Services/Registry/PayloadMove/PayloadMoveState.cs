@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 #nullable enable
 
@@ -57,7 +58,19 @@ public class PayloadMoveState
 
     public PayloadMoveStatus Status { get; set; }
 
+    [JsonIgnore]
     public bool IsFinished => Status is PayloadMoveStatus.Complete or PayloadMoveStatus.CompleteWithFailures or PayloadMoveStatus.Refused;
+
+    /// <summary>(Re)starts the walk at the newest file the import brought, with nothing counted yet.</summary>
+    public void StartFrom(long startRowId)
+    {
+        StartRowId = startRowId;
+        CursorRowId = startRowId + 1;
+        Files = Objects = Bytes = Skipped = FailureCount = 0;
+        Failures = [];
+        BackoffSeconds = 0;
+        Status = PayloadMoveStatus.Transferring;
+    }
 
     public void AddFailure(string failure)
     {

@@ -77,9 +77,10 @@ public sealed class PayloadMoveTransfer(
 
             // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
             // wait. What did land is skipped next time, so nothing is fetched twice.
-            if (outcomes.FirstOrDefault(o => o.outcome.Result == Result.Stalled) is { outcome.Result: Result.Stalled } stalled)
+            var stalled = outcomes.Where(o => o.outcome.Result == Result.Stalled).ToList();
+            if (stalled.Count > 0)
             {
-                return Backoff(state, stalled.outcome.RetryAfter);
+                return Backoff(state, stalled.Max(o => o.outcome.RetryAfter));
             }
 
             unreadable.ForEach(state.AddFailure);

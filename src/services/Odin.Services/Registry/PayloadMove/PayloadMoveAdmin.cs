@@ -63,7 +63,7 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
                 HandoffExpiresAt = state.HandoffExpiresAt,
                 RedeemedAt = state.RedeemedAt,
                 CompletedAt = state.CompletedAt,
-                Pending = await source.IsTransferPendingAsync(registration.Id)
+                Pending = PayloadMoveSource.IsPending(state)
             };
         }
 
@@ -104,12 +104,7 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
                 return PayloadMoveRetryResult.Running;
             }
 
-            var data = job.Data;
-            data.CursorRowId = data.StartRowId + 1;
-            data.Files = data.Objects = data.Bytes = data.Skipped = data.FailureCount = 0;
-            data.Failures.Clear();
-            data.BackoffSeconds = 0;
-            data.Status = PayloadMoveStatus.Transferring;
+            job.Data.StartFrom(job.Data.StartRowId);
 
             await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now);
             return PayloadMoveRetryResult.Rearmed;
@@ -118,9 +113,7 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
 
     private async Task<PayloadMoveJob?> LoadJobAsync(Guid identityId)
     {
-        var record = (await jobManager.GetJobsByIdentityIdAsync(identityId))
-            .Where(r => r.jobType == PayloadMoveJob.JobTypeId.ToString())
-            .MaxBy(r => r.created.milliseconds);
+        var record = await jobManager.GetJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
         return record == null ? null : await jobManager.GetJobAsync<PayloadMoveJob>(record.id);
     }
 }
