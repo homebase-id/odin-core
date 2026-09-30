@@ -202,4 +202,14 @@ public class TenantStatusRulesTests
         var reason = TenantStatusRules.WhyExportMustWait(TenantStatus.Paused, Now.AddSeconds(30), Now, Settle);
         Assert.That(reason, Does.Contain("0 s ago").And.Contain("allowed in 120 s"), reason);
     }
+
+    [Test]
+    public void OnlyACopyDisabledBecauseItMovedHasMovedAway()
+    {
+        foreach (var (status, reason) in AllStates())
+        {
+            var expected = status == TenantStatus.Disabled && reason == DisabledReason.Moved;
+            Assert.That(TenantStatusRules.HasMovedAway(status, reason), Is.EqualTo(expected), $"{status} {reason}");
+        }
+    }
 }

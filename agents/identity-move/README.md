@@ -189,10 +189,10 @@ Once the move has settled (after step 8), put the TTL back on the target:
 `Odin.Hosting repoint-identity-dns <domain> commit` (3600 is the default).
 
 **Never run `populate-managed-domain-records` or `create-own-domain-zones` on a source host.**
-They rewrite the DNS of every identity the host has registered, and the source still has the moved
-identity (paused, then disabled). Run there, even months later as a routine backfill, they point
-it back at the source. Nor are they needed for a move: `repoint-identity-dns` does it for one
-identity.
+They rewrite the DNS of every identity the host has registered. They skip an identity disabled
+with reason `moved`, but only once step 9 has run: until then the source copy is merely paused,
+and they would point it back at the source. Nor are they needed for a move: `repoint-identity-dns`
+does it for one identity.
 
 ### 8. Resume on the target
 
