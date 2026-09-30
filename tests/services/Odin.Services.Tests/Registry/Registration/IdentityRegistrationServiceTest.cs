@@ -13,6 +13,7 @@ using Odin.Core.Http;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.Dns.PowerDns;
+using Odin.Services.Email.Dkim;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
@@ -801,6 +802,51 @@ public class IdentityRegistrationServiceTest
         var e = Assert.ThrowsAsync<OdinSystemException>(() => registration.RepointIdentityDnsAsync(D("frodo.example.com"), 3600, commit: true));
         Assert.That(e!.Message, Does.Contain("no zone in our DNS"));
         _dnsRestClient.Verify(c => c.ReplaceRrsets(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<DnsRrset>>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task DeletingAnIdentitysDnsDeletesItOnlyWhenItPointsHere()
+    {
+        _dnsRestClient.Invocations.Clear();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+        var desired = await DesiredRrsetsAsync(registration);
+        var zone = new ZoneWithRecordsBuilder();
+        foreach (var rrset in desired)
+        {
+            zone.Add(rrset.Name, rrset.Type, 3600, rrset.Contents.ToArray());
+        }
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(zone.Build());
+
+        var dryRun = await registration.DeleteIdentityDnsAsync(D("frodo.baggins.demo.rocks"), commit: false);
+        Assert.That(dryRun, Has.Count.EqualTo(desired.Count), "lists what it would delete");
+        _dnsRestClient.Verify(c => c.DeleteARecords(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+
+        await registration.DeleteIdentityDnsAsync(D("frodo.baggins.demo.rocks"), commit: true);
+        _dnsRestClient.Verify(c => c.DeleteARecords("demo.rocks.", "frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteTxtRecords("demo.rocks.", $"{DkimKeyGenerator.Ed25519Selector}._domainkey.frodo.baggins"), Times.Once,
+            "its DKIM TXTs go too");
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task DeletingAnIdentitysDnsIsRefusedWhenItPointsElsewhere()
+    {
+        // The source after a move: the records are the target's
+        _dnsRestClient.Invocations.Clear();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+        var desired = await DesiredRrsetsAsync(registration);
+        var zone = new ZoneWithRecordsBuilder();
+        foreach (var rrset in desired)
+        {
+            zone.Add(rrset.Name, rrset.Type, 3600, rrset.Type == "A" ? ["10.9.9.9"] : rrset.Contents.ToArray());
+        }
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(zone.Build());
+
+        var e = Assert.ThrowsAsync<OdinSystemException>(() => registration.DeleteIdentityDnsAsync(D("frodo.baggins.demo.rocks"), commit: true));
+        Assert.That(e!.Message, Does.Contain("points at 10.9.9.9, not at this host"));
+        _dnsRestClient.Verify(c => c.DeleteARecords(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Verify(c => c.DeleteTxtRecords(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _dnsRestClient.Invocations.Clear();
     }
 

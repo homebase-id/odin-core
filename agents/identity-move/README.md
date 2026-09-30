@@ -223,7 +223,7 @@ This marks the copy as moved away and locks it:
 
 It is not a point of no return: an operator can still unlock it on purpose (see **Rolling back a move**).
 
-### 10. Purge the source copy, a week later
+### 10. Delete the source copy, a week later
 
 No sooner than **7 days** after the transfer reads `Complete` and the identity runs fine on the target:
 
@@ -231,23 +231,20 @@ No sooner than **7 days** after the transfer reads `Complete` and the identity r
 odin-admin tenant delete <domain>            # against the source's admin API
 ```
 
-For a copy disabled as moved, this deletes everything this host holds of the identity:
-- the registration and the certificate row;
-- the identity data;
-- the payloads;
-- the DKIM key rows and the mailbox.
+It deletes what this host holds of the identity: the registration and certificate row, the identity data, the
+payloads, the DKIM key rows and the mailbox.
 
-It **keeps the DNS**, which belongs to the target now, and prints `DNS kept`.
+**Deleting a tenant never touches DNS.** Our PowerDNS is shared, and the identity's records are the target's now.
 
-It refuses in these cases:
-- **the target has not received all payloads yet.** `odin-admin tenant payload-move <domain>` shows the transfer.
-- **before step 9.** An exported copy that is paused and not yet disabled as moved might still own DNS, or might not.
-  Deleting it there would delete the target's records.
-- **the copy has email** (DKIM keys). Email does not move, so its mailbox here is the only copy of its mail.
+It refuses while:
+- **the tenant is not disabled.** Only a disabled tenant can be deleted; step 9 disabled it.
+- **the target has not received all payloads.** `odin-admin tenant payload-move <domain>` shows the transfer.
+- **a moved copy has email** (DKIM keys). Email does not move, so its mailbox here is the only copy of its mail.
   `--discard-mail` deletes it anyway.
 
-Only a copy disabled as moved keeps its DNS. An ordinary `tenant delete` still deletes the identity's DNS. Our PowerDNS
-is shared, so never run it on an identity whose DNS points at another host.
+Removing an identity's DNS is a separate, deliberate command: `Odin.Hosting delete-identity-dns <domain> [commit]`.
+It only runs once the identity is no longer registered on that host, and only while its DNS points at that host.
+So on the source after a move it refuses, since the records point at the target. A move never needs it.
 
 ## Rolling back a move
 
@@ -261,8 +258,8 @@ The copy on the source is as it was at export. **Anything written on the target 
    disabled identity, which is why step 2 comes first.
 4. **On the source:** `odin-admin tenant resume <domain>`. Put the TTL back later: `repoint-identity-dns <domain>
    commit`.
-5. **On the target:** `odin-admin tenant set-status <domain> disabled --reason moved`. It is now the copy that moved away,
-   so the purge in step 10, run against the target, keeps DNS.
+5. **On the target:** `odin-admin tenant set-status <domain> disabled --reason moved`. It is now the copy that moved
+   away: step 10, run against the target, deletes it, and DNS, which points back at the source, is untouched.
 
 ## Payloads
 

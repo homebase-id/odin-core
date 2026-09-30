@@ -11,6 +11,7 @@ using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
+using Odin.Services.Email.Dkim;
 using Odin.Services.Dns.PowerDns;
 using Odin.Services.JobManagement;
 
@@ -197,6 +198,29 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
 
         return changes;
+    }
+
+    //
+
+    public async Task<List<DnsRrset>> DeleteIdentityDnsAsync(AsciiDomainName domain, bool commit)
+    {
+        // Whose DNS it is, as CreateOwnDomainZone decides for a zone: each host writes its own apex A record
+        var plan = await RepointIdentityDnsAsync(domain, PowerDnsRestClient.DefaultTtl, commit: false);
+        var apexA = plan.Single(change => change.Desired.Type == "A");
+        if (apexA.Current == null || !apexA.Current.Contents.ToHashSet().SetEquals(apexA.Desired.Contents))
+        {
+            throw new OdinSystemException(
+                $"{domain.DomainName} points at {(apexA.Current == null ? "nothing" : string.Join(", ", apexA.Current.Contents))}, " +
+                $"not at this host ({string.Join(", ", apexA.Desired.Contents)}): its DNS is not this host's to delete");
+        }
+
+        if (commit)
+        {
+            await DeleteOnActivationRecords(domain, DkimDnsRecords.DeletionConfigs(domain.DomainName));
+            await DeleteDnsRecordsForDomain(domain);
+        }
+
+        return plan.Where(change => change.Current != null).Select(change => change.Current!).ToList();
     }
 
     //

@@ -38,9 +38,9 @@ public interface ITenantAdmin
     Task DisablePublicWebPresence(string domain);
 
     /// <summary>
-    /// Queues the tenant's deletion. A copy that moved to another host (disabled as moved) is purged: everything on this
-    /// host goes, its DNS stays, since it is that host's now. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/>
-    /// while a move is under way, and for a moved copy with email unless <paramref name="discardMail"/>.
+    /// Queues the deletion of what this host holds of a disabled tenant; never its DNS (delete-identity-dns does that).
+    /// Throws <see cref="Odin.Core.Exceptions.OdinClientException"/> unless it is disabled, while a payload transfer from
+    /// it is pending, and for a moved copy with email unless <paramref name="discardMail"/>.
     /// </summary>
     Task<string> EnqueueDeleteTenant(string domain, bool discardMail = false);
     Task<string> EnqueueExportTenant(string domain);

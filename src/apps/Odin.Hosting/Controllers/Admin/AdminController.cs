@@ -72,8 +72,8 @@ public class AdminController : ControllerBase
     //
 
     /// <summary>
-    /// Queues the tenant's deletion; a copy disabled as moved is purged and keeps its DNS. 400 while a move is under way,
-    /// or for a moved copy with email unless discard-mail.
+    /// Queues the deletion of a disabled tenant; its DNS is never touched. 400 unless disabled, while a payload transfer
+    /// from it is pending, or for a moved copy with email unless discard-mail.
     /// </summary>
     [HttpDelete("tenants/{domain}")]
     public async Task<ActionResult> DeleteTenant(string domain, [FromQuery(Name = "discard-mail")] bool discardMail = false)

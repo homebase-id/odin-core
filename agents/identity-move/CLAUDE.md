@@ -12,14 +12,14 @@ step by step and in order. It touches production identities, production DNS and 
   status that is not the one the step predicts: stop, report it verbatim, and do not work around it.
   In particular, never make a refused export or import pass by editing statuses, files or database
   rows.
-- **Never delete, with one exception.** Not registrations, zones, records or payloads. The one delete is step 10's
-  purge, `odin-admin tenant delete <domain>` against the host the identity left. Run it only:
+- **Never delete, with one exception.** Not registrations, zones, records or payloads, and never
+  `delete-identity-dns`. The one delete is step 10's `odin-admin tenant delete <domain>` against the host the identity
+  left. Run it only:
   - when the operator explicitly says so for that domain;
   - on a copy disabled as moved;
   - never within 7 days of the transfer reading `Complete`.
 
-  Any other `tenant delete` deletes the identity's DNS in our shared PowerDNS, and that is the live copy's DNS.
-  Never pass `--discard-mail` unless the operator has said that mail may be lost.
+  Deleting a tenant never touches DNS. Never pass `--discard-mail` unless the operator has said that mail may be lost.
 - **Never run `populate-managed-domain-records` or `create-own-domain-zones` on a source host.** They
   rewrite the DNS of every identity the host has registered, the moved one included, back to the
   source. The move uses `repoint-identity-dns`, which writes one identity.

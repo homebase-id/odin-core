@@ -13,7 +13,6 @@ using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
-using Odin.Core.Util;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
@@ -24,12 +23,11 @@ using Odin.Services.JobManagement.Jobs;
 using Odin.Services.LastSeen;
 using Odin.Services.Registry;
 using Odin.Services.Registry.PayloadMove;
-using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Tests.Admin.Tenants;
 
-// Deleting the copy an identity left behind when it moved (#1841): PowerDNS is shared, so its DNS is the target's
+// Deleting a tenant (#1841): only a disabled one, and never its DNS, which in shared PowerDNS may be another host's
 public class DeleteTenantTests
 {
     private const string Domain = "frodo.dotyou.cloud";
@@ -41,7 +39,6 @@ public class DeleteTenantTests
     private readonly Guid _identityId = Guid.NewGuid();
 
     private readonly Mock<IIdentityRegistry> _registry = new();
-    private readonly Mock<IIdentityRegistrationService> _registrationService = new();
     private readonly Mock<IMailboxProvider> _mailbox = new();
     private readonly Mock<IDkimStore> _dkimStore = new();
     private readonly Mock<IJobManager> _jobManager = new();
@@ -65,7 +62,6 @@ public class DeleteTenantTests
         _source = new PayloadMoveSource(_systemDatabase);
 
         _registry.Reset();
-        _registrationService.Reset();
         _mailbox.Reset();
         _dkimStore.Reset();
         _jobManager.Reset();
@@ -84,8 +80,9 @@ public class DeleteTenantTests
     //
 
     [Test]
-    public async Task AMovedCopyIsPurgedButItsDnsIsKept()
+    public async Task ADisabledTenantIsDeletedAndItsDnsIsNotTouched()
     {
+        // The job has no DNS dependency at all: PowerDNS is shared, and deleting DNS is a separate command
         Registered(TenantStatus.Disabled, DisabledReason.Moved);
         await CompletedTransferAsync();
 
@@ -96,60 +93,60 @@ public class DeleteTenantTests
         _registry.Verify(r => r.DeleteRegistration(Domain), Times.Once);
         _mailbox.Verify(m => m.DeleteMailboxAsync(Domain), Times.Once);
         _dkimStore.Verify(d => d.DeleteKeysAsync(Domain), Times.Once);
-        _registrationService.Verify(s => s.DeleteDnsRecordsForDomain(It.IsAny<AsciiDomainName>()), Times.Never);
-        _registrationService.Verify(s => s.DeleteOnActivationRecords(It.IsAny<AsciiDomainName>(), It.IsAny<List<DnsConfig>>()), Times.Never);
         _registry.Verify(r => r.SetStatusAsync(It.IsAny<string>(), It.IsAny<TenantStatus>(), It.IsAny<DisabledReason?>(), It.IsAny<bool>()),
-            Times.Never, "the Moved marker stays until the registration is gone");
-        Assert.That(job.Data.KeepDns, Is.True, "recorded for a retry");
+            Times.Never, "a moved copy keeps saying so until it is gone");
         Assert.That(await _source.LoadAsync(_identityId), Is.Null, "the handoff state goes with it");
     }
 
     [Test]
-    public async Task AnOrdinaryDeleteStillDeletesItsDns()
+    public void TheJobRefusesATenantEnabledSinceItWasQueued()
     {
         Registered(TenantStatus.Active, null);
 
         var job = NewJob();
         job.Data.Domain = Domain;
-        await job.Run(CancellationToken.None);
-
-        _registry.Verify(r => r.SetStatusAsync(Domain, TenantStatus.Disabled, DisabledReason.PendingDeletion, false), Times.Once);
-        _registry.Verify(r => r.DeleteRegistration(Domain), Times.Once);
-        _registrationService.Verify(s => s.DeleteDnsRecordsForDomain(It.IsAny<AsciiDomainName>()), Times.Once);
-        _registrationService.Verify(s => s.DeleteOnActivationRecords(It.IsAny<AsciiDomainName>(), It.IsAny<List<DnsConfig>>()), Times.Once);
-        Assert.That(job.Data.KeepDns, Is.False);
+        var e = Assert.ThrowsAsync<InvalidOperationException>(() => job.Run(CancellationToken.None));
+        Assert.That(e!.Message, Does.Contain("only a disabled tenant is deleted"));
+        _registry.Verify(r => r.DeleteRegistration(It.IsAny<string>()), Times.Never);
     }
 
     [Test]
-    public async Task ARetryAfterTheRegistrationIsGoneStillKeepsTheDns()
+    public async Task ARetryAfterTheRegistrationIsGoneFinishes()
     {
         _registry.Setup(r => r.GetAsync(Domain)).ReturnsAsync((IdentityRegistration)null!);
 
         var job = NewJob();
-        job.Data = new DeleteTenantJobData { Domain = Domain, KeepDns = true };
-        await job.Run(CancellationToken.None);
+        job.Data.Domain = Domain;
+        var result = await job.Run(CancellationToken.None);
 
-        _registrationService.Verify(s => s.DeleteDnsRecordsForDomain(It.IsAny<AsciiDomainName>()), Times.Never);
-        _registrationService.Verify(s => s.DeleteOnActivationRecords(It.IsAny<AsciiDomainName>(), It.IsAny<List<DnsConfig>>()), Times.Never);
+        Assert.That(result.Result, Is.EqualTo(RunResult.Success));
     }
 
     //
     // Queuing it
     //
 
-    [Test]
-    public async Task AMovedCopyIsQueuedToKeepItsDns()
+    [TestCase(TenantStatus.Active)]
+    [TestCase(TenantStatus.OutOfQuota)]
+    [TestCase(TenantStatus.Paused)]
+    public void OnlyADisabledTenantCanBeDeleted(TenantStatus status)
     {
-        Registered(TenantStatus.Disabled, DisabledReason.Moved);
-        await CompletedTransferAsync();
-        DeleteTenantJob? scheduled = null;
-        _jobManager.Setup(m => m.ScheduleJobAsync(It.IsAny<AbstractJob>(), It.IsAny<JobSchedule>()))
-            .Callback<AbstractJob, JobSchedule?>((job, _) => scheduled = (DeleteTenantJob)job)
-            .ReturnsAsync(Guid.NewGuid());
+        Registered(status, null);
+
+        var e = Assert.ThrowsAsync<OdinClientException>(() => NewTenantAdmin().EnqueueDeleteTenant(Domain));
+        Assert.That(e!.Message, Does.Contain("disable it first"));
+        NothingScheduled();
+    }
+
+    [Test]
+    public async Task ADisabledTenantIsQueued()
+    {
+        Registered(TenantStatus.Disabled, DisabledReason.Admin);
+        _jobManager.Setup(m => m.ScheduleJobAsync(It.IsAny<AbstractJob>(), It.IsAny<JobSchedule>())).ReturnsAsync(Guid.NewGuid());
 
         await NewTenantAdmin().EnqueueDeleteTenant(Domain);
 
-        Assert.That(scheduled?.Data.KeepDns, Is.True);
+        _jobManager.Verify(m => m.ScheduleJobAsync(It.IsAny<AbstractJob>(), It.IsAny<JobSchedule>()), Times.Once);
     }
 
     [Test]
@@ -160,18 +157,6 @@ public class DeleteTenantTests
 
         var e = Assert.ThrowsAsync<OdinClientException>(() => NewTenantAdmin().EnqueueDeleteTenant(Domain));
         Assert.That(e!.Message, Does.Contain("has not received all its payloads"));
-        NothingScheduled();
-    }
-
-    [Test]
-    public async Task ADeleteIsRefusedMidMove()
-    {
-        // Exported and transferred, paused here, not yet marked as moved: DNS may already be the target's
-        Registered(TenantStatus.Paused, null);
-        await CompletedTransferAsync();
-
-        var e = Assert.ThrowsAsync<OdinClientException>(() => NewTenantAdmin().EnqueueDeleteTenant(Domain));
-        Assert.That(e!.Message, Does.Contain("exported for a move"));
         NothingScheduled();
     }
 
@@ -215,7 +200,7 @@ public class DeleteTenantTests
         _jobManager.Verify(m => m.ScheduleJobAsync(It.IsAny<AbstractJob>(), It.IsAny<JobSchedule>()), Times.Never);
 
     private DeleteTenantJob NewJob() => new(
-        new Mock<ILogger<DeleteTenantJob>>().Object, _registry.Object, _registrationService.Object, _mailbox.Object, _dkimStore.Object, _source);
+        new Mock<ILogger<DeleteTenantJob>>().Object, _registry.Object, _mailbox.Object, _dkimStore.Object, _source);
 
     private TenantAdmin NewTenantAdmin() => new(
         new Mock<ILogger<TenantAdmin>>().Object, LoggerFactory.Create(_ => { }), new OdinConfiguration(), _jobManager.Object,

@@ -374,8 +374,32 @@ public class CommandLine
                 return (true, 1);
             }
 
-            var repointed = IdentityDnsRepoint.RunAsync(_serviceProvider, rest[0], ttl, commit: rest.Count == 2).BlockingWait();
+            var repointed = IdentityDnsCommands.RepointAsync(_serviceProvider, rest[0], ttl, commit: rest.Count == 2).BlockingWait();
             return (true, repointed ? 0 : 1);
+        }
+
+        //
+        // Command line: Delete one identity's DNS
+        //
+        // Deleting a tenant never touches DNS; this does, on purpose. Only once the identity is no longer registered
+        // on this host, and only DNS that points at this host: its rrsets and DKIM TXTs in the shared apex zone for a
+        // managed domain, its whole zone for an own domain. Dry run unless "commit" is passed.
+        //
+        // examples:
+        //   dotnet run -- delete-identity-dns frodo.id.pub
+        //   dotnet run -- delete-identity-dns frodo.id.pub commit
+        //
+        if (args.Length >= 1 && args[0] == "delete-identity-dns")
+        {
+            var rest = args.Skip(1).ToList();
+            if (rest.Any(a => a.StartsWith("--")) || rest.Count < 1 || rest.Count > 2 || (rest.Count == 2 && rest[1] != "commit"))
+            {
+                _logger.LogError("Usage: delete-identity-dns <domain> [commit]");
+                return (true, 1);
+            }
+
+            var deleted = IdentityDnsCommands.DeleteAsync(_serviceProvider, rest[0], commit: rest.Count == 2).BlockingWait();
+            return (true, deleted ? 0 : 1);
         }
 
         //

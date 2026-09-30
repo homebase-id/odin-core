@@ -4,14 +4,13 @@ using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
 using Odin.Core.Storage.Database.System.Table;
-using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.JobManagement;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenant;
 
-[Description("Delete tenant")]
+[Description("Delete a disabled tenant from this host. Never its DNS (delete-identity-dns)")]
 public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Settings>
 {
     public sealed class Settings : ApiSettings
@@ -78,7 +77,7 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    var (jobResponse, jobData) = JobApiResponse.Deserialize<DeleteTenantJobData>(await response.Content.ReadAsStringAsync());
+                    var jobResponse = JobApiResponse.Deserialize(await response.Content.ReadAsStringAsync());
 
                     if (jobResponse.State == JobState.Failed)
                     {
@@ -87,11 +86,9 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
 
                     if (jobResponse.State == JobState.Succeeded)
                     {
-                        if (jobData?.KeepDns == true)
-                        {
-                            AnsiConsole.MarkupLine("DNS kept: it belongs to the host the identity moved to");
-                        }
                         AnsiConsole.MarkupLine("[green]Done[/]");
+                        AnsiConsole.MarkupLine(
+                            $"Its DNS is untouched: `delete-identity-dns {settings.TenantDomain}` removes it, on the host it points at.");
                         done = true;
                     }
 
