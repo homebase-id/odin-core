@@ -10,7 +10,7 @@ using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenant;
 
-[Description("Delete tenant")]
+[Description("Delete a disabled tenant from this host. Never its DNS (delete-identity-dns)")]
 public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Settings>
 {
     public sealed class Settings : ApiSettings
@@ -22,6 +22,10 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
         [Description("Ignore prompts")]
         [CommandOption("-y|--yes")]
         public bool IgnorePrompts { get; set; } = false;
+
+        [Description("Purge a moved copy even though it has email: its mailbox here is the only copy of its mail")]
+        [CommandOption("--discard-mail")]
+        public bool DiscardMail { get; set; }
 
     }
 
@@ -41,15 +45,9 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
         await AnsiConsole.Status()
             .StartAsync("Working...", async ctx =>
             {
-                var response = await httpClient.DeleteAsync($"tenants/{settings.TenantDomain}");
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                {
-                    throw new Exception($"Tenant {settings.TenantDomain} was not found");
-                }
-                if (response.StatusCode != HttpStatusCode.Accepted)
-                {
-                    throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-                }
+                var response = await httpClient.DeleteAsync(
+                    $"tenants/{settings.TenantDomain}" + (settings.DiscardMail ? "?discard-mail=true" : ""));
+                await TenantStatusApi.EnsureSuccessAsync(response, settings.TenantDomain, HttpStatusCode.Accepted);
 
                 response.Headers.TryGetValues("Location", out var locations);
                 var location = locations?.FirstOrDefault() ?? "";
@@ -78,6 +76,8 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     if (jobResponse.State == JobState.Succeeded)
                     {
                         AnsiConsole.MarkupLine("[green]Done[/]");
+                        AnsiConsole.MarkupLine(
+                            $"Its DNS is untouched: `delete-identity-dns {settings.TenantDomain}` removes it, on the host it points at.");
                         done = true;
                     }
 

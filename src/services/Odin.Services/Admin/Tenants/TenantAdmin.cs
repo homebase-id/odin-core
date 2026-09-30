@@ -13,7 +13,9 @@ using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
+using Odin.Core.Identity;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Admin.Tenants;
@@ -27,7 +29,9 @@ public class TenantAdmin(
     IIdentityRegistry identityRegistry,
     IMultiTenantContainer multiTenantContainer,
     ILastSeenService lastSeenService,
-    IdentityStorageCensus identityStorageCensus)
+    IdentityStorageCensus identityStorageCensus,
+    PayloadMoveSource payloadMoveSource,
+    SystemDatabase systemDatabase)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -63,11 +67,31 @@ public class TenantAdmin(
 
     //
 
-    public async Task<string> EnqueueDeleteTenant(string domain)
+    public async Task<string> EnqueueDeleteTenant(string domain, bool discardMail = false)
     {
-        if (!await identityRegistry.IsIdentityRegistered(domain))
+        var registration = await identityRegistry.GetAsync(domain) ?? throw new OdinClientException($"{domain} not found");
+
+        // Deleting is for a tenant that serves nothing any more; disabling it first is the deliberate step
+        if (registration.Status != TenantStatus.Disabled)
         {
-            throw new OdinClientException($"{domain} not found");
+            throw new OdinClientException($"{domain} is {registration.Status}: disable it first (set-status disabled) to delete it");
+        }
+
+        // Refused here rather than failing in the job: the target still pulls its payloads from this host
+        if (await payloadMoveSource.IsTransferPendingAsync(registration.Id))
+        {
+            throw new OdinClientException(
+                $"{domain} is being moved and the target has not received all its payloads yet " +
+                "(odin-admin tenant payload-move shows the transfer)");
+        }
+
+        // Email does not move with an identity: this host's mailbox is the only copy of a moved identity's mail
+        if (TenantStatusRules.HasMovedAway(registration.Status, registration.DisabledReason) && !discardMail &&
+            (await systemDatabase.DkimKeys.GetByDomainAsync(new OdinId(domain))).Count > 0)
+        {
+            throw new OdinClientException(
+                $"{domain} has email, and email does not move: its mailbox here is the only copy of its mail. " +
+                "Delete it anyway with --discard-mail");
         }
 
         var job = jobManager.NewJob<DeleteTenantJob>();
@@ -368,6 +392,11 @@ public class TenantAdmin(
     public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
     {
         return identityRegistry.SetStatusAsync(domain, status, reason);
+    }
+
+    public Task<TenantStatusState?> UnlockMovedAsync(string domain)
+    {
+        return identityRegistry.UnlockMovedAsync(domain);
     }
 
     //

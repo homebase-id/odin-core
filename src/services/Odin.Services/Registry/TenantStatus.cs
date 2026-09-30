@@ -158,7 +158,12 @@ public static class TenantStatusRules
     /// Throws <see cref="OdinClientException"/> if the transition is not allowed.
     /// Expects <paramref name="toReason"/> to be normalized with <see cref="NormalizeReason"/>.
     /// </summary>
-    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason)
+    /// <param name="unlockMoved">
+    /// The operator's explicit request to take a copy disabled as moved back to paused (rolling a move back). It allows
+    /// that transition and no other.
+    /// </param>
+    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason,
+        bool unlockMoved = false)
     {
         if (!Enum.IsDefined(toStatus))
         {
@@ -180,14 +185,26 @@ public static class TenantStatusRules
             throw new OdinClientException("The disabled status requires a reason");
         }
 
-        // A moved identity lives elsewhere; serving this copy again would split it in two.
-        // Deleting the leftover copy is still allowed.
+        // A moved identity lives elsewhere; serving this copy again would split it in two. It stays disabled as
+        // moved until it is deleted, or an operator unlocks it on purpose: to paused, which serves nothing until
+        // DNS points back here and it is resumed.
         var isMoved = HasMovedAway(fromStatus, fromReason);
-        var staysDisabled = toStatus == TenantStatus.Disabled &&
-                            toReason is DisabledReason.Moved or DisabledReason.PendingDeletion;
-        if (isMoved && !staysDisabled)
+        if (unlockMoved)
         {
-            throw new OdinClientException("This identity has moved to another host and cannot be re-enabled here");
+            if (!isMoved || toStatus != TenantStatus.Paused)
+            {
+                throw new OdinClientException("Unlocking a moved identity only takes a copy disabled as moved to paused");
+            }
+
+            return;
+        }
+
+        // Only as moved: any other disabled reason could then be enabled again, around the lock
+        if (isMoved && !(toStatus == TenantStatus.Disabled && toReason == DisabledReason.Moved))
+        {
+            throw new OdinClientException(
+                "This identity has moved to another host and cannot be re-enabled here. To roll the move back, " +
+                "unlock it to paused on purpose (odin-admin tenant unlock-moved)");
         }
 
         // Leaving disabled is a deliberate re-enable, straight to active. Otherwise pause-then-resume

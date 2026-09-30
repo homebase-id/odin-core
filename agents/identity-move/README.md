@@ -208,20 +208,54 @@ You do not have to wait for the payload transfer to finish: until a payload arri
 read the failures it lists; `--retry` runs it again from the newest file, skipping everything that already
 arrived.
 
+**Leave the source copy paused for a day or two** before step 9: rolling back is cheapest then.
+
 ### 9. Retire the source copy
 
 ```
 odin-admin tenant set-status <domain> disabled --reason moved    # against the source's admin API
 ```
 
-A moved identity can never be enabled again on the source. The source keeps the identity's payloads, and
-refuses to delete it, until the target has reported the transfer `Complete` (see
-`odin-admin tenant payload-move <domain>` against the source).
+This marks the copy as moved away and locks it:
+- nothing re-enables it by accident: `resume`, `enable` and any other status are refused;
+- certificate renewal and the host-wide DNS commands skip it.
 
-> **Never run `odin-admin tenant delete` on the source after a move.** Deleting a tenant also
-> deletes its DNS: its records in the apex zone (managed domain) or its whole zone (own domain).
-> Our PowerDNS is shared, so that deletes the **target's** live DNS. Purging the source's copy is a
-> separate command still to be written.
+It is not a point of no return: see **Rolling back a move**.
+
+### 10. Delete the source copy, a week later
+
+No sooner than **7 days** after the transfer reads `Complete` and the identity runs fine on the target:
+
+```
+odin-admin tenant delete <domain>            # against the source's admin API
+```
+
+It deletes what this host holds of the identity: the registration and certificate row, the identity data, the
+payloads, the DKIM key rows and the mailbox. **It never touches DNS**, which is the target's now.
+
+It refuses while:
+- **the tenant is not disabled.** Only a disabled tenant can be deleted; step 9 disabled it.
+- **the target has not received all payloads.** `odin-admin tenant payload-move <domain>` shows the transfer.
+- **a moved copy has email** (DKIM keys). Email does not move, so its mailbox here is the only copy of its mail.
+  `--discard-mail` deletes it anyway.
+
+Removing an identity's DNS is a separate, deliberate command: `Odin.Hosting delete-identity-dns <domain> [commit]`.
+It only runs once the identity is no longer registered on that host, and only while its DNS points at that host.
+So on the source after a move it refuses, since the records point at the target. A move never needs it.
+
+## Rolling back a move
+
+The copy on the source is as it was at export. **Anything written on the target since then is lost** by rolling back.
+
+1. **On the target:** `odin-admin tenant pause <domain>`. It stops serving, and peers queue their messages.
+2. **On the source, only if step 9 has run:** `odin-admin tenant unlock-moved <domain>`. It takes a copy disabled as
+   moved to paused, and nothing else.
+3. **On the source:** `Odin.Hosting repoint-identity-dns <domain> --ttl 60`, then the same with `commit`. It refuses a
+   disabled identity, which is why step 2 comes first.
+4. **On the source:** `odin-admin tenant resume <domain>`. Put the TTL back later: `repoint-identity-dns <domain>
+   commit`.
+5. **On the target:** `odin-admin tenant set-status <domain> disabled --reason moved`. It is now the copy that moved
+   away: step 10, run against the target, deletes it, and DNS, which points back at the source, is untouched.
 
 ## Payloads
 
@@ -234,6 +268,7 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
 
 - **Email:** the mailbox and its messages, the mailbox account and settings, and the DKIM keys. See
   **Email does not move (yet)** above.
-- Purging the source's copy (payloads and registration, never DNS) once the transfer is complete.
+- On Postgres, deleting an identity leaves its rows in the shared identity tables. That is true of every delete,
+  not just a move (`IdentityImportPreconditions.cs`), and import clears them if the identity comes back.
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.

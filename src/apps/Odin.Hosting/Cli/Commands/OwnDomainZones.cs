@@ -13,8 +13,8 @@ namespace Odin.Hosting.Cli.Commands;
 //   create-own-domain-zones          dry-run: list what would be created, change nothing
 //   create-own-domain-zones commit   create missing zones for all existing own-domain identities
 //
-// Zone deletion rides tenant deletion (odin-cli tenant delete -> DeleteTenantJob ->
-// DeleteDnsRecordsForDomain); there is deliberately no orphan-sweeping prune command,
+// Deleting a tenant never touches DNS; delete-identity-dns deletes one identity's zone on
+// purpose (IdentityDnsCommands). There is deliberately no orphan-sweeping prune command,
 // because on a DNS server shared between environments "no registration here" does not
 // mean "no registration anywhere".
 //

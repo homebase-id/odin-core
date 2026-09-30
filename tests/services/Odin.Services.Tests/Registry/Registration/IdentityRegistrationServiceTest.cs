@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -13,6 +14,7 @@ using Odin.Core.Http;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.Dns.PowerDns;
+using Odin.Services.Email.Dkim;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
@@ -448,32 +450,6 @@ public class IdentityRegistrationServiceTest
         _dnsRestClient.Invocations.Clear();
     }
 
-    [Test]
-    public async Task ItShouldDeleteDnsRecordsOrZoneDependingOnDomainKind()
-    {
-        _dnsRestClient.Invocations.Clear();
-
-        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
-
-        // Managed domain: records removed from the shared apex zone, zone untouched
-        await registration.DeleteDnsRecordsForDomain(D("frodo.baggins.demo.rocks"));
-        _dnsRestClient.Verify(c => c.DeleteARecords("demo.rocks.", "frodo.baggins"), Times.Once);
-        _dnsRestClient.Verify(c => c.DeleteCnameRecords("demo.rocks.", "capi.frodo.baggins"), Times.Once);
-        _dnsRestClient.Verify(c => c.DeleteCnameRecords("demo.rocks.", "file.frodo.baggins"), Times.Once);
-        _dnsRestClient.Verify(c => c.DeleteZone(It.IsAny<string>()), Times.Never);
-
-        // Own domain: zone deleted
-        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
-        await registration.DeleteDnsRecordsForDomain(D("frodo.example.com"));
-        _dnsRestClient.Verify(c => c.DeleteZone("frodo.example.com."), Times.Once);
-
-        // DNS API failure never propagates
-        _dnsRestClient.Setup(c => c.DeleteARecords(It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new System.Exception("boom"));
-        Assert.DoesNotThrowAsync(() => registration.DeleteDnsRecordsForDomain(D("sam.gamgee.demo.rocks")));
-        _dnsRestClient.Invocations.Clear();
-    }
-
     // --- On-activation records (per-tenant values, e.g. DKIM TXT - docs/email-dns-plan.md) ---
 
     private static List<DnsConfig> TwoOnActivationTxtRecords(string domainName) =>
@@ -743,11 +719,7 @@ public class IdentityRegistrationServiceTest
 
         // As the source left them: its address, alias host, MX and policy id; SPF, DMARC and TLS-RPT alike
         bool Moves(DnsRrset r) => r.Type is "A" or "CNAME" or "MX" || r.Name.StartsWith("_mta-sts.");
-        var zone = new ZoneWithRecordsBuilder();
-        foreach (var rrset in desired)
-        {
-            zone.Add(rrset.Name, rrset.Type, 3600, Moves(rrset) ? ["source-" + rrset.Contents[0]] : rrset.Contents.ToArray());
-        }
+        var zone = ZoneBuilderOf(desired, rrset => Moves(rrset) ? ["source-" + rrset.Contents[0]] : null);
         zone.Add("hb1._domainkey.frodo.baggins.demo.rocks.", "TXT", 3600, "\"v=DKIM1; p=abc\"");
         zone.Add("sam.gamgee.demo.rocks.", "A", 3600, "10.0.0.9");
         _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(zone.Build());
@@ -774,12 +746,7 @@ public class IdentityRegistrationServiceTest
         _dnsRestClient.Invocations.Clear();
         var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
         var desired = await DesiredRrsetsAsync(registration);
-        var zone = new ZoneWithRecordsBuilder();
-        foreach (var rrset in desired)
-        {
-            zone.Add(rrset.Name, rrset.Type, 3600, rrset.Contents.ToArray());
-        }
-        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(zone.Build());
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(ZoneOf(desired));
 
         var unchanged = await registration.RepointIdentityDnsAsync(D("frodo.baggins.demo.rocks"), 3600, commit: false);
         Assert.That(unchanged.Where(c => c.Changes), Is.Empty, "this host's values at the same TTL");
@@ -803,6 +770,77 @@ public class IdentityRegistrationServiceTest
         _dnsRestClient.Verify(c => c.ReplaceRrsets(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<DnsRrset>>()), Times.Never);
         _dnsRestClient.Invocations.Clear();
     }
+
+    [Test]
+    public async Task DeletingAnIdentitysDnsDeletesItOnlyWhenItPointsHere()
+    {
+        _dnsRestClient.Invocations.Clear();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+        var desired = await DesiredRrsetsAsync(registration);
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(ZoneOf(desired));
+
+        var dryRun = await registration.DeleteIdentityDnsAsync(D("frodo.baggins.demo.rocks"), commit: false);
+        Assert.That(dryRun, Has.Count.EqualTo(desired.Count), "lists what it would delete");
+        _dnsRestClient.Verify(c => c.DeleteARecords(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+
+        await registration.DeleteIdentityDnsAsync(D("frodo.baggins.demo.rocks"), commit: true);
+        _dnsRestClient.Verify(c => c.DeleteARecords("demo.rocks.", "frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteTxtRecords("demo.rocks.", $"{DkimKeyGenerator.Ed25519Selector}._domainkey.frodo.baggins"), Times.Once,
+            "its DKIM TXTs go too");
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task DeletingAnIdentitysDnsIsRefusedWhenItPointsElsewhere()
+    {
+        // The source after a move: the records are the target's
+        _dnsRestClient.Invocations.Clear();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+        var desired = await DesiredRrsetsAsync(registration);
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(ZoneOf(desired, rrset => rrset.Type == "A" ? ["10.9.9.9"] : null));
+
+        var e = Assert.ThrowsAsync<OdinSystemException>(() => registration.DeleteIdentityDnsAsync(D("frodo.baggins.demo.rocks"), commit: true));
+        Assert.That(e!.Message, Does.Contain("points at 10.9.9.9, not at this host"));
+        _dnsRestClient.Verify(c => c.DeleteARecords(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Verify(c => c.DeleteTxtRecords(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task DeletingAnOwnDomainsDnsDeletesItsZone_AndAFailureIsTheCallersToSee()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+        _dnsRestClient.Setup(c => c.GetZone("frodo.example.com.")).ReturnsAsync(new ZoneWithRecords
+        {
+            name = "frodo.example.com.",
+            rrsets = [new ZoneWithRecords.Rrset { name = "frodo.example.com.", type = "A", ttl = 3600,
+                records = [new ZoneWithRecords.Record { content = "131.164.170.62" }] }]
+        });
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+
+        await registration.DeleteIdentityDnsAsync(D("frodo.example.com"), commit: true);
+        _dnsRestClient.Verify(c => c.DeleteZone("frodo.example.com."), Times.Once);
+
+        // Unlike a tenant's deletion used to, a deliberate DNS delete does not swallow a PowerDNS failure
+        _dnsRestClient.Setup(c => c.DeleteZone("frodo.example.com.")).ThrowsAsync(new System.Exception("boom"));
+        Assert.ThrowsAsync<System.Exception>(() => registration.DeleteIdentityDnsAsync(D("frodo.example.com"), commit: true));
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    // A zone holding the given rrsets, each as it is or with the contents <paramref name="contentsOf"/> gives it
+    private static ZoneWithRecordsBuilder ZoneBuilderOf(IEnumerable<DnsRrset> rrsets, Func<DnsRrset, string[]?>? contentsOf = null)
+    {
+        var zone = new ZoneWithRecordsBuilder();
+        foreach (var rrset in rrsets)
+        {
+            zone.Add(rrset.Name, rrset.Type, 3600, contentsOf?.Invoke(rrset) ?? rrset.Contents.ToArray());
+        }
+        return zone;
+    }
+
+    private static ZoneWithRecords ZoneOf(IEnumerable<DnsRrset> rrsets, Func<DnsRrset, string[]?>? contentsOf = null) =>
+        ZoneBuilderOf(rrsets, contentsOf).Build();
 
     private sealed class ZoneWithRecordsBuilder
     {

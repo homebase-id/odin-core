@@ -33,6 +33,16 @@ internal static class TenantStatusApi
 
     //
 
+    public static async Task<TenantStatusState> UnlockMovedAsync(HttpClient httpClient, string domain)
+    {
+        var response = await httpClient.PostAsync($"tenants/{domain}/unlock-moved", null);
+        await EnsureSuccessAsync(response, domain);
+        return OdinSystemSerializer.Deserialize<TenantStatusState>(await response.Content.ReadAsStringAsync()) ??
+               throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");
+    }
+
+    //
+
     public static void WriteChange(string domain, TenantStatusState previous, TenantStatus status, DisabledReason? reason)
     {
         AnsiConsole.MarkupLineInterpolated($"{domain}: {Describe(status, reason)} (was {Describe(previous.Status, previous.DisabledReason)})");
@@ -47,7 +57,8 @@ internal static class TenantStatusApi
 
     //
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, string domain)
+    public static async Task EnsureSuccessAsync(HttpResponseMessage response, string domain,
+        HttpStatusCode expected = HttpStatusCode.OK)
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -58,7 +69,7 @@ internal static class TenantStatusApi
             var detail = await response.Content.ReadAsStringAsync();
             throw new Exception($"{response.RequestMessage?.RequestUri}: refused: {detail}");
         }
-        if (response.StatusCode != HttpStatusCode.OK)
+        if (response.StatusCode != expected)
         {
             throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
         }
