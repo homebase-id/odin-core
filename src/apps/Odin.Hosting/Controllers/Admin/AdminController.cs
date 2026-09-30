@@ -103,36 +103,6 @@ public class AdminController : ControllerBase
 
     //
 
-    [HttpPatch("tenants/{domain}/enable")]
-    public async Task<ActionResult> EnableTenant(string domain)
-    {
-        if (!await _tenantAdmin.TenantExists(domain))
-        {
-            return NotFound();
-        }
-
-        await _tenantAdmin.EnableTenant(domain);
-
-        return Ok();
-    }
-
-    //
-
-    [HttpPatch("tenants/{domain}/disable")]
-    public async Task<ActionResult> DisableTenant(string domain)
-    {
-        if (!await _tenantAdmin.TenantExists(domain))
-        {
-            return NotFound();
-        }
-
-        await _tenantAdmin.DisableTenant(domain);
-
-        return Ok();
-    }
-
-    //
-
     /// <summary>
     /// The tenant's payload move: its handoff and completion here if it was exported from this host, the
     /// transfer's progress if it was imported into it.

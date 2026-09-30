@@ -62,10 +62,7 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     await Task.Delay(TimeSpan.FromMilliseconds(200));
 
                     response = await httpClient.GetAsync(location);
-                    if (response.StatusCode != HttpStatusCode.OK)
-                    {
-                        throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-                    }
+                    await ApiResponse.EnsureAsync(response);
                     var jobResponse = JobApiResponse.Deserialize(await response.Content.ReadAsStringAsync());
 
                     if (jobResponse.State == JobState.Failed)

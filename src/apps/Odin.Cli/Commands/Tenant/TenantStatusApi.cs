@@ -4,6 +4,7 @@ using Odin.Core.Serialization;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Registry;
 using Spectre.Console;
+using Odin.Cli.Commands.Base;
 
 namespace Odin.Cli.Commands.Tenant;
 
@@ -64,14 +65,6 @@ internal static class TenantStatusApi
         {
             throw new Exception($"Tenant {domain} was not found");
         }
-        if (response.StatusCode == HttpStatusCode.BadRequest)
-        {
-            var detail = await response.Content.ReadAsStringAsync();
-            throw new Exception($"{response.RequestMessage?.RequestUri}: refused: {detail}");
-        }
-        if (response.StatusCode != expected)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        await ApiResponse.EnsureAsync(response, expected);
     }
 }

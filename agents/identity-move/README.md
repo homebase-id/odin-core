@@ -109,7 +109,8 @@ Odin.Hosting repoint-identity-dns <domain> --ttl 60 commit
 It writes only this identity's record sets, with the host's own values, which on the source are the
 current ones. The dry run lists each record set as `now:` and `new:`; if any value other than the TTL
 would change, stop: the source's configuration and the zone disagree. Then wait for the old TTL to
-pass.
+pass. Skipping this step costs up to an hour: on the first move, resolvers that had cached the
+source's address kept reaching it (paused, answering 503) that long after the repoint.
 
 ### 4. Pause the identity on the source, and wait
 
@@ -183,7 +184,8 @@ host and not disabled here, so after the move it cannot run on the source.
 
 Verify from outside: `dig +short <domain>` (and `capi.<domain>`, `file.<domain>`, `MX <domain>`)
 answers the target's values, and the registration API on the target reports the domain valid
-(step 1).
+(step 1). Ask each of our nameservers (`dig @<ns> <domain>`) and compare the **answers**, not the
+SOA serial: on the first move one nameserver's serial lagged answers it was already serving.
 
 Once the move has settled (after step 8), put the TTL back on the target:
 `Odin.Hosting repoint-identity-dns <domain> commit` (3600 is the default).
@@ -217,7 +219,7 @@ odin-admin tenant set-status <domain> disabled --reason moved    # against the s
 ```
 
 This marks the copy as moved away and locks it:
-- nothing re-enables it by accident: `resume`, `enable` and any other status are refused;
+- nothing re-enables it by accident: `resume` and any other status are refused;
 - certificate renewal and the host-wide DNS commands skip it.
 
 It is not a point of no return: see **Rolling back a move**.
