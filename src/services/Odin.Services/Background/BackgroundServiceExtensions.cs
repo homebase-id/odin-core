@@ -15,6 +15,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Security.Job;
+using Odin.Services.Stun;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Background;
@@ -38,6 +39,7 @@ public static class BackgroundServiceExtensions
         cb.RegisterBackgroundService<LogTransactionalCacheStatsBackgroundService>();
         cb.RegisterBackgroundService<LogMemoryDiagnosticsBackgroundService>();
         cb.RegisterBackgroundService<StartupVerificationBackgroundService>();
+        cb.RegisterBackgroundService<StunResponderBackgroundService>();
 
         // Non-singleton on purpose: only consumed by StartupVerificationBackgroundService
         cb.RegisterType<EmailInfraVerifier>().AsSelf().InstancePerDependency();
@@ -63,6 +65,13 @@ public static class BackgroundServiceExtensions
         await bsm.StartAsync<LogTransactionalCacheStatsBackgroundService>();
         await bsm.StartAsync<LogMemoryDiagnosticsBackgroundService>();
         await bsm.StartAsync<StartupVerificationBackgroundService>();
+
+        // Started only when enabled so a disabled responder does not log "Starting background service".
+        var config = services.GetRequiredService<OdinConfiguration>();
+        if (config.Stun.Enabled)
+        {
+            await bsm.StartAsync<StunResponderBackgroundService>();
+        }
     }
 
     //

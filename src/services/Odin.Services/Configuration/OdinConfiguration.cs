@@ -60,6 +60,8 @@ public class OdinConfiguration
 
     public OpenObserveSection OpenObserve { get; init; } = new();
 
+    public StunSection Stun { get; init; } = new();
+
     public OdinConfiguration()
     {
         // Mockable support
@@ -89,6 +91,7 @@ public class OdinConfiguration
         PayloadMove = new PayloadMoveSection(config);
         Cdn = new CdnSection(config);
         OpenObserve = new OpenObserveSection(config);
+        Stun = new StunSection(config);
     }
 
     //
@@ -774,6 +777,65 @@ public class OdinConfiguration
                 Domain = config.Required<string>("Admin:Domain");
                 ExportTargetPath = config.Required<string>("Admin:ExportTargetPath");
             }
+        }
+    }
+
+    //
+
+    /// <summary>
+    /// The STUN Binding responder (issue #1838): a UDP listener that tells a WebRTC client which
+    /// public IP:port its media socket appears from. Open and unauthenticated by protocol design;
+    /// <see cref="Enabled"/> is the kill switch. See docs/stun.md.
+    /// </summary>
+    public class StunSection
+    {
+        public const int DefaultPort = 3478;
+
+        /// <summary>On by default: the issue decided "open, with a kill switch".</summary>
+        public bool Enabled { get; init; } = true;
+
+        /// <summary>UDP port. 0 asks the OS for an ephemeral port (tests only).</summary>
+        public int Port { get; init; } = DefaultPort;
+
+        /// <summary>
+        /// "*" binds dual-stack on every interface (IPv6 any with IPv4 mapped in, or IPv4 any where
+        /// the OS has no IPv6). Unlike <see cref="ListenEntry.GetIp"/>, "*" here is not IPv4-only:
+        /// ICE gathers both families and the reply must carry the family the request arrived on.
+        /// </summary>
+        public string BindAddress { get; init; } = "*";
+
+        public StunSection()
+        {
+            // Mockable support
+        }
+
+        public StunSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("Stun:Enabled", true);
+            if (Enabled)
+            {
+                Port = config.GetOrDefault("Stun:Port", DefaultPort);
+                if (Port is < 0 or > 65535)
+                {
+                    throw new OdinConfigException($"Stun:Port '{Port}' is not a valid UDP port");
+                }
+
+                BindAddress = config.GetOrDefault("Stun:BindAddress", "*");
+                if (BindAddress != "*" && !IPAddress.TryParse(BindAddress, out _))
+                {
+                    throw new OdinConfigException(
+                        $"Stun:BindAddress '{BindAddress}' is not '*' or a valid IP address");
+                }
+            }
+        }
+
+        public IPAddress GetBindAddress()
+        {
+            if (BindAddress == "*")
+            {
+                return Socket.OSSupportsIPv6 ? IPAddress.IPv6Any : IPAddress.Any;
+            }
+            return IPAddress.Parse(BindAddress);
         }
     }
 
