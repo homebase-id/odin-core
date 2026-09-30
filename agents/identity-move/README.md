@@ -237,5 +237,3 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
 - Purging the source's copy (payloads and registration, never DNS) once the transfer is complete.
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.
-- The host-wide DNS commands skip nothing yet: a moved (disabled) identity is rewritten like any
-  other if they run on the source.

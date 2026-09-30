@@ -118,7 +118,7 @@ public class PowerDnsRestClient : IDnsRestClient
     //
 
     // An empty name addresses the zone apex
-    private static string RecordName(string zoneId, string name)
+    internal static string RecordName(string zoneId, string name)
     {
         return name == "" ? zoneId : $"{name}.{zoneId}";
     }

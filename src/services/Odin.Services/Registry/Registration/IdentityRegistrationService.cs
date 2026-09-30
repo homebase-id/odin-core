@@ -155,43 +155,27 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task<List<IdentityDnsChange>> RepointIdentityDnsAsync(AsciiDomainName domain, int ttl, bool commit)
     {
         var domainName = domain.DomainName;
-        string zoneId;
-        Func<DnsConfig, string> nameOf;
-        if (FindManagedApex(domainName) is { } apex)
-        {
-            zoneId = apex + ".";
-            nameOf = ManagedName(domainName[..^(apex.Length + 1)]);
-        }
-        else if (IsManagedDomain(domainName))
+        if (FindManagedApex(domainName) == null && IsManagedDomain(domainName))
         {
             throw new OdinSystemException($"{domainName} is a managed apex, not an identity");
         }
-        else
+
+        if (await IdentityZoneAsync(domain) is not var (zoneId, nameOf))
         {
-            zoneId = domainName + ".";
-            nameOf = record => record.Name;
-            if (!await _dnsRestClient.ZoneExists(zoneId))
-            {
-                throw new OdinSystemException($"{domainName} has no zone in our DNS: its records are the owner's to change");
-            }
+            throw new OdinSystemException($"{domainName} has no zone in our DNS: its records are the owner's to change");
         }
 
-        string FullName(DnsConfig record)
-        {
-            var name = nameOf(record);
-            return name == "" ? zoneId : $"{name}.{zoneId}";
-        }
-
-        // What WriteDnsRecords writes, as the zone stores it: ALIAS is for third-party DNS hosts and NS for
-        // delegation, which the move does not change. Grouped, since a name can hold several MX records.
+        // What WriteDnsRecords writes, as the zone stores it (see the record dispatch below). Grouped, since a
+        // name can hold several MX records.
         var desired = _dnsLookupService.GetDnsConfiguration(domain)
-            .Where(record => record.Type is "A" or "CNAME" or "MX" or "TXT")
-            .GroupBy(record => (Name: FullName(record), record.Type))
+            .Where(record => record.Type is not ("ALIAS" or "NS"))
+            .GroupBy(record => (Name: PowerDnsRestClient.RecordName(zoneId, nameOf(record)), record.Type))
             .Select(rrset => new DnsRrset(rrset.Key.Name, rrset.Key.Type, ttl, rrset.Select(record => record.Type switch
             {
+                "A" => record.Value,
                 "CNAME" or "MX" => record.Value + ".",
                 "TXT" => PowerDnsRestClient.ToTxtContent(record.Value),
-                _ => record.Value
+                _ => throw new OdinSystemException($"Unsupported record: {record.Type}")
             }).ToList()))
             .ToList();
 
@@ -289,28 +273,18 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         List<DnsConfig> records,
         Func<string, List<DnsConfig>, Func<DnsConfig, string>, Task> dispatch)
     {
-        var domainName = domain.DomainName;
-
-        var apex = FindManagedApex(domainName);
-        if (apex != null)
+        if (FindManagedApex(domain.DomainName) != null && string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey))
         {
-            if (string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey))
-            {
-                return false;
-            }
-
-            var prefix = domainName[..^(apex.Length + 1)];
-            await dispatch(apex + ".", records, ManagedName(prefix));
-            return true;
+            return false;
         }
 
         // A failed probe (PowerDNS unreachable or placeholder-configured) degrades to
         // the instructions path rather than failing activation - activation is
         // idempotent and the periodic verification flags missing records later
-        bool zoneExists;
+        (string zoneId, Func<DnsConfig, string> nameOf)? zone;
         try
         {
-            zoneExists = await OwnDomainZoneExists(domain);
+            zone = await IdentityZoneAsync(domain);
         }
         catch (Exception e)
         {
@@ -318,20 +292,34 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return false;
         }
 
-        if (zoneExists)
+        if (zone is not var (zoneId, nameOf))
         {
-            await dispatch(domainName + ".", records, record => record.Name);
-            return true;
+            return false;
         }
 
-        return false;
+        await dispatch(zoneId, records, nameOf);
+        return true;
+    }
+
+    // Which zone holds an identity's records, and each record's name in it: the shared apex zone under the
+    // tenant's prefix for a managed domain, or the domain's own zone if we host it. Null when neither is ours.
+    private async Task<(string zoneId, Func<DnsConfig, string> nameOf)?> IdentityZoneAsync(AsciiDomainName domain)
+    {
+        var domainName = domain.DomainName;
+        if (FindManagedApex(domainName) is { } apex)
+        {
+            return (apex + ".", ManagedName(domainName[..^(apex.Length + 1)]));
+        }
+
+        return await OwnDomainZoneExists(domain) ? (domainName + ".", record => record.Name) : null;
     }
 
     //
-    // Record dispatch - the single place a DnsConfig record type maps to rrset writes.
+    // Record dispatch - where a DnsConfig record type maps to rrset writes.
     // ALL populate/delete paths (own-domain zones, managed domains, tenant-deletion
-    // cleanup, CLI backfills) go through these two methods, so a new record type is
-    // added here once. nameOf maps a record to its rrset name in the target zone:
+    // cleanup, CLI backfills) go through these two methods. RepointIdentityDnsAsync plans
+    // the same rrsets with the same mapping in one expression: a new record type is added
+    // in both (it throws there too until it is). nameOf maps a record to its rrset name in the target zone:
     // own-domain zones use record.Name as-is (empty = apex); managed domains append
     // the tenant prefix (ManagedName).
     //
