@@ -20,9 +20,10 @@ internal static class TenantStatusApi
     //
 
     public static async Task<TenantStatusState> SetStatusAsync(HttpClient httpClient, string domain, TenantStatus status,
-        DisabledReason? reason = null)
+        DisabledReason? reason = null, bool unlockMoved = false)
     {
-        var body = OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status, DisabledReason = reason });
+        var body = OdinSystemSerializer.Serialize(
+            new SetTenantStatusRequest { Status = status, DisabledReason = reason, UnlockMoved = unlockMoved });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         var response = await httpClient.PatchAsync($"tenants/{domain}/status", content);
         await EnsureSuccessAsync(response, domain);

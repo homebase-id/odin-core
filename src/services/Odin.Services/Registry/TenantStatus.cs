@@ -158,7 +158,12 @@ public static class TenantStatusRules
     /// Throws <see cref="OdinClientException"/> if the transition is not allowed.
     /// Expects <paramref name="toReason"/> to be normalized with <see cref="NormalizeReason"/>.
     /// </summary>
-    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason)
+    /// <param name="unlockMoved">
+    /// The operator's explicit request to take a copy disabled as moved back to paused (rolling a move back). It allows
+    /// that transition and no other.
+    /// </param>
+    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason,
+        bool unlockMoved = false)
     {
         if (!Enum.IsDefined(toStatus))
         {
@@ -181,13 +186,26 @@ public static class TenantStatusRules
         }
 
         // A moved identity lives elsewhere; serving this copy again would split it in two.
-        // Deleting the leftover copy is still allowed.
+        // Deleting the leftover copy is still allowed, and so is unlocking it on purpose: to paused, which
+        // serves nothing until the operator has pointed DNS back here and resumes it.
         var isMoved = HasMovedAway(fromStatus, fromReason);
+        if (unlockMoved)
+        {
+            if (!isMoved || toStatus != TenantStatus.Paused)
+            {
+                throw new OdinClientException("Unlocking a moved identity only takes a copy disabled as moved to paused");
+            }
+
+            return;
+        }
+
         var staysDisabled = toStatus == TenantStatus.Disabled &&
                             toReason is DisabledReason.Moved or DisabledReason.PendingDeletion;
         if (isMoved && !staysDisabled)
         {
-            throw new OdinClientException("This identity has moved to another host and cannot be re-enabled here");
+            throw new OdinClientException(
+                "This identity has moved to another host and cannot be re-enabled here. To roll the move back, " +
+                "unlock it to paused on purpose (set-status paused --unlock-moved)");
         }
 
         // Leaving disabled is a deliberate re-enable, straight to active. Otherwise pause-then-resume

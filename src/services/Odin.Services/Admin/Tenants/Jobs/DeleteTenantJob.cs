@@ -10,6 +10,7 @@ using Odin.Core.Util;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Email.Mailbox;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Admin.Tenants.Jobs;
@@ -18,6 +19,13 @@ namespace Odin.Services.Admin.Tenants.Jobs;
 public class DeleteTenantJobData
 {
     public string Domain { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The identity moved to another host (disabled as moved): its DNS is that host's now, and stays. Decided when the
+    /// delete is queued and again before anything changes, since this job's first step would otherwise overwrite the
+    /// Moved marker.
+    /// </summary>
+    public bool KeepDns { get; set; }
 }
 
 public class DeleteTenantJob(
@@ -25,7 +33,8 @@ public class DeleteTenantJob(
     IIdentityRegistry identityRegistry,
     IIdentityRegistrationService identityRegistrationService,
     IMailboxProvider mailboxProvider,
-    IDkimStore dkimStore) : AbstractJob
+    IDkimStore dkimStore,
+    PayloadMoveSource payloadMoveSource) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("324fa88f-2ef6-404a-a511-9ef65ea841af");
     public override string JobType => JobTypeId.ToString();
@@ -41,7 +50,18 @@ public class DeleteTenantJob(
 
         logger.LogDebug("Starting delete tenant {domain}", Data.Domain);
         var sw = Stopwatch.StartNew();
-        await identityRegistry.SetStatusAsync(Data.Domain, TenantStatus.Disabled, DisabledReason.PendingDeletion);
+        var registration = await identityRegistry.GetAsync(Data.Domain);
+        if (registration != null && TenantStatusRules.HasMovedAway(registration.Status, registration.DisabledReason))
+        {
+            Data.KeepDns = true; // saved with the job, should a retry find the registration gone
+        }
+
+        // A moved copy is disabled already, and keeps the reason that says so
+        if (!Data.KeepDns)
+        {
+            await identityRegistry.SetStatusAsync(Data.Domain, TenantStatus.Disabled, DisabledReason.PendingDeletion);
+        }
+
         await identityRegistry.DeleteRegistration(Data.Domain);
         // Email ride-along (docs/email-keys-plan.md): mailbox + DKIM cleanup,
         // best-effort like the DNS cleanup below - never blocks deletion
@@ -50,8 +70,11 @@ public class DeleteTenantJob(
             await mailboxProvider.DeleteMailboxAsync(Data.Domain);
             // Managed domains would otherwise keep their DKIM TXT rows in the shared
             // apex zone (own-domain zones are deleted wholesale below)
-            await identityRegistrationService.DeleteOnActivationRecords(
-                new AsciiDomainName(Data.Domain), DkimDnsRecords.DeletionConfigs(Data.Domain));
+            if (!Data.KeepDns)
+            {
+                await identityRegistrationService.DeleteOnActivationRecords(
+                    new AsciiDomainName(Data.Domain), DkimDnsRecords.DeletionConfigs(Data.Domain));
+            }
             await dkimStore.DeleteKeysAsync(Data.Domain);
         }
         catch (Exception e)
@@ -59,8 +82,21 @@ public class DeleteTenantJob(
             logger.LogError(e, "Email cleanup failed for {domain}; clean up manually", Data.Domain);
         }
 
-        // Managed domains: records removed from the apex zone; own domains: zone deleted. Never throws.
-        await identityRegistrationService.DeleteDnsRecordsForDomain(new AsciiDomainName(Data.Domain));
+        if (registration != null)
+        {
+            await payloadMoveSource.ForgetAsync(registration.Id);
+        }
+
+        if (Data.KeepDns)
+        {
+            // PowerDNS is shared: deleting here would delete the records of the host the identity moved to
+            logger.LogInformation("Kept the DNS of {domain}: it belongs to the host it moved to", Data.Domain);
+        }
+        else
+        {
+            // Managed domains: records removed from the apex zone; own domains: zone deleted. Never throws.
+            await identityRegistrationService.DeleteDnsRecordsForDomain(new AsciiDomainName(Data.Domain));
+        }
         logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);
 
         return JobExecutionResult.Success();

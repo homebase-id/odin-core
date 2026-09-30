@@ -99,6 +99,12 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     private static bool IsLive(SourceState? state, string? credential) =>
         state is { CompletedAt: null, CredentialHash: not null } && Matches(state.CredentialHash, credential);
 
+    /// <summary>Drops the identity's handoff state: it is deleted from this host.</summary>
+    public Task ForgetAsync(Guid identityId)
+    {
+        return systemDatabase.Settings.DeleteAsync(KeyPrefix + identityId);
+    }
+
     public async Task<SourceState?> LoadAsync(Guid identityId)
     {
         return (await LoadWithStoredValueAsync(identityId))?.state;

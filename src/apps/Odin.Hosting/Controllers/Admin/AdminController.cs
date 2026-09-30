@@ -71,15 +71,19 @@ public class AdminController : ControllerBase
 
     //
 
+    /// <summary>
+    /// Queues the tenant's deletion; a copy disabled as moved is purged and keeps its DNS. 400 while a move is under way,
+    /// or for a moved copy with email unless discard-mail.
+    /// </summary>
     [HttpDelete("tenants/{domain}")]
-    public async Task<ActionResult> DeleteTenant(string domain)
+    public async Task<ActionResult> DeleteTenant(string domain, [FromQuery(Name = "discard-mail")] bool discardMail = false)
     {
         if (!await _tenantAdmin.TenantExists(domain))
         {
             return NotFound();
         }
 
-        var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
+        var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain, discardMail);
         return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobId });
     }
 
@@ -164,7 +168,7 @@ public class AdminController : ControllerBase
     public async Task<ActionResult<TenantStatusState>> SetTenantStatus(string domain, [FromBody] SetTenantStatusRequest request)
     {
         // A missing status is a 400 before we get here: [Required] on the property, [ApiController] on the class
-        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status!.Value, request.DisabledReason);
+        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status!.Value, request.DisabledReason, request.UnlockMoved);
         if (previous == null)
         {
             return NotFound();

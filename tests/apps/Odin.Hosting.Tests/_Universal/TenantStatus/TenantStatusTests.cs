@@ -203,6 +203,26 @@ public class TenantStatusTests
     }
 
     [Test]
+    public async Task AnOperatorCanUnlockAMovedCopyToPausedOnPurpose()
+    {
+        var domain = TestIdentities.Pippin.OdinId.DomainName;
+        Assert.That((await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.Moved)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var unlockToActive = await PatchStatusRawAsync(domain,
+            OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = Status.Active, UnlockMoved = true }));
+        Assert.That(unlockToActive.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an unlock goes to paused, never straight to active");
+
+        var unlock = await PatchStatusRawAsync(domain,
+            OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = Status.Paused, UnlockMoved = true }));
+        Assert.That(unlock.StatusCode, Is.EqualTo(HttpStatusCode.OK), await unlock.Content.ReadAsStringAsync());
+        var tenant = await GetTenantViaAdminAsync(domain);
+        Assert.That((tenant.Status, tenant.DisabledReason), Is.EqualTo((Status.Paused, (DisabledReason?)null)));
+
+        // From paused it is an ordinary identity again
+        await SetStatusAsync(domain, Status.Active);
+    }
+
+    [Test]
     public async Task DisabledIdentityCanOnlyBeEnabled()
     {
         // Otherwise pause-then-resume would quietly re-enable it

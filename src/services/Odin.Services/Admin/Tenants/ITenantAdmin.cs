@@ -32,11 +32,16 @@ public interface ITenantAdmin
     /// <summary>
     /// Sets the tenant's status. Returns the previous status, or null if the tenant does not exist.
     /// </summary>
-    Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason);
+    Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason, bool unlockMoved = false);
 
     Task EnablePublicWebPresence(string domain);
     Task DisablePublicWebPresence(string domain);
 
-    Task<string> EnqueueDeleteTenant(string domain);
+    /// <summary>
+    /// Queues the tenant's deletion. A copy that moved to another host (disabled as moved) is purged: everything on this
+    /// host goes, its DNS stays, since it is that host's now. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/>
+    /// while a move is under way, and for a moved copy with email unless <paramref name="discardMail"/>.
+    /// </summary>
+    Task<string> EnqueueDeleteTenant(string domain, bool discardMail = false);
     Task<string> EnqueueExportTenant(string domain);
 }

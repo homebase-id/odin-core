@@ -208,20 +208,61 @@ You do not have to wait for the payload transfer to finish: until a payload arri
 read the failures it lists; `--retry` runs it again from the newest file, skipping everything that already
 arrived.
 
+**Leave the source copy paused for a day or two** before step 9. Until then, rolling back is cheap:
+see **Rolling back a move**.
+
 ### 9. Retire the source copy
 
 ```
 odin-admin tenant set-status <domain> disabled --reason moved    # against the source's admin API
 ```
 
-A moved identity can never be enabled again on the source. The source keeps the identity's payloads, and
-refuses to delete it, until the target has reported the transfer `Complete` (see
-`odin-admin tenant payload-move <domain>` against the source).
+This marks the copy as moved away and locks it:
+- nothing re-enables it by accident: `resume`, `enable` and any other status are refused;
+- certificate renewal and the host-wide DNS commands skip it.
 
-> **Never run `odin-admin tenant delete` on the source after a move.** Deleting a tenant also
-> deletes its DNS: its records in the apex zone (managed domain) or its whole zone (own domain).
-> Our PowerDNS is shared, so that deletes the **target's** live DNS. Purging the source's copy is a
-> separate command still to be written.
+It is not a point of no return: an operator can still unlock it on purpose (see **Rolling back a move**).
+
+### 10. Purge the source copy, a week later
+
+No sooner than **7 days** after the transfer reads `Complete` and the identity runs fine on the target:
+
+```
+odin-admin tenant delete <domain>            # against the source's admin API
+```
+
+For a copy disabled as moved, this deletes everything this host holds of the identity:
+- the registration and the certificate row;
+- the identity data;
+- the payloads;
+- the DKIM key rows and the mailbox.
+
+It **keeps the DNS**, which belongs to the target now, and prints `DNS kept`.
+
+It refuses in these cases:
+- **the target has not received all payloads yet.** `odin-admin tenant payload-move <domain>` shows the transfer.
+- **before step 9.** An exported copy that is paused and not yet disabled as moved might still own DNS, or might not.
+  Deleting it there would delete the target's records.
+- **the copy has email** (DKIM keys). Email does not move, so its mailbox here is the only copy of its mail.
+  `--discard-mail` deletes it anyway.
+
+Only a copy disabled as moved keeps its DNS. An ordinary `tenant delete` still deletes the identity's DNS. Our PowerDNS
+is shared, so never run it on an identity whose DNS points at another host.
+
+## Rolling back a move
+
+The copy on the source is as it was at export. **Anything written on the target since then is lost** by rolling back.
+
+1. **On the target:** `odin-admin tenant pause <domain>`. It stops serving, and peers queue their messages.
+2. **On the source, only if step 9 has run:** `odin-admin tenant set-status <domain> paused --unlock-moved`.
+   - Without the flag the copy stays locked. The flag only ever takes a moved copy to paused.
+   - The command reminds you of what this host cannot check.
+3. **On the source:** `Odin.Hosting repoint-identity-dns <domain> --ttl 60`, then the same with `commit`. It refuses a
+   disabled identity, which is why step 2 comes first.
+4. **On the source:** `odin-admin tenant resume <domain>`. Put the TTL back later: `repoint-identity-dns <domain>
+   commit`.
+5. **On the target:** `odin-admin tenant set-status <domain> disabled --reason moved`. It is now the copy that moved away,
+   so the purge in step 10, run against the target, keeps DNS.
 
 ## Payloads
 
@@ -234,6 +275,7 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
 
 - **Email:** the mailbox and its messages, the mailbox account and settings, and the DKIM keys. See
   **Email does not move (yet)** above.
-- Purging the source's copy (payloads and registration, never DNS) once the transfer is complete.
+- On Postgres, deleting an identity leaves its rows in the shared identity tables. That is true of every delete,
+  not just a move (`IdentityImportPreconditions.cs`), and import clears them if the identity comes back.
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.

@@ -534,9 +534,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(reg);
     }
 
-    public Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null)
+    public Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null,
+        bool unlockMoved = false)
     {
-        return SetStatusCoreAsync(domain, status, reason, precondition: null);
+        return SetStatusCoreAsync(domain, status, reason, precondition: null, unlockMoved);
     }
 
     /// <summary>
@@ -545,7 +546,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     /// </summary>
     /// <param name="precondition">Checked under the registry lock; when it fails nothing changes and the current state is returned</param>
     private async Task<TenantStatusState> SetStatusCoreAsync(string domain, TenantStatus status, DisabledReason? reason,
-        Func<IdentityRegistration, bool> precondition)
+        Func<IdentityRegistration, bool> precondition, bool unlockMoved = false)
     {
         reason = TenantStatusRules.NormalizeReason(status, reason);
 
@@ -569,7 +570,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 return previous;
             }
 
-            TenantStatusRules.Validate(reg.Status, reg.DisabledReason, status, reason);
+            TenantStatusRules.Validate(reg.Status, reg.DisabledReason, status, reason, unlockMoved);
 
             reg.Status = status;
             reg.DisabledReason = reason;
@@ -589,7 +590,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                             await RefreshStatusFromDatabaseAsync(reg, previous, e);
             }
 
-            if (saveError == null)
+            if (saveError == null && unlockMoved)
+            {
+                _logger.LogWarning("Moved identity {domain} unlocked to {status} by an operator: it may serve again from this host",
+                    domain, status);
+            }
+            else if (saveError == null)
             {
                 _logger.LogInformation("Status of {domain} set to {status} (reason: {reason}), was {previous}",
                     domain, status, reason, previous.Status);

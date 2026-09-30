@@ -4,6 +4,7 @@ using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.JobManagement;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -23,6 +24,10 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
         [CommandOption("-y|--yes")]
         public bool IgnorePrompts { get; set; } = false;
 
+        [Description("Purge a moved copy even though it has email: its mailbox here is the only copy of its mail")]
+        [CommandOption("--discard-mail")]
+        public bool DiscardMail { get; set; }
+
     }
 
     //
@@ -41,10 +46,15 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
         await AnsiConsole.Status()
             .StartAsync("Working...", async ctx =>
             {
-                var response = await httpClient.DeleteAsync($"tenants/{settings.TenantDomain}");
+                var response = await httpClient.DeleteAsync(
+                    $"tenants/{settings.TenantDomain}" + (settings.DiscardMail ? "?discard-mail=true" : ""));
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
                     throw new Exception($"Tenant {settings.TenantDomain} was not found");
+                }
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    throw new Exception($"Refused: {await response.Content.ReadAsStringAsync()}");
                 }
                 if (response.StatusCode != HttpStatusCode.Accepted)
                 {
@@ -68,7 +78,7 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    var jobResponse = JobApiResponse.Deserialize(await response.Content.ReadAsStringAsync());
+                    var (jobResponse, jobData) = JobApiResponse.Deserialize<DeleteTenantJobData>(await response.Content.ReadAsStringAsync());
 
                     if (jobResponse.State == JobState.Failed)
                     {
@@ -77,6 +87,10 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
 
                     if (jobResponse.State == JobState.Succeeded)
                     {
+                        if (jobData?.KeepDns == true)
+                        {
+                            AnsiConsole.MarkupLine("DNS kept: it belongs to the host the identity moved to");
+                        }
                         AnsiConsole.MarkupLine("[green]Done[/]");
                         done = true;
                     }

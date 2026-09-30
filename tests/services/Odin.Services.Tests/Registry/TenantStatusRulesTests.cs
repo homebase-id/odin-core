@@ -62,6 +62,36 @@ public class TenantStatusRulesTests
         }
     }
 
+    [Test]
+    public void UnlockingAMovedCopyAllowsExactlyMovedToPaused()
+    {
+        var allowed = new List<string>();
+        foreach (var from in AllStates())
+        {
+            foreach (var to in AllStates())
+            {
+                try
+                {
+                    TenantStatusRules.Validate(from.Status, from.Reason, to.Status, to.Reason, unlockMoved: true);
+                    allowed.Add($"{from.Status}/{from.Reason} -> {to.Status}/{to.Reason}");
+                }
+                catch (OdinClientException)
+                {
+                }
+            }
+        }
+
+        Assert.That(allowed, Is.EqualTo(new[] { "Disabled/Moved -> Paused/" }), string.Join(", ", allowed));
+    }
+
+    [Test]
+    public void AMovedCopyRefusedWithoutTheUnlockSaysHowToRollBack()
+    {
+        var e = Assert.Throws<OdinClientException>(() =>
+            TenantStatusRules.Validate(TenantStatus.Disabled, DisabledReason.Moved, TenantStatus.Paused, null));
+        Assert.That(e!.Message, Does.Contain("--unlock-moved"));
+    }
+
     [TestCase(TenantStatus.Active)]
     [TestCase(TenantStatus.OutOfQuota)]
     [TestCase(TenantStatus.Paused)]

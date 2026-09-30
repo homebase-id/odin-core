@@ -13,7 +13,9 @@ using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
+using Odin.Core.Identity;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Admin.Tenants;
@@ -27,7 +29,9 @@ public class TenantAdmin(
     IIdentityRegistry identityRegistry,
     IMultiTenantContainer multiTenantContainer,
     ILastSeenService lastSeenService,
-    IdentityStorageCensus identityStorageCensus)
+    IdentityStorageCensus identityStorageCensus,
+    PayloadMoveSource payloadMoveSource,
+    SystemDatabase systemDatabase)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -63,15 +67,41 @@ public class TenantAdmin(
 
     //
 
-    public async Task<string> EnqueueDeleteTenant(string domain)
+    public async Task<string> EnqueueDeleteTenant(string domain, bool discardMail = false)
     {
-        if (!await identityRegistry.IsIdentityRegistered(domain))
+        var registration = await identityRegistry.GetAsync(domain) ?? throw new OdinClientException($"{domain} not found");
+        var movedAway = TenantStatusRules.HasMovedAway(registration.Status, registration.DisabledReason);
+
+        // Refused here, before the job changes anything: a failing job would already have marked the copy for deletion
+        if (await payloadMoveSource.IsTransferPendingAsync(registration.Id))
         {
-            throw new OdinClientException($"{domain} not found");
+            throw new OdinClientException(
+                $"{domain} is being moved and the target has not received all its payloads yet " +
+                "(odin-admin tenant payload-move shows the transfer)");
+        }
+
+        // Exported, stopped here, but not marked as moved: its DNS may already point at the target, and deleting it
+        // here would delete the target's records
+        if (!movedAway && !TenantStatusRules.RunsBackgroundServices(registration.Status) &&
+            await payloadMoveSource.LoadAsync(registration.Id) != null)
+        {
+            throw new OdinClientException(
+                $"{domain} was exported for a move and is {registration.Status} here, so its DNS may already belong to " +
+                "the target. Finish the move (set-status disabled --reason moved) to purge it without its DNS, or " +
+                "resume it here to delete it with its DNS");
+        }
+
+        // Email does not move with an identity: this host's mailbox is the only copy of its mail
+        if (movedAway && !discardMail && (await systemDatabase.DkimKeys.GetByDomainAsync(new OdinId(domain))).Count > 0)
+        {
+            throw new OdinClientException(
+                $"{domain} has email, and email does not move: its mailbox here is the only copy of its mail. " +
+                "Delete it anyway with --discard-mail");
         }
 
         var job = jobManager.NewJob<DeleteTenantJob>();
         job.Data.Domain = domain;
+        job.Data.KeepDns = movedAway;
 
         var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
@@ -365,9 +395,9 @@ public class TenantAdmin(
 
     //
 
-    public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
+    public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason, bool unlockMoved = false)
     {
-        return identityRegistry.SetStatusAsync(domain, status, reason);
+        return identityRegistry.SetStatusAsync(domain, status, reason, unlockMoved);
     }
 
     //
