@@ -206,10 +206,8 @@ public class TenantStatusRulesTests
     [Test]
     public void OnlyACopyDisabledBecauseItMovedHasMovedAway()
     {
-        foreach (var (status, reason) in AllStates())
-        {
-            var expected = status == TenantStatus.Disabled && reason == DisabledReason.Moved;
-            Assert.That(TenantStatusRules.HasMovedAway(status, reason), Is.EqualTo(expected), $"{status} {reason}");
-        }
+        var movedAway = AllStates().Where(state => TenantStatusRules.HasMovedAway(state.Status, state.Reason)).ToList();
+        Assert.That(movedAway, Is.EqualTo(new[] { (TenantStatus.Disabled, (DisabledReason?)DisabledReason.Moved) }),
+            string.Join(", ", movedAway));
     }
 }
