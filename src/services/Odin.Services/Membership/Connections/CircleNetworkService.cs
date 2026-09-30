@@ -3224,7 +3224,9 @@ namespace Odin.Services.Membership.Connections
                         PermissionedDrive = new()
                         {
                             Drive = WellKnownAppDrives.FeedDrive,
-                            Permission = DrivePermission.Write
+                            // React as well: the system circles gave every connection Write and React on
+                            // the feed, and this grant is what every connection keeps once they are gone.
+                            Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
                 },
