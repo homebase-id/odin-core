@@ -46,7 +46,6 @@ public class ProfileCardContractTests
         Assert.That(request.Priority, Is.EqualTo(1000));
         Assert.That(request.Data.ContainsKey("label"), Is.False);
         Assert.That(Data(request, "design").GetString(), Is.EqualTo("board"));
-        Assert.That(Data(request, "futureKey").GetString(), Is.EqualTo("kept"));
         AssertOverrides(Data(request, "overrides"));
     }
 
@@ -59,6 +58,7 @@ public class ProfileCardContractTests
         Assert.That(request.ExpectedVersionTag, Is.EqualTo(Guid.Parse("22222222-2222-4222-8222-222222222222")));
         Assert.That(request.Visibility, Is.EqualTo(ProfileAttributeVisibility.Anonymous));
         Assert.That(request.Priority, Is.EqualTo(1000));
+        Assert.That(Data(request, "futureKey").GetString(), Is.EqualTo("kept"));
     }
 
     [Test]
