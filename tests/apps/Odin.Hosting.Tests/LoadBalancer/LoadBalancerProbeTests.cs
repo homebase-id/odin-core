@@ -25,6 +25,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Services.Admin.Tenants;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -33,7 +34,6 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Admin.Tenants;
 using Odin.Services.Registry;
 using Refit;
 
@@ -265,7 +265,7 @@ public class LoadBalancerProbeTests
     private static Task<HttpResponseMessage> SetFrodoStatusAsync(HttpClient admin, int port, TenantStatus status)
     {
         var body = OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status });
-        return admin.PatchAsync(AdminUrl(port, "tenants/frodo.dotyou.cloud/status"),
+        return admin.PatchAsync(AdminUrl(port, $"tenants/{Frodo}/status"),
             new StringContent(body, Encoding.UTF8, "application/json"));
     }
 

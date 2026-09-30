@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -180,10 +181,6 @@ public class AdminControllerTest : V2Fixture
         };
 
     /// <summary>
-    /// The export target sits outside the host's data root, so <see cref="OdinHost"/> does not clean
-    /// it up. This is the original's <c>[TearDown]</c> delete, moved to the end of the fixture.
-    /// </summary>
-    /// <summary>
     /// A tenant's status and public web presence live in the identity registry, which the per-test reset does not
     /// restore (see <c>OdinHost.ResetAsync</c>). Both toggle tests re-enable what they turned off as
     /// their last step, exactly as the original did — but if one fails midway, the tenant stays
@@ -199,6 +196,10 @@ public class AdminControllerTest : V2Fixture
         await SendAsync(apiClient, HttpMethod.Patch, $"tenants/{Identities.Frodo}/public-web-presence/enable");
     }
 
+    /// <summary>
+    /// The export target sits outside the host's data root, so <see cref="OdinHost"/> does not clean
+    /// it up. This is the original's <c>[TearDown]</c> delete, moved to the end of the fixture.
+    /// </summary>
     [OneTimeTearDown]
     public void DeleteExportTarget()
     {
@@ -266,7 +267,7 @@ public class AdminControllerTest : V2Fixture
     {
         var request = NewRequestMessage(HttpMethod.Patch, AdminUrl($"tenants/{Identities.Frodo}/status"));
         request.Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status }),
-            System.Text.Encoding.UTF8, "application/json");
+            Encoding.UTF8, "application/json");
         return client.SendAsync(request);
     }
 
