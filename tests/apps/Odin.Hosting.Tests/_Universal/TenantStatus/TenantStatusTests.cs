@@ -191,10 +191,6 @@ public class TenantStatusTests
             Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"{status}/{reason}");
         }
 
-        // The old enable endpoint is refused as well
-        var enable = await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/enable");
-        Assert.That(enable.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-
         var tenant = await GetTenantViaAdminAsync(domain);
         Assert.That(tenant.Status, Is.EqualTo(Status.Disabled));
         Assert.That(tenant.DisabledReason, Is.EqualTo(DisabledReason.Moved));
@@ -231,33 +227,6 @@ public class TenantStatusTests
 
         Assert.That((await SetStatusViaAdminAsync(domain, Status.Active, null)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(Registry.AreBackgroundServicesRunning(IdOf(TestIdentities.Frodo)), Is.True);
-    }
-
-    [Test]
-    public async Task EnableAndDisableEndpointsKeepWorkingAsWrappers()
-    {
-        var domain = TestIdentities.Frodo.OdinId.DomainName;
-
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/disable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var disabled = await GetTenantViaAdminAsync(domain);
-        Assert.That(disabled.Status, Is.EqualTo(Status.Disabled));
-        Assert.That(disabled.DisabledReason, Is.EqualTo(DisabledReason.Admin));
-        Assert.That(disabled.Enabled, Is.False);
-
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/enable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var enabled = await GetTenantViaAdminAsync(domain);
-        Assert.That(enabled.Status, Is.EqualTo(Status.Active));
-        Assert.That(enabled.DisabledReason, Is.Null);
-
-        // Enable leaves a paused identity paused: it only undoes disable
-        await SetStatusViaAdminAsync(domain, Status.Paused, null);
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/enable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await GetTenantViaAdminAsync(domain)).Status, Is.EqualTo(Status.Paused));
-
-        // Disabling an identity already disabled for deletion keeps that reason
-        await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.PendingDeletion);
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/disable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await GetTenantViaAdminAsync(domain)).DisabledReason, Is.EqualTo(DisabledReason.PendingDeletion));
     }
 
     //

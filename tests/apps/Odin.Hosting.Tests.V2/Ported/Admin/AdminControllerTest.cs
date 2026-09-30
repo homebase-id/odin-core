@@ -31,7 +31,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 /// Port of <c>tests/apps/Odin.Hosting.Tests/AdminApi/AdminControllerTest.cs</c>. The fleet-admin
 /// surface on <c>/api/admin/v1</c>: list tenants, read one by domain (with and without payload
 /// figures), the per-tenant metrics report and its promise to supersede the by-domain endpoint,
-/// export a tenant, and the enable/disable toggles for a tenant and for its public web presence.
+/// export a tenant, disabling and re-enabling a tenant through its status, and the public web presence toggle.
 /// </summary>
 /// <remarks>
 /// Checked port.
@@ -146,8 +146,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 /// <item><see cref="V2Fixture.SetupCallerWithOwner"/> is not used; the ordering caveat about it does
 /// not apply.</item>
 ///
-/// <item><b>State that outlives a reset.</b> The enable/disable toggles write to the identity
-/// registry, not to the identity DB, so per-test reset does not undo them; both tests re-enable what
+/// <item><b>State that outlives a reset.</b> A tenant's status and its public web presence live in the identity
+/// registry, not in the identity DB, so per-test reset does not undo them; both tests re-enable what
 /// they turned off, exactly as the original did. The export job lives in the system database, which
 /// reset also leaves alone, and the export test deletes it as part of its own assertions.</item>
 /// </list>
@@ -184,7 +184,7 @@ public class AdminControllerTest : V2Fixture
     /// it up. This is the original's <c>[TearDown]</c> delete, moved to the end of the fixture.
     /// </summary>
     /// <summary>
-    /// The enable/disable flags live in the identity registry, which the per-test reset does not
+    /// A tenant's status and public web presence live in the identity registry, which the per-test reset does not
     /// restore (see <c>OdinHost.ResetAsync</c>). Both toggle tests re-enable what they turned off as
     /// their last step, exactly as the original did — but if one fails midway, the tenant stays
     /// disabled and every later test in the fixture fails for an unrelated reason. This is idempotent
@@ -195,7 +195,7 @@ public class AdminControllerTest : V2Fixture
     public async Task RestoreTenantFlags()
     {
         using var apiClient = CreateAdminClient();
-        await SendAsync(apiClient, HttpMethod.Patch, $"tenants/{Identities.Frodo}/enable");
+        await SetFrodoStatusAsync(apiClient, TenantStatus.Active);
         await SendAsync(apiClient, HttpMethod.Patch, $"tenants/{Identities.Frodo}/public-web-presence/enable");
     }
 
@@ -261,6 +261,14 @@ public class AdminControllerTest : V2Fixture
 
     private static Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method, string relativePath) =>
         client.SendAsync(NewRequestMessage(method, AdminUrl(relativePath)));
+
+    private static Task<HttpResponseMessage> SetFrodoStatusAsync(HttpClient client, TenantStatus status)
+    {
+        var request = NewRequestMessage(HttpMethod.Patch, AdminUrl($"tenants/{Identities.Frodo}/status"));
+        request.Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status }),
+            System.Text.Encoding.UTF8, "application/json");
+        return client.SendAsync(request);
+    }
 
     /// <summary>
     /// The request/assert-OK/deserialize triplet that ran to three lines at roughly a dozen call
@@ -593,7 +601,7 @@ public class AdminControllerTest : V2Fixture
     //
 
     [Test]
-    public async Task ItShouldEnableAndDisableATenant()
+    public async Task ItShouldDisableAndReEnableATenantThroughItsStatus()
     {
         using var adminClient = CreateAdminClient();
         using var tenantClient = Host.CreateAnonymousClient(Identities.Frodo);
@@ -604,23 +612,19 @@ public class AdminControllerTest : V2Fixture
             Assert.That((await tenantClient.GetAsync("api/owner/v1/authentication/verifyToken")).StatusCode,
                 Is.EqualTo(expected));
 
-        async Task AssertAdminPatchOk(string relativePath) =>
-            Assert.That((await SendAsync(adminClient, HttpMethod.Patch, relativePath)).StatusCode,
-                Is.EqualTo(HttpStatusCode.OK));
+        async Task AssertStatusSet(TenantStatus status) =>
+            Assert.That((await SetFrodoStatusAsync(adminClient, status)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         await AssertTenantAnswers(HttpStatusCode.OK);
 
-        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/enable");
-        await AssertTenantAnswers(HttpStatusCode.OK);
-
-        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/disable");
+        await AssertStatusSet(TenantStatus.Disabled);
         await AssertTenantAnswers(HttpStatusCode.Conflict);
 
         // Disabled tenants are still returned in the tenant list.
         var tenants = await GetOkAsync<List<TenantModel>>(adminClient, "tenants");
         Assert.That(tenants, Has.Some.Matches<TenantModel>(t => t.Domain == Identities.Frodo));
 
-        await AssertAdminPatchOk($"tenants/{Identities.Frodo}/enable");
+        await AssertStatusSet(TenantStatus.Active);
         await AssertTenantAnswers(HttpStatusCode.OK);
     }
 

@@ -367,28 +367,6 @@ public class TenantAdmin(
 
     //
 
-    public async Task EnableTenant(string domain)
-    {
-        var registration = await identityRegistry.GetAsync(domain);
-        if (registration?.Status == TenantStatus.Disabled)
-        {
-            await identityRegistry.SetStatusAsync(domain, TenantStatus.Active);
-        }
-    }
-
-    //
-
-    public async Task DisableTenant(string domain)
-    {
-        var registration = await identityRegistry.GetAsync(domain);
-        if (registration != null && registration.Status != TenantStatus.Disabled)
-        {
-            await identityRegistry.SetStatusAsync(domain, TenantStatus.Disabled, DisabledReason.Admin);
-        }
-    }
-
-    //
-
     public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
     {
         return identityRegistry.SetStatusAsync(domain, status, reason);

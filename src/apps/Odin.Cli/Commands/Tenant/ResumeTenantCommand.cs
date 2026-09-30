@@ -27,9 +27,11 @@ public sealed class ResumeTenantCommand : AsyncCommand<ResumeTenantCommand.Setti
         var tenant = await TenantStatusApi.GetTenantAsync(httpClient, settings.TenantDomain);
         if (tenant.Status == TenantStatus.Disabled)
         {
+            var how = TenantStatusRules.HasMovedAway(tenant.Status, tenant.DisabledReason)
+                ? "it moved to another host: 'tenant unlock-moved' rolls the move back (agents/identity-move/README.md)"
+                : $"'tenant set-status {settings.TenantDomain} active' re-enables it";
             throw new Exception(
-                $"Tenant {settings.TenantDomain} is {TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}; " +
-                "use 'tenant enable' to re-enable it");
+                $"Tenant {settings.TenantDomain} is {TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}; {how}");
         }
 
         var previous = await TenantStatusApi.SetStatusAsync(httpClient, settings.TenantDomain, TenantStatus.Active);
