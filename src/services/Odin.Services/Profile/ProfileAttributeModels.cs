@@ -41,6 +41,12 @@ public sealed class SetProfileAttributeRequest
     public ProfileAttributeVisibility Visibility { get; set; } = ProfileAttributeVisibility.Anonymous;
 
     /// <summary>
+    /// Circles that may read this attribute. Only valid with <see cref="ProfileAttributeVisibility.Connected"/>;
+    /// each id must be an existing circle. Empty or null keeps the plain Connected ACL.
+    /// </summary>
+    public List<Guid> CircleIds { get; set; }
+
+    /// <summary>
     /// The attribute's field values (odin-js attribute <c>data</c>), written wholesale. The caller supplies
     /// the complete desired set; for the Name attribute the server fills in <c>displayName</c>.
     /// </summary>
