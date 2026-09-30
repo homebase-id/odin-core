@@ -50,6 +50,9 @@ app.Configure(config =>
         c.AddCommand<ResumeTenantCommand>("resume")
             .WithExample("tenant", "resume", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
                 "your-secret-api-key-here");
+        c.AddCommand<UnlockMovedTenantCommand>("unlock-moved")
+            .WithExample("tenant", "unlock-moved", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
+                "your-secret-api-key-here");
         c.AddCommand<SetTenantStatusCommand>("set-status")
             .WithExample("tenant", "set-status", "frodo.dotyou.cloud", "disabled", "--reason", "moved", "-I",
                 "admin.dotyou.cloud:4444", "-K", "your-secret-api-key-here");

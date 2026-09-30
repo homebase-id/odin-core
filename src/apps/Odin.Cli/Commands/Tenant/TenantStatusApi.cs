@@ -20,15 +20,24 @@ internal static class TenantStatusApi
     //
 
     public static async Task<TenantStatusState> SetStatusAsync(HttpClient httpClient, string domain, TenantStatus status,
-        DisabledReason? reason = null, bool unlockMoved = false)
+        DisabledReason? reason = null)
     {
-        var body = OdinSystemSerializer.Serialize(
-            new SetTenantStatusRequest { Status = status, DisabledReason = reason, UnlockMoved = unlockMoved });
+        var body = OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status, DisabledReason = reason });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         var response = await httpClient.PatchAsync($"tenants/{domain}/status", content);
         await EnsureSuccessAsync(response, domain);
         var json = await response.Content.ReadAsStringAsync();
         return OdinSystemSerializer.Deserialize<TenantStatusState>(json) ??
+               throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");
+    }
+
+    //
+
+    public static async Task<TenantStatusState> UnlockMovedAsync(HttpClient httpClient, string domain)
+    {
+        var response = await httpClient.PostAsync($"tenants/{domain}/unlock-moved", null);
+        await EnsureSuccessAsync(response, domain);
+        return OdinSystemSerializer.Deserialize<TenantStatusState>(await response.Content.ReadAsStringAsync()) ??
                throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");
     }
 
@@ -48,7 +57,8 @@ internal static class TenantStatusApi
 
     //
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, string domain)
+    public static async Task EnsureSuccessAsync(HttpResponseMessage response, string domain,
+        HttpStatusCode expected = HttpStatusCode.OK)
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -59,7 +69,7 @@ internal static class TenantStatusApi
             var detail = await response.Content.ReadAsStringAsync();
             throw new Exception($"{response.RequestMessage?.RequestUri}: refused: {detail}");
         }
-        if (response.StatusCode != HttpStatusCode.OK)
+        if (response.StatusCode != expected)
         {
             throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
         }

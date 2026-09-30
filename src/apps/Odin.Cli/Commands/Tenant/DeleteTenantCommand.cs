@@ -47,18 +47,7 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
             {
                 var response = await httpClient.DeleteAsync(
                     $"tenants/{settings.TenantDomain}" + (settings.DiscardMail ? "?discard-mail=true" : ""));
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                {
-                    throw new Exception($"Tenant {settings.TenantDomain} was not found");
-                }
-                if (response.StatusCode == HttpStatusCode.BadRequest)
-                {
-                    throw new Exception($"Refused: {await response.Content.ReadAsStringAsync()}");
-                }
-                if (response.StatusCode != HttpStatusCode.Accepted)
-                {
-                    throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-                }
+                await TenantStatusApi.EnsureSuccessAsync(response, settings.TenantDomain, HttpStatusCode.Accepted);
 
                 response.Headers.TryGetValues("Location", out var locations);
                 var location = locations?.FirstOrDefault() ?? "";

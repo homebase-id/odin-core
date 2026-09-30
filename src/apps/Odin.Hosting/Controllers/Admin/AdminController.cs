@@ -168,13 +168,26 @@ public class AdminController : ControllerBase
     public async Task<ActionResult<TenantStatusState>> SetTenantStatus(string domain, [FromBody] SetTenantStatusRequest request)
     {
         // A missing status is a 400 before we get here: [Required] on the property, [ApiController] on the class
-        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status!.Value, request.DisabledReason, request.UnlockMoved);
+        var previous = await _tenantAdmin.SetTenantStatusAsync(domain, request.Status!.Value, request.DisabledReason);
         if (previous == null)
         {
             return NotFound();
         }
 
         return Ok(previous);
+    }
+
+    //
+
+    /// <summary>
+    /// Takes a copy disabled as moved back to paused, to roll a move back, and returns the previous status. 400 for any
+    /// other copy.
+    /// </summary>
+    [HttpPost("tenants/{domain}/unlock-moved")]
+    public async Task<ActionResult<TenantStatusState>> UnlockMoved(string domain)
+    {
+        var previous = await _tenantAdmin.UnlockMovedAsync(domain);
+        return previous == null ? NotFound() : Ok(previous);
     }
 
     //

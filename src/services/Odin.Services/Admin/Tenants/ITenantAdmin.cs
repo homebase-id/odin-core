@@ -32,7 +32,10 @@ public interface ITenantAdmin
     /// <summary>
     /// Sets the tenant's status. Returns the previous status, or null if the tenant does not exist.
     /// </summary>
-    Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason, bool unlockMoved = false);
+    Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason);
+
+    /// <summary>Takes a copy disabled as moved back to paused (rolling a move back); see <see cref="IIdentityRegistry.UnlockMovedAsync"/></summary>
+    Task<TenantStatusState?> UnlockMovedAsync(string domain);
 
     Task EnablePublicWebPresence(string domain);
     Task DisablePublicWebPresence(string domain);

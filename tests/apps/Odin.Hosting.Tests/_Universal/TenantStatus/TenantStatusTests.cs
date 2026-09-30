@@ -175,14 +175,16 @@ public class TenantStatusTests
     }
 
     [Test]
-    public async Task MovedIdentityCannotBeReEnabledButCanBeDeleted()
+    public async Task MovedIdentityCannotBeReEnabled()
     {
         var domain = TestIdentities.Pippin.OdinId.DomainName;
         Assert.That((await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.Moved)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         foreach (var (status, reason) in new (Status, DisabledReason?)[]
                  {
-                     (Status.Active, null), (Status.OutOfQuota, null), (Status.Paused, null), (Status.Disabled, DisabledReason.Admin)
+                     (Status.Active, null), (Status.OutOfQuota, null), (Status.Paused, null), (Status.Disabled, DisabledReason.Admin),
+                     // Nor through another disabled reason, which could then be enabled
+                     (Status.Disabled, DisabledReason.PendingDeletion)
                  })
         {
             var refused = await SetStatusViaAdminAsync(domain, status, reason);
@@ -196,10 +198,6 @@ public class TenantStatusTests
         var tenant = await GetTenantViaAdminAsync(domain);
         Assert.That(tenant.Status, Is.EqualTo(Status.Disabled));
         Assert.That(tenant.DisabledReason, Is.EqualTo(DisabledReason.Moved));
-
-        // Deleting the leftover copy is allowed
-        var pendingDeletion = await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.PendingDeletion);
-        Assert.That(pendingDeletion.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     [Test]
@@ -208,18 +206,15 @@ public class TenantStatusTests
         var domain = TestIdentities.Pippin.OdinId.DomainName;
         Assert.That((await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.Moved)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var unlockToActive = await PatchStatusRawAsync(domain,
-            OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = Status.Active, UnlockMoved = true }));
-        Assert.That(unlockToActive.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an unlock goes to paused, never straight to active");
-
-        var unlock = await PatchStatusRawAsync(domain,
-            OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = Status.Paused, UnlockMoved = true }));
+        var unlock = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/unlock-moved");
         Assert.That(unlock.StatusCode, Is.EqualTo(HttpStatusCode.OK), await unlock.Content.ReadAsStringAsync());
         var tenant = await GetTenantViaAdminAsync(domain);
         Assert.That((tenant.Status, tenant.DisabledReason), Is.EqualTo((Status.Paused, (DisabledReason?)null)));
 
-        // From paused it is an ordinary identity again
+        // From paused it is an ordinary identity again; unlocking one that did not move is refused
         await SetStatusAsync(domain, Status.Active);
+        var notMoved = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/unlock-moved");
+        Assert.That(notMoved.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]

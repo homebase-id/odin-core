@@ -389,9 +389,14 @@ public class TenantAdmin(
 
     //
 
-    public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason, bool unlockMoved = false)
+    public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
     {
-        return identityRegistry.SetStatusAsync(domain, status, reason, unlockMoved);
+        return identityRegistry.SetStatusAsync(domain, status, reason);
+    }
+
+    public Task<TenantStatusState?> UnlockMovedAsync(string domain)
+    {
+        return identityRegistry.UnlockMovedAsync(domain);
     }
 
     //

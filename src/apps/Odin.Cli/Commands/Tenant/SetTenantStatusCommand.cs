@@ -25,10 +25,6 @@ public sealed class SetTenantStatusCommand : AsyncCommand<SetTenantStatusCommand
         [CommandOption("-r|--reason <REASON>")]
         public string? Reason { get; init; }
 
-        [Description("Roll a move back: take a copy disabled as moved to paused. Only with paused")]
-        [CommandOption("--unlock-moved")]
-        public bool UnlockMoved { get; init; }
-
         public override ValidationResult Validate()
         {
             if (!TenantStatusRules.TryParse<TenantStatus>(Status, out _))
@@ -55,20 +51,9 @@ public sealed class SetTenantStatusCommand : AsyncCommand<SetTenantStatusCommand
         }
 
         var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
-        var previous = await TenantStatusApi.SetStatusAsync(httpClient, settings.TenantDomain, status, reason, settings.UnlockMoved);
+        var previous = await TenantStatusApi.SetStatusAsync(httpClient, settings.TenantDomain, status, reason);
         TenantStatusApi.WriteChange(settings.TenantDomain, previous, status,
             TenantStatusRules.NormalizeReason(status, reason));
-
-        if (settings.UnlockMoved)
-        {
-            // What this host cannot see, since the identity's live copy is on another one
-            AnsiConsole.MarkupLine("[yellow]Unlocked. Before resuming it here:[/]");
-            AnsiConsole.WriteLine("  - the copy on the host it moved to must be paused or disabled first;");
-            AnsiConsole.WriteLine("  - this copy is as it was at export: anything written on the other host since then is not here;");
-            AnsiConsole.WriteLine($"  - DNS still points at the other host: run `repoint-identity-dns {settings.TenantDomain} commit` on this host,");
-            AnsiConsole.WriteLine("    then `odin-admin tenant resume`.");
-        }
-
         return 0;
     }
 }

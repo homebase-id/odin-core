@@ -206,18 +206,28 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         // Whose DNS it is, as CreateOwnDomainZone decides for a zone: each host writes its own apex A record
         var plan = await RepointIdentityDnsAsync(domain, PowerDnsRestClient.DefaultTtl, commit: false);
-        var apexA = plan.Single(change => change.Desired.Type == "A");
-        if (apexA.Current == null || !apexA.Current.Contents.ToHashSet().SetEquals(apexA.Desired.Contents))
+        var apexA = plan.Single(change => change.Desired.Type == "A").Current;
+        if (apexA == null || !IsThisHostsApexA(apexA.Contents))
         {
             throw new OdinSystemException(
-                $"{domain.DomainName} points at {(apexA.Current == null ? "nothing" : string.Join(", ", apexA.Current.Contents))}, " +
-                $"not at this host ({string.Join(", ", apexA.Desired.Contents)}): its DNS is not this host's to delete");
+                $"{domain.DomainName} points at {(apexA == null ? "nothing" : string.Join(", ", apexA.Contents))}, not at this host " +
+                $"({_configuration.Registry.DnsConfigurationSet.ApexARecord}): its DNS is not this host's to delete");
         }
 
-        if (commit)
+        // Unlike a tenant's deletion, deliberate: a failure is the caller's to see
+        if (commit && await IdentityZoneAsync(domain) is var (zoneId, nameOf))
         {
-            await DeleteOnActivationRecords(domain, DkimDnsRecords.DeletionConfigs(domain.DomainName));
-            await DeleteDnsRecordsForDomain(domain);
+            if (FindManagedApex(domain.DomainName) == null)
+            {
+                await _dnsRestClient.DeleteZone(zoneId); // its DKIM TXTs with it
+            }
+            else
+            {
+                await DeleteDnsRecords(zoneId, DkimDnsRecords.DeletionConfigs(domain.DomainName), nameOf);
+                await DeleteDnsRecords(zoneId, _dnsLookupService.GetDnsConfiguration(domain), nameOf);
+            }
+
+            _logger.LogInformation("Deleted the DNS of {domain}", domain.DomainName);
         }
 
         return plan.Where(change => change.Current != null).Select(change => change.Current!).ToList();
@@ -324,6 +334,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         await dispatch(zoneId, records, nameOf);
         return true;
     }
+
+    // Whose records these are: each host (environment) writes its own apex A value, so an identity's apex A tells
+    // whether its DNS is this host's
+    private bool IsThisHostsApexA(IEnumerable<string> apexA) => apexA.Contains(_configuration.Registry.DnsConfigurationSet.ApexARecord);
 
     // Which zone holds an identity's records, and each record's name in it: the shared apex zone under the
     // tenant's prefix for a managed domain, or the domain's own zone if we host it. Null when neither is ours.
@@ -567,7 +581,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 .SelectMany(x => x.records)
                 .Select(x => x.content)
                 .ToList();
-            if (!apexARecords.Contains(dns.ApexARecord))
+            if (!IsThisHostsApexA(apexARecords))
             {
                 _logger.LogWarning(
                     "Refusing zone {zone}: it already exists with foreign records (apex A [{a}], ours would be {ours}) " +
@@ -641,39 +655,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
 
     //
-
-    /// <summary>
-    /// Best-effort DNS cleanup when a tenant is deleted. Managed domains get their
-    /// records removed from the shared apex zone; own domains get their zone deleted.
-    /// Never throws: a DNS cleanup failure must not block account deletion.
-    /// </summary>
-    public async Task DeleteDnsRecordsForDomain(AsciiDomainName domain)
-    {
-        try
-        {
-            var domainName = domain.DomainName;
-
-            var apex = FindManagedApex(domainName);
-            if (apex == null)
-            {
-                await DeleteOwnDomainZone(domain);
-                return;
-            }
-
-            // Managed domain: remove its records from the apex zone. Deliberately not
-            // DeleteManagedDomain: that re-deletes the registration and asserts the
-            // configured prefix label count, which may have changed since signup.
-            var prefix = domainName[..^(apex.Length + 1)];
-            var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
-            await DeleteDnsRecords(apex + ".", dnsConfig, ManagedName(prefix));
-
-            _logger.LogInformation("Deleted DNS records for managed domain {domain}", domain);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Failed to delete DNS records for {domain}; clean up manually", domain);
-        }
-    }
 
     //
 

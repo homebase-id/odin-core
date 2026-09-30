@@ -38,8 +38,7 @@ public class TenantStatusRulesTests
             foreach (var to in AllStates())
             {
                 var isMoved = from is { Status: TenantStatus.Disabled, Reason: DisabledReason.Moved };
-                var leavesMoved = isMoved &&
-                                  to is not { Status: TenantStatus.Disabled, Reason: DisabledReason.Moved or DisabledReason.PendingDeletion };
+                var leavesMoved = isMoved && to is not { Status: TenantStatus.Disabled, Reason: DisabledReason.Moved };
                 var skipsEnable = from.Status == TenantStatus.Disabled && to.Status is TenantStatus.OutOfQuota or TenantStatus.Paused;
                 var allowed = !leavesMoved && !skipsEnable;
                 yield return new TestCaseData(from.Status, from.Reason, to.Status, to.Reason, allowed)
@@ -89,7 +88,7 @@ public class TenantStatusRulesTests
     {
         var e = Assert.Throws<OdinClientException>(() =>
             TenantStatusRules.Validate(TenantStatus.Disabled, DisabledReason.Moved, TenantStatus.Paused, null));
-        Assert.That(e!.Message, Does.Contain("--unlock-moved"));
+        Assert.That(e!.Message, Does.Contain("tenant unlock-moved"));
     }
 
     [TestCase(TenantStatus.Active)]

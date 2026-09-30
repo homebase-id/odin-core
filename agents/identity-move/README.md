@@ -208,8 +208,7 @@ You do not have to wait for the payload transfer to finish: until a payload arri
 read the failures it lists; `--retry` runs it again from the newest file, skipping everything that already
 arrived.
 
-**Leave the source copy paused for a day or two** before step 9. Until then, rolling back is cheap:
-see **Rolling back a move**.
+**Leave the source copy paused for a day or two** before step 9: rolling back is cheapest then.
 
 ### 9. Retire the source copy
 
@@ -221,7 +220,7 @@ This marks the copy as moved away and locks it:
 - nothing re-enables it by accident: `resume`, `enable` and any other status are refused;
 - certificate renewal and the host-wide DNS commands skip it.
 
-It is not a point of no return: an operator can still unlock it on purpose (see **Rolling back a move**).
+It is not a point of no return: see **Rolling back a move**.
 
 ### 10. Delete the source copy, a week later
 
@@ -232,9 +231,7 @@ odin-admin tenant delete <domain>            # against the source's admin API
 ```
 
 It deletes what this host holds of the identity: the registration and certificate row, the identity data, the
-payloads, the DKIM key rows and the mailbox.
-
-**Deleting a tenant never touches DNS.** Our PowerDNS is shared, and the identity's records are the target's now.
+payloads, the DKIM key rows and the mailbox. **It never touches DNS**, which is the target's now.
 
 It refuses while:
 - **the tenant is not disabled.** Only a disabled tenant can be deleted; step 9 disabled it.
@@ -251,9 +248,8 @@ So on the source after a move it refuses, since the records point at the target.
 The copy on the source is as it was at export. **Anything written on the target since then is lost** by rolling back.
 
 1. **On the target:** `odin-admin tenant pause <domain>`. It stops serving, and peers queue their messages.
-2. **On the source, only if step 9 has run:** `odin-admin tenant set-status <domain> paused --unlock-moved`.
-   - Without the flag the copy stays locked. The flag only ever takes a moved copy to paused.
-   - The command reminds you of what this host cannot check.
+2. **On the source, only if step 9 has run:** `odin-admin tenant unlock-moved <domain>`. It takes a copy disabled as
+   moved to paused, and nothing else.
 3. **On the source:** `Odin.Hosting repoint-identity-dns <domain> --ttl 60`, then the same with `commit`. It refuses a
    disabled identity, which is why step 2 comes first.
 4. **On the source:** `odin-admin tenant resume <domain>`. Put the TTL back later: `repoint-identity-dns <domain>

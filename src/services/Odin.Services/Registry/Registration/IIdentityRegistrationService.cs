@@ -141,11 +141,6 @@ public interface IIdentityRegistrationService
     /// </summary>
     Task<DnssecStatusResult> GetDnssecStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Best-effort DNS cleanup for a deleted tenant: managed domains get their records
-    /// removed from the shared apex zone, own domains get their zone deleted. Never throws.
-    /// </summary>
-    Task DeleteDnsRecordsForDomain(AsciiDomainName domain);
 
     /// <summary>
     /// Writes per-tenant on-activation records (e.g. the DKIM TXT set) into wherever the

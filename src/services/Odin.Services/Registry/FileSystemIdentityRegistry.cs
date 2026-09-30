@@ -534,10 +534,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(reg);
     }
 
-    public Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null,
-        bool unlockMoved = false)
+    public Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null)
     {
-        return SetStatusCoreAsync(domain, status, reason, precondition: null, unlockMoved);
+        return SetStatusCoreAsync(domain, status, reason, precondition: null);
+    }
+
+    public Task<TenantStatusState> UnlockMovedAsync(string domain)
+    {
+        return SetStatusCoreAsync(domain, TenantStatus.Paused, null, precondition: null, unlockMoved: true);
     }
 
     /// <summary>

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -93,7 +92,7 @@ public class DeleteTenantTests
         _registry.Verify(r => r.DeleteRegistration(Domain), Times.Once);
         _mailbox.Verify(m => m.DeleteMailboxAsync(Domain), Times.Once);
         _dkimStore.Verify(d => d.DeleteKeysAsync(Domain), Times.Once);
-        _registry.Verify(r => r.SetStatusAsync(It.IsAny<string>(), It.IsAny<TenantStatus>(), It.IsAny<DisabledReason?>(), It.IsAny<bool>()),
+        _registry.Verify(r => r.SetStatusAsync(It.IsAny<string>(), It.IsAny<TenantStatus>(), It.IsAny<DisabledReason?>()),
             Times.Never, "a moved copy keeps saying so until it is gone");
         Assert.That(await _source.LoadAsync(_identityId), Is.Null, "the handoff state goes with it");
     }

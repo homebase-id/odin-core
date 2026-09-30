@@ -360,21 +360,13 @@ public class CommandLine
                 rest.RemoveRange(ttlAt, 2);
             }
 
-            var flags = rest.Where(a => a.StartsWith("--")).ToList();
-            if (flags.Count > 0)
-            {
-                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
-                return (true, 1);
-            }
-
-            // As in identity-import: anything but "commit" after the domain is a typo, not a dry run
-            if (rest.Count < 1 || rest.Count > 2 || (rest.Count == 2 && rest[1] != "commit"))
+            if (!TryDomainAndCommit(rest, out var domain, out var commit))
             {
                 _logger.LogError("Usage: repoint-identity-dns <domain> [--ttl <seconds>] [commit]");
                 return (true, 1);
             }
 
-            var repointed = IdentityDnsCommands.RepointAsync(_serviceProvider, rest[0], ttl, commit: rest.Count == 2).BlockingWait();
+            var repointed = IdentityDnsCommands.RepointAsync(_serviceProvider, domain, ttl, commit).BlockingWait();
             return (true, repointed ? 0 : 1);
         }
 
@@ -391,14 +383,13 @@ public class CommandLine
         //
         if (args.Length >= 1 && args[0] == "delete-identity-dns")
         {
-            var rest = args.Skip(1).ToList();
-            if (rest.Any(a => a.StartsWith("--")) || rest.Count < 1 || rest.Count > 2 || (rest.Count == 2 && rest[1] != "commit"))
+            if (!TryDomainAndCommit(args.Skip(1).ToList(), out var domain, out var commit))
             {
                 _logger.LogError("Usage: delete-identity-dns <domain> [commit]");
                 return (true, 1);
             }
 
-            var deleted = IdentityDnsCommands.DeleteAsync(_serviceProvider, rest[0], commit: rest.Count == 2).BlockingWait();
+            var deleted = IdentityDnsCommands.DeleteAsync(_serviceProvider, domain, commit).BlockingWait();
             return (true, deleted ? 0 : 1);
         }
 
@@ -623,5 +614,15 @@ public class CommandLine
         
         return (false, 0);
     }
-}
 
+    //
+
+    // "<domain> [commit]", nothing else: as in identity-import, anything but "commit" after the domain is a typo, not
+    // a dry run
+    private static bool TryDomainAndCommit(List<string> operands, out string domain, out bool commit)
+    {
+        domain = operands.FirstOrDefault() ?? "";
+        commit = operands.Count == 2;
+        return operands.Count is 1 or 2 && !operands.Any(a => a.StartsWith("--")) && (!commit || operands[1] == "commit");
+    }
+}

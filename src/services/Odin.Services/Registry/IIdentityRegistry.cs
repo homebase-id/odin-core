@@ -116,9 +116,15 @@ namespace Odin.Services.Registry
         /// <see cref="DisabledReason.Admin"/>. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/> on a
         /// transition <see cref="TenantStatusRules.Validate"/> refuses.
         /// </summary>
-        /// <param name="unlockMoved">See <see cref="TenantStatusRules.Validate"/>: takes a copy disabled as moved back to paused</param>
         /// <returns>Previous state or null if not found</returns>
-        Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null, bool unlockMoved = false);
+        Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null);
+
+        /// <summary>
+        /// Takes a copy disabled as moved back to <see cref="TenantStatus.Paused"/>: an operator rolling a move back. Throws
+        /// <see cref="Odin.Core.Exceptions.OdinClientException"/> for any other copy.
+        /// </summary>
+        /// <returns>Previous state or null if not found</returns>
+        Task<TenantStatusState> UnlockMovedAsync(string domain);
 
         /// <summary>
         /// Sets whether the identity is allowed a public home page
