@@ -1,0 +1,47 @@
+{
+    "type": "9832dc5dd4ba12dd60acb853e7588f49",
+    "visibility": "connected",
+    "data": {
+        "design": "dossier",
+        "overrides": {
+            "palette": {
+                "ground": "#112233",
+                "ink": "#F0F0F0",
+                "muted": "#99AABB",
+                "accent": "#ABCDEF",
+                "surface": "#223344",
+                "surfaceInk": "#FFFFFF"
+            },
+            "type": {
+                "display": "caveat",
+                "text": "newsreader",
+                "label": "space-mono",
+                "displayCase": "upper"
+            },
+            "portraits": [
+                {
+                    "source": "photo",
+                    "shape": "square",
+                    "ring": 2,
+                    "shadow": "soft",
+                    "tilt": 5,
+                    "tape": true,
+                    "mono": true
+                }
+            ],
+            "blocks": [
+                {
+                    "kind": "posts",
+                    "presentation": "row"
+                },
+                {
+                    "kind": "links",
+                    "presentation": "button"
+                }
+            ],
+            "socials": "handles"
+        },
+        "label": "Friends"
+    },
+    "priority": 0
+}
