@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Odin.Services.Background.BackgroundServices;
 using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Background.BackgroundServices.Tenant;
@@ -52,7 +53,7 @@ public static class BackgroundServiceExtensions
     
     //
     
-    public static async Task StartSystemBackgroundServices(this IServiceProvider services)
+    public static async Task StartSystemBackgroundServices(this IServiceProvider services, OdinConfiguration config)
     {
         var bsm = services.GetRequiredService<IBackgroundServiceManager>();
         
@@ -66,11 +67,16 @@ public static class BackgroundServiceExtensions
         await bsm.StartAsync<LogMemoryDiagnosticsBackgroundService>();
         await bsm.StartAsync<StartupVerificationBackgroundService>();
 
-        // Started only when enabled so a disabled responder does not log "Starting background service".
-        var config = services.GetRequiredService<OdinConfiguration>();
+        // Gated here rather than inside the service so a disabled responder is never "started"
+        // (no manager entry, no "Starting background service" line); it logs its endpoint when it is.
         if (config.Stun.Enabled)
         {
             await bsm.StartAsync<StunResponderBackgroundService>();
+        }
+        else
+        {
+            var logger = services.GetRequiredService<ILogger<StunResponderBackgroundService>>();
+            logger.LogInformation("STUN responder not started: Stun:Enabled is false");
         }
     }
 

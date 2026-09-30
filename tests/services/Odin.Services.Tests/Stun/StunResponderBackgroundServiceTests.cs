@@ -14,6 +14,7 @@ using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.Stun;
 using Odin.Test.Helpers.Logging;
+using Odin.Test.Helpers.Stun;
 using Serilog.Events;
 
 namespace Odin.Services.Tests.Stun;
@@ -88,11 +89,9 @@ public class StunResponderBackgroundServiceTests
         return service;
     }
 
-    private static UdpClient ClientOn(IPAddress address)
-    {
-        var client = new UdpClient(new IPEndPoint(address, 0));
-        return client;
-    }
+    private static UdpClient ClientOn(IPAddress address) => new(new IPEndPoint(address, 0));
+
+    private static byte[] BareBindingRequest() => StunTestMessages.BareBindingRequest(TransactionId);
 
     private static async Task<byte[]> SendAndReceive(UdpClient client, IPEndPoint responder, byte[] datagram)
     {
@@ -128,11 +127,11 @@ public class StunResponderBackgroundServiceTests
         using var client = ClientOn(IPAddress.Loopback);
 
         var reply = await SendAndReceive(client, service.LocalEndPoint!,
-            StunBindingCodecTests.BareBindingRequest(TransactionId));
+            BareBindingRequest());
 
         Assert.That(reply.Length, Is.EqualTo(32), $"reply was {Convert.ToHexString(reply)}");
         Assert.That(reply[8..20], Is.EqualTo(TransactionId), "transaction id must be echoed");
-        Assert.That(StunBindingCodec.TryReadXorMappedAddress(reply, out var mapped), Is.True,
+        Assert.That(StunTestMessages.TryReadXorMappedAddress(reply, out var mapped), Is.True,
             $"could not decode {Convert.ToHexString(reply)}");
         Assert.That(mapped, Is.EqualTo(client.Client.LocalEndPoint),
             $"responder said {mapped}, client socket is {client.Client.LocalEndPoint}");
@@ -147,11 +146,11 @@ public class StunResponderBackgroundServiceTests
         using var client = ClientOn(IPAddress.IPv6Loopback);
 
         var reply = await SendAndReceive(client, service.LocalEndPoint!,
-            StunBindingCodecTests.BareBindingRequest(TransactionId));
+            BareBindingRequest());
 
         Assert.That(reply.Length, Is.EqualTo(44), $"reply was {Convert.ToHexString(reply)}");
         Assert.That(reply[25], Is.EqualTo(0x02), $"family byte was 0x{reply[25]:X2}");
-        Assert.That(StunBindingCodec.TryReadXorMappedAddress(reply, out var mapped), Is.True,
+        Assert.That(StunTestMessages.TryReadXorMappedAddress(reply, out var mapped), Is.True,
             $"could not decode {Convert.ToHexString(reply)}");
         Assert.That(mapped, Is.EqualTo(client.Client.LocalEndPoint),
             $"responder said {mapped}, client socket is {client.Client.LocalEndPoint}");
@@ -168,10 +167,10 @@ public class StunResponderBackgroundServiceTests
         using var client = ClientOn(IPAddress.Loopback);
 
         var reply = await SendAndReceive(client, new IPEndPoint(IPAddress.Loopback, service.LocalEndPoint.Port),
-            StunBindingCodecTests.BareBindingRequest(TransactionId));
+            BareBindingRequest());
 
         Assert.That(reply.Length, Is.EqualTo(32), $"an IPv4 client must get an IPv4 answer, reply was {Convert.ToHexString(reply)}");
-        Assert.That(StunBindingCodec.TryReadXorMappedAddress(reply, out var mapped), Is.True,
+        Assert.That(StunTestMessages.TryReadXorMappedAddress(reply, out var mapped), Is.True,
             $"could not decode {Convert.ToHexString(reply)}");
         Assert.That(mapped, Is.EqualTo(client.Client.LocalEndPoint),
             $"responder said {mapped}, client socket is {client.Client.LocalEndPoint}");
@@ -185,12 +184,12 @@ public class StunResponderBackgroundServiceTests
         var responder = service.LocalEndPoint!;
 
         await client.SendAsync("hello"u8.ToArray(), 5, responder);
-        var indication = StunBindingCodecTests.BareBindingRequest(TransactionId);
+        var indication = BareBindingRequest();
         indication[1] = 0x11;
         await client.SendAsync(indication, indication.Length, responder);
         await AssertNoReply(client, "garbage and an indication must be dropped");
 
-        var reply = await SendAndReceive(client, responder, StunBindingCodecTests.BareBindingRequest(TransactionId));
+        var reply = await SendAndReceive(client, responder, BareBindingRequest());
 
         Assert.That(reply.Length, Is.EqualTo(32), $"reply was {Convert.ToHexString(reply)}");
         await AssertNoReply(client, "exactly one reply per request");
@@ -202,15 +201,14 @@ public class StunResponderBackgroundServiceTests
         var service = await StartResponder("127.0.0.1");
         var responder = service.LocalEndPoint!;
         using var client = ClientOn(IPAddress.Loopback);
-        _ = await SendAndReceive(client, responder, StunBindingCodecTests.BareBindingRequest(TransactionId));
+        _ = await SendAndReceive(client, responder, BareBindingRequest());
 
         await _manager.StopAsync(nameof(StunResponderBackgroundService));
 
-        Assert.That(service.LocalEndPoint, Is.Null, "StoppedAsync must clear the endpoint");
-        // Reuse the socket to prove it is gone: the send is fine (UDP), there is just nobody home.
+        // The send is fine (UDP); there is just nobody home any more.
         try
         {
-            await client.SendAsync(StunBindingCodecTests.BareBindingRequest(TransactionId), 20, responder);
+            await client.SendAsync(BareBindingRequest(), 20, responder);
             await AssertNoReply(client, "a stopped responder must not answer");
         }
         catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionReset)

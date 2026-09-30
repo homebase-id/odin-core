@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using NUnit.Framework;
 using Odin.Services.Stun;
+using Odin.Test.Helpers.Stun;
 
 namespace Odin.Services.Tests.Stun;
 
@@ -66,19 +67,8 @@ public class StunBindingCodecTests
     private static readonly IPEndPoint Rfc5769IPv6Endpoint =
         new(IPAddress.Parse("2001:db8:1234:5678:11:2233:4455:6677"), 32853);
 
-    /// <summary>A 20-byte Binding request with no attributes, which is what ICE sends to gather a candidate.</summary>
-    public static byte[] BareBindingRequest(ReadOnlySpan<byte> transactionId)
-    {
-        var request = new byte[StunBindingCodec.HeaderLength];
-        request[0] = 0x00;
-        request[1] = 0x01;
-        request[4] = 0x21;
-        request[5] = 0x12;
-        request[6] = 0xa4;
-        request[7] = 0x42;
-        transactionId.CopyTo(request.AsSpan(8));
-        return request;
-    }
+    private static byte[] BareBindingRequest(ReadOnlySpan<byte> transactionId) =>
+        StunTestMessages.BareBindingRequest(transactionId);
 
     private static string Hex(ReadOnlySpan<byte> bytes) => Convert.ToHexString(bytes);
 
@@ -187,16 +177,6 @@ public class StunBindingCodecTests
     }
 
     [Test]
-    public void LargerThanMaxDatagram_IsOversized_BeforeAnythingElseIsLookedAt()
-    {
-        var datagram = new byte[StunBindingCodec.MaxDatagramLength + 1];
-
-        var status = StunBindingCodec.TryParseBindingRequest(datagram, out _);
-
-        Assert.That(status, Is.EqualTo(StunParseStatus.Oversized), $"got {status}");
-    }
-
-    [Test]
     public void MaxDatagram_WithConsistentLength_IsParsed()
     {
         var datagram = new byte[StunBindingCodec.MaxDatagramLength];
@@ -276,33 +256,7 @@ public class StunBindingCodecTests
         Assert.That(ex!.ParamName, Is.EqualTo("transactionId"));
     }
 
-    // --- decoding (test helper, but also exercised against the RFC's full responses) ---
-
-    [Test]
-    public void TryReadXorMappedAddress_WalksPastOtherAttributes_IPv4()
-    {
-        var ok = StunBindingCodec.TryReadXorMappedAddress(Rfc5769IPv4Response, out var endpoint);
-
-        Assert.That(ok, Is.True);
-        Assert.That(endpoint, Is.EqualTo(Rfc5769IPv4Endpoint), $"decoded {endpoint}");
-    }
-
-    [Test]
-    public void TryReadXorMappedAddress_WalksPastOtherAttributes_IPv6()
-    {
-        var ok = StunBindingCodec.TryReadXorMappedAddress(Rfc5769IPv6Response, out var endpoint);
-
-        Assert.That(ok, Is.True);
-        Assert.That(endpoint, Is.EqualTo(Rfc5769IPv6Endpoint), $"decoded {endpoint}");
-    }
-
-    [Test]
-    public void TryReadXorMappedAddress_RejectsARequest()
-    {
-        var ok = StunBindingCodec.TryReadXorMappedAddress(Rfc5769Request, out var endpoint);
-
-        Assert.That(ok, Is.False, $"decoded {endpoint}");
-    }
+    // --- round trip through the test-side decoder ---
 
     [TestCase("127.0.0.1", 0)]
     [TestCase("127.0.0.1", 65535)]
@@ -319,7 +273,7 @@ public class StunBindingCodecTests
         var expected = new IPEndPoint(IPAddress.Parse(address), port);
 
         var length = StunBindingCodec.WriteBindingSuccess(buffer, tid, expected.Address, expected.Port);
-        var ok = StunBindingCodec.TryReadXorMappedAddress(buffer.AsSpan(0, length), out var decoded);
+        var ok = StunTestMessages.TryReadXorMappedAddress(buffer.AsSpan(0, length), out var decoded);
 
         Assert.That(ok, Is.True, $"could not decode {Hex(buffer.AsSpan(0, length))}");
         Assert.That(decoded, Is.EqualTo(expected), $"decoded {decoded} from {Hex(buffer.AsSpan(0, length))}");

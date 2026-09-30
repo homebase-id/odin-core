@@ -27,18 +27,12 @@ public sealed class StunResponderBackgroundService(
 {
     private static readonly TimeSpan StatsInterval = TimeSpan.FromMinutes(10);
 
-    // Windows: a UDP socket reports ICMP port-unreachable for an earlier send as a
-    // ConnectionReset on the next receive. This IOControl code turns that off.
-    private const int SioUdpConnReset = unchecked((int)0x9800000C);
-
     private Socket? _socket;
 
+    // Written by the receive loop, read and reset by the stats loop and by StoppedAsync.
     private long _received;
     private long _answered;
-    private long _notStun;
-    private long _notBinding;
-    private long _badLength;
-    private long _oversized;
+    private long _dropped;
     private long _receiveErrors;
     private long _sendErrors;
 
@@ -48,55 +42,28 @@ public sealed class StunResponderBackgroundService(
     protected override Task StartingAsync(CancellationToken stoppingToken)
     {
         // A bind failure propagates and fails host startup, like a Kestrel port clash.
-        _socket = Bind(config.Stun.GetBindAddress(), config.Stun.Port);
-        LocalEndPoint = (IPEndPoint)_socket.LocalEndPoint!;
-        logger.LogInformation("STUN responder listening on {endpoint}", LocalEndPoint);
-        return Task.CompletedTask;
-    }
-
-    private Socket Bind(IPAddress bindAddress, int port)
-    {
-        if (config.Stun.BindAddress == "*" && bindAddress.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            // "*": dual-stack so one socket serves both families. Fall back to IPv4-only where the
-            // OS refuses (net.ipv6.bindv6only=1, or a container without IPv6).
-            try
-            {
-                return BindOne(IPAddress.IPv6Any, port, dualMode: true);
-            }
-            catch (SocketException e)
-            {
-                logger.LogWarning(
-                    "STUN responder could not bind dual-stack on [::]:{port} ({error}); falling back to IPv4 only",
-                    port, e.SocketErrorCode);
-                return BindOne(IPAddress.Any, port, dualMode: false);
-            }
-        }
-
-        return BindOne(bindAddress, port, dualMode: false);
-    }
-
-    private static Socket BindOne(IPAddress address, int port, bool dualMode)
-    {
+        var address = config.Stun.GetBindAddress();
         var socket = new Socket(address.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
         try
         {
-            if (dualMode)
+            // [::] serves both families on one socket; IPv4 peers show up as ::ffff:a.b.c.d.
+            // (DualMode is an IPv6-socket property; setting it on an IPv4 socket throws.)
+            if (address.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                socket.DualMode = true;
+                socket.DualMode = address.Equals(IPAddress.IPv6Any);
             }
-            if (OperatingSystem.IsWindows())
-            {
-                socket.IOControl(SioUdpConnReset, [0, 0, 0, 0], null);
-            }
-            socket.Bind(new IPEndPoint(address, port));
-            return socket;
+            socket.Bind(new IPEndPoint(address, config.Stun.Port));
         }
         catch
         {
             socket.Dispose();
             throw;
         }
+
+        _socket = socket;
+        LocalEndPoint = (IPEndPoint)socket.LocalEndPoint!;
+        logger.LogInformation("STUN responder listening on {endpoint}", LocalEndPoint);
+        return Task.CompletedTask;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -110,41 +77,32 @@ public sealed class StunResponderBackgroundService(
 
         var rx = new byte[StunBindingCodec.MaxDatagramLength];
         var tx = new byte[StunBindingCodec.MaxResponseLength];
-        // Reused across iterations: the SocketAddress overloads do not allocate an endpoint per packet.
-        var from = new SocketAddress(socket.AddressFamily);
-        var endpointTemplate = new IPEndPoint(
+        var anyEndpoint = new IPEndPoint(
             socket.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any, 0);
         var lastReceiveErrorLogged = DateTimeOffset.MinValue;
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            int n;
+            SocketReceiveFromResult received;
             try
             {
-                n = await socket.ReceiveFromAsync(rx, SocketFlags.None, from, stoppingToken);
+                received = await socket.ReceiveFromAsync(rx, SocketFlags.None, anyEndpoint, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
             catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionReset)
             {
-                // Windows ICMP port-unreachable for an earlier reply; nothing to do with this receive.
+                // Windows reports an ICMP port-unreachable for an earlier reply this way.
                 continue;
             }
             catch (SocketException e) when (e.SocketErrorCode == SocketError.MessageSize)
             {
-                // Windows: datagram larger than the buffer (Linux truncates instead, see BadLength).
-                Interlocked.Increment(ref _oversized);
+                // Windows: datagram larger than the buffer (Linux truncates it, and the header
+                // length then disagrees with the datagram, so it is dropped as BadLength).
+                Interlocked.Increment(ref _dropped);
                 continue;
-            }
-            catch (SocketException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
             }
             catch (SocketException e)
             {
@@ -164,31 +122,34 @@ public sealed class StunResponderBackgroundService(
             {
                 Interlocked.Increment(ref _received);
 
-                var status = StunBindingCodec.TryParseBindingRequest(rx.AsSpan(0, n), out var transactionId);
+                var status = StunBindingCodec.TryParseBindingRequest(rx.AsSpan(0, received.ReceivedBytes), out var transactionId);
                 if (status != StunParseStatus.BindingRequest)
                 {
-                    Count(status);
-                    logger.LogTrace("STUN responder dropped a {length}-byte datagram: {status}", n, status);
+                    Interlocked.Increment(ref _dropped);
+                    if (logger.IsEnabled(LogLevel.Trace))
+                    {
+                        logger.LogTrace("STUN responder dropped a {length}-byte datagram: {status}", received.ReceivedBytes, status);
+                    }
                     continue;
                 }
 
-                var remote = (IPEndPoint)endpointTemplate.Create(from);
-                // A dual-mode socket reports IPv4 peers as ::ffff:a.b.c.d; the reply carries the
-                // family the request arrived on.
+                var remote = (IPEndPoint)received.RemoteEndPoint;
+                // The reply carries the family the request arrived on, so unmap dual-mode's ::ffff:a.b.c.d.
                 var address = remote.Address.IsIPv4MappedToIPv6 ? remote.Address.MapToIPv4() : remote.Address;
                 var length = StunBindingCodec.WriteBindingSuccess(tx, transactionId, address, remote.Port);
 
                 try
                 {
-                    // 'from' is still in the socket's own (possibly mapped) form, which is what SendTo needs.
-                    await socket.SendToAsync(tx.AsMemory(0, length), SocketFlags.None, from, stoppingToken);
+                    await socket.SendToAsync(tx.AsMemory(0, length), SocketFlags.None, received.RemoteEndPoint, stoppingToken);
                     Interlocked.Increment(ref _answered);
-                    logger.LogTrace("STUN responder told {remote} its mapped address", remote);
                 }
                 catch (SocketException e)
                 {
                     Interlocked.Increment(ref _sendErrors);
-                    logger.LogTrace("STUN responder could not reply to {remote}: {error}", remote, e.SocketErrorCode);
+                    if (logger.IsEnabled(LogLevel.Trace))
+                    {
+                        logger.LogTrace("STUN responder could not reply to {remote}: {error}", remote, e.SocketErrorCode);
+                    }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -205,25 +166,6 @@ public sealed class StunResponderBackgroundService(
         }
     }
 
-    private void Count(StunParseStatus status)
-    {
-        switch (status)
-        {
-            case StunParseStatus.NotStun:
-                Interlocked.Increment(ref _notStun);
-                break;
-            case StunParseStatus.NotBindingRequest:
-                Interlocked.Increment(ref _notBinding);
-                break;
-            case StunParseStatus.BadLength:
-                Interlocked.Increment(ref _badLength);
-                break;
-            case StunParseStatus.Oversized:
-                Interlocked.Increment(ref _oversized);
-                break;
-        }
-    }
-
     private async Task LogStatsLoopAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -233,36 +175,29 @@ public sealed class StunResponderBackgroundService(
         }
     }
 
-    /// <summary>Logs and resets the counters. Public so a stop can flush the last window.</summary>
-    public void LogStats()
+    private void LogStats()
     {
         var received = Interlocked.Exchange(ref _received, 0);
         var answered = Interlocked.Exchange(ref _answered, 0);
-        var notStun = Interlocked.Exchange(ref _notStun, 0);
-        var notBinding = Interlocked.Exchange(ref _notBinding, 0);
-        var badLength = Interlocked.Exchange(ref _badLength, 0);
-        var oversized = Interlocked.Exchange(ref _oversized, 0);
+        var dropped = Interlocked.Exchange(ref _dropped, 0);
         var receiveErrors = Interlocked.Exchange(ref _receiveErrors, 0);
         var sendErrors = Interlocked.Exchange(ref _sendErrors, 0);
 
-        if (received + oversized + receiveErrors == 0)
+        if (received + dropped + receiveErrors == 0)
         {
             return;
         }
 
         logger.LogInformation(
-            "STUN responder stats: received={received} answered={answered} notStun={notStun} " +
-            "notBinding={notBinding} badLength={badLength} oversized={oversized} " +
+            "STUN responder stats: received={received} answered={answered} dropped={dropped} " +
             "receiveErrors={receiveErrors} sendErrors={sendErrors}",
-            received, answered, notStun, notBinding, badLength, oversized, receiveErrors, sendErrors);
+            received, answered, dropped, receiveErrors, sendErrors);
     }
 
     protected override Task StoppedAsync(CancellationToken stoppingToken)
     {
         LogStats();
         _socket?.Dispose();
-        _socket = null;
-        LocalEndPoint = null;
         return Task.CompletedTask;
     }
 }

@@ -43,18 +43,18 @@ Top-level `Stun` section. All keys are optional.
 - `Enabled`: **on by default**. This is the kill switch for an operator who does not want an
   open UDP responder on the host. Environment variable form: `Stun__Enabled=false`.
 - `Port`: UDP port, default 3478. `0` asks the OS for an ephemeral port (tests only).
-- `BindAddress`: `"*"` (default) binds one dual-stack socket on every interface, IPv4 mapped into
-  IPv6, falling back to IPv4-only where the OS refuses dual-stack. Unlike `"*"` in
+- `BindAddress`: `"*"` (default) binds one dual-stack socket on every interface (`[::]`, with
+  IPv4 peers mapped in), or `0.0.0.0` on a host without IPv6. Unlike `"*"` in
   `Host:IPAddressListenList`, this is not IPv4-only, because ICE gathers both families. A literal
-  IPv4 or IPv6 address binds that address, single-family.
+  address binds that address; `::` is dual-stack, any other literal is single-family.
 
 The responder is a system background service, so it also needs
 `BackgroundServices:SystemBackgroundServicesEnabled` (the default). The CLI turns system
 background services off and never starts it.
 
 When enabled, a bind failure (port in use, address not on this host) fails host startup, the same
-as a Kestrel port clash. Startup logs `STUN responder enabled: true` and
-`STUN responder listening on [::]:3478`; a stats line
+as a Kestrel port clash. Startup logs `STUN responder listening on [::]:3478`, or
+`STUN responder not started: Stun:Enabled is false`; a stats line
 (`STUN responder stats: received=… answered=…`) is logged every ten minutes when there was
 traffic.
 
@@ -108,6 +108,7 @@ logs a `typ srflx` candidate when the responder is reachable.
 - `src/services/Odin.Services/Stun/StunBindingCodec.cs`: the wire format, pure byte work.
 - `src/services/Odin.Services/Stun/StunResponderBackgroundService.cs`: the socket and receive loop.
 - `OdinConfiguration.StunSection`: the config keys.
-- Tests: `tests/services/Odin.Services.Tests/Stun/`. The hosting test scaffolds set
-  `Stun__Enabled=false` so parallel test processes do not fight over 3478; the responder's own
-  tests bind an ephemeral port.
+- Tests: `tests/services/Odin.Services.Tests/Stun/` (codec and socket round trips) and
+  `tests/apps/Odin.Hosting.Tests/Stun/` (the real host). `WebScaffold` binds the responder to an
+  ephemeral loopback port so every hosting fixture runs its start/stop path without touching
+  3478; the V2 TestServer harness disables it along with the other system background services.

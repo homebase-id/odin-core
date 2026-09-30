@@ -227,10 +227,10 @@ namespace Odin.Hosting.Tests
             // these are process-wide, so one fixture enabling it would leak into the rest.
             Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
 
-            // The STUN responder is on by default and would bind UDP 3478 in every scaffold; the
-            // hosting test projects run concurrently, so they would clash on it. Its own tests
-            // start the service directly on an ephemeral port (Odin.Services.Tests).
-            Environment.SetEnvironmentVariable("Stun__Enabled", "false");
+            // The STUN responder stays on so every fixture runs its real start/stop path, but on
+            // an ephemeral loopback port: the default 3478 would clash with a running dev host.
+            Environment.SetEnvironmentVariable("Stun__BindAddress", "127.0.0.1");
+            Environment.SetEnvironmentVariable("Stun__Port", "0");
 
             Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
             Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");

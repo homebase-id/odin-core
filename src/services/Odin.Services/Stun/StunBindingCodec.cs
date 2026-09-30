@@ -19,9 +19,6 @@ public enum StunParseStatus
 
     /// <summary>The header's message length disagrees with the datagram or is not 4-aligned; drop.</summary>
     BadLength,
-
-    /// <summary>Longer than <see cref="StunBindingCodec.MaxDatagramLength"/>; drop unread.</summary>
-    Oversized,
 }
 
 /// <summary>
@@ -50,18 +47,12 @@ public static class StunBindingCodec
     public const ushort BindingRequestType = 0x0001;
     public const ushort BindingSuccessType = 0x0101;
     public const ushort XorMappedAddressAttribute = 0x0020;
-
-    private const byte FamilyIPv4 = 0x01;
-    private const byte FamilyIPv6 = 0x02;
+    public const byte FamilyIPv4 = 0x01;
+    public const byte FamilyIPv6 = 0x02;
 
     public static StunParseStatus TryParseBindingRequest(ReadOnlySpan<byte> datagram, out ReadOnlySpan<byte> transactionId)
     {
         transactionId = default;
-
-        if (datagram.Length > MaxDatagramLength)
-        {
-            return StunParseStatus.Oversized;
-        }
 
         if (datagram.Length < HeaderLength)
         {
@@ -157,71 +148,5 @@ public static class StunBindingCodec
         }
 
         return total;
-    }
-
-    /// <summary>
-    /// Decodes the XOR-MAPPED-ADDRESS of a Binding success response written by
-    /// <see cref="WriteBindingSuccess"/> or any RFC 8489 responder. Walks attributes so a response
-    /// that also carries SOFTWARE or FINGERPRINT decodes too. Used by tests and tooling.
-    /// </summary>
-    public static bool TryReadXorMappedAddress(ReadOnlySpan<byte> response, out IPEndPoint? endpoint)
-    {
-        endpoint = null;
-
-        if (response.Length < HeaderLength ||
-            BinaryPrimitives.ReadUInt16BigEndian(response[..2]) != BindingSuccessType ||
-            BinaryPrimitives.ReadUInt32BigEndian(response[4..8]) != MagicCookie)
-        {
-            return false;
-        }
-
-        var messageLength = BinaryPrimitives.ReadUInt16BigEndian(response[2..4]);
-        if (messageLength % 4 != 0 || messageLength != response.Length - HeaderLength)
-        {
-            return false;
-        }
-
-        var xorKey = response[4..HeaderLength];
-        var attributes = response[HeaderLength..];
-        while (attributes.Length >= 4)
-        {
-            var type = BinaryPrimitives.ReadUInt16BigEndian(attributes[..2]);
-            var length = BinaryPrimitives.ReadUInt16BigEndian(attributes[2..4]);
-            if (attributes.Length < 4 + length)
-            {
-                return false;
-            }
-
-            if (type == XorMappedAddressAttribute)
-            {
-                var value = attributes[4..(4 + length)];
-                var addressLength = value.Length >= 2
-                    ? value[1] switch { FamilyIPv4 => 4, FamilyIPv6 => 16, _ => -1 }
-                    : -1;
-                if (addressLength < 0 || value.Length != 4 + addressLength)
-                {
-                    return false;
-                }
-
-                var port = BinaryPrimitives.ReadUInt16BigEndian(value[2..4]) ^ (int)(MagicCookie >> 16);
-                Span<byte> addressBytes = stackalloc byte[addressLength];
-                for (var i = 0; i < addressLength; i++)
-                {
-                    addressBytes[i] = (byte)(value[4 + i] ^ xorKey[i]);
-                }
-                endpoint = new IPEndPoint(new IPAddress(addressBytes), port);
-                return true;
-            }
-
-            // Attribute values are padded to a 4-byte boundary (§14).
-            var padded = (length + 3) & ~3;
-            if (attributes.Length < 4 + padded)
-            {
-                return false;
-            }
-            attributes = attributes[(4 + padded)..];
-        }
-
-        return false;
     }
 }

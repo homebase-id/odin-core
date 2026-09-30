@@ -579,11 +579,10 @@ public static class HostExtensions
         //     }
         // }
 
-        // Start system background services (the STUN responder among them, when enabled)
-        logger.LogInformation("STUN responder enabled: {enabled}", config.Stun.Enabled);
+        // Start system background services
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)
         {
-            services.StartSystemBackgroundServices().BlockingWait();
+            services.StartSystemBackgroundServices(config).BlockingWait();
         }
         else
         {
