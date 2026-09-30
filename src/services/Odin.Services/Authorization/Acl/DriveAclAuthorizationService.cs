@@ -123,7 +123,7 @@ namespace Odin.Services.Authorization.Acl
         {
             //TODO: cache result -
             return Task.FromResult(
-                ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, odinContext.Caller) == SecurityGroupType.Connected);
+                ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller) == SecurityGroupType.Connected);
         }
     }
 }

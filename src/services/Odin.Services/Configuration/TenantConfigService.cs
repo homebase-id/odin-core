@@ -53,6 +53,7 @@ public class TenantConfigService(
     {
         var tenantSettings = await GetTenantSettingsAsync();
         tenantContext.UpdateSystemConfig(tenantSettings);
+        tenantContext.UpdateDataVersion((await GetVersionInfoAsync()).DataVersionNumber);
     }
 
     public async Task<TenantVersionInfo> ForceVersionNumberAsync(int version)
@@ -65,6 +66,7 @@ public class TenantConfigService(
 
         await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
         await ConfigStorage.DeleteAsync(identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
+        tenantContext.UpdateDataVersion(newVersion.DataVersionNumber);
 
         return newVersion;
     }
@@ -88,6 +90,7 @@ public class TenantConfigService(
         };
 
         await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
+        tenantContext.UpdateDataVersion(newVersion.DataVersionNumber);
 
         return newVersion;
     }
@@ -291,28 +294,6 @@ public class TenantConfigService(
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
                 await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
                     odinContext);
-                break;
-
-            case TenantConfigFlagNames.UseReviewedSecurityTier:
-                cfg.UseReviewedSecurityTier = bool.Parse(request.Value);
-
-                // Checked when it is switched on, not on every request that reads it. Below v16 the
-                // ReviewedAt column has not been backfilled from prior Confirmed membership, so every
-                // connection would read as unreviewed and the whole address book would drop a tier at
-                // once. Turning it off is always allowed -- that direction can only restore access.
-                if (cfg.UseReviewedSecurityTier)
-                {
-                    var version = (await GetVersionInfoAsync()).DataVersionNumber;
-                    if (version < 16)
-                    {
-                        throw new OdinClientException(
-                            "The reviewed security tier cannot be enabled before the v16 upgrade has run: " +
-                            $"this identity is at v{version}, and until v16 no connection carries a review date, " +
-                            "so enabling it would demote every one of them.",
-                            OdinClientErrorCode.UnhandledScenario);
-                    }
-                }
-
                 break;
 
             case TenantConfigFlagNames.HideOwnerCirclesFromApps:

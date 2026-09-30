@@ -27,18 +27,14 @@ public class TransitAuthenticationService :
     /// <summary>
     /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    /// <param name="callerUsesReviewedTier">
-    /// Whether the calling identity sent <see cref="OdinHeaderNames.UsesReviewedSecurityTier"/>.  Part of the cache
-    /// key, so a caller toggling the tier is never served a context built under the other setting.
-    /// </param>
     public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token,
-        bool callerUsesReviewedTier, IOdinContext odinContext)
+        IOdinContext odinContext)
     {
         var creator = new Func<Task<IOdinContext>>(async () =>
         {
             var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) =
-                await GetPermissionContextAsync(callerOdinId, token, callerUsesReviewedTier, odinContext);
+                await GetPermissionContextAsync(callerOdinId, token, odinContext);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -51,11 +47,11 @@ public class TransitAuthenticationService :
             return dotYouContext;
         });
 
-        return await _cache.GetOrAddContextAsync(token, creator, keySuffix: callerUsesReviewedTier ? "reviewed-tier" : null);
+        return await _cache.GetOrAddContextAsync(token, creator);
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
-        ClientAuthenticationToken token, bool callerUsesReviewedTier, IOdinContext odinContext)
+        ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var (permissionContext, circleIds, icr) =
             await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
@@ -67,8 +63,7 @@ public class TransitAuthenticationService :
             securityLevel: SecurityGroupType.Connected,
             circleIds: circleIds)
         {
-            IsReviewed = icr.ReviewedAt != null,
-            CallerUsesReviewedTier = callerUsesReviewedTier
+            IsReviewed = icr.ReviewedAt != null
         };
 
         return (cc, permissionContext);

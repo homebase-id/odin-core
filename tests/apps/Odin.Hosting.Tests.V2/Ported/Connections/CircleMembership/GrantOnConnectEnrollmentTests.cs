@@ -36,10 +36,8 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam, Identities.Merry];
 
-    // Both values: the reviewed tier governs content evaluation, not enrolment, so it must not change the outcome.
-    [TestCase(true)]
-    [TestCase(false)]
-    public async Task AnAutoConnectionLandsInTheChatCircleOnBothSides(bool useReviewedSecurityTier)
+    [Test]
+    public async Task AnAutoConnectionLandsInTheChatCircleOnBothSides()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -47,8 +45,6 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
         // The configuration in the report: app-initiated requests auto-accepted.
         foreach (var owner in new[] { frodo, sam })
         {
-            await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.UseReviewedSecurityTier,
-                useReviewedSecurityTier.ToString().ToLowerInvariant());
             await owner.Admin.UpdateTenantSettingsFlag(TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "false");
         }
 

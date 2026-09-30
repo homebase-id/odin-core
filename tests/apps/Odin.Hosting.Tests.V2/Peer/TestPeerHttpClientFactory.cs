@@ -113,12 +113,6 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
         }
 
-        // Mirrors the production factory: announce the reviewed security tier when this identity has it on.
-        if (_tenantContext.Settings?.UseReviewedSecurityTier ?? false)
-        {
-            client.DefaultRequestHeaders.Add(OdinHeaderNames.UsesReviewedSecurityTier, bool.TrueString);
-        }
-
         if (clientAuthenticationToken != null)
         {
             client.DefaultRequestHeaders.Add(OdinHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
