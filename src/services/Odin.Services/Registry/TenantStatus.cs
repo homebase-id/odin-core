@@ -91,6 +91,16 @@ public static class TenantStatusRules
         return Enum.TryParse(normalized, ignoreCase: true, out result) && Enum.IsDefined(result);
     }
 
+    /// <summary>
+    /// This copy of the identity was left behind by a move: the identity lives on another host now. Host-wide
+    /// sweeps (certificate renewal, DNS backfills) must leave it alone, or they would renew or point DNS at a
+    /// copy that must never serve again.
+    /// </summary>
+    public static bool HasMovedAway(TenantStatus status, DisabledReason? reason)
+    {
+        return status == TenantStatus.Disabled && reason == DisabledReason.Moved;
+    }
+
     public static bool RunsBackgroundServices(TenantStatus status)
     {
         return status switch
@@ -172,7 +182,7 @@ public static class TenantStatusRules
 
         // A moved identity lives elsewhere; serving this copy again would split it in two.
         // Deleting the leftover copy is still allowed.
-        var isMoved = fromStatus == TenantStatus.Disabled && fromReason == DisabledReason.Moved;
+        var isMoved = HasMovedAway(fromStatus, fromReason);
         var staysDisabled = toStatus == TenantStatus.Disabled &&
                             toReason is DisabledReason.Moved or DisabledReason.PendingDeletion;
         if (isMoved && !staysDisabled)

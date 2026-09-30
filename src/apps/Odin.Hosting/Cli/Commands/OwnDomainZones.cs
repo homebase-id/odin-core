@@ -50,6 +50,7 @@ public static class OwnDomainZones
         var existing = 0;
         var refused = 0;
         var skipped = 0;
+        var movedAway = 0;
         var failed = 0;
         foreach (var tenant in tenants)
         {
@@ -57,6 +58,14 @@ public static class OwnDomainZones
             if (IsManagedDomain(config, domain))
             {
                 skipped++;
+                continue;
+            }
+
+            // Its DNS belongs to the host it moved to: rewriting it from here would point it back at this copy
+            if (TenantStatusRules.HasMovedAway(tenant.Status, tenant.DisabledReason))
+            {
+                movedAway++;
+                Console.WriteLine($"SKIPPED      {domain} (moved away)");
                 continue;
             }
 
@@ -105,8 +114,8 @@ public static class OwnDomainZones
         }
 
         Console.WriteLine(commit
-            ? $"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, failed: {failed}"
-            : $"Dry-run done. Would create: {created}, already exist: {existing}, managed domains skipped: {skipped}, failed: {failed}");
+            ? $"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, moved away: {movedAway}, failed: {failed}"
+            : $"Dry-run done. Would create: {created}, already exist: {existing}, managed domains skipped: {skipped}, moved away: {movedAway}, failed: {failed}");
     }
 
     //
