@@ -14,6 +14,7 @@ using Odin.Hosting.Cli.Commands;
 using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
 using Odin.Services.Background;
 using Odin.Services.Configuration;
+using Odin.Services.Dns.PowerDns;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
@@ -329,6 +330,52 @@ public class CommandLine
             var exported = IdentityJsonTransfer.ExportAsync(
                 _serviceProvider, operands[0], operands[1]).BlockingWait();
             return (true, exported ? 0 : 1);
+        }
+
+        //
+        // Command line: Point one identity's DNS at this host
+        //
+        // Writes only that identity's rrsets (A, capi, file and, while tenant mail is on, the mail set) with this
+        // host's values, at --ttl (default 3600). Dry run unless "commit" is passed: it prints each rrset as the
+        // zone has it and as it would be. Refuses unless the identity is registered here and not disabled, so after
+        // a move it only runs on the target. Also lowers the TTL before a move: run it on the source with --ttl 60,
+        // where only the TTL changes.
+        //
+        // examples:
+        //   dotnet run -- repoint-identity-dns frodo.id.pub --ttl 60
+        //   dotnet run -- repoint-identity-dns frodo.id.pub commit
+        //
+        if (args.Length >= 1 && args[0] == "repoint-identity-dns")
+        {
+            var rest = args.Skip(1).ToList();
+            var ttl = PowerDnsRestClient.DefaultTtl;
+            var ttlAt = rest.IndexOf("--ttl");
+            if (ttlAt >= 0)
+            {
+                if (ttlAt + 1 >= rest.Count || !int.TryParse(rest[ttlAt + 1], out ttl) || ttl < 1 || ttl > 86400)
+                {
+                    _logger.LogError("--ttl takes a number of seconds, 1 to 86400");
+                    return (true, 1);
+                }
+                rest.RemoveRange(ttlAt, 2);
+            }
+
+            var flags = rest.Where(a => a.StartsWith("--")).ToList();
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            // As in identity-import: anything but "commit" after the domain is a typo, not a dry run
+            if (rest.Count < 1 || rest.Count > 2 || (rest.Count == 2 && rest[1] != "commit"))
+            {
+                _logger.LogError("Usage: repoint-identity-dns <domain> [--ttl <seconds>] [commit]");
+                return (true, 1);
+            }
+
+            var repointed = IdentityDnsRepoint.RunAsync(_serviceProvider, rest[0], ttl, commit: rest.Count == 2).BlockingWait();
+            return (true, repointed ? 0 : 1);
         }
 
         //
