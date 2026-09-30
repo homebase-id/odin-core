@@ -62,14 +62,6 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
-    [HttpPost("confirm-connection")]
-    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Confirm a pending connection")]
-    public async Task<IActionResult> ConfirmConnection([FromBody] OdinIdRequest request)
-    {
-        await circleNetwork.ConfirmConnectionAsync((OdinId)request.OdinId, WebOdinContext);
-        return Ok();
-    }
-
     [HttpPost("review")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections],
         Summary = "Record the owner's review of a connection: enroll the chosen circles and stamp ReviewedAt")]

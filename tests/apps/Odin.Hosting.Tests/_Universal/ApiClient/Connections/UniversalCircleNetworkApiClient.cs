@@ -267,13 +267,4 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
-    public async Task<ApiResponse<IcrVerificationResult>> ConfirmConnection(OdinId recipient)
-    {
-        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
-        {
-            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
-            var apiResponse = await connectionsService.ConfirmConnection(new OdinIdRequest() { OdinId = recipient });
-            return apiResponse;
-        }
-    }
 }

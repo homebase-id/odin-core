@@ -48,13 +48,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return result;
         }
 
-        [HttpPost("confirm-connection")]
-        public async Task<IActionResult> ConfirmConnection([FromBody] OdinIdRequest request)
-        {
-            await circleNetwork.ConfirmConnectionAsync((OdinId)request.OdinId, WebOdinContext);
-            return Ok();
-        }
-
         [HttpPost("review")]
         public async Task<IActionResult> MarkReviewed([FromBody] MarkConnectionReviewedRequest request)
         {

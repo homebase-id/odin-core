@@ -1462,7 +1462,7 @@ namespace Odin.Services.Membership.Connections
         /// The sibling of <see cref="ApplyAmbientCircleAsync"/>, and it exists for the same reason:
         /// <see cref="GrantCircleAsync"/> refuses any identity still holding the Auto Connections circle,
         /// and a reviewed connection may well still hold it.  <see cref="MarkReviewedAsync"/> removes
-        /// nothing -- only <see cref="ConfirmConnectionAsync"/> takes the auto circle away -- so an
+        /// nothing, and nothing else takes the auto circle away, so an
         /// introduction the owner reviewed without confirming is reviewed and auto-connected at once.
         /// Backfilling through the older path would silently skip exactly those.
         /// <para>
@@ -2378,43 +2378,6 @@ namespace Odin.Services.Membership.Connections
 
             await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, null);
 
-            await odinContextCache.ResetAsync();
-        }
-
-        /// <summary>
-        /// Upgrades a connection which was created automatically (i.e. because of an introduction) to a confirmed connection
-        /// </summary>
-        public async Task ConfirmConnectionAsync(OdinId odinId, IOdinContext odinContext)
-        {
-            odinContext.Caller.AssertHasMasterKey();
-
-            var icr = await this.GetIcrAsync(odinId, odinContext);
-
-            if (!icr.IsConnected())
-            {
-                throw new OdinClientException("Cannot confirm identity that is not connected", OdinClientErrorCode.IdentityMustBeConnected);
-            }
-
-            if (!icr.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
-            {
-                throw new OdinClientException("Cannot confirm identity that is not in the AutoConnectionsCircle",
-                    OdinClientErrorCode.NotAnAutoConnection);
-            }
-
-            await using var tx = await db.BeginStackedTransactionAsync();
-
-            await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-            await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
-
-            await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
-            await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
-
-            tx.Commit();
-
-            // Peer contexts are cached for an hour keyed on the caller's token, and only the
-            // finalized/blocked/deleted notifications reset that cache. Without this the confirmation
-            // is invisible to the identity that was just confirmed -- their calls keep running under the
-            // auto-connected circle (no AllowIntroductions) long after the owner acted.
             await odinContextCache.ResetAsync();
         }
 
