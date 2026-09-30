@@ -83,6 +83,15 @@ public interface IIdentityRegistrationService
     /// prefix-label assert - the CLI backfill applies new record types with this.
     /// </summary>
     public Task EnsureManagedDomainRecords(string prefix, string apex);
+
+    /// <summary>
+    /// Points one identity's DNS at this host: its own rrsets (A, capi, file and, while tenant mail is on, the
+    /// mail set) as this host's configuration has them, at <paramref name="ttl"/>. Nothing else in the zone is
+    /// touched. Returns each rrset as the zone has it and as it would be; writes the changed ones, all at once,
+    /// only if <paramref name="commit"/>. Throws <see cref="Odin.Core.Exceptions.OdinSystemException"/> when the
+    /// identity's DNS is not in our zones.
+    /// </summary>
+    public Task<List<IdentityDnsChange>> RepointIdentityDnsAsync(AsciiDomainName domain, int ttl, bool commit);
     
     //
     // Own Domain

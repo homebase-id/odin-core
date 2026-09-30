@@ -98,19 +98,18 @@ If there is a backlog, let it drain (resume, wait, pause again) before exporting
 ### 3. Lower the DNS TTL, well ahead of the move
 
 Our records are written with a TTL of 3600 s (`PowerDnsRestClient.DefaultTtl`). Resolvers cache
-the old answer that long, so lower the TTL at least one old TTL (an hour) before the cutover.
-Nothing in odin-core does this; use the PowerDNS API on the zone that holds the records (the apex
-zone for a managed domain, the domain's own zone otherwise). For each of the `A` and both `CNAME`s:
+the old answer that long, so lower the TTL at least one old TTL (an hour) before the cutover. On a
+**source** host, while the identity is still active there:
 
 ```
-PATCH https://<PowerDnsHostAddress>/api/v1/servers/localhost/zones/<zone>.
-X-API-Key: <PowerDnsApiKey>
-{"rrsets":[{"name":"<record>.","type":"A","ttl":60,"changetype":"REPLACE",
-            "records":[{"content":"<unchanged value>","disabled":false}]}]}
+Odin.Hosting repoint-identity-dns <domain> --ttl 60            # dry run: only the TTLs change
+Odin.Hosting repoint-identity-dns <domain> --ttl 60 commit
 ```
 
-`REPLACE` needs the full record set, so copy the current values (`GET` the zone first). Then wait
-for the old TTL to pass.
+It writes only this identity's record sets, with the host's own values, which on the source are the
+current ones. The dry run lists each record set as `now:` and `new:`; if any value other than the TTL
+would change, stop: the source's configuration and the zone disagree. Then wait for the old TTL to
+pass.
 
 ### 4. Pause the identity on the source, and wait
 
@@ -160,25 +159,40 @@ Odin.Hosting identity-import /identity-host/tmp/<domain>.json commit
 
 ### 7. Repoint DNS to the target
 
-Run on a **target** host (it writes the target's own IP and alias host from its configuration):
+Run on a **target** host. It writes the target's own values from its configuration, for this
+identity only:
 
 ```
-Odin.Hosting populate-managed-domain-records commit     # managed domains
-Odin.Hosting create-own-domain-zones commit             # own domains delegated to us
+Odin.Hosting repoint-identity-dns <domain> --ttl 60            # dry run: now -> new, per record set
+Odin.Hosting repoint-identity-dns <domain> --ttl 60 commit
 ```
 
-Both walk every identity registered on that host and write its records idempotently. The moved
-identity's records now point at the target, **with the TTL back at 3600**. Run without `commit`
-first to see what it would do. For an own domain the dry run prints `EXISTS` (the source created
-the zone); `commit` still rewrites its records with the target's values.
+The record sets are the `A` at the name, the `capi` and `file` CNAMEs and, while tenant mail is on
+(every cluster today, whether or not the identity has email), the mail set:
 
-**Run these two commands on target hosts only, now and later.** They write every identity the host
-has registered, and the source still has the moved identity (paused, then disabled). Run on a
-source host, even months later as a routine backfill, they point the moved identity's DNS back at
-the source.
+- the MX;
+- the `mta-sts` CNAME;
+- the `_mta-sts` TXT, whose policy id is derived from the target's own mail servers;
+- the SPF, `_dmarc` and `_smtp._tls` TXTs.
 
-Verify from outside: `dig +short <domain>` (and `capi.<domain>`, `file.<domain>`) answers the
-target's values, and the registration API on the target reports the domain valid (step 1).
+Across clusters, expect six to change (A, capi, file, MX, mta-sts, `_mta-sts`) and the SPF, DMARC
+and TLS-RPT values to stay the same. The MX, the `mta-sts` host and the `_mta-sts` id must name the
+same cluster. The command writes them together, in one change. It never touches DKIM records,
+DNSSEC or another identity's records, and it refuses unless the identity is registered on this
+host and not disabled here, so after the move it cannot run on the source.
+
+Verify from outside: `dig +short <domain>` (and `capi.<domain>`, `file.<domain>`, `MX <domain>`)
+answers the target's values, and the registration API on the target reports the domain valid
+(step 1).
+
+Once the move has settled (after step 8), put the TTL back on the target:
+`Odin.Hosting repoint-identity-dns <domain> commit` (3600 is the default).
+
+**Never run `populate-managed-domain-records` or `create-own-domain-zones` on a source host.**
+They rewrite the DNS of every identity the host has registered, and the source still has the moved
+identity (paused, then disabled). Run there, even months later as a routine backfill, they point
+it back at the source. Nor are they needed for a move: `repoint-identity-dns` does it for one
+identity.
 
 ### 8. Resume on the target
 
@@ -223,6 +237,5 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
 - Purging the source's copy (payloads and registration, never DNS) once the transfer is complete.
 - Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
   scheduled notifications): they stay behind on the source.
-- A DNS command that lowers and restores the TTL, and one that repoints a single identity rather
-  than walking every identity on the host. Until then, the host-wide commands also skip nothing:
-  a moved (disabled) identity is rewritten like any other.
+- The host-wide DNS commands skip nothing yet: a moved (disabled) identity is rewritten like any
+  other if they run on the source.

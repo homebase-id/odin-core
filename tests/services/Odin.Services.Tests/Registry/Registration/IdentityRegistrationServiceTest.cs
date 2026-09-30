@@ -12,6 +12,7 @@ using Odin.Core.Util;
 using Odin.Core.Http;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
+using Odin.Services.Dns.PowerDns;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
@@ -686,5 +687,137 @@ public class IdentityRegistrationServiceTest
         Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.Created));
         _dnsRestClient.Verify(c => c.PublishCdsRecords("frodo.example.com."), Times.Once);
         _dnsRestClient.Invocations.Clear();
+    }
+
+    //
+    // Single-identity repoint (moving an identity between hosts)
+    //
+
+    private static OdinConfiguration ConfigurationWithTenantMail()
+    {
+        return new OdinConfiguration
+        {
+            Registry = ConfigurationWithZoneHosting().Registry,
+            Email = new OdinConfiguration.EmailSection
+            {
+                TenantMail = new OdinConfiguration.TenantMailSection
+                {
+                    Enabled = true,
+                    MxNodes = ["mx1.target.example"],
+                    SpfIncludeTarget = "spf.example",
+                    DmarcReportEmail = "dmarc@example.com",
+                    TlsReportEmail = "tls@example.com",
+                }
+            }
+        };
+    }
+
+    // What this host would write for frodo.baggins.demo.rocks, read off a dry run against a zone without it
+    private async Task<List<DnsRrset>> DesiredRrsetsAsync(IdentityRegistrationService registration)
+    {
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(new ZoneWithRecordsBuilder().Build());
+        var plan = await registration.RepointIdentityDnsAsync(D("frodo.baggins.demo.rocks"), 3600, commit: false);
+        Assert.That(plan.All(c => c.Current == null && c.Changes), Is.True);
+        return plan.Select(c => c.Desired).ToList();
+    }
+
+    [Test]
+    public async Task RepointWritesOnlyTheIdentitysRrsetsThatDiffer_TheMailSetIncluded()
+    {
+        _dnsRestClient.Invocations.Clear();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+        var desired = await DesiredRrsetsAsync(registration);
+
+        Assert.That(desired.Select(r => $"{r.Type} {r.Name}"), Is.EquivalentTo(new[]
+        {
+            "A frodo.baggins.demo.rocks.",
+            "CNAME capi.frodo.baggins.demo.rocks.",
+            "CNAME file.frodo.baggins.demo.rocks.",
+            "MX frodo.baggins.demo.rocks.",
+            "TXT frodo.baggins.demo.rocks.",
+            "TXT _dmarc.frodo.baggins.demo.rocks.",
+            "TXT _mta-sts.frodo.baggins.demo.rocks.",
+            "TXT _smtp._tls.frodo.baggins.demo.rocks.",
+            "CNAME mta-sts.frodo.baggins.demo.rocks.",
+        }));
+
+        // As the source left them: its address, alias host, MX and policy id; SPF, DMARC and TLS-RPT alike
+        bool Moves(DnsRrset r) => r.Type is "A" or "CNAME" or "MX" || r.Name.StartsWith("_mta-sts.");
+        var zone = new ZoneWithRecordsBuilder();
+        foreach (var rrset in desired)
+        {
+            zone.Add(rrset.Name, rrset.Type, 3600, Moves(rrset) ? ["source-" + rrset.Contents[0]] : rrset.Contents.ToArray());
+        }
+        zone.Add("hb1._domainkey.frodo.baggins.demo.rocks.", "TXT", 3600, "\"v=DKIM1; p=abc\"");
+        zone.Add("sam.gamgee.demo.rocks.", "A", 3600, "10.0.0.9");
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(zone.Build());
+
+        List<DnsRrset>? written = null;
+        _dnsRestClient.Setup(c => c.ReplaceRrsets("demo.rocks.", It.IsAny<IReadOnlyCollection<DnsRrset>>()))
+            .Callback<string, IReadOnlyCollection<DnsRrset>>((_, rrsets) => written = rrsets.ToList())
+            .Returns(Task.CompletedTask);
+
+        var plan = await registration.RepointIdentityDnsAsync(D("frodo.baggins.demo.rocks"), 3600, commit: true);
+
+        var expectedChanges = desired.Where(Moves).Select(r => $"{r.Type} {r.Name}").ToList();
+        Assert.That(expectedChanges, Has.Count.EqualTo(6), string.Join(", ", expectedChanges));
+        Assert.That(plan.Where(c => c.Changes).Select(c => $"{c.Desired.Type} {c.Desired.Name}"), Is.EquivalentTo(expectedChanges));
+        Assert.That(written?.Select(r => $"{r.Type} {r.Name}"), Is.EquivalentTo(expectedChanges),
+            "one write, of the changed rrsets only: never DKIM, never another tenant");
+        _dnsRestClient.Verify(c => c.ReplaceRrsets(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<DnsRrset>>()), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task RepointWithANewTtlChangesOnlyTheTtl_AndADryRunWritesNothing()
+    {
+        _dnsRestClient.Invocations.Clear();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+        var desired = await DesiredRrsetsAsync(registration);
+        var zone = new ZoneWithRecordsBuilder();
+        foreach (var rrset in desired)
+        {
+            zone.Add(rrset.Name, rrset.Type, 3600, rrset.Contents.ToArray());
+        }
+        _dnsRestClient.Setup(c => c.GetZone("demo.rocks.")).ReturnsAsync(zone.Build());
+
+        var unchanged = await registration.RepointIdentityDnsAsync(D("frodo.baggins.demo.rocks"), 3600, commit: false);
+        Assert.That(unchanged.Where(c => c.Changes), Is.Empty, "this host's values at the same TTL");
+
+        var lowered = await registration.RepointIdentityDnsAsync(D("frodo.baggins.demo.rocks"), 60, commit: false);
+        Assert.That(lowered.All(c => c.Changes && c.Current!.Contents.SequenceEqual(c.Desired.Contents) && c.Desired.Ttl == 60), Is.True);
+
+        _dnsRestClient.Verify(c => c.ReplaceRrsets(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<DnsRrset>>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public void RepointRefusesAnOwnDomainWhoseZoneIsNotOurs()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(false);
+        var registration = CreateIdentityRegistrationService(ConfigurationWithTenantMail());
+
+        var e = Assert.ThrowsAsync<OdinSystemException>(() => registration.RepointIdentityDnsAsync(D("frodo.example.com"), 3600, commit: true));
+        Assert.That(e!.Message, Does.Contain("no zone in our DNS"));
+        _dnsRestClient.Verify(c => c.ReplaceRrsets(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<DnsRrset>>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    private sealed class ZoneWithRecordsBuilder
+    {
+        private readonly List<ZoneWithRecords.Rrset> _rrsets = [];
+
+        public ZoneWithRecordsBuilder Add(string name, string type, int ttl, params string[] contents)
+        {
+            _rrsets.Add(new ZoneWithRecords.Rrset
+            {
+                name = name, type = type, ttl = ttl,
+                records = contents.Select(c => new ZoneWithRecords.Record { content = c }).ToList()
+            });
+            return this;
+        }
+
+        public ZoneWithRecords Build() => new() { name = "demo.rocks.", rrsets = _rrsets };
     }
 }

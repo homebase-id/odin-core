@@ -11,6 +11,7 @@ using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
+using Odin.Services.Dns.PowerDns;
 using Odin.Services.JobManagement;
 
 namespace Odin.Services.Registry.Registration;
@@ -147,6 +148,71 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
 
         return await _dnsLookupService.IsManagedDomainAvailableAsync(prefix, apex, cancellationToken);
+    }
+
+    //
+
+    public async Task<List<IdentityDnsChange>> RepointIdentityDnsAsync(AsciiDomainName domain, int ttl, bool commit)
+    {
+        var domainName = domain.DomainName;
+        string zoneId;
+        Func<DnsConfig, string> nameOf;
+        if (FindManagedApex(domainName) is { } apex)
+        {
+            zoneId = apex + ".";
+            nameOf = ManagedName(domainName[..^(apex.Length + 1)]);
+        }
+        else if (IsManagedDomain(domainName))
+        {
+            throw new OdinSystemException($"{domainName} is a managed apex, not an identity");
+        }
+        else
+        {
+            zoneId = domainName + ".";
+            nameOf = record => record.Name;
+            if (!await _dnsRestClient.ZoneExists(zoneId))
+            {
+                throw new OdinSystemException($"{domainName} has no zone in our DNS: its records are the owner's to change");
+            }
+        }
+
+        string FullName(DnsConfig record)
+        {
+            var name = nameOf(record);
+            return name == "" ? zoneId : $"{name}.{zoneId}";
+        }
+
+        // What WriteDnsRecords writes, as the zone stores it: ALIAS is for third-party DNS hosts and NS for
+        // delegation, which the move does not change. Grouped, since a name can hold several MX records.
+        var desired = _dnsLookupService.GetDnsConfiguration(domain)
+            .Where(record => record.Type is "A" or "CNAME" or "MX" or "TXT")
+            .GroupBy(record => (Name: FullName(record), record.Type))
+            .Select(rrset => new DnsRrset(rrset.Key.Name, rrset.Key.Type, ttl, rrset.Select(record => record.Type switch
+            {
+                "CNAME" or "MX" => record.Value + ".",
+                "TXT" => PowerDnsRestClient.ToTxtContent(record.Value),
+                _ => record.Value
+            }).ToList()))
+            .ToList();
+
+        var zone = await _dnsRestClient.GetZone(zoneId);
+        var current = (zone.rrsets ?? [])
+            .ToDictionary(
+                rrset => (rrset.name.ToLowerInvariant(), rrset.type),
+                rrset => new DnsRrset(rrset.name, rrset.type, rrset.ttl, rrset.records.Select(record => record.content).ToList()));
+
+        var changes = desired
+            .Select(rrset => new IdentityDnsChange(current.GetValueOrDefault((rrset.Name, rrset.Type)), rrset))
+            .ToList();
+
+        var changed = changes.Where(change => change.Changes).Select(change => change.Desired).ToList();
+        if (commit && changed.Count > 0)
+        {
+            await _dnsRestClient.ReplaceRrsets(zoneId, changed);
+            _logger.LogInformation("Pointed {count} rrset(s) of {domain} at this host", changed.Count, domainName);
+        }
+
+        return changes;
     }
 
     //
