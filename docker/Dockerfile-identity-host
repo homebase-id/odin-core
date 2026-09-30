@@ -66,6 +66,8 @@ COPY --from=build /build/out/web .
 
 EXPOSE 80
 EXPOSE 443
+# STUN Binding responder (docs/stun.md)
+EXPOSE 3478/udp
 
 ENV PATH="/app/cli:${PATH}"
 

@@ -273,6 +273,64 @@ public class OdinConfigurationTest
         Assert.That(section.EnableTracking, Is.False);
     }
 
+    // --- StunSection (on by default; Enabled is the kill switch) ---
+
+    [Test]
+    public void StunSection_Defaults_WhenOmitted()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>()));
+
+        Assert.That(section.Enabled, Is.True, "the issue decided open by default with a kill switch");
+        Assert.That(section.Port, Is.EqualTo(3478));
+        Assert.That(section.BindAddress, Is.EqualTo("*"));
+    }
+
+    [Test]
+    public void StunSection_Disabled_SkipsValidation()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Enabled"] = "false",
+            ["Stun:Port"] = "70000",
+            ["Stun:BindAddress"] = "not-an-ip",
+        }));
+
+        Assert.That(section.Enabled, Is.False);
+    }
+
+    [Test]
+    public void StunSection_Enabled_InvalidPort_Throws()
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:Port"] = "70000" })));
+
+        Assert.That(ex!.Message, Does.Contain("Stun:Port"));
+    }
+
+    [Test]
+    public void StunSection_Enabled_InvalidBindAddress_Throws()
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:BindAddress"] = "not-an-ip" })));
+
+        Assert.That(ex!.Message, Does.Contain("Stun:BindAddress"));
+    }
+
+    [TestCase("127.0.0.1")]
+    [TestCase("::1")]
+    [TestCase("::")]
+    public void StunSection_Enabled_LiteralBindAddress_Accepted(string bindAddress)
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:BindAddress"] = bindAddress,
+            ["Stun:Port"] = "0",
+        }));
+
+        Assert.That(section.GetBindAddress(), Is.EqualTo(System.Net.IPAddress.Parse(bindAddress)));
+        Assert.That(section.Port, Is.Zero);
+    }
+
     private class OdinConfigurationConsumer
     {
         private readonly OdinConfiguration _config;
