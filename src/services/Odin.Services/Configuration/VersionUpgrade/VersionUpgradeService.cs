@@ -28,6 +28,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version15tov16;
 using Odin.Services.Configuration.VersionUpgrade.Version16tov17;
 using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
 using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
+using Odin.Services.Configuration.VersionUpgrade.Version19tov20;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -54,6 +55,7 @@ public class VersionUpgradeService(
     V16ToV17VersionMigrationService v17,
     V17ToV18VersionMigrationService v18,
     V18ToV19VersionMigrationService v19,
+    V19ToV20VersionMigrationService v20,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -701,6 +703,34 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 ownershipTx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 19)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await RunPhaseAsync("v19->v20 builtin-circle-read-grants", async ct =>
+                {
+                    await using var grantsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v20.GrantReadToBuiltinCirclesAsync(odinContext, ct);
+                    grantsTx.Commit();
+                }, cancellationToken);
+
+                await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v20.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                versionTx.Commit();
                 logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 

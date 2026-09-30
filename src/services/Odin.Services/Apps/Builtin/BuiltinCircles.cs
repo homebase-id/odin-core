@@ -70,7 +70,7 @@ public static class BuiltinCircles
         AppId = SystemAppConstants.ContactsAppId,
         GrantOn = CircleGrantOn.None,
         Designation = CircleDesignation.Personal,
-        DriveGrants = [],
+        DriveGrants = [Grant(WellKnownAppDrives.ProfileDrive, DrivePermission.Read)],
         Permissions = new PermissionSet { Keys = [] }
     };
 
@@ -83,7 +83,7 @@ public static class BuiltinCircles
         AppId = SystemAppConstants.ContactsAppId,
         GrantOn = CircleGrantOn.None,
         Designation = CircleDesignation.Personal,
-        DriveGrants = [],
+        DriveGrants = [Grant(WellKnownAppDrives.ProfileDrive, DrivePermission.Read)],
         Permissions = new PermissionSet { Keys = [] }
     };
 
@@ -96,7 +96,7 @@ public static class BuiltinCircles
         AppId = SystemAppConstants.ContactsAppId,
         GrantOn = CircleGrantOn.None,
         Designation = CircleDesignation.Personal,
-        DriveGrants = [],
+        DriveGrants = [Grant(WellKnownAppDrives.ProfileDrive, DrivePermission.Read)],
         Permissions = new PermissionSet { Keys = [] }
     };
 
@@ -124,7 +124,11 @@ public static class BuiltinCircles
         AppId = SystemAppConstants.FeedAppId,
         GrantOn = CircleGrantOn.None,
         Designation = CircleDesignation.Personal,
-        DriveGrants = [Grant(WellKnownAppDrives.FeedDrive, WriteReact)],
+        DriveGrants =
+        [
+            Grant(WellKnownAppDrives.FeedDrive, WriteReact),
+            Grant(WellKnownAppDrives.PublicPostsChannelDrive, DrivePermission.Read)
+        ],
         Permissions = new PermissionSet { Keys = [] }
     };
 
