@@ -988,12 +988,30 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Removes drives and permissions of the specified circle from the odinId
         /// </summary>
+        /// <remarks>
+        /// The owner console may remove anyone from any circle, including one whose definition is
+        /// gone (the migrations clean up orphaned grants this way).  An app may remove members only
+        /// from a circle it owns: owning the circle is its authority, so no permission key is asked
+        /// for, and an owner-console circle is refused like any other circle that is not its own.
+        /// </remarks>
         public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            AssertCanManageCircleMembership(odinContext);
+            if (!odinContext.Caller.HasMasterKey)
+            {
+                odinContext.Caller.AssertCallerIsOwner();
+
+                var circle = await circleDefinitionService.GetCircleAsync(circleId);
+                if (circle == null)
+                {
+                    throw new OdinClientException($"Circle {circleId} does not exist",
+                        OdinClientErrorCode.CircleNotFound);
+                }
+
+                AssertCallerMayActOnCircle(circle, "remove identities from", odinContext);
+            }
 
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-            if (icr.PeerKeyStore == null)
+            if (icr?.PeerKeyStore == null)
             {
                 return;
             }
@@ -1008,6 +1026,10 @@ namespace Odin.Services.Membership.Connections
 
             // also purge any not-yet-converted deposit for this circle
             icr.PeerKeyStore.DepositedGrants?.RemoveAll(d => d.CircleId == circleId);
+
+            // and any queued enrollment, which would otherwise put them back in when the app next
+            // processes its pending enrollments
+            icr.PeerKeyStore.PendingEnrollments?.RemoveAll(p => p.CircleId == circleId);
 
             //find the circle grant across all app grants and remove it
             foreach (var (_, appCircleGrants) in icr.PeerKeyStore.AppGrants)
