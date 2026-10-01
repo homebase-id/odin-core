@@ -17,7 +17,14 @@ public class PushNotificationSubscription
 
     public string FirebaseDeviceToken { get; set; }
     public string FirebaseDevicePlatform { get; set; }
-    
+
+    /// <summary>
+    /// The device's PushKit VoIP token, iOS only, null for every other device. Carried to the push
+    /// relay with each push so it can send a Ring as a VoIP push. Stored as JSON, so rows written
+    /// before this field existed read back as null.
+    /// </summary>
+    public string VoipDeviceToken { get; set; }
+
     public RedactedPushNotificationSubscription Redacted()
     {
         return new RedactedPushNotificationSubscription()
@@ -27,6 +34,7 @@ public class PushNotificationSubscription
             SubscriptionStartedDate = this.SubscriptionStartedDate,
             ExpirationTime = this.ExpirationTime,
             FirebaseDeviceToken = this.FirebaseDeviceToken,
+            VoipDeviceToken = this.VoipDeviceToken,
         };
     }
 
@@ -42,4 +50,7 @@ public class RedactedPushNotificationSubscription
     public UnixTimeUtc SubscriptionStartedDate { get; set; }
 
     public string FirebaseDeviceToken { get; set; }
+
+    /// <summary>Echoed so a client can verify its PushKit token is registered.</summary>
+    public string VoipDeviceToken { get; set; }
 }

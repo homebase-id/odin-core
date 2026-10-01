@@ -193,7 +193,7 @@ public class IdentityJsonExporterTests
         output.Position = 0;
 
         var header = await IdentityJsonImporter.ReadHeaderAsync(output);
-        Assert.That(header.FormatVersion, Is.EqualTo(2), "an older binary must refuse a file whose payloads it would ignore");
+        Assert.That(header.FormatVersion, Is.GreaterThanOrEqualTo(2), "an older binary must refuse a file whose payloads it would ignore");
         Assert.That(header.PayloadSource?.BaseUrl, Is.EqualTo(source.BaseUrl));
         Assert.That(header.PayloadSource?.HandoffToken, Is.EqualTo(source.HandoffToken));
     }

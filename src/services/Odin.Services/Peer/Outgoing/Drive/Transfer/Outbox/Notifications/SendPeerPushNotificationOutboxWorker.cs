@@ -59,6 +59,16 @@ public class SendPeerPushNotificationOutboxWorker(
         var file = FileItem.File;
         var recipient = FileItem.Recipient;
 
+        // Checked on every attempt: a failed attempt is rescheduled ten minutes out (see
+        // HandleRecoverableTransferStatus, which can only pick a time, not give up), and by then a
+        // time-bound push such as a ring is stale. Completing it here is the give-up.
+        if (record.IsExpired(UnixTimeUtc.Now()))
+        {
+            logger.LogDebug("Peer push notification to {recipient} expired (ttl={ttl}s, enqueued={enqueued}); completing without sending",
+                recipient, record.Options.TimeToLiveSeconds, record.Timestamp.milliseconds);
+            return;
+        }
+
 
         async Task<ApiResponse<PeerTransferResponse>> TryEnqueueNotification()
         {

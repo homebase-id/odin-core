@@ -53,6 +53,15 @@ public class PeerAppNotificationService : PeerServiceBase
         _notificationSubscriptionStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(subscriptionContextKey));
     }
 
+    /// <summary>
+    /// Peer route for push notifications. The caller (from the peer certificate) must be connected and
+    /// must hold a subscription this identity granted it (<see cref="SubscribePeerAsync"/>). By design
+    /// the caller is trusted to name the original author in <c>record.SenderId</c>: a collaboration
+    /// channel relays a member's upload under the member's name, and the recipient expects the member,
+    /// not the channel, as sender (CollaborationChatPushNotificationTests, the over-peer case). The
+    /// subscription is the recipient's per-caller consent to exactly that delegation. A push that must
+    /// carry the authenticated caller as sender goes through the LiveRelay push instead.
+    /// </summary>
     public async Task<PeerTransferResponse> EnqueuePushNotification(PushNotificationOutboxRecord record, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsAuthenticated();

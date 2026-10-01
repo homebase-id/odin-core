@@ -7,7 +7,7 @@ using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenant;
 
-[Description("Resume a paused or out-of-quota tenant (use 'enable' for a disabled one)")]
+[Description("Resume a paused or out-of-quota tenant")]
 public sealed class ResumeTenantCommand : AsyncCommand<ResumeTenantCommand.Settings>
 {
     public sealed class Settings : ApiSettings
@@ -27,9 +27,11 @@ public sealed class ResumeTenantCommand : AsyncCommand<ResumeTenantCommand.Setti
         var tenant = await TenantStatusApi.GetTenantAsync(httpClient, settings.TenantDomain);
         if (tenant.Status == TenantStatus.Disabled)
         {
+            var how = TenantStatusRules.HasMovedAway(tenant.Status, tenant.DisabledReason)
+                ? "roll the move back with 'tenant unlock-moved' (agents/identity-move/README.md)"
+                : $"re-enable it with 'tenant set-status {settings.TenantDomain} active'";
             throw new Exception(
-                $"Tenant {settings.TenantDomain} is {TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}; " +
-                "use 'tenant enable' to re-enable it");
+                $"Tenant {settings.TenantDomain} is {TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}; {how}");
         }
 
         var previous = await TenantStatusApi.SetStatusAsync(httpClient, settings.TenantDomain, TenantStatus.Active);
