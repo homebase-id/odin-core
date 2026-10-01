@@ -108,6 +108,13 @@ public class PushNotificationService(
         await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
     }
 
+    /// <summary>Keeps the subscription but forgets its PushKit token; the next Ring goes out as an alert until the app re-registers one.</summary>
+    private static async Task ClearVoipTokenAsync(TableKeyTwoValueCached twoKeyValue, PushNotificationSubscription subscription)
+    {
+        subscription.VoipDeviceToken = null;
+        await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, DeviceStorageDataType, subscription);
+    }
+
     public static async Task RemoveDeviceAsync(TableKeyTwoValueCached twoKeyValue, Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
@@ -391,6 +398,9 @@ public class PushNotificationService(
                 CollapseId = payload.Options.CollapseId,
                 Silent = payload.Options.Silent,
                 TimeSensitive = payload.Options.TimeSensitive,
+                // The relay chooses the platform push type from these (Odin.PushNotification.PushRouter).
+                Kind = payload.Options.Kind.ToString(),
+                VoipDeviceToken = subscription.VoipDeviceToken,
             };
 
             var baseUri = new Uri(configuration.PushNotification.BaseUrl);
@@ -411,7 +421,7 @@ public class PushNotificationService(
                     catch (ApiException apiEx)
                     {
                         var problem = await apiEx.TryGetContentAsAsync<ProblemDetails>();
-                        if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
+                        if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: DevicePushNotificationRequestV1.ProblemTypes.DeviceGone })
                         {
                             logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
                             // PushAsync can call DevicePushAsync multiple times in parallel,
@@ -419,6 +429,17 @@ public class PushNotificationService(
                             await using var dbScope = scope.BeginLifetimeScope();
                             var tkv = dbScope.Resolve<TableKeyTwoValueCached>();
                             await RemoveDeviceAsync(tkv, subscription.AccessRegistrationId, odinContext);
+                        }
+                        else if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: DevicePushNotificationRequestV1.ProblemTypes.VoipTokenGone })
+                        {
+                            // Only the PushKit token is dead (PushKit rotates them); the FCM one was
+                            // fine. Forget the VoIP token and let the retry send this push as an alert.
+                            logger.LogDebug("Clearing VoIP token on subscription {subscription}", subscription.AccessRegistrationId);
+                            await using var dbScope = scope.BeginLifetimeScope();
+                            var tkv = dbScope.Resolve<TableKeyTwoValueCached>();
+                            await ClearVoipTokenAsync(tkv, subscription);
+                            request.VoipDeviceToken = null;
+                            throw;
                         }
                         else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
                         {
@@ -460,8 +481,10 @@ public class PushNotificationService(
 
     private async Task<bool> EnqueueNotificationInternalAsync(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
     {
-        // Every route ends here; the bounds are what the outbox and the relay accept, so an
+        // Every route ends here. The kind's defaults are filled in first so they are stored and
+        // travel every hop; then the bounds are what the outbox and the relay accept, so an
         // out-of-range value is refused now rather than dropped by the relay later.
+        PushKindDefaults.Apply(options);
         PushDeliveryOptionsValidation.AssertDeliveryBounds(options);
 
         var timestamp = UnixTimeUtc.Now().milliseconds;

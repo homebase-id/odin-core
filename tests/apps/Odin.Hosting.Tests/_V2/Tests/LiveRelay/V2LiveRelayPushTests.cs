@@ -5,10 +5,13 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Dto;
 using Odin.Core.Identity;
+using Odin.Hosting.Controllers.OwnerToken.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.AppNotifications.Data;
+using Odin.Services.AppNotifications.Push;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -111,6 +114,78 @@ public class V2LiveRelayPushTests
         finally
         {
             await LiveRelayTestHelpers.DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
+        }
+    }
+
+    [Test]
+    public async Task Relay_WithRing_DerivesTheCallDefaultsOnTheRecipient()
+    {
+        // The whole ring API for a calling app: kind, the call id as tag, a line of text.
+        var frodo = TestIdentities.Frodo;
+        var sam = TestIdentities.Samwise;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+        var ownerSam = _scaffold.CreateOwnerApiClientRedux(sam);
+
+        var appId = Guid.NewGuid();
+        var (frodoAppToken, frodoAppSecret, _, _) =
+            await LiveRelayTestHelpers.ConnectAndSetupAppAsync(ownerFrodo, ownerSam, frodo, sam, appId);
+
+        try
+        {
+            var callId = Guid.NewGuid();
+            var relayResponse = await LiveRelayTestHelpers.SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
+                Guid.NewGuid(), new List<string> { sam.OdinId.DomainName }, "b2ZmZXI=",
+                new AppNotificationOptions { Kind = PushKind.Ring, TypeId = Guid.NewGuid(), TagId = callId, UnEncryptedMessage = "Frodo is calling" });
+            Assert.That(relayResponse.IsSuccessStatusCode, Is.True, $"relay failed: {relayResponse.StatusCode}");
+
+            // The derivation itself is unit-tested (PushKindDefaultsTests); this proves the kind
+            // survives the relay's allowlist and the defaults are applied where the push is enqueued.
+            var notification = await ownerSam.AppNotifications.WaitForNotification(n => n.Options?.TagId == callId, TimeSpan.FromSeconds(15));
+            Assert.That(notification, Is.Not.Null, "the ring never landed on the recipient");
+            Assert.That(notification.Options.Kind, Is.EqualTo(PushKind.Ring));
+            Assert.That(notification.Options.CollapseId, Is.EqualTo($"call-{callId:N}"), "a hangup with the same id retracts it");
+        }
+        finally
+        {
+            await LiveRelayTestHelpers.DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
+        }
+    }
+
+    [Test]
+    public async Task DeviceRegistration_StoresAndEchoesTheVoipToken()
+    {
+        var sam = TestIdentities.Samwise;
+        var ownerSam = _scaffold.CreateOwnerApiClientRedux(sam);
+
+        try
+        {
+            var subscribe = await ownerSam.AppNotifications.SubscribeFirebase(new PushNotificationSubscribeFirebaseRequest
+            {
+                FriendlyName = "Sam's iPhone",
+                DeviceToken = "fcm-token-123",
+                DevicePlatform = "ios",
+                VoipDeviceToken = "pushkit-token-456",
+            });
+            Assert.That(subscribe.IsSuccessStatusCode, Is.True, $"subscribe failed: {subscribe.StatusCode}");
+
+            var subscription = await ownerSam.AppNotifications.GetSubscription();
+            Assert.That(subscription.IsSuccessStatusCode, Is.True, $"get subscription failed: {subscription.StatusCode}");
+            Assert.That(subscription.Content!.FirebaseDeviceToken, Is.EqualTo("fcm-token-123"));
+            Assert.That(subscription.Content.VoipDeviceToken, Is.EqualTo("pushkit-token-456"), "the client must be able to verify its PushKit token is registered");
+
+            // Without a VoIP token the field reads back empty, which is what every non-iOS device looks like.
+            await ownerSam.AppNotifications.SubscribeFirebase(new PushNotificationSubscribeFirebaseRequest
+            {
+                FriendlyName = "Sam's Pixel", DeviceToken = "fcm-token-789", DevicePlatform = "android",
+            });
+            var android = await ownerSam.AppNotifications.GetSubscription();
+            Assert.That(android.Content!.VoipDeviceToken, Is.Null.Or.Empty, $"got {android.Content.VoipDeviceToken}");
+        }
+        finally
+        {
+            // The test host has no push relay; a subscription left behind makes every later push
+            // to Sam log an error and fail another fixture's log assertion.
+            await ownerSam.AppNotifications.UnsubscribeAll();
         }
     }
 

@@ -10,23 +10,9 @@ namespace Odin.PushNotification.Tests;
 /// </summary>
 public class PushNotificationBuildMessageTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Now = TestRequests.Now;
 
-    private static DevicePushNotificationRequestV1 Request() => new()
-    {
-        DevicePlatform = "ios",
-        DeviceToken = "device-token",
-        OriginDomain = "frodo.dotyou.cloud",
-        Signature = [1, 2, 3],
-        Id = "message-id",
-        Timestamp = Now.ToString("O"),
-        CorrelationId = "corr",
-        Data = "{\"payload\":true}",
-        Title = "Homebase Chat",
-        Body = "Sam is calling",
-        FromDomain = "sam.dotyou.cloud",
-        ToDomain = "frodo.dotyou.cloud",
-    };
+    private static DevicePushNotificationRequestV1 Request() => TestRequests.Request();
 
     private static string Describe(Message message) =>
         $"apns headers: {string.Join(", ", message.Apns.Headers.Select(h => $"{h.Key}={h.Value}"))}; " +

@@ -15,6 +15,7 @@ public static class LiveRelayPush
     public static AppNotificationOptions Sanitize(AppNotificationOptions push, Guid appId) => new()
     {
         AppId = appId,
+        Kind = push.Kind,
         TypeId = push.TypeId,
         TagId = push.TagId,
         UnEncryptedMessage = push.UnEncryptedMessage,

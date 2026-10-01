@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Dto;
 using Odin.Core.Identity;
 
 namespace Odin.Services.Peer.Outgoing.Drive;
@@ -12,6 +13,12 @@ public class AppNotificationOptions
     public Guid AppId { get; set; }
 
     public Guid TypeId { get; set; }
+
+    /// <summary>
+    /// What the push is for; see <see cref="PushKind"/>. A calling app sends Ring (and later Hangup)
+    /// with the call id as TagId and nothing else; the delivery fields below are derived from it.
+    /// </summary>
+    public PushKind Kind { get; set; }
 
     /// <summary>
     /// An app-specific identifier
