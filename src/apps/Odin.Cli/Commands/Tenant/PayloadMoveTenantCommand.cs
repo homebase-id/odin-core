@@ -42,10 +42,7 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
             {
                 throw new Exception("The transfer is running a slice right now; try again in a few minutes");
             }
-            if (retry.StatusCode != HttpStatusCode.OK)
-            {
-                throw new Exception($"{retry.RequestMessage?.RequestUri}: " + retry.StatusCode);
-            }
+            await ApiResponse.EnsureAsync(retry);
             AnsiConsole.MarkupLine("[green]Transfer re-armed from the newest file[/]");
         }
 
@@ -54,10 +51,7 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
         {
             throw new Exception($"Tenant {settings.TenantDomain} was not found");
         }
-        if (response.StatusCode != HttpStatusCode.OK)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        await ApiResponse.EnsureAsync(response);
 
         var report = OdinSystemSerializer.Deserialize<PayloadMoveReport>(await response.Content.ReadAsStringAsync())
                      ?? new PayloadMoveReport();

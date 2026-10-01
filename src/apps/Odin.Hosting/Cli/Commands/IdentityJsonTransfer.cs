@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -57,19 +58,13 @@ public static class IdentityJsonTransfer
             return false;
         }
 
-        // Straight from the database: loading the registry would load every identity on the host
-        // (migrations, version-upgrade checks, caches) to export one
         var systemDatabase = services.GetRequiredService<SystemDatabase>();
-        var record = (await systemDatabase.Registrations.GetAllAsync())
-            .SingleOrDefault(r => r.primaryDomainName.Equals(domain, StringComparison.OrdinalIgnoreCase));
-        if (record == null)
+        var registration = await ReadRegistrationAsync(systemDatabase, domain);
+        if (registration == null)
         {
             logger.LogError("No such identity: {domain}", domain);
             return false;
         }
-
-        var registration = new IdentityRegistration { Id = record.identityId, PrimaryDomainName = record.primaryDomainName };
-        RegistrationJsonMapper.Apply(registration, record.disabled, record.json);
 
         // The identity must be still: paused (or disabled) long enough that every node has stopped its
         // workers and jobs and requests that were in flight have finished
@@ -82,8 +77,8 @@ public static class IdentityJsonTransfer
         }
 
         logger.LogWarning(
-            "The export file contains this identity's password data, private keys, TLS "
-            + "certificate private key and DKIM signing keys. Anyone holding it can become "
+            "The export file contains this identity's password data, private keys and TLS "
+            + "certificate private key, in the clear. Anyone holding it can become "
             + "this identity. Store it encrypted and delete it when the migration is done.");
 
         var systemMigrator = services.GetRequiredService<SystemMigrator>();
@@ -99,6 +94,16 @@ public static class IdentityJsonTransfer
             HandoffToken = await services.GetRequiredService<PayloadMoveSource>().MintHandoffAsync(registration.Id)
         };
 
+        // Email does not move yet (agents/identity-move/README.md): its DKIM keys stay out of the file
+        var dkimKeys = await systemDatabase.DkimKeys.GetByDomainAsync(new OdinId(registration.PrimaryDomainName));
+        foreach (var dkimKey in dkimKeys)
+        {
+            logger.LogWarning(
+                "Leaving DKIM key {selector} of {domain} behind: this identity has email, and email (mailbox, messages, "
+                + "settings, DKIM keys) does not move yet. See agents/identity-move/README.md",
+                dkimKey.selector, domain);
+        }
+
         try
         {
             var rows = await IdentityJsonExporter.ExportToFileAsync(
@@ -107,17 +112,35 @@ public static class IdentityJsonTransfer
                 await identityMigrator.GetCurrentVersionAsync(),
                 await systemMigrator.GetCurrentVersionAsync(),
                 callerCheckedIdentityIsStill: true,
-                payloadSource);
+                payloadSource,
+                IdentityKeyMaterial.ForExport(config.CertificateRenewal.StorageKey),
+                leaveOutTables: new HashSet<string> { nameof(SystemDatabase.DkimKeys) });
 
             logger.LogInformation("Exported {rows} rows for {domain} to {path}", rows, domain, filePath);
         }
-        catch (IOException e)
+        catch (Exception e) when (e is IOException or IdentityExportRefusedException)
         {
             logger.LogError("Export of {domain} failed, no file written: {error}", domain, e.Message);
             return false;
         }
 
         return true;
+    }
+
+    // Straight from the database: loading the registry would load every identity on the host (migrations,
+    // version-upgrade checks, caches) to look at one
+    internal static async Task<IdentityRegistration?> ReadRegistrationAsync(SystemDatabase systemDatabase, string domain)
+    {
+        var record = (await systemDatabase.Registrations.GetAllAsync())
+            .SingleOrDefault(r => r.primaryDomainName.Equals(domain, StringComparison.OrdinalIgnoreCase));
+        if (record == null)
+        {
+            return null;
+        }
+
+        var registration = new IdentityRegistration { Id = record.identityId, PrimaryDomainName = record.primaryDomainName };
+        RegistrationJsonMapper.Apply(registration, record.disabled, record.json);
+        return registration;
     }
 
     // True when the import ran, dry or committed. False means it was refused, and the
@@ -191,7 +214,8 @@ public static class IdentityJsonTransfer
                             payloadSource.BaseUrl, payloadSource.HandoffToken,
                             await targetIdentityDatabase.DriveMainIndex.GetMaxRowIdAsync());
                     }
-                });
+                },
+                rewriteRow: IdentityKeyMaterial.ForImport(config.CertificateRenewal.StorageKey));
         }
         catch (IdentityImportRefusedException e)
         {

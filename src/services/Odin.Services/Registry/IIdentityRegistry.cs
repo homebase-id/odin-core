@@ -120,6 +120,13 @@ namespace Odin.Services.Registry
         Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null);
 
         /// <summary>
+        /// Takes a copy disabled as moved back to <see cref="TenantStatus.Paused"/>: an operator rolling a move back. Throws
+        /// <see cref="Odin.Core.Exceptions.OdinClientException"/> for any other copy.
+        /// </summary>
+        /// <returns>Previous state or null if not found</returns>
+        Task<TenantStatusState> UnlockMovedAsync(string domain);
+
+        /// <summary>
         /// Sets whether the identity is allowed a public home page
         /// </summary>
         /// <returns>Previous state or null if not found</returns>

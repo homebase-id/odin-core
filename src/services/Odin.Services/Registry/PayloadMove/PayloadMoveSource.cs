@@ -44,8 +44,8 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     /// </summary>
     public async Task<string?> RedeemAsync(Guid identityId, string handoffToken)
     {
-        var (state, stored) = await LoadWithStoredValueAsync(identityId);
-        if (state == null || state.RedeemedAt != null || state.CompletedAt != null ||
+        if (await LoadWithStoredValueAsync(identityId) is not var (state, stored) ||
+            state.RedeemedAt != null || state.CompletedAt != null ||
             state.HandoffExpiresAt < UnixTimeUtc.Now() ||
             !Matches(state.HandoffHash, handoffToken))
         {
@@ -57,7 +57,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
         state.RedeemedAt = UnixTimeUtc.Now();
 
         // Two concurrent redemptions must not both succeed: only the one whose write finds the row unchanged
-        return await SaveIfUnchangedAsync(identityId, stored!, state) ? credential : null;
+        return await SaveIfUnchangedAsync(identityId, stored, state) ? credential : null;
     }
 
     /// <summary>True if the credential is the identity's live transfer credential.</summary>
@@ -72,17 +72,16 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     /// </summary>
     public async Task<bool> CompleteAsync(Guid identityId, string? credential)
     {
-        var (state, stored) = await LoadWithStoredValueAsync(identityId);
-        if (!IsLive(state, credential))
+        if (await LoadWithStoredValueAsync(identityId) is not var (state, stored) || !IsLive(state, credential))
         {
             return false;
         }
 
-        state!.CompletedAt = UnixTimeUtc.Now();
+        state.CompletedAt = UnixTimeUtc.Now();
         state.CredentialHash = null;
 
         // A re-export may have minted a new handoff since the read; do not write the old state over it
-        return await SaveIfUnchangedAsync(identityId, stored!, state);
+        return await SaveIfUnchangedAsync(identityId, stored, state);
     }
 
     /// <summary>
@@ -100,15 +99,22 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     private static bool IsLive(SourceState? state, string? credential) =>
         state is { CompletedAt: null, CredentialHash: not null } && Matches(state.CredentialHash, credential);
 
-    public async Task<SourceState?> LoadAsync(Guid identityId)
+    /// <summary>Drops the identity's handoff state: it is deleted from this host.</summary>
+    public Task ForgetAsync(Guid identityId)
     {
-        return (await LoadWithStoredValueAsync(identityId)).state;
+        return systemDatabase.Settings.DeleteAsync(KeyPrefix + identityId);
     }
 
-    private async Task<(SourceState? state, string? stored)> LoadWithStoredValueAsync(Guid identityId)
+    public async Task<SourceState?> LoadAsync(Guid identityId)
+    {
+        return (await LoadWithStoredValueAsync(identityId))?.state;
+    }
+
+    // With the row's value as read, for a compare-and-swap write back; null if there is no row
+    private async Task<(SourceState state, string stored)?> LoadWithStoredValueAsync(Guid identityId)
     {
         var record = await systemDatabase.Settings.GetAsync(KeyPrefix + identityId);
-        return record == null ? (null, null) : (OdinSystemSerializer.Deserialize<SourceState>(record.value), record.value);
+        return record == null ? null : (OdinSystemSerializer.DeserializeOrThrow<SourceState>(record.value), record.value);
     }
 
     private Task<bool> SaveIfUnchangedAsync(Guid identityId, string stored, SourceState state)

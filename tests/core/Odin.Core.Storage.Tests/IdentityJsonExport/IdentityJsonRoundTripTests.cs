@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
@@ -75,6 +76,48 @@ public class IdentityJsonRoundTripTests
             identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true);
         stream.Position = 0;
         return stream;
+    }
+
+    private static readonly RowRewriter RewriteCertificateKey = (_, _, record) =>
+        record is CertificatesRecord c ? c with { privateKey = "rewritten" } : record;
+
+    [Test]
+    public async Task Export_WritesWhatTheRewriterReturnsAndLeavesOutTheTablesItIsTold()
+    {
+        _sourceScope = await _sourceServices.RegisterServicesAsync(DatabaseType.Sqlite, _sourceTempFolder, _identityId);
+        var sys = _sourceScope.Resolve<SystemDatabase>();
+        var id = _sourceScope.Resolve<IdentityDatabase>();
+        await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
+        await DataImporterSeedHelper.SeedAllIdentityTablesAsync(id);
+        var stream = new MemoryStream();
+        await IdentityJsonExporter.ExportAsync(stream, _identityId, IdentityDomain, sys, id,
+            identitySchemaVersion: 1, systemSchemaVersion: 1, callerCheckedIdentityIsStill: true,
+            rewriteRow: RewriteCertificateKey, leaveOutTables: new HashSet<string> { "DkimKeys" });
+        stream.Position = 0;
+
+        _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var logger = _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
+        await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, _targetScope.Resolve<IdentityDatabase>(), commit: true);
+
+        var certificate = await tgtSys.Certificates.GetAsync(new OdinId(IdentityDomain));
+        Assert.That(certificate?.privateKey, Is.EqualTo("rewritten"));
+        Assert.That(await tgtSys.DkimKeys.GetByDomainAsync(new OdinId(IdentityDomain)), Is.Empty);
+    }
+
+    [Test]
+    public async Task Import_WritesWhatTheRewriterReturns()
+    {
+        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
+        _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var logger = _targetScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
+
+        await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, _targetScope.Resolve<IdentityDatabase>(),
+            commit: true, rewriteRow: RewriteCertificateKey);
+
+        var certificate = await tgtSys.Certificates.GetAsync(new OdinId(IdentityDomain));
+        Assert.That(certificate?.privateKey, Is.EqualTo("rewritten"));
     }
 
     [Test]
