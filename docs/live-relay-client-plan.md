@@ -29,6 +29,37 @@ shared-secret-encrypted like every other V2 JSON POST:
 - `appId` is **inferred server-side** from the app token — the client never sends it.
 - Response: `204 No Content`. Fire-and-forget — unreachable/non-connected recipients are silently dropped.
 
+**Optional push (wake the recipient's app).** Add a `push` object to the same request. For a call
+this is the whole thing:
+```json
+{ "channelKey": "<guid>", "recipients": ["sam.dotyou.cloud"], "blob": "<base64>",
+  "push": { "kind": "ring", "typeId": "<guid>", "tagId": "<callId>", "unEncryptedMessage": "Frodo is calling" } }
+```
+- `kind` is `notify` (default), `ring`, `hangup` or `wake`. `ring` derives a short TTL, a collapse
+  id from `tagId` and time-sensitive delivery; `hangup` with the same `tagId` replaces the ring on
+  the device; `wake` is a silent background wake-up. On iOS a `ring` becomes a PushKit VoIP push
+  once the device registered a VoIP token (see below) and the relay has the Apple key. Details and
+  the app's CallKit obligation: `docs/push-delivery-options.md`.
+- TTL and collapse id can be overridden; a calling app does not need to:
+```json
+  "push": { "typeId": "<guid>", "tagId": "<guid>", "unEncryptedMessage": "…",
+            "silent": false, "timeToLiveSeconds": 45, "collapseId": "call-<channelKey>", "timeSensitive": true }
+```
+- **iOS VoIP token.** Register the PushKit token in `voipDeviceToken` on
+  `POST /api/v2/notify/push/subscribe-firebase` next to the FCM token; `GET …/subscription` echoes
+  it back. Only from a build that handles CallKit.
+- Each recipient's server enqueues a normal push (notification-list row + device push) with the
+  **caller as sender**, if the recipient has this app installed. Not installed: no push, relay still
+  delivered. Not connected: nothing, as before.
+- `appId`, `recipients` and `peerSubscriptionId` inside `push` are ignored and set server-side.
+- `typeId` is required. `timeToLiveSeconds` 1..86400: past it the push is dropped, never delivered
+  late. `collapseId` ≤ 64 chars: a later push with the same id replaces an undelivered earlier one,
+  which is how a hangup retracts "incoming call". `silent: true` is a background push (no alert on
+  iOS; Android is data-only either way). `timeSensitive` asks iOS for the time-sensitive interruption
+  level on an alert push (needs the app's entitlement; ignored when `silent`).
+- A `400` means the push failed validation; the relay was not sent.
+- Full semantics and platform mapping: `docs/push-delivery-options.md`.
+
 **Receive (hop 3, server → client websocket)** — a `LiveRelay` client notification over the existing
 notification socket. Its `Data` payload:
 ```json
@@ -39,6 +70,16 @@ notification socket. Its `Data` payload:
 - **Server enforces app isolation**: only sockets of the matching app receive it.
 - **Flush-on-connect is automatic**: on (re)connect/foreground the server pushes every retained
   sender's last point for this app — the client sends nothing extra; just filter by open `channelKey`s.
+
+---
+
+**Handshake reply (`deviceHandshakeSuccess`)** — the reply to `EstablishConnectionRequest` carries the
+device's STUN URLs:
+```json
+{ "notificationType": "deviceHandshakeSuccess", "notificationTypeId": "0000…", "stunUrls": ["stun:…:3478", "stun:…:3478"] }
+```
+Keep the latest list and put **every** entry into `iceServers` as given; never build a STUN name.
+Semantics in `docs/stun.md`.
 
 ---
 

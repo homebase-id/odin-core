@@ -273,6 +273,133 @@ public class OdinConfigurationTest
         Assert.That(section.EnableTracking, Is.False);
     }
 
+    // --- StunSection (on by default; Enabled is the kill switch) ---
+
+    [Test]
+    public void StunSection_Defaults_WhenOmitted()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>()));
+
+        Assert.That(section.Enabled, Is.True, "the issue decided open by default with a kill switch");
+        Assert.That(section.Port, Is.EqualTo(3478));
+        Assert.That(section.BindAddress, Is.EqualTo("*"));
+    }
+
+    [Test]
+    public void StunSection_Disabled_SkipsValidation()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Enabled"] = "false",
+            ["Stun:Port"] = "70000",
+            ["Stun:BindAddress"] = "not-an-ip",
+        }));
+
+        Assert.That(section.Enabled, Is.False);
+    }
+
+    [Test]
+    public void StunSection_Enabled_InvalidPort_Throws()
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:Port"] = "70000" })));
+
+        Assert.That(ex!.Message, Does.Contain("Stun:Port"));
+    }
+
+    [Test]
+    public void StunSection_Enabled_InvalidBindAddress_Throws()
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:BindAddress"] = "not-an-ip" })));
+
+        Assert.That(ex!.Message, Does.Contain("Stun:BindAddress"));
+    }
+
+    [TestCase("127.0.0.1")]
+    [TestCase("::1")]
+    [TestCase("::")]
+    public void StunSection_Enabled_LiteralBindAddress_Accepted(string bindAddress)
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:BindAddress"] = bindAddress,
+            ["Stun:Port"] = "0",
+        }));
+
+        Assert.That(section.GetBindAddress(), Is.EqualTo(System.Net.IPAddress.Parse(bindAddress)));
+        Assert.That(section.Port, Is.Zero);
+    }
+
+    // --- Stun:PublicUrls (what clients put into iceServers) ---
+
+    [Test]
+    public void StunSection_PublicUrls_AbsentMeansEmpty_AndClientsGetTheIdentityName()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Port"] = "3478",
+        }));
+
+        Assert.That(section.PublicUrls, Is.Empty);
+        Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(new[] { "stun:frodo.example:3478" }),
+            "a single host answers under its own name");
+    }
+
+    [Test]
+    public void StunSection_PublicUrls_AreEchoedInOrder_WhateverEnabledSays()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Enabled"] = "false",
+            ["Stun:PublicUrls:0"] = "stun:stun1-1.eu.example:3478",
+            ["Stun:PublicUrls:1"] = "stun:stun1-2.eu.example:3478",
+            ["Stun:PublicUrls:2"] = "   ",
+        }));
+
+        var expected = new[] { "stun:stun1-1.eu.example:3478", "stun:stun1-2.eu.example:3478" };
+        Assert.That(section.PublicUrls, Is.EqualTo(expected), "blank entries are dropped");
+        Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(expected),
+            "the list names whoever answers, so it wins even with this host's responder off");
+    }
+
+    [Test]
+    public void StunSection_Disabled_WithoutPublicUrls_GivesClientsNothing()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Enabled"] = "false",
+        }));
+
+        Assert.That(section.ClientUrls("frodo.example"), Is.Empty, "nothing answers, so the client gathers host candidates only");
+    }
+
+    [TestCase("https://stun1-1.eu.example:3478", Description = "wrong scheme")]
+    [TestCase("stun1-1.eu.example:3478", Description = "no scheme")]
+    [TestCase("stun:", Description = "no host")]
+    [TestCase("stun:stun1-1.eu.example:99999", Description = "port out of range")]
+    [TestCase("stun:stun1-1.eu.example:3478/x", Description = "path, not a host")]
+    [TestCase("stun:-bad.example", Description = "not a domain name")]
+    public void StunSection_PublicUrls_RejectsAnythingButAStunUrl(string entry)
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:PublicUrls:0"] = entry })));
+
+        Assert.That(ex!.Message, Does.Contain("Stun:PublicUrls").And.Contain(entry));
+    }
+
+    [TestCase("stun:stun1-1.eu.example")]
+    [TestCase("stuns:stun1-1.eu.example:5349")]
+    [TestCase("stun:192.0.2.10:3478")]
+    [TestCase("stun:[2001:db8::1]:3478")]
+    public void StunSection_PublicUrls_AcceptsRfc7064Forms(string entry)
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:PublicUrls:0"] = entry }));
+
+        Assert.That(section.PublicUrls, Is.EqualTo(new[] { entry }));
+    }
+
     private class OdinConfigurationConsumer
     {
         private readonly OdinConfiguration _config;

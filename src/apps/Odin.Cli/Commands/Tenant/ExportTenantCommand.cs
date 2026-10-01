@@ -34,10 +34,7 @@ public sealed class ExportTenantCommand : AsyncCommand<ExportTenantCommand.Setti
                 {
                     throw new Exception($"Tenant {settings.TenantDomain} was not found");
                 }
-                if (response.StatusCode != HttpStatusCode.Accepted)
-                {
-                    throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-                }
+                await ApiResponse.EnsureAsync(response, HttpStatusCode.Accepted);
 
                 response.Headers.TryGetValues("Location", out var locations);
                 var location = locations?.FirstOrDefault() ?? "";
@@ -52,10 +49,7 @@ public sealed class ExportTenantCommand : AsyncCommand<ExportTenantCommand.Setti
                     await Task.Delay(TimeSpan.FromMilliseconds(200));
 
                     response = await httpClient.GetAsync(location);
-                    if (response.StatusCode != HttpStatusCode.OK)
-                    {
-                        throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-                    }
+                    await ApiResponse.EnsureAsync(response);
                     var (jobResponse, jobData) = JobApiResponse.Deserialize<ExportTenantJobData>(await response.Content.ReadAsStringAsync());
 
                     if (jobResponse.State == JobState.Failed)

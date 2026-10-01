@@ -4,6 +4,7 @@ using Odin.Core.Serialization;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Registry;
 using Spectre.Console;
+using Odin.Cli.Commands.Base;
 
 namespace Odin.Cli.Commands.Tenant;
 
@@ -33,6 +34,16 @@ internal static class TenantStatusApi
 
     //
 
+    public static async Task<TenantStatusState> UnlockMovedAsync(HttpClient httpClient, string domain)
+    {
+        var response = await httpClient.PostAsync($"tenants/{domain}/unlock-moved", null);
+        await EnsureSuccessAsync(response, domain);
+        return OdinSystemSerializer.Deserialize<TenantStatusState>(await response.Content.ReadAsStringAsync()) ??
+               throw new Exception($"{response.RequestMessage?.RequestUri}: empty response");
+    }
+
+    //
+
     public static void WriteChange(string domain, TenantStatusState previous, TenantStatus status, DisabledReason? reason)
     {
         AnsiConsole.MarkupLineInterpolated($"{domain}: {Describe(status, reason)} (was {Describe(previous.Status, previous.DisabledReason)})");
@@ -47,20 +58,13 @@ internal static class TenantStatusApi
 
     //
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, string domain)
+    public static async Task EnsureSuccessAsync(HttpResponseMessage response, string domain,
+        HttpStatusCode expected = HttpStatusCode.OK)
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             throw new Exception($"Tenant {domain} was not found");
         }
-        if (response.StatusCode == HttpStatusCode.BadRequest)
-        {
-            var detail = await response.Content.ReadAsStringAsync();
-            throw new Exception($"{response.RequestMessage?.RequestUri}: refused: {detail}");
-        }
-        if (response.StatusCode != HttpStatusCode.OK)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        await ApiResponse.EnsureAsync(response, expected);
     }
 }

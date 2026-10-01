@@ -227,6 +227,11 @@ namespace Odin.Hosting.Tests
             // these are process-wide, so one fixture enabling it would leak into the rest.
             Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
 
+            // The STUN responder stays on so every fixture runs its real start/stop path, but on
+            // an ephemeral loopback port: the default 3478 would clash with a running dev host.
+            Environment.SetEnvironmentVariable("Stun__BindAddress", "127.0.0.1");
+            Environment.SetEnvironmentVariable("Stun__Port", "0");
+
             Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
             Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");
             Environment.SetEnvironmentVariable("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");

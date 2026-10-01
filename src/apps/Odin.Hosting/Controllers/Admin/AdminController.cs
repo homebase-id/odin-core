@@ -71,15 +71,19 @@ public class AdminController : ControllerBase
 
     //
 
+    /// <summary>
+    /// Queues the deletion of a disabled tenant; its DNS is never touched. 400 unless disabled, while a payload transfer
+    /// from it is pending, or for a moved copy with email unless discard-mail.
+    /// </summary>
     [HttpDelete("tenants/{domain}")]
-    public async Task<ActionResult> DeleteTenant(string domain)
+    public async Task<ActionResult> DeleteTenant(string domain, [FromQuery(Name = "discard-mail")] bool discardMail = false)
     {
         if (!await _tenantAdmin.TenantExists(domain))
         {
             return NotFound();
         }
 
-        var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
+        var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain, discardMail);
         return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobId });
     }
 
@@ -95,36 +99,6 @@ public class AdminController : ControllerBase
 
         var jobId = await _tenantAdmin.EnqueueExportTenant(domain);
         return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobId });
-    }
-
-    //
-
-    [HttpPatch("tenants/{domain}/enable")]
-    public async Task<ActionResult> EnableTenant(string domain)
-    {
-        if (!await _tenantAdmin.TenantExists(domain))
-        {
-            return NotFound();
-        }
-
-        await _tenantAdmin.EnableTenant(domain);
-
-        return Ok();
-    }
-
-    //
-
-    [HttpPatch("tenants/{domain}/disable")]
-    public async Task<ActionResult> DisableTenant(string domain)
-    {
-        if (!await _tenantAdmin.TenantExists(domain))
-        {
-            return NotFound();
-        }
-
-        await _tenantAdmin.DisableTenant(domain);
-
-        return Ok();
     }
 
     //
@@ -171,6 +145,19 @@ public class AdminController : ControllerBase
         }
 
         return Ok(previous);
+    }
+
+    //
+
+    /// <summary>
+    /// Takes a copy disabled as moved back to paused, to roll a move back, and returns the previous status. 400 for any
+    /// other copy.
+    /// </summary>
+    [HttpPost("tenants/{domain}/unlock-moved")]
+    public async Task<ActionResult<TenantStatusState>> UnlockMoved(string domain)
+    {
+        var previous = await _tenantAdmin.UnlockMovedAsync(domain);
+        return previous == null ? NotFound() : Ok(previous);
     }
 
     //
