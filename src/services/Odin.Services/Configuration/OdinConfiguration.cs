@@ -804,6 +804,14 @@ public class OdinConfiguration
         /// </summary>
         public string BindAddress { get; init; } = "*";
 
+        /// <summary>
+        /// The stun: URLs this host's devices should use, sent in every app socket handshake. Empty
+        /// means <c>stun:&lt;identity-domain&gt;:&lt;Port&gt;</c>, the right value for a single host; a
+        /// cluster behind a load balancer lists its cores' own names (docs/stun.md). Environment
+        /// form: <c>Stun__PublicUrls__0=stun:stun1-1.eu.example:3478</c>.
+        /// </summary>
+        public IReadOnlyList<string> PublicUrls { get; init; } = [];
+
         public StunSection()
         {
             // Mockable support
@@ -811,6 +819,19 @@ public class OdinConfiguration
 
         public StunSection(IConfiguration config)
         {
+            // Validated whether or not the responder on this host is enabled: the list may name
+            // other hosts, and a malformed entry would reach every client.
+            PublicUrls = config.GetOrDefault("Stun:PublicUrls", new List<string>())
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .ToList();
+            foreach (var url in PublicUrls)
+            {
+                if (!IsStunUrl(url))
+                {
+                    throw new OdinConfigException($"Stun:PublicUrls entry '{url}' is not a stun: or stuns: URL with a valid host and port");
+                }
+            }
+
             Enabled = config.GetOrDefault("Stun:Enabled", true);
             if (Enabled)
             {
@@ -827,6 +848,75 @@ public class OdinConfiguration
                         $"Stun:BindAddress '{BindAddress}' is not '*' or a valid IP address");
                 }
             }
+        }
+
+        // RFC 7064: "stun:" or "stuns:" then host[:port], no "//", which is why System.Uri sees no
+        // host in it. The host is a domain name (same rule as every other domain in config) or an
+        // IP literal; the port has the same bound as Stun:Port.
+        private static bool IsStunUrl(string url)
+        {
+            var rest = url.StartsWith("stuns:", StringComparison.Ordinal) ? url[6..]
+                : url.StartsWith("stun:", StringComparison.Ordinal) ? url[5..]
+                : null;
+            if (string.IsNullOrEmpty(rest))
+            {
+                return false;
+            }
+
+            string host;
+            string? port = null;
+            if (rest.StartsWith('['))
+            {
+                var close = rest.IndexOf(']');
+                if (close < 0)
+                {
+                    return false;
+                }
+                host = rest[1..close];
+                var tail = rest[(close + 1)..];
+                if (tail.Length > 0)
+                {
+                    if (!tail.StartsWith(':'))
+                    {
+                        return false;
+                    }
+                    port = tail[1..];
+                }
+                if (!IPAddress.TryParse(host, out var v6) || v6.AddressFamily != AddressFamily.InterNetworkV6)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                var colon = rest.IndexOf(':');
+                host = colon < 0 ? rest : rest[..colon];
+                port = colon < 0 ? null : rest[(colon + 1)..];
+                // An IPv4 literal must be written out in full ("1" parses as 0.0.0.1), or a domain.
+                var isIPv4Literal = IPAddress.TryParse(host, out var v4) && v4.ToString() == host;
+                if (!isIPv4Literal && !AsciiDomainNameValidator.TryValidateDomain(host))
+                {
+                    return false;
+                }
+            }
+
+            return port == null || (int.TryParse(port, out var p) && p is >= 1 and <= 65535);
+        }
+
+        /// <summary>
+        /// What a client of <paramref name="tenantDomain"/> puts into its ICE servers: the configured
+        /// list when there is one, regardless of <see cref="Enabled"/> (it names whoever answers);
+        /// otherwise this host under the identity's own name; otherwise nothing, and the client
+        /// gathers host candidates only.
+        /// </summary>
+        public IReadOnlyList<string> ClientUrls(string tenantDomain)
+        {
+            if (PublicUrls.Count > 0)
+            {
+                return PublicUrls;
+            }
+
+            return Enabled ? [$"stun:{tenantDomain}:{Port}"] : [];
         }
 
         public IPAddress GetBindAddress()
