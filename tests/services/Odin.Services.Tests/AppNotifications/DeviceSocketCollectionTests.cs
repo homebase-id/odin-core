@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,31 +13,30 @@ public class DeviceSocketCollectionTests
 {
     private static readonly TimeSpan CloseTimeout = TimeSpan.FromMilliseconds(300);
 
-    [TestCase(true)]
-    [TestCase(false)]
-    public async Task AClientThatNeverAnswersTheCloseIsAbortedWithinTheTimeout(bool honoursCancellation)
+    [Test]
+    public async Task AClientThatNeverAnswersTheCloseIsAbortedWithinTheTimeout()
     {
-        var silent = new SilentClientSocket(honoursCancellation);
-        var collection = Collection(silent);
+        var silent = new FakeSocket(_ => new TaskCompletionSource().Task);
 
-        // Raced against a deadline, so an unbounded close fails the test instead of hanging the run
-        var sw = Stopwatch.StartNew();
-        var removal = collection.RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, "identity is Paused");
-        var deadline = CloseTimeout + TimeSpan.FromSeconds(2);
-        Assert.That(await Task.WhenAny(removal, Task.Delay(deadline)), Is.SameAs(removal), $"still closing after {deadline}");
+        // A TimeoutException is the failure: an unbounded close hangs instead of the run
+        var count = await Collection(silent).RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, "identity is Paused")
+            .WaitAsync(CloseTimeout + TimeSpan.FromSeconds(2));
 
-        Assert.That(await removal, Is.EqualTo(1));
-        Assert.That(silent.State, Is.EqualTo(WebSocketState.Aborted), $"after {sw.Elapsed}");
+        Assert.That(count, Is.EqualTo(1));
+        Assert.That(silent.State, Is.EqualTo(WebSocketState.Aborted));
     }
 
     [Test]
     public async Task AClientThatAnswersIsClosedAndNotAborted()
     {
-        var answering = new AnsweringClientSocket();
+        var answering = new FakeSocket(socket =>
+        {
+            socket.CurrentState = WebSocketState.Closed;
+            return Task.CompletedTask;
+        });
         await Collection(answering).RemoveAllSocketsAsync(WebSocketCloseStatus.EndpointUnavailable, "identity is Paused");
 
         Assert.That(answering.State, Is.EqualTo(WebSocketState.Closed));
-        Assert.That(answering.Aborted, Is.False);
     }
 
     //
@@ -50,21 +48,20 @@ public class DeviceSocketCollectionTests
         return collection;
     }
 
-    private abstract class FakeSocket : WebSocket
+    // An open socket whose close does what the test says, and which an abort marks Aborted
+    private sealed class FakeSocket(Func<FakeSocket, Task> close) : WebSocket
     {
-        protected WebSocketState CurrentState = WebSocketState.Open;
-        public bool Aborted { get; private set; }
+        public WebSocketState CurrentState { get; set; } = WebSocketState.Open;
 
         public override WebSocketState State => CurrentState;
         public override WebSocketCloseStatus? CloseStatus => null;
         public override string? CloseStatusDescription => null;
         public override string? SubProtocol => null;
 
-        public override void Abort()
-        {
-            Aborted = true;
-            CurrentState = WebSocketState.Aborted;
-        }
+        public override void Abort() => CurrentState = WebSocketState.Aborted;
+
+        public override Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken) =>
+            close(this);
 
         public override Task CloseOutputAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken) =>
             Task.CompletedTask;
@@ -77,22 +74,6 @@ public class DeviceSocketCollectionTests
 
         public override void Dispose()
         {
-        }
-    }
-
-    // Sends nothing back: the close waits until cancelled, or forever if it does not honour the token
-    private sealed class SilentClientSocket(bool honoursCancellation) : FakeSocket
-    {
-        public override Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken) =>
-            honoursCancellation ? Task.Delay(Timeout.Infinite, cancellationToken) : new TaskCompletionSource().Task;
-    }
-
-    private sealed class AnsweringClientSocket : FakeSocket
-    {
-        public override Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken)
-        {
-            CurrentState = WebSocketState.Closed;
-            return Task.CompletedTask;
         }
     }
 }

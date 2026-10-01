@@ -55,16 +55,15 @@ public class DeviceSocketCollection(ILogger<DeviceSocketCollection> logger, Time
         }
     }
 
-    // The close handshake, bounded: past the timeout the socket is aborted, which also ends its handler's pending receive.
-    // WaitAsync as well as the token, in case a receive already pending on the socket keeps the close from noticing.
+    // The close handshake, bounded: past the timeout the socket is aborted, which also ends the abandoned close and its
+    // handler's pending receive
     private async Task CloseAsync(System.Net.WebSockets.WebSocket socket, WebSocketCloseStatus status, string message)
     {
-        using var timeout = new CancellationTokenSource(_closeTimeout);
         try
         {
-            await socket.CloseAsync(status, message, timeout.Token).WaitAsync(_closeTimeout);
+            await socket.CloseAsync(status, message, CancellationToken.None).WaitAsync(_closeTimeout);
         }
-        catch (Exception e) when (e is OperationCanceledException or TimeoutException)
+        catch (TimeoutException)
         {
             logger.LogInformation("WebSocket client did not answer the close within {timeout} s; aborted it", _closeTimeout.TotalSeconds);
         }

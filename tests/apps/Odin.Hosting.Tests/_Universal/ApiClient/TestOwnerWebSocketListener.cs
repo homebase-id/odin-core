@@ -103,12 +103,8 @@ public sealed class TestOwnerWebSocketListener
     {
         try
         {
-            // Nothing to stop for a client connected without receiving
-            if (_cancellationTokenSource != null)
-            {
-                await _cancellationTokenSource.CancelAsync();
-            }
-            if (_receivingTask != null)
+            await _cancellationTokenSource.CancelAsync();
+            if (_receivingTask != null) // a client connected without receiving has none
             {
                 await _receivingTask;
             }

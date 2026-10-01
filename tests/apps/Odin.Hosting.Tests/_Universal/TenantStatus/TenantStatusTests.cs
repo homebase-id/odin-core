@@ -366,17 +366,16 @@ public class TenantStatusTests
 
         try
         {
+            // A TimeoutException past the deadline is the failure: the pause, or the resume behind its gate, hung
             var deadline = DeviceSocketCollection.DefaultCloseTimeout + TimeSpan.FromSeconds(10);
 
-            var pause = SetStatusViaAdminAsync(domain, Status.Paused, null);
-            Assert.That(await Task.WhenAny(pause, Task.Delay(deadline)), Is.SameAs(pause), $"pause still running after {deadline}");
-            Assert.That((await pause).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var pause = await SetStatusViaAdminAsync(domain, Status.Paused, null).WaitAsync(deadline);
+            Assert.That(pause.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(Registry.AreBackgroundServicesRunning(IdOf(identity)), Is.False);
 
             // The gate is free again: resuming restarts the background services
-            var resume = SetStatusViaAdminAsync(domain, Status.Active, null);
-            Assert.That(await Task.WhenAny(resume, Task.Delay(deadline)), Is.SameAs(resume), $"resume still running after {deadline}");
-            Assert.That((await resume).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var resume = await SetStatusViaAdminAsync(domain, Status.Active, null).WaitAsync(deadline);
+            Assert.That(resume.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(Registry.AreBackgroundServicesRunning(IdOf(identity)), Is.True);
         }
         finally
