@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Apps.Builtin;
@@ -84,6 +86,47 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
         Assert.That(drives.Count(d => d == WellKnownAppDrives.PublicPostsChannelDrive), Is.EqualTo(1));
         Assert.That(drives, Does.Contain(WellKnownAppDrives.HomePageConfigDrive), "the owner's edit must survive");
         Assert.That(drives, Does.Contain(WellKnownAppDrives.FeedDrive));
+    }
+
+    [Test]
+    public async Task ADepositThePrePassSkipped_IsQueuedForItsAppToRedo()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var (scope, ctx) = await MigrationContextAsync(frodo);
+        var storage = scope.Resolve<CircleNetworkStorage>();
+        var family = BuiltinCircles.FamilyCircle;
+        var depositingApp = System.Guid.NewGuid();
+
+        // Stands in for a deposit the pre-pass could not convert: sealed before v20, so without the
+        // ProfileDrive key.
+        var icr = await storage.GetAsync(sam.Identity);
+        icr!.PeerKeyStore.DepositedGrants.Add(new DepositedGrant
+        {
+            CircleId = family.Id,
+            DepositingAppId = depositingApp,
+            Deposited = UnixTimeUtc.Now()
+        });
+        await storage.UpsertAsync(icr, ctx);
+
+        var migration = scope.Resolve<V19ToV20VersionMigrationService>();
+        Assert.ThrowsAsync<OdinSystemException>(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None),
+            "validation must not pass while a deposit would convert without the key");
+
+        var requeued = await migration.RequeueStaleDepositsAsync(ctx, CancellationToken.None);
+        Assert.That(requeued.Select(r => r.DomainName), Does.Contain(sam.Identity.DomainName));
+
+        var after = (await storage.GetAsync(sam.Identity))!.PeerKeyStore;
+        Assert.That(after.DepositedGrants.Any(d => d.CircleId == family.Id), Is.False);
+
+        var pending = after.PendingEnrollments.SingleOrDefault(p => p.CircleId == family.Id);
+        Assert.That(pending, Is.Not.Null, "the owning app should be left to redo it");
+        Assert.That(pending!.OwningAppId, Is.EqualTo(family.AppId));
+        Assert.That(pending.RequestedByAppId, Is.EqualTo(depositingApp), "who asked for it is kept");
+
+        Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
     }
 
     private static DriveGrantRequest ReadOn(TargetDrive drive) => new()

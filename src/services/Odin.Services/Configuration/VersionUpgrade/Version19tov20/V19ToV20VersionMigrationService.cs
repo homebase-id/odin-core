@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -35,6 +36,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
     /// <see cref="CircleNetworkService.UpdateCircleDefinitionAsync"/>, which is what puts the storage key
     /// in.  A circle the identity does not have is skipped.
     /// </para>
+    /// <para>
+    /// A deposit an app left into one of these circles was sealed without the new drive's key.  The upgrade's
+    /// deposit pre-pass converts the ones it can reach before this runs; the rest (connections it had to
+    /// skip) are turned back into pending enrollments so the owning app redoes them with the key.
+    /// </para>
     /// </remarks>
     public class V19ToV20VersionMigrationService(
         ILogger<V19ToV20VersionMigrationService> logger,
@@ -48,6 +54,16 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
             (BuiltinCircles.WorkCircle, WellKnownAppDrives.ProfileDrive),
             (BuiltinCircles.FeedCircle, WellKnownAppDrives.PublicPostsChannelDrive)
         ];
+
+        /// <summary>
+        /// Turns any deposit still pending for one of these circles back into a pending enrollment.  Returns
+        /// the connections affected, so the owning apps can be told once the transaction has committed.
+        /// </summary>
+        public async Task<List<OdinId>> RequeueStaleDepositsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            return await circleNetworkService.RequeueDepositsAsPendingEnrollmentsAsync(
+                ReadGrants.Select(g => g.Circle.Id.Value).Distinct().ToList(), odinContext, cancellationToken);
+        }
 
         public async Task GrantReadToBuiltinCirclesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -114,6 +130,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
 
                 foreach (var (circle, drive) in ReadGrants)
                 {
+                    if (identity.PeerKeyStore.DepositedGrants?.Any(d => d.CircleId == circle.Id) ?? false)
+                    {
+                        throw new OdinSystemException(
+                            $"{identity.OdinId} still has a deposit for circle {circle.Name}, which would convert without the {drive.Alias} key");
+                    }
+
                     if (!identity.PeerKeyStore.CircleGrants.TryGetValue(circle.Id, out var circleGrant))
                     {
                         continue;

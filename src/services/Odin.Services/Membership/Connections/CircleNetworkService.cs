@@ -3378,6 +3378,70 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Turns every still-pending deposit for one of <paramref name="circleIds"/> back into a pending
+        /// enrollment, so the app that owns the circle redoes it against the circle as it is now.  Returns the
+        /// connections that got one, for the caller to notify once its transaction has committed.
+        /// </summary>
+        /// <remarks>
+        /// A deposit carries the storage keys for the drives its circle granted when it was made.  Converted
+        /// after the circle gained a Read grant, it mints that grant without a key
+        /// (<see cref="ConvertDepositedGrantsAsync"/>).  Queuing it again hands the work back to the owning
+        /// app, which seals or mints against the current definition.
+        /// <para>
+        /// For the upgrade: the deposit pre-pass has already converted every deposit it could reach, so what
+        /// is left here is exactly the connections it had to skip.
+        /// </para>
+        /// </remarks>
+        public async Task<List<OdinId>> RequeueDepositsAsPendingEnrollmentsAsync(IReadOnlyCollection<Guid> circleIds,
+            IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var requeued = new List<OdinId>();
+            var allIdentities = await GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
+
+            foreach (var identity in allIdentities.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var stale = identity.PeerKeyStore?.DepositedGrants?
+                    .Where(d => circleIds.Contains(d.CircleId.Value)).ToList() ?? [];
+                if (stale.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var deposit in stale)
+                {
+                    // Removed first: a circle still deposited is never queued.
+                    identity.PeerKeyStore!.DepositedGrants.Remove(deposit);
+
+                    var circle = await circleDefinitionService.GetCircleAsync(deposit.CircleId);
+                    if (circle == null)
+                    {
+                        continue;
+                    }
+
+                    EnqueuePendingEnrollment(identity.PeerKeyStore, new PendingEnrollment
+                    {
+                        CircleId = circle.Id,
+                        OwningAppId = circle.AppId,
+                        RequestedByAppId = deposit.DepositingAppId,
+                        Requested = UnixTimeUtc.Now()
+                    });
+
+                    logger.LogInformation("Re-queued deposited grant for {odinId} in circle {circleId} as a pending enrollment",
+                        identity.OdinId, deposit.CircleId);
+                }
+
+                await SaveIcrAsync(identity, odinContext);
+                requeued.Add(identity.OdinId);
+            }
+
+            return requeued;
+        }
+
+        /// <summary>
         /// Converts every pending deposited grant across all connections, for identities whose Peer Key the
         /// owner can reach.  Returns the number of connections drained and the number of grants converted.
         /// </summary>

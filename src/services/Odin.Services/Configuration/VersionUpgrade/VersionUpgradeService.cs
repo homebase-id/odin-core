@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -716,6 +718,22 @@ public class VersionUpgradeService(
             {
                 runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await RunPhaseAsync("v19->v20 requeue-stale-deposits", async ct =>
+                {
+                    List<OdinId> requeued;
+                    await using (var depositsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct))
+                    {
+                        requeued = await v20.RequeueStaleDepositsAsync(odinContext, ct);
+                        depositsTx.Commit();
+                    }
+
+                    // After the commit: announcing work a rollback would erase is worse than announcing it late.
+                    foreach (var odinId in requeued)
+                    {
+                        await circleNetworkService.PublishPendingEnrollmentNotificationsAsync(odinId, alreadyQueued: [], odinContext);
+                    }
+                }, cancellationToken);
 
                 await RunPhaseAsync("v19->v20 builtin-circle-read-grants", async ct =>
                 {
