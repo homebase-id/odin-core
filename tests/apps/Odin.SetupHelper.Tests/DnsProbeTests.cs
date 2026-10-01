@@ -27,15 +27,17 @@ public class DnsProbeTests
         _serviceProvider.Dispose();
     }
     
+    // Live DNS: homebase.id stays with its registrar's name servers. Not id.homebase.id, which moved to our own
+    // (ns1.id.pub) on 2026-10-01 - a name whose delegation we change cannot anchor this test
     [Test]
     [Retry(3)]
     public async Task ItShouldGetTheDomainAuthority()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
 
-        var (authority, message) = await dnsProbe.LookupDomainAuthority("id.homebase.id");
+        var (authority, message) = await dnsProbe.LookupDomainAuthority("homebase.id");
         Assert.That(authority, Is.EqualTo("dns1.registrar-servers.com"));
-        Assert.That(message, Is.EqualTo($"Authoritative name server found for id.homebase.id"));
+        Assert.That(message, Is.EqualTo($"Authoritative name server found for homebase.id"));
     }
     
     [Test]
@@ -44,13 +46,13 @@ public class DnsProbeTests
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
 
-        var (authority, message) = await dnsProbe.LookupDomainAuthority("id.homebase.id");
+        var (authority, message) = await dnsProbe.LookupDomainAuthority("homebase.id");
         Assert.That(authority, Is.EqualTo("dns1.registrar-servers.com"));
-        Assert.That(message, Is.EqualTo("Authoritative name server found for id.homebase.id"));
+        Assert.That(message, Is.EqualTo("Authoritative name server found for homebase.id"));
         
-        (authority, message) = await dnsProbe.LookupDomainAuthority("id.homebase.id");
+        (authority, message) = await dnsProbe.LookupDomainAuthority("homebase.id");
         Assert.That(authority, Is.EqualTo("dns1.registrar-servers.com"));
-        Assert.That(message, Is.EqualTo("Authoritative name server found for id.homebase.id [cache hit]"));
+        Assert.That(message, Is.EqualTo("Authoritative name server found for homebase.id [cache hit]"));
         
     }
     
