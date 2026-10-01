@@ -37,6 +37,7 @@ public class MailActivationService(
     IMailRelayProvider relayProvider,
     IJobManager jobManager,
     EmailPublicKeyService emailPublicKeyService,
+    EmailSetupStateService setupStateService,
     IMailboxProvider mailboxProvider)
 {
     /// <summary>
@@ -50,6 +51,7 @@ public class MailActivationService(
 
         // Validate the certificate BEFORE any side effect (DKIM generation, DNS writes)
         AssertPublishableCertificate(publicCertificateArmored);
+        await AssertNotStandardAsync();
 
         var result = await EnsureMailboxAsync(primaryEmailAddress);
         await PublishKeyAsync(publicCertificateArmored);
@@ -219,6 +221,7 @@ public class MailActivationService(
     {
         ThrowIfTenantMailDisabled();
         AssertPublishableCertificate(publicCertificateArmored);
+        await AssertNotStandardAsync();
 
         var domain = tenantContext.HostOdinId.DomainName;
 
@@ -226,6 +229,29 @@ public class MailActivationService(
         await mailboxProvider.SetEncryptionKeyAsync(domain, publicCertificateArmored);
 
         logger.LogInformation("Published the email encryption key for {domain}", domain);
+    }
+
+    /// <summary>Unpublishes the email certificate only; the keyring stays on the drive.</summary>
+    public async Task StopEncryptingAsync()
+    {
+        ThrowIfTenantMailDisabled();
+
+        var domain = tenantContext.HostOdinId.DomainName;
+
+        // Mail server first: a published key with encryption off is harmless, the reverse is not
+        await mailboxProvider.DisableEncryptionAtRestAsync(domain);
+        await emailPublicKeyService.UnpublishAsync();
+
+        logger.LogInformation("Stopped encrypting mail at rest for {domain}", domain);
+    }
+
+    // A key published on a standard mailbox would turn encryption on while the identity reports standard
+    public async Task AssertNotStandardAsync()
+    {
+        if ((await setupStateService.GetAsync())?.Mode == MailboxMode.Standard)
+        {
+            throw new OdinClientException("This mailbox is standard; switch it to encrypted to use a key");
+        }
     }
 
     private static void AssertPublishableCertificate(string publicCertificateArmored)
@@ -245,12 +271,14 @@ public class MailActivationService(
         var domain = tenantContext.HostOdinId.DomainName;
 
         var publishedKey = await emailPublicKeyService.GetPublishedKeyAsync();
+        var setup = await setupStateService.GetAsync();
         var dkimKeys = dkimStore.IsConfigured ? await dkimStore.GetKeysAsync(domain) : [];
 
         return new MailStatusResult
         {
             TenantMailEnabled = configuration.Email.TenantMail.Enabled,
-            Activated = publishedKey != null,
+            Activated = EmailSetupStateService.IsMailReady(setup, publishedKey),
+            Mode = setup?.Mode ?? MailboxMode.Encrypted,
             PublicKeyFingerprint = publishedKey?.FingerprintHex,
             PublishedAt = publishedKey?.PublishedAt,
             DkimRecords = DkimDnsRecords.ToDnsConfigs(domain, dkimKeys),
@@ -263,7 +291,7 @@ public class MailActivationService(
 
         var domain = tenantContext.HostOdinId.DomainName;
 
-        if (await emailPublicKeyService.GetPublishedKeyAsync() == null)
+        if (!await IsMailReadyAsync())
         {
             throw new OdinClientException("Email is not activated");
         }
@@ -287,7 +315,7 @@ public class MailActivationService(
 
         var domain = tenantContext.HostOdinId.DomainName;
 
-        if (await emailPublicKeyService.GetPublishedKeyAsync() == null)
+        if (!await IsMailReadyAsync())
         {
             throw new OdinClientException("Email is not activated");
         }
@@ -340,6 +368,13 @@ public class MailActivationService(
 
     //
 
+    private async Task<bool> IsMailReadyAsync()
+    {
+        return EmailSetupStateService.IsMailReady(
+            await setupStateService.GetAsync(),
+            await emailPublicKeyService.GetPublishedKeyAsync());
+    }
+
     private void ThrowIfTenantMailDisabled()
     {
         if (!configuration.Email.TenantMail.Enabled)
@@ -380,6 +415,7 @@ public class MailStatusResult
 {
     public bool TenantMailEnabled { get; init; }
     public bool Activated { get; init; }
+    public MailboxMode Mode { get; init; }
     public string? PublicKeyFingerprint { get; init; }
     public UnixTimeUtc? PublishedAt { get; init; }
     public List<DnsConfig> DkimRecords { get; init; } = [];
