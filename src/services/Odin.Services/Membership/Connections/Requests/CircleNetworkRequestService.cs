@@ -843,9 +843,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </para>
         /// </param>
         /// <param name="callerToken">
-        /// The owner's token, when the owner is the one accepting. Carried to the channel-sync job so it
-        /// can rebuild their context and seal encrypted posts; an app accept passes none and the job
-        /// fetches only what needs no sealing.
+        /// The accepting owner's or app's token, carried to the channel-sync job so it can rebuild their
+        /// context. Null when no owner or app is present (an introduction auto-accept, or a send that
+        /// completes a waiting request); the job cannot run without one, so none is scheduled.
         /// </param>
         public async Task AcceptConnectionRequestAsync(AcceptRequestHeader header, bool tryOverrideAcl, bool markReviewed,
             IOdinContext odinContext, ClientAuthenticationToken callerToken = null)
@@ -1158,18 +1158,32 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <remarks>
         /// Best-effort by construction: a connection is established whether or not their back-catalogue
         /// arrives, so a failure to schedule is logged and swallowed rather than undoing the accept.
+        /// <para>
+        /// Only for an identity this one already follows: the sync fetches nothing otherwise, and following
+        /// later back-fills on its own (<see cref="FollowerService.FollowAsync"/>). An introduction
+        /// auto-accept is almost never followed yet, and scheduling it anyway with no token is what failed
+        /// five times and gave up at Error (#1849).
+        /// </para>
         /// </remarks>
         private async Task ScheduleChannelSyncAsync(OdinId senderOdinId, ClientAuthenticationToken callerToken)
         {
             try
             {
-                byte[] callerIv = null;
-                byte[] encryptedCallerToken = null;
-                if (callerToken != null)
+                if (!await followerService.IsFollowingAsync(senderOdinId))
                 {
-                    (callerIv, encryptedCallerToken) = AesCbc.Encrypt(
-                        callerToken.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
+                    return;
                 }
+
+                if (callerToken == null)
+                {
+                    // Followed, but no owner or app to authenticate the channel query as.
+                    logger.LogInformation("Not back-filling channels from followed {sender}: the accept had no " +
+                                          "caller token", senderOdinId);
+                    return;
+                }
+
+                var (callerIv, encryptedCallerToken) = AesCbc.Encrypt(
+                    callerToken.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
 
                 var job = jobManager.NewJob<SyncChannelFilesJob>(tenantContext.DotYouRegistryId);
                 job.Data = new SyncChannelFilesJobData
