@@ -68,7 +68,7 @@ public class LiveRelayService : PeerServiceBase
             ChannelKey = request.ChannelKey,
             Blob = request.Blob,
             AppId = appId.Value,
-            Push = request.Push
+            Push = request.Push == null ? null : LiveRelayPush.Sanitize(request.Push, appId.Value)
         };
 
         var recipients = request.Recipients.ToOdinIdList().Distinct().ToList();

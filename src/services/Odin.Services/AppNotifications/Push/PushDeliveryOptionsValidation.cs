@@ -1,38 +1,40 @@
 #nullable enable
-using System;
-using Odin.Core.Exceptions;
+using Odin.Core.Dto;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Util;
 
 namespace Odin.Services.AppNotifications.Push;
 
 /// <summary>
-/// Limits on the delivery options a client may put on a push. Applied where a client hands us
-/// options directly (the push on a LiveRelay message); the file-transfer routes keep their own
-/// validation.
+/// Limits on the delivery options of a push. The bounds are what the outbox and the push relay
+/// accept, so they are checked once where every push is enqueued; the LiveRelay push additionally
+/// requires a TypeId at its ingress.
 /// </summary>
 public static class PushDeliveryOptionsValidation
 {
-    /// <summary>A day. Longer than that and the push is not time-bound; leave TTL unset instead.</summary>
-    public const int MaxTimeToLiveSeconds = 86400;
+    public const int MaxTimeToLiveSeconds = DevicePushNotificationRequestV1.MaxTimeToLiveSeconds;
+    public const int MaxCollapseIdLength = DevicePushNotificationRequestV1.MaxCollapseIdLength;
 
-    /// <summary>The APNs limit for apns-collapse-id.</summary>
-    public const int MaxCollapseIdLength = 64;
-
+    /// <summary>A push handed over by a client or a peer: a type, plus the delivery bounds.</summary>
     public static void AssertValid(AppNotificationOptions options)
     {
-        if (options.TypeId == Guid.Empty)
+        OdinValidationUtils.AssertNotEmptyGuid(options.TypeId, "Push TypeId");
+        AssertDeliveryBounds(options);
+    }
+
+    /// <summary>The bounds every enqueued push must meet, whichever route it came in on.</summary>
+    public static void AssertDeliveryBounds(AppNotificationOptions options)
+    {
+        if (options.TimeToLiveSeconds is { } ttl)
         {
-            throw new OdinClientException("Push TypeId is required");
+            OdinValidationUtils.AssertIsTrue(ttl is >= 1 and <= MaxTimeToLiveSeconds,
+                $"Push TimeToLiveSeconds must be between 1 and {MaxTimeToLiveSeconds}, got {ttl}");
         }
 
-        if (options.TimeToLiveSeconds is { } ttl && ttl is < 1 or > MaxTimeToLiveSeconds)
+        if (options.CollapseId is { } collapseId)
         {
-            throw new OdinClientException($"Push TimeToLiveSeconds must be between 1 and {MaxTimeToLiveSeconds}, got {ttl}");
-        }
-
-        if (options.CollapseId is { Length: > MaxCollapseIdLength })
-        {
-            throw new OdinClientException($"Push CollapseId must be at most {MaxCollapseIdLength} characters, got {options.CollapseId.Length}");
+            OdinValidationUtils.AssertIsTrue(collapseId.Length <= MaxCollapseIdLength,
+                $"Push CollapseId must be at most {MaxCollapseIdLength} characters, got {collapseId.Length}");
         }
     }
 }

@@ -307,36 +307,33 @@ public class PushNotificationService(
     private static readonly Regex WebPushTopicPattern = new("^[A-Za-z0-9_-]{1,32}$", RegexOptions.Compiled);
 
     /// <summary>
-    /// The WebPush library takes TTL and raw HTTP headers through an options dictionary. One WebPush
-    /// carries every payload in <paramref name="content"/> (in practice one), so the strictest
-    /// delivery options win: the smallest TTL, high urgency if any payload is time-sensitive, and
-    /// the collapse id as Topic only when there is exactly one payload to collapse.
+    /// The WebPush library takes TTL and raw HTTP headers through an options dictionary. A WebPush
+    /// carries one payload (the outbox worker builds one per item); the delivery options come from
+    /// that payload, and a content with any other count gets none.
     /// </summary>
     private static Dictionary<string, object> WebPushOptions(PushNotificationContent content, VapidDetails vapidDetails)
     {
         var options = new Dictionary<string, object> { ["vapidDetails"] = vapidDetails };
-
-        var ttl = content.Payloads
-            .Select(p => p.Options?.TimeToLiveSeconds)
-            .Where(t => t is > 0)
-            .Min();
-        if (ttl is > 0)
+        var delivery = content.Payloads.Count == 1 ? content.Payloads[0].Options : null;
+        if (delivery == null)
         {
-            options["TTL"] = ttl.Value;
+            return options;
+        }
+
+        if (delivery.TimeToLiveSeconds is > 0)
+        {
+            options["TTL"] = delivery.TimeToLiveSeconds.Value;
         }
 
         var headers = new Dictionary<string, object>();
-        if (content.Payloads.Any(p => p.Options?.TimeSensitive == true))
+        if (delivery.TimeSensitive)
         {
             headers["Urgency"] = "high";
         }
-
-        var topic = content.Payloads.Count == 1 ? content.Payloads[0].Options?.CollapseId : null;
-        if (topic != null && WebPushTopicPattern.IsMatch(topic))
+        if (delivery.CollapseId != null && WebPushTopicPattern.IsMatch(delivery.CollapseId))
         {
-            headers["Topic"] = topic;
+            headers["Topic"] = delivery.CollapseId;
         }
-
         if (headers.Count > 0)
         {
             options["headers"] = headers;
@@ -463,6 +460,10 @@ public class PushNotificationService(
 
     private async Task<bool> EnqueueNotificationInternalAsync(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
     {
+        // Every route ends here; the bounds are what the outbox and the relay accept, so an
+        // out-of-range value is refused now rather than dropped by the relay later.
+        PushDeliveryOptionsValidation.AssertDeliveryBounds(options);
+
         var timestamp = UnixTimeUtc.Now().milliseconds;
 
         //add to system list

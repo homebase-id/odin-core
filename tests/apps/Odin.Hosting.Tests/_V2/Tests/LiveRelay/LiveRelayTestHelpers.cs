@@ -95,24 +95,25 @@ internal static class LiveRelayTestHelpers
     }
 
     /// <summary>
-    /// Registers the same app on both identities, connects them, and returns an app client token
-    /// for each. Undo with <see cref="DisconnectAsync"/>.
+    /// Registers an app on both identities (the same one unless <paramref name="samAppId"/> says
+    /// otherwise), connects them, and returns an app client token for each. Undo with
+    /// <see cref="DisconnectAsync"/>.
     /// </summary>
     public static async Task<(ClientAuthenticationToken frodoAppToken, byte[] frodoAppSecret,
             ClientAuthenticationToken samAppToken, byte[] samAppSecret)>
         ConnectAndSetupAppAsync(
             OwnerApiClientRedux ownerFrodo, OwnerApiClientRedux ownerSam,
-            TestIdentity frodo, TestIdentity sam, Guid appId)
+            TestIdentity frodo, TestIdentity sam, Guid appId, Guid? samAppId = null)
     {
-        // Same app on both identities (a single shared appId — e.g. the chat app).
+        // Normally the same app on both identities (a single shared appId — e.g. the chat app).
         var frodoCircleId = await PrepareAppAccessAsync(ownerFrodo, appId, TargetDrive.NewTargetDrive());
-        var samCircleId = await PrepareAppAccessAsync(ownerSam, appId, TargetDrive.NewTargetDrive());
+        var samCircleId = await PrepareAppAccessAsync(ownerSam, samAppId ?? appId, TargetDrive.NewTargetDrive());
 
         await ownerFrodo.Connections.SendConnectionRequest(sam.OdinId, new List<GuidId> { frodoCircleId });
         await ownerSam.Connections.AcceptConnectionRequest(frodo.OdinId, new List<GuidId> { samCircleId });
 
         var (frodoAppToken, frodoAppSecret) = await ownerFrodo.AppManager.RegisterAppClient(appId);
-        var (samAppToken, samAppSecret) = await ownerSam.AppManager.RegisterAppClient(appId);
+        var (samAppToken, samAppSecret) = await ownerSam.AppManager.RegisterAppClient(samAppId ?? appId);
 
         return (frodoAppToken, frodoAppSecret, samAppToken, samAppSecret);
     }

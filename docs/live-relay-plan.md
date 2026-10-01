@@ -76,21 +76,22 @@ adds **no extra DB read**.
 | `LiveRelayPeerEnvelope` | `src/services/Odin.Services/LiveRelay/` | Wire DTO: `ChannelKey`, `Blob`, `AppId`, optional `Push`. **No sender identity** (from cert). |
 | `PeerLiveRelayController` | `Controllers/PeerIncoming/LiveRelay/PeerLiveRelayController.cs` | HOP 2 ingress. `[Authorize(Policy = IsInOdinNetwork, AuthenticationSchemes = TransitCapiAuthScheme)]`. Mirror `PeerAppNotificationsPreAuthController`. |
 | `PeerLiveRelayReceiverService` | `src/services/Odin.Services/LiveRelay/PeerLiveRelayReceiverService.cs` | Recipient: connected-check → stamp `ReceivedAt` → retained store → publish → optional push enqueue. |
-
-**Push on relay.** A message may carry `Push` (an `AppNotificationOptions`): the ring for a P2P
-call, or a silent "send me your location". Hop 1 validates it (`PushDeliveryOptionsValidation`:
-`TypeId` required, TTL 1..86400 s, `CollapseId` ≤ 64 chars). The recipient, after retain and
-publish, overwrites `Push.AppId` with the envelope's app id, clears `Recipients` and
-`PeerSubscriptionId`, skips the push when the app is not registered on the recipient (installing
-the app is the consent), and otherwise enqueues it through `PushNotificationService` with the
-authenticated caller as sender, exactly as a peer file transfer does. No extra permission on either
-side. A push failure is logged and never fails the relay. Delivery semantics (expiry, collapse,
-silent, time-sensitive) are in `docs/push-delivery-options.md`.
 | `LiveRelayRetainedStore` | `src/services/Odin.Services/LiveRelay/LiveRelayRetainedStore.cs` | **Per-tenant singleton** over **`ITenantLevel2Cache`** (transparent L1 + Redis L2; memory-only when Redis off). `Put(...)` RMWs a per-app snapshot under a per-app `SemaphoreSlim`; `GetAllForApp(appId)` reads it for auto-flush. |
 | `LiveRelayAppSnapshot` | `src/services/Odin.Services/LiveRelay/` | **Named record** cached once per app: `Dictionary<string, LiveRelayRetainedEntry> Entries` keyed `"{channelKey}:{senderDomain}"`. Enumerable in one read. |
 | `LiveRelayRetainedEntry` | `src/services/Odin.Services/LiveRelay/` | **Named record** (STJ-serializable): `string Blob`, `Guid AppId`, `Guid ChannelKey`, `string SenderDomain`, `long ReceivedAtMs`. |
 | `LiveRelayNotification` | `src/services/Odin.Services/AppNotifications/ClientNotifications/LiveRelayNotification.cs` | New `IClientNotification` + `IAppTargetedClientNotification`. Carries `SenderOdinId`, `ChannelKey`, `Blob`, `ReceivedAt`, `TargetAppId`. |
 | `IAppTargetedClientNotification` | `src/services/Odin.Services/AppNotifications/ClientNotifications/` | Marker: `IClientNotification` + `Guid TargetAppId { get; }`. Lets the dispatcher filter sockets by app. |
+| `LiveRelayPush` | `src/services/Odin.Services/LiveRelay/LiveRelayPush.cs` | `Sanitize(push, appId)`: the allowlist copy of a carried push, applied at hop 1 and hop 2. |
+
+**Push on relay.** A message may carry `Push` (an `AppNotificationOptions`): the ring for a P2P
+call, or a silent "send me your location". Hop 1 validates it (`PushDeliveryOptionsValidation`:
+`TypeId` required, TTL 1..86400 s, `CollapseId` ≤ 64 chars) and puts an allowlist copy on the
+wire with the caller's app id. The recipient validates and copies again, skips the push when the
+app is not registered on the recipient (installing the app is the consent), and otherwise enqueues
+it through `PushNotificationService` with the authenticated caller as sender, exactly as a peer
+file transfer does. No extra permission on either side. A push failure is logged and never fails
+the relay. Delivery semantics (expiry, collapse, silent, time-sensitive) are in
+`docs/push-delivery-options.md`.
 
 ### Surfacing AppId onto the context + socket
 

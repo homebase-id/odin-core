@@ -27,9 +27,17 @@ dropped on that next run rather than retried. The record's timestamp is re-stamp
 each hop, so on the two-hop peer route the worst case is about twice the TTL. The push that rides
 on a LiveRelay message has no outbox hop before the recipient's server, so its TTL starts there.
 
-**Validation.** `PushDeliveryOptionsValidation.AssertValid` enforces the limits where a client hands
-options to the server directly (the LiveRelay push). The file-transfer routes keep their existing
-validation and pass the fields through unchecked.
+**Validation.** The bounds are what the outbox and the relay accept, so
+`PushDeliveryOptionsValidation.AssertDeliveryBounds` runs where every push is enqueued
+(`PushNotificationService.EnqueueNotificationInternalAsync`), whichever route it came in on, and
+an out-of-range value is refused there instead of being dropped by the relay later. The limits
+themselves are constants on `DevicePushNotificationRequestV1` in Odin.Core, the one type the host
+and the relay both see, so the two validators cannot drift. The LiveRelay push additionally
+requires a `TypeId` at its ingress (`AssertValid`).
+
+**Expiry lives in the two push workers today.** A deeper shape would be an `ExpiresAt` on the
+outbox item state, checked once in the outbox processor for every item type; that is a follow-up
+once something other than a push wants a deadline.
 
 **Relay request.** `DevicePushNotificationRequestV1` carries the four fields as optional
 properties. The version stays 1: an older relay ignores them, a newer relay treats missing ones as
@@ -44,7 +52,7 @@ null/false. The FCM `data` dictionary the app reads is unchanged.
 | `collapseId` | `collapse_key` | `apns-collapse-id` |
 | `silent: false` | unchanged | `apns-push-type: alert`, `apns-priority: 10`, alert with title and body (as before) |
 | `silent: true` | unchanged; the app decides what to show | `apns-push-type: background`, `apns-priority: 5`, no alert |
-| `timeSensitive` | unchanged | `aps.interruption-level: time-sensitive` |
+| `timeSensitive` | unchanged | `aps.interruption-level: time-sensitive` on an alert push; ignored when `silent` |
 
 Sound and badge are left to the app, as before. The explicit `apns-push-type` header is the only
 change for existing pushes; APNs requires it to match the payload on iOS 13 and later, and

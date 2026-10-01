@@ -46,7 +46,15 @@ public class DevicePushNotificationRequestV1
     public string ToDomain { get; set; } = "";
 
     // Delivery options (optional, additive to version 1; an older relay ignores them and an older
-    // host leaves them unset, so host and relay can deploy in either order).
+    // host leaves them unset, so host and relay can deploy in either order). The bounds live here
+    // because the host validates what it enqueues and the relay validates what it receives, and
+    // this DTO is the one type both can see.
+
+    /// <summary>A day. Longer than that and the push is not time-bound; leave TTL unset instead.</summary>
+    public const int MaxTimeToLiveSeconds = 86400;
+
+    /// <summary>The APNs limit for apns-collapse-id.</summary>
+    public const int MaxCollapseIdLength = 64;
 
     /// <summary>Seconds the platform may hold the push before discarding it. Null: platform default.</summary>
     public int? TimeToLiveSeconds { get; set; }

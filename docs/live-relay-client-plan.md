@@ -43,7 +43,7 @@ shared-secret-encrypted like every other V2 JSON POST:
   late. `collapseId` ≤ 64 chars: a later push with the same id replaces an undelivered earlier one,
   which is how a hangup retracts "incoming call". `silent: true` is a background push (no alert on
   iOS; Android is data-only either way). `timeSensitive` asks iOS for the time-sensitive interruption
-  level (needs the app's entitlement).
+  level on an alert push (needs the app's entitlement; ignored when `silent`).
 - A `400` means the push failed validation; the relay was not sent.
 - Full semantics and platform mapping: `docs/push-delivery-options.md`.
 

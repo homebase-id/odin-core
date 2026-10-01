@@ -18,9 +18,9 @@ public class LiveRelayPeerEnvelope
     public Guid AppId { get; init; }
 
     /// <summary>
-    /// Optional push to enqueue on the recipient. The recipient overwrites <c>AppId</c> with
-    /// <see cref="AppId"/> and clears the fan-out fields; it trusts nothing else in here beyond
-    /// what it validates.
+    /// Optional push to enqueue on the recipient. Both ends pass it through
+    /// <see cref="LiveRelayPush.Sanitize"/>, so only the allowlisted fields exist on the wire and
+    /// the recipient's app id is always <see cref="AppId"/>, never the sender's claim.
     /// </summary>
     public AppNotificationOptions Push { get; init; }
 }

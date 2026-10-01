@@ -97,18 +97,16 @@ public class PeerLiveRelayReceiverService
 
     /// <summary>
     /// The recipient's consent to be woken is having the app installed: no app registration, no
-    /// push. The same gate the push worker applies later, applied early so an uninstalled app
-    /// leaves no notification-list row either. Failures are logged, never surfaced: the relay
-    /// itself already succeeded.
+    /// push. The push worker would drop the device push for an unregistered app anyway, but by
+    /// then the notification-list row exists; checking here leaves no trace at all. Failures are
+    /// logged, never surfaced: the relay itself already succeeded.
     /// </summary>
     private async Task TryEnqueuePushAsync(LiveRelayPeerEnvelope envelope, OdinId caller, IOdinContext odinContext)
     {
         try
         {
-            var push = envelope.Push;
-            push.AppId = envelope.AppId;
-            push.Recipients = null;
-            push.PeerSubscriptionId = Guid.Empty;
+            // A peer's server wrote this; keep only what we mean to forward.
+            var push = LiveRelayPush.Sanitize(envelope.Push, envelope.AppId);
 
             // Grants SendPushNotifications, as every peer-originated push gets.
             var pushContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);

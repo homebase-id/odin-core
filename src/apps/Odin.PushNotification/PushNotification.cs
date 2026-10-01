@@ -75,6 +75,11 @@ public class PushNotification : IPushNotification
                 Title = request.Title,
                 Body = request.Body,
             };
+            if (request.TimeSensitive)
+            {
+                // An interruption level only means something for an alert.
+                aps.CustomData = new Dictionary<string, object> { ["interruption-level"] = "time-sensitive" };
+            }
         }
 
         if (request.TimeToLiveSeconds is > 0)
@@ -87,11 +92,6 @@ public class PushNotification : IPushNotification
         {
             android.CollapseKey = request.CollapseId;
             apnsHeaders["apns-collapse-id"] = request.CollapseId;
-        }
-
-        if (request.TimeSensitive)
-        {
-            aps.CustomData = new Dictionary<string, object> { ["interruption-level"] = "time-sensitive" };
         }
 
         return new Message
