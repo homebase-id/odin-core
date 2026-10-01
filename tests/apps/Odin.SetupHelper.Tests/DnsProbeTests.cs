@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using DnsClient;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Cache;
@@ -82,6 +84,9 @@ public class DnsProbeTests
         Assert.That(message, Is.EqualTo("Resolved homebase.id to 75.2.60.5 [cache hit]"));
     }
 
+    // Live DNS: capi.id.homebase.id is a CNAME to whichever host serves it, so the address moves with our hosting
+    // (135.181.203.146 until 2026-10-01). Assert that the CNAME resolves to an IPv4 address and that the second
+    // lookup is a cache hit for the same address, not which address it is
     [Test]
     [Retry(3)]
     public async Task ItShouldResolveCnameDomainToIpWithCache()
@@ -89,11 +94,12 @@ public class DnsProbeTests
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
 
         var (ip, message) = await dnsProbe.ResolveIpAsync("capi.id.homebase.id");
-        Assert.That(ip, Is.EqualTo("135.181.203.146"));
-        Assert.That(message, Is.EqualTo("Resolved capi.id.homebase.id to 135.181.203.146"));
+        Assert.That(IPAddress.TryParse(ip, out var address), Is.True, $"not an IP address: '{ip}'");
+        Assert.That(address!.AddressFamily, Is.EqualTo(AddressFamily.InterNetwork));
+        Assert.That(message, Is.EqualTo($"Resolved capi.id.homebase.id to {ip}"));
         
-        (ip, message) = await dnsProbe.ResolveIpAsync("capi.id.homebase.id");
-        Assert.That(ip, Is.EqualTo("135.181.203.146"));
-        Assert.That(message, Is.EqualTo("Resolved capi.id.homebase.id to 135.181.203.146 [cache hit]"));
+        var (cachedIp, cachedMessage) = await dnsProbe.ResolveIpAsync("capi.id.homebase.id");
+        Assert.That(cachedIp, Is.EqualTo(ip));
+        Assert.That(cachedMessage, Is.EqualTo($"Resolved capi.id.homebase.id to {ip} [cache hit]"));
     }
 }
