@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
@@ -804,6 +805,17 @@ public class OdinConfiguration
         /// </summary>
         public string BindAddress { get; init; } = "*";
 
+        /// <summary>
+        /// The STUN URLs this host's clients should use, when the identity name itself is not the
+        /// right target: behind a load balancer the identity name resolves to the balancer, which
+        /// cannot carry UDP with the client's source address intact, so each core answers STUN on
+        /// its own public name instead (two per cluster, so ICE survives one core being down).
+        /// Sent to every app socket in the handshake reply. Empty, which is the right value for a
+        /// single host answering on its own name, means <c>stun:&lt;identity-domain&gt;:&lt;Port&gt;</c>.
+        /// Environment form: <c>Stun__PublicUrls__0=stun:stun1-1.eu.example:3478</c>.
+        /// </summary>
+        public List<string> PublicUrls { get; init; } = [];
+
         public StunSection()
         {
             // Mockable support
@@ -811,6 +823,19 @@ public class OdinConfiguration
 
         public StunSection(IConfiguration config)
         {
+            // Validated whether or not the responder on this host is enabled: the list may name
+            // other hosts, and a malformed entry would reach every client.
+            PublicUrls = config.GetOrDefault("Stun:PublicUrls", new List<string>())
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .ToList();
+            foreach (var url in PublicUrls)
+            {
+                if (!IsStunUrl(url))
+                {
+                    throw new OdinConfigException($"Stun:PublicUrls entry '{url}' is not a stun: or stuns: URL with a host");
+                }
+            }
+
             Enabled = config.GetOrDefault("Stun:Enabled", true);
             if (Enabled)
             {
@@ -827,6 +852,29 @@ public class OdinConfiguration
                         $"Stun:BindAddress '{BindAddress}' is not '*' or a valid IP address");
                 }
             }
+        }
+
+        // RFC 7064: "stun:" or "stuns:" then host[:port], no "//" (so System.Uri sees no host).
+        private static readonly Regex StunUrlPattern = new(
+            @"^stuns?:([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$",
+            RegexOptions.Compiled);
+
+        public static bool IsStunUrl(string url) => StunUrlPattern.IsMatch(url);
+
+        /// <summary>
+        /// What a client of <paramref name="tenantDomain"/> puts into its ICE servers: the configured
+        /// list when there is one, regardless of <see cref="Enabled"/> (it names whoever answers);
+        /// otherwise this host under the identity's own name; otherwise nothing, and the client
+        /// gathers host candidates only.
+        /// </summary>
+        public List<string> ClientUrls(string tenantDomain)
+        {
+            if (PublicUrls.Count > 0)
+            {
+                return PublicUrls;
+            }
+
+            return Enabled ? [$"stun:{tenantDomain}:{Port}"] : [];
         }
 
         public IPAddress GetBindAddress()

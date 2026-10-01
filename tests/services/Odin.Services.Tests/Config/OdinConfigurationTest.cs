@@ -331,6 +331,60 @@ public class OdinConfigurationTest
         Assert.That(section.Port, Is.Zero);
     }
 
+    // --- Stun:PublicUrls (what clients put into iceServers) ---
+
+    [Test]
+    public void StunSection_PublicUrls_AbsentMeansEmpty_AndClientsGetTheIdentityName()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Port"] = "3478",
+        }));
+
+        Assert.That(section.PublicUrls, Is.Empty);
+        Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(new[] { "stun:frodo.example:3478" }),
+            "a single host answers under its own name");
+    }
+
+    [Test]
+    public void StunSection_PublicUrls_AreEchoedInOrder_WhateverEnabledSays()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Enabled"] = "false",
+            ["Stun:PublicUrls:0"] = "stun:stun1-1.eu.example:3478",
+            ["Stun:PublicUrls:1"] = "stun:stun1-2.eu.example:3478",
+            ["Stun:PublicUrls:2"] = "   ",
+        }));
+
+        var expected = new[] { "stun:stun1-1.eu.example:3478", "stun:stun1-2.eu.example:3478" };
+        Assert.That(section.PublicUrls, Is.EqualTo(expected), "blank entries are dropped");
+        Assert.That(section.ClientUrls("frodo.example"), Is.EqualTo(expected),
+            "the list names whoever answers, so it wins even with this host's responder off");
+    }
+
+    [Test]
+    public void StunSection_Disabled_WithoutPublicUrls_GivesClientsNothing()
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Stun:Enabled"] = "false",
+        }));
+
+        Assert.That(section.ClientUrls("frodo.example"), Is.Empty, "nothing answers, so the client gathers host candidates only");
+    }
+
+    [TestCase("https://stun1-1.eu.example:3478", Description = "wrong scheme")]
+    [TestCase("stun1-1.eu.example:3478", Description = "no scheme")]
+    [TestCase("stun:", Description = "no host")]
+    public void StunSection_PublicUrls_RejectsAnythingButAStunUrl(string entry)
+    {
+        var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:PublicUrls:0"] = entry })));
+
+        Assert.That(ex!.Message, Does.Contain("Stun:PublicUrls").And.Contain(entry));
+    }
+
     private class OdinConfigurationConsumer
     {
         private readonly OdinConfiguration _config;

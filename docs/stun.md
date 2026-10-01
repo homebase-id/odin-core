@@ -36,7 +36,8 @@ Top-level `Stun` section. All keys are optional.
 "Stun": {
   "Enabled": true,
   "Port": 3478,
-  "BindAddress": "*"
+  "BindAddress": "*",
+  "PublicUrls": []
 }
 ```
 
@@ -47,6 +48,35 @@ Top-level `Stun` section. All keys are optional.
   IPv4 peers mapped in), or `0.0.0.0` on a host without IPv6. Unlike `"*"` in
   `Host:IPAddressListenList`, this is not IPv4-only, because ICE gathers both families. A literal
   address binds that address; `::` is dual-stack, any other literal is single-family.
+- `PublicUrls`: the `stun:` URLs this host's devices should use, when the identity name is not
+  the right target (next section). Empty, the right value for a single host, means
+  `stun:<identity-domain>:<Port>`. Each entry must be a `stun:` or `stuns:` URL with a host, or
+  startup fails naming it. Environment form: `Stun__PublicUrls__0=…`, `Stun__PublicUrls__1=…`.
+  Sent as given whatever `Enabled` says, since it names whoever answers.
+
+## How a client learns the URLs
+
+A device never builds a STUN URL. Its own server tells it, in the WebSocket handshake reply
+(`deviceHandshakeSuccess`) every app socket receives on every connect:
+
+```json
+{ "notificationType": "deviceHandshakeSuccess", "notificationTypeId": "0000…",
+  "stunUrls": ["stun:stun1-1.eu.ravenhosting.cloud:3478", "stun:stun1-2.eu.ravenhosting.cloud:3478"] }
+```
+
+The client puts every entry into `iceServers`, as given, and keeps the latest list. It is one or
+more URLs: two on an OVH cluster today, one for a single host, more for a bigger cluster. Nothing
+in the client parses names, regions or cluster numbers. The list refreshes at least on every app
+foreground (the socket reconnects), and names change only when a cluster gains or loses a core;
+ICE tolerates a dead entry, which is why there are two. A call cannot happen without the socket,
+so the names are always there before ICE gathering. Peer sockets (a client talking to another
+identity's server) carry no list: only the device's own server's names matter.
+
+Why the identity name is wrong behind a balancer: on OVH every identity name resolves to the
+load balancer, there is no PROXY protocol for UDP, Octavia's UDP mode NATs through the amphora,
+and the cores reply from their own interfaces. So each core answers STUN on its own public name,
+with both A and AAAA records, and `Stun:PublicUrls` lists them. Hetzner and self-hosted servers
+answer on the identity name and leave the list empty.
 
 The responder is a system background service, so it also needs
 `BackgroundServices:SystemBackgroundServicesEnabled` (the default). The CLI turns system
@@ -80,28 +110,36 @@ below.
 
 ## Checking it
 
-From a machine outside the host's network, with coturn's client:
+UDP has no "connection refused", so only a real Binding request tells you anything. From a
+machine outside the host's network, with coturn's client:
 
 ```bash
-turnutils_stunclient <host-ip-or-name>
+turnutils_stunclient <stun-name>
 ```
 
 or with stuntman:
 
 ```bash
-stunclient <host-ip-or-name> 3478
+stunclient <stun-name> 3478
 ```
 
-Both print the mapped address; it must be the address of the machine you ran them on, as seen
-from the internet. In a browser, a page running
+or with nothing installed:
+
+```bash
+python3 -c "import socket,os,struct;h='<stun-name>';s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.settimeout(3);t=os.urandom(12);s.sendto(struct.pack('!HHI',1,0,0x2112A442)+t,(h,3478));d=s.recv(2048);print(hex(struct.unpack('!H',d[:2])[0]),len(d),'bytes')"
+```
+
+The last prints `0x101 32 bytes` on success. The mapped address the clients print **must be the
+probing machine's own public IP**; anything else means something between you and the responder
+rewrites the source. In a browser, a page running
 
 ```js
-const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:<host>:3478' }] });
+const pc = new RTCPeerConnection({ iceServers: stunUrls.map(urls => ({ urls })) }); // from the handshake
 pc.onicecandidate = e => e.candidate && console.log(e.candidate.candidate);
 pc.createDataChannel('x'); pc.createOffer().then(o => pc.setLocalDescription(o));
 ```
 
-logs a `typ srflx` candidate when the responder is reachable.
+logs a `typ srflx` candidate when a responder is reachable.
 
 ## Where the code is
 
