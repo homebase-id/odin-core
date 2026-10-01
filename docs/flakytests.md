@@ -127,6 +127,15 @@ it does not wait for.
 change touches only the link extractor and its controllers, which the job manager doesn't reach.
 The test alone then passed 5/5.
 
+**Seen again 2026-09-29** (local, Linux, full `dotnet test ./odin-core.sln`, while finishing the
+identity JSON export, #1665). The change touches the export/import, the CLI and
+`ScopedTransaction.DisposeAsync`, not the job manager. The machine was heavily loaded (every test
+project in parallel, dev servers up). The test alone then passed 5/5.
+
+**Seen again 2026-09-29** (local, Linux, a focused `JobManagerTests` run on the payload move branch,
+which added an orphan-rescue step to the same clean-up service). Not reproduced after: 10/10 alone and
+5/5 for the whole class, with the change and without it (stashed).
+
 ---
 
 ## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
@@ -308,6 +317,18 @@ job was re-run on 2026-09-16 to see whether it reproduces.
 
 **Pattern:** the fourth entry in the timing-sensitive peer-delivery family flagged above. Per that
 note, the shared cause is now worth chasing rather than re-running.
+
+**Seen again, 2026-10-01** (run 36830395582, commit `226bf490a`, PR #1852, `windows/sqlite/debug`
+only; both Release jobs passed). The test now lives in the fast framework
+(`tests/apps/Odin.Hosting.Tests.V2/Ported/Shamir/ShamirPasswordRecoveryFinalizationTests.cs`,
+still `#if !DEBUG [Ignore]`) and the symptom changed shape with the port: an assertion rather than a
+timeout, `Expected: AwaitingOwnerFinalization, But was: AwaitingSufficientDelegateConfirmation`,
+after 9 s. Same mechanism: the dealer had not advanced past the delegates' confirmations when the
+assertion ran. **Not caused by the change in flight:** `226bf490a` is the merge of `main` into the
+STUN-URLs branch; the same Windows job passed 17 minutes earlier on that branch's own tip
+(`bdaa69ad0`, run 36828746973), whose diff touches only the Stun config section, the socket
+handshake reply and their tests, none of which the Shamir fixture exercises. The PR auto-merged on
+the two green Release rows.
 
 ---
 
@@ -665,6 +686,13 @@ Not caused by the PR: its diff is circle enable/disable and touches no drive, pa
 code, and the next commit (`edcb0b130`, no drive changes either) passed all three jobs. Inferred,
 not traced: a writer cleaning up a payload version another writer had already replaced -- the same
 concurrent-writers-on-one-drive shape as #1780, surfacing as a missing file rather than a 500.
+
+**Same symptom on Linux, 2026-09-29.** PR #1833 commit `65ffe4044`, run 36566548856,
+`ubuntu/sqlite/release` (S3 payloads): two `HardDeletePayloadFile -> source payload does not exist`
+events in the teardown, 1 failure in 1472. So it is not Windows-only. Not caused by the PR: its drive
+changes add `IDriveFileStore.OpenReadAsync` and a check on the payload *read* path when a payload is
+missing; nothing on the overwrite or hard-delete path that logs this (`LongTermStorageManager.cs:210`)
+changed.
 
 ---
 

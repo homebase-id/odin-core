@@ -6,11 +6,10 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
-using Odin.Core.Util;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Email.Mailbox;
 using Odin.Services.Registry;
-using Odin.Services.Registry.Registration;
+using Odin.Services.Registry.PayloadMove;
 
 namespace Odin.Services.Admin.Tenants.Jobs;
 #nullable enable
@@ -20,12 +19,17 @@ public class DeleteTenantJobData
     public string Domain { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Deletes what this host holds of a disabled tenant: its registration, certificate, data, payloads, mailbox and DKIM
+/// keys. Never its DNS: PowerDNS is shared, and after a move the records are another host's. Removing DNS is a
+/// separate, deliberate command (delete-identity-dns), run on the host the records point at.
+/// </summary>
 public class DeleteTenantJob(
     ILogger<DeleteTenantJob> logger,
     IIdentityRegistry identityRegistry,
-    IIdentityRegistrationService identityRegistrationService,
     IMailboxProvider mailboxProvider,
-    IDkimStore dkimStore) : AbstractJob
+    IDkimStore dkimStore,
+    PayloadMoveSource payloadMoveSource) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("324fa88f-2ef6-404a-a511-9ef65ea841af");
     public override string JobType => JobTypeId.ToString();
@@ -41,17 +45,20 @@ public class DeleteTenantJob(
 
         logger.LogDebug("Starting delete tenant {domain}", Data.Domain);
         var sw = Stopwatch.StartNew();
-        // Disables the identity before deleting anything
+
+        // Checked when it was queued; it may have been enabled since
+        var registration = await identityRegistry.GetAsync(Data.Domain);
+        if (registration != null && registration.Status != TenantStatus.Disabled)
+        {
+            throw new InvalidOperationException($"Not deleting {Data.Domain}: it is {registration.Status} now, and only a disabled tenant is deleted");
+        }
+
         await identityRegistry.DeleteRegistration(Data.Domain);
-        // Email ride-along (docs/email-keys-plan.md): mailbox + DKIM cleanup,
-        // best-effort like the DNS cleanup below - never blocks deletion
+
+        // Email ride-along (docs/email-keys-plan.md): mailbox + DKIM keys, best-effort - never blocks deletion
         try
         {
             await mailboxProvider.DeleteMailboxAsync(Data.Domain);
-            // Managed domains would otherwise keep their DKIM TXT rows in the shared
-            // apex zone (own-domain zones are deleted wholesale below)
-            await identityRegistrationService.DeleteOnActivationRecords(
-                new AsciiDomainName(Data.Domain), DkimDnsRecords.DeletionConfigs(Data.Domain));
             await dkimStore.DeleteKeysAsync(Data.Domain);
         }
         catch (Exception e)
@@ -59,10 +66,12 @@ public class DeleteTenantJob(
             logger.LogError(e, "Email cleanup failed for {domain}; clean up manually", Data.Domain);
         }
 
-        // Managed domains: records removed from the apex zone; own domains: zone deleted. Never throws.
-        await identityRegistrationService.DeleteDnsRecordsForDomain(new AsciiDomainName(Data.Domain));
-        logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);
+        if (registration != null)
+        {
+            await payloadMoveSource.ForgetAsync(registration.Id);
+        }
 
+        logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);
         return JobExecutionResult.Success();
     }
 

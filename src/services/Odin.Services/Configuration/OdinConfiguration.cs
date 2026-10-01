@@ -48,10 +48,19 @@ public class OdinConfiguration
 
     public S3StorageSection S3Storage { get; init; } = new();
     public S3PayloadSection S3Payload { get; init; } = new();
+    public PayloadMoveSection PayloadMove { get; init; } = new();
+
+    /// <summary>
+    /// The provisioning domain is served (and needs its certificate) when this host provisions, and when it
+    /// serves moved payloads, whose endpoint is on that domain.
+    /// </summary>
+    public bool ServesProvisioningDomain => Registry.ProvisioningEnabled || PayloadMove.SourceEnabled;
 
     public CdnSection Cdn { get; init; } = new();
 
     public OpenObserveSection OpenObserve { get; init; } = new();
+
+    public StunSection Stun { get; init; } = new();
 
     public OdinConfiguration()
     {
@@ -79,8 +88,10 @@ public class OdinConfiguration
         Cache = new CacheSection(config);
         S3Storage = new S3StorageSection(config);
         S3Payload = new S3PayloadSection(config);
+        PayloadMove = new PayloadMoveSection(config);
         Cdn = new CdnSection(config);
         OpenObserve = new OpenObserveSection(config);
+        Stun = new StunSection(config);
     }
 
     //
@@ -190,6 +201,13 @@ public class OdinConfiguration
         public List<string> DnsResolvers { get; init; } = [];
         public long DaysUntilAccountDeletion { get; init; } = long.MaxValue;
 
+        /// <summary>
+        /// How often each node checks for a registry change it was never told about (see
+        /// <see cref="Odin.Services.Registry.IIdentityRegistry.CatchUpAsync"/>). It bounds how long a
+        /// node can keep serving an identity the others have paused, so an export waits at least this long.
+        /// </summary>
+        public int CatchUpIntervalSeconds { get; init; } = 30;
+
         public RegistrySection()
         {
             // Mockable support
@@ -219,6 +237,7 @@ public class OdinConfiguration
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
+            CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
@@ -763,6 +782,155 @@ public class OdinConfiguration
 
     //
 
+    /// <summary>
+    /// The STUN Binding responder (issue #1838): a UDP listener that tells a WebRTC client which
+    /// public IP:port its media socket appears from. Open and unauthenticated by protocol design;
+    /// <see cref="Enabled"/> is the kill switch. See docs/stun.md.
+    /// </summary>
+    public class StunSection
+    {
+        public const int DefaultPort = 3478;
+
+        /// <summary>On by default: the issue decided "open, with a kill switch".</summary>
+        public bool Enabled { get; init; } = true;
+
+        /// <summary>UDP port. 0 asks the OS for an ephemeral port (tests only).</summary>
+        public int Port { get; init; } = DefaultPort;
+
+        /// <summary>
+        /// "*" binds dual-stack on every interface (IPv6 any with IPv4 mapped in, or IPv4 any where
+        /// the OS has no IPv6). Unlike <see cref="ListenEntry.GetIp"/>, "*" here is not IPv4-only:
+        /// ICE gathers both families and the reply must carry the family the request arrived on.
+        /// </summary>
+        public string BindAddress { get; init; } = "*";
+
+        /// <summary>
+        /// The stun: URLs this host's devices should use, sent in every app socket handshake. Empty
+        /// means <c>stun:&lt;identity-domain&gt;:&lt;Port&gt;</c>, the right value for a single host; a
+        /// cluster behind a load balancer lists its cores' own names (docs/stun.md). Environment
+        /// form: <c>Stun__PublicUrls__0=stun:stun1-1.eu.example:3478</c>.
+        /// </summary>
+        public IReadOnlyList<string> PublicUrls { get; init; } = [];
+
+        public StunSection()
+        {
+            // Mockable support
+        }
+
+        public StunSection(IConfiguration config)
+        {
+            // Validated whether or not the responder on this host is enabled: the list may name
+            // other hosts, and a malformed entry would reach every client.
+            PublicUrls = config.GetOrDefault("Stun:PublicUrls", new List<string>())
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .ToList();
+            foreach (var url in PublicUrls)
+            {
+                if (!IsStunUrl(url))
+                {
+                    throw new OdinConfigException($"Stun:PublicUrls entry '{url}' is not a stun: or stuns: URL with a valid host and port");
+                }
+            }
+
+            Enabled = config.GetOrDefault("Stun:Enabled", true);
+            if (Enabled)
+            {
+                Port = config.GetOrDefault("Stun:Port", DefaultPort);
+                if (Port is < 0 or > 65535)
+                {
+                    throw new OdinConfigException($"Stun:Port '{Port}' is not a valid UDP port");
+                }
+
+                BindAddress = config.GetOrDefault("Stun:BindAddress", "*");
+                if (BindAddress != "*" && !IPAddress.TryParse(BindAddress, out _))
+                {
+                    throw new OdinConfigException(
+                        $"Stun:BindAddress '{BindAddress}' is not '*' or a valid IP address");
+                }
+            }
+        }
+
+        // RFC 7064: "stun:" or "stuns:" then host[:port], no "//", which is why System.Uri sees no
+        // host in it. The host is a domain name (same rule as every other domain in config) or an
+        // IP literal; the port has the same bound as Stun:Port.
+        private static bool IsStunUrl(string url)
+        {
+            var rest = url.StartsWith("stuns:", StringComparison.Ordinal) ? url[6..]
+                : url.StartsWith("stun:", StringComparison.Ordinal) ? url[5..]
+                : null;
+            if (string.IsNullOrEmpty(rest))
+            {
+                return false;
+            }
+
+            string host;
+            string? port = null;
+            if (rest.StartsWith('['))
+            {
+                var close = rest.IndexOf(']');
+                if (close < 0)
+                {
+                    return false;
+                }
+                host = rest[1..close];
+                var tail = rest[(close + 1)..];
+                if (tail.Length > 0)
+                {
+                    if (!tail.StartsWith(':'))
+                    {
+                        return false;
+                    }
+                    port = tail[1..];
+                }
+                if (!IPAddress.TryParse(host, out var v6) || v6.AddressFamily != AddressFamily.InterNetworkV6)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                var colon = rest.IndexOf(':');
+                host = colon < 0 ? rest : rest[..colon];
+                port = colon < 0 ? null : rest[(colon + 1)..];
+                // An IPv4 literal must be written out in full ("1" parses as 0.0.0.1), or a domain.
+                var isIPv4Literal = IPAddress.TryParse(host, out var v4) && v4.ToString() == host;
+                if (!isIPv4Literal && !AsciiDomainNameValidator.TryValidateDomain(host))
+                {
+                    return false;
+                }
+            }
+
+            return port == null || (int.TryParse(port, out var p) && p is >= 1 and <= 65535);
+        }
+
+        /// <summary>
+        /// What a client of <paramref name="tenantDomain"/> puts into its ICE servers: the configured
+        /// list when there is one, regardless of <see cref="Enabled"/> (it names whoever answers);
+        /// otherwise this host under the identity's own name; otherwise nothing, and the client
+        /// gathers host candidates only.
+        /// </summary>
+        public IReadOnlyList<string> ClientUrls(string tenantDomain)
+        {
+            if (PublicUrls.Count > 0)
+            {
+                return PublicUrls;
+            }
+
+            return Enabled ? [$"stun:{tenantDomain}:{Port}"] : [];
+        }
+
+        public IPAddress GetBindAddress()
+        {
+            if (BindAddress == "*")
+            {
+                return Socket.OSSupportsIPv6 ? IPAddress.IPv6Any : IPAddress.Any;
+            }
+            return IPAddress.Parse(BindAddress);
+        }
+    }
+
+    //
+
     public class PushNotificationSection
     {
         public string BaseUrl { get; init; } = "";
@@ -879,6 +1047,35 @@ public class OdinConfiguration
     }
 
     //
+
+    /// <summary>
+    /// Moving an identity's payloads to another host: this host serving them as the source, and pulling
+    /// them as the target. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
+    /// </summary>
+    public class PayloadMoveSection
+    {
+        /// <summary>
+        /// Serve the payloads of identities exported from this host, on the provisioning domain, to the
+        /// host that imported them. Export refuses while this is off.
+        /// </summary>
+        public bool SourceEnabled { get; init; }
+
+        /// <summary>
+        /// How many payloads the target transfers at once.
+        /// </summary>
+        public int Parallelism { get; init; } = 5;
+
+        public PayloadMoveSection()
+        {
+            // Mockable support
+        }
+
+        public PayloadMoveSection(IConfiguration config)
+        {
+            SourceEnabled = config.GetOrDefault("PayloadMove:SourceEnabled", false);
+            Parallelism = Math.Max(1, config.GetOrDefault("PayloadMove:Parallelism", Parallelism));
+        }
+    }
 
     public class S3PayloadSection
     {

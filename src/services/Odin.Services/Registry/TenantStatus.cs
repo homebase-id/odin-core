@@ -25,7 +25,8 @@ public enum TenantStatus
 
     /// <summary>
     /// Temporary maintenance hold (e.g. while the identity is being moved). New requests are told to
-    /// retry later and the identity's background services are stopped.
+    /// retry later, the identity's background services are stopped and its jobs wait. Every node
+    /// applies it, at the latest after <c>Registry:CatchUpIntervalSeconds</c>.
     /// <para>
     /// Requests already in flight are allowed to finish: a pause never breaks them. So the data
     /// settles shortly after the pause, not at the moment it is set. Anything that needs a still copy
@@ -90,6 +91,16 @@ public static class TenantStatusRules
         return Enum.TryParse(normalized, ignoreCase: true, out result) && Enum.IsDefined(result);
     }
 
+    /// <summary>
+    /// This copy of the identity was left behind by a move: the identity lives on another host now. Host-wide
+    /// sweeps (certificate renewal, DNS backfills) must leave it alone, or they would renew or point DNS at a
+    /// copy that must never serve again.
+    /// </summary>
+    public static bool HasMovedAway(TenantStatus status, DisabledReason? reason)
+    {
+        return status == TenantStatus.Disabled && reason == DisabledReason.Moved;
+    }
+
     public static bool RunsBackgroundServices(TenantStatus status)
     {
         return status switch
@@ -100,6 +111,39 @@ public static class TenantStatusRules
             TenantStatus.Disabled => false,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Decide whether this status runs background services")
         };
+    }
+
+    /// <summary>
+    /// How long an identity must have been stopped before an export may read it: one catch-up interval
+    /// for a node that missed the announcement, a second as margin, and a minute for requests that
+    /// were in flight when it stopped (a pause lets them finish rather than breaking them).
+    /// </summary>
+    public static TimeSpan ExportSettleTime(int catchUpIntervalSeconds)
+    {
+        return TimeSpan.FromSeconds(2 * catchUpIntervalSeconds + 60);
+    }
+
+    /// <summary>
+    /// Null when the identity has been stopped for at least <paramref name="settle"/>, so an export gets a
+    /// still copy; otherwise why the export has to wait. <paramref name="statusChangedAt"/> is the wall clock
+    /// of the node that changed the status, so clock skew between nodes eats into the margin.
+    /// </summary>
+    public static string? WhyExportMustWait(TenantStatus status, UnixTimeUtc? statusChangedAt, UnixTimeUtc now, TimeSpan settle)
+    {
+        if (RunsBackgroundServices(status))
+        {
+            return $"the identity is {status}; pause it first";
+        }
+
+        if (statusChangedAt == null)
+        {
+            return $"the identity is {status} but has no status change time, so there is no telling how long it has been still; pause it again";
+        }
+
+        var still = TimeSpan.FromMilliseconds(Math.Max(0, now.milliseconds - statusChangedAt.Value.milliseconds));
+        return still < settle
+            ? $"the identity became {status} {still.TotalSeconds:0} s ago; export is allowed in {(settle - still).TotalSeconds:0} s"
+            : null;
     }
 
     /// <summary>
@@ -114,7 +158,12 @@ public static class TenantStatusRules
     /// Throws <see cref="OdinClientException"/> if the transition is not allowed.
     /// Expects <paramref name="toReason"/> to be normalized with <see cref="NormalizeReason"/>.
     /// </summary>
-    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason)
+    /// <param name="unlockMoved">
+    /// The operator's explicit request to take a copy disabled as moved back to paused (rolling a move back). It allows
+    /// that transition and no other.
+    /// </param>
+    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason,
+        bool unlockMoved = false)
     {
         if (!Enum.IsDefined(toStatus))
         {
@@ -136,14 +185,26 @@ public static class TenantStatusRules
             throw new OdinClientException("The disabled status requires a reason");
         }
 
-        // A moved identity lives elsewhere; serving this copy again would split it in two.
-        // Deleting the leftover copy is still allowed.
-        var isMoved = fromStatus == TenantStatus.Disabled && fromReason == DisabledReason.Moved;
-        var staysDisabled = toStatus == TenantStatus.Disabled &&
-                            toReason is DisabledReason.Moved or DisabledReason.PendingDeletion;
-        if (isMoved && !staysDisabled)
+        // A moved identity lives elsewhere; serving this copy again would split it in two. It stays disabled as
+        // moved until it is deleted, or an operator unlocks it on purpose: to paused, which serves nothing until
+        // DNS points back here and it is resumed.
+        var isMoved = HasMovedAway(fromStatus, fromReason);
+        if (unlockMoved)
         {
-            throw new OdinClientException("This identity has moved to another host and cannot be re-enabled here");
+            if (!isMoved || toStatus != TenantStatus.Paused)
+            {
+                throw new OdinClientException("Unlocking a moved identity only takes a copy disabled as moved to paused");
+            }
+
+            return;
+        }
+
+        // Only as moved: any other disabled reason could then be enabled again, around the lock
+        if (isMoved && !(toStatus == TenantStatus.Disabled && toReason == DisabledReason.Moved))
+        {
+            throw new OdinClientException(
+                "This identity has moved to another host and cannot be re-enabled here. To roll the move back, " +
+                "unlock it to paused on purpose (odin-admin tenant unlock-moved)");
         }
 
         // Leaving disabled is a deliberate re-enable, straight to active. Otherwise pause-then-resume

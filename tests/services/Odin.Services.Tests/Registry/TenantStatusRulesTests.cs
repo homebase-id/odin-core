@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Tests.Registry;
@@ -37,8 +38,7 @@ public class TenantStatusRulesTests
             foreach (var to in AllStates())
             {
                 var isMoved = from is { Status: TenantStatus.Disabled, Reason: DisabledReason.Moved };
-                var leavesMoved = isMoved &&
-                                  to is not { Status: TenantStatus.Disabled, Reason: DisabledReason.Moved or DisabledReason.PendingDeletion };
+                var leavesMoved = isMoved && to is not { Status: TenantStatus.Disabled, Reason: DisabledReason.Moved };
                 var skipsEnable = from.Status == TenantStatus.Disabled && to.Status is TenantStatus.OutOfQuota or TenantStatus.Paused;
                 var allowed = !leavesMoved && !skipsEnable;
                 yield return new TestCaseData(from.Status, from.Reason, to.Status, to.Reason, allowed)
@@ -59,6 +59,36 @@ public class TenantStatusRulesTests
         {
             Assert.Throws<OdinClientException>(() => TenantStatusRules.Validate(fromStatus, fromReason, toStatus, toReason));
         }
+    }
+
+    [Test]
+    public void UnlockingAMovedCopyAllowsExactlyMovedToPaused()
+    {
+        var allowed = new List<string>();
+        foreach (var from in AllStates())
+        {
+            foreach (var to in AllStates())
+            {
+                try
+                {
+                    TenantStatusRules.Validate(from.Status, from.Reason, to.Status, to.Reason, unlockMoved: true);
+                    allowed.Add($"{from.Status}/{from.Reason} -> {to.Status}/{to.Reason}");
+                }
+                catch (OdinClientException)
+                {
+                }
+            }
+        }
+
+        Assert.That(allowed, Is.EqualTo(new[] { "Disabled/Moved -> Paused/" }), string.Join(", ", allowed));
+    }
+
+    [Test]
+    public void AMovedCopyRefusedWithoutTheUnlockSaysHowToRollBack()
+    {
+        var e = Assert.Throws<OdinClientException>(() =>
+            TenantStatusRules.Validate(TenantStatus.Disabled, DisabledReason.Moved, TenantStatus.Paused, null));
+        Assert.That(e!.Message, Does.Contain("tenant unlock-moved"));
     }
 
     [TestCase(TenantStatus.Active)]
@@ -152,5 +182,61 @@ public class TenantStatusRulesTests
     {
         Assert.That(TenantStatusRules.TryParse<DisabledReason>(value, out var reason), Is.True);
         Assert.That(reason, Is.EqualTo(expected));
+    }
+    [Test]
+    public void ExportSettleTimeCoversTwoCatchUpsAndAMinute()
+    {
+        Assert.That(TenantStatusRules.ExportSettleTime(30), Is.EqualTo(TimeSpan.FromSeconds(120)));
+        Assert.That(TenantStatusRules.ExportSettleTime(1), Is.EqualTo(TimeSpan.FromSeconds(62)));
+    }
+
+    private static readonly UnixTimeUtc Now = new(1_760_000_000_000);
+    private static readonly TimeSpan Settle = TimeSpan.FromSeconds(120);
+
+    [TestCase(TenantStatus.Active)]
+    [TestCase(TenantStatus.OutOfQuota)]
+    public void ExportMustWaitForARunningIdentityToBePaused(TenantStatus status)
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(status, Now.AddSeconds(-3600), Now, Settle);
+        Assert.That(reason, Does.Contain("pause it first"), reason);
+    }
+
+    [TestCase(TenantStatus.Paused)]
+    [TestCase(TenantStatus.Disabled)]
+    public void ExportMustWaitUntilTheIdentityHasSettled(TenantStatus status)
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(status, Now.AddSeconds(-40), Now, Settle);
+        Assert.That(reason, Does.Contain("40 s ago").And.Contain("allowed in 80 s"), reason);
+    }
+
+    [TestCase(TenantStatus.Paused)]
+    [TestCase(TenantStatus.Disabled)]
+    public void ExportMayStartOnceTheIdentityHasSettled(TenantStatus status)
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(status, Now.AddSeconds(-120), Now, Settle);
+        Assert.That(reason, Is.Null, reason);
+    }
+
+    [Test]
+    public void ExportMustWaitWhenItCannotTellHowLongTheIdentityHasBeenStill()
+    {
+        var reason = TenantStatusRules.WhyExportMustWait(TenantStatus.Paused, null, Now, Settle);
+        Assert.That(reason, Does.Contain("pause it again"), reason);
+    }
+
+    [Test]
+    public void ExportWaitsTheFullSettleTimeWhenTheChangeIsStampedInTheFuture()
+    {
+        // Another node's clock ahead of this one
+        var reason = TenantStatusRules.WhyExportMustWait(TenantStatus.Paused, Now.AddSeconds(30), Now, Settle);
+        Assert.That(reason, Does.Contain("0 s ago").And.Contain("allowed in 120 s"), reason);
+    }
+
+    [Test]
+    public void OnlyACopyDisabledBecauseItMovedHasMovedAway()
+    {
+        var movedAway = AllStates().Where(state => TenantStatusRules.HasMovedAway(state.Status, state.Reason)).ToList();
+        Assert.That(movedAway, Is.EqualTo(new[] { (TenantStatus.Disabled, (DisabledReason?)DisabledReason.Moved) }),
+            string.Join(", ", movedAway));
     }
 }

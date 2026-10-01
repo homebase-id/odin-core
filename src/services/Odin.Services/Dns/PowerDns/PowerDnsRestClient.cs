@@ -12,7 +12,7 @@ namespace Odin.Services.Dns.PowerDns;
 
 public class PowerDnsRestClient : IDnsRestClient
 {
-    private const int DefaultTtl = 3600;
+    public const int DefaultTtl = 3600;
 
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly Uri _baseAddress;
@@ -118,7 +118,7 @@ public class PowerDnsRestClient : IDnsRestClient
     //
 
     // An empty name addresses the zone apex
-    private static string RecordName(string zoneId, string name)
+    internal static string RecordName(string zoneId, string name)
     {
         return name == "" ? zoneId : $"{name}.{zoneId}";
     }
@@ -315,6 +315,25 @@ public class PowerDnsRestClient : IDnsRestClient
                     changetype = "DELETE",
                 }
             }
+        };
+
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
+    }
+
+    //
+
+    public Task ReplaceRrsets(string zoneId, IReadOnlyCollection<DnsRrset> rrsets)
+    {
+        var data = new
+        {
+            rrsets = rrsets.Select(x => new
+            {
+                name = x.Name,
+                type = x.Type,
+                changetype = "REPLACE",
+                ttl = x.Ttl,
+                records = x.Contents.Select(content => new { content, disabled = false })
+            })
         };
 
         return Api.CreateReplaceDeleteRrsets(zoneId, data);

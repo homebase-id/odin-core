@@ -18,11 +18,28 @@ namespace Odin.Services.Registry
         Task SubscribeToRegistryChangesAsync();
 
         /// <summary>
+        /// Applies any registry change this node missed: reconciles if the database is ahead of it,
+        /// and costs a single-row read if not. Announcements are at most once (a publish can fail
+        /// after its retries), so this is what guarantees that a pause holds on every node.
+        /// </summary>
+        Task CatchUpAsync();
+
+        /// <summary>
         /// Returns ID for *exact* domain, e.g. www.frodo.me 
         /// </summary>
         /// <param name="domain"></param>
         /// <returns>ID found, otherwise null</returns>
         Guid? ResolveId(string domain);
+
+        /// <summary>
+        /// The status this node currently holds for the identity, or null if it does not know it.
+        /// </summary>
+        TenantStatus? GetStatus(Guid identityId);
+
+        /// <summary>
+        /// The registration this node holds for the identity, or null if it does not know it.
+        /// </summary>
+        IdentityRegistration Get(Guid identityId);
 
         /// <summary>
         /// Returns IdentityRegistration for *base* domain and prefix if any, e.g. www.frodo.me 
@@ -101,6 +118,13 @@ namespace Odin.Services.Registry
         /// </summary>
         /// <returns>Previous state or null if not found</returns>
         Task<TenantStatusState> SetStatusAsync(string domain, TenantStatus status, DisabledReason? reason = null);
+
+        /// <summary>
+        /// Takes a copy disabled as moved back to <see cref="TenantStatus.Paused"/>: an operator rolling a move back. Throws
+        /// <see cref="Odin.Core.Exceptions.OdinClientException"/> for any other copy.
+        /// </summary>
+        /// <returns>Previous state or null if not found</returns>
+        Task<TenantStatusState> UnlockMovedAsync(string domain);
 
         /// <summary>
         /// Sets whether the identity is allowed a public home page

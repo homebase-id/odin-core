@@ -557,4 +557,47 @@ public class TableDriveMainIndex(
     {
         return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
     }
+
+    /// <summary>
+    /// This identity's files with a rowId below <paramref name="belowRowId"/>, newest first, with just what it
+    /// takes to find their payloads: the payload move walks every file this way.
+    /// </summary>
+    public async Task<List<FilePayloadRow>> GetFilePayloadRowsBelowAsync(long belowRowId, int count)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "SELECT rowId,driveId,fileId,hdrFileMetaData FROM DriveMainIndex " +
+            "WHERE identityId = @identityId AND rowId < @rowId ORDER BY rowId DESC LIMIT @count;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@rowId", DbType.Int64, belowRowId);
+        cmd.AddParameter("@count", DbType.Int64, count);
+
+        var result = new List<FilePayloadRow>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            result.Add(new FilePayloadRow(
+                (long)rdr[0],
+                new Guid((byte[])rdr[1]),
+                new Guid((byte[])rdr[2]),
+                rdr[3] == DBNull.Value ? null : (string)rdr[3]));
+        }
+
+        return result;
+    }
+
+    /// <summary>This identity's highest file rowId, or 0 if it has no files.</summary>
+    public async Task<long> GetMaxRowIdAsync()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "SELECT MAX(rowId) FROM DriveMainIndex WHERE identityId = @identityId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        var value = await cmd.ExecuteScalarAsync();
+        return value is null or DBNull ? 0 : Convert.ToInt64(value);
+    }
 }
+
+// FileMetaData is null for a row without a header
+public sealed record FilePayloadRow(long RowId, Guid DriveId, Guid FileId, string FileMetaData);

@@ -67,6 +67,7 @@ using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.PublicPage.Posts;
@@ -277,6 +278,7 @@ public static class TenantServices
             .AsSelf().SingleInstance();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
+        cb.RegisterType<PayloadMoveArrivals>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
         cb.RegisterType<InboxStorageManager>().InstancePerLifetimeScope();
         // cb.RegisterType<OrphanTestUtil>().InstancePerLifetimeScope();
@@ -452,7 +454,7 @@ public static class TenantServices
         cb.AddTenantBackgroundServices(registration);
 
         // Tenant database services
-        cb.ConfigureDatabaseServices(registration, odinConfig);
+        cb.ConfigureDatabaseServices(registration.Id, odinConfig);
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
@@ -465,22 +467,22 @@ public static class TenantServices
 
     //
 
-    private static void ConfigureDatabaseServices(
+    internal static void ConfigureDatabaseServices(
         this ContainerBuilder cb,
-        IdentityRegistration registration,
+        Guid identityId,
         OdinConfiguration config)
     {
         switch (config.Database.Type)
         {
             case DatabaseType.Sqlite:
             {
-                var tenantPathManager = new TenantPathManager(config, registration.Id);
-                cb.AddSqliteIdentityDatabaseServices(registration.Id, tenantPathManager.GetIdentityDatabasePath());
+                var tenantPathManager = new TenantPathManager(config, identityId);
+                cb.AddSqliteIdentityDatabaseServices(identityId, tenantPathManager.GetIdentityDatabasePath());
                 break;
             }
             case DatabaseType.Postgres:
                 cb.AddPgsqlIdentityDatabaseServices(
-                    registration.Id,
+                    identityId,
                     config.Database.ConnectionString);
                 break;
             default:

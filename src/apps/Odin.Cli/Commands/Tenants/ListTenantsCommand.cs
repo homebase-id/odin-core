@@ -41,10 +41,7 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
         var response =
             await httpClient.GetAsync("tenants?include-payload=" + (settings.IncludePayload ? "true" : "false"));
-        if (response.StatusCode != HttpStatusCode.OK)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        await ApiResponse.EnsureAsync(response);
         var json = await response.Content.ReadAsStringAsync();
         var tenants = OdinSystemSerializer.Deserialize<List<TenantModel>>(json) ?? [];
         tenants.Sort((a,b) => string.Compare(a.Domain, b.Domain, StringComparison.InvariantCultureIgnoreCase));
