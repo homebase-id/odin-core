@@ -7,6 +7,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -49,6 +50,10 @@ public class LiveRelayService : PeerServiceBase
         OdinValidationUtils.AssertNotEmptyGuid(request.ChannelKey, nameof(request.ChannelKey));
         OdinValidationUtils.AssertNotNullOrEmpty(request.Blob, nameof(request.Blob));
         OdinValidationUtils.AssertValidRecipientList(request.Recipients, allowEmpty: false);
+        if (request.Push != null)
+        {
+            PushDeliveryOptionsValidation.AssertValid(request.Push);
+        }
 
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
@@ -62,7 +67,8 @@ public class LiveRelayService : PeerServiceBase
         {
             ChannelKey = request.ChannelKey,
             Blob = request.Blob,
-            AppId = appId.Value
+            AppId = appId.Value,
+            Push = request.Push == null ? null : LiveRelayPush.Sanitize(request.Push, appId.Value)
         };
 
         var recipients = request.Recipients.ToOdinIdList().Distinct().ToList();

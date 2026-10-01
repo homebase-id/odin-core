@@ -7,6 +7,7 @@ using Odin.Core.Dto;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.PushNotification;
+using Odin.PushNotification.Apns;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
 
@@ -40,6 +41,16 @@ var firebaseCredentialsFile = builder.Configuration["Firebase:CredentialsFileNam
 builder.Services.AddSingleton<IPushNotification>(new PushNotification(firebaseCredentialsFile));
 
 //
+// APNs, direct (VoIP pushes only). Optional: without the Apple key the relay still starts and a
+// Ring goes out as an alert. See ApnsOptions for what to configure once the key exists.
+//
+
+var apnsOptions = builder.Configuration.GetSection(ApnsOptions.SectionName).Get<ApnsOptions>() ?? new ApnsOptions();
+builder.Services.AddSingleton(apnsOptions);
+builder.Services.AddSingleton<IApnsVoipSender, ApnsVoipSender>();
+builder.Services.AddSingleton<IPushRouter, PushRouter>();
+
+//
 // Misc
 //
 
@@ -50,6 +61,9 @@ builder.Services.AddFluentValidationAutoValidation()
     .AddValidatorsFromAssemblyContaining<PushNotificationRequestValidator>();
 
 var app = builder.Build();
+
+// Read the Apple key (or log that there is none) at boot, not on the first ring.
+_ = app.Services.GetRequiredService<IApnsVoipSender>();
 
 // Swagger
 if (app.Environment.IsDevelopment())
@@ -63,7 +77,7 @@ app.MapGet("/ping", () => "pong");
 
 app.MapPost("/message/v1", async (
         ILogger<PushNotification> logger,
-        IPushNotification pushNotification,
+        IPushRouter pushRouter,
         ISignatureCheck signatureCheck,
         IValidator<DevicePushNotificationRequestV1> validator,
         [FromBody] DevicePushNotificationRequestV1 request) =>
@@ -110,10 +124,19 @@ app.MapPost("/message/v1", async (
         //
         try
         {
-            var response = await pushNotification.Post(request);
-            logger.LogInformation("Successfully sent {platform} message with id {id} from {from} to {to} for device {device}: {response}",
-                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, response);
-            return Results.Ok("Message sent successfully to Firebase.");
+            var response = await pushRouter.SendAsync(request);
+            logger.LogInformation("Successfully sent {platform} {kind} message with id {id} from {from} to {to} for device {device}: {response}",
+                request.DevicePlatform, request.KindOrNotify(), request.Id, request.FromDomain,
+                request.ToDomain, request.DeviceToken, response);
+            return Results.Ok("Message sent successfully.");
+        }
+        catch (ApnsException e)
+        {
+            logger.LogError(e, "APNs VoIP send failed for message {id} from {from} to {to}: status={status} reason={reason}",
+                request.Id, request.FromDomain, request.ToDomain, e.Status, e.Reason);
+            // A dead PushKit token only costs the host that token, not the whole subscription.
+            return Results.Problem(type: e.DeviceIsGone ? DevicePushNotificationRequestV1.ProblemTypes.VoipTokenGone : e.Reason,
+                detail: e.Message, statusCode: 502);
         }
         catch (FirebaseMessagingException e)
         {
@@ -177,6 +200,14 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
         RuleFor(request => request.Body).NotEmpty();
         RuleFor(request => request.FromDomain).NotEmpty();
         RuleFor(request => request.ToDomain).NotEmpty();
+
+        // Delivery options are optional; an older host sends none and must stay valid.
+        RuleFor(request => request.TimeToLiveSeconds).InclusiveBetween(1, DevicePushNotificationRequestV1.MaxTimeToLiveSeconds)
+            .When(request => request.TimeToLiveSeconds.HasValue);
+        RuleFor(request => request.CollapseId).MaximumLength(DevicePushNotificationRequestV1.MaxCollapseIdLength);
+        RuleFor(request => request.Kind)
+            .Must(kind => kind == null || Enum.TryParse<PushKind>(kind, ignoreCase: true, out _))
+            .WithMessage("Kind must be one of " + string.Join(", ", Enum.GetNames<PushKind>()));
     }
 }
 

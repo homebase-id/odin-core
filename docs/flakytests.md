@@ -318,6 +318,18 @@ job was re-run on 2026-09-16 to see whether it reproduces.
 **Pattern:** the fourth entry in the timing-sensitive peer-delivery family flagged above. Per that
 note, the shared cause is now worth chasing rather than re-running.
 
+**Seen again, 2026-10-01** (run 36830395582, commit `226bf490a`, PR #1852, `windows/sqlite/debug`
+only; both Release jobs passed). The test now lives in the fast framework
+(`tests/apps/Odin.Hosting.Tests.V2/Ported/Shamir/ShamirPasswordRecoveryFinalizationTests.cs`,
+still `#if !DEBUG [Ignore]`) and the symptom changed shape with the port: an assertion rather than a
+timeout, `Expected: AwaitingOwnerFinalization, But was: AwaitingSufficientDelegateConfirmation`,
+after 9 s. Same mechanism: the dealer had not advanced past the delegates' confirmations when the
+assertion ran. **Not caused by the change in flight:** `226bf490a` is the merge of `main` into the
+STUN-URLs branch; the same Windows job passed 17 minutes earlier on that branch's own tip
+(`bdaa69ad0`, run 36828746973), whose diff touches only the Stun config section, the socket
+handshake reply and their tests, none of which the Shamir fixture exercises. The PR auto-merged on
+the two green Release rows.
+
 ---
 
 ## `Odin.Services.Tests.JobManagement.JobManagerTests` (second entry)

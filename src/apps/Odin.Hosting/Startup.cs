@@ -582,7 +582,7 @@ public static class HostExtensions
         // Start system background services
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)
         {
-            services.StartSystemBackgroundServices().BlockingWait();
+            services.StartSystemBackgroundServices(config).BlockingWait();
         }
         else
         {
