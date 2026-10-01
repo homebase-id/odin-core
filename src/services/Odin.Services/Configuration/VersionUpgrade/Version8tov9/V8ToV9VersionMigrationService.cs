@@ -31,22 +31,20 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
     /// app-level <see cref="DrivePermission.ReadWrite"/> grant on the system apps that ship with it
     /// (Chat, Feed, Mail). The <see cref="WellKnownAppDrives.LocationDrive"/> gets app-level ReadWrite
     /// on the Chat app. The <see cref="WellKnownAppDrives.ListsDrive"/> is granted exactly like the
-    /// ChatDrive: app-level ReadWrite on the Chat app, and Write+React to members of the system
-    /// connection circles. This migration backfills those grants onto existing installs.
+    /// ChatDrive: app-level ReadWrite on the Chat app, and Write+React to circle members through the Chat
+    /// app's <see cref="AppRegistrationRequest.CircleMemberPermissionGrant"/>, which a fresh v9 install
+    /// ships with but an upgraded v8 install does not. The migration rewrites the stored grant to add the
+    /// missing ListsDrive grant and re-issues the resulting app circle grant to every member of the app's
+    /// authorized circles.
     /// </para>
     ///
     /// <para>
-    /// The ListsDrive Write+React grant reaches connection-circle members through <b>two</b> paths,
-    /// both of which this migration backfills:
-    /// <list type="number">
-    /// <item>the system connection circle definitions (<see cref="SystemCircleConstants"/>), reconciled
-    /// and re-granted onto existing connected identities — mirroring how v7 → v8 propagated the Moments
-    /// drive; and</item>
-    /// <item>the Chat app's <see cref="AppRegistrationRequest.CircleMemberPermissionGrant"/>, which a
-    /// fresh v9 install ships with but an upgraded v8 install does not. The migration rewrites the
-    /// stored grant to add the missing ListsDrive grant and re-issues the resulting app circle grant
-    /// to every member of the app's authorized circles.</item>
-    /// </list>
+    /// This release also added the ListsDrive grant to the Confirmed and Auto Connections system circles
+    /// and re-granted their members.  Both circles are retired (#1809) and V19 → V20 deletes them, so that
+    /// part, and its validation, is gone.
+    /// </para>
+    ///
+    /// <para>
     /// App existing drive grants (both app-level and circle-member) are otherwise preserved verbatim;
     /// the migration only <i>adds</i> what's missing.
     /// </para>
@@ -76,19 +74,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             // fresh v9 install ships with.
             await UpgradeCircleMemberGrantsAsync(odinContext, cancellationToken);
 
-            // 2. Reconcile the system circle definitions so they include the new ListsDrive grant.
-            logger.LogDebug("Updating system circle definitions");
-            await circleDefinitionService.EnsureSystemCirclesExistAsync();
-
-            // v9 is where Emergency Location Access arrives.  EnsureSystemCirclesExistAsync used to
-            // create it as a side effect from a second copy of its definition; it is created here from
-            // the tree instead, which is what a v13 identity gets and carries the owning app with it.
+            // 2. v9 is where Emergency Location Access arrives.  It is created here from the tree, which is
+            // what a v13 identity gets and carries the owning app with it.
             await circleDefinitionService.EnsureCircleExistsAsync(BuiltinCircles.EmergencyLocationAccessCircle);
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            // 3. Re-grant connected identities so the ListsDrive circle grant is actually issued.
-            await EnsureListsDriveIsConfiguredForConnectionCircles(odinContext, cancellationToken);
+            // 3. Upgrade connection key encryption where needed and re-issue app circle grants.
+            await ReconcileConnectionsAsync(odinContext, cancellationToken);
         }
 
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -144,64 +137,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                         throw new OdinSystemException(
                             $"App {app.Name} ({app.AppId}) is missing circle-member grant " +
                             $"{grant.PermissionedDrive.Permission} on drive {grant.PermissionedDrive.Drive.Alias}");
-                    }
-                }
-            }
-
-            var chatApp = apps.SingleOrDefault(a => a.AppId == SystemAppConstants.ChatAppId && !a.IsRevoked);
-
-            // Every connected identity who is a member of a system circle must now hold the ListsDrive grant.
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
-            foreach (var identity in allIdentities.Results)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                foreach (var circleId in SystemCircleConstants.AllSystemCircles)
-                {
-                    if (!identity.PeerKeyStore.CircleGrants.TryGetValue(circleId, out var circleGrant))
-                    {
-                        continue;
-                    }
-
-                    var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                        .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ListsDrive);
-
-                    if (driveGrant == null)
-                    {
-                        throw new OdinSystemException("Drive grant for ListsDrive not found");
-                    }
-
-                    if (!driveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Write))
-                    {
-                        throw new OdinSystemException("ListsDrive not granted write permission");
-                    }
-
-                    if (!driveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.React))
-                    {
-                        throw new OdinSystemException("ListsDrive not granted react permission");
-                    }
-
-                    // If the Chat app authorizes this circle, the member's app circle grant must also
-                    // carry the ListsDrive grant — the path that was previously left un-migrated.
-                    if (chatApp?.AuthorizedCircles?.Contains(circleId.Value) == true)
-                    {
-                        if (!identity.PeerKeyStore.AppGrants.TryGetValue(SystemAppConstants.ChatAppId, out var chatGrants) ||
-                            !chatGrants.TryGetValue(circleId.Value, out var chatAppCircleGrant))
-                        {
-                            throw new OdinSystemException(
-                                $"Chat app circle grant for circle {circleId} not found on identity {identity.OdinId}");
-                        }
-
-                        var appListsGrant = chatAppCircleGrant.KeyStoreKeyEncryptedDriveGrants
-                            .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ListsDrive);
-
-                        if (appListsGrant == null ||
-                            !appListsGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) ||
-                            !appListsGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.React))
-                        {
-                            throw new OdinSystemException(
-                                $"Chat app circle grant missing ListsDrive Write+React on identity {identity.OdinId}");
-                        }
                     }
                 }
             }
@@ -339,8 +274,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             }
         }
 
-        private async Task EnsureListsDriveIsConfiguredForConnectionCircles(IOdinContext odinContext,
-            CancellationToken cancellationToken)
+        private async Task ReconcileConnectionsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
@@ -352,36 +286,18 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Identities whose access grant was established without the owner's master key
-                // (e.g. introduction-based connections) have no MasterKeyEncryptedKeyStoreKey, so
-                // re-granting would dereference a null key. We have the master key here, so attempt
-                // the same upgrade the circle-definition reconcile path performs. If it still can't be
-                // upgraded, skip it rather than crash the batch; it will be reconciled later once the
-                // identity completes its upgrade.
+                // (e.g. introduction-based connections) have no MasterKeyEncryptedKeyStoreKey.  We have the
+                // master key here, so attempt the same upgrade the circle-definition reconcile path performs.
+                // If it still can't be upgraded, it is left for later rather than crashing the batch.
                 if (identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
                 {
                     var upgraded = await circleNetworkService.TryUpgradeMasterKeyStoreKeyEncryptionAsync(identity, odinContext);
                     if (!upgraded)
                     {
                         logger.LogWarning(
-                            "Skipping system circle reconciliation for Identity {odinId}: access grant still requires master key encryption upgrade",
+                            "Identity {odinId}: access grant still requires master key encryption upgrade",
                             identity.OdinId);
-                        continue;
                     }
-                }
-
-                // Re-grant whichever system circles this identity is a member of so the new ListsDrive
-                // grant is issued to confirmed and auto-connected identities alike.
-                foreach (var circleId in SystemCircleConstants.AllSystemCircles)
-                {
-                    if (!identity.PeerKeyStore.CircleGrants.ContainsKey(circleId))
-                    {
-                        continue;
-                    }
-
-                    logger.LogDebug("Reconciling system circle {circleId} on Identity {odinId}", circleId, identity.OdinId);
-
-                    await circleNetworkService.RevokeCircleAccessAsync(circleId, identity.OdinId, odinContext);
-                    await circleNetworkService.GrantCircleAsync(circleId, identity.OdinId, odinContext);
                 }
             }
 
