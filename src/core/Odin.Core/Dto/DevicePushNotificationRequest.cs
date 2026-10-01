@@ -68,6 +68,29 @@ public class DevicePushNotificationRequestV1
     /// <summary>Ask for a time-sensitive interruption level where the platform supports it (iOS).</summary>
     public bool TimeSensitive { get; set; }
 
+    /// <summary>
+    /// What the push is for: one of <see cref="Kinds"/>. Null or absent means Notify. The relay
+    /// uses it to choose the platform push type right before sending; the host never does.
+    /// </summary>
+    public string? Kind { get; set; }
+
+    /// <summary>
+    /// The device's PushKit (VoIP) token, iOS only, if it registered one. A different token than
+    /// <see cref="DeviceToken"/>. Used solely for a <see cref="Kinds.Ring"/>: with an APNs key
+    /// configured on the relay, the ring goes out as a VoIP push to this token instead of an
+    /// alert to the FCM token.
+    /// </summary>
+    public string? VoipDeviceToken { get; set; }
+
+    /// <summary>The <see cref="Kind"/> values. Names, not numbers, so the relay reads them without the host's enum.</summary>
+    public static class Kinds
+    {
+        public const string Notify = "Notify";
+        public const string Ring = "Ring";
+        public const string Wake = "Wake";
+        public static readonly string[] All = [Notify, Ring, Wake];
+    }
+
     //
 
     public Dictionary<string, string> ToClientDictionary()

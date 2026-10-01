@@ -391,6 +391,12 @@ public class PushNotificationService(
                 CollapseId = payload.Options.CollapseId,
                 Silent = payload.Options.Silent,
                 TimeSensitive = payload.Options.TimeSensitive,
+                // The relay picks the platform push type right before sending (a Ring to a device
+                // with a VoIP token becomes a PushKit push there, see Odin.PushNotification's
+                // PushRouter). The host only says what kind of push this is and which tokens the
+                // device registered.
+                Kind = payload.Options.Kind.ToString(),
+                VoipDeviceToken = subscription.VoipDeviceToken,
             };
 
             var baseUri = new Uri(configuration.PushNotification.BaseUrl);
@@ -460,8 +466,10 @@ public class PushNotificationService(
 
     private async Task<bool> EnqueueNotificationInternalAsync(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
     {
-        // Every route ends here; the bounds are what the outbox and the relay accept, so an
+        // Every route ends here. The kind's defaults are filled in first so they are stored and
+        // travel every hop; then the bounds are what the outbox and the relay accept, so an
         // out-of-range value is refused now rather than dropped by the relay later.
+        PushKindDefaults.Apply(options);
         PushDeliveryOptionsValidation.AssertDeliveryBounds(options);
 
         var timestamp = UnixTimeUtc.Now().milliseconds;

@@ -7,6 +7,7 @@ using Odin.Core.Dto;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.PushNotification;
+using Odin.PushNotification.Apns;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
 
@@ -40,6 +41,16 @@ var firebaseCredentialsFile = builder.Configuration["Firebase:CredentialsFileNam
 builder.Services.AddSingleton<IPushNotification>(new PushNotification(firebaseCredentialsFile));
 
 //
+// APNs, direct (VoIP pushes only). Optional: without the Apple key the relay still starts and a
+// Ring goes out as an alert. See ApnsOptions for what to configure once the key exists.
+//
+
+var apnsOptions = builder.Configuration.GetSection(ApnsOptions.SectionName).Get<ApnsOptions>() ?? new ApnsOptions();
+builder.Services.AddSingleton(apnsOptions);
+builder.Services.AddSingleton<IApnsVoipSender, ApnsVoipSender>();
+builder.Services.AddSingleton<IPushRouter, PushRouter>();
+
+//
 // Misc
 //
 
@@ -63,7 +74,7 @@ app.MapGet("/ping", () => "pong");
 
 app.MapPost("/message/v1", async (
         ILogger<PushNotification> logger,
-        IPushNotification pushNotification,
+        IPushRouter pushRouter,
         ISignatureCheck signatureCheck,
         IValidator<DevicePushNotificationRequestV1> validator,
         [FromBody] DevicePushNotificationRequestV1 request) =>
@@ -110,10 +121,18 @@ app.MapPost("/message/v1", async (
         //
         try
         {
-            var response = await pushNotification.Post(request);
-            logger.LogInformation("Successfully sent {platform} message with id {id} from {from} to {to} for device {device}: {response}",
-                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, response);
-            return Results.Ok("Message sent successfully to Firebase.");
+            var response = await pushRouter.SendAsync(request);
+            logger.LogInformation("Successfully sent {platform} {kind} message with id {id} from {from} to {to} for device {device}: {response}",
+                request.DevicePlatform, request.Kind ?? DevicePushNotificationRequestV1.Kinds.Notify, request.Id, request.FromDomain,
+                request.ToDomain, request.DeviceToken, response);
+            return Results.Ok("Message sent successfully.");
+        }
+        catch (ApnsException e)
+        {
+            logger.LogError(e, "APNs VoIP send failed for message {id} from {from} to {to}: status={status} reason={reason}",
+                request.Id, request.FromDomain, request.ToDomain, e.Status, e.Reason);
+            // "NotFound" is what the host already treats as "this device is gone, drop its subscription".
+            return Results.Problem(type: e.DeviceIsGone ? "NotFound" : e.Reason, detail: e.Message, statusCode: 502);
         }
         catch (FirebaseMessagingException e)
         {
@@ -182,6 +201,9 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
         RuleFor(request => request.TimeToLiveSeconds).InclusiveBetween(1, DevicePushNotificationRequestV1.MaxTimeToLiveSeconds)
             .When(request => request.TimeToLiveSeconds.HasValue);
         RuleFor(request => request.CollapseId).MaximumLength(DevicePushNotificationRequestV1.MaxCollapseIdLength);
+        RuleFor(request => request.Kind)
+            .Must(kind => kind == null || DevicePushNotificationRequestV1.Kinds.All.Contains(kind))
+            .WithMessage("Kind must be one of " + string.Join(", ", DevicePushNotificationRequestV1.Kinds.All));
     }
 }
 

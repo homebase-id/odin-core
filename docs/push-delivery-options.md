@@ -62,6 +62,52 @@ requires priority 5 for background pushes.
 `collapseId` to `Topic` when it fits RFC 8030's 32 URL-safe characters. `silent` has no WebPush
 equivalent; the service worker decides.
 
+## Kind: the one knob an app sets
+
+`kind` says what the push is for. The server derives the delivery fields from it; the four fields
+above become overrides that a calling app never has to touch.
+
+| kind | derived | what the device gets |
+|---|---|---|
+| `notify` (default) | nothing | today's behaviour |
+| `ring` | TTL 45 s, `collapseId` = `call-<tagId>`, time-sensitive, not silent | Android: high-priority data message, the app shows its own call UI. iOS with a registered PushKit token and an APNs key on the relay: a VoIP push (below). iOS otherwise: a time-sensitive alert. |
+| `wake` | silent | a background wake-up with no UI; the app acts on the LiveRelay blob |
+
+For a call the app sends `push: { "kind": "ring", "typeId": ..., "tagId": <callId>, "unEncryptedMessage": "Frodo is calling" }`
+and nothing else. The hangup before answer is a second push with the same `tagId` (so the same
+collapse id) and `kind: notify`, which replaces the ring on the lock screen.
+
+### Ring on iOS: PushKit VoIP
+
+Ringing an iOS app that is not running needs a PushKit VoIP push. It is a different APNs push
+type (`voip`), goes to a different device token than the normal one, and cannot be sent through
+Firebase. So:
+
+- **Registration.** The app registers its PushKit token in the optional `voipDeviceToken` field of
+  `POST …/notify/push/subscribe-firebase`, next to the normal token, and can verify it with
+  `GET …/notify/push/subscription`. Only a build that handles CallKit may register one.
+- **Decision.** The host carries `kind` and both tokens to the relay and decides nothing. The relay
+  (`PushRouter`) sends a VoIP push when the kind is `ring`, the device has a VoIP token, and the
+  Apple key is configured; otherwise it sends the ordinary alert and, when a VoIP token was there,
+  logs `VoIP push wanted … but APNs is not configured`. That log line is the signal that the Apple
+  key is the only missing piece.
+- **Payload.** The VoIP push body carries the same five keys as the FCM data message
+  (`correlationId`, `id`, `data`, `timestamp`, `version`) at the top level next to an empty `aps`,
+  so the app parses one shape on both paths. `data` is the serialized push payload; its
+  `options.tagId` is the call id.
+- **The app's obligation.** On every VoIP push the app must call CallKit's `reportNewIncomingCall`
+  immediately. iOS stops delivering VoIP pushes to an app that does not, and can terminate it.
+  That is why the server sends VoIP only for `kind: ring`.
+- **What Apple needs** (an admin on the developer account, no review): an APNs authentication key
+  (`.p8`) with its key id, the team id, the app's bundle id, and on the app target the Push
+  Notifications capability plus the Voice over IP background mode. The relay reads them from its
+  `Apns` config section; see `src/apps/Odin.PushNotification/README.md`. Dev-signed builds only
+  receive from Apple's sandbox host, so the dev relay uses `Environment: sandbox`.
+
+Until the key exists the client team can register a token, send a ring, watch the fallback log,
+and build PushKit and CallKit against the payload above using Xcode's simulated push
+(`xcrun simctl push <device> <bundle> payload.apns`), which needs no key.
+
 ## Platform limits worth knowing
 
 - iOS background pushes are throttled by the OS (a few per hour) and are not delivered to an app
