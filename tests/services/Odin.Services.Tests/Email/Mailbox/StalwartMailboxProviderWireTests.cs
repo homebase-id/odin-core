@@ -75,6 +75,10 @@ public class StalwartMailboxProviderWireTests
         """{"methodResponses":[["METHOD",{"accountId":"dadmin","created":{"c1":{"id":"ID"}}},"0"]]}"""
             .Replace("METHOD", method).Replace("ID", createdId);
 
+    private static string UpdatedResponse(string method, string updatedId) =>
+        """{"methodResponses":[["METHOD",{"accountId":"dadmin","updated":{"ID":null}},"0"]]}"""
+            .Replace("METHOD", method).Replace("ID", updatedId);
+
     private JsonNode? MethodArgs(int requestIndex) => _requests[requestIndex].body?["methodCalls"]?[0]?[1];
     private string MethodName(int requestIndex) => _requests[requestIndex].body?["methodCalls"]?[0]?[0]?.GetValue<string>() ?? "";
 
@@ -118,7 +122,7 @@ public class StalwartMailboxProviderWireTests
         _responses.Enqueue(GetResponse("x:Domain/get", """[{"id":"d1","name":"frodo.example.test"}]"""));
         _responses.Enqueue(GetResponse("x:Domain/get", """[{"id":"d1","name":"frodo.example.test"}]"""));
         _responses.Enqueue(GetResponse("x:Account/get", """[{"id":"a1","name":"frodo","domainId":"d1"}]"""));
-        _responses.Enqueue("""{"methodResponses":[["x:Account/set",{"accountId":"dadmin","updated":{"a1":null}},"0"]]}""");
+        _responses.Enqueue(UpdatedResponse("x:Account/set", "a1"));
 
         await provider.SetAliasesAsync(Domain, ["mail", "hello"]);
 
@@ -137,7 +141,7 @@ public class StalwartMailboxProviderWireTests
         _responses.Enqueue(GetResponse("x:Account/get", """[{"id":"a1","name":"frodo","domainId":"d1"}]"""));
         _responses.Enqueue(GetResponse("x:PublicKey/get", "[]"));
         _responses.Enqueue(SetResponse("x:PublicKey/set", "k1"));
-        _responses.Enqueue("""{"methodResponses":[["x:Account/set",{"accountId":"dadmin","updated":{"a1":null}},"0"]]}""");
+        _responses.Enqueue(UpdatedResponse("x:Account/set", "a1"));
         _responses.Enqueue(GetResponse("x:PublicKey/get", """[{"id":"k1","key":"CERT"}]"""));
 
         await provider.SetEncryptionKeyAsync(Domain, "CERT");
@@ -155,7 +159,7 @@ public class StalwartMailboxProviderWireTests
         var provider = CreateProvider();
         _responses.Enqueue(GetResponse("x:Domain/get", """[{"id":"d1","name":"frodo.example.test"}]"""));
         _responses.Enqueue(GetResponse("x:Account/get", """[{"id":"a1","name":"frodo","domainId":"d1"}]"""));
-        _responses.Enqueue("""{"methodResponses":[["x:Account/set",{"accountId":"dadmin","updated":{"a1":null}},"0"]]}""");
+        _responses.Enqueue(UpdatedResponse("x:Account/set", "a1"));
 
         await provider.DisableEncryptionAtRestAsync(Domain);
 

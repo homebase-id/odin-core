@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
@@ -42,17 +43,18 @@ public class V2MailModeTests : V2Fixture
         return (new V2MailClient(caller.Identity, caller.Factory), caller);
     }
 
-    private async Task<HttpStatusCode> GetAnonymousStatusAsync(IV2Caller caller, string path)
+    private async Task<HttpResponseMessage> GetAnonymousAsync(IV2Caller caller, string path)
     {
-        using var anonymous = Host.CreateClient();
-        var response = await anonymous.GetAsync($"https://{caller.Identity.DomainName}{path}");
-        return response.StatusCode;
+        using var anonymous = Host.CreateAnonymousClient(caller.Identity.DomainName);
+        return await anonymous.GetAsync(path);
     }
+
+    private async Task<HttpStatusCode> GetAnonymousStatusAsync(IV2Caller caller, string path) =>
+        (await GetAnonymousAsync(caller, path)).StatusCode;
 
     private async Task<DidWebResponse> GetDidAsync(IV2Caller caller)
     {
-        using var anonymous = Host.CreateClient();
-        var response = await anonymous.GetAsync($"https://{caller.Identity.DomainName}/.well-known/did.json");
+        var response = await GetAnonymousAsync(caller, ".well-known/did.json");
         return OdinSystemSerializer.Deserialize<DidWebResponse>(await response.Content.ReadAsStringAsync())!;
     }
 
@@ -73,9 +75,9 @@ public class V2MailModeTests : V2Fixture
         var issued = await mail.IssueAppPasswordAsync(Address, "Apple Mail");
         Assert.That(issued.StatusCode, Is.EqualTo(HttpStatusCode.OK), issued.Error?.Content);
 
-        Assert.That(await GetAnonymousStatusAsync(caller, "/.well-known/autoconfig/mail/config-v1.1.xml"),
+        Assert.That(await GetAnonymousStatusAsync(caller, ".well-known/autoconfig/mail/config-v1.1.xml"),
             Is.EqualTo(HttpStatusCode.OK), "autoconfig is how a standard mail app finds the servers");
-        Assert.That(await GetAnonymousStatusAsync(caller, "/.well-known/openpgpkey/hu/anyhash"),
+        Assert.That(await GetAnonymousStatusAsync(caller, ".well-known/openpgpkey/hu/anyhash"),
             Is.EqualTo(HttpStatusCode.NotFound));
     }
 
@@ -147,7 +149,7 @@ public class V2MailModeTests : V2Fixture
         Assert.That(status.PublicKeyFingerprint, Is.Null);
         Assert.That(status.CurrentKeyFileUniqueId, Is.EqualTo(key.KeyFileUniqueId));
 
-        Assert.That(await GetAnonymousStatusAsync(caller, "/.well-known/openpgpkey/hu/anyhash"),
+        Assert.That(await GetAnonymousStatusAsync(caller, ".well-known/openpgpkey/hu/anyhash"),
             Is.EqualTo(HttpStatusCode.NotFound));
 
         var didAfter = await GetDidAsync(caller);
@@ -197,7 +199,7 @@ public class V2MailModeTests : V2Fixture
         Assert.That(status.PublicKeyFingerprint, Is.Not.Null.And.Not.EqualTo(first.FingerprintHex));
         Assert.That(status.CurrentKeyFileUniqueId, Is.Not.EqualTo(first.KeyFileUniqueId));
 
-        Assert.That(await GetAnonymousStatusAsync(caller, "/.well-known/openpgpkey/hu/anyhash"),
+        Assert.That(await GetAnonymousStatusAsync(caller, ".well-known/openpgpkey/hu/anyhash"),
             Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await GetDidAsync(caller)).KeyAgreement, Is.Not.Null.And.Not.Empty);
     }

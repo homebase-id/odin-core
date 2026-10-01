@@ -221,6 +221,7 @@ public class MailActivationService(
     {
         ThrowIfTenantMailDisabled();
         AssertPublishableCertificate(publicCertificateArmored);
+        await AssertNotStandardAsync();
 
         var domain = tenantContext.HostOdinId.DomainName;
 
@@ -230,11 +231,7 @@ public class MailActivationService(
         logger.LogInformation("Published the email encryption key for {domain}", domain);
     }
 
-    /// <summary>
-    /// The mail-server and publication half of switching to a standard mailbox. Only the email
-    /// certificate is unpublished (WKD, DID keyAgreement); the keyring stays on the email drive
-    /// so mail already stored encrypted can still be read with it elsewhere.
-    /// </summary>
+    /// <summary>Unpublishes the email certificate only; the keyring stays on the drive.</summary>
     public async Task StopEncryptingAsync()
     {
         ThrowIfTenantMailDisabled();
@@ -248,13 +245,10 @@ public class MailActivationService(
         logger.LogInformation("Stopped encrypting mail at rest for {domain}", domain);
     }
 
-    /// <summary>
-    /// A standard mailbox switches to encrypted through the mode endpoint, never by a key quietly
-    /// appearing, or the mail server would encrypt while the identity reports standard.
-    /// </summary>
+    // A key published on a standard mailbox would turn encryption on while the identity reports standard
     public async Task AssertNotStandardAsync()
     {
-        if (await setupStateService.GetModeAsync() == MailboxMode.Standard)
+        if ((await setupStateService.GetAsync())?.Mode == MailboxMode.Standard)
         {
             throw new OdinClientException("This mailbox is standard; switch it to encrypted to use a key");
         }
@@ -277,13 +271,14 @@ public class MailActivationService(
         var domain = tenantContext.HostOdinId.DomainName;
 
         var publishedKey = await emailPublicKeyService.GetPublishedKeyAsync();
+        var setup = await setupStateService.GetAsync();
         var dkimKeys = dkimStore.IsConfigured ? await dkimStore.GetKeysAsync(domain) : [];
 
         return new MailStatusResult
         {
             TenantMailEnabled = configuration.Email.TenantMail.Enabled,
-            Activated = await setupStateService.IsMailReadyAsync(),
-            Mode = await setupStateService.GetModeAsync(),
+            Activated = EmailSetupStateService.IsMailReady(setup, publishedKey),
+            Mode = setup?.Mode ?? MailboxMode.Encrypted,
             PublicKeyFingerprint = publishedKey?.FingerprintHex,
             PublishedAt = publishedKey?.PublishedAt,
             DkimRecords = DkimDnsRecords.ToDnsConfigs(domain, dkimKeys),
@@ -296,7 +291,7 @@ public class MailActivationService(
 
         var domain = tenantContext.HostOdinId.DomainName;
 
-        if (!await setupStateService.IsMailReadyAsync())
+        if (!await IsMailReadyAsync())
         {
             throw new OdinClientException("Email is not activated");
         }
@@ -320,7 +315,7 @@ public class MailActivationService(
 
         var domain = tenantContext.HostOdinId.DomainName;
 
-        if (!await setupStateService.IsMailReadyAsync())
+        if (!await IsMailReadyAsync())
         {
             throw new OdinClientException("Email is not activated");
         }
@@ -372,6 +367,13 @@ public class MailActivationService(
     }
 
     //
+
+    private async Task<bool> IsMailReadyAsync()
+    {
+        return EmailSetupStateService.IsMailReady(
+            await setupStateService.GetAsync(),
+            await emailPublicKeyService.GetPublishedKeyAsync());
+    }
 
     private void ThrowIfTenantMailDisabled()
     {

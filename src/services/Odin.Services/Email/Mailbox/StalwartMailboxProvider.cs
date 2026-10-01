@@ -114,10 +114,7 @@ public class StalwartMailboxProvider(
         logger.LogInformation("Stalwart encryption-at-rest enabled for {domain} (key {keyId})", domain, keyId);
     }
 
-    /// <summary>
-    /// The uploaded public keys are left in place: nothing references them once this runs, and
-    /// the next <see cref="SetEncryptionKeyAsync"/> prunes them.
-    /// </summary>
+    // Uploaded public keys stay; nothing references them now and the next SetEncryptionKeyAsync prunes them
     public async Task DisableEncryptionAtRestAsync(string domain)
     {
         var (accountId, _) = await RequireUserAccountAsync(domain);

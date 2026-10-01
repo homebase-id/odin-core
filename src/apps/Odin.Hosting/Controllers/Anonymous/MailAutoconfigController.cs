@@ -16,7 +16,8 @@ namespace Odin.Hosting.Controllers.Anonymous
     [Route(".well-known/autoconfig/mail/config-v1.1.xml")]
     public class MailAutoconfigController(
         OdinConfiguration configuration,
-        EmailSetupStateService emailSetupStateService) : ControllerBase
+        EmailSetupStateService emailSetupStateService,
+        EmailPublicKeyService emailPublicKeyService) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> GetAutoconfig()
@@ -27,7 +28,8 @@ namespace Odin.Hosting.Controllers.Anonymous
                 return NotFound();
             }
 
-            if (!await emailSetupStateService.IsMailReadyAsync())
+            var setup = await emailSetupStateService.GetAsync();
+            if (!EmailSetupStateService.IsMailReady(setup, await emailPublicKeyService.GetPublishedKeyAsync()))
             {
                 return NotFound();
             }

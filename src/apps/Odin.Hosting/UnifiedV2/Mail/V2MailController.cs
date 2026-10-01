@@ -100,7 +100,7 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Mode, nameof(request.Mode));
         var entropy = ParseClientEntropy(request.ClientEntropyBase64);
-        return await emailAppService.SetModeAsync(request.Mode!.Value, entropy, WebOdinContext);
+        return await emailAppService.SetModeAsync(request.Mode.Value, entropy, WebOdinContext);
     }
 
     /// <summary>

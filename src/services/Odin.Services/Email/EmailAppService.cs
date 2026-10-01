@@ -63,7 +63,7 @@ public class EmailAppService(
             DriveProvisioned = await HasEmailDriveAccessAsync(odinContext),
             MailboxProvisioned = setup?.MailboxProvisioned ?? false,
             PrimaryEmailAddress = setup?.PrimaryEmailAddress,
-            Activated = await setupStateService.IsMailReadyAsync(),
+            Activated = EmailSetupStateService.IsMailReady(setup, publishedKey),
             Mode = setup?.Mode ?? MailboxMode.Encrypted,
             PublicKeyFingerprint = publishedKey?.FingerprintHex,
             PublishedAt = publishedKey?.PublishedAt,
@@ -106,14 +106,8 @@ public class EmailAppService(
         await AssertEmailDriveAccessAsync(odinContext);
         AssertTenantMailEnabled();
 
-        var existing = await setupStateService.GetAsync();
-
         var result = await mailActivationService.EnsureMailboxAsync(primaryEmailAddress);
-
-        // The mode is chosen once, here; a re-run keeps it, and changing it later is SetModeAsync's job
-        await setupStateService.MarkMailboxProvisionedAsync(
-            primaryEmailAddress,
-            existing?.MailboxProvisioned == true ? existing.Mode : mode);
+        await setupStateService.MarkMailboxProvisionedAsync(primaryEmailAddress, mode);
 
         return new MailboxSetupResult
         {
@@ -144,20 +138,15 @@ public class EmailAppService(
     {
         await AssertEmailDriveAccessAsync(odinContext);
         AssertTenantMailEnabled();
+        // Before the keyring is written, not just at publish, so a refusal leaves no orphan on the drive
         await mailActivationService.AssertNotStandardAsync();
 
         return await GenerateAndPublishKeyAsync(primaryEmailAddress, clientEntropy, odinContext);
     }
 
     /// <summary>
-    /// Switches between an encrypted and a standard mailbox. Idempotent: every step converges, so
-    /// a client that lost the response calls it again.
-    ///
-    /// To standard: the mail server stops encrypting and the email certificate is unpublished.
-    /// Mail already stored stays encrypted, readable only with the keyring that stays on the
-    /// drive. To encrypted: a new keyring, published like any rotation. Mail already stored stays
-    /// as received. Either way the mode is written last, so an interrupted switch still reports
-    /// the old mode and the caller retries.
+    /// Idempotent, so a client that lost the response calls it again. Mail already stored is not
+    /// converted either way (docs/email-keys-plan.md "Mailbox modes").
     /// </summary>
     public async Task<MailAppStatusResult> SetModeAsync(MailboxMode mode, byte[] clientEntropy, IOdinContext odinContext)
     {
@@ -174,9 +163,15 @@ public class EmailAppService(
         {
             case MailboxMode.Standard:
                 await mailActivationService.StopEncryptingAsync();
+                // Last, so an interrupted switch still reports encrypted and the caller retries
+                await setupStateService.SetModeAsync(mode);
                 break;
 
             case MailboxMode.Encrypted:
+                // First, because publishing refuses on a standard mailbox. An interrupted switch is
+                // then an encrypted mailbox waiting for its key, which setup already finishes.
+                await setupStateService.SetModeAsync(mode);
+
                 // A key still published means an interrupted switch; re-publishing it also turns
                 // the mail server's encryption back on, which that switch may have turned off
                 var publishedKey = await emailPublicKeyService.GetPublishedKeyAsync();
@@ -194,8 +189,6 @@ public class EmailAppService(
             default:
                 throw new OdinClientException($"Unknown mailbox mode {mode}");
         }
-
-        await setupStateService.SetModeAsync(mode);
 
         return await GetStatusAsync(odinContext);
     }

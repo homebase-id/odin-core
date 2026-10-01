@@ -64,7 +64,7 @@ public class EmailHealthVerifierTest
     {
         var services = await _testServices!.RegisterServicesAsync(DatabaseType.Sqlite, _tempDir, Guid.NewGuid());
         _emailPublicKeyService = new EmailPublicKeyService(services.Resolve<IdentityDatabase>());
-        _setupStateService = new EmailSetupStateService(services.Resolve<IdentityDatabase>(), _emailPublicKeyService);
+        _setupStateService = new EmailSetupStateService(services.Resolve<IdentityDatabase>());
 
         var tenantContext = new TenantContext(
             Guid.NewGuid(), new OdinId(Domain), null!,
