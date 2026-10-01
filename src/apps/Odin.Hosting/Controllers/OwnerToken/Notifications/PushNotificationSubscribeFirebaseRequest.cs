@@ -9,10 +9,9 @@ public class PushNotificationSubscribeFirebaseRequest
     public string DevicePlatform { get; set; } = "";
 
     /// <summary>
-    /// Optional, iOS only: the PushKit VoIP token. It is a different token than
-    /// <see cref="DeviceToken"/> and exists only while the app has the Voice over IP background
-    /// mode. Register it only from a build that reports every VoIP push to CallKit; it is used
-    /// solely for incoming calls (push kind Ring). Re-register whenever PushKit rotates it.
+    /// Optional, iOS only: the PushKit VoIP token, a different token than <see cref="DeviceToken"/>.
+    /// Only a build that reports VoIP pushes to CallKit may register one (see PushKind.Ring).
+    /// Re-register whenever PushKit rotates it.
     /// </summary>
     public string VoipDeviceToken { get; set; } = "";
 }

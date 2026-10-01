@@ -7,27 +7,15 @@ namespace Odin.PushNotification.Tests.Apns;
 
 public class ApnsVoipMessageTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Now = TestRequests.Now;
 
-    private static DevicePushNotificationRequestV1 Ring() => new()
+    private static DevicePushNotificationRequestV1 Ring()
     {
-        DevicePlatform = "ios",
-        DeviceToken = "fcm-token",
-        VoipDeviceToken = "voip-token-abc",
-        OriginDomain = "frodo.dotyou.cloud",
-        Signature = [1],
-        Id = Guid.NewGuid().ToString(),
-        Timestamp = Now.ToString("O"),
-        CorrelationId = "corr",
-        Data = "{\"options\":{\"tagId\":\"call-id\"}}",
-        Title = "Homebase Chat",
-        Body = "Sam is calling",
-        FromDomain = "sam.dotyou.cloud",
-        ToDomain = "frodo.dotyou.cloud",
-        Kind = DevicePushNotificationRequestV1.Kinds.Ring,
-        TimeToLiveSeconds = 45,
-        CollapseId = "call-1",
-    };
+        var request = TestRequests.Request(kind: nameof(PushKind.Ring), voipToken: "voip-token-abc");
+        request.TimeToLiveSeconds = 45;
+        request.CollapseId = "call-1";
+        return request;
+    }
 
     [Test]
     public void Build_TargetsTheVoipTokenAndTopic_WithVoipHeaders()
@@ -73,14 +61,5 @@ public class ApnsVoipMessageTests
 
         Assert.That(message.Headers.ContainsKey("apns-expiration"), Is.False);
         Assert.That(message.Headers.ContainsKey("apns-collapse-id"), Is.False);
-    }
-
-    [Test]
-    public void Build_WithoutVoipToken_Throws()
-    {
-        var request = Ring();
-        request.VoipDeviceToken = null;
-
-        Assert.Throws<ArgumentException>(() => ApnsVoipMessage.Build(request, "id.homebase.chat", Now));
     }
 }

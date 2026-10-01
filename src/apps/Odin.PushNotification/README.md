@@ -80,6 +80,5 @@ Then configure the relay (`appsettings*.json` or environment variables):
 Remember when you are testing: iOS emulator cannot do messaging. Use a real device.
 
 For the VoIP path without an Apple key: the token and request builders are unit-tested with a
-throwaway key (`tests/apps/Odin.PushNotification.Tests/Apns`), and the iOS app can be exercised
-with a simulated push (`xcrun simctl push <device> <bundle id> payload.apns`) carrying the payload
-shape documented in `docs/push-delivery-options.md`.
+throwaway key (`tests/apps/Odin.PushNotification.Tests/Apns`); the payload shape and how the iOS
+app can be exercised without a key are in `docs/push-delivery-options.md`.

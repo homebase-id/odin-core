@@ -2,6 +2,7 @@ using FirebaseAdmin;
 using FirebaseAdmin.Messaging;
 using Google.Apis.Auth.OAuth2;
 using Odin.Core.Dto;
+using Odin.PushNotification.Apns;
 
 namespace Odin.PushNotification;
 
@@ -85,14 +86,14 @@ public class PushNotification : IPushNotification
         if (request.TimeToLiveSeconds is > 0)
         {
             android.TimeToLive = TimeSpan.FromSeconds(request.TimeToLiveSeconds.Value);
-            apnsHeaders["apns-expiration"] = (now.ToUnixTimeSeconds() + request.TimeToLiveSeconds.Value).ToString();
         }
 
         if (!string.IsNullOrEmpty(request.CollapseId))
         {
             android.CollapseKey = request.CollapseId;
-            apnsHeaders["apns-collapse-id"] = request.CollapseId;
         }
+
+        ApnsHeaders.AddDeliveryHeaders(apnsHeaders, request, now);
 
         return new Message
         {

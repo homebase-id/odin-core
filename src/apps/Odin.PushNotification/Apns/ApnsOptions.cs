@@ -11,8 +11,9 @@ namespace Odin.PushNotification.Apns;
 ///   - the account's <see cref="TeamId"/> (Membership details);
 ///   - the app's <see cref="BundleId"/>; the VoIP topic is "{BundleId}.voip";
 ///   - on the app target: the Push Notifications capability and the Voice over IP background mode.
-/// Until all of these are set, <see cref="IsConfigured"/> is false and a Ring falls back to an
-/// ordinary alert push, with a warning in the relay log saying so.
+/// Until all four values are set, <see cref="IsConfigured"/> is false and a Ring falls back to an
+/// ordinary alert push, with a warning in the relay log saying so. Set but pointing at a missing
+/// key file, the relay refuses to start, like it does for the Firebase key.
 /// </summary>
 public class ApnsOptions
 {
@@ -28,8 +29,7 @@ public class ApnsOptions
 
     /// <summary>
     /// "sandbox" or "production". Dev-signed app builds only receive from the sandbox host, so the
-    /// dev relay uses sandbox and the production relay uses production, mirroring the two Firebase
-    /// projects.
+    /// dev relay uses sandbox and the production relay uses production, like the two Firebase projects.
     /// </summary>
     public string Environment { get; set; } = "sandbox";
 
@@ -37,8 +37,7 @@ public class ApnsOptions
         !string.IsNullOrWhiteSpace(KeyId) &&
         !string.IsNullOrWhiteSpace(TeamId) &&
         !string.IsNullOrWhiteSpace(KeyFile) &&
-        !string.IsNullOrWhiteSpace(BundleId) &&
-        File.Exists(KeyFile);
+        !string.IsNullOrWhiteSpace(BundleId);
 
     public Uri Host => Environment.Equals("production", StringComparison.OrdinalIgnoreCase)
         ? new Uri("https://api.push.apple.com")

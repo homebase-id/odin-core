@@ -24,31 +24,42 @@ public interface IApnsVoipSender
 public sealed class ApnsVoipSender : IApnsVoipSender, IDisposable
 {
     private readonly ApnsOptions _options;
-    private readonly ILogger<ApnsVoipSender> _logger;
     private readonly HttpClient _http;
     private readonly ECDsa? _key;
     private readonly object _tokenLock = new();
     private string? _token;
     private DateTimeOffset _tokenIssuedAt;
 
-    public ApnsVoipSender(ApnsOptions options, ILogger<ApnsVoipSender> logger, HttpMessageHandler? handler = null)
+    public ApnsVoipSender(ApnsOptions options, ILogger<ApnsVoipSender> logger)
     {
         _options = options;
-        _logger = logger;
-        _http = handler == null ? new HttpClient() : new HttpClient(handler);
-        _http.BaseAddress = options.Host;
-        _http.DefaultRequestVersion = HttpVersion.Version20;
-        _http.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+        // One client for the process: APNs wants long-lived HTTP/2 connections. Rings are minutes
+        // apart, so keep the connection warm rather than paying a TLS handshake per call setup,
+        // and recycle it hourly so DNS changes are picked up.
+        _http = new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromHours(1),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
+            KeepAlivePingDelay = TimeSpan.FromSeconds(60),
+            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
+        })
+        {
+            BaseAddress = options.Host,
+            DefaultRequestVersion = HttpVersion.Version20,
+            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
+        };
 
         if (options.IsConfigured)
         {
+            // A configured but missing key is a deploy mistake; fail at startup like the Firebase key does.
             _key = ApnsProviderToken.LoadKey(File.ReadAllText(options.KeyFile));
-            _logger.LogInformation("APNs VoIP sending configured for {bundle} against {host}", options.BundleId, options.Host);
+            logger.LogInformation("APNs VoIP sending configured for {bundle} against {host}", options.BundleId, options.Host);
         }
         else
         {
             // Not an error: the relay runs without VoIP until the Apple key arrives.
-            _logger.LogInformation("APNs VoIP sending not configured; a Ring to an iOS device will go out as an alert push");
+            logger.LogInformation("APNs VoIP sending not configured; a Ring to an iOS device will go out as an alert push");
         }
     }
 
@@ -64,8 +75,6 @@ public sealed class ApnsVoipSender : IApnsVoipSender, IDisposable
         var message = ApnsVoipMessage.Build(request, _options.BundleId, DateTimeOffset.UtcNow);
 
         using var http = new HttpRequestMessage(HttpMethod.Post, message.Path);
-        http.Version = HttpVersion.Version20;
-        http.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
         http.Headers.Authorization = new AuthenticationHeaderValue("bearer", CurrentToken());
         foreach (var (name, value) in message.Headers)
         {
@@ -79,8 +88,7 @@ public sealed class ApnsVoipSender : IApnsVoipSender, IDisposable
             return response.Headers.TryGetValues("apns-id", out var ids) ? ids.First() : request.Id;
         }
 
-        var reason = await ReadReasonAsync(response, cancellationToken);
-        throw new ApnsException(response.StatusCode, reason);
+        throw new ApnsException(response.StatusCode, await ReadReasonAsync(response, cancellationToken));
     }
 
     private string CurrentToken()
@@ -118,11 +126,11 @@ public sealed class ApnsVoipSender : IApnsVoipSender, IDisposable
     }
 }
 
-/// <summary>An APNs rejection. <see cref="DeviceIsGone"/> is what the host treats as "remove the subscription".</summary>
+/// <summary>An APNs rejection. <see cref="DeviceIsGone"/>: the PushKit token is dead and the host should forget it.</summary>
 public sealed class ApnsException(HttpStatusCode status, string reason) : Exception($"APNs {(int)status}: {reason}")
 {
     public HttpStatusCode Status { get; } = status;
     public string Reason { get; } = reason;
 
-    public bool DeviceIsGone => Status == HttpStatusCode.Gone || Reason is "BadDeviceToken" or "Unregistered" or "DeviceTokenNotForTopic";
+    public bool DeviceIsGone => Status == HttpStatusCode.Gone || Reason is "BadDeviceToken" or "Unregistered";
 }

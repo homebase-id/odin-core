@@ -62,6 +62,9 @@ builder.Services.AddFluentValidationAutoValidation()
 
 var app = builder.Build();
 
+// Read the Apple key (or log that there is none) at boot, not on the first ring.
+_ = app.Services.GetRequiredService<IApnsVoipSender>();
+
 // Swagger
 if (app.Environment.IsDevelopment())
 {
@@ -123,7 +126,7 @@ app.MapPost("/message/v1", async (
         {
             var response = await pushRouter.SendAsync(request);
             logger.LogInformation("Successfully sent {platform} {kind} message with id {id} from {from} to {to} for device {device}: {response}",
-                request.DevicePlatform, request.Kind ?? DevicePushNotificationRequestV1.Kinds.Notify, request.Id, request.FromDomain,
+                request.DevicePlatform, request.KindOrNotify(), request.Id, request.FromDomain,
                 request.ToDomain, request.DeviceToken, response);
             return Results.Ok("Message sent successfully.");
         }
@@ -131,8 +134,9 @@ app.MapPost("/message/v1", async (
         {
             logger.LogError(e, "APNs VoIP send failed for message {id} from {from} to {to}: status={status} reason={reason}",
                 request.Id, request.FromDomain, request.ToDomain, e.Status, e.Reason);
-            // "NotFound" is what the host already treats as "this device is gone, drop its subscription".
-            return Results.Problem(type: e.DeviceIsGone ? "NotFound" : e.Reason, detail: e.Message, statusCode: 502);
+            // A dead PushKit token only costs the host that token, not the whole subscription.
+            return Results.Problem(type: e.DeviceIsGone ? DevicePushNotificationRequestV1.ProblemTypes.VoipTokenGone : e.Reason,
+                detail: e.Message, statusCode: 502);
         }
         catch (FirebaseMessagingException e)
         {
@@ -202,8 +206,8 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
             .When(request => request.TimeToLiveSeconds.HasValue);
         RuleFor(request => request.CollapseId).MaximumLength(DevicePushNotificationRequestV1.MaxCollapseIdLength);
         RuleFor(request => request.Kind)
-            .Must(kind => kind == null || DevicePushNotificationRequestV1.Kinds.All.Contains(kind))
-            .WithMessage("Kind must be one of " + string.Join(", ", DevicePushNotificationRequestV1.Kinds.All));
+            .Must(kind => kind == null || Enum.TryParse<PushKind>(kind, ignoreCase: true, out _))
+            .WithMessage("Kind must be one of " + string.Join(", ", Enum.GetNames<PushKind>()));
     }
 }
 

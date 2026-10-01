@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using NUnit.Framework;
+using Odin.Core.Dto;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -20,6 +21,22 @@ public class PushKindDefaultsTests
         Assert.That(options.CollapseId, Is.EqualTo($"call-{tagId:N}"));
         Assert.That(options.TimeSensitive, Is.True);
         Assert.That(options.Silent, Is.False);
+    }
+
+    [Test]
+    public void Hangup_DerivesTheSameCollapseIdAsTheRingItEnds()
+    {
+        var callId = Guid.NewGuid();
+        var ring = new AppNotificationOptions { Kind = PushKind.Ring, TagId = callId };
+        var hangup = new AppNotificationOptions { Kind = PushKind.Hangup, TagId = callId };
+
+        PushKindDefaults.Apply(ring);
+        PushKindDefaults.Apply(hangup);
+
+        Assert.That(hangup.CollapseId, Is.EqualTo(ring.CollapseId), "the hangup must replace the ring on the device");
+        Assert.That(hangup.TimeToLiveSeconds, Is.EqualTo(ring.TimeToLiveSeconds), "a stale hangup must not arrive on its own");
+        Assert.That(hangup.Silent, Is.False, "an alert can only be replaced by an alert");
+        Assert.That(hangup.TimeSensitive, Is.False, "the call is over; nothing to interrupt for");
     }
 
     [Test]

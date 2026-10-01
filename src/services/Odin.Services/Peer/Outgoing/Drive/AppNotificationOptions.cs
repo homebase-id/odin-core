@@ -1,34 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Dto;
 using Odin.Core.Identity;
 
 namespace Odin.Services.Peer.Outgoing.Drive;
-
-/// <summary>
-/// What a push is for. This is the one device-independent knob an app sets; the server derives
-/// the delivery details and the push relay picks the platform mechanics right before sending.
-/// </summary>
-public enum PushKind
-{
-    /// <summary>An ordinary notification. Today's behaviour; the default.</summary>
-    Notify = 0,
-
-    /// <summary>
-    /// An incoming call. The server derives call defaults (short TTL, collapse id from the TagId,
-    /// time-sensitive). On iOS, when the device registered a PushKit VoIP token and the relay has
-    /// an APNs key, the relay sends a VoIP push instead of an alert; the app MUST then report the
-    /// call to CallKit at once, or iOS stops delivering VoIP pushes to it. Android and the web get
-    /// a high-priority alert and show their own call UI. TagId is the call id.
-    /// </summary>
-    Ring = 1,
-
-    /// <summary>
-    /// A silent background wake-up with no UI: the app is expected to act on the request it finds
-    /// in the LiveRelay blob (for example, report its location). iOS throttles these; never use
-    /// Wake for a call.
-    /// </summary>
-    Wake = 2,
-}
 
 /// <summary>
 /// Options for notifying a recipient identity server
@@ -40,8 +15,8 @@ public class AppNotificationOptions
     public Guid TypeId { get; set; }
 
     /// <summary>
-    /// What the push is for; see <see cref="PushKind"/>. A calling app sends Ring and nothing
-    /// else; the delivery fields below are derived from it and only need setting to override.
+    /// What the push is for; see <see cref="PushKind"/>. A calling app sends Ring (and later Hangup)
+    /// with the call id as TagId and nothing else; the delivery fields below are derived from it.
     /// </summary>
     public PushKind Kind { get; set; }
 

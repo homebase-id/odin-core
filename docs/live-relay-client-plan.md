@@ -35,11 +35,12 @@ this is the whole thing:
 { "channelKey": "<guid>", "recipients": ["sam.dotyou.cloud"], "blob": "<base64>",
   "push": { "kind": "ring", "typeId": "<guid>", "tagId": "<callId>", "unEncryptedMessage": "Frodo is calling" } }
 ```
-- `kind` is `notify` (default), `ring` or `wake`. `ring` derives a 45 s TTL, a collapse id from
-  `tagId` and time-sensitive delivery; `wake` is a silent background wake-up. On iOS a `ring`
-  becomes a PushKit VoIP push once the device registered a VoIP token (see below) and the relay
-  has the Apple key; the app must then report the call to CallKit at once.
-- The fields below are overrides; a calling app does not need them:
+- `kind` is `notify` (default), `ring`, `hangup` or `wake`. `ring` derives a short TTL, a collapse
+  id from `tagId` and time-sensitive delivery; `hangup` with the same `tagId` replaces the ring on
+  the device; `wake` is a silent background wake-up. On iOS a `ring` becomes a PushKit VoIP push
+  once the device registered a VoIP token (see below) and the relay has the Apple key. Details and
+  the app's CallKit obligation: `docs/push-delivery-options.md`.
+- TTL and collapse id can be overridden; a calling app does not need to:
 ```json
   "push": { "typeId": "<guid>", "tagId": "<guid>", "unEncryptedMessage": "…",
             "silent": false, "timeToLiveSeconds": 45, "collapseId": "call-<channelKey>", "timeSensitive": true }

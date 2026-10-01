@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Dto;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.OwnerToken.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
@@ -137,13 +138,12 @@ public class V2LiveRelayPushTests
                 new AppNotificationOptions { Kind = PushKind.Ring, TypeId = Guid.NewGuid(), TagId = callId, UnEncryptedMessage = "Frodo is calling" });
             Assert.That(relayResponse.IsSuccessStatusCode, Is.True, $"relay failed: {relayResponse.StatusCode}");
 
+            // The derivation itself is unit-tested (PushKindDefaultsTests); this proves the kind
+            // survives the relay's allowlist and the defaults are applied where the push is enqueued.
             var notification = await ownerSam.AppNotifications.WaitForNotification(n => n.Options?.TagId == callId, TimeSpan.FromSeconds(15));
             Assert.That(notification, Is.Not.Null, "the ring never landed on the recipient");
             Assert.That(notification.Options.Kind, Is.EqualTo(PushKind.Ring));
-            Assert.That(notification.Options.TimeToLiveSeconds, Is.EqualTo(PushKindDefaults.RingTimeToLiveSeconds), "a ring expires");
             Assert.That(notification.Options.CollapseId, Is.EqualTo($"call-{callId:N}"), "a hangup with the same id retracts it");
-            Assert.That(notification.Options.TimeSensitive, Is.True);
-            Assert.That(notification.Options.Silent, Is.False);
         }
         finally
         {

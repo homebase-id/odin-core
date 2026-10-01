@@ -71,11 +71,13 @@ above become overrides that a calling app never has to touch.
 |---|---|---|
 | `notify` (default) | nothing | today's behaviour |
 | `ring` | TTL 45 s, `collapseId` = `call-<tagId>`, time-sensitive, not silent | Android: high-priority data message, the app shows its own call UI. iOS with a registered PushKit token and an APNs key on the relay: a VoIP push (below). iOS otherwise: a time-sensitive alert. |
+| `hangup` | the ring's TTL and collapse id, not silent | an alert that replaces the ring with the same `tagId` on the device; never a VoIP push |
 | `wake` | silent | a background wake-up with no UI; the app acts on the LiveRelay blob |
 
-For a call the app sends `push: { "kind": "ring", "typeId": ..., "tagId": <callId>, "unEncryptedMessage": "Frodo is calling" }`
-and nothing else. The hangup before answer is a second push with the same `tagId` (so the same
-collapse id) and `kind: notify`, which replaces the ring on the lock screen.
+TTL and collapse id are filled in only when the app left them unset; silent and time-sensitive
+are fixed by the kind. For a call the app sends
+`push: { "kind": "ring", "typeId": ..., "tagId": <callId>, "unEncryptedMessage": "Frodo is calling" }`
+and, when the call ends before it was answered, the same with `kind: hangup`. Nothing else.
 
 ### Ring on iOS: PushKit VoIP
 
@@ -98,11 +100,11 @@ Firebase. So:
 - **The app's obligation.** On every VoIP push the app must call CallKit's `reportNewIncomingCall`
   immediately. iOS stops delivering VoIP pushes to an app that does not, and can terminate it.
   That is why the server sends VoIP only for `kind: ring`.
-- **What Apple needs** (an admin on the developer account, no review): an APNs authentication key
-  (`.p8`) with its key id, the team id, the app's bundle id, and on the app target the Push
-  Notifications capability plus the Voice over IP background mode. The relay reads them from its
-  `Apns` config section; see `src/apps/Odin.PushNotification/README.md`. Dev-signed builds only
-  receive from Apple's sandbox host, so the dev relay uses `Environment: sandbox`.
+- **A dead PushKit token** (Apple answers `BadDeviceToken` or `Unregistered`) costs the device only
+  that token: the relay answers the host with the `VoipTokenGone` problem type, the host clears the
+  token on the subscription and resends the push as an alert. The FCM token and the subscription
+  stay.
+- **What Apple needs** and how the relay is configured: `src/apps/Odin.PushNotification/README.md`.
 
 Until the key exists the client team can register a token, send a ring, watch the fallback log,
 and build PushKit and CallKit against the payload above using Xcode's simulated push
