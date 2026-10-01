@@ -29,12 +29,25 @@ shared-secret-encrypted like every other V2 JSON POST:
 - `appId` is **inferred server-side** from the app token — the client never sends it.
 - Response: `204 No Content`. Fire-and-forget — unreachable/non-connected recipients are silently dropped.
 
-**Optional push (wake the recipient's app).** Add a `push` object to the same request:
+**Optional push (wake the recipient's app).** Add a `push` object to the same request. For a call
+this is the whole thing:
 ```json
 { "channelKey": "<guid>", "recipients": ["sam.dotyou.cloud"], "blob": "<base64>",
-  "push": { "typeId": "<guid>", "tagId": "<guid>", "unEncryptedMessage": "Frodo is calling",
-            "silent": false, "timeToLiveSeconds": 45, "collapseId": "call-<channelKey>", "timeSensitive": true } }
+  "push": { "kind": "ring", "typeId": "<guid>", "tagId": "<callId>", "unEncryptedMessage": "Frodo is calling" } }
 ```
+- `kind` is `notify` (default), `ring`, `hangup` or `wake`. `ring` derives a short TTL, a collapse
+  id from `tagId` and time-sensitive delivery; `hangup` with the same `tagId` replaces the ring on
+  the device; `wake` is a silent background wake-up. On iOS a `ring` becomes a PushKit VoIP push
+  once the device registered a VoIP token (see below) and the relay has the Apple key. Details and
+  the app's CallKit obligation: `docs/push-delivery-options.md`.
+- TTL and collapse id can be overridden; a calling app does not need to:
+```json
+  "push": { "typeId": "<guid>", "tagId": "<guid>", "unEncryptedMessage": "…",
+            "silent": false, "timeToLiveSeconds": 45, "collapseId": "call-<channelKey>", "timeSensitive": true }
+```
+- **iOS VoIP token.** Register the PushKit token in `voipDeviceToken` on
+  `POST /api/v2/notify/push/subscribe-firebase` next to the FCM token; `GET …/subscription` echoes
+  it back. Only from a build that handles CallKit.
 - Each recipient's server enqueues a normal push (notification-list row + device push) with the
   **caller as sender**, if the recipient has this app installed. Not installed: no push, relay still
   delivered. Not connected: nothing, as before.
