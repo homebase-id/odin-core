@@ -233,7 +233,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             if (deviceSocket.DeviceOdinContext == null)
             {
-                await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                // Removed at once; not awaited, so a client slow to answer the close cannot hold up the others
+                _ = _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 _logger.LogInformation("Invalid/Stale Device found; removing from list");
                 if (sendEvenIfNoDeviceOdinContext)
                 {

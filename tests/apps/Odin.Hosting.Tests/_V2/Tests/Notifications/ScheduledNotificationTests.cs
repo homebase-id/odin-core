@@ -95,7 +95,7 @@ public class ScheduledNotificationTests
         ClassicAssert.AreNotEqual(Guid.Empty, scheduleResponse.Content.JobId);
 
         // the job runs in the background; poll the list until it arrives
-        var notification = await WaitForNotificationByTagId(ownerFrodo, options.TagId, TimeSpan.FromSeconds(20));
+        var notification = await ownerFrodo.AppNotifications.WaitForNotification(n => n.Options.TagId == options.TagId, TimeSpan.FromSeconds(20));
 
         ClassicAssert.IsNotNull(notification, "Scheduled notification never reached the notification list");
         ClassicAssert.IsTrue(notification.SenderId == frodo.OdinId);
@@ -146,29 +146,7 @@ public class ScheduledNotificationTests
         ClassicAssert.AreEqual(HttpStatusCode.NotFound, cancelAgainResponse.StatusCode);
 
         // and it never reached the notification list
-        var notification = await WaitForNotificationByTagId(ownerFrodo, options.TagId, TimeSpan.FromSeconds(2));
+        var notification = await ownerFrodo.AppNotifications.WaitForNotification(n => n.Options.TagId == options.TagId, TimeSpan.FromSeconds(2));
         ClassicAssert.IsNull(notification, "A cancelled notification should not be delivered");
-    }
-
-    private static async Task<AppNotification> WaitForNotificationByTagId(
-        OwnerApiClientRedux ownerClient,
-        Guid tagId,
-        TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        do
-        {
-            var response = await ownerClient.AppNotifications.GetList(1000);
-            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"GetList failed: {response.StatusCode}");
-            var match = response.Content?.Results?.SingleOrDefault(n => n.Options.TagId == tagId);
-            if (match != null)
-            {
-                return match;
-            }
-
-            await Task.Delay(250);
-        } while (DateTime.UtcNow < deadline);
-
-        return null;
     }
 }

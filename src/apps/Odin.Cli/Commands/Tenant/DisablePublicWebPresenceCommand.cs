@@ -27,10 +27,7 @@ public sealed class DisablePublicWebPresenceCommand : AsyncCommand<DisablePublic
         {
             throw new Exception($"Tenant {settings.TenantDomain} was not found");
         }
-        if (response.StatusCode != HttpStatusCode.OK)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        await ApiResponse.EnsureAsync(response);
         return 0;
     }
 

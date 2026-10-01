@@ -319,6 +319,7 @@ public sealed partial class OdinHost : IAsyncDisposable
         SetCertRenewalBaseline();
         SetMailBaseline();
         SetAdminBaseline();
+        SetStunBaseline();
         SetCdnBaseline();
         return true;
     }
@@ -431,6 +432,16 @@ public sealed partial class OdinHost : IAsyncDisposable
         Set("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");
         Set("Admin__ApiPort", "0");
         Set("Admin__Domain", "admin.dotyou.cloud");
+    }
+
+    /// <summary>
+    /// STUN responder disabled — it is on by default and would bind UDP 3478. System background
+    /// services are off here anyway, but explicit like the admin API so a change to that baseline
+    /// cannot silently start a listener under parallel fixtures.
+    /// </summary>
+    private static void SetStunBaseline()
+    {
+        Set("Stun__Enabled", "false");
     }
 
     private static void Set(string key, string value) =>

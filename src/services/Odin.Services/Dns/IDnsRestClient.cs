@@ -8,6 +8,12 @@ namespace Odin.Services.Dns;
 // SEB:NOTE
 // This is modelled after PowerDNS: https://github.com/PowerDNS/pdns/blob/auth-4.5.3/docs/http-api/swagger/authoritative-api-swagger.yaml
 // We could probably use a tool for auto generating an API wrapper.  
+/// <summary>
+/// An rrset as the zone stores it: the full name with its trailing dot, and each content in zone-file syntax
+/// (a CNAME or MX target with its trailing dot, a TXT value quoted).
+/// </summary>
+public sealed record DnsRrset(string Name, string Type, int Ttl, IReadOnlyList<string> Contents);
+
 public interface IDnsRestClient
 {
     //
@@ -46,6 +52,11 @@ public interface IDnsRestClient
     /// </summary>
     Task CreateTxtRecords(string zoneId, string name, IEnumerable<string> values);
     Task DeleteTxtRecords(string zoneId, string name);
+
+    /// <summary>
+    /// Replaces the given rrsets in one PATCH, which PowerDNS applies all or nothing.
+    /// </summary>
+    Task ReplaceRrsets(string zoneId, IReadOnlyCollection<DnsRrset> rrsets);
 
     //
     // DNSSEC

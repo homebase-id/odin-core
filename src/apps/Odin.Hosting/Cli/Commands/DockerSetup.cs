@@ -17,6 +17,7 @@ using Odin.Core.Dns;
 using Odin.Core.Http;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
+using Odin.Services.Configuration;
 using Spectre.Console;
 
 [assembly: InternalsVisibleTo("Odin.SetupHelper.Tests")]
@@ -56,6 +57,8 @@ public static class DockerSetup
         // We can only run on port 80 and 443 for the time being
         const int httpPort = 80;
         const int httpsPort = 443;
+        // STUN Binding responder for P2P calling (docs/stun.md); UDP, on by default
+        const int stunPort = OdinConfiguration.StunSection.DefaultPort;
         
         var settings = ParseSettings(args);
         var verbose = settings.GetOrDefault("verbose", null) == "y";
@@ -109,7 +112,8 @@ public static class DockerSetup
             [underline blue]Provisioning domain[/]
             The "provisioning domain" is the domain name you will use to provision your Homebase identity (or identities).
             You will need to configure DNS for your provisioning domain so that it resolves to your external IP address ({myIp}).
-            You will also need to make sure that your router forwards traffic on ports {httpPort} and {httpsPort} to your Homebase server.
+            You will also need to make sure that your router forwards traffic on ports {httpPort} and {httpsPort} to your Homebase server,
+            and UDP port {stunPort} if you want peer-to-peer calling to work (STUN).
             Once you enter your provisioning domain, I will check that:
             - it resolves to your external IP address;
             - it is reachable from the internet on ports {httpPort} and {httpsPort};
@@ -331,6 +335,7 @@ public static class DockerSetup
            
         cmd.Add($"--publish {httpPort}:{httpPort}");
         cmd.Add($"--publish {httpsPort}:{httpsPort}");
+        cmd.Add($"--publish {stunPort}:{stunPort}/udp");
         
         cmd.Add($"--volume {dockerRootDataMount}:{homebaseRoot}");
         cmd.Add($"--pull always");

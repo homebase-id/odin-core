@@ -13,8 +13,8 @@ namespace Odin.Hosting.Cli.Commands;
 //   create-own-domain-zones          dry-run: list what would be created, change nothing
 //   create-own-domain-zones commit   create missing zones for all existing own-domain identities
 //
-// Zone deletion rides tenant deletion (odin-cli tenant delete -> DeleteTenantJob ->
-// DeleteDnsRecordsForDomain); there is deliberately no orphan-sweeping prune command,
+// Deleting a tenant never touches DNS; delete-identity-dns deletes one identity's zone on
+// purpose (IdentityDnsCommands). There is deliberately no orphan-sweeping prune command,
 // because on a DNS server shared between environments "no registration here" does not
 // mean "no registration anywhere".
 //
@@ -50,6 +50,7 @@ public static class OwnDomainZones
         var existing = 0;
         var refused = 0;
         var skipped = 0;
+        var movedAway = 0;
         var failed = 0;
         foreach (var tenant in tenants)
         {
@@ -57,6 +58,14 @@ public static class OwnDomainZones
             if (IsManagedDomain(config, domain))
             {
                 skipped++;
+                continue;
+            }
+
+            // Its DNS belongs to the host it moved to: rewriting it from here would point it back at this copy
+            if (TenantStatusRules.HasMovedAway(tenant.Status, tenant.DisabledReason))
+            {
+                movedAway++;
+                Console.WriteLine($"SKIPPED      {domain} (moved away)");
                 continue;
             }
 
@@ -105,8 +114,8 @@ public static class OwnDomainZones
         }
 
         Console.WriteLine(commit
-            ? $"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, failed: {failed}"
-            : $"Dry-run done. Would create: {created}, already exist: {existing}, managed domains skipped: {skipped}, failed: {failed}");
+            ? $"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, moved away: {movedAway}, failed: {failed}"
+            : $"Dry-run done. Would create: {created}, already exist: {existing}, managed domains skipped: {skipped}, moved away: {movedAway}, failed: {failed}");
     }
 
     //
