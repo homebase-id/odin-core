@@ -67,7 +67,8 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     public async Task<MailboxSetupResult> EnsureMailbox([FromBody] EnsureMailboxRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        return await emailAppService.EnsureMailboxAsync(request.PrimaryEmailAddress, WebOdinContext);
+        return await emailAppService.EnsureMailboxAsync(
+            request.PrimaryEmailAddress, request.Mode ?? MailboxMode.Encrypted, WebOdinContext);
     }
 
     /// <summary>
@@ -83,26 +84,23 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     public async Task<EmailKeyGenerationResult> GenerateKey([FromBody] GenerateEmailKeyRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-
-        byte[] entropy = [];
-        if (!string.IsNullOrEmpty(request.ClientEntropyBase64))
-        {
-            try
-            {
-                entropy = Convert.FromBase64String(request.ClientEntropyBase64);
-            }
-            catch (FormatException e)
-            {
-                throw new OdinClientException("ClientEntropyBase64 is not valid base64", inner: e);
-            }
-
-            if (entropy.Length is < 32 or > 1024)
-            {
-                throw new OdinClientException("Client entropy must be between 32 and 1024 bytes");
-            }
-        }
-
+        var entropy = ParseClientEntropy(request.ClientEntropyBase64);
         return await emailAppService.GenerateKeyAsync(request.PrimaryEmailAddress, entropy, WebOdinContext);
+    }
+
+    /// <summary>
+    /// Switches the mailbox between encrypted and standard. Mail already stored is not converted
+    /// either way. Returns the status as it is after the switch.
+    /// </summary>
+    [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
+    [HttpPost("mode")]
+    [ProducesResponseType(typeof(MailAppStatusResult), 200)]
+    public async Task<MailAppStatusResult> SetMode([FromBody] SetMailboxModeRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNull(request.Mode, nameof(request.Mode));
+        var entropy = ParseClientEntropy(request.ClientEntropyBase64);
+        return await emailAppService.SetModeAsync(request.Mode!.Value, entropy, WebOdinContext);
     }
 
     /// <summary>
@@ -156,12 +154,48 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     {
         return await emailAppService.CreateRoundTripChallengeAsync(WebOdinContext);
     }
+
+    private static byte[] ParseClientEntropy(string clientEntropyBase64)
+    {
+        if (string.IsNullOrEmpty(clientEntropyBase64))
+        {
+            return [];
+        }
+
+        byte[] entropy;
+        try
+        {
+            entropy = Convert.FromBase64String(clientEntropyBase64);
+        }
+        catch (FormatException e)
+        {
+            throw new OdinClientException("ClientEntropyBase64 is not valid base64", inner: e);
+        }
+
+        if (entropy.Length is < 32 or > 1024)
+        {
+            throw new OdinClientException("Client entropy must be between 32 and 1024 bytes");
+        }
+
+        return entropy;
+    }
 }
 
 public class EnsureMailboxRequest
 {
     /// <summary>Must be an address at this identity's domain. Defaults to mail@&lt;identity&gt;.</summary>
     public string PrimaryEmailAddress { get; init; } = "";
+
+    /// <summary>Absent from clients that predate the choice, which only set up encrypted mailboxes.</summary>
+    public MailboxMode? Mode { get; init; }
+}
+
+public class SetMailboxModeRequest
+{
+    public MailboxMode? Mode { get; init; }
+
+    /// <summary>Used only when the switch generates a key, as for setup/keys.</summary>
+    public string ClientEntropyBase64 { get; init; } = "";
 }
 
 public class IssueAppPasswordRequest

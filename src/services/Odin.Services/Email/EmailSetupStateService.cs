@@ -19,7 +19,7 @@ namespace Odin.Services.Email;
 ///
 /// Written by the app-facing setup flow; the owner activation path does not use it.
 /// </summary>
-public class EmailSetupStateService(IdentityDatabase identityDatabase)
+public class EmailSetupStateService(IdentityDatabase identityDatabase, EmailPublicKeyService emailPublicKeyService)
 {
     private const string ContextKey = "3d6c9a17-5f42-4e08-b1d3-7a4e02c58b96";
 
@@ -33,12 +33,33 @@ public class EmailSetupStateService(IdentityDatabase identityDatabase)
         return await Storage.GetAsync<EmailSetupRecord>(identityDatabase.KeyValueCached, SetupRecordKey);
     }
 
+    /// <summary>No record means the owner-console path, which only ever activates encrypted mailboxes.</summary>
+    public async Task<MailboxMode> GetModeAsync()
+    {
+        return (await GetAsync())?.Mode ?? MailboxMode.Encrypted;
+    }
+
+    /// <summary>
+    /// Whether mail is usable: app passwords can be issued and autoconfig is served. An encrypted
+    /// mailbox is ready once its certificate is published; a standard one has no key to wait for.
+    /// </summary>
+    public async Task<bool> IsMailReadyAsync()
+    {
+        var record = await GetAsync();
+        if (record?.Mode == MailboxMode.Standard)
+        {
+            return record.MailboxProvisioned;
+        }
+
+        return await emailPublicKeyService.GetPublishedKeyAsync() != null;
+    }
+
     /// <summary>
     /// Records that the mailbox exists for <paramref name="primaryEmailAddress"/>. Idempotent:
     /// re-running the mailbox step keeps the original provisioning timestamp so a retry does not
     /// look like a fresh provision.
     /// </summary>
-    public async Task MarkMailboxProvisionedAsync(string primaryEmailAddress)
+    public async Task MarkMailboxProvisionedAsync(string primaryEmailAddress, MailboxMode mode)
     {
         var existing = await GetAsync();
 
@@ -50,6 +71,7 @@ public class EmailSetupStateService(IdentityDatabase identityDatabase)
                 ? existing.MailboxProvisionedAt
                 : UnixTimeUtc.Now(),
             CurrentKeyFileUniqueId = existing?.CurrentKeyFileUniqueId,
+            Mode = mode,
         };
 
         await Storage.UpsertAsync(identityDatabase.KeyValueCached, SetupRecordKey, record);
@@ -69,6 +91,23 @@ public class EmailSetupStateService(IdentityDatabase identityDatabase)
             MailboxProvisioned = existing?.MailboxProvisioned ?? false,
             MailboxProvisionedAt = existing?.MailboxProvisionedAt ?? default,
             CurrentKeyFileUniqueId = keyFileUniqueId,
+            Mode = existing?.Mode ?? MailboxMode.Encrypted,
+        };
+
+        await Storage.UpsertAsync(identityDatabase.KeyValueCached, SetupRecordKey, record);
+    }
+
+    public async Task SetModeAsync(MailboxMode mode)
+    {
+        var existing = await GetAsync();
+
+        var record = new EmailSetupRecord
+        {
+            PrimaryEmailAddress = existing?.PrimaryEmailAddress ?? "",
+            MailboxProvisioned = existing?.MailboxProvisioned ?? false,
+            MailboxProvisionedAt = existing?.MailboxProvisionedAt ?? default,
+            CurrentKeyFileUniqueId = existing?.CurrentKeyFileUniqueId,
+            Mode = mode,
         };
 
         await Storage.UpsertAsync(identityDatabase.KeyValueCached, SetupRecordKey, record);
@@ -87,4 +126,17 @@ public class EmailSetupRecord
     public bool MailboxProvisioned { get; init; }
     public UnixTimeUtc MailboxProvisionedAt { get; init; }
     public Guid? CurrentKeyFileUniqueId { get; init; }
+
+    // Absent in records written before modes existed, which were all encrypted
+    public MailboxMode Mode { get; init; } = MailboxMode.Encrypted;
+}
+
+/// <summary>
+/// Whether the mail server encrypts stored mail to the identity's OpenPGP key (only OpenPGP
+/// clients can read it) or stores it as received (any mail app can).
+/// </summary>
+public enum MailboxMode
+{
+    Encrypted = 0,
+    Standard = 1,
 }

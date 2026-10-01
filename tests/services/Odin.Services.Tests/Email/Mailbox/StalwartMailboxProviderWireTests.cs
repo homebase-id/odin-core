@@ -130,6 +130,42 @@ public class StalwartMailboxProviderWireTests
     }
 
     [Test]
+    public async Task EncryptionAtRestEncryptsOnAppendToTheUploadedKey()
+    {
+        var provider = CreateProvider();
+        _responses.Enqueue(GetResponse("x:Domain/get", """[{"id":"d1","name":"frodo.example.test"}]"""));
+        _responses.Enqueue(GetResponse("x:Account/get", """[{"id":"a1","name":"frodo","domainId":"d1"}]"""));
+        _responses.Enqueue(GetResponse("x:PublicKey/get", "[]"));
+        _responses.Enqueue(SetResponse("x:PublicKey/set", "k1"));
+        _responses.Enqueue("""{"methodResponses":[["x:Account/set",{"accountId":"dadmin","updated":{"a1":null}},"0"]]}""");
+        _responses.Enqueue(GetResponse("x:PublicKey/get", """[{"id":"k1","key":"CERT"}]"""));
+
+        await provider.SetEncryptionKeyAsync(Domain, "CERT");
+
+        Assert.That(MethodName(5), Is.EqualTo("x:Account/set"));
+        var encryption = MethodArgs(5)!["update"]!["a1"]!["encryptionAtRest"]!;
+        Assert.That(encryption["@type"]!.GetValue<string>(), Is.EqualTo("Aes256"));
+        Assert.That(encryption["publicKey"]!.GetValue<string>(), Is.EqualTo("k1"));
+        Assert.That(encryption["encryptOnAppend"]!.GetValue<bool>(), Is.True);
+    }
+
+    [Test]
+    public async Task DisablingEncryptionAtRestSetsTheDisabledVariant()
+    {
+        var provider = CreateProvider();
+        _responses.Enqueue(GetResponse("x:Domain/get", """[{"id":"d1","name":"frodo.example.test"}]"""));
+        _responses.Enqueue(GetResponse("x:Account/get", """[{"id":"a1","name":"frodo","domainId":"d1"}]"""));
+        _responses.Enqueue("""{"methodResponses":[["x:Account/set",{"accountId":"dadmin","updated":{"a1":null}},"0"]]}""");
+
+        await provider.DisableEncryptionAtRestAsync(Domain);
+
+        Assert.That(MethodName(3), Is.EqualTo("x:Account/set"));
+        var encryption = (JsonObject)MethodArgs(3)!["update"]!["a1"]!["encryptionAtRest"]!;
+        Assert.That(encryption.Select(kv => kv.Key), Is.EqualTo(new[] { "@type" }));
+        Assert.That(encryption["@type"]!.GetValue<string>(), Is.EqualTo("Disabled"));
+    }
+
+    [Test]
     public async Task DkimPrivateKeyTravelsAsSecretTextVariantInPem()
     {
         var provider = CreateProvider();

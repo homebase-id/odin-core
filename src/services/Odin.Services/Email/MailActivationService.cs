@@ -37,6 +37,7 @@ public class MailActivationService(
     IMailRelayProvider relayProvider,
     IJobManager jobManager,
     EmailPublicKeyService emailPublicKeyService,
+    EmailSetupStateService setupStateService,
     IMailboxProvider mailboxProvider)
 {
     /// <summary>
@@ -50,6 +51,7 @@ public class MailActivationService(
 
         // Validate the certificate BEFORE any side effect (DKIM generation, DNS writes)
         AssertPublishableCertificate(publicCertificateArmored);
+        await AssertNotStandardAsync();
 
         var result = await EnsureMailboxAsync(primaryEmailAddress);
         await PublishKeyAsync(publicCertificateArmored);
@@ -228,6 +230,36 @@ public class MailActivationService(
         logger.LogInformation("Published the email encryption key for {domain}", domain);
     }
 
+    /// <summary>
+    /// The mail-server and publication half of switching to a standard mailbox. Only the email
+    /// certificate is unpublished (WKD, DID keyAgreement); the keyring stays on the email drive
+    /// so mail already stored encrypted can still be read with it elsewhere.
+    /// </summary>
+    public async Task StopEncryptingAsync()
+    {
+        ThrowIfTenantMailDisabled();
+
+        var domain = tenantContext.HostOdinId.DomainName;
+
+        // Mail server first: a published key with encryption off is harmless, the reverse is not
+        await mailboxProvider.DisableEncryptionAtRestAsync(domain);
+        await emailPublicKeyService.UnpublishAsync();
+
+        logger.LogInformation("Stopped encrypting mail at rest for {domain}", domain);
+    }
+
+    /// <summary>
+    /// A standard mailbox switches to encrypted through the mode endpoint, never by a key quietly
+    /// appearing, or the mail server would encrypt while the identity reports standard.
+    /// </summary>
+    public async Task AssertNotStandardAsync()
+    {
+        if (await setupStateService.GetModeAsync() == MailboxMode.Standard)
+        {
+            throw new OdinClientException("This mailbox is standard; switch it to encrypted to use a key");
+        }
+    }
+
     private static void AssertPublishableCertificate(string publicCertificateArmored)
     {
         try
@@ -250,7 +282,8 @@ public class MailActivationService(
         return new MailStatusResult
         {
             TenantMailEnabled = configuration.Email.TenantMail.Enabled,
-            Activated = publishedKey != null,
+            Activated = await setupStateService.IsMailReadyAsync(),
+            Mode = await setupStateService.GetModeAsync(),
             PublicKeyFingerprint = publishedKey?.FingerprintHex,
             PublishedAt = publishedKey?.PublishedAt,
             DkimRecords = DkimDnsRecords.ToDnsConfigs(domain, dkimKeys),
@@ -263,7 +296,7 @@ public class MailActivationService(
 
         var domain = tenantContext.HostOdinId.DomainName;
 
-        if (await emailPublicKeyService.GetPublishedKeyAsync() == null)
+        if (!await setupStateService.IsMailReadyAsync())
         {
             throw new OdinClientException("Email is not activated");
         }
@@ -287,7 +320,7 @@ public class MailActivationService(
 
         var domain = tenantContext.HostOdinId.DomainName;
 
-        if (await emailPublicKeyService.GetPublishedKeyAsync() == null)
+        if (!await setupStateService.IsMailReadyAsync())
         {
             throw new OdinClientException("Email is not activated");
         }
@@ -380,6 +413,7 @@ public class MailStatusResult
 {
     public bool TenantMailEnabled { get; init; }
     public bool Activated { get; init; }
+    public MailboxMode Mode { get; init; }
     public string? PublicKeyFingerprint { get; init; }
     public UnixTimeUtc? PublishedAt { get; init; }
     public List<DnsConfig> DkimRecords { get; init; } = [];

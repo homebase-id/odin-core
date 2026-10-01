@@ -115,6 +115,22 @@ public class StalwartMailboxProvider(
     }
 
     /// <summary>
+    /// The uploaded public keys are left in place: nothing references them once this runs, and
+    /// the next <see cref="SetEncryptionKeyAsync"/> prunes them.
+    /// </summary>
+    public async Task DisableEncryptionAtRestAsync(string domain)
+    {
+        var (accountId, _) = await RequireUserAccountAsync(domain);
+
+        await SetAsync("x:Account", updateId: accountId, update: new JsonObject
+        {
+            ["encryptionAtRest"] = new JsonObject { ["@type"] = "Disabled" }
+        });
+
+        logger.LogInformation("Stalwart encryption-at-rest disabled for {domain}", domain);
+    }
+
+    /// <summary>
     /// Removes public key objects, optionally keeping one. Best-effort: failing to tidy up is not
     /// a reason to fail the caller, which has already done the part that matters.
     /// </summary>

@@ -9,14 +9,14 @@ namespace Odin.Hosting.Controllers.Anonymous
     // Routes in here:
     // - are accessible without authentication
     //
-    // 404 until tenant mail is enabled for the environment AND this tenant has
-    // activated email (published key present) - clients treat 404 as "no autoconfig,
-    // ask the user", so inertness is free.
+    // 404 until tenant mail is enabled for the environment AND this tenant's mail is
+    // ready (published key, or a provisioned standard mailbox) - clients treat 404 as
+    // "no autoconfig, ask the user", so inertness is free.
     [ApiController]
     [Route(".well-known/autoconfig/mail/config-v1.1.xml")]
     public class MailAutoconfigController(
         OdinConfiguration configuration,
-        EmailPublicKeyService emailPublicKeyService) : ControllerBase
+        EmailSetupStateService emailSetupStateService) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> GetAutoconfig()
@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.Anonymous
                 return NotFound();
             }
 
-            if (await emailPublicKeyService.GetPublishedKeyAsync() == null)
+            if (!await emailSetupStateService.IsMailReadyAsync())
             {
                 return NotFound();
             }
