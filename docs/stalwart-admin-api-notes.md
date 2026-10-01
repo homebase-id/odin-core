@@ -44,6 +44,8 @@ USER's account id instead (= the object id from `x:Account/set`).
      (`emailAddresses` field rejected our values; omit - not needed.)
    - `x:Account/set` update `{"encryptionAtRest":{"@type":"Aes256","publicKey":keyId,"encryptOnAppend":true,"allowSpamTraining":false}}`.
      Variants: Disabled | Aes128 | Aes256. Verified persisted via read-back.
+   - Standard mailbox: `x:Account/set` update `{"encryptionAtRest":{"@type":"Disabled"}}`.
+     Verified persisted via read-back, and re-enabling with a new key afterwards works.
 
 3. **Install DKIM key** — `x:DkimSignature/set` create:
    `{"@type":"Dkim1Ed25519Sha256","domainId":<id>,"selector":"s1","privateKey":{"@type":"Text","secret":"<PKCS#8 PEM>"}}`

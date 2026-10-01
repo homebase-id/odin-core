@@ -34,6 +34,7 @@ public class EmailHealthVerifier(
     TenantContext tenantContext,
     IDkimStore dkimStore,
     EmailPublicKeyService emailPublicKeyService,
+    EmailSetupStateService setupStateService,
     ILookupClient dnsClient,
     IDynamicHttpClientFactory httpClientFactory)
 {
@@ -52,7 +53,7 @@ public class EmailHealthVerifier(
         var domain = tenantContext.HostOdinId.DomainName;
 
         var publishedKey = await emailPublicKeyService.GetPublishedKeyAsync();
-        if (publishedKey == null)
+        if (!EmailSetupStateService.IsMailReady(await setupStateService.GetAsync(), publishedKey))
         {
             // Not activated: nothing is published, nothing to verify
             return new Result { Activated = false };
@@ -62,7 +63,12 @@ public class EmailHealthVerifier(
         var warnings = new List<string>();
 
         await VerifyDkimAsync(domain, errors, warnings, cancellationToken);
-        await VerifyPublicationSurfacesAsync(domain, publishedKey, errors, warnings, cancellationToken);
+
+        // A standard mailbox publishes no certificate, so there is no drift to look for
+        if (publishedKey != null)
+        {
+            await VerifyPublicationSurfacesAsync(domain, publishedKey, errors, warnings, cancellationToken);
+        }
 
         return new Result { Activated = true, Errors = errors, Warnings = warnings };
     }

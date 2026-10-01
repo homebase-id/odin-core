@@ -25,8 +25,13 @@ public class V2MailClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<MailRoundTripChallenge>> CreateChallengeAsync() =>
         await Service().CreateChallenge();
 
-    public async Task<ApiResponse<MailboxSetupResult>> EnsureMailboxAsync(string primaryEmailAddress) =>
-        await Service().EnsureMailbox(new EnsureMailboxRequest { PrimaryEmailAddress = primaryEmailAddress });
+    public async Task<ApiResponse<MailboxSetupResult>> EnsureMailboxAsync(
+        string primaryEmailAddress,
+        MailboxMode? mode = null) =>
+        await Service().EnsureMailbox(new EnsureMailboxRequest { PrimaryEmailAddress = primaryEmailAddress, Mode = mode });
+
+    public async Task<ApiResponse<MailAppStatusResult>> SetModeAsync(MailboxMode mode) =>
+        await Service().SetMode(new SetMailboxModeRequest { Mode = mode });
 
     public async Task<ApiResponse<EmailKeyGenerationResult>> GenerateKeyAsync(
         string primaryEmailAddress,
