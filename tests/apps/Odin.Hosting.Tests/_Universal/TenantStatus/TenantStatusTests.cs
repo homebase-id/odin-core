@@ -353,6 +353,39 @@ public class TenantStatusTests
     }
 
     [Test]
+    public async Task PausingAnIdentityWhoseClientStoppedReadingStillFinishes()
+    {
+        // #1854: a client that no longer reads never answers the close, and the pause waited for it without end,
+        // holding the identity's gate so every later status change hung as well
+        var identity = TestIdentities.Samwise;
+        var domain = identity.OdinId.DomainName;
+        var owner = _scaffold.CreateOwnerApiClientRedux(identity);
+        var silentClient = new TestOwnerWebSocketListener();
+        await silentClient.ConnectAsync(identity.OdinId, owner.GetTokenContext(), new EstablishConnectionOptions { Drives = [] },
+            startReceiving: false);
+
+        try
+        {
+            var deadline = DeviceSocketCollection.DefaultCloseTimeout + TimeSpan.FromSeconds(10);
+
+            var pause = SetStatusViaAdminAsync(domain, Status.Paused, null);
+            Assert.That(await Task.WhenAny(pause, Task.Delay(deadline)), Is.SameAs(pause), $"pause still running after {deadline}");
+            Assert.That((await pause).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(Registry.AreBackgroundServicesRunning(IdOf(identity)), Is.False);
+
+            // The gate is free again: resuming restarts the background services
+            var resume = SetStatusViaAdminAsync(domain, Status.Active, null);
+            Assert.That(await Task.WhenAny(resume, Task.Delay(deadline)), Is.SameAs(resume), $"resume still running after {deadline}");
+            Assert.That((await resume).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(Registry.AreBackgroundServicesRunning(IdOf(identity)), Is.True);
+        }
+        finally
+        {
+            await silentClient.DisconnectAsync();
+        }
+    }
+
+    [Test]
     public async Task TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume()
     {
         var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
