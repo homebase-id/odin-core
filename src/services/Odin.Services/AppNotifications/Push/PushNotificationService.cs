@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -248,11 +249,12 @@ public class PushNotificationService(
         var vapidDetails = new VapidDetails(configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64);
 
         var data = OdinSystemSerializer.Serialize(content);
+        var options = WebPushOptions(content, vapidDetails);
 
         var webPushClient = new WebPushClient();
         try
         {
-            await webPushClient.SendNotificationAsync(pushSubscription, data, vapidDetails, cancellationToken);
+            await webPushClient.SendNotificationAsync(pushSubscription, data, options, cancellationToken);
         }
         catch (WebPushException exception)
         {
@@ -301,6 +303,48 @@ public class PushNotificationService(
         logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
     }
 
+    // RFC 8030: a Topic is at most 32 URL-safe base64 characters.
+    private static readonly Regex WebPushTopicPattern = new("^[A-Za-z0-9_-]{1,32}$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// The WebPush library takes TTL and raw HTTP headers through an options dictionary. One WebPush
+    /// carries every payload in <paramref name="content"/> (in practice one), so the strictest
+    /// delivery options win: the smallest TTL, high urgency if any payload is time-sensitive, and
+    /// the collapse id as Topic only when there is exactly one payload to collapse.
+    /// </summary>
+    private static Dictionary<string, object> WebPushOptions(PushNotificationContent content, VapidDetails vapidDetails)
+    {
+        var options = new Dictionary<string, object> { ["vapidDetails"] = vapidDetails };
+
+        var ttl = content.Payloads
+            .Select(p => p.Options?.TimeToLiveSeconds)
+            .Where(t => t is > 0)
+            .Min();
+        if (ttl is > 0)
+        {
+            options["TTL"] = ttl.Value;
+        }
+
+        var headers = new Dictionary<string, object>();
+        if (content.Payloads.Any(p => p.Options?.TimeSensitive == true))
+        {
+            headers["Urgency"] = "high";
+        }
+
+        var topic = content.Payloads.Count == 1 ? content.Payloads[0].Options?.CollapseId : null;
+        if (topic != null && WebPushTopicPattern.IsMatch(topic))
+        {
+            headers["Topic"] = topic;
+        }
+
+        if (headers.Count > 0)
+        {
+            options["headers"] = headers;
+        }
+
+        return options;
+    }
+
     private async Task DevicePushAsync(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext)
     {
         logger.LogDebug("Attempting DevicePush Notification");
@@ -346,6 +390,10 @@ public class PushNotificationService(
                 Signature = signature,
                 Timestamp = DateTimeOffset.UtcNow.ToString("O"),
                 Title = title,
+                TimeToLiveSeconds = payload.Options.TimeToLiveSeconds,
+                CollapseId = payload.Options.CollapseId,
+                Silent = payload.Options.Silent,
+                TimeSensitive = payload.Options.TimeSensitive,
             };
 
             var baseUri = new Uri(configuration.PushNotification.BaseUrl);

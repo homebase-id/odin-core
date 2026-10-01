@@ -1,4 +1,5 @@
 using System;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.LiveRelay;
 
@@ -15,4 +16,11 @@ public class LiveRelayPeerEnvelope
 
     /// <summary>The app the data is scoped to (inferred from the sender's app token on hop 1).</summary>
     public Guid AppId { get; init; }
+
+    /// <summary>
+    /// Optional push to enqueue on the recipient. The recipient overwrites <c>AppId</c> with
+    /// <see cref="AppId"/> and clears the fan-out fields; it trusts nothing else in here beyond
+    /// what it validates.
+    /// </summary>
+    public AppNotificationOptions Push { get; init; }
 }

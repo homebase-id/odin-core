@@ -34,4 +34,24 @@ public class AppNotificationOptions
     public List<OdinId> Recipients { get; set; }
 
     public string UnEncryptedMessage { get; set; }
+
+    /// <summary>
+    /// Seconds after enqueue beyond which the push is dropped instead of delivered, on this server's
+    /// outbox and on the device platform. Null: no expiry. A ring or a "send me your location" is
+    /// worthless after a minute; a chat message is not.
+    /// </summary>
+    public int? TimeToLiveSeconds { get; set; }
+
+    /// <summary>
+    /// Platform collapse key (FCM collapse_key, apns-collapse-id, WebPush Topic): a later push with the
+    /// same id replaces an undelivered earlier one, which is how "call ended" retracts "incoming call".
+    /// At most 64 characters.
+    /// </summary>
+    public string CollapseId { get; set; }
+
+    /// <summary>
+    /// Deliver as a time-sensitive interruption where the platform supports it (iOS interruption-level;
+    /// needs the app's entitlement, otherwise APNs downgrades it).
+    /// </summary>
+    public bool TimeSensitive { get; set; }
 }

@@ -64,7 +64,7 @@ public class V2LiveRelayTests
 
         var appId = Guid.NewGuid();
         var (frodoAppToken, frodoAppSecret, samAppToken, samAppSecret) =
-            await ConnectAndSetupAppAsync(ownerFrodo, ownerSam, frodo, sam, appId);
+            await LiveRelayTestHelpers.ConnectAndSetupAppAsync(ownerFrodo, ownerSam, frodo, sam, appId);
 
         try
         {
@@ -75,7 +75,7 @@ public class V2LiveRelayTests
             var channelKey = Guid.NewGuid();
             const string blob = "eyJsYXQiOjUxLjUsImxvbiI6LTAuMX0="; // opaque to the server
 
-            var relayResponse = await SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
+            var relayResponse = await LiveRelayTestHelpers.SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
                 channelKey, new List<string> { sam.OdinId.DomainName }, blob);
             Assert.That(relayResponse.IsSuccessStatusCode, Is.True, $"relay failed: {relayResponse.StatusCode}");
 
@@ -91,7 +91,7 @@ public class V2LiveRelayTests
         }
         finally
         {
-            await DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
+            await LiveRelayTestHelpers.DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
         }
     }
 
@@ -105,7 +105,7 @@ public class V2LiveRelayTests
 
         var appId = Guid.NewGuid();
         var (frodoAppToken, frodoAppSecret, _, _) =
-            await ConnectAndSetupAppAsync(ownerFrodo, ownerSam, frodo, sam, appId);
+            await LiveRelayTestHelpers.ConnectAndSetupAppAsync(ownerFrodo, ownerSam, frodo, sam, appId);
 
         // A second, unrelated app on Sam — its socket must never see the first app's data.
         var otherAppId = Guid.NewGuid();
@@ -118,7 +118,7 @@ public class V2LiveRelayTests
             using var otherSocket = await LiveRelayTestHelpers.ConnectAppSocketAsync(sam.OdinId, otherAppToken, cts.Token);
             await LiveRelayTestHelpers.DoHandshakeAsync(otherSocket, otherAppSecret, new List<TargetDrive>(), cts.Token);
 
-            var relayResponse = await SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
+            var relayResponse = await LiveRelayTestHelpers.SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
                 Guid.NewGuid(), new List<string> { sam.OdinId.DomainName }, "c29tZS1ncHM=");
             Assert.That(relayResponse.IsSuccessStatusCode, Is.True);
 
@@ -129,7 +129,7 @@ public class V2LiveRelayTests
         }
         finally
         {
-            await DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
+            await LiveRelayTestHelpers.DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
         }
     }
 
@@ -143,7 +143,7 @@ public class V2LiveRelayTests
 
         var appId = Guid.NewGuid();
         var (frodoAppToken, frodoAppSecret, samAppToken, samAppSecret) =
-            await ConnectAndSetupAppAsync(ownerFrodo, ownerSam, frodo, sam, appId);
+            await LiveRelayTestHelpers.ConnectAndSetupAppAsync(ownerFrodo, ownerSam, frodo, sam, appId);
 
         try
         {
@@ -151,7 +151,7 @@ public class V2LiveRelayTests
             const string blob = "bGFzdC1rbm93bi1wb3NpdGlvbg==";
 
             // Relay BEFORE Sam connects any socket — the point is retained, not lost.
-            var relayResponse = await SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
+            var relayResponse = await LiveRelayTestHelpers.SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
                 channelKey, new List<string> { sam.OdinId.DomainName }, blob);
             Assert.That(relayResponse.IsSuccessStatusCode, Is.True);
 
@@ -174,7 +174,7 @@ public class V2LiveRelayTests
         }
         finally
         {
-            await DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
+            await LiveRelayTestHelpers.DisconnectAsync(ownerFrodo, ownerSam, frodo, sam);
         }
     }
 
@@ -201,7 +201,7 @@ public class V2LiveRelayTests
         await LiveRelayTestHelpers.DoHandshakeAsync(merrySocket, merryAppSecret, new List<TargetDrive>(), cts.Token);
 
         // Fire-and-forget: even with an unreachable/non-connected recipient the call succeeds.
-        var relayResponse = await SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
+        var relayResponse = await LiveRelayTestHelpers.SendRelayAsync(frodo, frodoAppToken, frodoAppSecret,
             Guid.NewGuid(), new List<string> { merry.OdinId.DomainName }, "c2hvdWxkLW5vdC1hcnJpdmU=");
         Assert.That(relayResponse.IsSuccessStatusCode, Is.True, "relay must not fail the caller on a dropped recipient");
 
@@ -211,46 +211,4 @@ public class V2LiveRelayTests
         await LiveRelayTestHelpers.CloseQuietlyAsync(merrySocket);
     }
 
-    //
-
-    private async Task<(ClientAuthenticationToken frodoAppToken, byte[] frodoAppSecret,
-            ClientAuthenticationToken samAppToken, byte[] samAppSecret)>
-        ConnectAndSetupAppAsync(
-            OwnerApiClientRedux ownerFrodo, OwnerApiClientRedux ownerSam,
-            TestIdentity frodo, TestIdentity sam, Guid appId)
-    {
-        // Same app on both identities (a single shared appId — e.g. the chat app).
-        var frodoCircleId = await LiveRelayTestHelpers.PrepareAppAccessAsync(ownerFrodo, appId, TargetDrive.NewTargetDrive());
-        var samCircleId = await LiveRelayTestHelpers.PrepareAppAccessAsync(ownerSam, appId, TargetDrive.NewTargetDrive());
-
-        await ownerFrodo.Connections.SendConnectionRequest(sam.OdinId, new List<GuidId> { frodoCircleId });
-        await ownerSam.Connections.AcceptConnectionRequest(frodo.OdinId, new List<GuidId> { samCircleId });
-
-        var (frodoAppToken, frodoAppSecret) = await ownerFrodo.AppManager.RegisterAppClient(appId);
-        var (samAppToken, samAppSecret) = await ownerSam.AppManager.RegisterAppClient(appId);
-
-        return (frodoAppToken, frodoAppSecret, samAppToken, samAppSecret);
-    }
-
-    private static async Task DisconnectAsync(
-        OwnerApiClientRedux ownerFrodo, OwnerApiClientRedux ownerSam, TestIdentity frodo, TestIdentity sam)
-    {
-        await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
-        await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
-    }
-
-    private static async Task<Refit.IApiResponse> SendRelayAsync(
-        TestIdentity sender, ClientAuthenticationToken appToken, byte[] appSecret,
-        Guid channelKey, List<string> recipients, string blob)
-    {
-        var factory = new ApiClientFactoryV2(YouAuthConstants.AppCookieName, appToken, appSecret);
-        var client = factory.CreateHttpClient(sender.OdinId, out var sharedSecret);
-        var svc = RefitCreator.RestServiceFor<ILiveRelayHttpClientApiV2>(client, sharedSecret);
-        return await svc.Relay(new LiveRelayRequest
-        {
-            ChannelKey = channelKey,
-            Recipients = recipients,
-            Blob = blob
-        });
-    }
 }

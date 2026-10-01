@@ -29,6 +29,24 @@ shared-secret-encrypted like every other V2 JSON POST:
 - `appId` is **inferred server-side** from the app token — the client never sends it.
 - Response: `204 No Content`. Fire-and-forget — unreachable/non-connected recipients are silently dropped.
 
+**Optional push (wake the recipient's app).** Add a `push` object to the same request:
+```json
+{ "channelKey": "<guid>", "recipients": ["sam.dotyou.cloud"], "blob": "<base64>",
+  "push": { "typeId": "<guid>", "tagId": "<guid>", "unEncryptedMessage": "Frodo is calling",
+            "silent": false, "timeToLiveSeconds": 45, "collapseId": "call-<channelKey>", "timeSensitive": true } }
+```
+- Each recipient's server enqueues a normal push (notification-list row + device push) with the
+  **caller as sender**, if the recipient has this app installed. Not installed: no push, relay still
+  delivered. Not connected: nothing, as before.
+- `appId`, `recipients` and `peerSubscriptionId` inside `push` are ignored and set server-side.
+- `typeId` is required. `timeToLiveSeconds` 1..86400: past it the push is dropped, never delivered
+  late. `collapseId` ≤ 64 chars: a later push with the same id replaces an undelivered earlier one,
+  which is how a hangup retracts "incoming call". `silent: true` is a background push (no alert on
+  iOS; Android is data-only either way). `timeSensitive` asks iOS for the time-sensitive interruption
+  level (needs the app's entitlement).
+- A `400` means the push failed validation; the relay was not sent.
+- Full semantics and platform mapping: `docs/push-delivery-options.md`.
+
 **Receive (hop 3, server → client websocket)** — a `LiveRelay` client notification over the existing
 notification socket. Its `Data` payload:
 ```json

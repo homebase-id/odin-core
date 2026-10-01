@@ -177,6 +177,11 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
         RuleFor(request => request.Body).NotEmpty();
         RuleFor(request => request.FromDomain).NotEmpty();
         RuleFor(request => request.ToDomain).NotEmpty();
+
+        // Delivery options are optional; an older host sends none and must stay valid.
+        RuleFor(request => request.TimeToLiveSeconds).InclusiveBetween(1, 86400)
+            .When(request => request.TimeToLiveSeconds.HasValue);
+        RuleFor(request => request.CollapseId).MaximumLength(64);
     }
 }
 
