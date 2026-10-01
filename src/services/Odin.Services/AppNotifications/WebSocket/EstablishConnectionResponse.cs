@@ -16,7 +16,7 @@ public class EstablishConnectionResponse : IClientNotification
     /// client; refreshed on every connect, which is how a cluster change reaches devices without
     /// an extra call. Null on a peer socket, where the server is another identity's.
     /// </summary>
-    public List<string> StunUrls { get; init; }
+    public IReadOnlyList<string> StunUrls { get; init; }
 
     public string GetClientData()
     {

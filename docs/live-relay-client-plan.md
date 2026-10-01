@@ -60,14 +60,13 @@ notification socket. Its `Data` payload:
 
 ---
 
-**Handshake reply (`deviceHandshakeSuccess`)** — the reply to `EstablishConnectionRequest` now carries
-the device's STUN URLs:
+**Handshake reply (`deviceHandshakeSuccess`)** — the reply to `EstablishConnectionRequest` carries the
+device's STUN URLs:
 ```json
 { "notificationType": "deviceHandshakeSuccess", "notificationTypeId": "0000…", "stunUrls": ["stun:…:3478", "stun:…:3478"] }
 ```
-- Keep the latest list and put **every** entry into `RTCPeerConnection`'s `iceServers`, as given.
-  Never build, parse or hard-code a STUN name; the server's config decides what is sent (one URL
-  for a single host, two per OVH cluster). Null on peer sockets. Details: `docs/stun.md`.
+Keep the latest list and put **every** entry into `iceServers` as given; never build a STUN name.
+Semantics in `docs/stun.md`.
 
 ---
 

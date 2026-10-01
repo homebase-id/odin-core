@@ -100,9 +100,8 @@ public class V2NotificationSocketControllerTests
         ClassicAssert.AreEqual(ClientNotificationType.DeviceHandshakeSuccess, response.NotificationType);
 
         // No Stun:PublicUrls in the scaffold, so the device is told to use its own identity's name,
-        // on the port the scaffold configured (0, ephemeral). See StunUrlsHandshakeTests for a list.
-        Assert.That(response.StunUrls, Is.EqualTo(new[] { $"stun:{TestIdentities.Samwise.OdinId.DomainName}:0" }),
-            $"handshake carried stunUrls [{string.Join(", ", response.StunUrls ?? [])}]");
+        // on the port the scaffold configured (0, ephemeral). StunResponderHostTests covers a list.
+        Assert.That(response.StunUrls, Is.EqualTo(new[] { $"stun:{TestIdentities.Samwise.OdinId.DomainName}:0" }));
 
         await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
     }

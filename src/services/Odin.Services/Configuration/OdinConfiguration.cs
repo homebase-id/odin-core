@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
@@ -806,15 +805,12 @@ public class OdinConfiguration
         public string BindAddress { get; init; } = "*";
 
         /// <summary>
-        /// The STUN URLs this host's clients should use, when the identity name itself is not the
-        /// right target: behind a load balancer the identity name resolves to the balancer, which
-        /// cannot carry UDP with the client's source address intact, so each core answers STUN on
-        /// its own public name instead (two per cluster, so ICE survives one core being down).
-        /// Sent to every app socket in the handshake reply. Empty, which is the right value for a
-        /// single host answering on its own name, means <c>stun:&lt;identity-domain&gt;:&lt;Port&gt;</c>.
-        /// Environment form: <c>Stun__PublicUrls__0=stun:stun1-1.eu.example:3478</c>.
+        /// The stun: URLs this host's devices should use, sent in every app socket handshake. Empty
+        /// means <c>stun:&lt;identity-domain&gt;:&lt;Port&gt;</c>, the right value for a single host; a
+        /// cluster behind a load balancer lists its cores' own names (docs/stun.md). Environment
+        /// form: <c>Stun__PublicUrls__0=stun:stun1-1.eu.example:3478</c>.
         /// </summary>
-        public List<string> PublicUrls { get; init; } = [];
+        public IReadOnlyList<string> PublicUrls { get; init; } = [];
 
         public StunSection()
         {
@@ -832,7 +828,7 @@ public class OdinConfiguration
             {
                 if (!IsStunUrl(url))
                 {
-                    throw new OdinConfigException($"Stun:PublicUrls entry '{url}' is not a stun: or stuns: URL with a host");
+                    throw new OdinConfigException($"Stun:PublicUrls entry '{url}' is not a stun: or stuns: URL with a valid host and port");
                 }
             }
 
@@ -854,12 +850,58 @@ public class OdinConfiguration
             }
         }
 
-        // RFC 7064: "stun:" or "stuns:" then host[:port], no "//" (so System.Uri sees no host).
-        private static readonly Regex StunUrlPattern = new(
-            @"^stuns?:([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$",
-            RegexOptions.Compiled);
+        // RFC 7064: "stun:" or "stuns:" then host[:port], no "//", which is why System.Uri sees no
+        // host in it. The host is a domain name (same rule as every other domain in config) or an
+        // IP literal; the port has the same bound as Stun:Port.
+        private static bool IsStunUrl(string url)
+        {
+            var rest = url.StartsWith("stuns:", StringComparison.Ordinal) ? url[6..]
+                : url.StartsWith("stun:", StringComparison.Ordinal) ? url[5..]
+                : null;
+            if (string.IsNullOrEmpty(rest))
+            {
+                return false;
+            }
 
-        public static bool IsStunUrl(string url) => StunUrlPattern.IsMatch(url);
+            string host;
+            string? port = null;
+            if (rest.StartsWith('['))
+            {
+                var close = rest.IndexOf(']');
+                if (close < 0)
+                {
+                    return false;
+                }
+                host = rest[1..close];
+                var tail = rest[(close + 1)..];
+                if (tail.Length > 0)
+                {
+                    if (!tail.StartsWith(':'))
+                    {
+                        return false;
+                    }
+                    port = tail[1..];
+                }
+                if (!IPAddress.TryParse(host, out var v6) || v6.AddressFamily != AddressFamily.InterNetworkV6)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                var colon = rest.IndexOf(':');
+                host = colon < 0 ? rest : rest[..colon];
+                port = colon < 0 ? null : rest[(colon + 1)..];
+                // An IPv4 literal must be written out in full ("1" parses as 0.0.0.1), or a domain.
+                var isIPv4Literal = IPAddress.TryParse(host, out var v4) && v4.ToString() == host;
+                if (!isIPv4Literal && !AsciiDomainNameValidator.TryValidateDomain(host))
+                {
+                    return false;
+                }
+            }
+
+            return port == null || (int.TryParse(port, out var p) && p is >= 1 and <= 65535);
+        }
 
         /// <summary>
         /// What a client of <paramref name="tenantDomain"/> puts into its ICE servers: the configured
@@ -867,7 +909,7 @@ public class OdinConfiguration
         /// otherwise this host under the identity's own name; otherwise nothing, and the client
         /// gathers host candidates only.
         /// </summary>
-        public List<string> ClientUrls(string tenantDomain)
+        public IReadOnlyList<string> ClientUrls(string tenantDomain)
         {
             if (PublicUrls.Count > 0)
             {

@@ -287,9 +287,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                         throw new CloseWebSocketException();
                     }
 
-                    // The handshake is the one message every app client gets on every connect, so it
-                    // carries the device's STUN URLs: no extra call, and a cluster change reaches
-                    // devices at their next reconnect.
                     var response = new EstablishConnectionResponse
                     {
                         StunUrls = _configuration.Stun.ClientUrls(odinContext.Tenant.DomainName)

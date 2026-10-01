@@ -377,12 +377,27 @@ public class OdinConfigurationTest
     [TestCase("https://stun1-1.eu.example:3478", Description = "wrong scheme")]
     [TestCase("stun1-1.eu.example:3478", Description = "no scheme")]
     [TestCase("stun:", Description = "no host")]
+    [TestCase("stun:stun1-1.eu.example:99999", Description = "port out of range")]
+    [TestCase("stun:stun1-1.eu.example:3478/x", Description = "path, not a host")]
+    [TestCase("stun:-bad.example", Description = "not a domain name")]
     public void StunSection_PublicUrls_RejectsAnythingButAStunUrl(string entry)
     {
         var ex = Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.StunSection(BuildConfig(
             new Dictionary<string, string?> { ["Stun:PublicUrls:0"] = entry })));
 
         Assert.That(ex!.Message, Does.Contain("Stun:PublicUrls").And.Contain(entry));
+    }
+
+    [TestCase("stun:stun1-1.eu.example")]
+    [TestCase("stuns:stun1-1.eu.example:5349")]
+    [TestCase("stun:192.0.2.10:3478")]
+    [TestCase("stun:[2001:db8::1]:3478")]
+    public void StunSection_PublicUrls_AcceptsRfc7064Forms(string entry)
+    {
+        var section = new OdinConfiguration.StunSection(BuildConfig(
+            new Dictionary<string, string?> { ["Stun:PublicUrls:0"] = entry }));
+
+        Assert.That(section.PublicUrls, Is.EqualTo(new[] { entry }));
     }
 
     private class OdinConfigurationConsumer
