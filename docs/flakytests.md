@@ -572,6 +572,11 @@ rollback-journal mode, where readers and writers block each other ("database is 
 That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
 failure of these three fixtures names it. If one goes red again, the Warning above says why.
 
+**Update 2026-09-28 -- a mechanism that produces this exact symptom, reproduced and fixed.** One failed
+`establishconnection` callback on an auto-accept left the accepter `Connected` and the requester `None`,
+with nothing to retry it. Reproduced by `IntroductionPeerFaultTests` (the fault injected with
+`Host.PeerFaults`) and fixed in #1825. **Inferred, not confirmed:** that this is what failed in the three
+fixtures above -- no captured run of them names the callback.
 **Update 2026-09-26 -- the 2026-09-25 fix covered only one failure path.** The backoff above applied
 only when the send failed with an `OdinClientException`. A network, timeout or other failure left
 the worker as `OdinOutboxProcessingException`. The processor then rescheduled it for "now" and
