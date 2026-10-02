@@ -105,6 +105,17 @@ public class StalwartMailboxProviderTests
         Assert.That(account["encryptionAtRest"]!["@type"]!.GetValue<string>(), Is.EqualTo("Aes256"));
         Assert.That(account["encryptionAtRest"]!["encryptOnAppend"]!.GetValue<bool>(), Is.True);
 
+        // --- standard mailbox: encryption off, then back on with a new key ---
+        await _provider.DisableEncryptionAtRestAsync(Domain);
+        await _provider.DisableEncryptionAtRestAsync(Domain); // idempotent
+        account = (await RegistryGetAsync("x:Account")).Single(a => a["name"]!.GetValue<string>() == "frodo");
+        Assert.That(account["encryptionAtRest"]!["@type"]!.GetValue<string>(), Is.EqualTo("Disabled"));
+
+        var reEnabled = OpenPgpKeyManagement.GenerateP384KeyMaterial(PrimaryAddress);
+        await _provider.SetEncryptionKeyAsync(Domain, reEnabled.PublicCertificateArmored);
+        account = (await RegistryGetAsync("x:Account")).Single(a => a["name"]!.GetValue<string>() == "frodo");
+        Assert.That(account["encryptionAtRest"]!["@type"]!.GetValue<string>(), Is.EqualTo("Aes256"));
+
         // --- DKIM with odin's real generator, both selectors ---
         var keys = DkimKeyGenerator.GenerateKeys();
         foreach (var key in keys)

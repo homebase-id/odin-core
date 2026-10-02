@@ -36,6 +36,7 @@ public class EmailHealthVerifierTest
     private string _tempDir = "";
     private TestServices? _testServices;
     private EmailPublicKeyService _emailPublicKeyService = null!;
+    private EmailSetupStateService _setupStateService = null!;
     private readonly Mock<IDkimStore> _dkimStore = new(MockBehavior.Loose);
     private readonly Mock<ILookupClient> _dnsClient = new(MockBehavior.Loose);
     private readonly Mock<IDynamicHttpClientFactory> _httpClientFactory = new(MockBehavior.Loose);
@@ -63,6 +64,7 @@ public class EmailHealthVerifierTest
     {
         var services = await _testServices!.RegisterServicesAsync(DatabaseType.Sqlite, _tempDir, Guid.NewGuid());
         _emailPublicKeyService = new EmailPublicKeyService(services.Resolve<IdentityDatabase>());
+        _setupStateService = new EmailSetupStateService(services.Resolve<IdentityDatabase>());
 
         var tenantContext = new TenantContext(
             Guid.NewGuid(), new OdinId(Domain), null!,
@@ -73,6 +75,7 @@ public class EmailHealthVerifierTest
             tenantContext,
             _dkimStore.Object,
             _emailPublicKeyService,
+            _setupStateService,
             _dnsClient.Object,
             _httpClientFactory.Object);
     }
@@ -164,6 +167,27 @@ public class EmailHealthVerifierTest
         Assert.That(result.Activated, Is.True);
         Assert.That(result.Errors, Is.Empty);
         Assert.That(result.Warnings, Is.Empty);
+    }
+
+    [Test]
+    public async Task ItShouldVerifyDkimButLookForNoKeyOnAStandardMailbox()
+    {
+        var verifier = await CreateVerifierAsync();
+        await _setupStateService.MarkMailboxProvisionedAsync($"mail@{Domain}", MailboxMode.Standard);
+
+        var keys = DkimKeyGenerator.GenerateKeys();
+        SetupDkimKeys(keys);
+        foreach (var key in keys)
+        {
+            SetupTxt($"{key.DnsRecordName}.{Domain}", [key.DnsRecordValue]);
+        }
+
+        var result = await verifier.VerifyAsync(CancellationToken.None);
+
+        Assert.That(result.Activated, Is.True);
+        Assert.That(result.Errors, Is.Empty);
+        Assert.That(result.Warnings, Is.Empty);
+        _httpClientFactory.VerifyNoOtherCalls();
     }
 
     [Test]

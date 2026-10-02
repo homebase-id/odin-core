@@ -26,6 +26,9 @@ public interface IMailboxProvider
     /// <summary>Upload the E2E PUBLIC certificate and enable encryption-at-rest with it.</summary>
     Task SetEncryptionKeyAsync(string domain, string publicCertificateArmored);
 
+    /// <summary>Store new mail as received. Mail already stored stays as it is.</summary>
+    Task DisableEncryptionAtRestAsync(string domain);
+
     /// <summary>Install the domain's DKIM signing key (per selector).</summary>
     Task SetDkimKeyAsync(string domain, DkimKey key);
 
