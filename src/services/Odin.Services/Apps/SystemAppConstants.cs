@@ -209,9 +209,9 @@ public static class SystemAppConstants
             // Writes to the ProfileDrive funnel through the Profile attribute API, which requires
             // ManageProfile. Granted by default so the Chat app can edit profile attributes.
             PermissionKeys.ManageProfile,
-            // Lets the Chat app add/remove an OdinId to/from a circle without the master key,
-            // via the write-only deposit path (see PeerKeyStore.WriteOnlyKeyPair).
-            PermissionKeys.ManageCircleMembership)
+            // Lets the Chat app list circles' members. Adding to a circle needs no key: an app may add
+            // to the circles it owns (#1809).
+            PermissionKeys.ReadCircleMembership)
     };
 
     public static readonly AppRegistrationRequest FeedAppRegistrationRequest = new()
@@ -566,7 +566,7 @@ public static class SystemAppConstants
             PermissionKeys.UseTransitWrite,
             PermissionKeys.ManageContacts,
             PermissionKeys.ManageProfile,
-            PermissionKeys.ManageCircleMembership)
+            PermissionKeys.ReadCircleMembership)
     };
 
     /// <summary>

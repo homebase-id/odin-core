@@ -11,6 +11,7 @@ using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -34,7 +35,7 @@ public class DepositGrantTests : V2Fixture
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
     [Test]
-    public async Task AppWithoutManageCircleMembership_CannotDepositGrant()
+    public async Task AppCannotDeposit_IntoACircleItDoesNotOwn()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -53,13 +54,14 @@ public class DepositGrantTests : V2Fixture
             PermissionSet = new PermissionSet(new List<int>())
         });
 
-        // App has matching drive access but NOT the ManageCircleMembership permission key.
+        // App has matching drive access, but circleA is the owner's, not the app's. Owning a circle is
+        // what lets an app add to it; no permission key stands in for that.
         var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read, permissionKeys: Array.Empty<int>());
 
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleA, sam.Identity);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
-            $"expected 403 without ManageCircleMembership, got {response.StatusCode}");
+            $"expected 403 for a circle the app does not own, got {response.StatusCode}");
     }
 
     [Test]
@@ -102,7 +104,9 @@ public class DepositGrantTests : V2Fixture
         var driveOutOfScope = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(driveOutOfScope, "driveOOS", allowAnonymousReads: false);
 
-        // Circle spans two drives; the app is only granted one of them.
+        var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read, permissionKeys: Array.Empty<int>());
+
+        // Circle spans two drives and belongs to the app, which is only granted one of them.
         var circleMulti = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleMulti, "circleMulti", new PermissionSetGrantRequest
         {
@@ -112,10 +116,7 @@ public class DepositGrantTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = driveOutOfScope, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
-
-        var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+        }, appId: app.AppId);
 
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleMulti, sam.Identity);
         Assert.That(response.IsSuccessStatusCode, Is.False, "deposit spanning an out-of-scope drive must fail entirely");
@@ -129,7 +130,7 @@ public class DepositGrantTests : V2Fixture
     }
 
     [Test]
-    public async Task DuplicateDeposit_SecondCallFails_AlreadyMember()
+    public async Task DuplicateDeposit_SecondCallIsANoOp()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -141,9 +142,12 @@ public class DepositGrantTests : V2Fixture
         var first = await client.GrantCircleAsync(circleA, sam.Identity);
         Assert.That(first.IsSuccessStatusCode, Is.True, $"first deposit should succeed, got {first.StatusCode}");
 
+        // Enrolment is idempotent: someone already deposited is left as they are.
         var second = await client.GrantCircleAsync(circleA, sam.Identity);
-        Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
-            $"duplicate deposit should fail with 400 (already member), got {second.StatusCode}");
+        Assert.That(second.IsSuccessStatusCode, Is.True, $"a repeated add should be a no-op, got {second.StatusCode}");
+
+        var icr = await Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>().GetAsync(sam.Identity);
+        Assert.That(icr!.PeerKeyStore.DepositedGrants.Count(d => d.CircleId == circleA), Is.EqualTo(1));
     }
 
     [Test]
@@ -173,15 +177,12 @@ public class DepositGrantTests : V2Fixture
     }
 
     [Test]
-    public async Task AppCannotGrantAdditionalCircle_ToAutoConnectedUnconfirmedIdentity()
+    public async Task AppCannotAddAnUnreviewedContact_ToAManualCircle()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
 
-        // The V2 auto-connect endpoint always lands the connection in
-        // ConnectionRequestOrigin.IdentityOwnerApp (CircleNetworkUtils.EnsureSystemCircles), which
-        // grants SystemCircleConstants.AutoConnectionsCircleId rather than ConfirmedConnectionsCircleId
-        // -- an auto-connected identity that hasn't been explicitly confirmed by the owner yet.
+        // An auto-connection is made without the owner reviewing anyone.
         var header = new ConnectionRequestHeader
         {
             Recipient = sam.Identity,
@@ -195,16 +196,17 @@ public class DepositGrantTests : V2Fixture
 
         var (_, circleA, app) = await SetupAppWithMatchingCircleAsync(frodo);
 
-        // Same guard GrantCircleAsync applies to the owner path -- exercised here via an app caller,
-        // which reaches the identical check before ever branching into the deposit logic.
+        // circleA is managed by hand (granted on neither connect nor review), and membership of such a
+        // circle implies review: an unreviewed contact is refused, with a reason the caller can show.
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleA, sam.Identity);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
-            $"app should not be able to grant an additional circle to an auto-connected, unconfirmed identity, got {response.StatusCode}");
+            $"an unreviewed contact should be refused, got {response.StatusCode}");
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(OdinClientErrorCode.ContactNotReviewed));
 
         var storage = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
         var icr = await storage.GetAsync(sam.Identity);
         Assert.That(icr!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleA), Is.False,
-            "no deposit should have been created for the blocked circle");
+            "nothing should have been deposited for the refused contact");
     }
 
     [Test]
@@ -246,14 +248,16 @@ public class DepositGrantTests : V2Fixture
     }
 
     /// <summary>
-    /// Creates driveA on Frodo, a circle granting Read on driveA, and an app on Frodo holding
-    /// exactly Read on driveA plus <see cref="PermissionKeys.ManageCircleMembership"/> — the minimal
-    /// setup for a deposit that stays fully in the app's own drive scope.
+    /// Creates driveA on Frodo, an app on Frodo holding exactly Read on driveA, and a circle that app
+    /// owns granting Read on driveA — the minimal setup for a deposit that stays fully in the app's
+    /// own drive scope. No permission key: owning the circle is what lets the app add to it.
     /// </summary>
     private static async Task<(TargetDrive driveA, Guid circleA, AppSession app)> SetupAppWithMatchingCircleAsync(OwnerSession frodo)
     {
         var driveA = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(driveA, "driveA", allowAnonymousReads: false);
+
+        var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read, permissionKeys: Array.Empty<int>());
 
         var circleA = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleA, "circleA", new PermissionSetGrantRequest
@@ -263,10 +267,7 @@ public class DepositGrantTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = driveA, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
-
-        var app = await AppSession.SetupAsync(frodo, driveA, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+        }, appId: app.AppId);
 
         return (driveA, circleA, app);
     }

@@ -300,11 +300,15 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
+    /// <summary>
+    /// Kept for installed mobile apps; new callers use circles/add-many.  One person, by the same rules,
+    /// with the reason as the error when they cannot be added.
+    /// </summary>
     [HttpPost("circles/add")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Add an identity to a circle")]
     public async Task<IActionResult> GrantCircle([FromBody] AddCircleMembershipRequest request)
     {
-        await circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
+        await circleNetwork.EnrollInCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
         return Ok();
     }
 

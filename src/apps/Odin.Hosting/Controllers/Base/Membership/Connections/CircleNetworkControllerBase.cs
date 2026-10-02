@@ -130,13 +130,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return await circleNetwork.GetPendingCircleMembersAsync(request.CircleId, WebOdinContext);
         }
 
-        [HttpPost("circles/add")]
-        public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
-        {
-            await circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
-            return true;
-        }
-
         /// <summary>
         /// Per circle owned by an app, the connections that could be added to it but are not in it.
         /// </summary>

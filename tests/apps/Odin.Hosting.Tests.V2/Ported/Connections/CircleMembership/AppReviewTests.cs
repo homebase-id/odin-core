@@ -272,16 +272,17 @@ public class AppReviewTests : V2Fixture
         await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
 
         var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
-        await owner.ClearReviewAsync(sam.Identity);
 
         var (_, _, app) = await SetupAppWithReadCircleAsync(frodo);
         var (circle, _) = await CreateOutOfReachCircleAsync(frodo, "already-granted");
 
-        // The owner grants it outright first; the app then reviews the same circle. Out of the app's
-        // reach it may be, but there is nothing left to want -- queueing it would ask for work already
-        // done, and would report the contact as awaiting an app it is not waiting for.
+        // The owner grants it outright first -- while Sam is still reviewed, since a manual circle takes
+        // only reviewed contacts -- and the app then reviews the same circle. Out of the app's reach it
+        // may be, but there is nothing left to want -- queueing it would ask for work already done, and
+        // would report the contact as awaiting an app it is not waiting for.
         var granted = await owner.GrantCircleAsync(circle, sam.Identity);
         Assert.That(granted.IsSuccessStatusCode, Is.True, $"owner grant failed: {granted.StatusCode}");
+        await owner.ClearReviewAsync(sam.Identity);
 
         var review = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .MarkReviewedAsync(sam.Identity, [circle]);
@@ -300,13 +301,13 @@ public class AppReviewTests : V2Fixture
         await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
 
         var owner = new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory);
-        await owner.ClearReviewAsync(sam.Identity);
 
-        // The app that can source the drive's key deposits the circle...
+        // The app that can source the drive's key deposits the circle (while Sam is still reviewed)...
         var (_, circle, depositor) = await SetupAppWithReadCircleAsync(frodo);
         var deposit = await new V2ConnectionNetworkClient(depositor.Identity, depositor.Factory)
             .GrantCircleAsync(circle, sam.Identity);
         Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
+        await owner.ClearReviewAsync(sam.Identity);
 
         // ...and a different app, which cannot, reviews the same circle. A deposit is already further
         // along than a queued entry, so recording one behind it would only add a state to undo later.

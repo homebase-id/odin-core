@@ -13,7 +13,9 @@ namespace Odin.Services.Authorization.Permissions
         public const int ReadCircleMembership = 50;
 
         /// <summary>
-        /// Add/remove an OdinId to/from a circle without the master key (e.g. from an app).
+        /// Retired (#1809): it gated adding to circles through GrantCircleAsync, which is gone; owning a
+        /// circle is now what lets an app add to it.  Grants nothing of its own.  Kept so stored
+        /// registrations that hold it still read, and so 51 is never reused.
         /// </summary>
         public const int ManageCircleMembership = 51;
 
@@ -49,7 +51,6 @@ namespace Odin.Services.Authorization.Permissions
             ReadConnections,
             ReadConnectionRequests,
             ReadCircleMembership,
-            ManageCircleMembership,
             ReadWhoIFollow,
             ReadMyFollowers,
             UseTransitWrite,
@@ -82,8 +83,9 @@ namespace Odin.Services.Authorization.Permissions
                 PermissionKeys.ReadCircleMembership
             ],
 
-            // Managing circle membership requires seeing the connections being added
-            // and the membership being changed.
+            // Legacy: the retired ManageCircleMembership still implies what it used to, so registrations
+            // stored with it (Chat, Webdrop before #1809) keep reading connections and circle members.
+            // New registrations are granted ReadCircleMembership directly instead.
             [PermissionKeys.ManageCircleMembership] =
             [
                 PermissionKeys.ReadConnections,
@@ -117,7 +119,6 @@ namespace Odin.Services.Authorization.Permissions
             {
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
-                PermissionKeys.ManageCircleMembership,
                 PermissionKeys.ReadConnectionRequests,
                 PermissionKeys.ReadWhoIFollow,
                 PermissionKeys.UseTransitWrite,

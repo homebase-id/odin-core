@@ -312,13 +312,14 @@ public class CircleNetworkServiceTests : V2Fixture
         // Add Frodo to newCircleDefinitionOnSamsIdentity
         //
         var circleMemberSvc = sam.Owner.RefitFor<IRefitOwnerCircleNetworkConnections>();
-        var addMemberResponse = await circleMemberSvc.AddCircle(new AddCircleMembershipRequest()
+        var addMemberResponse = await circleMemberSvc.AddManyToCircle(new AddManyCircleMembershipRequest()
         {
             CircleId = newCircleDefinitionOnSamsIdentity.Id,
-            OdinId = frodo.Identity
+            OdinIds = [frodo.Identity.DomainName]
         });
 
         Assert.That(addMemberResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(addMemberResponse.Content!.Enrolled, Is.EqualTo(1), "frodo should have been enrolled");
 
         //
         // Frodo should be in 3 circles

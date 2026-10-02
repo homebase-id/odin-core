@@ -44,7 +44,7 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
         // Family had no drives before v20, so rewind the definition first and add the member after:
         // their grant is then minted from the old definition, as it would have been.
         await RewindDefinitionAsync(scope, family, WellKnownAppDrives.ProfileDrive);
-        await network.GrantCircleAsync(family, sam.Identity, ctx);
+        await network.EnrollInCircleAsync(family, sam.Identity, ctx);
         Assert.That(await ProfileDriveGrantAsync(scope, sam), Is.Null,
             "precondition: the member's Family grant should predate the ProfileDrive Read");
 

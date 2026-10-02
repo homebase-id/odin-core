@@ -58,7 +58,7 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.ManageContacts,
                 PermissionKeys.ManageProfile,
-                PermissionKeys.ManageCircleMembership)),
+                PermissionKeys.ReadCircleMembership)),
 
         new(SystemAppConstants.ContactsAppId, "Contacts", "contacts",
             Drives:
@@ -140,7 +140,7 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.ManageContacts,
                 PermissionKeys.ManageProfile,
-                PermissionKeys.ManageCircleMembership)),
+                PermissionKeys.ReadCircleMembership)),
         
         new(SystemAppConstants.VaultAppId, "Vault", "vault",
             Drives: [BuiltinDrives.VaultDrive],
