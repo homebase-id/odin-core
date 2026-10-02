@@ -248,9 +248,10 @@ public class V2ConnectionNetworkController(
     [HttpGet("circles/with-members")]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "List all circles and their members")]
-    public async Task<IEnumerable<CircleWithMembers>> GetCirclesWithMembers([FromQuery] bool includeSystemCircle = true)
+    public async Task<IEnumerable<CircleWithMembers>> GetCirclesWithMembers(
+        [FromQuery] bool includeSystemCircle = true) // ignored: kept so existing callers still bind (#1809)
     {
-        var circles = await circleMembership.GetCircleDefinitions(includeSystemCircle, WebOdinContext);
+        var circles = await circleMembership.GetCircleDefinitions(WebOdinContext);
 
         // One pass for every circle, rather than a connection scan each time through the loop below.
         var pending = await circleNetwork.GetAllPendingCircleMembersAsync(WebOdinContext);
@@ -276,7 +277,7 @@ public class V2ConnectionNetworkController(
     /// Disables a circle without removing it: members stay, but its grants stop applying to them.
     /// </summary>
     /// <remarks>
-    /// The owner may disable any circle but a system circle; an app only one it owns
+    /// The owner may disable any circle; an app only one it owns
     /// (<see cref="CircleMembershipService.DisableCircleAsync"/>).
     /// </remarks>
     [HttpPost("circles/disable")]

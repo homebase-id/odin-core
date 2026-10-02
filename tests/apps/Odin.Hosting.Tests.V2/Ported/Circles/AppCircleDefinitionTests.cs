@@ -72,16 +72,6 @@ public class AppCircleDefinitionTests : V2Fixture
         [Identities.Frodo, Identities.Sam, Identities.Merry, Identities.Pippin];
 
     [Test]
-    public async Task AppCannotSeeSystemCircleMembers()
-    {
-        var owner = await LoginAsOwner();
-        var appClient = await CreateAppAndClient(owner, PermissionKeys.All.ToArray());
-
-        var response = await GetDomainsInCircle(appClient, SystemCircleConstants.ConfirmedConnectionsCircleId);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-    }
-
-    [Test]
     public async Task AppCanGetCircleMembers()
     {
         var owner = await LoginAsOwner();
@@ -300,18 +290,6 @@ public class AppCircleDefinitionTests : V2Fixture
         var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>().DisableCircle(def.Id.Value);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
-    }
-
-    [Test]
-    public async Task AppFailsToDisableSystemCircleViaV2()
-    {
-        var owner = await LoginAsOwner();
-        var appClient = await CreateAppAndClient(owner,
-            PermissionKeyAllowance.Apps.ToArray());
-
-        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>()
-            .DisableCircle(SystemCircleConstants.ConfirmedConnectionsCircleId.Value);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
     [Test]

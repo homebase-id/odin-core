@@ -328,7 +328,6 @@ public static class TenantServices
 
         cb.RegisterType<CircleNetworkService>()
             .AsSelf()
-            .As<INotificationHandler<DriveDefinitionAddedNotification>>()
             .As<INotificationHandler<AppRegistrationChangedNotification>>()
             .InstancePerLifetimeScope();
 

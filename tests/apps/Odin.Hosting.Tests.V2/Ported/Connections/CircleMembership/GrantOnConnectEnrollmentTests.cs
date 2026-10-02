@@ -72,12 +72,10 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
 
         Assert.Multiple(() =>
         {
-            // Controls: the connection went through the auto-accept path and minted its system circle.
+            // Controls: the connection went through the auto-accept path, unreviewed.
             Assert.That(samsViewOfFrodo.Status, Is.EqualTo(ConnectionStatus.Connected));
             Assert.That(samsViewOfFrodo.ConnectionRequestOrigin, Is.EqualTo(ConnectionRequestOrigin.IdentityOwnerApp));
-            Assert.That(samsViewOfFrodo.PeerKeyStore.CircleGrants.Keys,
-                Does.Contain(SystemCircleConstants.AutoConnectionsCircleId.Value),
-                "sam's auto-accept did not mint the Auto Connections grant");
+            Assert.That(samsViewOfFrodo.ReviewedAt, Is.Null, "sam's auto-accept is not a review");
 
             // The claim under test.
             Assert.That(samsViewOfFrodo.PeerKeyStore.CircleGrants.Keys,
@@ -116,15 +114,12 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
 
         Assert.Multiple(() =>
         {
-            // Controls: an owner-to-owner connection, reviewed on both sides, holding its system circle.
+            // Controls: an owner-to-owner connection, reviewed on both sides.
             foreach (var (label, icr) in new[] { ("sam's view of frodo", samsViewOfFrodo), ("frodo's view of sam", frodosViewOfSam) })
             {
                 Assert.That(icr.Status, Is.EqualTo(ConnectionStatus.Connected), label);
                 Assert.That(icr.ConnectionRequestOrigin, Is.EqualTo(ConnectionRequestOrigin.IdentityOwner), label);
                 Assert.That(icr.ReviewedAt, Is.Not.Null, $"{label}: a manual connection is reviewed");
-                Assert.That(icr.PeerKeyStore.CircleGrants.Keys,
-                    Does.Contain(SystemCircleConstants.ConfirmedConnectionsCircleId.Value),
-                    $"{label}: missing the Confirmed Connections grant");
             }
 
             // The claim under test.
@@ -200,12 +195,6 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
     /// <remarks>
     /// Membership proves the enrolment ran; only a write proves the enrolment is worth anything.  No circle
     /// is granted by hand here -- that is the point.
-    /// <para>
-    /// The Confirmed Connections system circle is revoked first, because it grants ChatDrive Write|React
-    /// too (<see cref="SystemCircleConstants.ConfirmedConnectionsDefinition"/>): leaving it in place would
-    /// let this pass on the system circle alone and say nothing about the Chat grant.  Revoked before any
-    /// peer traffic between the two, so there is no cached peer context still holding the old permissions.
-    /// </para>
     /// </remarks>
     [Test]
     public async Task AConnectedIdentityCanWriteToTheChatDriveUsingOnlyTheChatGrant()
@@ -222,16 +211,11 @@ public class GrantOnConnectEnrollmentTests : V2Fixture
         Assert.That((await GetIcrAsync(frodo, sam.Identity)).PeerKeyStore.CircleGrants.Keys,
             Does.Contain(BuiltinCircles.ChatCircle.Id.Value), "precondition: sam holds frodo's Chat circle");
 
-        // Strip the system circle, so the Chat grant is the only thing left that opens the chat drive.
-        var revoked = await frodo.Connections.RevokeCircle(
-            SystemCircleConstants.ConfirmedConnectionsCircleId.Value, sam.Identity);
-        Assert.That(revoked.IsSuccessStatusCode, Is.True, $"revoking the system circle failed: {revoked.StatusCode}");
-
         // Exactly one, not merely "Chat is in there": any other surviving grant could be what opens the
         // drive, and then this would be telling us nothing about Chat.
         var granted = (await GetIcrAsync(frodo, sam.Identity)).PeerKeyStore.CircleGrants.Keys.ToList();
         Assert.That(granted, Is.EquivalentTo(new[] { BuiltinCircles.ChatCircle.Id.Value }),
-            $"precondition: Chat must be the only grant left. Granted: [{string.Join(", ", granted.Select(g => g.ToString("N")))}]");
+            $"precondition: Chat must be the only grant. Granted: [{string.Join(", ", granted.Select(g => g.ToString("N")))}]");
 
         var metadata = SampleMetadataData.Create(fileType: 4242, acl: AccessControlList.Connected);
         metadata.AllowDistribution = true;

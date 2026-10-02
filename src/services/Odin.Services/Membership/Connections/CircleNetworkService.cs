@@ -54,8 +54,7 @@ namespace Odin.Services.Membership.Connections
         PeerOutbox peerOutbox,
         OdinContextCache odinContextCache,
         IdentityDatabase db)
-        : INotificationHandler<DriveDefinitionAddedNotification>,
-            INotificationHandler<AppRegistrationChangedNotification>
+        : INotificationHandler<AppRegistrationChangedNotification>
     {
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
@@ -563,6 +562,34 @@ namespace Odin.Services.Membership.Connections
             return info.Status == ConnectionStatus.Connected;
         }
 
+        /// <summary>
+        /// Whether <paramref name="odinId"/> is a connection holding Read on <paramref name="driveId"/> with its
+        /// storage key, through any circle (or an app's grant for one) -- i.e. could decrypt what is on it.
+        /// </summary>
+        /// <remarks>
+        /// What decides who an encrypted feed post is distributed to: its payloads are fetched from this
+        /// identity later, and that needs the key.  It replaced membership of the retired Confirmed
+        /// Connections circle, which every connection had and which carried keyed Read on every anonymous
+        /// drive.
+        /// </remarks>
+        public async Task<bool> CanDecryptDriveAsync(OdinId odinId, Guid driveId)
+        {
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            if (icr == null || !icr.IsConnected() || icr.PeerKeyStore == null)
+            {
+                return false;
+            }
+
+            static bool KeyedRead(IEnumerable<DriveGrant> grants, Guid driveId) =>
+                (grants ?? []).Any(g => g.DriveId == driveId &&
+                                        g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) &&
+                                        g.KeyStoreKeyEncryptedStorageKey != null);
+
+            return icr.PeerKeyStore.CircleGrants.Values.Any(cg => KeyedRead(cg.KeyStoreKeyEncryptedDriveGrants, driveId)) ||
+                   icr.PeerKeyStore.AppGrants.Values.SelectMany(appGrants => appGrants.Values)
+                       .Any(ag => KeyedRead(ag.KeyStoreKeyEncryptedDriveGrants, driveId));
+        }
+
         public async Task<IEnumerable<OdinId>> GetCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
@@ -943,18 +970,6 @@ namespace Odin.Services.Membership.Connections
                 Change = ConnectionChangeType.CircleRevoked,
             });
         }
-
-        public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(
-            SensitiveByteArray keyStoreKey,
-            List<GuidId> circleIds,
-            ConnectionRequestOrigin origin,
-            IStorageKeySource storageKeySource,
-            IOdinContext odinContext)
-        {
-            var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
-            return await this.CreateAppCircleGrantList(keyStoreKey, list, storageKeySource, odinContext);
-        }
-
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(
             SensitiveByteArray keyStoreKey,
@@ -1481,7 +1496,7 @@ namespace Odin.Services.Membership.Connections
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             AssertCallerMayAskAboutApp(appId, odinContext);
 
-            var circles = (await circleDefinitionService.GetCirclesAsync(false))
+            var circles = (await circleDefinitionService.GetCirclesAsync())
                 .Where(c => c.AppId == appId)
                 .ToList();
 
@@ -1887,6 +1902,69 @@ namespace Odin.Services.Membership.Connections
             return entriesRepointed;
         }
 
+        /// <summary>
+        /// Strips the given circles from every connection record, whatever its status: the circle grant, the
+        /// app grants issued through it, and any deposit or pending enrollment naming it.  For circles being
+        /// deleted outright.  Returns the number of records changed.
+        /// </summary>
+        public async Task<int> RemoveCirclesFromAllConnectionsAsync(IReadOnlyCollection<Guid> circleIds,
+            IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var changed = 0;
+            foreach (var status in new[] { ConnectionStatus.Connected, ConnectionStatus.Blocked, ConnectionStatus.None })
+            {
+                string cursor = null;
+                do
+                {
+                    var page = await GetConnectionsInternalAsync(int.MaxValue, cursor, status, odinContext);
+                    cursor = page.Cursor;
+
+                    foreach (var icr in page.Results)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var store = icr.PeerKeyStore;
+                        if (store == null)
+                        {
+                            continue;
+                        }
+
+                        var removed = 0;
+                        foreach (var circleId in circleIds)
+                        {
+                            removed += store.CircleGrants.Remove(circleId) ? 1 : 0;
+                            foreach (var appCircles in store.AppGrants.Values)
+                            {
+                                removed += appCircles.Remove(circleId) ? 1 : 0;
+                            }
+                        }
+
+                        removed += store.DepositedGrants?.RemoveAll(d => circleIds.Contains(d.CircleId.Value)) ?? 0;
+                        removed += store.PendingEnrollments?.RemoveAll(p => circleIds.Contains(p.CircleId.Value)) ?? 0;
+
+                        foreach (var emptied in store.AppGrants.Where(kv => kv.Value.Count == 0).Select(kv => kv.Key).ToList())
+                        {
+                            store.AppGrants.Remove(emptied);
+                        }
+
+                        if (removed == 0)
+                        {
+                            continue;
+                        }
+
+                        // UpsertAsync rewrites the circle-member and app-grant rows from the record.
+                        await SaveIcrAsync(icr, odinContext);
+                        changed++;
+                    }
+                } while (!string.IsNullOrEmpty(cursor));
+            }
+
+            await odinContextCache.ResetAsync();
+            return changed;
+        }
+
         public async Task<List<OdinId>> GetInvalidMembersOfCircleDefinition(CircleDefinition circleDef, IOdinContext odinContext)
         {
             await circleMembershipService.AssertValidDriveGrantsAsync(circleDef.DriveGrants);
@@ -1930,19 +2008,6 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
-        {
-            var odinContext = notification.OdinContext;
-            if (notification.IsNewDrive)
-            {
-                await HandleDriveAdded(notification.Drive, odinContext);
-            }
-            else
-            {
-                await HandleDriveUpdated(notification.Drive, odinContext);
-            }
-        }
-
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)
         {
             var odinContext = notification.OdinContext;
@@ -1969,12 +2034,8 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            // Need to see if the circle has the correct drives
-            //
-            // SystemCircleConstants.ConnectedIdentitiesSystemCircleInitialDrives
-
             var info = new IcrTroubleshootingInfo();
-            var circleDefinitions = (await circleDefinitionService.GetCirclesAsync(true)).ToList();
+            var circleDefinitions = (await circleDefinitionService.GetCirclesAsync()).ToList();
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
             info.Icr = icr.Redacted();
@@ -2282,15 +2343,10 @@ namespace Odin.Services.Membership.Connections
         /// docs/connection-defaults.md -- "circleIdList ACLs check membership, not tier, so membership must
         /// imply review".
         /// <para>
-        /// Two kinds of membership are deliberately excluded from that check, because counting them would
-        /// make the clear unreachable rather than safe.  Ambient circles: a
-        /// <see cref="CircleGrantOn.Connect"/> circle is by definition granted without any review, and every
-        /// shipped one is also <see cref="CircleDesignation.Personal"/> (see
-        /// <c>BuiltinCircles.ChatCircle</c>), so every auto-connection would be permanently un-clearable.
-        /// The two system circles: they carry <see cref="CircleDesignation.Personal"/> only because that is
-        /// the column default, and every connection is in one of them, so the guard would reject every
-        /// clear there is.  They are the frozen platform bundles this series retires, assigned by the
-        /// pipeline rather than chosen by the owner.
+        /// Ambient circles are deliberately excluded from that check, because counting them would make the
+        /// clear unreachable rather than safe: a <see cref="CircleGrantOn.Connect"/> circle is by definition
+        /// granted without any review, and every shipped one is also <see cref="CircleDesignation.Personal"/>
+        /// (see <c>BuiltinCircles.ChatCircle</c>), so every auto-connection would be permanently un-clearable.
         /// </para>
         /// <para>
         /// Nothing is revoked here.  Clearing the stamp only withdraws the owner's vouching; to take
@@ -2319,11 +2375,6 @@ namespace Odin.Services.Membership.Connections
 
             foreach (var circleId in memberships)
             {
-                if (SystemCircleConstants.IsSystemCircle(circleId))
-                {
-                    continue;
-                }
-
                 var definition = await circleDefinitionService.GetCircleAsync(circleId);
                 if (definition is { Designation: CircleDesignation.Personal, GrantOn: not CircleGrantOn.Connect })
                 {
@@ -2968,104 +3019,6 @@ namespace Odin.Services.Membership.Connections
         }
 
 
-        private async Task HandleDriveUpdated(StorageDrive drive, IOdinContext odinContext)
-        {
-            async Task UpdateIfRequired(CircleDefinition def)
-            {
-                var hasExistingDriveGrant = def.DriveGrants.Any(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
-                if (drive.AllowAnonymousReads == false && hasExistingDriveGrant)
-                {
-                    //remove the drive as it no longer allows anonymous reads
-                    def.DriveGrants = def.DriveGrants.Where(dg => dg.PermissionedDrive.Drive != drive.TargetDriveInfo).ToList();
-                    await this.UpdateCircleDefinitionAsync(def, odinContext);
-                    return;
-                }
-
-                if (drive.AllowAnonymousReads && !hasExistingDriveGrant)
-                {
-                    //act like it's new
-                    await this.HandleDriveAdded(drive, odinContext);
-                }
-            }
-
-            CircleDefinition confirmedCircle = await circleMembershipService.GetCircleAsync(
-                SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-
-            await UpdateIfRequired(confirmedCircle);
-
-            CircleDefinition autoConnectedCircle = await circleMembershipService.GetCircleAsync(
-                SystemCircleConstants.AutoConnectionsCircleId, odinContext);
-
-            await UpdateIfRequired(autoConnectedCircle);
-        }
-
-        /// <summary>
-        /// Updates the system circles drive grants
-        /// </summary>
-        private async Task HandleDriveAdded(StorageDrive drive, IOdinContext odinContext)
-        {
-            //only add anonymous drives
-            if (drive.AllowAnonymousReads == false)
-            {
-                return;
-            }
-
-            async Task GrantAnonymousRead(CircleDefinition def)
-            {
-                logger.LogDebug("GrantAnonymousRead called for circle {def}", def.Name);
-                var swGrant = System.Diagnostics.Stopwatch.StartNew();
-
-                var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
-                grants.Add(new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = drive.TargetDriveInfo,
-                        Permission = DrivePermission.Read
-                    }
-                });
-
-                def.DriveGrants = grants;
-// Re-grants the circle to every existing member, so this is where a large identity spends its
-                // time -- and where the drive-added handler was seen to stop with no matching log line.
-                await this.UpdateCircleDefinitionAsync(def, odinContext);
-                logger.LogDebug("GrantAnonymousRead finished for circle {def} in {elapsed}ms", def.Name,
-                    swGrant.ElapsedMilliseconds);
-            }
-
-            // System circles may not exist yet — e.g. a tenant that creates a drive before
-            // /config/system/initialize has run. Skip with a warning instead of NRE-ing in
-            // GrantAnonymousRead. The drive is still inserted; it just won't get an
-            // anonymous-read grant on the (still-uncreated) system circles. Standard onboarding
-            // calls initialize before any drive create so this is an edge case.
-            var confirmedCircle = await
-                circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-            if (confirmedCircle != null)
-            {
-                await GrantAnonymousRead(confirmedCircle);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "HandleDriveAdded: ConfirmedConnections system circle missing — drive {drive} added without anonymous-read grant. Run /config/system/initialize to create system circles.",
-                    drive.TargetDriveInfo.Alias);
-            }
-
-            var autoConnectedCircle = await
-                circleMembershipService.GetCircleAsync(SystemCircleConstants.AutoConnectionsCircleId, odinContext);
-            if (autoConnectedCircle != null)
-            {
-                await GrantAnonymousRead(autoConnectedCircle);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "HandleDriveAdded: AutoConnections system circle missing — drive {drive} added without anonymous-read grant. Run /config/system/initialize to create system circles.",
-                    drive.TargetDriveInfo.Alias);
-            }
-        }
-
-
         private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternalAsync(
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
@@ -3156,6 +3109,32 @@ namespace Odin.Services.Membership.Connections
                 icrKey: null);
 
             grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
+
+            // A reviewed connection may deposit a shard of their recovery key with us: Write on the
+            // ShardRecoveryDrive, no read and no storage key.  It rode the Confirmed Connections circle until
+            // that retired (#1809); review is what Confirmed meant.  Below the backfill version everyone
+            // counts as reviewed, the same rule the security tier uses.
+            if (ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr) == SecurityGroupType.Connected)
+            {
+                var shardDriveWriteGrant = await exchangeGrantService.CreateExchangeGrantAsync(
+                    ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray(), new Permissions_PermissionSet(),
+                    new List<DriveGrantRequest>()
+                    {
+                        new()
+                        {
+                            PermissionedDrive = new()
+                            {
+                                Drive = WellKnownAppDrives.ShardRecoveryDrive,
+                                Permission = DrivePermission.Write
+                            }
+                        }
+                    },
+                    NoStorageKeySource.Instance,
+                    masterKey: null,
+                    icrKey: null);
+
+                grants.Add(ByteArrayUtil.ReduceSHA256Hash("shard_recovery_drive_writer"), shardDriveWriteGrant);
+            }
 
             var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
             var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();

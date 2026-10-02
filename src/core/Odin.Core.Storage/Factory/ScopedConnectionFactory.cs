@@ -571,7 +571,7 @@ public class ScopedConnectionFactory<T>(
                 // yet, republishing the notification that started it.
                 //
                 // That cost a version upgrade: creating an anonymous-read drive publishes a deferred
-                // DriveDefinitionAddedNotification, whose handler grants the system circles read on the
+                // DriveDefinitionAddedNotification, whose handler granted the system circles read on the
                 // drive, which writes a connection registration, which opens a transaction here -- and
                 // round again.  The tenant lock in SaveIcrAsync is what it collided with: the second
                 // pass waited on a lock the first still held, and the upgrade stopped dead with no

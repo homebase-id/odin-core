@@ -452,20 +452,6 @@ public class CircleDefinitionTests : V2Fixture
         await svc.DeleteCircleDefinition(circleId);
     }
 
-    private static IEnumerable<Guid> SystemCircles() => SystemCircleConstants.AllSystemCircles.Select(c => c.Value);
-
-    [Test, TestCaseSource(nameof(SystemCircles))]
-    public async Task FailToDisableSystemCircle(Guid id)
-    {
-        var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
-
-        var response = await svc.DisableCircleDefinition(id);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-
-        Assert.That((await owner.Admin.GetCircleDefinition(id)).Disabled, Is.False);
-    }
-
     [Test]
     public async Task FailToDisableUnknownCircle()
     {

@@ -742,6 +742,13 @@ public class VersionUpgradeService(
                     grantsTx.Commit();
                 }, cancellationToken);
 
+                await RunPhaseAsync("v19->v20 delete-system-circles", async ct =>
+                {
+                    await using var circlesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v20.DeleteSystemCirclesAsync(odinContext, ct);
+                    circlesTx.Commit();
+                }, cancellationToken);
+
                 await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 await v20.ValidateUpgradeAsync(odinContext, cancellationToken);

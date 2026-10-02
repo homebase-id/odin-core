@@ -23,9 +23,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 /// revoking and re-granting per connection through <c>GrantCircleAsync</c>.
 /// </summary>
 /// <remarks>
-/// The old path refused anyone in the Auto Connections circle, so an auto-connected contact who also held
-/// another circle was skipped.  An auto-connect lands the contact in both Auto Connections and Chat, which is
-/// exactly that case.
+/// The old path refused anyone in the Auto Connections circle (since retired, #1809), so an auto-connected
+/// contact who also held another circle was skipped.  An auto-connect lands the contact, unreviewed, in Chat.
 /// </remarks>
 [TestFixture]
 public class V0ToV1CircleRegrantTests : V2Fixture
@@ -56,9 +55,9 @@ public class V0ToV1CircleRegrantTests : V2Fixture
         var storage = scope.Resolve<CircleNetworkStorage>();
         var chatId = BuiltinCircles.ChatCircle.Id;
 
-        var before = (await storage.GetAsync(frodo.Identity))!.PeerKeyStore.CircleGrants;
-        Assert.That(before.Keys, Does.Contain(SystemCircleConstants.AutoConnectionsCircleId.Value),
-            "precondition: the contact is auto-connected");
+        var icrBefore = (await storage.GetAsync(frodo.Identity))!;
+        var before = icrBefore.PeerKeyStore.CircleGrants;
+        Assert.That(icrBefore.ReviewedAt, Is.Null, "precondition: the contact is auto-connected, unreviewed");
         Assert.That(before.Keys, Does.Contain(chatId.Value), "precondition: and in the Chat circle");
 
         // Change Chat's definition without re-minting its members, so only a re-mint can bring the member's

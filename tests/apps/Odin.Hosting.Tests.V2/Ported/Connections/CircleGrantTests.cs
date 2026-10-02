@@ -86,10 +86,7 @@ public class CircleGrantTests : V2Fixture
         var samConnectionInfoResponse = await merry.Connections.GetConnectionInfo(sam.Identity);
         Assert.That(samConnectionInfoResponse.IsSuccessStatusCode, Is.True);
         Assert.That(samConnectionInfoResponse.Content!.Status, Is.EqualTo(ConnectionStatus.Connected));
-        Assert.That(samConnectionInfoResponse.Content.AccessGrant.CircleGrants,
-            Has.Some.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.That(samConnectionInfoResponse.Content.AccessGrant.CircleGrants,
-            Has.None.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
+        Assert.That(samConnectionInfoResponse.Content.ReviewedAt, Is.Null, "an auto-accepted introduction is not reviewed");
 
         // Try to grant before confirming connection
         var grantCircleResponse = await merry.Connections.GrantCircle(targetCircle, sam.Identity);

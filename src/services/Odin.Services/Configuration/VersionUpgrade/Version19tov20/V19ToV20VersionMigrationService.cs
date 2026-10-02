@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -6,16 +7,18 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Apps.Builtin;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
 {
     /// <summary>
-    /// v19 → v20: the first step of retiring the system connection circles (#1809).
+    /// v19 → v20: retires the system connection circles, Confirmed Connections and Auto-connected (#1809).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -41,12 +44,27 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
     /// deposit pre-pass converts the ones it can reach before this runs; the rest (connections it had to
     /// skip) are turned back into pending enrollments so the owning app redoes them with the key.
     /// </para>
+    /// <para>
+    /// Last, the two system circles themselves are deleted: out of every app's authorized circles, out of
+    /// every connection record, their membership rows, then the definitions.  Their ids live only here now.
+    /// </para>
     /// </remarks>
     public class V19ToV20VersionMigrationService(
         ILogger<V19ToV20VersionMigrationService> logger,
         CircleNetworkService circleNetworkService,
-        CircleDefinitionService circleDefinitionService)
+        CircleDefinitionService circleDefinitionService,
+        CircleMembershipService circleMembershipService,
+        IAppRegistrationService appRegistrationService)
     {
+        /// <summary>
+        /// The retired Confirmed Connections and Auto-connected circles.  Never reuse these ids.
+        /// </summary>
+        public static readonly IReadOnlyList<Guid> RetiredSystemCircleIds =
+        [
+            Guid.Parse("bb2683fa402aff866e771a6495765a15"),
+            Guid.Parse("9e22b42952f74d2580e11250b651d343")
+        ];
+
         private static readonly IReadOnlyList<(CircleDefinition Circle, TargetDrive Drive)> ReadGrants =
         [
             (BuiltinCircles.FamilyCircle, WellKnownAppDrives.ProfileDrive),
@@ -103,8 +121,62 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
             }
         }
 
+        public async Task DeleteSystemCirclesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            // Apps first.  Chat and Mail named both circles; with them gone from the list, nothing re-issues
+            // the app grants the connection pass below removes.
+            foreach (var app in await appRegistrationService.GetRegisteredAppsAsync(odinContext))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!(app.AuthorizedCircles?.Any(RetiredSystemCircleIds.Contains) ?? false))
+                {
+                    continue;
+                }
+
+                logger.LogInformation("Removing the system circles from app {app}'s authorized circles", app.Name);
+                await appRegistrationService.UpdateAuthorizedCirclesAsync(new UpdateAuthorizedCirclesRequest
+                {
+                    AppId = app.AppId,
+                    AuthorizedCircles = app.AuthorizedCircles.Where(c => !RetiredSystemCircleIds.Contains(c)).ToList(),
+                    CircleMemberPermissionGrant = app.CircleMemberPermissionSetGrantRequest
+                }, odinContext);
+            }
+
+            var changed = await circleNetworkService.RemoveCirclesFromAllConnectionsAsync(RetiredSystemCircleIds,
+                odinContext, cancellationToken);
+            logger.LogInformation("Removed the system circles from {count} connection(s)", changed);
+
+            foreach (var circleId in RetiredSystemCircleIds)
+            {
+                // Rows a connection record no longer names, and any held by something other than a connection.
+                await circleMembershipService.DeleteAllMembersOfCircleAsync(circleId);
+
+                if (await circleDefinitionService.GetCircleAsync(circleId) != null)
+                {
+                    await circleDefinitionService.DeleteAsync(circleId);
+                }
+            }
+        }
+
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
+            foreach (var circleId in RetiredSystemCircleIds)
+            {
+                if (await circleDefinitionService.GetCircleAsync(circleId) != null)
+                {
+                    throw new OdinSystemException($"System circle {circleId} still exists");
+                }
+            }
+
+            if ((await appRegistrationService.GetRegisteredAppsAsync(odinContext))
+                .Any(a => a.AuthorizedCircles?.Any(RetiredSystemCircleIds.Contains) ?? false))
+            {
+                throw new OdinSystemException("An app still authorizes a retired system circle");
+            }
+
             foreach (var (circle, drive) in ReadGrants)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -127,6 +199,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
             foreach (var identity in connected.Results)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                var store = identity.PeerKeyStore;
+                if (RetiredSystemCircleIds.Any(id => store.CircleGrants.ContainsKey(id) ||
+                                                     store.AppGrants.Values.Any(a => a.ContainsKey(id))))
+                {
+                    throw new OdinSystemException($"{identity.OdinId} still holds a retired system circle");
+                }
 
                 foreach (var (circle, drive) in ReadGrants)
                 {

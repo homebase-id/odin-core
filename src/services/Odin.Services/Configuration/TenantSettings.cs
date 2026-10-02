@@ -78,7 +78,7 @@ public class TenantSettings
 
     /// <summary>
     /// When true, an app listing circles is shown only circles that belong to an app; circles with no
-    /// owning app (the owner's own, and the system circles) are left out.  Off by default, which is
+    /// owning app (the owner's own) are left out.  Off by default, which is
     /// today's behaviour -- an app sees every circle it has permission to read.
     /// </summary>
     /// <remarks>

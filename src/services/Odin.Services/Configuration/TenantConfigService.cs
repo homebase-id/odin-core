@@ -30,7 +30,6 @@ namespace Odin.Services.Configuration;
 /// Manages initial setup and system configuration for the identity and owner-app
 /// </summary>
 public class TenantConfigService(
-    CircleNetworkService dbs,
     TenantContext tenantContext,
     IIdentityRegistry registry,
     IDriveManager driveManager,
@@ -214,10 +213,6 @@ public class TenantConfigService(
             await registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
-        //Note: the order here is important.  if the request or system drives include any anonymous
-        //drives, they should be added after the system circle exists
-        await circleMembershipService.CreateSystemCirclesAsync(odinContext);
-
         await builtinProvisioner.EnsureAllAsync(odinContext);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
@@ -277,9 +272,8 @@ public class TenantConfigService(
                 break;
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
+                // Every connection gets the key from this setting (GetAdditionalPermissionKeysForConnectedIdentities).
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow,
-                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -291,9 +285,8 @@ public class TenantConfigService(
                 break;
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
+                // Every connection gets the key from this setting (GetAdditionalPermissionKeysForConnectedIdentities).
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
-                    odinContext);
                 break;
 
             case TenantConfigFlagNames.HideOwnerCirclesFromApps:
@@ -422,25 +415,4 @@ public class TenantConfigService(
         return false;
     }
 
-    private async Task UpdateSystemCirclePermissionAsync(int key, bool shouldGrantKey, IOdinContext odinContext)
-    {
-        var systemCircle = await circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-
-        if (shouldGrantKey)
-        {
-            if (!systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Add(key);
-            }
-        }
-        else
-        {
-            if (systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Remove(key);
-            }
-        }
-
-        await dbs.UpdateCircleDefinitionAsync(systemCircle, odinContext);
-    }
 }

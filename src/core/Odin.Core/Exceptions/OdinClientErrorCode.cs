@@ -38,8 +38,8 @@ public enum OdinClientErrorCode
     CannotGrantReadOnAmbientCircle = 3014,
     CircleAlreadyHasOwningApp = 3015,
     CircleNotFound = 3016,
-    CannotReassignSystemCircle = 3017,
-    CannotDisableSystemCircle = 3018,
+    CannotReassignSystemCircle = 3017, // retired with the system circles (#1809); not reused
+    CannotDisableSystemCircle = 3018, // retired with the system circles (#1809); not reused
     ContactNotReviewed = 3019,
 
     // Drive mgmt errors 40xx

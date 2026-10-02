@@ -23,8 +23,7 @@ public static class BuiltinCircles
     // THE CIRCLES
     //
     // Every circle here grants only drives its own app owns -- no exceptions -- which is why circles
-    // nest in the tree while cross-app drive grants do not. The two system circles are owned by no
-    // app and grant across six drives, so they stay in SystemCircleConstants until they retire.
+    // nest in the tree while cross-app drive grants do not.
     // ============================================================================================
     //
 

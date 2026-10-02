@@ -152,7 +152,7 @@ namespace Odin.Services.Base
             return new RedactedCallerContext()
             {
                 OdinId = this.OdinId,
-                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == SystemCircleConstants.ConfirmedConnectionsCircleId),
+                IsGrantedConnectedIdentitiesSystemCircle = this.IsReviewed, // the name predates #1809: it meant the Confirmed circle
                 SecurityLevel = this.SecurityLevel,
             };
         }
