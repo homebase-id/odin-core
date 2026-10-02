@@ -36,6 +36,15 @@ Creating email is a client action (chat-kmp):
 
 Key algorithm: decision point between ECC-384 (P-384 — aligns with Homebase's existing ECC infrastructure; supported by Stalwart and OpenPGP/RFC 6637) and Curve25519 (smaller, the OpenPGP ecosystem's favorite). Either works for all consumers here; pick once at implementation time. OpenPGP certificate packaging (for Stalwart + WKD) via an OpenPGP library (e.g. BouncyCastle) — keep the certificate minimal.
 
+## Mailbox modes: encrypted or standard
+
+The owner chooses at setup, and can switch later (`POST /api/v2/mail/mode`). Stored per identity in `EmailSetupStateService`; no record means encrypted.
+
+- **Encrypted** (everything above): Stalwart encrypts on append to the published certificate.
+- **Standard**: Stalwart stores mail as received (`encryptionAtRest: Disabled`), so any mail app can read it. Setup skips the key step; app passwords and autoconfig need only the mailbox.
+- **Encrypted → standard**: encryption at rest off, then the EMAIL certificate unpublished (WKD, DID `keyAgreement`; nothing else in the DID document changes). The keyring stays on the drive. Mail already stored stays encrypted - there is no server-side decryption, so the custody line above is unchanged; the owner exports the key to read it.
+- **Standard → encrypted**: a new keyring, written then published as in setup. Mail already stored stays as received.
+
 ## Activation flow (server side, idempotent)
 
 `POST /api/owner/v1/mail/activate` (owner-authenticated), called by the app after drive+key creation:
