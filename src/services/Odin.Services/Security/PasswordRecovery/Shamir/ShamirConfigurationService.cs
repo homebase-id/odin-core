@@ -58,6 +58,11 @@ public class ShamirConfigurationService(
     private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
 
     public const int MinimumPlayerCount = 3;
+
+    /// <summary>
+    /// The length of the key split into shards; recovery reconstructs it to this length (#1736).
+    /// </summary>
+    public const int DistributionKeyLength = 16;
     public const int MinimumMatchingShardsOffset = 1;
     public const string RotateShardsHasStarted = "Rotate shards has started";
     public static Guid SecurityRiskReportNotificationTypeId { get; } = Guid.Parse("959f197f-4f97-4ff1-b36e-eb237b79eda1");
@@ -186,7 +191,7 @@ public class ShamirConfigurationService(
         OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
 
         var hashedRecoveryEmail = await passwordKeyRecoveryService.GetHashedRecoveryEmail();
-        var distributionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+        var distributionKey = ByteArrayUtil.GetRndByteArray(DistributionKeyLength).ToSensitiveByteArray();
         var shards = await CreateShards(players, minShards, distributionKey, hashedRecoveryEmail, odinContext);
 
         var package = new DealerShardPackage
