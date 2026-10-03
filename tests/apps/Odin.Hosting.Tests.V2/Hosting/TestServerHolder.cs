@@ -1,5 +1,6 @@
 #nullable enable
 using Microsoft.AspNetCore.TestHost;
+using Odin.Hosting.Tests.V2.Peer;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
@@ -12,4 +13,7 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 internal sealed class TestServerHolder
 {
     public TestServer? Server { get; set; }
+
+    /// <summary>This host's injected peer-call failures; see <see cref="PeerFaults"/>.</summary>
+    public PeerFaults PeerFaults { get; } = new();
 }
