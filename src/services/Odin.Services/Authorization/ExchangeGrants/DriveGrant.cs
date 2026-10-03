@@ -1,6 +1,7 @@
 using System;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
+using Odin.Services.Drives;
 
 namespace Odin.Services.Authorization.ExchangeGrants
 {
@@ -10,6 +11,12 @@ namespace Odin.Services.Authorization.ExchangeGrants
         public PermissionedDrive PermissionedDrive { get; set; }
 
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
+
+        /// <summary>
+        /// Read with the storage key: what it takes to decrypt the drive's content, not merely list it.
+        /// </summary>
+        public bool IsKeyedRead => PermissionedDrive.Permission.HasFlag(DrivePermission.Read) &&
+                                   KeyStoreKeyEncryptedStorageKey != null;
 
         public DriveGrant Clone()
         {

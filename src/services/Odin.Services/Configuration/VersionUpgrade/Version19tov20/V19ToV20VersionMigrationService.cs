@@ -220,11 +220,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
                         continue;
                     }
 
-                    var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                        .FirstOrDefault(g => g.PermissionedDrive.Drive == drive &&
-                                             g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read));
-
-                    if (driveGrant?.KeyStoreKeyEncryptedStorageKey == null)
+                    if (!circleGrant.KeyStoreKeyEncryptedDriveGrants.Any(g => g.PermissionedDrive.Drive == drive && g.IsKeyedRead))
                     {
                         throw new OdinSystemException(
                             $"{identity.OdinId} is in circle {circle.Name} without a keyed Read grant on {drive.Alias}");

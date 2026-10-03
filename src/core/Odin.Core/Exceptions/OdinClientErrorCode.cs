@@ -31,7 +31,7 @@ public enum OdinClientErrorCode
     NotAFollowerIdentity = 3007,
     IdentityNotFollowed = 3008,
     IdentityAlreadyFollowed = 3009,
-    CannotGrantAutoConnectedMoreCircles = 3010,
+    CannotGrantAutoConnectedMoreCircles = 3010, // retired with the system circles (#1809); not reused
     IncomingRequestNotFound = 3011,
     CannotClearReviewWhilePersonalCircleMember = 3012,
     CannotGrantKeysOnAmbientCircle = 3013,
@@ -102,7 +102,7 @@ public enum OdinClientErrorCode
 
 
     // Connection errors 50xx
-    NotAnAutoConnection = 5001,
+    NotAnAutoConnection = 5001, // retired with the system circles (#1809); not reused
     IdentityMustBeConnected = 5002,
     ConnectionRequestToYourself = 5003,
     BlockedConnection = 5004,
