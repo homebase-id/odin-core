@@ -90,6 +90,13 @@ public abstract class ShamirFixture : V2Fixture
     protected static readonly string[] PlayerIdentities =
         [Identities.Sam, Identities.Merry, Identities.Pippin, Identities.TomBombadil];
 
+    /// <summary>
+    /// The identities named by <c>AccountRecovery:AutomatedPasswordRecoveryIdentities</c> in
+    /// <c>appsettings.development.json</c> — the players <c>EnableAutoPasswordRecovery</c> deals to.
+    /// </summary>
+    internal static readonly string[] AutomatedPlayerIdentities =
+        [Identities.TomBombadil, Identities.Collab, Identities.Merry, Identities.Pippin];
+
     /// <summary>Frodo is the dealer in all five originals; the players follow.</summary>
     protected override string[] HostIdentities => [Identities.Frodo, .. PlayerIdentities];
 
@@ -195,15 +202,24 @@ public abstract class ShamirFixture : V2Fixture
             await security.ConfigureShards(ShardRequest(players, playerType, minMatchingShards));
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
+        await DrainAndVerifyShardsAsync(dealer, players.Count);
+    }
+
+    /// <summary>
+    /// Drains the dealer's outbox so its shard sends are delivered, then asks every player to confirm
+    /// it is holding its shard.
+    /// </summary>
+    protected static async Task DrainAndVerifyShardsAsync(OwnerSession dealer, int expectedPlayerCount)
+    {
         await dealer.Sync.DrainOutboxAsync();
 
-        var verifyShardsResponse = await security.VerifyShards();
+        var verifyShardsResponse = await SecurityOf(dealer).VerifyShards();
         Assert.That(verifyShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var results = verifyShardsResponse.Content;
         Assert.That(results, Is.Not.Null);
         Assert.That(results!.Players, Is.Not.Null);
-        Assert.That(results.Players.Count, Is.EqualTo(players.Count),
+        Assert.That(results.Players.Count, Is.EqualTo(expectedPlayerCount),
             "mismatch number of shards in verified results");
         // Names the players that failed rather than printing "Expected: True".
         Assert.That(results.Players.Where(p => !p.Value.IsValid).Select(p => p.Key), Is.Empty,
