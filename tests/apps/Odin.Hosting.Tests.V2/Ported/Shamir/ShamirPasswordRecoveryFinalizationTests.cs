@@ -1,17 +1,11 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
-using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
-using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
-using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 
@@ -195,55 +189,5 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: rotationsSoFar);
 
         return rotated;
-    }
-
-    /// <summary>
-    /// Reads the finalize nonce + final recovery key out of the log, posts
-    /// <paramref name="newPassword"/> against them, and logs in with it.
-    /// </summary>
-    private async Task<OwnerSession> FinalizeRecoveryAndLoginAsync(OwnerSession dealer, string newPassword)
-    {
-        // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
-        await AssertRecoveryStateAsync(dealer, ShamirRecoveryState.AwaitingOwnerFinalization);
-
-        // scan for the nonceId
-        var finalizeNonceId = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryNonceIdPropertyName);
-        var finalRecoveryKey = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryKeyPropertyName);
-
-        Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
-        Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
-
-        var saltyReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(
-            Host, dealer.Identity.DomainName, newPassword);
-
-        // here we will call finalize to get the recovery key
-        var finalizeRecoveryResponse = await AnonymousSecurityOf(dealer).FinalizeRecovery(new FinalRecoveryRequest
-        {
-            Id = finalizeNonceId,
-            FinalKey = finalRecoveryKey,
-            PasswordReply = saltyReply
-        });
-
-        Assert.That(finalizeRecoveryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var recovered = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName, newPassword);
-        Assert.That(recovered.Token.Id, Is.Not.EqualTo(Guid.Empty));
-        Assert.That(recovered.Token.AccessTokenHalfKey.IsSet(), Is.True);
-        Assert.That(recovered.SharedSecret.IsSet(), Is.True);
-        return recovered;
-    }
-
-    /// <summary>
-    /// <c>WebScaffold.AssertHasDebugLogEvent</c>: exactly <paramref name="count"/> Debug events whose
-    /// rendered message equals <paramref name="message"/>. Private here rather than shared on
-    /// <see cref="ShamirFixture"/> — this is the only Shamir test that reads the Debug channel.
-    /// </summary>
-    private void AssertHasDebugLogEvent(string message, int count)
-    {
-        var matching = Host.LogStore.GetLogEvents()[LogEventLevel.Debug]
-            .Where(l => l.RenderMessage() == message)
-            .ToList();
-
-        Assert.That(matching, Has.Count.EqualTo(count), $"Debug log events matching '{message}'");
     }
 }

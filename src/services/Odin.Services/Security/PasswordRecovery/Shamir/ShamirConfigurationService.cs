@@ -48,6 +48,7 @@ public class ShamirConfigurationService(
     OwnerSecretService secretService,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
+    ShardRotationCooldown rotationCooldown,
     ILastSeenService lastSeenService) : ShamirBaseService<ShamirConfigurationService>(logger, fileSystem, driveManager, lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
@@ -227,6 +228,11 @@ public class ShamirConfigurationService(
     /// </summary>
     public async Task RotateShardKeysIfNeeded(IOdinContext odinContext)
     {
+        if (rotationCooldown.IsCoolingDown)
+        {
+            return;
+        }
+
         try
         {
             var package = await this.GetDealerShardPackage(odinContext);
@@ -253,6 +259,7 @@ public class ShamirConfigurationService(
         }
         catch (Exception e)
         {
+            rotationCooldown.Failed();
             Logger.LogError(e, "Failed to start shard rotation shards");
         }
     }
