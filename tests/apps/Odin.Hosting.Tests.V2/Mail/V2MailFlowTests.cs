@@ -94,8 +94,9 @@ public class V2MailFlowTests : V2Fixture
     }
 
     /// <summary>
-    /// App passwords need a published key, and the key is the last setup step — so asking for one
-    /// too early is refused rather than issuing a credential for a mailbox nothing can encrypt to.
+    /// An encrypted mailbox's app passwords need a published key, and the key is its last setup
+    /// step — so asking for one too early is refused rather than issuing a credential for a mailbox
+    /// nothing can encrypt to. A standard mailbox has no such step (V2MailModeTests).
     /// </summary>
     [Test]
     public async Task AppPasswordBeforeActivationIsRefused()

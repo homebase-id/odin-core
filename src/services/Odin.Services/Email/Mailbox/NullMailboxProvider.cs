@@ -29,6 +29,12 @@ public class NullMailboxProvider(ILogger<NullMailboxProvider> logger) : IMailbox
         return Task.CompletedTask;
     }
 
+    public Task DisableEncryptionAtRestAsync(string domain)
+    {
+        logger.LogDebug("NullMailboxProvider: skipping encryption-at-rest disable for {domain}", domain);
+        return Task.CompletedTask;
+    }
+
     public Task SetDkimKeyAsync(string domain, DkimKey key)
     {
         logger.LogDebug("NullMailboxProvider: skipping DKIM key {selector} for {domain}", key.Selector, domain);
