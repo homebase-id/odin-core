@@ -580,12 +580,21 @@ namespace Odin.Services.Membership.Connections
                 return false;
             }
 
-            static bool KeyedRead(IEnumerable<DriveGrant> grants, Guid driveId) =>
-                (grants ?? []).Any(g => g.DriveId == driveId && g.IsKeyedRead);
+            // Only grants from enabled circles count, as in the permission context the follower actually gets.
+            var grants = icr.PeerKeyStore.CircleGrants.Values.Select(cg => (cg.CircleId, cg.KeyStoreKeyEncryptedDriveGrants))
+                .Concat(icr.PeerKeyStore.AppGrants.Values.SelectMany(a => a.Values)
+                    .Select(ag => (ag.CircleId, ag.KeyStoreKeyEncryptedDriveGrants)));
 
-            return icr.PeerKeyStore.CircleGrants.Values.Any(cg => KeyedRead(cg.KeyStoreKeyEncryptedDriveGrants, driveId)) ||
-                   icr.PeerKeyStore.AppGrants.Values.SelectMany(appGrants => appGrants.Values)
-                       .Any(ag => KeyedRead(ag.KeyStoreKeyEncryptedDriveGrants, driveId));
+            foreach (var (circleId, driveGrants) in grants)
+            {
+                if ((driveGrants ?? []).Any(g => g.DriveId == driveId && g.IsKeyedRead) &&
+                    await circleDefinitionService.IsEnabledAsync(circleId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public async Task<IEnumerable<OdinId>> GetCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
