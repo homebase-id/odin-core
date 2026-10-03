@@ -99,24 +99,6 @@ public class SystemCircleRemovalMigrationTests : V2Fixture
         var (scope, ctx) = await MigrationContextAsync(frodo);
         await SeedSystemCirclesAsync(scope, ctx, sam);
 
-        // Mail left the built-in set, so a fresh identity no longer registers it; an identity old enough to
-        // be on v0 has it, and v0 -> v1 updates it.
-        var apps = scope.Resolve<IAppRegistrationService>();
-        if (await apps.GetAppRegistration(SystemAppConstants.MailAppId, ctx) == null)
-        {
-            var mail = SystemAppConstants.MailAppRegistrationRequest;
-            await apps.RegisterAppAsync(new AppRegistrationRequest
-            {
-                AppId = mail.AppId,
-                Name = mail.Name,
-                AppSlug = "mail",
-                PermissionSet = mail.PermissionSet,
-                Drives = mail.Drives,
-                AuthorizedCircles = mail.AuthorizedCircles,
-                CircleMemberPermissionGrant = mail.CircleMemberPermissionGrant
-            }, ctx);
-        }
-
         var config = scope.Resolve<TenantConfigService>();
         await config.ForceVersionNumberAsync(0);
 

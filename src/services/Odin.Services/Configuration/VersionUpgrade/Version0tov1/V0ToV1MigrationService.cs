@@ -64,8 +64,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             // Update the apps that use the new circle
             //
             logger.LogDebug("Verifying system apps have new circles and permissions...");
+            // Mail is not updated or verified: the app is retired and a current identity does not register it.
             await VerifyApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
-            await VerifyApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
             logger.LogDebug("Verifying system apps have new circles and permissions - OK");
             cancellationToken.ThrowIfCancellationRequested();
         }
@@ -156,7 +156,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             logger.LogDebug("Updating system apps with new circles and permissions");
             await UpdateApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
-            await UpdateApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
             cancellationToken.ThrowIfCancellationRequested();
         }
 
