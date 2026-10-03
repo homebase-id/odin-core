@@ -72,8 +72,8 @@ public sealed class PermissionContextStorageKeySource(IOdinContext odinContext) 
 /// <summary>
 /// Caller-scoped with a keyless fallback: the storage key comes from the caller's own permission
 /// context when it has one, and is null otherwise.  Unlike <see cref="PermissionContextStorageKeySource"/>
-/// it does not throw, because connection-request grants always include the system circles, whose
-/// drives (e.g. the profile drive) an app normally cannot read.
+/// it does not throw, because connection-request grants can name circles whose drives (e.g. the
+/// profile drive) the calling app cannot read.
 /// </summary>
 public sealed class PermissionContextOrNoStorageKeySource(IOdinContext odinContext) : IStorageKeySource
 {

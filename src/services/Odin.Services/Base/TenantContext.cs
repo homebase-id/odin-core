@@ -87,5 +87,16 @@ namespace Odin.Services.Base
         {
             _tenantSettings = newConfig;
         }
+
+        /// <summary>
+        /// This identity's data version, kept here so per-request checks (the reviewed security tier) need
+        /// no database read.  Loaded with the settings and updated whenever the version is written.
+        /// </summary>
+        public int DataVersionNumber { get; private set; }
+
+        public void UpdateDataVersion(int dataVersionNumber)
+        {
+            DataVersionNumber = dataVersionNumber;
+        }
     }
 }

@@ -17,9 +17,10 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
         [Post(root_path + "/circles/list")]
         Task<ApiResponse<IEnumerable<OdinId>>> GetCircleMembers([Body] GetCircleMembersRequest circleId);
         
-        [Post(root_path + "/circles/add")]
-        Task<ApiResponse<bool>> AddCircle([Body] AddCircleMembershipRequest request);
         
+        [Post(root_path + "/circles/add-many")]
+        Task<ApiResponse<EnrollmentResult>> AddManyToCircle([Body] AddManyCircleMembershipRequest request);
+
         [Post(root_path + "/circles/revoke")]
         Task<ApiResponse<bool>> RevokeCircle([Body] RevokeCircleMembershipRequest request);
 

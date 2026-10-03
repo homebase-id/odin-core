@@ -93,11 +93,9 @@ public static class SystemAppConstants
     {
         AppId = ChatAppId,
         Name = "Homebase - Chat",
-        AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
-        {
-            SystemCircleConstants.ConfirmedConnectionsCircleId,
-            SystemCircleConstants.AutoConnectionsCircleId
-        },
+        // None: the Chat circle (granted on connect) carries ChatDrive, and Lists and Moments are granted
+        // by their own circles. The retired system circles used to be authorized here (#1809).
+        AuthorizedCircles = new List<Guid>(),
         CircleMemberPermissionGrant = new PermissionSetGrantRequest()
         {
             Drives =
@@ -209,9 +207,9 @@ public static class SystemAppConstants
             // Writes to the ProfileDrive funnel through the Profile attribute API, which requires
             // ManageProfile. Granted by default so the Chat app can edit profile attributes.
             PermissionKeys.ManageProfile,
-            // Lets the Chat app add/remove an OdinId to/from a circle without the master key,
-            // via the write-only deposit path (see PeerKeyStore.WriteOnlyKeyPair).
-            PermissionKeys.ManageCircleMembership)
+            // Lets the Chat app list circles' members. Adding to a circle needs no key: an app may add
+            // to the circles it owns (#1809).
+            PermissionKeys.ReadCircleMembership)
     };
 
     public static readonly AppRegistrationRequest FeedAppRegistrationRequest = new()
@@ -291,11 +289,9 @@ public static class SystemAppConstants
     {
         AppId = MailAppId,
         Name = "Homebase - Mail",
-        AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
-        {
-            SystemCircleConstants.ConfirmedConnectionsCircleId,
-            SystemCircleConstants.AutoConnectionsCircleId
-        },
+        // None: the Chat circle (granted on connect) carries ChatDrive, and Lists and Moments are granted
+        // by their own circles. The retired system circles used to be authorized here (#1809).
+        AuthorizedCircles = new List<Guid>(),
         CircleMemberPermissionGrant = new PermissionSetGrantRequest()
         {
             Drives =
@@ -566,7 +562,7 @@ public static class SystemAppConstants
             PermissionKeys.UseTransitWrite,
             PermissionKeys.ManageContacts,
             PermissionKeys.ManageProfile,
-            PermissionKeys.ManageCircleMembership)
+            PermissionKeys.ReadCircleMembership)
     };
 
     /// <summary>
@@ -574,8 +570,8 @@ public static class SystemAppConstants
     /// setup, which needs a registration request.
     /// </summary>
     /// <remarks>
-    /// MomentsDrive is also in <c>BuiltinProvisioner.SystemCircleCarryOverDrives</c>: it was seeded
-    /// before its app was built-in, because the system circles grant it.  Now that the app owns it on
+    /// MomentsDrive is also in <c>BuiltinProvisioner.CarryOverDrives</c>: it was seeded before its app
+    /// was built-in, because the retired system circles granted it.  Now that the app owns it on
     /// the tree, the carry-over is redundant for Moments -- harmless, since seeding is idempotent, and
     /// left alone so the carry-over list retires as one piece.
     /// </remarks>

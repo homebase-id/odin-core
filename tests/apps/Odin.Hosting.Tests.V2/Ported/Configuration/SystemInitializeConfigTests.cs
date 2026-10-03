@@ -161,88 +161,16 @@ public class SystemInitializeConfigTests : V2Fixture
         }));
 
         var getCircleDefinitionsResponse = await owner.RefitFor<IRefitOwnerCircleDefinition>()
-            .GetCircleDefinitions(includeSystemCircle: true);
+            .GetCircleDefinitions();
         Assert.That(getCircleDefinitionsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getCircleDefinitionsResponse.Content, Is.Not.Null);
         var circleDefs = getCircleDefinitionsResponse.Content!.ToList();
 
+        // Only the built-in apps' circles: the Confirmed and Auto system circles retired (#1809).
         var seededCircles = BuiltinApps.SeededCircles.Select(c => (Guid)c.Id).Distinct().Count();
-        Assert.That(circleDefs.Count, Is.EqualTo(SystemCircleConstants.AllSystemCircles.Count + seededCircles));
-
-        var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
-        Assert.That((Guid)connectedIdentitiesSystemCircle.Id, Is.EqualTo((Guid)GuidId.FromString("we_are_connected")));
-        // 10, not 9: WebDropDrive is anonymous-read, and HandleDriveAdded grants the system
-        // circles read on every anonymous-read drive as it is created.  Seeding it followed
-        // Webdrop joining BuiltinApps.Builtin.
-        Assert.That(connectedIdentitiesSystemCircle.DriveGrants.Count(), Is.EqualTo(10));
-
-        Assert.That(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
-            dg.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
-            dg.PermissionedDrive.Permission == DrivePermission.Read), Is.Not.Null);
-
-        Assert.That(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        Assert.That(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        Assert.That(connectedIdentitiesSystemCircle.Permissions.Keys.Count, Is.EqualTo(1),
-            "By default, the system circle should have 1 permission");
-        Assert.That(connectedIdentitiesSystemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions),
-            Is.Not.Null);
-
-        Assert.That(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MailDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        Assert.That(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.FeedDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        Assert.That(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ListsDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        //
-
-        var autoConnectionsSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.AutoConnectionsCircleId);
-        Assert.That(autoConnectionsSystemCircle.Name, Is.EqualTo("Auto-connected Identities"));
-
-        Assert.That(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        Assert.That(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive &&
-                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null,
-            "auto connections get write + react access to moments");
-
-        Assert.That(autoConnectionsSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions), Is.False);
-
-        Assert.That(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.MailDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        Assert.That(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.FeedDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)), Is.Not.Null);
-
-        // Granted via allowAnonymous read
-        Assert.That(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)), Is.Not.Null);
-
-        // Granted via allowAnonymous read
-        Assert.That(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.HomePageConfigDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)), Is.Not.Null);
-
-        // Granted via allowAnonymous read
-        Assert.That(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
-            dg => dg.PermissionedDrive.Drive == WellKnownAppDrives.PublicPostsChannelDrive &&
-                  dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)), Is.Not.Null);
+        Assert.That(circleDefs.Count, Is.EqualTo(seededCircles));
+        Assert.That(circleDefs.Any(c => (Guid)c.Id == (Guid)GuidId.FromString("we_are_connected")), Is.False,
+            "the Confirmed Connections circle is no longer provisioned");
 
         //
         // The Chat app should be registered with ReadWrite access to its app-level drives
@@ -321,46 +249,10 @@ public class SystemInitializeConfigTests : V2Fixture
         Assert.That(createdDrives.Results.Select(cd => cd.TargetDriveInfo), Is.SupersetOf(expectedDrives));
 
         var getCircleDefinitionsResponse = await owner.RefitFor<IRefitOwnerCircleDefinition>()
-            .GetCircleDefinitions(includeSystemCircle: true);
+            .GetCircleDefinitions();
         Assert.That(getCircleDefinitionsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getCircleDefinitionsResponse.Content, Is.Not.Null);
         var circleDefs = getCircleDefinitionsResponse.Content!.ToList();
-
-        //
-        // System circle exists and has correct grants
-        //
-
-        var systemCircle = circleDefs.SingleOrDefault(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
-        Assert.That(systemCircle, Is.Not.Null, "system circle should exist");
-        Assert.That((Guid)systemCircle!.Id, Is.EqualTo((Guid)GuidId.FromString("we_are_connected")));
-        Assert.That(systemCircle.Name, Is.EqualTo("Confirmed Connected Identities"));
-        Assert.That(systemCircle.Description, Is.EqualTo(
-            "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection"));
-        Assert.That(systemCircle.Permissions.Keys.Count, Is.EqualTo(1),
-            "By default, the system circle should have 1 permission");
-        Assert.That(systemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions), Is.Not.Null);
-
-        var newDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg =>
-            dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
-        Assert.That(newDriveGrant, Is.Not.Null, "The new drive should be in the system circle");
-
-        var standardProfileDriveGrant =
-            systemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
-        Assert.That(standardProfileDriveGrant, Is.Not.Null, "The standard profile drive should be in the system circle");
-
-        //note: the permission for chat drive is write
-        var chatDriveGrant =
-            systemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive &&
-                dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React));
-        Assert.That(chatDriveGrant, Is.Not.Null, "the chat drive grant should exist in system circle");
-
-        var momentsDriveGrant =
-            systemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == WellKnownAppDrives.MomentsDrive &&
-                dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React));
-        Assert.That(momentsDriveGrant, Is.Not.Null, "the chat drive grant should exist in system circle");
 
         //
         // additional circle exists

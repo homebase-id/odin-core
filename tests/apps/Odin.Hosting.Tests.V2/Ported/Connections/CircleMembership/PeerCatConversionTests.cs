@@ -48,23 +48,25 @@ public class PeerCatConversionTests : V2Fixture
         var appDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(appDrive, "appDrive", allowAnonymousReads: false);
 
-        // circleX itself carries no drive grants — the deposit is trivial to source (no storage keys
-        // needed), and drive access to members comes entirely from the app's CircleMemberPermissionGrant.
+        var appId = Guid.NewGuid();
+
+        // circleX grants Read on the app's own drive, so adding to it needs the Peer Key the app cannot
+        // reach: the app deposits it. Drive access for members also comes from the app's
+        // CircleMemberPermissionGrant. The circle is the app's, which is what lets the app add to it.
         var circleX = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleX, "circleX", new PermissionSetGrantRequest
         {
-            Drives = new List<DriveGrantRequest>(),
-            // A circle must grant at least one drive or one permission — this one carries no drives,
-            // so give it a harmless circle-valid permission key instead.
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = appDrive, Permission = DrivePermission.Read } }
+            },
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
-        });
+        }, appId: appId);
 
-        // A Chat-shaped app on Frodo: ManageCircleMembership to deposit, AuthorizedCircles=[circleX],
-        // and a CircleMemberPermissionGrant of Write|React (no Read) on appDrive — mirrors
-        // SystemAppConstants.ChatAppRegistrationRequest's pattern.
         var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership },
+            permissionKeys: Array.Empty<int>(),
             authorizedCircles: new List<Guid> { circleX },
+            knownAppId: appId,
             circleMemberGrantRequest: new PermissionSetGrantRequest
             {
                 Drives = new List<DriveGrantRequest>
@@ -135,6 +137,9 @@ public class PeerCatConversionTests : V2Fixture
         var secretDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(secretDrive, "secretDrive", allowAnonymousReads: false);
 
+        var app = await AppSession.SetupAsync(frodo, secretDrive, DrivePermission.Read,
+            permissionKeys: Array.Empty<int>());
+
         var circle = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circle, "read-circle", new PermissionSetGrantRequest
         {
@@ -143,10 +148,7 @@ public class PeerCatConversionTests : V2Fixture
                 new() { PermissionedDrive = new PermissionedDrive { Drive = secretDrive, Permission = DrivePermission.Read } }
             },
             PermissionSet = new PermissionSet(new List<int>())
-        });
-
-        var app = await AppSession.SetupAsync(frodo, secretDrive, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+        }, appId: app.AppId);
 
         var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circle, sam.Identity);
         Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
@@ -234,17 +236,19 @@ public class PeerCatConversionTests : V2Fixture
         // call into Frodo's later and trigger conversion of whatever Frodo holds pending about Sam.
         var trigger = await PeerFlow.CreatePeerDriveAsync(sam, frodo, DrivePermission.Write, "trigger");
 
+        var app = await AppSession.SetupAsync(frodo, trigger, DrivePermission.Read,
+            permissionKeys: Array.Empty<int>());
+
+        // Read on a drive the app can reach, so the app deposits it (it cannot reach the Peer Key).
         var circleY = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleY, "circleY-doomed", new PermissionSetGrantRequest
         {
-            Drives = new List<DriveGrantRequest>(),
-            // A circle must grant at least one drive or one permission — this one carries no drives,
-            // so give it a harmless circle-valid permission key instead.
+            Drives = new List<DriveGrantRequest>
+            {
+                new() { PermissionedDrive = new PermissionedDrive { Drive = trigger, Permission = DrivePermission.Read } }
+            },
             PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
-        });
-
-        var app = await AppSession.SetupAsync(frodo, trigger, DrivePermission.Read,
-            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+        }, appId: app.AppId);
 
         var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleY, sam.Identity);
         Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");

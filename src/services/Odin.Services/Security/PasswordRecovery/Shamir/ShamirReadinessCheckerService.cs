@@ -49,7 +49,7 @@ public class ShamirReadinessCheckerService(
     {
         var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
 
-        if (!icr.IsConfirmedConnection())
+        if (!icr.IsReviewed())
         {
             return new RemotePlayerReadinessResult()
             {

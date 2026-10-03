@@ -15,17 +15,16 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version11tov12
 {
     /// <summary>
     /// v11 → v12: grants the Chat app (<see cref="SystemAppConstants.ChatAppId"/>) the
-    /// <see cref="PermissionKeys.ManageCircleMembership"/> permission key, and doubles as the version
+    /// <see cref="PermissionKeys.ReadCircleMembership"/> permission key, and doubles as the version
     /// bump that makes installs already sitting at v11 re-run <see cref="VersionUpgradeService"/>.
     ///
     /// <para>
-    /// A fresh v12 install already ships with this — <see cref="SystemAppConstants"/> now includes
-    /// <see cref="PermissionKeys.ManageCircleMembership"/> in the Chat app's default
-    /// <see cref="AppRegistrationRequest.PermissionSet"/>. This migration backfills the same key onto
-    /// <b>existing</b> installs whose stored Chat app grant predates it, preserving every other drive
-    /// grant and permission key verbatim. Without it, the Chat app can't call
-    /// <c>CircleNetworkService.GrantCircleAsync</c> to deposit a circle grant for a connected peer (the
-    /// write-only deposit path — see <c>CircleNetworkService.CreateDepositedGrantAsync</c>).
+    /// This used to grant <see cref="PermissionKeys.ManageCircleMembership"/> (51), which gated
+    /// adding to circles through <c>GrantCircleAsync</c>. Both are retired (#1809): an app adds to the
+    /// circles it owns with no key. What Chat still needs from 51 is what it implied -- reading circle
+    /// members -- so that is what is backfilled now, as a fresh install's default grant also carries it.
+    /// An app already holding 51 keeps reading members through 51's legacy implication. Every other
+    /// drive grant and permission key is preserved verbatim.
     /// </para>
     ///
     /// <para>
@@ -62,17 +61,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version11tov12
                 // to false — never touch a revoked app.
                 if (app.IsRevoked)
                 {
-                    logger.LogDebug("Chat app {appName} is revoked; skipping ManageCircleMembership backfill", app.Name);
+                    logger.LogDebug("Chat app {appName} is revoked; skipping ReadCircleMembership backfill", app.Name);
                     continue;
                 }
 
-                if (HasManageCircleMembership(app))
+                if (CanReadCircleMembers(app))
                 {
                     continue;
                 }
 
                 logger.LogInformation(
-                    "Granting ManageCircleMembership to the Chat app {appName} ({appId})", app.Name, app.AppId);
+                    "Granting ReadCircleMembership to the Chat app {appName} ({appId})", app.Name, app.AppId);
 
                 // Preserve the app's existing drive grants verbatim — this migration only touches
                 // the permission set.
@@ -83,7 +82,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version11tov12
                 // Preserve the app's existing permission keys verbatim — only add the missing key.
                 var permissionKeys = new List<int>(app.Grant.PermissionSet?.Keys ?? new List<int>())
                 {
-                    PermissionKeys.ManageCircleMembership
+                    PermissionKeys.ReadCircleMembership
                 };
 
                 await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
@@ -103,10 +102,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version11tov12
             var chatApp = apps.SingleOrDefault(a => a.AppId == SystemAppConstants.ChatAppId && !a.IsRevoked);
 
             // A revoked or never-installed Chat app has nothing to validate.
-            if (chatApp != null && !HasManageCircleMembership(chatApp))
+            if (chatApp != null && !CanReadCircleMembers(chatApp))
             {
                 throw new OdinSystemException(
-                    $"Chat app {chatApp.Name} ({chatApp.AppId}) was not granted the ManageCircleMembership permission");
+                    $"Chat app {chatApp.Name} ({chatApp.AppId}) was not granted the ReadCircleMembership permission");
             }
 
             var identities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
@@ -127,9 +126,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version11tov12
             }
         }
 
-        private static bool HasManageCircleMembership(RedactedAppRegistration app)
+        /// <summary>Holds ReadCircleMembership, or the retired 51, which still implies it.</summary>
+        private static bool CanReadCircleMembers(RedactedAppRegistration app)
         {
-            return app.Grant?.PermissionSet?.Keys?.Contains(PermissionKeys.ManageCircleMembership) ?? false;
+            var keys = app.Grant?.PermissionSet?.Keys;
+            return keys != null &&
+                   (keys.Contains(PermissionKeys.ReadCircleMembership) || keys.Contains(PermissionKeys.ManageCircleMembership));
         }
     }
 }

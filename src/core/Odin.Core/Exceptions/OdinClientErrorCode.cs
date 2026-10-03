@@ -31,15 +31,16 @@ public enum OdinClientErrorCode
     NotAFollowerIdentity = 3007,
     IdentityNotFollowed = 3008,
     IdentityAlreadyFollowed = 3009,
-    CannotGrantAutoConnectedMoreCircles = 3010,
+    CannotGrantAutoConnectedMoreCircles = 3010, // retired with the system circles (#1809); not reused
     IncomingRequestNotFound = 3011,
     CannotClearReviewWhilePersonalCircleMember = 3012,
     CannotGrantKeysOnAmbientCircle = 3013,
     CannotGrantReadOnAmbientCircle = 3014,
     CircleAlreadyHasOwningApp = 3015,
     CircleNotFound = 3016,
-    CannotReassignSystemCircle = 3017,
-    CannotDisableSystemCircle = 3018,
+    CannotReassignSystemCircle = 3017, // retired with the system circles (#1809); not reused
+    CannotDisableSystemCircle = 3018, // retired with the system circles (#1809); not reused
+    ContactNotReviewed = 3019,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -101,7 +102,7 @@ public enum OdinClientErrorCode
 
 
     // Connection errors 50xx
-    NotAnAutoConnection = 5001,
+    NotAnAutoConnection = 5001, // retired with the system circles (#1809); not reused
     IdentityMustBeConnected = 5002,
     ConnectionRequestToYourself = 5003,
     BlockedConnection = 5004,

@@ -253,36 +253,6 @@ public class PreflightIntroductionsTests : V2Fixture
         Assert.That(samStatus.CallerConnectionState, Is.EqualTo(PeerCallerConnectionState.Connected));
     }
 
-    /// <summary>
-    /// Taking Frodo out of Confirmed Connections drops the <c>AllowIntroductions</c> permission key he held
-    /// there. That key no longer decides anything, so with introductions allowed he may still introduce.
-    /// </summary>
-    [Test]
-    public async Task Preflight_WhenRecipientRevokedConfirmedCircle_ReturnsReady()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-
-        await ConnectAsync(frodo, sam);
-
-        var revoke = await sam.Connections.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
-        Assert.That(revoke.IsSuccessStatusCode, Is.True, $"revoke failed: {revoke.StatusCode}");
-
-        var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
-        {
-            Message = "preflight",
-            Recipients = [sam.Identity]
-        });
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.Ready);
-
-        var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
-        Assert.That(samStatus.AllowsIntroductions, Is.True);
-        Assert.That(samStatus.IsCallerConnected, Is.True);
-        Assert.That(samStatus.IsCallerConfirmed, Is.False);
-    }
-
     [Test]
     public async Task Preflight_FiltersSelfFromRecipientList()
     {

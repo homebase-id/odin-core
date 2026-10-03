@@ -119,7 +119,7 @@ public class PreV13ReadFallbackTests : V2Fixture
         // which is how a missing circle silently revokes what it grants.
         Assert.That(await circles.IsEnabledAsync(circleId), Is.True);
 
-        var all = await circles.GetCirclesAsync(includeSystemCircle: true);
+        var all = await circles.GetCirclesAsync();
         Assert.That(all.Any(c => (Guid)c.Id == circleId), Is.True, "the list must include blob circles");
     }
 
@@ -147,7 +147,7 @@ public class PreV13ReadFallbackTests : V2Fixture
         Assert.That((await apps.GetRegisteredAppsAsync(ctx)).Any(a => (Guid)a.AppId == appId), Is.False);
 
         Assert.That(await circles.GetCircleAsync(circleId), Is.Null);
-        Assert.That((await circles.GetCirclesAsync(includeSystemCircle: true)).Any(c => (Guid)c.Id == circleId),
+        Assert.That((await circles.GetCirclesAsync()).Any(c => (Guid)c.Id == circleId),
             Is.False);
     }
 

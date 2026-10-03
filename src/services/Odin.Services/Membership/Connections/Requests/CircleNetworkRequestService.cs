@@ -393,8 +393,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// The review-time send: the owner -- console or app -- connects and names the circles, and that is the
         /// review (docs/connection-defaults.md, "The review-time send").  Circles are routed as
-        /// <see cref="CircleNetworkService.MarkReviewedAsync"/> routes them; unlike it, the contact goes in
-        /// Confirmed Connections and the stamp waits for the connection to complete.  The origin comes from the
+        /// <see cref="CircleNetworkService.MarkReviewedAsync"/> routes them; unlike it, the stamp waits for the
+        /// connection to complete.  The origin comes from the
         /// caller, never the body.
         /// </summary>
         public async Task<ConnectionRequestResult> SendReviewedConnectionRequestAsync(
@@ -924,14 +924,12 @@ namespace Odin.Services.Membership.Connections.Requests
                     : null,
                 WriteOnlyKeyPair = PeerKeyStoreWriteOnlyKey.CreateKeyPair(keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
+                CircleGrants = await circleMembershipService.CreateCircleGrantListAsync(
                     keyStoreKey,
                     circles,
-                    incomingRequest.ConnectionRequestOrigin,
                     storageKeySource,
                     odinContext),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles,
-                    incomingRequest.ConnectionRequestOrigin, storageKeySource, odinContext),
+                AppGrants = await _cns.CreateAppCircleGrantList(keyStoreKey, circles, storageKeySource, odinContext),
                 PeerClientKey = accessRegistration
             };
 
@@ -1791,11 +1789,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            // A reviewed connection is a confirmed one, whichever client sent it: the system circle follows
-            // the review, not the absence of a master key.
-            var systemCircleOrigin = reviewOnCompletion ? ConnectionRequestOrigin.IdentityOwner : header.ConnectionRequestOrigin;
-            var (clientAccessToken, grant) = await CreateTokenAndExchangeGrantAsync(keyStoreKey, circles, systemCircleOrigin,
-                masterKey, odinContext);
+            var (clientAccessToken, grant) = await CreateTokenAndExchangeGrantAsync(keyStoreKey, circles, masterKey, odinContext);
             queuedEnrollments.ForEach(e => CircleNetworkService.EnqueuePendingEnrollment(grant, e));
 
             var tempRawKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -1871,9 +1865,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <remarks>
         /// A plain resend keeps every circle the earlier store granted, as it always has.  A reviewed one
         /// re-routes what it carries forward, so it takes what the owner named -- granted or queued -- and
-        /// leaves out what the pipeline added itself: the system circles (which a review would refuse from an
-        /// app, as owner circles) and the enabled <see cref="CircleGrantOn.Connect"/> circles, which are
-        /// added again regardless.
+        /// leaves out what the pipeline added itself: the enabled <see cref="CircleGrantOn.Connect"/> circles,
+        /// which are added again regardless.
         /// </remarks>
         private async Task ResendMergedAsync(ConnectionRequestHeader header, ConnectionRequest existing,
             SensitiveByteArray masterKey, bool reviewOnCompletion, IOdinContext odinContext)
@@ -1887,7 +1880,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 var connectCircles = await EnabledConnectCircleIdsAsync();
                 carried = carried
                     .Concat((store.PendingEnrollments ?? []).Select(p => p.CircleId))
-                    .Where(c => !SystemCircleConstants.IsSystemCircle(c) && !connectCircles.Contains(c));
+                    .Where(c => !connectCircles.Contains(c));
             }
 
             header.CircleIds = (header.CircleIds ?? []).Union(carried).ToList();
@@ -1897,7 +1890,6 @@ namespace Odin.Services.Membership.Connections.Requests
         private async Task<(ClientAccessToken clientAccessToken, PeerKeyStore)> CreateTokenAndExchangeGrantAsync(
             SensitiveByteArray keyStoreKey,
             List<GuidId> circles,
-            ConnectionRequestOrigin origin,
             SensitiveByteArray masterKey,
             IOdinContext odinContext)
         {
@@ -1917,13 +1909,12 @@ namespace Odin.Services.Membership.Connections.Requests
                 MasterKeyEncryptedPeerKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 WriteOnlyKeyPair = PeerKeyStoreWriteOnlyKey.CreateKeyPair(keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
+                CircleGrants = await circleMembershipService.CreateCircleGrantListAsync(
                     keyStoreKey,
                     circles,
-                    origin,
                     storageKeySource,
                     odinContext),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, origin, storageKeySource, odinContext),
+                AppGrants = await _cns.CreateAppCircleGrantList(keyStoreKey, circles, storageKeySource, odinContext),
                 PeerClientKey = accessRegistration
             };
 

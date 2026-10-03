@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -28,6 +30,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version15tov16;
 using Odin.Services.Configuration.VersionUpgrade.Version16tov17;
 using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
 using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
+using Odin.Services.Configuration.VersionUpgrade.Version19tov20;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -54,6 +57,7 @@ public class VersionUpgradeService(
     V16ToV17VersionMigrationService v17,
     V17ToV18VersionMigrationService v18,
     V18ToV19VersionMigrationService v19,
+    V19ToV20VersionMigrationService v20,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -258,43 +262,6 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
-            }
-
-            if (currentVersion == 18)
-            {
-                runState.SetRunning(true);
-                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
-
-                // Two phases, a transaction each. The passes are independent -- one stamps drives, the
-                // other circles -- and each only fills what is missing, never moving an owner that is
-                // already set, so a phase that landed does not have to be undone to retry the other.
-                // The phase name in the log then says which of the two stalled.
-                //
-                // Placed last, after the built-in provisioning earlier versions run: a drive or circle
-                // created by provisioning already names its app, and stamping before it ran would leave
-                // the ones it creates afterwards ownerless.
-                await RunPhaseAsync("v18->v19 finish-drive-addresses", async ct =>
-                {
-                    await using var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
-                    await v19.FinishDriveAddressesAsync(odinContext, ct);
-                    drivesTx.Commit();
-                }, cancellationToken);
-
-                await RunPhaseAsync("v18->v19 stamp-owner-console-circles", async ct =>
-                {
-                    await using var circlesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
-                    await v19.StampOwnerConsoleCirclesAsync(odinContext, ct);
-                    circlesTx.Commit();
-                }, cancellationToken);
-
-                await using var ownershipTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
-
-                await v19.ValidateUpgradeAsync(odinContext, cancellationToken);
-
-                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
-
-                ownershipTx.Commit();
                 logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
@@ -691,6 +658,100 @@ public class VersionUpgradeService(
                 await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 await v18.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                versionTx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 18)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                // Two phases, a transaction each. The passes are independent -- one stamps drives, the
+                // other circles -- and each only fills what is missing, never moving an owner that is
+                // already set, so a phase that landed does not have to be undone to retry the other.
+                // The phase name in the log then says which of the two stalled.
+                //
+                // Placed last, after the built-in provisioning earlier versions run: a drive or circle
+                // created by provisioning already names its app, and stamping before it ran would leave
+                // the ones it creates afterwards ownerless.
+                await RunPhaseAsync("v18->v19 finish-drive-addresses", async ct =>
+                {
+                    await using var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v19.FinishDriveAddressesAsync(odinContext, ct);
+                    drivesTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v18->v19 stamp-owner-console-circles", async ct =>
+                {
+                    await using var circlesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v19.StampOwnerConsoleCirclesAsync(odinContext, ct);
+                    circlesTx.Commit();
+                }, cancellationToken);
+
+                await using var ownershipTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v19.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                ownershipTx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 19)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await RunPhaseAsync("v19->v20 requeue-stale-deposits", async ct =>
+                {
+                    List<OdinId> requeued;
+                    await using (var depositsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct))
+                    {
+                        requeued = await v20.RequeueStaleDepositsAsync(odinContext, ct);
+                        depositsTx.Commit();
+                    }
+
+                    // After the commit: announcing work a rollback would erase is worse than announcing it late.
+                    foreach (var odinId in requeued)
+                    {
+                        await circleNetworkService.PublishPendingEnrollmentNotificationsAsync(odinId, alreadyQueued: [], odinContext);
+                    }
+                }, cancellationToken);
+
+                await RunPhaseAsync("v19->v20 builtin-circle-read-grants", async ct =>
+                {
+                    await using var grantsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v20.GrantReadToBuiltinCirclesAsync(odinContext, ct);
+                    grantsTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v19->v20 delete-system-circles", async ct =>
+                {
+                    await using var circlesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v20.DeleteSystemCirclesAsync(odinContext, ct);
+                    circlesTx.Commit();
+                }, cancellationToken);
+
+                await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v20.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 

@@ -35,8 +35,8 @@ public static class BuiltinDrives
         Name = "Chat Drive", TargetDrive = WellKnownAppDrives.ChatDrive, Metadata = "",
         AppId = SystemAppConstants.ChatAppId, DriveSlug = "chat", DriveTypeSlug = "chat",
         AllowAnonymousReads = false,
-        // TODO: should be owner-only, pending a decision on auto-provisioning; false so it could be
-        // added to the system circle.
+        // TODO: should be owner-only, pending a decision on auto-provisioning; false so the Chat circle
+        // can grant it.
         OwnerOnly = false
     };
 

@@ -50,9 +50,13 @@ namespace Odin.Services.Membership.Connections
             return this._status == ConnectionStatus.Connected;
         }
 
-        public bool IsConfirmedConnection()
+        /// <summary>
+        /// Whether the owner has reviewed this connection.  Replaces membership of the retired Confirmed
+        /// Connections circle (#1809).
+        /// </summary>
+        public bool IsReviewed()
         {
-            return PeerKeyStore?.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out _) ?? false;
+            return ReviewedAt != null;
         }
 
         /// <summary>
@@ -176,7 +180,7 @@ namespace Odin.Services.Membership.Connections
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
                 ReviewedAt = this.ReviewedAt,
-                Vetted = this.IsConnected() && this.IsConfirmedConnection()
+                Vetted = this.IsConnected() && this.IsReviewed()
             };
         }
     }
@@ -209,15 +213,12 @@ namespace Odin.Services.Membership.Connections
         public UnixTimeUtc? ReviewedAt { get; init; }
 
         /// <summary>
-        /// True if the identity is connected and is a member of the Confirmed Connections system circle.
+        /// True if the identity is connected and the owner has reviewed it.
         /// </summary>
         /// <remarks>
-        /// Deliberately unchanged from what it has always meant, rather than re-expressed as
-        /// <see cref="ReviewedAt"/> != null.  Existing clients read this field and must keep seeing exactly
-        /// what they see today; the two can disagree during the transition, because they answer different
-        /// questions -- this one asks about Confirmed-circle membership, <see cref="ReviewedAt"/> asks
-        /// whether the owner has reviewed.  New clients should read <see cref="ReviewedAt"/>; this retires
-        /// with the Confirmed circle.
+        /// Meant membership of the Confirmed Connections circle until that circle retired (#1809); the
+        /// review is what replaced it.  Kept for existing clients; new ones should read
+        /// <see cref="ReviewedAt"/>.
         /// </remarks>
         public bool Vetted { get; init; }
     }
