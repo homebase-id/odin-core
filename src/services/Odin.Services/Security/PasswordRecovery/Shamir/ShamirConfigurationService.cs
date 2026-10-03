@@ -69,50 +69,15 @@ public class ShamirConfigurationService(
 
     public async Task ConfigureAutomatedRecovery(IOdinContext odinContext)
     {
-        AssertCanUseAutomatedRecovery();
-        var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
-
-        Logger.LogDebug("Configuring automated recovery for auto-players: {players}", string.Join(",", autoPlayers));
-
-        SensitiveByteArray distributionKey = null;
-        await using var tx = await db.BeginStackedTransactionAsync();
-        tx.AddPostCommitAction(transferService.ProcessOutboxNow);
-        try
+        var players = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(p => new ShamiraPlayer()
         {
-            var players = autoPlayers.Select(p => new ShamiraPlayer()
-            {
-                OdinId = p,
-                Type = PlayerType.Automatic
-            }).ToList();
+            OdinId = (OdinId)p,
+            Type = PlayerType.Automatic
+        }).ToList() ?? [];
 
-            (distributionKey, var playerShards) = await ConfigureShardsInternal(players, 3, usesAutomatic: true, odinContext);
+        Logger.LogDebug("Configuring automated recovery for auto-players: {players}", string.Join(",", players.Select(p => p.OdinId)));
 
-            Logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
-            var enqueueResults = await this.EnqueueShardsForDistributionForAutomaticIdentities(playerShards, odinContext);
-            var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
-            if (failures.Any())
-            {
-                throw new OdinSystemException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
-            }
-
-            await SaveDistributableKey(distributionKey, odinContext);
-
-            tx.Commit();
-            Logger.LogDebug("Commited shard distribution data");
-        }
-        catch (OdinClientException)
-        {
-            throw;
-        }
-        catch (Exception e)
-        {
-            Logger.LogError(e, "Failed to enqueue shards");
-            throw;
-        }
-        finally
-        {
-            distributionKey?.Wipe();
-        }
+        await DistributeShards(players, 3, usesAutomatic: true, odinContext);
     }
 
     public void AssertCanUseAutomatedRecovery()
@@ -135,19 +100,36 @@ public class ShamirConfigurationService(
 
     public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
     {
+        await DistributeShards(players, minShards, usesAutomatic: false, odinContext);
+    }
+
+    /// <summary>
+    /// Deals a fresh set of shards to <paramref name="players"/> and sends them. Automated players are
+    /// reached with the configured AutomatedIdentityKey; delegates need a connection.
+    /// </summary>
+    private async Task DistributeShards(List<ShamiraPlayer> players, int minShards, bool usesAutomatic, IOdinContext odinContext)
+    {
+        if (usesAutomatic)
+        {
+            AssertCanUseAutomatedRecovery();
+        }
+
         SensitiveByteArray distributionKey = null;
         await using var tx = await db.BeginStackedTransactionAsync();
         tx.AddPostCommitAction(transferService.ProcessOutboxNow);
         try
         {
-            (distributionKey, var playerShards) = await ConfigureShardsInternal(players, minShards, usesAutomatic: false, odinContext);
+            (distributionKey, var playerShards) = await ConfigureShardsInternal(players, minShards, usesAutomatic, odinContext);
 
             Logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
-            var enqueueResults = await EnqueueShardsForDistribution(playerShards, odinContext);
+            var enqueueResults = usesAutomatic
+                ? await EnqueueShardsForDistributionForAutomaticIdentities(playerShards, odinContext)
+                : await EnqueueShardsForDistribution(playerShards, odinContext);
             var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
             if (failures.Any())
             {
-                throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
+                var message = $"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]";
+                throw usesAutomatic ? new OdinSystemException(message) : new OdinClientException(message);
             }
 
             await SaveDistributableKey(distributionKey, odinContext);
@@ -264,8 +246,9 @@ public class ShamirConfigurationService(
             if (package.Updated < passwordLastUpdated.Value)
             {
                 Logger.LogDebug(RotateShardsHasStarted);
+                // same players, threshold and mode; only the shards are new
                 var players = package.Envelopes.Select(e => e.Player).ToList();
-                await this.ConfigureShards(players, package.MinMatchingShards, odinContext);
+                await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext);
             }
         }
         catch (Exception e)
