@@ -121,6 +121,27 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         await AssertShardsRotatedAsync(recoveredAgain, rotatedShardConfig, rotationsSoFar: 2);
     }
 
+    /// <summary>
+    /// The owner app fires several requests at once after a login; only one of them may rotate.
+    /// </summary>
+    [Test]
+#if !DEBUG
+    [Ignore("Ignored for release tests due to how we test recovery mode")]
+#endif
+    public async Task ConcurrentRequestsAfterRecoveryRotateOnce()
+    {
+        var (frodo, players, firstShardConfig) = await ArrangeDelegateShardsAsync();
+        var recovered = await RecoverAsync(frodo, players, firstShardConfig, NewPassword);
+
+        var configuration = recovered.RefitFor<IRefitOwnerConfiguration>();
+        var responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => configuration.GetTenantSettings()));
+        Assert.That(responses.Select(r => r.StatusCode), Is.All.EqualTo(HttpStatusCode.OK));
+
+        AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: 1);
+        var rotated = await GetDealerShardConfigAsync(recovered);
+        Assert.That(rotated.Updated.milliseconds, Is.GreaterThan(firstShardConfig.Updated.milliseconds));
+    }
+
     /// <summary>Turns on automated recovery. Note: no connections — production has none either.</summary>
     private static async Task<DealerShardConfig> ArrangeAutomatedShardsAsync(OwnerSession dealer)
     {

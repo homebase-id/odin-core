@@ -10,11 +10,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 
 /// <summary>
 /// A shard rotation that fails is not retried on every owner request: <c>OwnerAuthenticationHandler</c>
-/// checks for rotation on each one, and <see cref="ShardRotationCooldown"/> holds the next attempt off
-/// for <see cref="ShardRotationCooldown.Period"/>.
+/// checks for rotation on each one, and <see cref="ShardRotationGate"/> holds the next attempt off
+/// for <see cref="ShardRotationGate.Cooldown"/>.
 /// </summary>
 /// <remarks>
-/// Its own fixture because the cooldown is a tenant singleton that outlives <c>V2Fixture</c>'s per-test
+/// Its own fixture because the gate is a tenant singleton that outlives <c>V2Fixture</c>'s per-test
 /// reset; tripping it in a shared fixture would stop rotation in the tests that follow.
 /// </remarks>
 [TestFixture]

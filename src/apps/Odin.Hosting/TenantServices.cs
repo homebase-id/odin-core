@@ -247,7 +247,7 @@ public static class TenantServices
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
-        cb.RegisterType<ShardRotationCooldown>().SingleInstance();
+        cb.RegisterType<ShardRotationGate>().SingleInstance();
         cb.RegisterType<ShamirReadinessCheckerService>().InstancePerLifetimeScope();
         
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
