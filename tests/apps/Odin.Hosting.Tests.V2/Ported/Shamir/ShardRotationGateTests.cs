@@ -11,14 +11,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <summary>
 /// A shard rotation that fails is not retried on every owner request: <c>OwnerAuthenticationHandler</c>
 /// checks for rotation on each one, and <see cref="ShardRotationGate"/> holds the next attempt off
-/// for <see cref="ShardRotationGate.Cooldown"/>.
+/// for an hour.
 /// </summary>
 /// <remarks>
 /// Its own fixture because the gate is a tenant singleton that outlives <c>V2Fixture</c>'s per-test
 /// reset; tripping it in a shared fixture would stop rotation in the tests that follow.
 /// </remarks>
 [TestFixture]
-public class ShardRotationCooldownTests : ShamirFixture
+public class ShardRotationGateTests : ShamirFixture
 {
     protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
     [
@@ -41,19 +41,15 @@ public class ShardRotationCooldownTests : ShamirFixture
         Assert.That(disconnectResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(players.Count - 1, Is.GreaterThanOrEqualTo(config.MinMatchingShards));
 
-        await EnterRecoveryModeAsync(frodo);
-        await ApproveEveryShardRequestAsync(frodo, players.Skip(1).ToList(), config);
-        var recovered = await FinalizeRecoveryAndLoginAsync(frodo, "bipbopboop");
-        var configuration = recovered.RefitFor<IRefitOwnerConfiguration>();
+        var recovered = await RecoverAsync(frodo, players.Skip(1).ToList(), config, NewPassword);
 
-        Assert.That((await configuration.GetTenantSettings()).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var settingsResponse = await recovered.RefitFor<IRefitOwnerConfiguration>().GetTenantSettings();
+        Assert.That(settingsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: 1);
 
-        // it failed: nothing was saved
+        // a second owner request: the rotation failed (nothing saved) and was not tried again
         var afterConfig = await GetDealerShardConfigAsync(recovered);
         Assert.That(afterConfig.Updated.milliseconds, Is.EqualTo(config.Updated.milliseconds));
-
-        Assert.That((await configuration.GetTenantSettings()).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: 1);
     }
 }

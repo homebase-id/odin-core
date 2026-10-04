@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// read; see <see cref="ShamirPasswordRecoveryTestForDelegates"/>'s remarks for why there is nothing
 /// to wait for.</item>
 /// <item><c>OldOwnerApi.CalculatePasswordReply</c> becomes the host-taking
-/// <see cref="OwnerPasswordFlow"/>.<c>CalculatePasswordReplyAsync</c> overload, and
+/// <c>OwnerPasswordFlow</c>.<c>CalculatePasswordReplyAsync</c> overload, and
 /// <c>LoginToOwnerConsole</c> + <c>OldOwnerApi.CreateOwnerApiHttpClient(id, cat, ss, …)</c> together
 /// become one <see cref="OwnerSession.LoginAsync"/> against <c>NewPassword</c>. That session carries
 /// the post-reset token and shared secret the assertions check, and its <c>RefitFor</c> replaces the
@@ -46,9 +46,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// stale: the call sat <i>after</i> the reset and the second login.</item>
 /// <item><c>AssertHasDebugLogEvent(RotateShardsHasStarted, n)</c> counts rotations.
 /// <c>OwnerAuthenticationHandler</c> calls <c>RotateShardKeysIfNeeded</c> on <i>every</i>
-/// owner-authenticated request, and only a rotation that saved stops the next one — so the count is
-/// checked after the first request since the password changed, and again after one more. The
-/// rotation itself is synchronous inside that request.</item>
+/// owner-authenticated request, and only a rotation that saved stops the next one (or
+/// <c>ShardRotationGate</c>, while one is running or after one failed) — so the count is checked after
+/// the first request since the password changed, and again after one more. The rotation itself is
+/// synchronous inside that request.</item>
 /// </list>
 /// </para>
 /// <para>
@@ -68,7 +69,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 [TestFixture]
 public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
 {
-    private const string NewPassword = "bipbopboop";
     private const string SecondNewPassword = "bipbopboop2";
 
     protected override string[] HostIdentities =>
@@ -152,23 +152,6 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         var config = await GetDealerShardConfigAsync(dealer);
         Assert.That(config.UsesAutomaticRecovery, Is.True);
         return config;
-    }
-
-    /// <summary>
-    /// Enters recovery mode, has the delegates approve (automated players release unasked), and
-    /// finalizes with <paramref name="newPassword"/>.
-    /// </summary>
-    private async Task<OwnerSession> RecoverAsync(
-        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config, string newPassword)
-    {
-        await EnterRecoveryModeAsync(dealer);
-
-        if (!config.UsesAutomaticRecovery)
-        {
-            await ApproveEveryShardRequestAsync(dealer, players, config);
-        }
-
-        return await FinalizeRecoveryAndLoginAsync(dealer, newPassword);
     }
 
     /// <summary>

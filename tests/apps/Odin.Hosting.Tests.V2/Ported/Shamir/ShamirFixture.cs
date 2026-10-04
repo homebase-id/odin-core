@@ -100,6 +100,9 @@ public abstract class ShamirFixture : V2Fixture
     internal static readonly string[] AutomatedPlayerIdentities =
         [Identities.TomBombadil, Identities.Collab, Identities.Merry, Identities.Pippin];
 
+    /// <summary>The password a recovery finalizes with.</summary>
+    protected const string NewPassword = "bipbopboop";
+
     /// <summary>Frodo is the dealer in all five originals; the players follow.</summary>
     protected override string[] HostIdentities => [Identities.Frodo, .. PlayerIdentities];
 
@@ -385,6 +388,23 @@ public abstract class ShamirFixture : V2Fixture
         }
 
         return match.Properties[propertyName]?.ToString() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Enters recovery mode, has the delegates approve (automated players release unasked), and
+    /// finalizes with <paramref name="newPassword"/>.
+    /// </summary>
+    protected async Task<OwnerSession> RecoverAsync(
+        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config, string newPassword)
+    {
+        await EnterRecoveryModeAsync(dealer);
+
+        if (!config.UsesAutomaticRecovery)
+        {
+            await ApproveEveryShardRequestAsync(dealer, players, config);
+        }
+
+        return await FinalizeRecoveryAndLoginAsync(dealer, newPassword);
     }
 
     /// <summary>
