@@ -218,12 +218,29 @@ permanently New. Both sides stamp:
 | Side | Where | Why |
 |---|---|---|
 | The identity that **accepts** an incoming request | `AcceptConnectionRequestAsync`, when the owner is the one accepting | They saw the request, chose to accept, and named circles in the accept body. The review, at accept time. |
-| The identity that **sent** the request, when it completes | `EstablishConnection`, for an `IdentityOwner`-origin request only | The owner sent it deliberately and named the circles being minted right there — and *membership must imply review*, so a stamp is the only self-consistent outcome. |
+| The identity that **sent** the request, when it completes | `EstablishConnection`, for an `IdentityOwner`-origin request, or any request sent through `POST connections/requests/send-reviewed` (`ConnectionRequest.ReviewOnCompletion`) | The owner sent it deliberately and named the circles being minted right there — and *membership must imply review*, so a stamp is the only self-consistent outcome. |
 
 Each side's stamp is its own private record about the other; neither crosses the wire. The
-`IdentityOwner`-origin condition is what keeps the second row honest: an `Introduction`-origin
-outgoing request was sent by the introduction service without the owner present, and stays New on
-both sides — which is precisely the pile the review dialog exists to work through.
+second row's condition is what keeps it honest: an `Introduction`-origin outgoing request was sent
+by the introduction service without the owner present, and stays New on both sides — which is
+precisely the pile the review dialog exists to work through.
+
+**The review-time send.** An app is the owner acting, but the older send endpoints stamp only an
+`IdentityOwner`-origin request, and an app cannot send one (it has no master key). `POST
+connections/requests/send-reviewed` is the send that means "this is my review": the origin is taken
+from the caller, never the body, and it works the same from the console and from an app. It behaves
+as `POST review` does, split across the two moments a request has:
+
+- **At send**, with the caller's keys in hand, the named circles are routed as a review routes them
+  (`CircleNetworkService.RouteReviewCirclesAsync`, shared with `EnrollInCircleInternalAsync`): a
+  circle the caller can grant is granted, with its storage keys; another app's circle is queued as a
+  pending enrollment for that app; an owner-console circle named by an app is refused, and nothing is
+  sent. The contact goes in **Confirmed Connections**, not Auto Connections.
+- **On completion** (`EstablishConnection`, or the accept when a request from them was already
+  waiting), `ReviewedAt` is stamped and the owning apps are told about their queued circles.
+
+The older send endpoints are unchanged. An owner accept (`markReviewed`) routes its named circles the
+same way, so a circle named at accept time ends up where the same circle named in a later review would.
 
 The accept side takes an **explicit** flag rather than inferring "was this the owner?" from
 context: the introduction auto-accept and the owner's own accept reach the same method, and a

@@ -87,6 +87,22 @@ public class S3FileStore(
 
     //
 
+    public async Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
+    {
+        try
+        {
+            // Retries cover opening only; a failure part way through the body surfaces to the reader
+            return await TryRetry(async () =>
+                await s3.OpenReadAsync(path, ct), ct);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new DriveFileStoreException(e.Message, e);
+        }
+    }
+
+    //
+
     public async Task<bool> ExistsAsync(string path, CancellationToken ct = default)
     {
         try

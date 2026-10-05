@@ -23,6 +23,9 @@ public interface IMailHttpClientApiV2
     [Post(Root + "/setup/mailbox")]
     Task<ApiResponse<MailboxSetupResult>> EnsureMailbox([Body] EnsureMailboxRequest request);
 
+    [Post(Root + "/mode")]
+    Task<ApiResponse<MailAppStatusResult>> SetMode([Body] SetMailboxModeRequest request);
+
     [Post(Root + "/setup/keys")]
     Task<ApiResponse<EmailKeyGenerationResult>> GenerateKey([Body] GenerateEmailKeyRequest request);
 

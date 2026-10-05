@@ -518,7 +518,7 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
-            // 
+            // Only upgrades when the caller holds the ICR key; see UpgradeTokenEncryptionIfNeededAsync.
             if (tryUpgradeEncryption)
             {
                 await this.UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
@@ -741,12 +741,29 @@ namespace Odin.Services.Membership.Connections
             };
 
             await this.SaveIcrAsync(newConnection, odinContext);
+        }
 
+        /// <summary>
+        /// Tells the rest of the identity that the connection to <paramref name="odinId"/> is in place. Separate from
+        /// <see cref="ConnectAsync"/> so a caller whose connection still needs the other side's confirmation can
+        /// announce it only once it has that.
+        /// </summary>
+        public async Task AnnounceConnectionFinalizedAsync(OdinId odinId, IOdinContext odinContext)
+        {
             await mediator.Publish(new ConnectionFinalizedNotification()
             {
                 OdinId = odinId,
                 OdinContext = odinContext,
             });
+        }
+
+        /// <summary>
+        /// Puts back a connection record exactly as it was read by <see cref="GetIcrAsync(OdinId, IOdinContext, bool, bool)"/>,
+        /// undoing an unannounced <see cref="ConnectAsync"/>. A record read as <see cref="ConnectionStatus.None"/> is deleted.
+        /// </summary>
+        public async Task RestoreIcrAsync(IdentityConnectionRegistration previous, IOdinContext odinContext)
+        {
+            await this.SaveIcrAsync(previous, odinContext);
         }
 
         /// <summary>
@@ -884,22 +901,9 @@ namespace Odin.Services.Membership.Connections
 
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
 
-            // An owner-console circle is the owner's own, and an app has no business putting anyone
-            // into one: nothing an app does should leave the contact waiting on the owner opening their
-            // console. Apps are not shown these circles either
-            // (CircleMembershipService.GetCircleDefinitions), so a well-behaved client never asks.
-            if (SystemAppConstants.IsOwnerConsole(circleDefinition.AppId) && odinContext.Caller.OdinClientContext?.AppId != null)
-            {
-                throw new OdinSecurityException(
-                    $"An app cannot add {odinId} to circle {circleId}; it belongs to the owner, not to an app");
-            }
+            AssertAppMayEnroll(circleDefinition, odinId, odinContext);
 
-            // The owner chose a circle this caller cannot grant -- another app's, whose drives it cannot
-            // read. Record the intent so the app that can grant it may finish later, rather than failing an
-            // act the owner was entitled to perform. Recording confers nothing: whoever processes the entry
-            // re-checks scope then.
-            if (enqueueWhenOutOfReach && !odinContext.Caller.HasMasterKey &&
-                !await CallerCanGrantCircleAsync(circleDefinition, odinContext))
+            if (enqueueWhenOutOfReach && await IsOutOfReachAsync(circleDefinition, odinContext))
             {
                 EnqueuePendingEnrollment(icr, circleDefinition, odinContext);
                 await this.SaveIcrAsync(icr, odinContext);
@@ -2273,7 +2277,7 @@ namespace Odin.Services.Membership.Connections
         /// re-announce work an app has already been told about. An owner-console circle is skipped; it
         /// waits for the owner regardless.
         /// </remarks>
-        private async Task PublishPendingEnrollmentNotificationsAsync(OdinId odinId, List<Guid> alreadyQueued,
+        public async Task PublishPendingEnrollmentNotificationsAsync(OdinId odinId, List<Guid> alreadyQueued,
             IOdinContext odinContext)
         {
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
@@ -2702,29 +2706,113 @@ namespace Odin.Services.Membership.Connections
         private void EnqueuePendingEnrollment(IdentityConnectionRegistration icr, CircleDefinition circleDefinition,
             IOdinContext odinContext)
         {
-            var circleId = circleDefinition.Id;
-
-            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId) ||
-                icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId) ||
-                icr.PeerKeyStore.PendingEnrollments.Any(p => p.CircleId == circleId))
+            if (!EnqueuePendingEnrollment(icr.PeerKeyStore, NewPendingEnrollment(circleDefinition, odinContext)))
             {
                 return;
             }
 
-            icr.PeerKeyStore.PendingEnrollments.Add(new PendingEnrollment
-            {
-                CircleId = circleId,
-                OwningAppId = circleDefinition.AppId,
-                RequestedByAppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
-                Requested = UnixTimeUtc.Now()
-            });
-
             logger.LogDebug(
                 "Enqueued pending enrollment for {odinId} in circle {circleId} (owned by app {owningAppId})",
-                icr.OdinId, circleId, circleDefinition.AppId);
+                icr.OdinId, circleDefinition.Id, circleDefinition.AppId);
 
             // Deliberately silent. Telling the owning app is the caller's job, after its transaction has
             // committed -- announcing work that a rollback would erase is worse than announcing it late.
+        }
+
+        /// <summary>
+        /// Adds <paramref name="entry"/> to <paramref name="store"/> unless its circle is already granted,
+        /// deposited or queued there.  The store-level half of <see cref="EnqueuePendingEnrollment(IdentityConnectionRegistration, CircleDefinition, IOdinContext)"/>,
+        /// for the connection-request paths, which build a store before any connection exists.
+        /// </summary>
+        public static bool EnqueuePendingEnrollment(PeerKeyStore store, PendingEnrollment entry)
+        {
+            store.PendingEnrollments ??= [];
+            if (store.CircleGrants.ContainsKey(entry.CircleId) ||
+                (store.DepositedGrants ?? []).Any(d => d.CircleId == entry.CircleId) ||
+                store.PendingEnrollments.Any(p => p.CircleId == entry.CircleId))
+            {
+                return false;
+            }
+
+            store.PendingEnrollments.Add(entry);
+            return true;
+        }
+
+        private static PendingEnrollment NewPendingEnrollment(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            return new PendingEnrollment
+            {
+                CircleId = circleDefinition.Id,
+                OwningAppId = circleDefinition.AppId,
+                RequestedByAppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
+                Requested = UnixTimeUtc.Now()
+            };
+        }
+
+        /// <summary>
+        /// An owner-console circle is the owner's own, and an app has no business putting anyone into one:
+        /// nothing an app does should leave the contact waiting on the owner opening their console.  Apps are
+        /// not shown these circles either (CircleMembershipService.GetCircleDefinitions), so a well-behaved
+        /// client never asks.
+        /// </summary>
+        private static void AssertAppMayEnroll(CircleDefinition circleDefinition, OdinId odinId, IOdinContext odinContext)
+        {
+            if (SystemAppConstants.IsOwnerConsole(circleDefinition.AppId) && odinContext.Caller.OdinClientContext?.AppId != null)
+            {
+                throw new OdinSecurityException(
+                    $"An app cannot add {odinId} to circle {circleDefinition.Id}; it belongs to the owner, not to an app");
+            }
+        }
+
+        /// <summary>
+        /// The owner chose a circle this caller cannot grant -- another app's, whose drives it cannot read.
+        /// Such a circle is recorded as a <see cref="PendingEnrollment"/> so the app that can grant it may
+        /// finish later, rather than failing an act the owner was entitled to perform.  Recording confers
+        /// nothing: whoever processes the entry re-checks scope then.
+        /// </summary>
+        private async Task<bool> IsOutOfReachAsync(CircleDefinition circleDefinition, IOdinContext odinContext)
+        {
+            return !odinContext.Caller.HasMasterKey && !await CallerCanGrantCircleAsync(circleDefinition, odinContext);
+        }
+
+        /// <summary>
+        /// Splits the circles an owner named in a review-time act the way <see cref="MarkReviewedAsync"/>
+        /// splits them: those this caller can grant now, and those only their owning app can complete.
+        /// </summary>
+        /// <remarks>
+        /// For the connection-request paths, which build a brand-new key store rather than enrolling into an
+        /// existing one, so they mint the first list themselves and carry the second onto the store.  Sharing
+        /// the decision with <see cref="EnrollInCircleInternalAsync"/> is the point: a circle named when a
+        /// request is sent or accepted ends up where the same circle named in a later review would.  Throws
+        /// for an owner-console circle named by an app, as a review does.
+        /// </remarks>
+        public async Task<(List<GuidId> GrantNow, List<PendingEnrollment> Queued)> RouteReviewCirclesAsync(
+            IEnumerable<GuidId> circleIds, OdinId odinId, IOdinContext odinContext)
+        {
+            var grantNow = new List<GuidId>();
+            var queued = new List<PendingEnrollment>();
+
+            foreach (var circleId in (circleIds ?? []).Distinct())
+            {
+                var circleDefinition = await circleDefinitionService.GetCircleAsync(circleId);
+                if (circleDefinition == null)
+                {
+                    throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
+                }
+
+                AssertAppMayEnroll(circleDefinition, odinId, odinContext);
+
+                if (await IsOutOfReachAsync(circleDefinition, odinContext))
+                {
+                    queued.Add(NewPendingEnrollment(circleDefinition, odinContext));
+                }
+                else
+                {
+                    grantNow.Add(circleId);
+                }
+            }
+
+            return (grantNow, queued);
         }
 
         /// <summary>
@@ -3221,12 +3309,21 @@ namespace Odin.Services.Membership.Connections
         {
             if (identity.TemporaryWeakClientAccessToken != null && identity.EncryptedClientAccessToken == null)
             {
+                // The upgrade re-encrypts the token under the ICR key, so only a caller holding that key can do it.
+                // Many callers do not (peer, outbox and auto-accept contexts); for them the read goes ahead without
+                // it, and the next caller that has the key upgrades the record. Asked only here, once an upgrade is
+                // needed: resolving the key decrypts it, which can itself fail in contexts that never use it.
+                var rawIcrKey = odinContext.PermissionsContext.GetIcrKey(failIfNotFound: false);
+                if (rawIcrKey == null)
+                {
+                    return;
+                }
+
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 
                 var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
-                var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
 
                 await circleNetworkStorage.UpdateClientAccessTokenAsync(identity.OdinId, identity.Status, encryptedCat);

@@ -255,6 +255,55 @@ public class S3AwsStorage : IS3Storage
 
     //
 
+    public async Task<Stream> OpenReadAsync(string path, CancellationToken cancellationToken = default)
+    {
+        S3Path.AssertFileName(path);
+        var key = S3Path.Combine(_rootPath, path);
+        try
+        {
+            var response = await _s3Client.GetObjectAsync(new GetObjectRequest { BucketName = BucketName, Key = key }, cancellationToken);
+            return new ResponseOwningStream(response);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed to open object '{key}' in bucket '{BucketName}' for reading.");
+        }
+    }
+
+    // The object's body; disposing it disposes the response, which returns the connection
+    private sealed class ResponseOwningStream(GetObjectResponse response) : Stream
+    {
+        private readonly Stream _body = response.ResponseStream;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => response.ContentLength;
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) => _body.Read(buffer, offset, count);
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => _body.ReadAsync(buffer, cancellationToken);
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => _body.ReadAsync(buffer, offset, count, cancellationToken);
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                response.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+
+    //
+
     public async Task<byte[]> ReadBytesAsync(string path, long offset, long length, CancellationToken cancellationToken = default)
     {
         if (offset < 0)

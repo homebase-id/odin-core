@@ -62,7 +62,7 @@ public sealed class VersionUpgradeScheduler(
             }
         }
 
-        var job = _jobManager.NewJob<VersionUpgradeJob>();
+        var job = _jobManager.NewJob<VersionUpgradeJob>(tenantContext.DotYouRegistryId);
 
         var (iv, encryptedToken) = AesCbc.Encrypt(token.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
 

@@ -18,6 +18,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Registry;
 using Odin.Services.Util;
 
 namespace Odin.Services.Contacts;
@@ -36,7 +37,8 @@ namespace Odin.Services.Contacts;
 /// </summary>
 public class ContactService(
     ILogger<ContactService> logger,
-    StandardFileSystem fileSystem)
+    StandardFileSystem fileSystem,
+    TenantQuotaGuard quotaGuard)
 {
     public const int ContactFileType = 100;
 
@@ -257,6 +259,8 @@ public class ContactService(
     /// </summary>
     public async Task<ContactWriteResult> SetImageAsync(Guid uniqueId, SetContactImageRequest request, IOdinContext odinContext)
     {
+        quotaGuard.AssertCanAddPayloadBytes();
+
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "image content is required");
@@ -462,6 +466,10 @@ public class ContactService(
         OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
         OdinValidationUtils.AssertNotNullOrEmpty(content, nameof(content), "use DELETE to clear an app's bulk blob");
         AssertAppExtBlobWithinCap(content);
+
+        // An app writing its bulk blob is a caller-driven payload write, so it is refused while out of
+        // quota - unlike the merge-log bookkeeping, which keeps connection flows working
+        quotaGuard.AssertCanAddPayloadBytes();
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         return await MutateAppExtDataAsync(uniqueId, appId, expectedVersionTag, odinContext,

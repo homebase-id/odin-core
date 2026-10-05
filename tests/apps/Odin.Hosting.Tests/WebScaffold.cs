@@ -62,6 +62,10 @@ namespace Odin.Hosting.Tests
         // private readonly string _password = "EnSøienØ";
         private IHost _webserver;
 
+        // What this fixture's envOverrides replaced: environment variables are process-wide, so without putting
+        // them back one fixture's configuration leaks into every fixture that runs after it
+        private readonly Dictionary<string, string> _environmentBeforeOverrides = new();
+
         private readonly OwnerApiTestUtils _oldOwnerApi;
 
         // private readonly OwnerApiClient _ownerApiClient;
@@ -223,6 +227,11 @@ namespace Odin.Hosting.Tests
             // these are process-wide, so one fixture enabling it would leak into the rest.
             Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
 
+            // The STUN responder stays on so every fixture runs its real start/stop path, but on
+            // an ephemeral loopback port: the default 3478 would clash with a running dev host.
+            Environment.SetEnvironmentVariable("Stun__BindAddress", "127.0.0.1");
+            Environment.SetEnvironmentVariable("Stun__Port", "0");
+
             Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
             Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");
             Environment.SetEnvironmentVariable("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");
@@ -233,6 +242,7 @@ namespace Odin.Hosting.Tests
             {
                 foreach (var (key, value) in envOverrides)
                 {
+                    _environmentBeforeOverrides.TryAdd(key, Environment.GetEnvironmentVariable(key));
                     Environment.SetEnvironmentVariable(key, value);
                 }
             }
@@ -274,6 +284,12 @@ namespace Odin.Hosting.Tests
                 _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
+
+            foreach (var (key, value) in _environmentBeforeOverrides)
+            {
+                Environment.SetEnvironmentVariable(key, value);
+            }
+            _environmentBeforeOverrides.Clear();
 
 #if RUN_POSTGRES_TESTS
             PostgresContainer?.DisposeAsync().AsTask().Wait();

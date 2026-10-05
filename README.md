@@ -46,7 +46,7 @@ Their certificates live in `src/apps/Odin.Hosting/https/<domain>/` and are renew
    127.0.0.1 frodo.dotyou.cloud sam.dotyou.cloud provisioning.dotyou.cloud admin.dotyou.cloud dev.dotyou.cloud
    ```
 
-3. **Permission to bind ports 80/443** — in Development the host listens on 80, 443, and 4444 (admin). On Linux, non-root users can't bind ports below 1024 by default. Either run as root, or lower the unprivileged-port floor once (survives reboots):
+3. **Permission to bind ports 80/443** — in Development the host listens on 80, 443, 4444 (admin) and UDP 3478 (STUN, see `docs/stun.md`; unprivileged, so nothing to do for it). On Linux, non-root users can't bind ports below 1024 by default. Either run as root, or lower the unprivileged-port floor once (survives reboots):
 
    ```bash
    sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80

@@ -25,48 +25,58 @@ public class UpdateCertificatesBackgroundService(
         while (!stoppingToken.IsCancellationRequested)
         {
             logger.LogDebug("{service} is running", GetType().Name);
-            
-            var tasks = new List<Task>();
-            var identities = await registry.GetList();
-            foreach (var identity in identities.Results)
-            {
-                var task = certificateService.RenewIfAboutToExpireAsync(
-                    identity.PrimaryDomainName,
-                    identity.GetSans(),
-                    stoppingToken);
-                tasks.Add(task);
-            }
 
-            foreach (var systemDomain in systemDomains.Get())
-            {
-                var task = certificateService.RenewIfAboutToExpireAsync(
-                    systemDomain,
-                    stoppingToken);
-                tasks.Add(task);
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (Exception)
-            {
-                // NOTE only IsFaulted tasks are inspected. A task whose OperationCanceledException
-                // escaped is IsCanceled, not IsFaulted, and carries a null Exception - so
-                // shutdown is already excluded here by construction rather than by a check.
-                // Do not add an OperationCanceledException guard inside this loop expecting it
-                // to fire; it cannot.
-                foreach (var task in tasks.Where(task => task.IsFaulted))
-                {
-                    var exception = task.Exception?.GetBaseException();
-                    logger.LogError(exception, "Error background updating certificate: {error}", exception?.Message);
-                }
-            }
-
-            tasks.Clear();
+            await RenewAllAsync(stoppingToken);
 
             logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
             await SleepAsync(interval, stoppingToken);
+        }
+    }
+
+    // internal for testing
+    internal async Task RenewAllAsync(CancellationToken stoppingToken)
+    {
+        var tasks = new List<Task>();
+        var identities = await registry.GetList();
+        foreach (var identity in identities.Results)
+        {
+            // Its domain now points at the host it moved to, which renews it; an order from here would only fail
+            if (TenantStatusRules.HasMovedAway(identity.Status, identity.DisabledReason))
+            {
+                continue;
+            }
+
+            var task = certificateService.RenewIfAboutToExpireAsync(
+                identity.PrimaryDomainName,
+                identity.GetSans(),
+                stoppingToken);
+            tasks.Add(task);
+        }
+
+        foreach (var systemDomain in systemDomains.Get())
+        {
+            var task = certificateService.RenewIfAboutToExpireAsync(
+                systemDomain,
+                stoppingToken);
+            tasks.Add(task);
+        }
+
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception)
+        {
+            // NOTE only IsFaulted tasks are inspected. A task whose OperationCanceledException
+            // escaped is IsCanceled, not IsFaulted, and carries a null Exception - so
+            // shutdown is already excluded here by construction rather than by a check.
+            // Do not add an OperationCanceledException guard inside this loop expecting it
+            // to fire; it cannot.
+            foreach (var task in tasks.Where(task => task.IsFaulted))
+            {
+                var exception = task.Exception?.GetBaseException();
+                logger.LogError(exception, "Error background updating certificate: {error}", exception?.Message);
+            }
         }
     }
 }

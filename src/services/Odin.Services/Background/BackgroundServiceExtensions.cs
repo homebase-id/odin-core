@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Odin.Services.Background.BackgroundServices;
 using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Background.BackgroundServices.Tenant;
@@ -15,6 +16,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Security.Job;
+using Odin.Services.Stun;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Background;
@@ -34,9 +36,11 @@ public static class BackgroundServiceExtensions
         cb.RegisterBackgroundService<JobRunnerBackgroundService>();
         cb.RegisterBackgroundService<UpdateCertificatesBackgroundService>();
         cb.RegisterBackgroundService<LastSeenBackgroundService>();
+        cb.RegisterBackgroundService<RegistryCatchUpBackgroundService>();
         cb.RegisterBackgroundService<LogTransactionalCacheStatsBackgroundService>();
         cb.RegisterBackgroundService<LogMemoryDiagnosticsBackgroundService>();
         cb.RegisterBackgroundService<StartupVerificationBackgroundService>();
+        cb.RegisterBackgroundService<StunResponderBackgroundService>();
 
         // Non-singleton on purpose: only consumed by StartupVerificationBackgroundService
         cb.RegisterType<EmailInfraVerifier>().AsSelf().InstancePerDependency();
@@ -49,7 +53,7 @@ public static class BackgroundServiceExtensions
     
     //
     
-    public static async Task StartSystemBackgroundServices(this IServiceProvider services)
+    public static async Task StartSystemBackgroundServices(this IServiceProvider services, OdinConfiguration config)
     {
         var bsm = services.GetRequiredService<IBackgroundServiceManager>();
         
@@ -58,9 +62,22 @@ public static class BackgroundServiceExtensions
         await bsm.StartAsync<JobRunnerBackgroundService>();
         await bsm.StartAsync<UpdateCertificatesBackgroundService>();
         await bsm.StartAsync<LastSeenBackgroundService>();
+        await bsm.StartAsync<RegistryCatchUpBackgroundService>();
         await bsm.StartAsync<LogTransactionalCacheStatsBackgroundService>();
         await bsm.StartAsync<LogMemoryDiagnosticsBackgroundService>();
         await bsm.StartAsync<StartupVerificationBackgroundService>();
+
+        // Gated here rather than inside the service so a disabled responder is never "started"
+        // (no manager entry, no "Starting background service" line); it logs its endpoint when it is.
+        if (config.Stun.Enabled)
+        {
+            await bsm.StartAsync<StunResponderBackgroundService>();
+        }
+        else
+        {
+            var logger = services.GetRequiredService<ILogger<StunResponderBackgroundService>>();
+            logger.LogInformation("STUN responder not started: Stun:Enabled is false");
+        }
     }
 
     //

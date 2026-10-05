@@ -123,6 +123,19 @@ stashed clean tree, so the failure reproduces on neither the change nor its abse
 as the parameter. Same family as the timing-sensitive entries above: the test asserts on work
 it does not wait for.
 
+**Seen again 2026-09-28** (local, macOS, `Odin.Services.Tests` full run, while fixing #1754). The
+change touches only the link extractor and its controllers, which the job manager doesn't reach.
+The test alone then passed 5/5.
+
+**Seen again 2026-09-29** (local, Linux, full `dotnet test ./odin-core.sln`, while finishing the
+identity JSON export, #1665). The change touches the export/import, the CLI and
+`ScopedTransaction.DisposeAsync`, not the job manager. The machine was heavily loaded (every test
+project in parallel, dev servers up). The test alone then passed 5/5.
+
+**Seen again 2026-09-29** (local, Linux, a focused `JobManagerTests` run on the payload move branch,
+which added an orphan-rescue step to the same clean-up service). Not reproduced after: 10/10 alone and
+5/5 for the whole class, with the change and without it (stashed).
+
 ---
 
 ## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
@@ -305,6 +318,18 @@ job was re-run on 2026-09-16 to see whether it reproduces.
 **Pattern:** the fourth entry in the timing-sensitive peer-delivery family flagged above. Per that
 note, the shared cause is now worth chasing rather than re-running.
 
+**Seen again, 2026-10-01** (run 36830395582, commit `226bf490a`, PR #1852, `windows/sqlite/debug`
+only; both Release jobs passed). The test now lives in the fast framework
+(`tests/apps/Odin.Hosting.Tests.V2/Ported/Shamir/ShamirPasswordRecoveryFinalizationTests.cs`,
+still `#if !DEBUG [Ignore]`) and the symptom changed shape with the port: an assertion rather than a
+timeout, `Expected: AwaitingOwnerFinalization, But was: AwaitingSufficientDelegateConfirmation`,
+after 9 s. Same mechanism: the dealer had not advanced past the delegates' confirmations when the
+assertion ran. **Not caused by the change in flight:** `226bf490a` is the merge of `main` into the
+STUN-URLs branch; the same Windows job passed 17 minutes earlier on that branch's own tip
+(`bdaa69ad0`, run 36828746973), whose diff touches only the Stun config section, the socket
+handshake reply and their tests, none of which the Shamir fixture exercises. The PR auto-merged on
+the two green Release rows.
+
 ---
 
 ## `Odin.Services.Tests.JobManagement.JobManagerTests` (second entry)
@@ -339,6 +364,35 @@ works around it in the fast test host); fixing it would likely make this flake i
 
 ---
 
+## `Odin.Services.Tests.JobManagement.JobManagerTests` (third entry)
+
+- `ItShouldRescheduleInTheBackground(Sqlite)`
+
+**Where:** CI, `windows/sqlite/debug` (run 36012953591, 2026-09-24, PR #1804).
+
+**Symptom:** the `nextRun` assertion fails with the job's original scheduled time (`But was:
+1790260447308`, i.e. "now") instead of the 2100-01-01 value the `DeferJobTest` job reschedules to.
+The other assertions before it (job present, state Scheduled, runCount 0) passed.
+
+**Cause (inferred, not verified):** the test calls `StartBackgroundServices()`, schedules the job,
+then `await Task.Delay(200)` and reads the job back. The 200 ms is the only synchronisation with
+the background runner, so on a slow Windows runner the job had not yet been picked up and deferred
+when the read happened. Same family as the two entries above: an assertion racing a background
+service, with a fixed sleep standing in for a signal.
+
+**Not caused by the change in flight:** PR #1804 moves YouAuth domain client tokens between
+storage tables and touches nothing under `src/services/Odin.Services/JobManagement/` or
+`Background/`; the failing test is in a different assembly. The same workflow on branch
+`feed-sync-under-system-context` passed this test three times the same day (runs 36045191818,
+36043697826 and two earlier), and `main`'s last run the night before was green.
+
+**Ubuntu jobs on the same PR run were red for an unrelated reason** worth knowing when reading
+that run: every failure there is Testcontainers' `OneTimeSetUp` getting
+`Docker API responded with status code='InternalServerError', response='{"message":"unauthorized:
+access to the requested resource is not authorized"}` when pulling images, plus the
+`TearDown : NullReferenceException` that follows a failed setup. Not a test at all; the runners
+could not pull from the registry. The same error hit every ubuntu run on
+`feed-sync-under-system-context` that day (e.g. 36045191834). Re-run once the registry is reachable.
 ## Every fixture that starts an S3 container (2026-09-24, all ubuntu CI jobs, all branches)
 
 **Symptom:** `OneTimeSetUp: Docker.DotNet.DockerApiException : Docker API responded with status
@@ -505,10 +559,36 @@ times in a row, under concurrency** -- the test is reporting a real defect, not 
 Do not "fix" this by draining harder. Tracked as a product issue: **#1778**.
 
 Worth knowing the production asymmetry while reading these failures: a failed `ConnectIntroducee`
-item reschedules for **+10 minutes**, hardcoded in two places
-(`ConnectIntroduceeOutboxWorker.cs:45` and `:73`, the latter carrying `//TODO: change to calculated`).
-Tests bring that forward; production waits it out. So a transient introduction failure costs a real
-user ten minutes, which matches the product's reputation for flaky introductions.
+item used to reschedule for a flat **+10 minutes**. Tests bring that forward; production waits it
+out. Fixed for #1778: both introduction workers now use the outbox's calculated backoff
+(`OutboxWorkerBase.CalculateBackoffNextRunTime`, 10 s steps then 30 s steps), and the retry path
+logs the `OdinClientErrorCode` at Warning so the transient failure is named in production logs.
+
+**Update 2026-09-25 -- not reproduced since the WAL harness fix.** 8 consecutive full
+`Odin.Hosting.Tests.V2` runs on `main` (1360 passed each, none failed) with a temporary trace on
+every `ConnectIntroducee` failure path: the trace never fired, so no introducee send failed at all.
+`7d8bcbdd5` (2026-09-19, two days after this entry) found the V2 harness had been running SQLite in
+rollback-journal mode, where readers and writers block each other ("database is locked", #1777).
+That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
+failure of these three fixtures names it. If one goes red again, the Warning above says why.
+
+**Update 2026-09-28 -- a mechanism that produces this exact symptom, reproduced and fixed.** One failed
+`establishconnection` callback on an auto-accept left the accepter `Connected` and the requester `None`,
+with nothing to retry it. Reproduced by `IntroductionPeerFaultTests` (the fault injected with
+`Host.PeerFaults`) and fixed in #1825. **Inferred, not confirmed:** that this is what failed in the three
+fixtures above -- no captured run of them names the callback.
+**Update 2026-09-26 -- the 2026-09-25 fix covered only one failure path.** The backoff above applied
+only when the send failed with an `OdinClientException`. A network, timeout or other failure left
+the worker as `OdinOutboxProcessingException`. The processor then rescheduled it for "now" and
+logged it at Error, so `HandleRecoverableTransferStatus` never ran. Measured with a throwaway probe
+against an identity no host serves: all 30 attempts went in ~350 ms, with 32 Error lines, and then
+the item was dropped. #1752 then routed the worker through `SendHandledAsync`, which
+stopped the fast loop but classes such a failure as `UnknownServerError` and drops it on the
+**first** attempt, logged only at Debug -- the PR's tests, run against `main` on 2026-09-28, showed
+exactly that. `ConnectIntroduceeOutboxWorker` now retries every failure on the backoff and logs a
+Warning when it gives up, which `Isolation/ConnectIntroduceeRetryTests` pins. Whether that path is what reddened these three
+fixtures is still **not confirmed**. It would explain "the introduction simply never landed" (a
+brief failure burning every attempt at once), but no captured failure names it.
 
 **Not caused by the log-event invariant** that was enabled in the same change: these are assertion
 failures about connection state, independent of log assertions. The invariant is what made them
@@ -548,6 +628,16 @@ untouched because it belongs to an earlier batch and was not part of this one. N
 toleration is what makes the *bleed* survivable; while it is in place, a fixture that tolerates the
 message cannot distinguish its own occurrence of #1771 from a neighbour's. Fixing the isolation
 (or #1771) is what removes the whole class.
+
+**RESOLVED 2026-09-26 -- both halves.** #1775 (2026-09-17) fixed the isolation: each host keeps its
+own Serilog sink. #1771 removed the error itself. The recipient refused a comment whose encryption
+disagrees with its referenced file (S2040) with `OdinRemoteIdentityException`, which the middleware
+turns into a 503. The sender's outbox treats a 503 as recoverable, so it retried a transfer that
+could never succeed, and the recipient logged an Error on every attempt. The refusal is now a 400,
+which is not logged at Error. Before that change, on `main`, only the two deliberate S2100 rows of
+`TransitCommentFileRoutingTests` produced the message (4 events each: the initial attempt plus
+three drain retries), and 5 of 5 runs of `Ported.Transit` were green. The last toleration of the
+message is gone.
 
 ---
 
@@ -603,6 +693,22 @@ red run should name the exception behind it.
 unchanged and the `[Explicit]` sibling's comment predates this work, which argues it is not new --
 but I could not run Windows locally, and both Linux matrices pass, so `main` has not been checked.
 
+**New symptom, 2026-09-25 -- the log-event invariant, not a 500.** PR #1807 commit `ca4c3702d`,
+run 36131064361, `windows/sqlite/debug` only (both Linux jobs on the same commit passed). The
+uploads did not fail; the per-test teardown did, on one error-level server log event:
+`HardDeletePayloadFile -> source payload does not exist [...\files\7\4\<fileId>-pknt0001-<uid>.payload]`.
+Not caused by the PR: its diff is circle enable/disable and touches no drive, payload or upload
+code, and the next commit (`edcb0b130`, no drive changes either) passed all three jobs. Inferred,
+not traced: a writer cleaning up a payload version another writer had already replaced -- the same
+concurrent-writers-on-one-drive shape as #1780, surfacing as a missing file rather than a 500.
+
+**Same symptom on Linux, 2026-09-29.** PR #1833 commit `65ffe4044`, run 36566548856,
+`ubuntu/sqlite/release` (S3 payloads): two `HardDeletePayloadFile -> source payload does not exist`
+events in the teardown, 1 failure in 1472. So it is not Windows-only. Not caused by the PR: its drive
+changes add `IDriveFileStore.OpenReadAsync` and a check on the payload *read* path when a payload is
+missing; nothing on the overwrite or hard-delete path that logs this (`LongTermStorageManager.cs:210`)
+changed.
+
 ---
 
 ## `Odin.SetupHelper.Tests.TcpProbeTests`
@@ -644,3 +750,25 @@ precomputed bool, so the failure prints `Expected: True` and never says which of
 "listening" signal to await before probing, take an ephemeral port instead of 38080, and assert on
 `error` before `connected` so the message survives. Note the file already carries a retry for
 external flakiness (`843ab7f64`, #1328), so this area has a history.
+
+## `Odin.Services.Tests.LinkMetaExtractor.LinkMetaExtractorTests` — the live-website tests
+
+- `TestFacebookUrl` (and, by the same mechanism, every test in this file that calls `ExtractAsync`
+  on a real URL: Twitter/X, Instagram, LinkedIn, Google Meet, GitHub, ...)
+
+**Where:** local only. These tests sit under `#if !CI_GITHUB`, so CI never compiles them. Seen
+2026-09-28 while fixing #1754.
+
+**Symptom:** `NullReferenceException` at `ogp.Title` -- `ExtractAsync` returned null because the
+page fetch itself failed. Once in six runs; the other five fetched the page.
+
+**Not caused by the change in flight:** a null `ogp` means the page fetch failed, and #1754 touches
+only the controllers' status and the image step, which runs after a successful page fetch and can
+null `ImageUrl` but never the whole result. The one failure was the first run of the session; the
+next five reached the image step. **Cause, inferred:** the test depends on a third-party site
+answering an anonymous crawler, and nothing retries or isolates that.
+
+**Separately, a real change in what this test sees (not flakiness):** Facebook's `og:image` URL
+(`lookaside.fbsbx.com/lookaside/crawler/media/...`) answers this crawler with `text/html`. Before
+#1754 that HTML went out as `data:text/html;base64,...` and `ClassicAssert.NotNull(ogp.ImageUrl)`
+passed on it. #1754 rejects it, so the assertion is now "no image, or a real png/jpeg/gif".

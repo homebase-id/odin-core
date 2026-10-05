@@ -32,7 +32,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
 ) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -49,7 +49,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
                 FileItem.Recipient,
                 FileItem.Marker);
 
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (OdinOutboxProcessingException e)
         {
@@ -130,6 +130,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = versionTag.GetValueOrDefault(),
                 GlobalTransitId = globalTransitId,
                 Recipient = recipient,

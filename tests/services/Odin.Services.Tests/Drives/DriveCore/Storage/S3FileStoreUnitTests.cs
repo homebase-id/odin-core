@@ -423,6 +423,7 @@ public class S3FileStoreUnitTests
         public Task WriteBytesAsync(string p, byte[] b, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<byte[]> ReadAllBytesAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<byte[]> ReadBytesAsync(string p, long start, long length, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Stream> OpenReadAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ExistsAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<long> LengthAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();

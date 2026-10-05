@@ -19,6 +19,10 @@ public interface IDriveFileStore
     Task         WriteBytesAsync(string path, byte[] bytes, CancellationToken ct = default);
     Task<byte[]> ReadAllBytesAsync(string path, CancellationToken ct = default);
     Task<byte[]> ReadBytesAsync(string path, long start, long length, CancellationToken ct = default);
+
+    /// Opens the file for reading without loading it into memory; the caller disposes the stream. A missing
+    /// file throws as <see cref="ReadAllBytesAsync"/> does.
+    Task<Stream> OpenReadAsync(string path, CancellationToken ct = default);
     Task<bool>   ExistsAsync(string path, CancellationToken ct = default);
     Task<long>   LengthAsync(string path, CancellationToken ct = default);
     Task         DeleteAsync(string path, CancellationToken ct = default);
