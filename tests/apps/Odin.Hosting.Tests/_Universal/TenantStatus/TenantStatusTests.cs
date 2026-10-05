@@ -175,31 +175,42 @@ public class TenantStatusTests
     }
 
     [Test]
-    public async Task MovedIdentityCannotBeReEnabledButCanBeDeleted()
+    public async Task MovedIdentityCannotBeReEnabled()
     {
         var domain = TestIdentities.Pippin.OdinId.DomainName;
         Assert.That((await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.Moved)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         foreach (var (status, reason) in new (Status, DisabledReason?)[]
                  {
-                     (Status.Active, null), (Status.OutOfQuota, null), (Status.Paused, null), (Status.Disabled, DisabledReason.Admin)
+                     (Status.Active, null), (Status.OutOfQuota, null), (Status.Paused, null), (Status.Disabled, DisabledReason.Admin),
+                     // Nor through another disabled reason, which could then be enabled
+                     (Status.Disabled, DisabledReason.PendingDeletion)
                  })
         {
             var refused = await SetStatusViaAdminAsync(domain, status, reason);
             Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"{status}/{reason}");
         }
 
-        // The old enable endpoint is refused as well
-        var enable = await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/enable");
-        Assert.That(enable.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-
         var tenant = await GetTenantViaAdminAsync(domain);
         Assert.That(tenant.Status, Is.EqualTo(Status.Disabled));
         Assert.That(tenant.DisabledReason, Is.EqualTo(DisabledReason.Moved));
+    }
 
-        // Deleting the leftover copy is allowed
-        var pendingDeletion = await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.PendingDeletion);
-        Assert.That(pendingDeletion.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    [Test]
+    public async Task AnOperatorCanUnlockAMovedCopyToPausedOnPurpose()
+    {
+        var domain = TestIdentities.Pippin.OdinId.DomainName;
+        Assert.That((await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.Moved)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var unlock = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/unlock-moved");
+        Assert.That(unlock.StatusCode, Is.EqualTo(HttpStatusCode.OK), await unlock.Content.ReadAsStringAsync());
+        var tenant = await GetTenantViaAdminAsync(domain);
+        Assert.That((tenant.Status, tenant.DisabledReason), Is.EqualTo((Status.Paused, (DisabledReason?)null)));
+
+        // From paused it is an ordinary identity again; unlocking one that did not move is refused
+        await SetStatusAsync(domain, Status.Active);
+        var notMoved = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/unlock-moved");
+        Assert.That(notMoved.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]
@@ -216,33 +227,6 @@ public class TenantStatusTests
 
         Assert.That((await SetStatusViaAdminAsync(domain, Status.Active, null)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(Registry.AreBackgroundServicesRunning(IdOf(TestIdentities.Frodo)), Is.True);
-    }
-
-    [Test]
-    public async Task EnableAndDisableEndpointsKeepWorkingAsWrappers()
-    {
-        var domain = TestIdentities.Frodo.OdinId.DomainName;
-
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/disable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var disabled = await GetTenantViaAdminAsync(domain);
-        Assert.That(disabled.Status, Is.EqualTo(Status.Disabled));
-        Assert.That(disabled.DisabledReason, Is.EqualTo(DisabledReason.Admin));
-        Assert.That(disabled.Enabled, Is.False);
-
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/enable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var enabled = await GetTenantViaAdminAsync(domain);
-        Assert.That(enabled.Status, Is.EqualTo(Status.Active));
-        Assert.That(enabled.DisabledReason, Is.Null);
-
-        // Enable leaves a paused identity paused: it only undoes disable
-        await SetStatusViaAdminAsync(domain, Status.Paused, null);
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/enable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await GetTenantViaAdminAsync(domain)).Status, Is.EqualTo(Status.Paused));
-
-        // Disabling an identity already disabled for deletion keeps that reason
-        await SetStatusViaAdminAsync(domain, Status.Disabled, DisabledReason.PendingDeletion);
-        Assert.That((await SendAdminAsync(HttpMethod.Patch, $"tenants/{domain}/disable")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await GetTenantViaAdminAsync(domain)).DisabledReason, Is.EqualTo(DisabledReason.PendingDeletion));
     }
 
     //
@@ -365,6 +349,38 @@ public class TenantStatusTests
         finally
         {
             await listener.DisconnectAsync();
+        }
+    }
+
+    [Test]
+    public async Task PausingAnIdentityWhoseClientStoppedReadingStillFinishes()
+    {
+        // #1854: a client that no longer reads never answers the close, and the pause waited for it without end,
+        // holding the identity's gate so every later status change hung as well
+        var identity = TestIdentities.Samwise;
+        var domain = identity.OdinId.DomainName;
+        var owner = _scaffold.CreateOwnerApiClientRedux(identity);
+        var silentClient = new TestOwnerWebSocketListener();
+        await silentClient.ConnectAsync(identity.OdinId, owner.GetTokenContext(), new EstablishConnectionOptions { Drives = [] },
+            startReceiving: false);
+
+        try
+        {
+            // A TimeoutException past the deadline is the failure: the pause, or the resume behind its gate, hung
+            var deadline = DeviceSocketCollection.DefaultCloseTimeout + TimeSpan.FromSeconds(10);
+
+            var pause = await SetStatusViaAdminAsync(domain, Status.Paused, null).WaitAsync(deadline);
+            Assert.That(pause.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(Registry.AreBackgroundServicesRunning(IdOf(identity)), Is.False);
+
+            // The gate is free again: resuming restarts the background services
+            var resume = await SetStatusViaAdminAsync(domain, Status.Active, null).WaitAsync(deadline);
+            Assert.That(resume.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(Registry.AreBackgroundServicesRunning(IdOf(identity)), Is.True);
+        }
+        finally
+        {
+            await silentClient.DisconnectAsync();
         }
     }
 

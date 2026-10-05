@@ -36,10 +36,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
         {
             throw new Exception($"Tenant {settings.TenantDomain} was not found");
         }
-        if (response.StatusCode != HttpStatusCode.OK)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        await ApiResponse.EnsureAsync(response);
         var json = await response.Content.ReadAsStringAsync();
         var tenant = OdinSystemSerializer.Deserialize<TenantModel>(json) ?? new TenantModel();
 

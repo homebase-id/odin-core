@@ -49,10 +49,19 @@ public static class ManagedDomainRecords
 
         var ensured = 0;
         var skipped = 0;
+        var movedAway = 0;
         var failed = 0;
         foreach (var tenant in tenants)
         {
             var domain = tenant.PrimaryDomainName;
+
+            // Its records belong to the host it moved to: rewriting them from here would point it back at this copy
+            if (TenantStatusRules.HasMovedAway(tenant.Status, tenant.DisabledReason))
+            {
+                movedAway++;
+                Console.WriteLine($"SKIPPED      {domain} (moved away)");
+                continue;
+            }
 
             // Longest matching apex wins, in case one managed apex is a suffix of another
             var apex = config.Registry.ManagedDomainApexes
@@ -87,7 +96,7 @@ public static class ManagedDomainRecords
         }
 
         Console.WriteLine(commit
-            ? $"Done. Records ensured: {ensured}, own-domains skipped: {skipped}, failed: {failed}"
-            : $"Dry-run done. Would ensure: {ensured}, own-domains skipped: {skipped}, failed: {failed}");
+            ? $"Done. Records ensured: {ensured}, own-domains skipped: {skipped}, moved away: {movedAway}, failed: {failed}"
+            : $"Dry-run done. Would ensure: {ensured}, own-domains skipped: {skipped}, moved away: {movedAway}, failed: {failed}");
     }
 }

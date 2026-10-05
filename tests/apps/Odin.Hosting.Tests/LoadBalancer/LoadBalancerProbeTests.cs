@@ -25,6 +25,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Services.Admin.Tenants;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -33,6 +34,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Registry;
 using Refit;
 
 namespace Odin.Hosting.Tests.LoadBalancer;
@@ -183,7 +185,7 @@ public class LoadBalancerProbeTests
         using var admin = AdminClient();
         try
         {
-            var disable = await admin.PatchAsync(AdminUrl(4444, "tenants/frodo.dotyou.cloud/disable"), null);
+            var disable = await SetFrodoStatusAsync(admin, 4444, TenantStatus.Disabled);
             Assert.That(disable.IsSuccessStatusCode, Is.True, "disable on node A failed");
 
             await Task.Delay(2000);
@@ -196,8 +198,8 @@ public class LoadBalancerProbeTests
         }
         finally
         {
-            await admin.PatchAsync(AdminUrl(4444, "tenants/frodo.dotyou.cloud/enable"), null);
-            await admin.PatchAsync(AdminUrl(4445, "tenants/frodo.dotyou.cloud/enable"), null);
+            await SetFrodoStatusAsync(admin, 4444, TenantStatus.Active);
+            await SetFrodoStatusAsync(admin, 4445, TenantStatus.Active);
         }
     }
 
@@ -255,9 +257,16 @@ public class LoadBalancerProbeTests
             // disabled: a disabled tenant 409s every request, including the next run's
             // OneTimeSetUp login, which would wedge the whole fixture.
             Docker("start", redisContainer);
-            await admin.PatchAsync(AdminUrl(4444, "tenants/frodo.dotyou.cloud/enable"), null);
+            await SetFrodoStatusAsync(admin, 4444, TenantStatus.Active);
             await WaitUntilServingAsync(TimeSpan.FromSeconds(90));
         }
+    }
+
+    private static Task<HttpResponseMessage> SetFrodoStatusAsync(HttpClient admin, int port, TenantStatus status)
+    {
+        var body = OdinSystemSerializer.Serialize(new SetTenantStatusRequest { Status = status });
+        return admin.PatchAsync(AdminUrl(port, $"tenants/{Frodo}/status"),
+            new StringContent(body, Encoding.UTF8, "application/json"));
     }
 
     // Changes the row and bumps the registry version the way the host does, but without any host

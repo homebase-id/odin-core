@@ -18,25 +18,21 @@ public interface ITenantAdmin
     Task<TenantMetricsResponse> GetTenantMetricsAsync();
 
     /// <summary>
-    /// Sets a disabled tenant to <see cref="TenantStatus.Active"/>. Only undoes a disable: a paused or
-    /// out-of-quota tenant is left alone.
-    /// </summary>
-    Task EnableTenant(string domain);
-
-    /// <summary>
-    /// Sets the tenant to <see cref="TenantStatus.Disabled"/> with <see cref="DisabledReason.Admin"/>.
-    /// An already disabled tenant keeps its reason.
-    /// </summary>
-    Task DisableTenant(string domain);
-
-    /// <summary>
     /// Sets the tenant's status. Returns the previous status, or null if the tenant does not exist.
     /// </summary>
     Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason);
 
+    /// <summary>Takes a copy disabled as moved back to paused (rolling a move back); see <see cref="IIdentityRegistry.UnlockMovedAsync"/></summary>
+    Task<TenantStatusState?> UnlockMovedAsync(string domain);
+
     Task EnablePublicWebPresence(string domain);
     Task DisablePublicWebPresence(string domain);
 
-    Task<string> EnqueueDeleteTenant(string domain);
+    /// <summary>
+    /// Queues the deletion of what this host holds of a disabled tenant; never its DNS (delete-identity-dns does that).
+    /// Throws <see cref="Odin.Core.Exceptions.OdinClientException"/> unless it is disabled, while a payload transfer from
+    /// it is pending, and for a moved copy with email unless <paramref name="discardMail"/>.
+    /// </summary>
+    Task<string> EnqueueDeleteTenant(string domain, bool discardMail = false);
     Task<string> EnqueueExportTenant(string domain);
 }

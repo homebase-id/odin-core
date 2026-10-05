@@ -176,6 +176,15 @@ namespace Odin.Services.DataSubscription.Follower
         }
 
         /// <summary>
+        /// Whether this identity follows <paramref name="odinId"/>. For server-side decisions only; callers
+        /// reading follow details go through <see cref="GetIdentityIFollowAsync"/>.
+        /// </summary>
+        public async Task<bool> IsFollowingAsync(OdinId odinId)
+        {
+            return await GetIdentityIFollowInternalAsync(odinId) != null;
+        }
+
+        /// <summary>
         /// Gets the details (channels, etc.) of an identity that you follow.
         /// </summary>
         public async Task<FollowerDefinition> GetIdentityIFollowAsync(OdinId odinId, IOdinContext odinContext)

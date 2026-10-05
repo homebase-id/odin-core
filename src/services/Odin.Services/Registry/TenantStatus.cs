@@ -91,6 +91,16 @@ public static class TenantStatusRules
         return Enum.TryParse(normalized, ignoreCase: true, out result) && Enum.IsDefined(result);
     }
 
+    /// <summary>
+    /// This copy of the identity was left behind by a move: the identity lives on another host now. Host-wide
+    /// sweeps (certificate renewal, DNS backfills) must leave it alone, or they would renew or point DNS at a
+    /// copy that must never serve again.
+    /// </summary>
+    public static bool HasMovedAway(TenantStatus status, DisabledReason? reason)
+    {
+        return status == TenantStatus.Disabled && reason == DisabledReason.Moved;
+    }
+
     public static bool RunsBackgroundServices(TenantStatus status)
     {
         return status switch
@@ -148,7 +158,12 @@ public static class TenantStatusRules
     /// Throws <see cref="OdinClientException"/> if the transition is not allowed.
     /// Expects <paramref name="toReason"/> to be normalized with <see cref="NormalizeReason"/>.
     /// </summary>
-    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason)
+    /// <param name="unlockMoved">
+    /// The operator's explicit request to take a copy disabled as moved back to paused (rolling a move back). It allows
+    /// that transition and no other.
+    /// </param>
+    public static void Validate(TenantStatus fromStatus, DisabledReason? fromReason, TenantStatus toStatus, DisabledReason? toReason,
+        bool unlockMoved = false)
     {
         if (!Enum.IsDefined(toStatus))
         {
@@ -170,14 +185,26 @@ public static class TenantStatusRules
             throw new OdinClientException("The disabled status requires a reason");
         }
 
-        // A moved identity lives elsewhere; serving this copy again would split it in two.
-        // Deleting the leftover copy is still allowed.
-        var isMoved = fromStatus == TenantStatus.Disabled && fromReason == DisabledReason.Moved;
-        var staysDisabled = toStatus == TenantStatus.Disabled &&
-                            toReason is DisabledReason.Moved or DisabledReason.PendingDeletion;
-        if (isMoved && !staysDisabled)
+        // A moved identity lives elsewhere; serving this copy again would split it in two. It stays disabled as
+        // moved until it is deleted, or an operator unlocks it on purpose: to paused, which serves nothing until
+        // DNS points back here and it is resumed.
+        var isMoved = HasMovedAway(fromStatus, fromReason);
+        if (unlockMoved)
         {
-            throw new OdinClientException("This identity has moved to another host and cannot be re-enabled here");
+            if (!isMoved || toStatus != TenantStatus.Paused)
+            {
+                throw new OdinClientException("Unlocking a moved identity only takes a copy disabled as moved to paused");
+            }
+
+            return;
+        }
+
+        // Only as moved: any other disabled reason could then be enabled again, around the lock
+        if (isMoved && !(toStatus == TenantStatus.Disabled && toReason == DisabledReason.Moved))
+        {
+            throw new OdinClientException(
+                "This identity has moved to another host and cannot be re-enabled here. To roll the move back, " +
+                "unlock it to paused on purpose (odin-admin tenant unlock-moved)");
         }
 
         // Leaving disabled is a deliberate re-enable, straight to active. Otherwise pause-then-resume

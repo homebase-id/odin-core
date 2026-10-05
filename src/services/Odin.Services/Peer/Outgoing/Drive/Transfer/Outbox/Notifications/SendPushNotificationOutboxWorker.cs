@@ -56,6 +56,13 @@ public class SendPushNotificationOutboxWorker(
             return;
         }
 
+        if (record.IsExpired(UnixTimeUtc.Now()))
+        {
+            logger.LogDebug("Push notification expired before sending (ttl={ttl}s, enqueued={enqueued}); completing without pushing",
+                record.Options.TimeToLiveSeconds, record.Timestamp.milliseconds);
+            return;
+        }
+
         var pushContent = new PushNotificationContent()
         {
             Payloads = new List<PushNotificationPayload>()

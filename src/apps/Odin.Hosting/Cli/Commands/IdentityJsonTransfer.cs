@@ -58,19 +58,13 @@ public static class IdentityJsonTransfer
             return false;
         }
 
-        // Straight from the database: loading the registry would load every identity on the host
-        // (migrations, version-upgrade checks, caches) to export one
         var systemDatabase = services.GetRequiredService<SystemDatabase>();
-        var record = (await systemDatabase.Registrations.GetAllAsync())
-            .SingleOrDefault(r => r.primaryDomainName.Equals(domain, StringComparison.OrdinalIgnoreCase));
-        if (record == null)
+        var registration = await ReadRegistrationAsync(systemDatabase, domain);
+        if (registration == null)
         {
             logger.LogError("No such identity: {domain}", domain);
             return false;
         }
-
-        var registration = new IdentityRegistration { Id = record.identityId, PrimaryDomainName = record.primaryDomainName };
-        RegistrationJsonMapper.Apply(registration, record.disabled, record.json);
 
         // The identity must be still: paused (or disabled) long enough that every node has stopped its
         // workers and jobs and requests that were in flight have finished
@@ -131,6 +125,22 @@ public static class IdentityJsonTransfer
         }
 
         return true;
+    }
+
+    // Straight from the database: loading the registry would load every identity on the host (migrations,
+    // version-upgrade checks, caches) to look at one
+    internal static async Task<IdentityRegistration?> ReadRegistrationAsync(SystemDatabase systemDatabase, string domain)
+    {
+        var record = (await systemDatabase.Registrations.GetAllAsync())
+            .SingleOrDefault(r => r.primaryDomainName.Equals(domain, StringComparison.OrdinalIgnoreCase));
+        if (record == null)
+        {
+            return null;
+        }
+
+        var registration = new IdentityRegistration { Id = record.identityId, PrimaryDomainName = record.primaryDomainName };
+        RegistrationJsonMapper.Apply(registration, record.disabled, record.json);
+        return registration;
     }
 
     // True when the import ran, dry or committed. False means it was refused, and the

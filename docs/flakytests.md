@@ -318,6 +318,18 @@ job was re-run on 2026-09-16 to see whether it reproduces.
 **Pattern:** the fourth entry in the timing-sensitive peer-delivery family flagged above. Per that
 note, the shared cause is now worth chasing rather than re-running.
 
+**Seen again, 2026-10-01** (run 36830395582, commit `226bf490a`, PR #1852, `windows/sqlite/debug`
+only; both Release jobs passed). The test now lives in the fast framework
+(`tests/apps/Odin.Hosting.Tests.V2/Ported/Shamir/ShamirPasswordRecoveryFinalizationTests.cs`,
+still `#if !DEBUG [Ignore]`) and the symptom changed shape with the port: an assertion rather than a
+timeout, `Expected: AwaitingOwnerFinalization, But was: AwaitingSufficientDelegateConfirmation`,
+after 9 s. Same mechanism: the dealer had not advanced past the delegates' confirmations when the
+assertion ran. **Not caused by the change in flight:** `226bf490a` is the merge of `main` into the
+STUN-URLs branch; the same Windows job passed 17 minutes earlier on that branch's own tip
+(`bdaa69ad0`, run 36828746973), whose diff touches only the Stun config section, the socket
+handshake reply and their tests, none of which the Shamir fixture exercises. The PR auto-merged on
+the two green Release rows.
+
 ---
 
 ## `Odin.Services.Tests.JobManagement.JobManagerTests` (second entry)
@@ -560,6 +572,11 @@ rollback-journal mode, where readers and writers block each other ("database is 
 That is the likely transient failure here, but it is **inferred, not confirmed**: no captured
 failure of these three fixtures names it. If one goes red again, the Warning above says why.
 
+**Update 2026-09-28 -- a mechanism that produces this exact symptom, reproduced and fixed.** One failed
+`establishconnection` callback on an auto-accept left the accepter `Connected` and the requester `None`,
+with nothing to retry it. Reproduced by `IntroductionPeerFaultTests` (the fault injected with
+`Host.PeerFaults`) and fixed in #1825. **Inferred, not confirmed:** that this is what failed in the three
+fixtures above -- no captured run of them names the callback.
 **Update 2026-09-26 -- the 2026-09-25 fix covered only one failure path.** The backoff above applied
 only when the send failed with an `OdinClientException`. A network, timeout or other failure left
 the worker as `OdinOutboxProcessingException`. The processor then rescheduled it for "now" and
@@ -611,6 +628,16 @@ untouched because it belongs to an earlier batch and was not part of this one. N
 toleration is what makes the *bleed* survivable; while it is in place, a fixture that tolerates the
 message cannot distinguish its own occurrence of #1771 from a neighbour's. Fixing the isolation
 (or #1771) is what removes the whole class.
+
+**RESOLVED 2026-09-26 -- both halves.** #1775 (2026-09-17) fixed the isolation: each host keeps its
+own Serilog sink. #1771 removed the error itself. The recipient refused a comment whose encryption
+disagrees with its referenced file (S2040) with `OdinRemoteIdentityException`, which the middleware
+turns into a 503. The sender's outbox treats a 503 as recoverable, so it retried a transfer that
+could never succeed, and the recipient logged an Error on every attempt. The refusal is now a 400,
+which is not logged at Error. Before that change, on `main`, only the two deliberate S2100 rows of
+`TransitCommentFileRoutingTests` produced the message (4 events each: the initial attempt plus
+three drain retries), and 5 of 5 runs of `Ported.Transit` were green. The last toleration of the
+message is gone.
 
 ---
 
