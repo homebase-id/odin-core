@@ -28,11 +28,6 @@ public sealed class YouAuthUnifiedService(
 {
     //
 
-    public Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest)
-    {
-        throw new NotImplementedException();
-    }
-
     public async Task<bool> NeedConsent(
         string tenant,
         ClientType clientType,
@@ -117,6 +112,7 @@ public sealed class YouAuthUnifiedService(
         string clientInfo,
         string permissionRequest,
         string jwkbase64UrlPublicKey,
+        YouAuthCipher cipher,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -144,15 +140,21 @@ public sealed class YouAuthUnifiedService(
             }
             else
             {
+                // clientInfo is the name the domain published for itself, fetched from that domain
+                // by the authorize endpoint, or empty when it published none. It names the
+                // registration and the client; the bare host is the fallback.
+                var publishedName = string.IsNullOrWhiteSpace(clientInfo) ? null : clientInfo;
+                var name = publishedName ?? domain.DomainName;
+
                 var request = new YouAuthDomainRegistrationRequest()
                 {
                     Domain = domain.DomainName,
-                    Name = domain.DomainName,
+                    Name = name,
                     CorsHostName = clientId,
                     CircleIds = default //TODO: should we set a circle here?
                 };
 
-                (token, _) = await domainRegistrationService.RegisterClientAsync(domain, domain.DomainName, request, odinContext);
+                (token, _) = await domainRegistrationService.RegisterClientAsync(domain, name, request, odinContext, publishedName);
             }
         }
         else
@@ -168,17 +170,16 @@ public sealed class YouAuthUnifiedService(
         var exchangeSharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, exchangeSalt);
         var exchangeSharedSecretDigest = SHA256.Create().ComputeHash(exchangeSharedSecret.GetKey()).ToBase64();
 
-        var sharedSecretPlain = token.SharedSecret.GetKey();
-        var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, exchangeSharedSecret);
-
-        var clientAuthTokenPlain = token.ToAuthenticationToken().ToPortableBytes();
-        var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, exchangeSharedSecret);
+        // Sealed with what the client said it can open at [030].
+        var (sharedSecretIv, sharedSecretCipher) = cipher.Seal(token.SharedSecret.GetKey(), exchangeSharedSecret);
+        var (clientAuthTokenIv, clientAuthTokenCipher) = cipher.Seal(token.ToAuthenticationToken().ToPortableBytes(), exchangeSharedSecret);
 
         var encryptedTokenExchange = new EncryptedTokenExchange(
             sharedSecretCipher,
             sharedSecretIv,
             clientAuthTokenCipher,
-            clientAuthTokenIv);
+            clientAuthTokenIv,
+            cipher);
 
         await level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 
@@ -230,7 +231,8 @@ public sealed class YouAuthUnifiedService(
         {
             if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest, odinContext))
             {
-                throw new OdinSystemException("App must be registered before consent check is possible");
+                throw new OdinClientException("App must be registered before consent check is possible",
+                    OdinClientErrorCode.AppNotRegistered);
             }
         }
     }

@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
@@ -44,19 +45,22 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly LiveRelayRetainedStore _liveRelayRetainedStore;
         private readonly CircleNetworkService _circleNetworkService;
+        private readonly OdinConfiguration _configuration;
 
         public AppNotificationHandler(
             ILogger<AppNotificationHandler> logger,
             AppNotificationDispatcher dispatcher,
             PeerInboxProcessor peerInboxProcessor,
             LiveRelayRetainedStore liveRelayRetainedStore,
-            CircleNetworkService circleNetworkService)
+            CircleNetworkService circleNetworkService,
+            OdinConfiguration configuration)
         {
             _logger = logger;
             _dispatcher = dispatcher;
             _peerInboxProcessor = peerInboxProcessor;
             _liveRelayRetainedStore = liveRelayRetainedStore;
             _circleNetworkService = circleNetworkService;
+            _configuration = configuration;
         }
 
         //
@@ -283,7 +287,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                         throw new CloseWebSocketException();
                     }
 
-                    var response = new EstablishConnectionResponse();
+                    var response = new EstablishConnectionResponse
+                    {
+                        StunUrls = _configuration.Stun.ClientUrls(odinContext.Tenant.DomainName)
+                    };
                     await SendMessageAsync(
                         deviceSocket,
                         OdinSystemSerializer.Serialize(response),

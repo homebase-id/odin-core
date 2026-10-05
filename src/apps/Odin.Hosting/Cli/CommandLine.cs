@@ -12,7 +12,10 @@ using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Hosting.Cli.Commands;
 using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
+using Odin.Services.Background;
 using Odin.Services.Configuration;
+using Odin.Services.Dns.PowerDns;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Odin.Services.Util;
@@ -49,6 +52,9 @@ public class CommandLine
             cb =>
             {
                 cb.ConfigureSystemServices(_config);
+                cb.RegisterType<NothingToWakeNotifier<JobRunnerBackgroundService>>()
+                    .As<IBackgroundServiceNotifier<JobRunnerBackgroundService>>()
+                    .SingleInstance();
             });
         _serviceProvider = _serviceProviders.ServiceProvider;
         _multiTenantContainer = _serviceProviders.MultiTenantContainer;
@@ -289,6 +295,143 @@ public class CommandLine
         }
 
         //
+        // Command line: Export one identity's tables to a single JSON file
+        //
+        // THE IDENTITY MUST BE STILL: paused (or disabled) for at least
+        // TenantStatusRules.ExportSettleTime, so every node has stopped its workers and jobs
+        // and requests that were in flight have finished. The export refuses until then and
+        // says how long is left.
+        //
+        // Payloads are not in the file: the target pulls them from this host afterwards, which
+        // needs PayloadMove:SourceEnabled here. The file carries where and a single-use token.
+        //
+        // The file contains key material; see the warning it prints.
+        //
+        // examples:
+        //   dotnet run -- identity-export frodo.dotyou.cloud /path/to/frodo.json
+        //
+        if (args.Length >= 1 && args[0] == "identity-export")
+        {
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            if (operands.Count != 2)
+            {
+                _logger.LogError("Usage: identity-export <domain> <file.json>");
+                return (true, 1);
+            }
+
+            var exported = IdentityJsonTransfer.ExportAsync(
+                _serviceProvider, operands[0], operands[1]).BlockingWait();
+            return (true, exported ? 0 : 1);
+        }
+
+        //
+        // Command line: Point one identity's DNS at this host
+        //
+        // Writes only that identity's rrsets (A, capi, file and, while tenant mail is on, the mail set) with this
+        // host's values, at --ttl (default 3600). Dry run unless "commit" is passed: it prints each rrset as the
+        // zone has it and as it would be. Refuses unless the identity is registered here and not disabled, so after
+        // a move it only runs on the target. Also lowers the TTL before a move: run it on the source with --ttl 60,
+        // where only the TTL changes.
+        //
+        // examples:
+        //   dotnet run -- repoint-identity-dns frodo.id.pub --ttl 60
+        //   dotnet run -- repoint-identity-dns frodo.id.pub commit
+        //
+        if (args.Length >= 1 && args[0] == "repoint-identity-dns")
+        {
+            var rest = args.Skip(1).ToList();
+            var ttl = PowerDnsRestClient.DefaultTtl;
+            var ttlAt = rest.IndexOf("--ttl");
+            if (ttlAt >= 0)
+            {
+                if (ttlAt + 1 >= rest.Count || !int.TryParse(rest[ttlAt + 1], out ttl) || ttl < 1 || ttl > 86400)
+                {
+                    _logger.LogError("--ttl takes a number of seconds, 1 to 86400");
+                    return (true, 1);
+                }
+                rest.RemoveRange(ttlAt, 2);
+            }
+
+            if (!TryDomainAndCommit(rest, out var domain, out var commit))
+            {
+                _logger.LogError("Usage: repoint-identity-dns <domain> [--ttl <seconds>] [commit]");
+                return (true, 1);
+            }
+
+            var repointed = IdentityDnsCommands.RepointAsync(_serviceProvider, domain, ttl, commit).BlockingWait();
+            return (true, repointed ? 0 : 1);
+        }
+
+        //
+        // Command line: Delete one identity's DNS
+        //
+        // Deleting a tenant never touches DNS; this does, on purpose. Only once the identity is no longer registered
+        // on this host, and only DNS that points at this host: its rrsets and DKIM TXTs in the shared apex zone for a
+        // managed domain, its whole zone for an own domain. Dry run unless "commit" is passed.
+        //
+        // examples:
+        //   dotnet run -- delete-identity-dns frodo.id.pub
+        //   dotnet run -- delete-identity-dns frodo.id.pub commit
+        //
+        if (args.Length >= 1 && args[0] == "delete-identity-dns")
+        {
+            if (!TryDomainAndCommit(args.Skip(1).ToList(), out var domain, out var commit))
+            {
+                _logger.LogError("Usage: delete-identity-dns <domain> [commit]");
+                return (true, 1);
+            }
+
+            var deleted = IdentityDnsCommands.DeleteAsync(_serviceProvider, domain, commit).BlockingWait();
+            return (true, deleted ? 0 : 1);
+        }
+
+        //
+        // Command line: Import an identity export file
+        //
+        // Refuses unless the target is empty of this identity and every table version
+        // matches. Dry run unless "commit" is passed. The target hosts may keep running: the
+        // identity lands paused, and every node loads it within Registry:CatchUpIntervalSeconds.
+        // Resume it once DNS points at the target. A rerun after a failed import clears what
+        // the failed one left. The identity's payloads then transfer from the source in the
+        // background (PayloadMoveJob), starting at once, paused or not.
+        //
+        // examples:
+        //   dotnet run -- identity-import /path/to/frodo.json commit
+        //
+        if (args.Length >= 1 && args[0] == "identity-import")
+        {
+            var operands = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var flags = args.Skip(1).Where(a => a.StartsWith("--")).ToList();
+
+            if (flags.Count > 0)
+            {
+                _logger.LogError("Unknown option(s): {options}", string.Join(", ", flags));
+                return (true, 1);
+            }
+
+            // "commit" is a positional keyword, not a flag: anything else after the path
+            // is a typo, and treating a typo as a dry run would be the wrong way to fail.
+            if (operands.Count < 1 || operands.Count > 2 ||
+                (operands.Count == 2 && operands[1] != "commit"))
+            {
+                _logger.LogError("Usage: identity-import <file.json> [commit]");
+                return (true, 1);
+            }
+
+            var commit = operands.Count == 2;
+            var imported = IdentityJsonTransfer.ImportAsync(_serviceProvider, operands[0], commit).BlockingWait();
+            return (true, imported ? 0 : 1);
+        }
+
+        //
         // Command line: Reset Modified
         //
         // examples:
@@ -471,5 +614,15 @@ public class CommandLine
         
         return (false, 0);
     }
-}
 
+    //
+
+    // "<domain> [commit]", nothing else: as in identity-import, anything but "commit" after the domain is a typo, not
+    // a dry run
+    private static bool TryDomainAndCommit(List<string> operands, out string domain, out bool commit)
+    {
+        domain = operands.FirstOrDefault() ?? "";
+        commit = operands.Count == 2;
+        return operands.Count is 1 or 2 && !operands.Any(a => a.StartsWith("--")) && (!commit || operands[1] == "commit");
+    }
+}

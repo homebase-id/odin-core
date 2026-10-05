@@ -18,10 +18,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 
 /// <summary>
 /// Port of <c>OwnerApi/Membership/Circles/CircleDefinitionTests</c>. What the owner console can say
-/// about a circle definition: create it, list it, update it, disable it, delete it -- and the four
-/// shapes the server refuses (an owner-only drive on create or on update, a circle that grants
-/// neither a drive nor a permission on create or on update, and <c>UseTransit*</c> as a circle
-/// permission).
+/// about a circle definition: create it, list it, update it, disable and re-enable it, delete it --
+/// and the shapes the server refuses (an owner-only drive on create or on update, a circle that
+/// grants neither a drive nor a permission on create or on update, <c>UseTransit*</c> as a circle
+/// permission, and disabling a system circle or one that does not exist).
 /// </summary>
 /// <remarks>
 /// The circle-definition endpoints are V1 only, so the calls under test go through the V1 Refit
@@ -44,8 +44,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// <para>
 /// <see cref="CanDisableCircle"/> re-read its *first* <c>GetCircleDefinitions</c> response after the
 /// update, so every one of its post-update assertions compared the locally-mutated object against
-/// itself. It now re-reads from the server, which exposes a product gap and leaves it <c>[Ignore]</c>d
-/// -- see the reason on the test. Carried over unchanged:
+/// itself -- which hid issue #1760, where the flag never persisted. It now disables through the
+/// dedicated endpoint and re-reads from the server. Carried over unchanged:
 /// <see cref="FailToUpdateInvalidCircle"/> prints the create response's status in the message for the
 /// update assertion.
 /// </para>
@@ -408,12 +408,6 @@ public class CircleDefinitionTests : V2Fixture
     }
 
     [Test]
-    [Ignore("Blocked on issue #1760: CircleDefinitionService.UpdateAsync copies " +
-            "Name/Description/DriveGrants/Permissions/GrantOn/Designation/Emoji but not Disabled, so a " +
-            "circle cannot be disabled through the API -- the dedicated disable endpoint returns 200/true " +
-            "and the flag stays false. IsEnabledAsync reads that flag, so this is a product gap, not a " +
-            "test problem. The original assertion compared the locally-mutated object with itself and so " +
-            "passed regardless. Un-ignore when #1760 lands.")]
     public async Task CanDisableCircle()
     {
         var owner = await LoginAsOwner();
@@ -426,44 +420,60 @@ public class CircleDefinitionTests : V2Fixture
             PermissionSet = new PermissionSet(new List<int> { PermissionKeys.ReadCircleMembership })
         });
 
-        var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-        Assert.That(getCircleDefinitionsResponse.IsSuccessStatusCode, Is.True,
-            $"Actual response {getCircleDefinitionsResponse.StatusCode}");
+        var circle = await owner.Admin.GetCircleDefinition(circleId);
+        Assert.That(circle.Disabled, Is.False);
 
-        var definitionList = getCircleDefinitionsResponse.Content;
-        Assert.That(definitionList, Is.Not.Null);
+        var disableResponse = await svc.DisableCircleDefinition(circleId);
+        Assert.That(disableResponse.IsSuccessStatusCode, Is.True, $"Actual response {disableResponse.StatusCode}");
 
-        var circle = definitionList.Single(c => c.Id == circleId);
-        Assert.That(circle.Permissions.Keys, Does.Contain(PermissionKeys.ReadCircleMembership));
+        var disabledCircle = await owner.Admin.GetCircleDefinition(circleId);
+        Assert.That(disabledCircle.Disabled, Is.True);
+        Assert.That(disabledCircle.Name, Is.EqualTo(circle.Name));
+        Assert.That(disabledCircle.Description, Is.EqualTo(circle.Description));
+        Assert.That(disabledCircle.DriveGrants, Is.EqualTo(circle.DriveGrants));
+        Assert.That(disabledCircle.Permissions, Is.EqualTo(circle.Permissions));
 
-        //
-        circle.Disabled = true;
+        // Update keeps the stored flag: a definition that says Disabled = false must not re-enable it.
+        disabledCircle.Disabled = false;
+        disabledCircle.Description = "changed while disabled";
+        var updateResponse = await svc.UpdateCircleDefinition(disabledCircle);
+        Assert.That(updateResponse.IsSuccessStatusCode, Is.True, $"Actual response {updateResponse.StatusCode}");
 
-        var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
-        Assert.That(updateCircleResponse.IsSuccessStatusCode, Is.True,
-            $"Actual response {updateCircleResponse.StatusCode}");
-
-        // Re-read from the server. The original reused the pre-update response here, which made
-        // every assertion below compare the locally-mutated object with itself — it passed whether
-        // or not the server applied the update.
-        var updatedDefinitionsResponse = await svc.GetCircleDefinitions();
-        Assert.That(updatedDefinitionsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        var updatedDefinitionList = updatedDefinitionsResponse.Content;
-        Assert.That(updatedDefinitionList, Is.Not.Null);
-
-        var updatedCircle = updatedDefinitionList.Single(c => c.Id == circleId);
-
+        var updatedCircle = await owner.Admin.GetCircleDefinition(circleId);
         Assert.That(updatedCircle.Disabled, Is.True);
+        Assert.That(updatedCircle.Description, Is.EqualTo("changed while disabled"));
 
-        Assert.That(updatedCircle.Name, Is.EqualTo(circle.Name));
-        Assert.That(updatedCircle.Description, Is.EqualTo(circle.Description));
-        Assert.That(updatedCircle.DriveGrants, Is.EqualTo(circle.DriveGrants));
-        Assert.That(updatedCircle.Permissions, Is.EqualTo(circle.Permissions));
+        var enableResponse = await svc.EnableCircleDefinition(circleId);
+        Assert.That(enableResponse.IsSuccessStatusCode, Is.True, $"Actual response {enableResponse.StatusCode}");
 
-        await svc.DeleteCircleDefinition(circle.Id);
+        var enabledCircle = await owner.Admin.GetCircleDefinition(circleId);
+        Assert.That(enabledCircle.Disabled, Is.False);
 
-        //TODO: test that the changes to the drives and permissions were applied
+        await svc.DeleteCircleDefinition(circleId);
+    }
+
+    private static IEnumerable<Guid> SystemCircles() => SystemCircleConstants.AllSystemCircles.Select(c => c.Value);
+
+    [Test, TestCaseSource(nameof(SystemCircles))]
+    public async Task FailToDisableSystemCircle(Guid id)
+    {
+        var owner = await LoginAsOwner();
+        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
+
+        var response = await svc.DisableCircleDefinition(id);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        Assert.That((await owner.Admin.GetCircleDefinition(id)).Disabled, Is.False);
+    }
+
+    [Test]
+    public async Task FailToDisableUnknownCircle()
+    {
+        var owner = await LoginAsOwner();
+        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
+
+        var response = await svc.DisableCircleDefinition(Guid.NewGuid());
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]

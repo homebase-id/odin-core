@@ -18,7 +18,9 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Registry;
 using Odin.Services.Util;
 
 namespace Odin.Services.Profile;
@@ -53,7 +55,9 @@ namespace Odin.Services.Profile;
 /// </summary>
 public class ProfileAttributeService(
     ILogger<ProfileAttributeService> logger,
-    StandardFileSystem fileSystem)
+    StandardFileSystem fileSystem,
+    TenantQuotaGuard quotaGuard,
+    CircleDefinitionService circleDefinitionService)
 {
     /// <summary>File type of a profile attribute on the ProfileDrive (odin-js <c>AttributeConfig.AttributeFileType</c>).</summary>
     public const int AttributeFileType = 77;
@@ -118,11 +122,13 @@ public class ProfileAttributeService(
         var data = request.Data ?? new Dictionary<string, object>();
         var priority = request.Priority ?? 0;
 
+        var circleIds = await AssertValidCircleIdsAsync(request.CircleIds, request.Visibility);
+
         var writeContext = GetWriteContext(odinContext);
 
         return await ExecuteWriteAsync(request.Id, request.ExpectedVersionTag, attributeType, writeContext,
-            id => WriteNewAsync(id, attributeType, sectionId, priority, data, request.Visibility, writeContext),
-            (existing, id) => OverwriteAsync(existing, id, attributeType, sectionId, priority, data, request.Visibility, writeContext));
+            id => WriteNewAsync(id, attributeType, sectionId, priority, data, request.Visibility, circleIds, writeContext),
+            (existing, id) => OverwriteAsync(existing, id, attributeType, sectionId, priority, data, request.Visibility, circleIds, writeContext));
     }
 
     /// <summary>
@@ -143,6 +149,8 @@ public class ProfileAttributeService(
     public async Task<ProfileAttributeWriteResult> SetPhotoAttributeAsync(SetPhotoAttributeRequest request,
         IOdinContext odinContext)
     {
+        quotaGuard.AssertCanAddPayloadBytes();
+
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "Photo content is required");
         if (request.Content.Length > MaxPhotoContentBytes)
@@ -506,12 +514,13 @@ public class ProfileAttributeService(
     }
 
     private async Task<Guid> WriteNewAsync(Guid attributeId, Guid attributeType, Guid sectionId, int priority,
-        Dictionary<string, object> data, ProfileAttributeVisibility visibility, IOdinContext writeContext)
+        Dictionary<string, object> data, ProfileAttributeVisibility visibility, List<Guid> circleIds,
+        IOdinContext writeContext)
     {
         var file = await fileSystem.Storage.CreateInternalFileId(DriveId, writeContext);
 
         var (header, _) = await BuildHeaderAsync(file, attributeId, attributeType, sectionId, priority, data,
-            visibility, SequentialGuid.CreateGuid(), writeContext);
+            visibility, circleIds, SequentialGuid.CreateGuid(), writeContext);
         await fileSystem.Storage.WriteNewFileHeader(file, header, writeContext, raiseEvent: true);
 
         return header.FileMetadata.VersionTag.GetValueOrDefault();
@@ -519,7 +528,7 @@ public class ProfileAttributeService(
 
     private async Task<Guid> OverwriteAsync(ServerFileHeader existing, Guid attributeId, Guid attributeType,
         Guid sectionId, int priority, Dictionary<string, object> data, ProfileAttributeVisibility visibility,
-        IOdinContext writeContext)
+        List<Guid> circleIds, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
 
@@ -529,7 +538,7 @@ public class ProfileAttributeService(
         // case odin-js handles with a full re-upload. The header carries the file's current version tag (the
         // optimistic-concurrency expectation); the write advances it and writes the new tag back onto the header.
         var (header, _) = await BuildHeaderAsync(file, attributeId, attributeType, sectionId, priority, data,
-            visibility, existing.FileMetadata.VersionTag.GetValueOrDefault(), writeContext);
+            visibility, circleIds, existing.FileMetadata.VersionTag.GetValueOrDefault(), writeContext);
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, writeContext, raiseEvent: true);
 
         return header.FileMetadata.VersionTag.GetValueOrDefault();
@@ -543,7 +552,7 @@ public class ProfileAttributeService(
     /// </summary>
     private async Task<(ServerFileHeader header, bool encrypt)> BuildHeaderAsync(InternalDriveFileId file,
         Guid attributeId, Guid attributeType, Guid sectionId, int priority, Dictionary<string, object> data,
-        ProfileAttributeVisibility visibility, Guid versionTag, IOdinContext writeContext)
+        ProfileAttributeVisibility visibility, List<Guid> circleIds, Guid versionTag, IOdinContext writeContext)
     {
         ApplyDerivedFields(attributeType, data);
 
@@ -586,7 +595,7 @@ public class ProfileAttributeService(
 
         var serverMetadata = new ServerMetadata
         {
-            AccessControlList = AclFor(visibility),
+            AccessControlList = AclFor(visibility, circleIds),
             AllowDistribution = false
         };
 
@@ -676,6 +685,7 @@ public class ProfileAttributeService(
             ProfileAttributeCategory.Game => ExternalLinksSectionId,
             ProfileAttributeCategory.Link => ExternalLinksSectionId,
             ProfileAttributeCategory.Bio => AboutSectionId,
+            ProfileAttributeCategory.Card => PersonalInfoSectionId,
             _ => throw new OdinClientException(
                 $"Profile attribute type {attributeType:N} ({category}) is not supported by this API",
                 OdinClientErrorCode.ArgumentError)
@@ -688,8 +698,42 @@ public class ProfileAttributeService(
         return visibility is not (ProfileAttributeVisibility.Anonymous or ProfileAttributeVisibility.Authenticated);
     }
 
-    private static AccessControlList AclFor(ProfileAttributeVisibility visibility)
+    private async Task<List<Guid>> AssertValidCircleIdsAsync(List<Guid> circleIds, ProfileAttributeVisibility visibility)
     {
+        if (circleIds == null || circleIds.Count == 0)
+        {
+            return null;
+        }
+
+        if (visibility != ProfileAttributeVisibility.Connected)
+        {
+            throw new OdinClientException("CircleIds can only be set when visibility is Connected",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        var distinct = circleIds.Distinct().ToList();
+        foreach (var circleId in distinct)
+        {
+            if (circleId == Guid.Empty || await circleDefinitionService.GetCircleAsync(new GuidId(circleId)) == null)
+            {
+                throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.ArgumentError);
+            }
+        }
+
+        return distinct;
+    }
+
+    private static AccessControlList AclFor(ProfileAttributeVisibility visibility, List<Guid> circleIds = null)
+    {
+        if (visibility == ProfileAttributeVisibility.Connected && circleIds is { Count: > 0 })
+        {
+            return new AccessControlList
+            {
+                RequiredSecurityGroup = SecurityGroupType.Connected,
+                CircleIdList = circleIds
+            };
+        }
+
         return visibility switch
         {
             ProfileAttributeVisibility.Anonymous => AccessControlList.Anonymous,

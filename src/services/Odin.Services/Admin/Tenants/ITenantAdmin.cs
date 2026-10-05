@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Odin.Services.Registry;
 using System.Threading.Tasks;
 
 namespace Odin.Services.Admin.Tenants;
@@ -16,12 +17,22 @@ public interface ITenantAdmin
     /// </summary>
     Task<TenantMetricsResponse> GetTenantMetricsAsync();
 
-    Task EnableTenant(string domain);
-    Task DisableTenant(string domain);
+    /// <summary>
+    /// Sets the tenant's status. Returns the previous status, or null if the tenant does not exist.
+    /// </summary>
+    Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason);
+
+    /// <summary>Takes a copy disabled as moved back to paused (rolling a move back); see <see cref="IIdentityRegistry.UnlockMovedAsync"/></summary>
+    Task<TenantStatusState?> UnlockMovedAsync(string domain);
 
     Task EnablePublicWebPresence(string domain);
     Task DisablePublicWebPresence(string domain);
 
-    Task<string> EnqueueDeleteTenant(string domain);
+    /// <summary>
+    /// Queues the deletion of what this host holds of a disabled tenant; never its DNS (delete-identity-dns does that).
+    /// Throws <see cref="Odin.Core.Exceptions.OdinClientException"/> unless it is disabled, while a payload transfer from
+    /// it is pending, and for a moved copy with email unless <paramref name="discardMail"/>.
+    /// </summary>
+    Task<string> EnqueueDeleteTenant(string domain, bool discardMail = false);
     Task<string> EnqueueExportTenant(string domain);
 }

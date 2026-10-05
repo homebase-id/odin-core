@@ -11,13 +11,11 @@ namespace Odin.Services.Email;
 
 /// <summary>
 /// The small amount of email setup state the client cannot derive from anywhere else
-/// (docs/email-keys-plan.md). Everything else about setup progress is already observable:
-/// the drive is mounted or not, a public key is published or not, credential files exist on
-/// the drive or not. The chosen primary address is the exception — nothing else records it —
-/// and recording it here is what lets the client resume an interrupted setup without keeping
-/// a progress file of its own.
-///
-/// Written by the app-facing setup flow; the owner activation path does not use it.
+/// (docs/email-keys-plan.md): the chosen primary address, and whether the mailbox is encrypted
+/// or standard. Everything else about setup progress is already observable: the drive is mounted
+/// or not, a public key is published or not, credential files exist on the drive or not.
+/// Recording the address here is what lets the client resume an interrupted setup without
+/// keeping a progress file of its own.
 /// </summary>
 public class EmailSetupStateService(IdentityDatabase identityDatabase)
 {
@@ -34,57 +32,66 @@ public class EmailSetupStateService(IdentityDatabase identityDatabase)
     }
 
     /// <summary>
-    /// Records that the mailbox exists for <paramref name="primaryEmailAddress"/>. Idempotent:
-    /// re-running the mailbox step keeps the original provisioning timestamp so a retry does not
-    /// look like a fresh provision.
+    /// Whether mail is usable: app passwords can be issued and autoconfig is served. A standard
+    /// mailbox has no key to wait for. No record means the owner-console path, which is encrypted.
     /// </summary>
-    public async Task MarkMailboxProvisionedAsync(string primaryEmailAddress)
+    public static bool IsMailReady(EmailSetupRecord? setup, PublishedEmailPublicKey? publishedKey)
     {
-        var existing = await GetAsync();
+        return setup?.Mode == MailboxMode.Standard ? setup.MailboxProvisioned : publishedKey != null;
+    }
 
-        var record = new EmailSetupRecord
+    /// <summary>
+    /// Idempotent: a re-run keeps the original provisioning timestamp, so a retry does not look
+    /// like a fresh provision, and the original mode, which only changes through a mode switch.
+    /// </summary>
+    public Task MarkMailboxProvisionedAsync(string primaryEmailAddress, MailboxMode mode) =>
+        UpdateAsync(r => r with
         {
             PrimaryEmailAddress = primaryEmailAddress,
             MailboxProvisioned = true,
-            MailboxProvisionedAt = existing?.MailboxProvisioned == true
-                ? existing.MailboxProvisionedAt
-                : UnixTimeUtc.Now(),
-            CurrentKeyFileUniqueId = existing?.CurrentKeyFileUniqueId,
-        };
-
-        await Storage.UpsertAsync(identityDatabase.KeyValueCached, SetupRecordKey, record);
-    }
+            MailboxProvisionedAt = r.MailboxProvisioned ? r.MailboxProvisionedAt : UnixTimeUtc.Now(),
+            Mode = r.MailboxProvisioned ? r.Mode : mode,
+        });
 
     /// <summary>
     /// Points at the drive file holding the current secret keyring. Rotation moves this pointer;
     /// the file it used to name is never deleted, so older mail stays decryptable.
     /// </summary>
-    public async Task SetCurrentKeyAsync(Guid keyFileUniqueId)
-    {
-        var existing = await GetAsync();
+    public Task SetCurrentKeyAsync(Guid keyFileUniqueId) =>
+        UpdateAsync(r => r with { CurrentKeyFileUniqueId = keyFileUniqueId });
 
-        var record = new EmailSetupRecord
-        {
-            PrimaryEmailAddress = existing?.PrimaryEmailAddress ?? "",
-            MailboxProvisioned = existing?.MailboxProvisioned ?? false,
-            MailboxProvisionedAt = existing?.MailboxProvisionedAt ?? default,
-            CurrentKeyFileUniqueId = keyFileUniqueId,
-        };
-
-        await Storage.UpsertAsync(identityDatabase.KeyValueCached, SetupRecordKey, record);
-    }
+    public Task SetModeAsync(MailboxMode mode) => UpdateAsync(r => r with { Mode = mode });
 
     /// <summary>Tenant deletion / teardown ride-along.</summary>
     public async Task DeleteAsync()
     {
         await Storage.DeleteAsync(identityDatabase.KeyValueCached, SetupRecordKey);
     }
+
+    private async Task UpdateAsync(Func<EmailSetupRecord, EmailSetupRecord> change)
+    {
+        var record = change(await GetAsync() ?? new EmailSetupRecord());
+        await Storage.UpsertAsync(identityDatabase.KeyValueCached, SetupRecordKey, record);
+    }
 }
 
-public class EmailSetupRecord
+public record EmailSetupRecord
 {
     public string PrimaryEmailAddress { get; init; } = "";
     public bool MailboxProvisioned { get; init; }
     public UnixTimeUtc MailboxProvisionedAt { get; init; }
     public Guid? CurrentKeyFileUniqueId { get; init; }
+
+    // Absent in records written before modes existed, which were all encrypted
+    public MailboxMode Mode { get; init; } = MailboxMode.Encrypted;
+}
+
+/// <summary>
+/// Whether the mail server encrypts stored mail to the identity's OpenPGP key (only OpenPGP
+/// clients can read it) or stores it as received (any mail app can).
+/// </summary>
+public enum MailboxMode
+{
+    Encrypted = 0,
+    Standard = 1,
 }

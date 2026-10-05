@@ -113,8 +113,16 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
 
         public async ValueTask DisposeAsync()
         {
-            await tx.DisposeAsync();
-            await cn.DisposeAsync();
+            // Disposing the transaction commits it, and a commit can fail; the connection must be released
+            // either way, or it never goes back to the pool (and in DEBUG its finalizer kills the process)
+            try
+            {
+                await tx.DisposeAsync();
+            }
+            finally
+            {
+                await cn.DisposeAsync();
+            }
         }
     }
 

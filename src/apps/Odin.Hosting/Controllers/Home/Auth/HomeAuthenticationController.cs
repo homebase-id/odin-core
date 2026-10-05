@@ -55,7 +55,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         }
 
         //
-        // [080] Return authorization code, public key and salt to frontend.
+        // YouAuth [080] Return authorization code, public key and salt to frontend.
         //
         [HttpGet(HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName)]
         public async Task<IActionResult> HandleAuthorizationCodeCallback(string identity, string public_key, [FromQuery] string state,
@@ -68,6 +68,14 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 throw new OdinClientException("Invalid state");
             }
 
+            // The page's own declaration of what it can open the result with (YouAuth [400]); a bundle
+            // that predates the field declares nothing and opens CBC. Checked here, before anything is
+            // asked of the peer, so a bad state is not blamed on the peer.
+            if (!YouAuthCiphers.TryParse(authState.Cipher, out var pageCipher))
+            {
+                throw new OdinClientException($"Invalid state: unknown cipher '{authState.Cipher}'");
+            }
+
             try
             {
                 
@@ -76,7 +84,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
-                //[100] Request exchange auth code for access token
+                // YouAuth [100] Request exchange auth code for access token
                 var odinId = new OdinId(identity);
                 var tokenResponse = await this.ExchangeDigestForToken(odinId, exchangeSecretDigest);
 
@@ -85,9 +93,15 @@ namespace Odin.Hosting.Controllers.Home.Auth
                     throw new OdinClientException("failed to get token");
                 }
 
+                // YouAuth [150] Opened with whatever the peer says sealed it; a peer that predates the
+                // field says nothing and sealed with CBC.
+                if (!YouAuthCiphers.TryParse(tokenResponse.Cipher, out var peerCipher))
+                {
+                    throw new OdinClientException($"{identity} sealed the token with a cipher this identity does not know: '{tokenResponse.Cipher}'");
+                }
                 var clientAuthTokenCipher = Convert.FromBase64String(tokenResponse.Base64ClientAuthTokenCipher!);
                 var clientAuthTokenIv = Convert.FromBase64String(tokenResponse.Base64ClientAuthTokenIv!);
-                var clientAuthTokenBytes = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
+                var clientAuthTokenBytes = peerCipher.Open(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
                 ClientAuthenticationToken clientAuthToken = ClientAuthenticationToken.FromPortableBytes(clientAuthTokenBytes);
 
                 // This sharedSecret has no meaning for the home app because we don't make calls to the remote identity
@@ -101,7 +115,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccessAsync(odinId, clientAuthToken);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken!.ToAuthenticationToken());
 
-                var url = GetFinalUrl(odinId, clientAccessToken, authState);
+                var url = GetFinalUrl(odinId, clientAccessToken, authState, pageCipher);
                 return Redirect(url);
             }
             catch (RemoteIdentityUpgradingException)
@@ -126,10 +140,13 @@ namespace Odin.Hosting.Controllers.Home.Auth
         }
 
         /// <summary>
-        /// Encrypts the final results using ECC for the home-app
+        /// YouAuth [400]: seals the sign-in result for the home page under an ECC exchange with the
+        /// key the page put in its state, with the cipher the page declared there. The <c>ecc</c>
+        /// JSON echoes the cipher.
         /// </summary>
-        private string GetFinalUrl(OdinId odinId, ClientAccessToken clientAccessToken, HomeAuthenticationState authState)
+        private string GetFinalUrl(OdinId odinId, ClientAccessToken clientAccessToken, HomeAuthenticationState authState, YouAuthCipher pageCipher)
         {
+
             var homeClientPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(authState.EccPk64);
             var salt = ByteArrayUtil.GetRndByteArray(16);
             var keyPairPassword = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -146,13 +163,14 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 returnUrl = authState.ReturnUrl
             }).ToUtf8ByteArray();
 
-            var (randomIv, cipher) = AesCbc.Encrypt(sensitivePayload, clientTransferSharedSecret);
+            var (randomIv, cipher) = pageCipher.Seal(sensitivePayload, clientTransferSharedSecret);
 
             var eccInfo = OdinSystemSerializer.Serialize(new
             {
                 pk = transferKeyPair.PublicKeyJwkBase64Url(),
                 salt = salt,
-                iv = randomIv
+                iv = randomIv,
+                cipher = pageCipher.WireName()
             });
 
             string url = $"{authState.FinalUrl}?r={cipher.ToBase64()}&ecc={eccInfo}";

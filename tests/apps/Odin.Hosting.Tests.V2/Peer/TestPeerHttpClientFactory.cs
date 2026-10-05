@@ -92,9 +92,11 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
                 "TestServer has not been wired into TestServerHolder yet — OdinHost must populate it after host.StartAsync.");
 
         // Mirror the production factory's BaseAddress (capi.{remote}) so the multi-tenant middleware
-        // resolves the recipient tenant via the well-known "capi" prefix. disposeHandler: false —
-        // the handler is shared (see GetHandler) so HttpClient must not own it.
-        var client = new HttpClient(GetHandler(server), disposeHandler: false)
+        // resolves the recipient tenant via the well-known "capi" prefix. disposeHandler: false --
+        // the inner handler is shared (see GetHandler), and disposing the fault-check wrapper would dispose it.
+        var handler = new PeerFaults.Handler(GetHandler(server), _serverHolder.PeerFaults,
+            _localIdentity.PrimaryDomain, remoteOdinId.DomainName);
+        var client = new HttpClient(handler, disposeHandler: false)
         {
             BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixCertApi}.{remoteOdinId}/"),
         };

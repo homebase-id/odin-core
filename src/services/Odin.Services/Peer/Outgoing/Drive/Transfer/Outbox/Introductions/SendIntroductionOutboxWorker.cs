@@ -23,7 +23,12 @@ public class SendIntroductionOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        return SendHandledAsync(SendInternalAsync, odinContext, cancellationToken);
+    }
+
+    private async Task<OutboxProcessingResult> SendInternalAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
@@ -54,24 +59,25 @@ public class SendIntroductionOutboxWorker(
 
             if (response.IsSuccessStatusCode)
             {
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
                 // Recipient denied the introduction (e.g. introducer lacks AllowIntroductions
                 // permission, or recipient has the introduced identity blocked). Retrying won't
-                // change the answer — drop the item so the outbox doesn't stall for 10 minutes.
+                // change the answer — drop the item rather than retry it.
                 var body = response.Error?.Content;
                 logger.LogInformation(
                     "SendIntroduction to {recipient} returned 403; dropping outbox item. body={body}",
                     recipient, body);
-                return (true, UnixTimeUtc.ZeroTime);
+                return OutboxProcessingResult.Complete();
             }
 
             throw new OdinOutboxProcessingException("Failed while enqueuing notification")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = default,
                 Recipient = recipient,
@@ -107,12 +113,13 @@ public class SendIntroductionOutboxWorker(
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)
     {
-        //TODO: change to calculated 
-        return Task.FromResult(UnixTimeUtc.Now().AddMinutes(10));
+        return Task.FromResult(CalculateBackoffNextRunTime());
     }
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e, IOdinContext odinContext)
     {
+        logger.LogWarning("SendIntroduction to {recipient} gave up after {attempts} attempts ({status})",
+            FileItem.Recipient, FileItem.AttemptCount, e.TransferStatus);
         return Task.CompletedTask;
     }
 }

@@ -7,14 +7,20 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests._V2.ApiClient.Factory;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.LiveRelay;
+using Odin.Services.Peer.Outgoing.Drive;
+using Refit;
 
 namespace Odin.Hosting.Tests._V2.Tests.LiveRelay;
 
@@ -86,6 +92,54 @@ internal static class LiveRelayTestHelpers
 
         await owner.AppManager.RegisterApp(appId, appPermissions, circles, circlePermissions);
         return circleId;
+    }
+
+    /// <summary>
+    /// Registers an app on both identities (the same one unless <paramref name="samAppId"/> says
+    /// otherwise), connects them, and returns an app client token for each. Undo with
+    /// <see cref="DisconnectAsync"/>.
+    /// </summary>
+    public static async Task<(ClientAuthenticationToken frodoAppToken, byte[] frodoAppSecret,
+            ClientAuthenticationToken samAppToken, byte[] samAppSecret)>
+        ConnectAndSetupAppAsync(
+            OwnerApiClientRedux ownerFrodo, OwnerApiClientRedux ownerSam,
+            TestIdentity frodo, TestIdentity sam, Guid appId, Guid? samAppId = null)
+    {
+        // Normally the same app on both identities (a single shared appId — e.g. the chat app).
+        var frodoCircleId = await PrepareAppAccessAsync(ownerFrodo, appId, TargetDrive.NewTargetDrive());
+        var samCircleId = await PrepareAppAccessAsync(ownerSam, samAppId ?? appId, TargetDrive.NewTargetDrive());
+
+        await ownerFrodo.Connections.SendConnectionRequest(sam.OdinId, new List<GuidId> { frodoCircleId });
+        await ownerSam.Connections.AcceptConnectionRequest(frodo.OdinId, new List<GuidId> { samCircleId });
+
+        var (frodoAppToken, frodoAppSecret) = await ownerFrodo.AppManager.RegisterAppClient(appId);
+        var (samAppToken, samAppSecret) = await ownerSam.AppManager.RegisterAppClient(samAppId ?? appId);
+
+        return (frodoAppToken, frodoAppSecret, samAppToken, samAppSecret);
+    }
+
+    public static async Task DisconnectAsync(
+        OwnerApiClientRedux ownerFrodo, OwnerApiClientRedux ownerSam, TestIdentity frodo, TestIdentity sam)
+    {
+        await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
+        await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
+    }
+
+    /// <summary>Hop 1 as the app: POST /api/v2/live-relay with the app token, optionally with a push.</summary>
+    public static async Task<IApiResponse> SendRelayAsync(
+        TestIdentity sender, ClientAuthenticationToken appToken, byte[] appSecret,
+        Guid channelKey, List<string> recipients, string blob, AppNotificationOptions push = null)
+    {
+        var factory = new ApiClientFactoryV2(YouAuthConstants.AppCookieName, appToken, appSecret);
+        var client = factory.CreateHttpClient(sender.OdinId, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<ILiveRelayHttpClientApiV2>(client, sharedSecret);
+        return await svc.Relay(new LiveRelayRequest
+        {
+            ChannelKey = channelKey,
+            Recipients = recipients,
+            Blob = blob,
+            Push = push
+        });
     }
 
     public static async Task<ClientWebSocket> ConnectAppSocketAsync(

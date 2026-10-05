@@ -26,6 +26,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Authorization.ExchangeGrants;
 
+using Odin.Services.Registry.PayloadMove;
+
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
@@ -39,7 +41,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         IdentityDatabase db,
         InboxFileStore inboxFileStore,
         UploadFileStore uploadFileStore,
-        FileExpiryScheduler fileExpiryScheduler) : RequirePermissionsBase
+        FileExpiryScheduler fileExpiryScheduler,
+        PayloadMoveArrivals payloadMoveArrivals) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = logger;
 
@@ -477,6 +480,27 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// Why a payload or thumbnail read failed, asked in a fixed order: still arriving in a payload move
+        /// (404, retry later), then replaced since the caller resolved it (see
+        /// <see cref="AssertPayloadVersionHasNotMovedAsync"/>). Returns quietly if neither; the caller rethrows.
+        /// </summary>
+        private async Task ExplainMissingPayloadAsync(
+            InternalDriveFileId file,
+            string payloadKey,
+            UnixTimeUtcUnique resolvedUid,
+            IOdinContext odinContext,
+            Exception inner,
+            PayloadDescriptor currentInHand = null)
+        {
+            if (inner is OdinFileHeaderHasCorruptPayloadException)
+            {
+                await payloadMoveArrivals.AssertNotStillArrivingAsync();
+            }
+
+            await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, resolvedUid, odinContext, inner, currentInHand);
+        }
+
+        /// <summary>
         /// Throws <see cref="OdinPayloadVersionGoneException"/> when the payload has been replaced since
         /// the caller resolved <paramref name="resolvedUid"/>; returns quietly when it has not.
         /// </summary>
@@ -563,7 +587,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     return (Stream.Null, thumb);
                 }
 
-                await AssertPayloadVersionHasNotMovedAsync(file, payloadKey, payloadUid, odinContext, e,
+                await ExplainMissingPayloadAsync(file, payloadKey, payloadUid, odinContext, e,
                     header.FileMetadata.GetPayloadDescriptor(payloadKey));
                 throw;
             }
@@ -721,7 +745,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     return null;
                 }
 
-                await AssertPayloadVersionHasNotMovedAsync(file, key, descriptor.Uid, odinContext, e);
+                await ExplainMissingPayloadAsync(file, key, descriptor.Uid, odinContext, e);
                 throw;
             }
         }

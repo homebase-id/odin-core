@@ -22,6 +22,7 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Background;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -77,6 +78,9 @@ public sealed partial class OdinHost : IAsyncDisposable
     /// consumer digging it out of <see cref="Server"/>'s service provider by hand.
     /// </summary>
     public ILogEventMemoryStore LogStore => Server.Services.GetRequiredService<ILogEventMemoryStore>();
+
+    /// <summary>Makes chosen peer calls between this host's identities fail; see <see cref="Peer.PeerFaults"/>.</summary>
+    public Peer.PeerFaults PeerFaults => Server.Services.GetRequiredService<TestServerHolder>().PeerFaults;
 
     private OdinHost(IHost host, string[] identities, string dataRoot)
     {
@@ -167,6 +171,14 @@ public sealed partial class OdinHost : IAsyncDisposable
                         {
                             TenantServices.ConfigureTenantServices(cb, registration, cfg);
                             cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
+
+                            // Registered per tenant in ConfigureTenantServices, so overridden per
+                            // tenant: the production fetcher over the in-process server.
+                            cb.Register(c => new YouAuthClientMetadataFetcher(
+                                    new InProcessDynamicHttpClientFactory(serverHolder),
+                                    c.Resolve<ILogger<YouAuthClientMetadataFetcher>>()))
+                                .As<IYouAuthClientMetadataFetcher>()
+                                .InstancePerLifetimeScope();
                             return cb;
                         },
                         sp.GetRequiredService<OdinConfiguration>())));
@@ -307,6 +319,7 @@ public sealed partial class OdinHost : IAsyncDisposable
         SetCertRenewalBaseline();
         SetMailBaseline();
         SetAdminBaseline();
+        SetStunBaseline();
         SetCdnBaseline();
         return true;
     }
@@ -419,6 +432,16 @@ public sealed partial class OdinHost : IAsyncDisposable
         Set("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");
         Set("Admin__ApiPort", "0");
         Set("Admin__Domain", "admin.dotyou.cloud");
+    }
+
+    /// <summary>
+    /// STUN responder disabled — it is on by default and would bind UDP 3478. System background
+    /// services are off here anyway, but explicit like the admin API so a change to that baseline
+    /// cannot silently start a listener under parallel fixtures.
+    /// </summary>
+    private static void SetStunBaseline()
+    {
+        Set("Stun__Enabled", "false");
     }
 
     private static void Set(string key, string value) =>
