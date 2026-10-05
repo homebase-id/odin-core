@@ -1,0 +1,71 @@
+[
+    {
+        "visibility": "anonymous",
+        "circleIds": [],
+        "priority": 1000,
+        "data": {
+            "futureKey": "kept",
+            "design": "board",
+            "overrides": {
+                "palette": {
+                    "ground": "#112233",
+                    "ink": "#F0F0F0",
+                    "muted": "#99AABB",
+                    "accent": "#ABCDEF",
+                    "surface": "#223344",
+                    "surfaceInk": "#FFFFFF"
+                },
+                "type": {
+                    "display": "caveat",
+                    "text": "newsreader",
+                    "label": "space-mono",
+                    "displayCase": "upper"
+                },
+                "portraits": [
+                    {
+                        "source": "photo",
+                        "shape": "square",
+                        "ring": 2,
+                        "shadow": "soft",
+                        "tilt": 5,
+                        "tape": true,
+                        "mono": true
+                    }
+                ],
+                "blocks": [
+                    {
+                        "kind": "posts",
+                        "presentation": "row"
+                    },
+                    {
+                        "kind": "links",
+                        "presentation": "button"
+                    }
+                ],
+                "socials": "handles"
+            }
+        }
+    },
+    {
+        "visibility": "connected",
+        "circleIds": [
+            "44444444444443338444444444444444"
+        ],
+        "priority": 5,
+        "data": {
+            "design": "collage",
+            "label": "Family"
+        }
+    },
+    {
+        "visibility": "connected",
+        "circleIds": [
+            "33333333333343338333333333333333"
+        ],
+        "priority": 2,
+        "data": {
+            "design": "dossier",
+            "label": "Friends"
+        }
+    }
+]

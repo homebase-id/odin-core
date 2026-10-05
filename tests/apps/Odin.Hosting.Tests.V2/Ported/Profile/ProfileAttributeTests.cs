@@ -5,9 +5,11 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Contacts;
 using Odin.Services.Drives;
@@ -253,6 +255,96 @@ public class ProfileAttributeTests : V2Fixture
         // the attribute must survive a rejected delete
         var header = await GetByUniqueIdAsync(owner, id);
         Assert.That(header, Is.Not.Null);
+    }
+
+    private static readonly Guid CardType = BuiltInProfileAttributes.ProfileCard;
+
+    [Test]
+    public async Task SetAttribute_ProfileCardAnonymous_StoresUnencrypted()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = CardType,
+            Priority = 1000,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object> { ["design"] = "board" }
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
+        var header = await GetByUniqueIdAsync(owner, response.Content!.Id);
+        Assert.That(header!.FileMetadata.IsEncrypted, Is.False);
+        Assert.That(header.FileMetadata.AppData.Tags![0], Is.EqualTo(CardType));
+        Assert.That(header.ServerMetadata.AccessControlList.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Anonymous));
+    }
+
+    [Test]
+    public async Task SetAttribute_ProfileCardConnectedWithCircle_StoresEncryptedWithCircleAcl()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+        var circleId = await CreateCircleAsync(owner);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = CardType,
+            Priority = 0,
+            Visibility = ProfileAttributeVisibility.Connected,
+            CircleIds = [circleId],
+            Data = new Dictionary<string, object> { ["design"] = "poster", ["label"] = "Friends" }
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
+        var header = await GetByUniqueIdAsync(owner, response.Content!.Id);
+        Assert.That(header!.FileMetadata.IsEncrypted, Is.True);
+        var acl = header.ServerMetadata.AccessControlList;
+        Assert.That(acl.RequiredSecurityGroup, Is.EqualTo(SecurityGroupType.Connected));
+        Assert.That(acl.CircleIdList, Is.EqualTo(new List<Guid> { circleId }));
+    }
+
+    [Test]
+    public async Task SetAttribute_CircleIdsWithAnonymous_Returns400()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+        var circleId = await CreateCircleAsync(owner);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = CardType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            CircleIds = [circleId],
+            Data = new Dictionary<string, object> { ["design"] = "board" }
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
+    }
+
+    [Test]
+    public async Task SetAttribute_UnknownCircleId_Returns400()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = CardType,
+            Visibility = ProfileAttributeVisibility.Connected,
+            CircleIds = [Guid.NewGuid()],
+            Data = new Dictionary<string, object> { ["design"] = "board" }
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
+    }
+
+    private static async Task<Guid> CreateCircleAsync(OwnerSession owner)
+    {
+        var circleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(circleId, "Friends",
+            TestUtils.CreatePermissionGrantRequest(WellKnownAppDrives.ProfileDrive, DrivePermission.None));
+        return circleId;
     }
 
     private static async Task<V2ProfileClient> GetProfileClientAsync(
