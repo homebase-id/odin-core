@@ -55,6 +55,9 @@ public static class BuiltInProfileAttributes
     public static readonly Guid BioSummary = new("1d89f51a-6e42-4074-8d6b-60916c0eec9a");    // hardcoded in odin-js (NOT toGuidId) — "Short bio"
     public static readonly Guid CreditCard = new("3c92742f-3c13-49e9-c46f-e4dd5da62a98");    // toGuidId("creditcard")
 
+    // -- Profile card --------------------------------------------------------------------------------
+    public static readonly Guid ProfileCard = new("9832dc5d-d4ba-12dd-60ac-b853e7588f49");   // toGuidId("profile_card")
+
     /// <summary>
     /// The full registry, in the client-facing shape served by the contacts <c>attribute-types</c>
     /// endpoint. <see cref="ProfileAttributeType.Key"/> is the stable odin-js source string;
@@ -93,6 +96,8 @@ public static class BuiltInProfileAttributes
         new("short_bio", Bio, ProfileAttributeCategory.Bio),
         new("bio_summary", BioSummary, ProfileAttributeCategory.Bio),
         new("creditcard", CreditCard, ProfileAttributeCategory.Financial),
+
+        new("profile_card", ProfileCard, ProfileAttributeCategory.Card),
     ];
 }
 
@@ -104,7 +109,8 @@ public enum ProfileAttributeCategory
     Game,
     Bio,
     Link,
-    Financial
+    Financial,
+    Card
 }
 
 /// <summary>
