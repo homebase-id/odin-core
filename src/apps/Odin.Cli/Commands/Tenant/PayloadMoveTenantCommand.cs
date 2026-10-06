@@ -83,6 +83,9 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
             var p = target.Progress;
             Row("Transfer", new Text($"{p.Status} (job {target.JobState}, next run {Show(target.NextRun)})"));
             Row("From", new Text(p.BaseUrl));
+            Row("Queued items", new Text(p.QueuedItemsDone
+                ? "payloads fetched"
+                : p.HoldsResume ? "payloads arriving; resume waits for them" : "payloads not fetched"));
             Row("Files", new Text($"{p.Files} (newest first, down from row {p.StartRowId}; now below {p.CursorRowId})"));
             Row("Objects", new Text($"{p.Objects} moved, {p.Bytes.HumanReadableBytes()}; {p.Skipped} already here"));
             Row("Failures", new Text(p.FailureCount.ToString()));

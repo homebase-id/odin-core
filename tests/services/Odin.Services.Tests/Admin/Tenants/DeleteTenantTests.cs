@@ -203,5 +203,6 @@ public class DeleteTenantTests
 
     private TenantAdmin NewTenantAdmin() => new(
         new Mock<ILogger<TenantAdmin>>().Object, LoggerFactory.Create(_ => { }), new OdinConfiguration(), _jobManager.Object,
-        _registry.Object, new Mock<IMultiTenantContainer>().Object, new Mock<ILastSeenService>().Object, null!, _source, _systemDatabase);
+        _registry.Object, new Mock<IMultiTenantContainer>().Object, new Mock<ILastSeenService>().Object, null!, _source,
+        new PayloadMoveAdmin(_registry.Object, _jobManager.Object, _source), _systemDatabase);
 }
