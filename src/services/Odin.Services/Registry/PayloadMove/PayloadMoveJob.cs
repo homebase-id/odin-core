@@ -96,16 +96,10 @@ public class PayloadMoveJob(
         var identityDatabase = scope.Resolve<IdentityDatabase>();
         var paths = new TenantPathManager(config, identityId);
 
-        var baseUrl = new Uri(Data.BaseUrl);
-        var client = httpClientFactory.CreateClient($"PayloadMove:{baseUrl.Authority}", c =>
-        {
-            // A dev source runs on a self-signed certificate, as in IdentityRegistrationService
-            c.AllowUntrustedServerCertificate = !config.CertificateRenewal.UseCertificateAuthorityProductionServers;
-        });
-        client.Timeout = Timeout.InfiniteTimeSpan; // each call has its own
-
         var transfer = new PayloadMoveTransfer(
-            new HttpPayloadMoveSourceClient(client, Data.BaseUrl, identityId),
+            // A dev source runs on a self-signed certificate, as in IdentityRegistrationService
+            new HttpPayloadMoveSourceClient(httpClientFactory, Data.BaseUrl, identityId,
+                allowUntrustedServerCertificate: !config.CertificateRenewal.UseCertificateAuthorityProductionServers),
             scope.Resolve<LongTermPayloadStore>(),
             (belowRowId, count) => identityDatabase.DriveMainIndex.GetFilePayloadRowsBelowAsync(belowRowId, count),
             o => o.PathIn(paths),
