@@ -495,20 +495,25 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             .BeginLifetimeScope($"SaveRegistration:{registration.PrimaryDomainName}");
 
         var systemDatabase = scope.Resolve<SystemDatabase>();
-        var version = await CommitRegistryChangeLockedAsync(systemDatabase, registration.Id, () =>
-            systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
-            {
-                identityId = registration.Id,
-                primaryDomainName = registration.PrimaryDomainName.ToLower(),
-                email = registration.Email?.ToLower(),
-                firstRunToken = registration.FirstRunToken?.ToString(),
-                // Superseded by the status in json; written as a mirror for nodes on older versions
-                disabled = registration.Status == TenantStatus.Disabled,
-                markedForDeletionDate = registration.MarkedForDeletionDate,
-                planId = registration.PlanId ?? "free",
-                enablePublicWebPresence = registration.EnablePublicWebPresence,
-                json = RegistrationJsonMapper.ToJson(registration)
-            }));
+        var record = new RegistrationsRecord
+        {
+            identityId = registration.Id,
+            primaryDomainName = registration.PrimaryDomainName.ToLower(),
+            email = registration.Email?.ToLower(),
+            firstRunToken = registration.FirstRunToken?.ToString(),
+            // Superseded by the status in json; written as a mirror for nodes on older versions
+            disabled = registration.Status == TenantStatus.Disabled,
+            markedForDeletionDate = registration.MarkedForDeletionDate,
+            planId = registration.PlanId ?? "free",
+            enablePublicWebPresence = registration.EnablePublicWebPresence,
+            json = RegistrationJsonMapper.ToJson(registration)
+        };
+        var version = await CommitRegistryChangeLockedAsync(systemDatabase, registration.Id,
+            () => systemDatabase.Registrations.UpsertAsync(record));
+
+        // The row's own creation time, which the upsert returns. A new registration has none until now; without
+        // this, the node that created an identity reported no Created for it until it restarted (#1863).
+        registration.Created = record.created;
 
         _logger.LogInformation("Wrote registration record for [{registrationId}] at registry version {version}",
             registration.Id, version);

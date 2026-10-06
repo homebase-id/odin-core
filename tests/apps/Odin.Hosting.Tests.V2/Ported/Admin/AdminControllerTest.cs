@@ -14,6 +14,7 @@ using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Admin.Tenants;
@@ -24,6 +25,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.JobManagement;
+using Odin.Services.LastSeen;
 using Odin.Services.Registry;
 
 namespace Odin.Hosting.Tests.V2.Ported.Admin;
@@ -394,6 +396,34 @@ public class AdminControllerTest : V2Fixture
         Assert.That(frodoMetrics.RegistrationSize, Is.EqualTo(tenant.RegistrationSize));
         Assert.That(frodoMetrics.PayloadPath, Is.EqualTo(tenant.PayloadPath));
         Assert.That(frodoMetrics.TotalBytes, Is.EqualTo(tenant.PayloadSize));
+    }
+
+    //
+
+    /// <summary>
+    /// #1863: the CLI's tenant listing shows when each identity was created and last active, from the same
+    /// sources as the metrics endpoint.
+    /// </summary>
+    [Test]
+    public async Task ItShouldShowWhenATenantWasCreatedAndLastActive()
+    {
+        // Through the service rather than a request: the host reset between tests clears the cache but not
+        // LastSeenService's 15 s throttle, so a request right after it may not be recorded where reads look.
+        // An hour ahead, so no earlier sighting is within the throttle.
+        var seen = UnixTimeUtc.Now().AddHours(1);
+        await Host.Server.Services.GetRequiredService<ILastSeenService>().PutLastSeenAsync(Identities.Frodo, seen);
+
+        using var apiClient = CreateAdminClient();
+        var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}");
+        var listed = (await GetOkAsync<List<TenantModel>>(apiClient, "tenants")).Single(t => t.Domain == Identities.Frodo);
+        var metrics = (await GetOkAsync<TenantMetricsResponse>(apiClient, "tenants/metrics")).Tenants
+            .Single(t => t.Domain == Identities.Frodo);
+
+        Assert.That(tenant.Created, Is.Not.Null, "the node that registered frodo knows when");
+        Assert.That(tenant.Created, Is.EqualTo(metrics.CreatedAt));
+        Assert.That(tenant.LastActivity, Is.EqualTo(seen));
+        Assert.That(metrics.LastActivity, Is.EqualTo(seen));
+        Assert.That((listed.Created, listed.LastActivity), Is.EqualTo((tenant.Created, tenant.LastActivity)));
     }
 
     //

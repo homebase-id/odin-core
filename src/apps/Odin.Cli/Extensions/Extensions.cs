@@ -1,4 +1,5 @@
 using System.Globalization;
+using Odin.Core.Time;
 
 namespace Odin.Cli.Extensions;
 
@@ -18,4 +19,10 @@ public static class Extensions
 
         return $"{adjustedSize.ToString("N1", CultureInfo.InvariantCulture)}{sizeSuffixes[magnitudeIndex]}";
     }
+
+    /// <summary>A time as every command shows it: UTC, so hosts in different regions read alike.</summary>
+    public static string ToCliTime(this UnixTimeUtc time) =>
+        time.ToDateTimeOffset().UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+
+    public static string ToCliTime(this UnixTimeUtc? time, string absent = "-") => time?.ToCliTime() ?? absent;
 }

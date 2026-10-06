@@ -98,8 +98,10 @@ older endpoint carries has an equivalent here:
 `AdminControllerTest.ItShouldSupersedeTheTenantEndpoint` asserts this field by field, so the two
 cannot drift apart silently.
 
-The older endpoint is unchanged and still serves `Odin.Cli` (`odin-cli tenants list`), which
-deserializes `TenantModel`.
+The older endpoint still serves `Odin.Cli` (`odin-cli tenants list`), which deserializes `TenantModel`.
+`TenantModel` also carries `created` and `lastActivity`, with the same meaning as `createdAt` and
+`lastActivity` here, so `tenants list` and `tenant show` print them. `tenants list --inactive-days N` keeps
+only identities with no activity on this host in the last N days.
 
 ## For the collector
 
