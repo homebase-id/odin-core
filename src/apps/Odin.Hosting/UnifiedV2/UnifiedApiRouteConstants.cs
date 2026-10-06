@@ -16,7 +16,10 @@ public static class UnifiedApiRouteConstants
     public const string GroupReactionsByFileId = FilesRoot + "/{fileId:guid}/group-reactions";
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
     public const string ByGtid = FilesRoot + "/by-gtid/{gtid:guid}";
-    public const string Notify = BasePath + "/notify/push";
+    // The notification list and the push-subscription endpoints both define a "list" action,
+    // so they must not share a route prefix.
+    public const string NotifyRoot = BasePath + "/notify";
+    public const string Notify = NotifyRoot + "/push";
     public const string LiveRelay = BasePath + "/live-relay";
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
