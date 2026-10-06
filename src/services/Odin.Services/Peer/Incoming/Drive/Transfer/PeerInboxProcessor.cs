@@ -347,6 +347,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         internal static StagingArea ResolveInboxSourceArea(TransferInboxItem inboxItem) =>
             inboxItem.FileMetadata != null ? StagingArea.LongTerm : StagingArea.Inbox;
 
+        // TODO:INBOX Delete with ResolveInboxSourceArea. A legacy item whose metadata and payloads are in this
+        // host's inbox folder; an identity move cannot take it along (#1871).
+        public static bool HasFolderStagedFiles(TransferInboxItem inboxItem) =>
+            inboxItem.InstructionType is TransferInstructionType.SaveFile or TransferInstructionType.UpdateFile &&
+            ResolveInboxSourceArea(inboxItem) == StagingArea.Inbox;
+
         private async Task<(bool success, List<PayloadDescriptor> payloads)> ProcessNormalFileSaveOperation(TransferInboxItem inboxItem,
             IOdinContext odinContext,
             PeerFileWriter writer,
