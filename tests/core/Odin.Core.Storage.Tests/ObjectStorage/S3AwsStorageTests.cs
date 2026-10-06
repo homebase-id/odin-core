@@ -83,7 +83,7 @@ public class S3AwsStorageTests
         }
         else
         {
-            _minioContainer = new MinioBuilder("quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z")
+            _minioContainer = new MinioBuilder("rustfs/rustfs:1.0.0")
                 .WithUsername("minioadmin")
                 .WithPassword("minioadmin123")
                 .Build();
@@ -417,6 +417,38 @@ public class S3AwsStorageTests
         // Read back from bucket
         var copy = await bucket.ReadBytesAsync(path);
         Assert.That(copy.ToStringFromUtf8Bytes(), Is.EqualTo(text));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldOpenAnObjectForStreamingReads()
+    {
+        const string path = "the-streamed-file";
+        var bytes = new byte[3 * 1024 * 1024];
+        Random.Shared.NextBytes(bytes);
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "some/root");
+        await bucket.WriteBytesAsync(path, bytes);
+
+        await using var stream = await bucket.OpenReadAsync(path);
+        using var copy = new MemoryStream();
+        await stream.CopyToAsync(copy);
+
+        Assert.That(stream.Length, Is.EqualTo(bytes.Length));
+        Assert.That(copy.ToArray(), Is.EqualTo(bytes));
+    }
+
+    //
+
+    [Test]
+    public void S3AwsStorage_OpenReadThrowsNotFoundForAMissingObject()
+    {
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        var exception = Assert.ThrowsAsync<S3StorageException>(() => bucket.OpenReadAsync("no-such-file"));
+        var inner = exception!.InnerException as Amazon.S3.AmazonS3Exception;
+        Assert.That(inner, Is.Not.Null, exception.ToString());
+        Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
     }
 
     //

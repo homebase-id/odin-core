@@ -7,6 +7,9 @@ using Odin.Core;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Hosting.Authentication.YouAuth;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Util;
@@ -126,6 +129,23 @@ public class V2ConnectionRequestsController(
         return Ok(result);
     }
 
+    // POST /requests/send-reviewed
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Send a connection request that is the owner's review: circles are routed as POST review " +
+                  "routes them, and ReviewedAt is stamped when the connection completes. Owner console or app.")]
+    [HttpPost("requests/send-reviewed")]
+    public async Task<ActionResult<ConnectionRequestResult>> SendReviewed(
+        [FromBody] ConnectionRequestHeader requestHeader)
+    {
+        OdinValidationUtils.AssertNotNull(requestHeader, nameof(requestHeader));
+        OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
+
+        var result = await circleNetworkRequestService
+            .SendReviewedConnectionRequestAsync(requestHeader, HttpContext.RequestAborted, WebOdinContext);
+
+        return Ok(result);
+    }
+
     // PUT /requests/incoming/{senderId}
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpPut("requests/incoming/{senderId}")]
@@ -145,10 +165,43 @@ public class V2ConnectionRequestsController(
         };
         header.Validate();
 
+        var callerToken = ResolveCallerTokenForChannelSync();
+
         await circleNetworkRequestService
-            .AcceptConnectionRequestAsync(header, tryOverrideAcl: false, markReviewed: true, WebOdinContext);
+            .AcceptConnectionRequestAsync(header, tryOverrideAcl: false, markReviewed: true, WebOdinContext, callerToken);
 
         return NoContent();
+    }
+
+
+    /// <summary>
+    /// The caller's own token, so the channel-sync job can rebuild their context.
+    /// </summary>
+    /// <remarks>
+    /// The job needs the ICR key to query the sender, and that key lives in the caller's permission
+    /// groups -- owner or app. Carried rather than re-derived because a background job has no master
+    /// key to unlock it with.
+    /// </remarks>
+    private ClientAuthenticationToken ResolveCallerTokenForChannelSync()
+    {
+        if (ClientAuthenticationToken.TryParse(Request.Cookies[OwnerAuthConstants.CookieName], out var ownerToken))
+        {
+        return ownerToken;
+        }
+
+        if (ClientAuthenticationToken.TryParse(Request.Cookies[YouAuthConstants.AppCookieName], out var appCookie))
+        {
+        return appCookie;
+        }
+
+        var authorization = Request.Headers.Authorization.ToString();
+        if (authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
+        ClientAuthenticationToken.TryParse(authorization["Bearer ".Length..], out var bearer))
+        {
+        return bearer;
+        }
+
+        return null;
     }
 
     // DELETE /requests/incoming/{senderId}

@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
+using Odin.Core.Exceptions;
+using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Base;
@@ -112,6 +114,36 @@ public class V1LocalUpdateBatchTests : V2Fixture
         //
         await DriveAsserts.AssertFileFoundByDataType(
             ownerDriveClient, targetFile.TargetDrive, updatedFileMetadata.AppData.DataType, targetFile.FileId);
+    }
+
+    /// <summary>
+    /// Regression for #1762: updating a file id that does not exist on the drive used to dereference
+    /// a null header and answer 500. It is a client error.
+    /// </summary>
+    [Test]
+    public async Task UpdateOfNonExistentFileIsBadRequest()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var fileMetadata = SampleMetadataData.Create(fileType: 100);
+        fileMetadata.VersionTag = Guid.NewGuid();
+
+        var updateInstructionSet = new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = new ExternalFileIdentifier { FileId = Guid.NewGuid(), TargetDrive = spec.TargetDrive }.ToFileIdentifier(),
+            Recipients = default,
+            Manifest = new UploadManifest
+            {
+                PayloadDescriptors = []
+            }
+        };
+
+        var response = await owner.V1.Drive.UpdateFile(updateInstructionSet, fileMetadata, []);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(OdinClientErrorCode.FileNotFound));
     }
 
     [Test, TestCaseSource(nameof(UpdateBatchCases))]

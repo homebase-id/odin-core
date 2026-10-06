@@ -63,7 +63,8 @@ public class EmailAppService(
             DriveProvisioned = await HasEmailDriveAccessAsync(odinContext),
             MailboxProvisioned = setup?.MailboxProvisioned ?? false,
             PrimaryEmailAddress = setup?.PrimaryEmailAddress,
-            Activated = publishedKey != null,
+            Activated = EmailSetupStateService.IsMailReady(setup, publishedKey),
+            Mode = setup?.Mode ?? MailboxMode.Encrypted,
             PublicKeyFingerprint = publishedKey?.FingerprintHex,
             PublishedAt = publishedKey?.PublishedAt,
             DkimRecords = DkimDnsRecords.ToDnsConfigs(domain, dkimKeys),
@@ -94,16 +95,19 @@ public class EmailAppService(
     /// on the mail server. Idempotent, so a client that was killed mid-setup simply calls it
     /// again. Records the chosen address so setup can resume without the client tracking it.
     ///
-    /// No key yet — that is the last step. Mail can already arrive; it starts being encrypted
-    /// the moment a key exists.
+    /// No key yet — for an encrypted mailbox that is the last step, and a standard one never gets
+    /// one. Mail can already arrive; it starts being encrypted the moment a key exists.
     /// </summary>
-    public async Task<MailboxSetupResult> EnsureMailboxAsync(string primaryEmailAddress, IOdinContext odinContext)
+    public async Task<MailboxSetupResult> EnsureMailboxAsync(
+        string primaryEmailAddress,
+        MailboxMode mode,
+        IOdinContext odinContext)
     {
         await AssertEmailDriveAccessAsync(odinContext);
         AssertTenantMailEnabled();
 
         var result = await mailActivationService.EnsureMailboxAsync(primaryEmailAddress);
-        await setupStateService.MarkMailboxProvisionedAsync(primaryEmailAddress);
+        await setupStateService.MarkMailboxProvisionedAsync(primaryEmailAddress, mode);
 
         return new MailboxSetupResult
         {
@@ -134,7 +138,66 @@ public class EmailAppService(
     {
         await AssertEmailDriveAccessAsync(odinContext);
         AssertTenantMailEnabled();
+        // Before the keyring is written, not just at publish, so a refusal leaves no orphan on the drive
+        await mailActivationService.AssertNotStandardAsync();
 
+        return await GenerateAndPublishKeyAsync(primaryEmailAddress, clientEntropy, odinContext);
+    }
+
+    /// <summary>
+    /// Idempotent, so a client that lost the response calls it again. Mail already stored is not
+    /// converted either way (docs/email-keys-plan.md "Mailbox modes").
+    /// </summary>
+    public async Task<MailAppStatusResult> SetModeAsync(MailboxMode mode, byte[] clientEntropy, IOdinContext odinContext)
+    {
+        await AssertEmailDriveAccessAsync(odinContext);
+        AssertTenantMailEnabled();
+
+        var setup = await setupStateService.GetAsync();
+        if (setup?.MailboxProvisioned != true)
+        {
+            throw new OdinClientException("Set up the mailbox before changing its mode");
+        }
+
+        switch (mode)
+        {
+            case MailboxMode.Standard:
+                await mailActivationService.StopEncryptingAsync();
+                // Last, so an interrupted switch still reports encrypted and the caller retries
+                await setupStateService.SetModeAsync(mode);
+                break;
+
+            case MailboxMode.Encrypted:
+                // First, because publishing refuses on a standard mailbox. An interrupted switch is
+                // then an encrypted mailbox waiting for its key, which setup already finishes.
+                await setupStateService.SetModeAsync(mode);
+
+                // A key still published means an interrupted switch; re-publishing it also turns
+                // the mail server's encryption back on, which that switch may have turned off
+                var publishedKey = await emailPublicKeyService.GetPublishedKeyAsync();
+                if (publishedKey == null)
+                {
+                    await GenerateAndPublishKeyAsync(setup.PrimaryEmailAddress, clientEntropy, odinContext);
+                }
+                else
+                {
+                    await mailActivationService.PublishKeyAsync(publishedKey.PublicCertificateArmored);
+                }
+
+                break;
+
+            default:
+                throw new OdinClientException($"Unknown mailbox mode {mode}");
+        }
+
+        return await GetStatusAsync(odinContext);
+    }
+
+    private async Task<EmailKeyGenerationResult> GenerateAndPublishKeyAsync(
+        string primaryEmailAddress,
+        byte[] clientEntropy,
+        IOdinContext odinContext)
+    {
         var domain = tenantContext.HostOdinId.DomainName;
         if (string.IsNullOrWhiteSpace(primaryEmailAddress) ||
             !primaryEmailAddress.EndsWith($"@{domain}", StringComparison.OrdinalIgnoreCase))
@@ -433,8 +496,13 @@ public class MailAppStatusResult
 
     public string? PrimaryEmailAddress { get; init; }
 
-    /// <summary>A public certificate is published — the server-side "email is on" signal.</summary>
+    /// <summary>
+    /// The server-side "email is on" signal: the certificate is published, or for a standard
+    /// mailbox, the mailbox exists.
+    /// </summary>
     public bool Activated { get; init; }
+
+    public MailboxMode Mode { get; init; }
 
     public string? PublicKeyFingerprint { get; init; }
 

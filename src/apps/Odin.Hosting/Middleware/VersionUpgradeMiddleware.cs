@@ -6,10 +6,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.Configuration;
 using Odin.Hosting.Controllers.OwnerToken.DataConversion;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Hosting.UnifiedV2;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
@@ -50,11 +52,7 @@ namespace Odin.Hosting.Middleware
             {
                 context.Response.Headers.Append(OdinHeaderNames.UpgradeIsRunning, bool.TrueString);
 
-                // The version-info endpoint is how a client finds out what the upgrade is doing, and
-                // blocking it means the one question worth asking during an upgrade is the one that
-                // cannot be asked. It reads two config values and writes nothing. The rest of the
-                // data-conversion controller mutates, so it stays behind the guard.
-                if (!path.Contains(OwnerDataConversionController.VersionInfoEndpoint))
+                if (!AnswerableDuringUpgrade(context.Request, path))
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
 
@@ -73,6 +71,32 @@ namespace Odin.Hosting.Middleware
             }
 
             return next(context);
+        }
+
+        /// <summary>
+        /// The questions that must stay answerable while everything else is refused.
+        /// </summary>
+        /// <remarks>
+        /// All of these are reads that touch no tenant data, and refusing any of them turns "this
+        /// identity is busy" into something worse than a wait:
+        /// <list type="bullet">
+        /// <item><c>data-version-info</c> is how a client finds out what the upgrade is doing -- the
+        /// one question worth asking during an upgrade. It reads two config values and writes
+        /// nothing; the rest of that controller mutates and stays behind the guard.</item>
+        /// <item><c>auth/ident</c> is how anything finds out this host is an identity at all, and it
+        /// is the first call every login box makes. Clients read <c>odinId</c> out of the body and
+        /// treat a failed parse as "no such identity", so a bodiless 503 does not make an upgrading
+        /// identity look busy -- it makes it look like it does not exist.</item>
+        /// <item><c>health/*</c> is the liveness answer: ping names the host, ip names the caller.
+        /// A health check that fails while the service is deliberately busy is a health check that
+        /// reports an outage that is not happening.</item>
+        /// </list>
+        /// </remarks>
+        private static bool AnswerableDuringUpgrade(HttpRequest request, string path)
+        {
+            return path.Contains(OwnerDataConversionController.VersionInfoEndpoint) ||
+                   request.Path.StartsWithSegments(GuestApiPathConstantsV1.IdentV1) ||
+                   request.Path.StartsWithSegments(UnifiedApiRouteConstants.Health);
         }
 
         /// <summary>

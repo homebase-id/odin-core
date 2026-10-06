@@ -4,12 +4,15 @@ using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.AppNotifications.Push.Scheduled;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Job;
 using Odin.Services.Drives.FileSystem.Base.Ttl;
 using Odin.Services.Email.Relay;
+
+using Odin.Services.Registry.PayloadMove;
 
 namespace Odin.Services.JobManagement;
 
@@ -41,6 +44,8 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<MailRelayOnboardingJob>(cb, MailRelayOnboardingJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ExpireFileJob>(cb, ExpireFileJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ReapFileJob>(cb, ReapFileJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<SyncChannelFilesJob>(cb, SyncChannelFilesJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<PayloadMoveJob>(cb, PayloadMoveJob.JobTypeId);
 
 
         //

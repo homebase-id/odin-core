@@ -22,6 +22,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Registry;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 {
@@ -32,7 +33,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         IMediator mediator,
         FileSystemResolver fileSystemResolver,
         PushNotificationService pushNotificationService,
-        TransitInboxBoxStorage transitInboxBoxStorage)
+        TransitInboxBoxStorage transitInboxBoxStorage,
+        TenantQuotaGuard quotaGuard)
     {
         private EncryptedRecipientFileUpdateInstructionSet _updateInstructionSet;
         private InternalDriveFileId _file;
@@ -56,6 +58,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
+            // Refused before any bytes are read, so the sender defers the update instead of losing it
+            quotaGuard.AssertCanAddPayloadBytes();
+
             _uploadedKeys.TryAdd(key, new List<string>());
             if (_isDirectWrite)
                 await fileSystem.Storage.WriteUploadStream(_file, fileExtension, data, odinContext);
@@ -67,6 +72,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
             IOdinContext odinContext)
         {
+            quotaGuard.AssertCanAddPayloadBytes();
+
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
             {
                 thumbnailKeys = new List<string>();

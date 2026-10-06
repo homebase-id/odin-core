@@ -38,6 +38,13 @@ public class V2ConnectionNetworkClient(OdinId identity, IApiClientFactory factor
         return await svc.Unblock(new OdinIdRequest { OdinId = odinId });
     }
 
+    public async Task<ApiResponse<HttpContent>> RemoveBlockedConnectionAsync(OdinId odinId)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.RemoveBlockedConnection(new OdinIdRequest { OdinId = odinId });
+    }
+
     public async Task<ApiResponse<HttpContent>> DisconnectAsync(OdinId odinId)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

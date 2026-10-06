@@ -54,7 +54,7 @@ milliseconds. **Null means "not applicable or unknown", never zero.**
 | `registrationPath` / `payloadPath` | Where the registration directory and the payloads live (payloads being the S3 `service/bucket/id` prefix when S3 payloads are on). Populated for orphans too: for an identity with no registration, this is where to go looking for what it left behind. |
 | `registrationSize` | Bytes on local disk under the registration directory. On Postgres + S3 this is legitimately near zero: the database is remote and payloads are in S3. Only meaningful on SQLite. |
 | `lastActivity` | See the caveat below — this is **not** "when the tenant was last used". |
-| `enabled` | Inverse of `registrations.disabled`, toggled by `odin-cli tenant enable` / `disable`. Boolean. |
+| `enabled` | Inverse of `registrations.disabled`, set by `odin-admin tenant set-status <domain> disabled` / `active`. Boolean. |
 | `enablePublicWebPresence` | The other CLI-togglable flag (`odin-cli tenant enable-public-web-presence` / `disable-public-web-presence`). Boolean; the V202607101000 migration backfilled every existing row to true. |
 | `markedForDeletionDate` | Null, or when the **owner** requested deletion (`OwnerSecurityController`, not the CLI). A tenant pending deletion is neither enabled nor gone, and a report that cannot say so will mislabel it. |
 | `planId` | Free text, `"free"` everywhere today. See caveat 5. |
@@ -94,12 +94,14 @@ older endpoint carries has an equivalent here:
 | `domain`, `id`, `enabled`, `enablePublicWebPresence` | same names |
 | `registrationPath`, `registrationSize`, `payloadPath` | same names |
 | `payloadSize` | `totalBytes` (identical figure — both sum `byteCount` over every file state) |
+| `created`, `lastActivity` | `createdAt`, `lastActivity` |
 
 `AdminControllerTest.ItShouldSupersedeTheTenantEndpoint` asserts this field by field, so the two
 cannot drift apart silently.
 
-The older endpoint is unchanged and still serves `Odin.Cli` (`odin-cli tenants list`), which
-deserializes `TenantModel`.
+The older endpoint still serves `Odin.Cli` (`odin-cli tenants list`), which deserializes `TenantModel`;
+`tenants list` and `tenant show` print its `created` and `lastActivity`, and `tenants list --inactive-days N`
+keeps only identities with no activity on this host in the last N days.
 
 ## For the collector
 

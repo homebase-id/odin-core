@@ -423,6 +423,7 @@ public class S3FileStoreUnitTests
         public Task WriteBytesAsync(string p, byte[] b, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<byte[]> ReadAllBytesAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<byte[]> ReadBytesAsync(string p, long start, long length, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Stream> OpenReadAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ExistsAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<long> LengthAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
@@ -534,7 +535,7 @@ public class S3FileStoreTests : PayloadReaderWriterBaseTestFixture
         BaseSetup();
         TestSecrets.Load();
 
-        _minioContainer = new MinioBuilder("quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z")
+        _minioContainer = new MinioBuilder("rustfs/rustfs:1.0.0")
             .WithUsername("minioadmin")
             .WithPassword("minioadmin123")
             .Build();
@@ -824,7 +825,7 @@ public class PromoteViaIngestFromTests
     {
         TestSecrets.Load();
 
-        _minioContainer = new MinioBuilder("quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z")
+        _minioContainer = new MinioBuilder("rustfs/rustfs:1.0.0")
             .WithUsername("minioadmin")
             .WithPassword("minioadmin123")
             .Build();

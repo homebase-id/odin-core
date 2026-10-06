@@ -22,14 +22,14 @@ public class SendPeerPushNotificationOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
             await NotifyPeerOfPushNotification(newContext, cancellationToken);
 
-            return (true, UnixTimeUtc.ZeroTime);
+            return OutboxProcessingResult.Complete();
         }
         catch (OdinOutboxProcessingException e)
         {
@@ -59,6 +59,16 @@ public class SendPeerPushNotificationOutboxWorker(
         var file = FileItem.File;
         var recipient = FileItem.Recipient;
 
+        // Checked on every attempt: a failed attempt is rescheduled ten minutes out (see
+        // HandleRecoverableTransferStatus, which can only pick a time, not give up), and by then a
+        // time-bound push such as a ring is stale. Completing it here is the give-up.
+        if (record.IsExpired(UnixTimeUtc.Now()))
+        {
+            logger.LogDebug("Peer push notification to {recipient} expired (ttl={ttl}s, enqueued={enqueued}); completing without sending",
+                recipient, record.Options.TimeToLiveSeconds, record.Timestamp.milliseconds);
+            return;
+        }
+
 
         async Task<ApiResponse<PeerTransferResponse>> TryEnqueueNotification()
         {
@@ -85,6 +95,7 @@ public class SendPeerPushNotificationOutboxWorker(
             throw new OdinOutboxProcessingException("Failed while enqueuing notification")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
+                RetryAfter = OutboxRetryLater.RetryAfterFrom(response),
                 VersionTag = default,
                 GlobalTransitId = default,
                 Recipient = recipient,

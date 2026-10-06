@@ -5,6 +5,7 @@ using Odin.Cli.Commands.Base;
 using Odin.Cli.Extensions;
 using Odin.Cli.Factories;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Services.Admin.Tenants;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -32,6 +33,17 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         [Description("Output type:\n'table': show as table (default)\n'tree': show as tree\n'domain': domain only\n'id': id only")]
         [CommandOption("-o|--output <VALUE>")]
         public OutputType Output { get; set; } = OutputType.table;
+
+        [Description("Only identities with no activity on this host in the last N days, or none at all. " +
+                     "Activity is a request made as the identity here: its owner or apps, or its calls to peers on " +
+                     "this host, its own background jobs' included. " +
+                     "It is not an owner login, is kept for 365 days, and does not move with the identity.")]
+        [CommandOption("--inactive-days <DAYS>")]
+        public int? InactiveDays { get; set; }
+
+        public override ValidationResult Validate() => InactiveDays is < 0
+            ? ValidationResult.Error("--inactive-days must be zero or more")
+            : base.Validate();
     }
 
     //
@@ -41,13 +53,15 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
         var response =
             await httpClient.GetAsync("tenants?include-payload=" + (settings.IncludePayload ? "true" : "false"));
-        if (response.StatusCode != HttpStatusCode.OK)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        await ApiResponse.EnsureAsync(response);
         var json = await response.Content.ReadAsStringAsync();
         var tenants = OdinSystemSerializer.Deserialize<List<TenantModel>>(json) ?? [];
         tenants.Sort((a,b) => string.Compare(a.Domain, b.Domain, StringComparison.InvariantCultureIgnoreCase));
+        if (settings.InactiveDays is { } days)
+        {
+            var now = UnixTimeUtc.Now();
+            tenants = tenants.Where(t => t.InactiveFor(days, now)).ToList();
+        }
 
         return settings.Output switch
         {
@@ -65,7 +79,9 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         var grid = new Grid();
         grid.AddColumn(); // Domain
         grid.AddColumn(); // Id
-        grid.AddColumn(); // Enabled
+        grid.AddColumn(); // Status
+        grid.AddColumn(); // Created
+        grid.AddColumn(); // Last activity
         grid.AddColumn(); // Registration Size
         grid.AddColumn(); // Payload Size
 
@@ -74,7 +90,9 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             grid.AddRow(
                 new Text("Domain", new Style(Color.Blue)).LeftJustified(),
                 new Text("Id", new Style(Color.Blue)).LeftJustified(),
-                new Text("Enabled", new Style(Color.Blue)).LeftJustified(),
+                new Text("Status", new Style(Color.Blue)).LeftJustified(),
+                new Text("Created", new Style(Color.Blue)).LeftJustified(),
+                new Text("Last activity", new Style(Color.Blue)).LeftJustified(),
                 new Text("Reg. Size", new Style(Color.Blue)).RightJustified(),
                 new Text("Payload Size", new Style(Color.Blue)).RightJustified());
         }
@@ -85,7 +103,9 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             grid.AddRow(
                 new Text(tenant.Domain).LeftJustified(),
                 new Text(tenant.Id).LeftJustified(),
-                new Text(tenant.Enabled ? "yes" : "no").RightJustified(),
+                new Text(Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
+                new Text(tenant.CreatedText()).LeftJustified(),
+                new Text(tenant.LastActivityText()).LeftJustified(),
                 new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
                 new Text(payLoadSize).RightJustified());
         }
@@ -101,10 +121,11 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         var root = new Tree("[bold blue]Tenants[/]");
         foreach (var tenant in tenants)
         {
-            var enabled = tenant.Enabled ? "yes" : "no";
             var t = root.AddNode($"[blue]{tenant.Domain}[/]");
             t.AddNode($"[blue]Id:[/] {tenant.Id}");
-            t.AddNode($"[blue]Enabled:[/] {enabled}");
+            t.AddNode($"[blue]Status:[/] {Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}");
+            t.AddNode($"[blue]Created:[/] {tenant.CreatedText()}");
+            t.AddNode($"[blue]Last activity:[/] {tenant.LastActivityText()}");
             t.AddNode($"[blue]Registration Size:[/] {tenant.RegistrationSize.HumanReadableBytes()}");
 
             if (settings.IncludePayload)

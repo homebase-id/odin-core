@@ -161,6 +161,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
                 request.ClientFriendlyName,
                 permissionRequest: "",
                 jwkbase64UrlPublicKey: request.JwkBase64UrlPublicKey,
+                YouAuthCipher.AesCbc,
                 WebOdinContext);
 
             return new AppClientEccRegistrationResponse
@@ -181,15 +182,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
                 return NotFound();
             }
 
-            var result = new YouAuthTokenResponse
-            {
-                Base64SharedSecretCipher = Convert.ToBase64String(accessToken.SharedSecretCipher),
-                Base64SharedSecretIv = Convert.ToBase64String(accessToken.SharedSecretIv),
-                Base64ClientAuthTokenCipher = Convert.ToBase64String(accessToken.ClientAuthTokenCipher),
-                Base64ClientAuthTokenIv = Convert.ToBase64String(accessToken.ClientAuthTokenIv),
-            };
-
-            return result;
+            return YouAuthTokenResponse.From(accessToken);
         }
     }
 }

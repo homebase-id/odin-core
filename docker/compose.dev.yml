@@ -19,7 +19,10 @@ services:
 
   minio-dev:
     restart: unless-stopped
-    image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z   # same tag the tests pin
+    # RustFS, an S3 server that speaks MinIO's API and honours its env and command line. MinIO
+    # withdrew its public images in September 2026 (Docker Hub first, then quay.io). Same tag the
+    # tests pin. The web console is RustFS's own, at the same port.
+    image: rustfs/rustfs:1.0.0
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin

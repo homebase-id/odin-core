@@ -25,6 +25,9 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/unblock")]
     Task<ApiResponse<HttpContent>> Unblock([Body] OdinIdRequest request);
 
+    [Post(Root + "/remove-blocked-connection")]
+    Task<ApiResponse<HttpContent>> RemoveBlockedConnection([Body] OdinIdRequest request);
+
     [Post(Root + "/disconnect")]
     Task<ApiResponse<HttpContent>> Disconnect([Body] OdinIdRequest request);
 
@@ -57,6 +60,12 @@ public interface IConnectionNetworkHttpClientApiV2
 
     [Post(Root + "/enrollments/process")]
     Task<ApiResponse<PendingEnrollmentProcessingResult>> ProcessPendingEnrollments();
+
+    [Post(Root + "/circles/disable")]
+    Task<ApiResponse<HttpContent>> DisableCircle([Body] Guid circleId);
+
+    [Post(Root + "/circles/enable")]
+    Task<ApiResponse<HttpContent>> EnableCircle([Body] Guid circleId);
 
     [Post(Root + "/circles/revoke")]
     Task<ApiResponse<HttpContent>> RevokeCircle([Body] RevokeCircleMembershipRequest request);

@@ -1,14 +1,14 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
+using Odin.Services.Registry;
 using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenant;
 
-[Description("Disable tenant")]
-public sealed class DisableTenantCommand : AsyncCommand<DisableTenantCommand.Settings>
+[Description("Pause tenant: callers are told to retry later and its background services stop")]
+public sealed class PauseTenantCommand : AsyncCommand<PauseTenantCommand.Settings>
 {
     public sealed class Settings : ApiSettings
     {
@@ -22,16 +22,8 @@ public sealed class DisableTenantCommand : AsyncCommand<DisableTenantCommand.Set
     public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
     {
         var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
-        var response = await httpClient.PatchAsync($"tenants/{settings.TenantDomain}/disable", null);
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            throw new Exception($"Tenant {settings.TenantDomain} was not found");
-        }
-        if (response.StatusCode != HttpStatusCode.OK)
-        {
-            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
-        }
+        var previous = await TenantStatusApi.SetStatusAsync(httpClient, settings.TenantDomain, TenantStatus.Paused);
+        TenantStatusApi.WriteChange(settings.TenantDomain, previous, TenantStatus.Paused, null);
         return 0;
     }
-
 }

@@ -155,6 +155,8 @@ Why it is worth the nag: review reads a diff for correctness, and rarely notices
 
 If a finding is a design change rather than a cleanup, file it instead of widening the PR.
 
+**Always prefix the commit title with `SIMPLIFY: `** when the commit comes from a `/simplify` pass -- e.g. `SIMPLIFY: one definition of who may own a drive`. It keeps a cleanup pass legible in `git log` next to the feature work it follows, and tells a reviewer the diff is meant to preserve behaviour, so any behaviour change in it is either a bug or something the body must call out.
+
 ## Reporting findings
 
 When reporting a bug, review finding, or any analysis of this codebase, explicitly separate what was verified by reading code/tests from what was inferred or assumed. If a conclusion depends on an assumption about behavior outside this repo (external scripts, ops/ansible playbooks, infra config, runtime environment, etc.) or on unverified reasoning, say so directly in the same sentence as the claim -- do not state inferred conclusions as confirmed facts.

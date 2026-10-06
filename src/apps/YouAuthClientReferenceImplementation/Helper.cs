@@ -2,6 +2,7 @@ using System.Web;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Org.BouncyCastle.Utilities.Encoders;
 
@@ -68,6 +69,21 @@ public static class Helper
         uri = $"{path}?ss={HttpUtility.UrlEncode(OdinSystemSerializer.Serialize(payload))}";
 
         return uri;
+    }
+
+    //
+
+    /// <summary>
+    /// YouAuth [150]: opens a token response field with the cipher the response says sealed it.
+    /// Absent is CBC, from an identity that predates the choice.
+    /// </summary>
+    public static byte[] OpenTokenField(string? cipher, string base64CipherText, SensitiveByteArray exchangeSecret, string base64Iv)
+    {
+        if (!YouAuthCiphers.TryParse(cipher, out var parsed))
+        {
+            throw new Exception($"Token sealed with a cipher this client does not know: '{cipher}'");
+        }
+        return parsed.Open(Convert.FromBase64String(base64CipherText), exchangeSecret, Convert.FromBase64String(base64Iv));
     }
 
     //

@@ -58,10 +58,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
         public async Task<ActionResult<VersionInfoResult>> GetVersionInfo()
         {
             var tenantVersionInfo = await configService.GetVersionInfoAsync();
-            var (requiresUpgrade, _, failureInfo) = await versionUpgradeScheduler.RequiresUpgradeAsync();
+            var (requiresUpgrade, tenantVersion, failureInfo) = await versionUpgradeScheduler.RequiresUpgradeAsync();
 
             return new VersionInfoResult
             {
+                UpgradeState = versionUpgradeScheduler.GetUpgradeState(requiresUpgrade, tenantVersion, failureInfo),
                 RequiresUpgrade = requiresUpgrade,
                 ServerDataVersionNumber = Version.DataVersionNumber,
                 ActualDataVersionNumber = tenantVersionInfo.DataVersionNumber,
@@ -77,6 +78,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
 
 public class VersionInfoResult
 {
+    /// <summary>
+    /// What the upgrade is doing. Prefer this over <see cref="RequiresUpgrade"/>, which cannot tell
+    /// "needed but not started" from "running" from "gave up".
+    /// </summary>
+    public UpgradeState UpgradeState { get; init; }
+
+    /// <remarks>
+    /// Kept for callers written before <see cref="UpgradeState"/> existed; it is the version
+    /// comparison only, and says nothing about whether the server is currently refusing requests.
+    /// </remarks>
     public bool RequiresUpgrade { get; init; }
 
     public int ServerDataVersionNumber { get; init; }

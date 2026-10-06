@@ -28,6 +28,8 @@ public sealed class TestOwnerWebSocketListener
 
     private OwnerAuthTokenContext _authTokenContext;
 
+    public WebSocketState State => _clientWebSocket.State;
+
     private async Task OnNotificationReceived(TestClientNotification message)
     {
         if (this.NotificationReceived != null)
@@ -36,7 +38,9 @@ public sealed class TestOwnerWebSocketListener
         }
     }
 
-    public async Task ConnectAsync(OdinId identity, OwnerAuthTokenContext tokenContext, EstablishConnectionOptions options)
+    /// <param name="startReceiving">False for a client that stops reading after the handshake, so it never answers a close</param>
+    public async Task ConnectAsync(OdinId identity, OwnerAuthTokenContext tokenContext, EstablishConnectionOptions options,
+        bool startReceiving = true)
     {
         _authTokenContext = tokenContext;
 
@@ -89,7 +93,10 @@ public sealed class TestOwnerWebSocketListener
             throw new Exception("Did not receive a valid handshake");
         }
 
-        this.StartReceiving();
+        if (startReceiving)
+        {
+            this.StartReceiving();
+        }
     }
 
     public async Task DisconnectAsync()
@@ -97,7 +104,10 @@ public sealed class TestOwnerWebSocketListener
         try
         {
             await _cancellationTokenSource.CancelAsync();
-            await _receivingTask;
+            if (_receivingTask != null) // a client connected without receiving has none
+            {
+                await _receivingTask;
+            }
             _clientWebSocket.Dispose();
         }
         catch (TaskCanceledException)

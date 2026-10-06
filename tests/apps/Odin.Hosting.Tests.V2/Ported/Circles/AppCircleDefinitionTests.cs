@@ -10,6 +10,7 @@ using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -22,8 +23,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 
 /// <summary>
 /// Port of <c>AppAPI/Membership/AppCircleDefinitionTests</c>. What an app may do with circles: read
-/// definitions and members when it holds <c>ReadCircleMembership</c>, and nothing at all otherwise —
-/// no create, update, delete, enable or disable, and no peek at the system circle's members.
+/// definitions and members when it holds <c>ReadCircleMembership</c>; enable or disable a circle it
+/// owns, which needs no permission key (issue #1760); and nothing else — no create, update or
+/// delete, no toggling a circle it does not own, and no peek at the system circle's members.
 /// </summary>
 /// <remarks>
 /// The app caller is an <see cref="AppSession"/>; the two app-side Refit surfaces the V1
@@ -207,6 +209,108 @@ public class AppCircleDefinitionTests : V2Fixture
         var def1 = await CreateRandomCircle(owner);
 
         var response = await call(appClient.RefitFor<IAppCircleDefinitionClient>(), def1);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task AppCanDisableAndEnableItsOwnCircle()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+
+        // No permission keys at all: owning the circle is the app's whole authority over it.
+        var appClient = await CreateAppAndClient(owner, appId);
+        var def = await CreateRandomCircle(owner, appId);
+        var client = appClient.RefitFor<IAppCircleDefinitionClient>();
+
+        var disableResponse = await client.DisableCircleDefinition(def.Id.Value);
+        Assert.That(disableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.True);
+
+        var enableResponse = await client.EnableCircleDefinition(def.Id.Value);
+        Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
+    }
+
+    [Test]
+    public async Task OwnerCanDisableAppOwnedCircle()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        await CreateAppAndClient(owner, appId, PermissionKeys.ReadCircleMembership);
+        var def = await CreateRandomCircle(owner, appId);
+
+        var response = await owner.RefitFor<IRefitOwnerCircleDefinition>().DisableCircleDefinition(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.True);
+    }
+
+    /// <summary>
+    /// Permissions do not widen it: even holding every key an app may, the circle must name the
+    /// calling app.  One row for the owner's own circle, one for another app's.
+    /// </summary>
+    [TestCase(false, TestName = "AppFailsToDisableOwnerCircle")]
+    [TestCase(true, TestName = "AppFailsToDisableAnotherAppsCircle")]
+    public async Task AppFailsToDisableCircleItDoesNotOwn(bool ownedByAnotherApp)
+    {
+        var owner = await LoginAsOwner();
+        var appClient = await CreateAppAndClient(owner,
+            PermissionKeyAllowance.Apps.ToArray());
+
+        Guid? otherAppId = null;
+        if (ownedByAnotherApp)
+        {
+            otherAppId = Guid.NewGuid();
+            await CreateAppAndClient(owner, otherAppId.Value, PermissionKeys.ReadCircleMembership);
+        }
+
+        var def = await CreateRandomCircle(owner, otherAppId);
+
+        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().DisableCircleDefinition(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
+    }
+
+    [Test]
+    public async Task AppCanDisableAndEnableItsOwnCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        var appClient = await CreateAppAndClient(owner, appId);
+        var def = await CreateRandomCircle(owner, appId);
+        var v2 = appClient.RefitFor<IConnectionNetworkHttpClientApiV2>();
+
+        var disableResponse = await v2.DisableCircle(def.Id.Value);
+        Assert.That(disableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.True);
+
+        var enableResponse = await v2.EnableCircle(def.Id.Value);
+        Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
+    }
+
+    [Test]
+    public async Task AppFailsToDisableOwnerCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appClient = await CreateAppAndClient(owner,
+            PermissionKeyAllowance.Apps.ToArray());
+        var def = await CreateRandomCircle(owner);
+
+        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>().DisableCircle(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
+    }
+
+    [Test]
+    public async Task AppFailsToDisableSystemCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appClient = await CreateAppAndClient(owner,
+            PermissionKeyAllowance.Apps.ToArray());
+
+        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .DisableCircle(SystemCircleConstants.ConfirmedConnectionsCircleId.Value);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 

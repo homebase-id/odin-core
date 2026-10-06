@@ -285,7 +285,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                         throw new CloseWebSocketException();
                     }
 
-                    var response = new EstablishConnectionResponse();
+                    // This socket is to another identity's server; only the device's own server's
+                    // STUN names matter, so none are sent here.
+                    var response = new EstablishConnectionResponse { StunUrls = null };
                     await SendMessageAsync(
                         deviceSocket,
                         OdinSystemSerializer.Serialize(response),

@@ -29,6 +29,7 @@ using Odin.Hosting._dev;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Background;
 using Odin.Services.PublicPage;
 using Odin.Core.Storage.Database.System;
@@ -101,6 +102,21 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         // Provisioning mapping
         string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];
+
+        // Payload move mapping: the source serves a moved identity's payloads to the target, on the
+        // provisioning domain but whether or not this host provisions, and before the tenant middleware,
+        // which answers 503/409 for the paused or disabled identity being moved
+        if (config.PayloadMove.SourceEnabled)
+        {
+            app.MapWhen(
+                context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&
+                           context.Request.Path.StartsWithSegments(PayloadMoveProtocol.RootPath),
+                appBranch =>
+                {
+                    appBranch.UseRouting();
+                    appBranch.UseEndpoints(endpoints => endpoints.MapControllers());
+                });
+        }
 
         // Provisioning mapping
         if (config.Registry.ProvisioningEnabled)
@@ -566,7 +582,7 @@ public static class HostExtensions
         // Start system background services
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)
         {
-            services.StartSystemBackgroundServices().BlockingWait();
+            services.StartSystemBackgroundServices(config).BlockingWait();
         }
         else
         {

@@ -23,6 +23,9 @@ public sealed class DiskFileStore(FileReaderWriter frw) : IDriveFileStore
     public Task<byte[]> ReadBytesAsync(string path, long start, long length, CancellationToken ct = default)
         => frw.GetFileBytesAsync(path, start, length, ct);
 
+    public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
+        => Task.FromResult(frw.OpenStreamForReading(path));
+
     public Task<bool> ExistsAsync(string path, CancellationToken ct = default)
         => Task.FromResult(frw.FileExists(path));
 

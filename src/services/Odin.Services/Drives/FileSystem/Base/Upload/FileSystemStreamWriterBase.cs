@@ -13,6 +13,7 @@ using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Registry;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
@@ -41,11 +42,13 @@ public abstract class FileSystemStreamWriterBase
         TenantContext tenantContext,
         IDriveManager driveManager,
         PeerOutgoingTransferService peerOutgoingTransferService,
+        TenantQuotaGuard quotaGuard,
         ILogger logger)
     {
         FileSystem = fileSystem;
 
         _tenantContext = tenantContext;
+        QuotaGuard = quotaGuard;
 
         _driveManager = driveManager;
         _peerOutgoingTransferService = peerOutgoingTransferService;
@@ -53,6 +56,8 @@ public abstract class FileSystemStreamWriterBase
     }
 
     protected IDriveFileSystem FileSystem { get; }
+
+    protected TenantQuotaGuard QuotaGuard { get; }
 
     public FileUploadPackage Package { get; private set; }
     
@@ -102,6 +107,8 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
+        QuotaGuard.AssertCanAddPayloadBytes();
+
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
             throw new OdinClientException($"Duplicate Payload key with key {key} has already been added",
@@ -128,6 +135,8 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
     {
+        QuotaGuard.AssertCanAddPayloadBytes();
+
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
         // if you're adding a thumbnail, there must be a manifest

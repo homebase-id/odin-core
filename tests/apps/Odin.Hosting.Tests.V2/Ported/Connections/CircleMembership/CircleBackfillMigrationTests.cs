@@ -34,11 +34,12 @@ public class CircleBackfillMigrationTests : V2Fixture
 {
     /// <remarks>
     /// This fixture's subject is the v17->v18 backfill, whose error paths it drives deliberately: an
-    /// identity left out of a circle (#1785), and the swallowed key-upgrade failure tracked in #1770. Narrow
-    /// tolerations rather than a whole-fixture opt-out, so the invariant still covers the rest.
+    /// identity left out of a circle (#1785). The key-upgrade toleration that sat here is gone -- #1770
+    /// named the "requires the upgrade, has no temp key" state instead of discovering it via an NRE, so
+    /// the path this fixture drives no longer logs an Error to tolerate.
     /// </remarks>
     protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Failed to upgrade KSK Encryption", "left 1 identity(s) out of the"];
+        ["left 1 identity(s) out of the"];
 
     protected override string[] HostIdentities =>
         [Identities.Frodo, Identities.Sam, Identities.Merry, Identities.Pippin, Identities.TomBombadil];
