@@ -11,6 +11,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.LastSeen;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
@@ -85,7 +86,8 @@ public sealed partial class OdinHost
     /// </summary>
     /// <remarks>
     /// <para><b>What this DOES reset:</b> identity DB, payload tree, upload tree, inbox dir,
-    /// <see cref="PeerInboxDriveQueue"/> channel, the entire FusionCache for this host,
+    /// <see cref="PeerInboxDriveQueue"/> channel, the entire FusionCache for this host and
+    /// <see cref="LastSeenService"/>'s buffer of unsaved sightings (saved, then emptied),
     /// <see cref="TenantContext"/>'s cached <see cref="TenantSettings"/> (re-read from disk after
     /// the DB restore so settings flipped by a previous test don't leak across).</para>
     /// <para><b>What this does NOT reset</b> (and that you'd need to handle if a future test
@@ -133,6 +135,14 @@ public sealed partial class OdinHost
         if (fusionCache != null)
         {
             await fusionCache.ClearAsync();
+        }
+
+        // Last-seen reads through the cache just cleared, but throttles writes against its own buffer of
+        // unsaved sightings. Save and empty that buffer too, or a request right after the reset is not recorded
+        // where reads look.
+        if (_host.Services.GetService<ILastSeenService>() is LastSeenService lastSeen)
+        {
+            await lastSeen.UpdateDatabaseAsync();
         }
 
         foreach (var snapshot in _snapshots)

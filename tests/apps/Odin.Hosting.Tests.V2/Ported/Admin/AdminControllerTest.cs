@@ -14,6 +14,7 @@ using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Admin.Tenants;
@@ -394,6 +395,31 @@ public class AdminControllerTest : V2Fixture
         Assert.That(frodoMetrics.RegistrationSize, Is.EqualTo(tenant.RegistrationSize));
         Assert.That(frodoMetrics.PayloadPath, Is.EqualTo(tenant.PayloadPath));
         Assert.That(frodoMetrics.TotalBytes, Is.EqualTo(tenant.PayloadSize));
+        Assert.That(frodoMetrics.CreatedAt, Is.EqualTo(tenant.Created));
+        Assert.That(frodoMetrics.LastActivity, Is.EqualTo(tenant.LastActivity));
+    }
+
+    //
+
+    /// <summary>
+    /// #1863: the CLI's tenant listing shows when each identity was created and last active. That the metrics
+    /// endpoint agrees is <see cref="ItShouldSupersedeTheTenantEndpoint"/>'s job.
+    /// </summary>
+    [Test]
+    public async Task ItShouldShowWhenATenantWasCreatedAndLastActive()
+    {
+        var before = UnixTimeUtc.Now();
+        await CreatePayload(); // requests made as frodo
+
+        using var apiClient = CreateAdminClient();
+        var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}");
+        var listed = (await GetOkAsync<List<TenantModel>>(apiClient, "tenants")).Single(t => t.Domain == Identities.Frodo);
+
+        Assert.That(tenant.Created, Is.Not.Null, "the node that registered frodo knows when");
+        Assert.That(tenant.LastActivity, Is.Not.Null, "frodo just made requests");
+        Assert.That(tenant.LastActivity!.Value.milliseconds, Is.GreaterThanOrEqualTo(before.milliseconds),
+            $"last activity {tenant.LastActivity}, requests from {before}");
+        Assert.That((listed.Created, listed.LastActivity), Is.EqualTo((tenant.Created, tenant.LastActivity)));
     }
 
     //
