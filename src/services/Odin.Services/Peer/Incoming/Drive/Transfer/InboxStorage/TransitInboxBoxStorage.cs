@@ -79,21 +79,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
             PerformanceCounter.IncrementCounter("Inbox Item Checkout");
 
-            var items = records.Select(r =>
-            {
-                var item = OdinSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
+            return records.Select(FromRecord).ToList();
+        }
 
-                item.Priority = r.priority;
-                item.AddedTimestamp = r.timeStamp;
-                item.DriveId = r.boxId;
-                item.FileId = r.fileId;
-                item.Marker = r.popStamp.GetValueOrDefault();
-                item.CorrelationId = r.correlationId;
+        /// <summary>The item an inbox row holds; the row's columns are authoritative for its place in the inbox.</summary>
+        public static TransferInboxItem FromRecord(InboxRecord r)
+        {
+            var item = OdinSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
 
-                return item;
-            }).ToList();
+            item.Priority = r.priority;
+            item.AddedTimestamp = r.timeStamp;
+            item.DriveId = r.boxId;
+            item.FileId = r.fileId;
+            item.Marker = r.popStamp.GetValueOrDefault();
+            item.CorrelationId = r.correlationId;
 
-            return items;
+            return item;
         }
 
         public async Task<int> MarkCompleteAsync(InternalDriveFileId file, Guid marker)
