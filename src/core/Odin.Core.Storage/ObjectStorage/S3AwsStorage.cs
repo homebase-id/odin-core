@@ -36,10 +36,20 @@ public class S3AwsStorage : IS3Storage
     // Tune per provider / object-size profile.
     private const long UploadPartSizeBytes = 16L * 1024 * 1024;
 
-    // Max concurrent part uploads for TransferUtility. Matches the SDK
-    // default of 10. On a VPS that proxies the bytes, NIC/memory is the real ceiling; lower this if
-    // concurrent uploads contend for bandwidth.
-    private const int UploadConcurrencyLimit = 10;
+    // Max concurrent part uploads for TransferUtility. 1 = parts go up one at a time, NOT the SDK
+    // default of 10. On eu-metal (OVH S3) a file upload sent in parallel parts stalled one request
+    // into the client Timeout almost every time: 31 of 37 multipart uploads, every 4-part one, while
+    // 76 of 76 one-part-at-a-time stream uploads (up to 21 parts) never did (chat-kmp #1835). Why a
+    // parallel part hangs is not known. Sequential costs little: a 60 MB object took 1.4-2.7 s. Do
+    // not raise this without a parallel upload proven against every provider in use.
+    private const int UploadConcurrencyLimit = 1;
+
+    // Per-request ceiling for the S3 client: how long one request may run before the SDK abandons and
+    // retries it (MaxErrorRetry). It bounds a single PUT, part or server-side copy, never a whole
+    // multipart upload, and a GET only up to its response headers. No upload request carries more
+    // than one 16 MB part, and the slowest of ~42,000 logged writes on the OVH fleet took 11.6 s. It was
+    // 5 minutes, which turned one stalled request into a response every caller had given up on.
+    internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
     public string BucketName { get; }
 
@@ -808,7 +818,7 @@ public static class S3AwsStorageExtensions
                 ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
                 RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
                 MaxErrorRetry = 2,
-                Timeout = TimeSpan.FromMinutes(5),
+                Timeout = S3AwsStorage.RequestTimeout,
             }));
         return services;
     }
