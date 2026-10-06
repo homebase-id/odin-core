@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
@@ -22,6 +24,8 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.JobManagement;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Registry;
 using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Tenant.Container;
@@ -135,8 +139,7 @@ public class PayloadMoveTests
         var identityId = IdOf(TestIdentities.Frodo);
         var config = _scaffold.Services.GetRequiredService<OdinConfiguration>();
         // Through the identity's own store: on disk here, on S3 under RUN_S3_TESTS
-        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
-        await using (var scope = container.GetTenantScope(TestIdentities.Frodo.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests:delete"))
+        await using (var scope = TenantScope(TestIdentities.Frodo))
         {
             await scope.Resolve<LongTermPayloadStore>().DeleteAsync(new TenantPathManager(config, identityId)
                 .GetPayloadDirectoryAndFileName(file.driveId, file.fileId, payload.Key, payload.Uid));
@@ -204,7 +207,125 @@ public class PayloadMoveTests
         Assert.That(noJob.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    // #1871: an Inbox item a peer sent with payloads is not in the drive index until it is processed. What the
+    // move fetches for it must be exactly what the receive path stored, where it stored it.
+    [Test]
+    public async Task AQueuedInboxItemsFilesAreWhereThePeerStreamedThem()
+    {
+        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await PrepareScenarioAsync(sender, recipient, targetDrive);
+        try
+        {
+            // Encrypted, so the recipient cannot write it straight to the drive and queues it in its Inbox
+            var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+            payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+            var metadata = new UploadFileMetadata
+            {
+                AllowDistribution = true,
+                AppData = new UploadAppFileMetaData { Content = "queued for sam" },
+                AccessControlList = AccessControlList.Connected
+            };
+            var (response, _, _, _) = await sender.DriveRedux.UploadNewEncryptedFile(targetDrive, KeyHeader.NewRandom16(), metadata,
+                ManifestFor(payload), [payload], recipients: [recipient.OdinId]);
+            Assert.That(response.IsSuccessStatusCode, Is.True, response.StatusCode.ToString());
+            await sender.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+            // Sam does not process his Inbox, as an owner who has not opened the app since
+            await using var scope = TenantScope(TestIdentities.Samwise);
+            var objects = (await PayloadMoveQueues.QueuedObjectsAsync(scope.Resolve<IdentityDatabase>()))
+                .Where(o => o.DriveId == targetDrive.Alias).ToList();
+            Assert.That(objects.Select(o => o.FileId).Distinct().Count(), Is.EqualTo(1), "the one queued item");
+            Assert.That(objects, Has.Count.EqualTo(1 + payload.Thumbnails.Count), "the payload and each thumbnail");
+            await AssertStoredAsync(scope, TestIdentities.Samwise, objects);
+        }
+        finally
+        {
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
+        }
+    }
+
+    [Test]
+    public async Task AnUnsentOutboxItemsFileIsAmongTheQueuedFiles()
+    {
+        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await PrepareScenarioAsync(sender, recipient, targetDrive);
+        try
+        {
+            // A paused recipient answers 503, so the item stays in Frodo's Outbox
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Paused);
+            var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+            var metadata = new UploadFileMetadata
+            {
+                AllowDistribution = true,
+                AppData = new UploadAppFileMetaData { Content = "waiting to be sent" },
+                AccessControlList = AccessControlList.Connected
+            };
+            var response = await sender.DriveRedux.UploadNewFile(targetDrive, metadata, ManifestFor(payload), [payload],
+                new TransitOptions { Recipients = [recipient.OdinId] });
+            Assert.That(response.IsSuccessStatusCode, Is.True, response.StatusCode.ToString());
+
+            await using var scope = TenantScope(TestIdentities.Frodo);
+            var queued = await PayloadMoveQueues.QueuedObjectsAsync(scope.Resolve<IdentityDatabase>());
+            var objects = queued.Where(o => o.FileId == response.Content.File.FileId).ToList();
+            Assert.That(objects, Has.Count.EqualTo(1 + payload.Thumbnails.Count), $"queued: {string.Join(", ", queued)}");
+            await AssertStoredAsync(scope, TestIdentities.Frodo, objects);
+        }
+        finally
+        {
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Active);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
+        }
+    }
+
+    [Test]
+    public async Task ResumeWaitsForTheQueuedItemsPayloads()
+    {
+        var domain = TestIdentities.Frodo.OdinId.DomainName;
+        var identityId = IdOf(TestIdentities.Frodo);
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+
+        // A transfer whose source cannot be reached, so its queued phase never finishes
+        await PayloadMoveJob.ScheduleAsync(jobManager, identityId, "https://127.0.0.1:1", "token", 7);
+        try
+        {
+            await SetStatusAsync(domain, Status.Paused);
+
+            var refused = await SetStatusViaAdminAsync(domain, Status.Active, null);
+            var body = await refused.Content.ReadAsStringAsync();
+            Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), body);
+            Assert.That(body, Does.Contain("still arriving"));
+
+            // Out of quota runs the identity too: its Outbox would send
+            var outOfQuota = await SetStatusViaAdminAsync(domain, Status.OutOfQuota, null);
+            Assert.That(outOfQuota.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), await outOfQuota.Content.ReadAsStringAsync());
+            Assert.That(_scaffold.Services.GetRequiredService<IIdentityRegistry>().GetStatus(identityId), Is.EqualTo(Status.Paused));
+        }
+        finally
+        {
+            await jobManager.DeleteJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
+        }
+
+        await SetStatusAsync(domain, Status.Active);
+    }
+
     //
+
+    private ILifetimeScope TenantScope(TestIdentity identity) => _scaffold.Services.GetRequiredService<IMultiTenantContainer>()
+        .GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests");
+
+    private async Task AssertStoredAsync(ILifetimeScope scope, TestIdentity identity, List<PayloadObject> objects)
+    {
+        var store = scope.Resolve<LongTermPayloadStore>();
+        var paths = new TenantPathManager(_scaffold.Services.GetRequiredService<OdinConfiguration>(), IdOf(identity));
+        foreach (var o in objects)
+        {
+            Assert.That(await store.ExistsAsync(o.PathIn(paths)), Is.True, $"{o} at {o.PathIn(paths)}");
+        }
+    }
 
     private async Task<(DriveMainIndexRecord file, PayloadDescriptor payload, TargetDrive targetDrive)> UploadWithDriveAsync()
     {
@@ -224,8 +345,7 @@ public class PayloadMoveTests
         var fileId = response.Content.File.FileId;
 
         // What the target will see: the file's row, and the payload descriptors inside it
-        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
-        await using var scope = container.GetTenantScope(TestIdentities.Frodo.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests");
+        await using var scope = TenantScope(TestIdentities.Frodo);
         var (rows, _) = await scope.Resolve<IdentityDatabase>().DriveMainIndex.PagingByRowIdAsync(1000, null);
         var row = rows.Single(r => r.fileId == fileId);
         var fileMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(row.hdrFileMetaData)!;
