@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Odin.Core.Time;
 
@@ -11,10 +12,21 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 /// </summary>
 public class ShardRotationGate
 {
-    private const long CooldownMs = 60 * 60 * 1000;
+    internal const long CooldownMs = 60 * 60 * 1000;
 
+    private readonly Func<long> _nowMs;
     private int _busy;
     private long _lastFailureMs;
+
+    public ShardRotationGate() : this(() => UnixTimeUtc.Now().milliseconds)
+    {
+    }
+
+    /// <summary>For tests: <paramref name="nowMs"/> stands in for the clock.</summary>
+    internal ShardRotationGate(Func<long> nowMs)
+    {
+        _nowMs = nowMs;
+    }
 
     /// <summary>
     /// False while cooling down or while another request holds the gate; never waits. A true result
@@ -23,7 +35,7 @@ public class ShardRotationGate
     public bool TryEnter()
     {
         var lastFailureMs = Interlocked.Read(ref _lastFailureMs);
-        if (lastFailureMs != 0 && UnixTimeUtc.Now().milliseconds - lastFailureMs < CooldownMs)
+        if (lastFailureMs != 0 && _nowMs() - lastFailureMs < CooldownMs)
         {
             return false;
         }
@@ -31,7 +43,7 @@ public class ShardRotationGate
         return Interlocked.CompareExchange(ref _busy, 1, 0) == 0;
     }
 
-    public void Failed() => Interlocked.Exchange(ref _lastFailureMs, UnixTimeUtc.Now().milliseconds);
+    public void Failed() => Interlocked.Exchange(ref _lastFailureMs, _nowMs());
 
     public void Exit() => Volatile.Write(ref _busy, 0);
 }
