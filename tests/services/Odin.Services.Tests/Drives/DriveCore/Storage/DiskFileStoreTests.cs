@@ -195,6 +195,7 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         public Task DeleteAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task EnsureDirectoryAsync(string dir, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default) => throw new NotImplementedException();
         public Task CopyFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default) => throw new NotImplementedException();
         public (string bucket, string fullKey)? GetS3Location(string relativePath) => throw new NotImplementedException();
     }

@@ -33,7 +33,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             await driveAclIndex.DeleteAllRowsAsync(driveId, fileId);
             await driveTagIndex.DeleteAllRowsAsync(driveId, fileId);
-            await driveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
+            await DriveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
             await driveReactions.DeleteAllForPostAsync(driveId, fileId);
             await driveTransferHistory.DeleteAllRowsAsync(driveId, fileId);
             var n = await driveMainIndex.DeleteAsync(driveId, fileId);

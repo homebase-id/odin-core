@@ -405,6 +405,22 @@ public class S3FileStoreUnitTests
         Assert.That(captured, Is.EqualTo($"ident/drives/abc/{fileId:N}."));
     }
 
+    [TestCase("ident/drives/abc")]
+    [TestCase("ident/drives/abc/")]
+    public async Task DeleteDirectory_Deletes_The_Folder_Prefix(string dir)
+    {
+        string? captured = null;
+        var storage = new Mock<IS3Storage>();
+        storage.Setup(x => x.DeleteDirectoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, CancellationToken>((p, _) => captured = p)
+            .Returns(Task.CompletedTask);
+
+        await Sut(storage.Object).DeleteDirectoryAsync(dir);
+
+        // the trailing slash keeps a sibling such as "abcdef/" out of it
+        Assert.That(captured, Is.EqualTo("ident/drives/abc/"));
+    }
+
     [Test]
     public async Task EnsureDirectory_Is_NoOp_And_Touches_No_Storage()
     {
@@ -429,6 +445,7 @@ public class S3FileStoreUnitTests
         public Task DeleteAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteSetAsync(string d, Guid fileId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task EnsureDirectoryAsync(string d, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task DeleteDirectoryAsync(string d, CancellationToken ct = default) => throw new NotImplementedException();
         public Task CopyFromAsync(IDriveFileStore source, string src, string dst, CancellationToken ct = default) => throw new NotImplementedException();
         public (string bucket, string fullKey)? GetS3Location(string relativePath) => s3Location;
     }
