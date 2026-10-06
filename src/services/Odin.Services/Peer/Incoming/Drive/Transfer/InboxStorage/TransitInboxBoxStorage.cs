@@ -79,9 +79,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
             PerformanceCounter.IncrementCounter("Inbox Item Checkout");
 
-            var items = records.Select(FromRecord).ToList();
-
-            return items;
+            return records.Select(FromRecord).ToList();
         }
 
         /// <summary>The item an inbox row holds; the row's columns are authoritative for its place in the inbox.</summary>

@@ -30,7 +30,7 @@ public class PayloadMoveTransferTests
     private string _root = null!;
     private DiskFileStore _target = null!;
     private List<FilePayloadRow> _index = null!;
-    private List<FilePayloadRow> _queued = null!;
+    private List<PayloadObject> _queued = null!;
     private FakeSource _source = null!;
 
     [SetUp]
@@ -94,7 +94,8 @@ public class PayloadMoveTransferTests
     {
         var inboxFile = File(50);
         Seed(ObjectsOf(inboxFile));
-        _queued = [inboxFile, File(10)]; // File(10), the oldest the walk visits, is one an Outbox item sends
+        // File(10), the oldest the walk visits, is one an Outbox item sends
+        _queued = [..ObjectsOf(inboxFile), ..ObjectsOf(File(10))];
         var state = NewState();
 
         var result = await Transfer(parallelism: 1).RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
@@ -113,7 +114,7 @@ public class PayloadMoveTransferTests
     [Test]
     public async Task AStallInTheQueuedPhaseKeepsItAndTheResumeHoldPending()
     {
-        _queued = [File(30)];
+        _queued = [..ObjectsOf(File(30))];
         _source.ThrottleNextFetches = 1;
         var state = NewState();
 
@@ -133,7 +134,7 @@ public class PayloadMoveTransferTests
     [Test]
     public async Task AQueuedObjectTheSourceLacksIsAFailureAndReleasesTheResumeHold()
     {
-        _queued = [File(60)]; // never on the source
+        _queued = [..ObjectsOf(File(60))]; // never on the source
         var state = NewState();
 
         // No budget: the queued phase runs, the walk does not

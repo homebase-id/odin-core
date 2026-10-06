@@ -133,8 +133,7 @@ public static class IdentityJsonImporter
 
             if (skip.Contains(table))
             {
-                result.SkippedRowsByTable.TryGetValue(table, out var soFar);
-                result.SkippedRowsByTable[table] = soFar + 1;
+                Count(result.SkippedRowsByTable, table);
                 continue;
             }
 
@@ -147,8 +146,7 @@ public static class IdentityJsonImporter
 
             if (leaveOutRow?.Invoke(db, table, record) is { } reason)
             {
-                result.LeftOutRows.TryGetValue((table, reason), out var leftSoFar);
-                result.LeftOutRows[(table, reason)] = leftSoFar + 1;
+                Count(result.LeftOutRows, (table, reason));
                 continue;
             }
 
@@ -159,8 +157,7 @@ public static class IdentityJsonImporter
 
             if (record is InboxRecord or OutboxRecord)
             {
-                result.CarriedQueueItemsByTable.TryGetValue(table, out var carriedSoFar);
-                result.CarriedQueueItemsByTable[table] = carriedSoFar + 1;
+                Count(result.CarriedQueueItemsByTable, table);
             }
         }
 
@@ -179,6 +176,9 @@ public static class IdentityJsonImporter
             logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
         }
     }
+
+    private static void Count<TKey>(Dictionary<TKey, long> counts, TKey key) where TKey : notnull =>
+        counts[key] = counts.GetValueOrDefault(key) + 1;
 
     // A queued item the source had claimed for processing or sending when it was paused is free again
     // here: no node of the target holds that claim. Its retry state (checkOutCount, nextRunTime) stays.

@@ -28,7 +28,7 @@ public enum SliceEnd
 public readonly record struct SliceResult(SliceEnd End, TimeSpan Wait = default);
 
 /// <summary>
-/// The target side of a payload move, one slice at a time. First the files the carried Inbox and Outbox items
+/// The target side of a payload move, one slice at a time. First the objects the carried Inbox and Outbox items
 /// need (<see cref="PayloadMoveQueues"/>), then newest files first, from the cursor down to the oldest file the
 /// import brought, fetching each file's payloads and thumbnails from the source, at most <c>parallelism</c> at
 /// once, into the target store. Everything it needs to resume is in the <see cref="PayloadMoveState"/> it is
@@ -37,7 +37,7 @@ public readonly record struct SliceResult(SliceEnd End, TimeSpan Wait = default)
 public sealed class PayloadMoveTransfer(
     IPayloadMoveSourceClient source,
     IDriveFileStore target,
-    Func<Task<List<FilePayloadRow>>> queuedFiles,
+    Func<Task<List<PayloadObject>>> queuedObjects,
     Func<long, int, Task<List<FilePayloadRow>>> filesBelow,
     Func<PayloadObject, string> targetPathOf,
     int parallelism,
@@ -64,10 +64,10 @@ public sealed class PayloadMoveTransfer(
             return state.IsFinished ? new SliceResult(SliceEnd.Finished) : Backoff(state, null);
         }
 
-        // The queued items' files in one go, not against the budget: queues are a few dozen items
+        // The queued items' objects in one go, not against the budget: queues are a few dozen items
         if (!state.QueuedItemsDone)
         {
-            if (await TransferFilesAsync(state, await queuedFiles(), cancellationToken) is { } wait)
+            if (await TransferObjectsAsync(state, await queuedObjects(), cancellationToken) is { } wait)
             {
                 return wait;
             }
@@ -84,11 +84,14 @@ public sealed class PayloadMoveTransfer(
                 return await FinishAsync(state, cancellationToken);
             }
 
-            if (await TransferFilesAsync(state, files, cancellationToken) is { } wait)
+            var unreadable = new List<string>();
+            var objects = files.SelectMany(file => ObjectsOf(file, unreadable)).ToList();
+            if (await TransferObjectsAsync(state, objects, cancellationToken) is { } wait)
             {
                 return wait;
             }
 
+            unreadable.ForEach(state.AddFailure);
             state.Files += files.Count;
             state.CursorRowId = files.Min(file => file.RowId);
         }
@@ -98,12 +101,10 @@ public sealed class PayloadMoveTransfer(
 
     //
 
-    // Fetches the files' objects and counts how it went, or returns the wait if the source stalled
-    private async Task<SliceResult?> TransferFilesAsync(PayloadMoveState state, List<FilePayloadRow> files,
+    // Fetches the objects and counts how it went, or returns the wait if the source stalled
+    private async Task<SliceResult?> TransferObjectsAsync(PayloadMoveState state, List<PayloadObject> objects,
         CancellationToken cancellationToken)
     {
-        var unreadable = new List<string>();
-        var objects = files.SelectMany(file => ObjectsOf(file, unreadable)).Distinct().ToList();
         var outcomes = await TransferAsync(objects, state.Credential!, cancellationToken);
 
         // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
@@ -114,7 +115,6 @@ public sealed class PayloadMoveTransfer(
             return Backoff(state, stalled.Max(o => o.outcome.RetryAfter));
         }
 
-        unreadable.ForEach(state.AddFailure);
         foreach (var (payloadObject, outcome) in outcomes)
         {
             switch (outcome.Result)
@@ -271,8 +271,8 @@ public sealed class PayloadMoveTransfer(
         }
     }
 
-    // A file's stored objects: each payload and its thumbnails. Files whose payloads live elsewhere, and
-    // deleted files, have none.
+    // A file's stored objects (PayloadObject.AllOf). A deleted file has none; a header that cannot be read has
+    // none and is reported.
     private static IEnumerable<PayloadObject> ObjectsOf(FilePayloadRow file, List<string> unreadable)
     {
         FileMetadata? metadata = null;
@@ -285,19 +285,6 @@ public sealed class PayloadMoveTransfer(
             unreadable.Add($"file {file.FileId}: its header could not be read ({e.Message})");
         }
 
-        if (metadata == null || metadata.PayloadsAreRemote || metadata.Payloads == null)
-        {
-            yield break;
-        }
-
-        foreach (var payload in metadata.Payloads)
-        {
-            yield return new PayloadObject(file.DriveId, file.FileId, payload.Key, payload.Uid, payload.BytesWritten);
-            foreach (var thumbnail in payload.Thumbnails ?? [])
-            {
-                yield return new PayloadObject(file.DriveId, file.FileId, payload.Key, payload.Uid, thumbnail.BytesWritten,
-                    thumbnail.PixelWidth, thumbnail.PixelHeight);
-            }
-        }
+        return PayloadObject.AllOf(file.DriveId, file.FileId, metadata);
     }
 }

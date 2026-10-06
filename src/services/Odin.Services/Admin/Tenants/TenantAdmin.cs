@@ -372,7 +372,7 @@ public class TenantAdmin(
     {
         // A moved identity's owner app would process its carried Inbox items, and its Outbox would send, before
         // their payloads are here (#1871)
-        if (status == TenantStatus.Active && await payloadMoveAdmin.HoldsResumeAsync(domain))
+        if (TenantStatusRules.RunsBackgroundServices(status) && await payloadMoveAdmin.HoldsResumeAsync(domain))
         {
             throw new OdinClientException(
                 $"The payloads of {domain}'s queued Inbox and Outbox items are still arriving from the source. " +

@@ -101,7 +101,7 @@ public class PayloadMoveJob(
             new HttpPayloadMoveSourceClient(httpClientFactory, Data.BaseUrl, identityId,
                 allowUntrustedServerCertificate: !config.CertificateRenewal.UseCertificateAuthorityProductionServers),
             scope.Resolve<LongTermPayloadStore>(),
-            () => PayloadMoveQueues.QueuedFilesAsync(identityDatabase),
+            () => PayloadMoveQueues.QueuedObjectsAsync(identityDatabase),
             (belowRowId, count) => identityDatabase.DriveMainIndex.GetFilePayloadRowsBelowAsync(belowRowId, count),
             o => o.PathIn(paths),
             config.PayloadMove.Parallelism,
