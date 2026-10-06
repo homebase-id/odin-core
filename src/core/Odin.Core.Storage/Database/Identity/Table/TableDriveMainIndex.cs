@@ -577,15 +577,33 @@ public class TableDriveMainIndex(
         await using var rdr = await cmd.ExecuteReaderAsync();
         while (await rdr.ReadAsync())
         {
-            result.Add(new FilePayloadRow(
-                (long)rdr[0],
-                new Guid((byte[])rdr[1]),
-                new Guid((byte[])rdr[2]),
-                rdr[3] == DBNull.Value ? null : (string)rdr[3]));
+            result.Add(ReadFilePayloadRow(rdr));
         }
 
         return result;
     }
+
+    /// <summary>One file's header, as <see cref="GetFilePayloadRowsBelowAsync"/> reads it; null if there is no such file.</summary>
+    public async Task<FilePayloadRow> GetFilePayloadRowAsync(Guid driveId, Guid fileId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "SELECT rowId,driveId,fileId,hdrFileMetaData FROM DriveMainIndex " +
+            "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        return await rdr.ReadAsync() ? ReadFilePayloadRow(rdr) : null;
+    }
+
+    private static FilePayloadRow ReadFilePayloadRow(DbDataReader rdr) => new(
+        (long)rdr[0],
+        new Guid((byte[])rdr[1]),
+        new Guid((byte[])rdr[2]),
+        rdr[3] == DBNull.Value ? null : (string)rdr[3]);
 
     /// <summary>This identity's highest file rowId, or 0 if it has no files.</summary>
     public async Task<long> GetMaxRowIdAsync()
