@@ -17,6 +17,9 @@ step by step and in order. It touches production identities, production DNS and 
 - **Never run `populate-managed-domain-records` or `create-own-domain-zones` on a source host.** They
   rewrite the DNS of every identity the host has registered, the moved one included, back to the
   source. The move uses `repoint-identity-dns`, which writes one identity.
+- **A resume refused because queued items' payloads are "still arriving" is expected**, not something
+  unexpected: show it, wait until `payload-move` reads "Queued items: payloads fetched", and ask again.
+  If it does not get there within a few minutes, stop and report it.
 - **Email does not move.** If the export prints `Leaving DKIM key ... behind`, the identity has email
   activated: stop and ask the operator before importing it (README, "Email does not move (yet)").
 - **Test identities only, until the operator says otherwise.** The payload transfer is new; the first

@@ -111,6 +111,23 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
         }
     }
 
+    /// <summary>
+    /// Whether this identity, moved here, must stay down until its carried queue items' payloads arrive
+    /// (<see cref="PayloadMoveState.HoldsResume"/>). Never for an identity without a transfer here.
+    /// </summary>
+    public async Task<bool> HoldsResumeAsync(string domain)
+    {
+        if (await registry.GetAsync(domain) is not { } registration || await LoadJobAsync(registration.Id) is not { } job)
+        {
+            return false;
+        }
+
+        using (job)
+        {
+            return job.Data.HoldsResume;
+        }
+    }
+
     private async Task<PayloadMoveJob?> LoadJobAsync(Guid identityId)
     {
         var record = await jobManager.GetJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
