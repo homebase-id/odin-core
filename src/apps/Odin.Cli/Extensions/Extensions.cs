@@ -1,5 +1,6 @@
 using System.Globalization;
 using Odin.Core.Time;
+using Odin.Services.Admin.Tenants;
 
 namespace Odin.Cli.Extensions;
 
@@ -22,7 +23,11 @@ public static class Extensions
 
     /// <summary>A time as every command shows it: UTC, so hosts in different regions read alike.</summary>
     public static string ToCliTime(this UnixTimeUtc time) =>
-        time.ToDateTimeOffset().UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+        time.ToDateTime().ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
 
     public static string ToCliTime(this UnixTimeUtc? time, string absent = "-") => time?.ToCliTime() ?? absent;
+
+    public static string CreatedText(this TenantModel tenant) => tenant.Created.ToCliTime();
+
+    public static string LastActivityText(this TenantModel tenant) => tenant.LastActivity.ToCliTime("never");
 }

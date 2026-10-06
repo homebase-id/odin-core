@@ -511,9 +511,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var version = await CommitRegistryChangeLockedAsync(systemDatabase, registration.Id,
             () => systemDatabase.Registrations.UpsertAsync(record));
 
-        // The row's own creation time, which the upsert returns. A new registration has none until now; without
-        // this, the node that created an identity reported no Created for it until it restarted (#1863).
-        registration.Created = record.created;
+        // What is cached is what the row says, as on every other node and after a restart: the upsert returns the
+        // row's creation time, and the record normalises the email and plan. Without this, the node that created
+        // an identity reported no Created for it until it restarted (#1863).
+        CopyFields(registration, record);
 
         _logger.LogInformation("Wrote registration record for [{registrationId}] at registry version {version}",
             registration.Id, version);

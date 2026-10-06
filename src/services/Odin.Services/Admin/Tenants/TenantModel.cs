@@ -23,13 +23,11 @@ public class TenantModel
     public string? PayloadPath { get; set; } = null;
     public long? PayloadSize { get; set; } = null;
 
-    /// <summary>When the identity was registered. A move keeps it.</summary>
+    /// <summary>As <see cref="TenantMetricsModel.CreatedAt"/>. A move keeps it.</summary>
     public UnixTimeUtc? Created { get; set; }
 
     /// <summary>
-    /// The last request made as this identity on this host: its owner or apps, or the identity calling a peer hosted
-    /// here, its own background jobs included. Not an owner login. Null when not seen here in the last 365 days; a
-    /// move does not carry it.
+    /// As <see cref="TenantMetricsModel.LastActivity"/>: kept for 365 days, per host, and not carried by a move.
     /// </summary>
     public UnixTimeUtc? LastActivity { get; set; }
 

@@ -69,8 +69,8 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
             new Text(tenant.Id).LeftJustified(),
             new Text(TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
             new Text(tenant.EnablePublicWebPresence ? "yes" : "no").LeftJustified(),
-            new Text(tenant.Created.ToCliTime()).LeftJustified(),
-            new Text(tenant.LastActivity.ToCliTime("never")).LeftJustified(),
+            new Text(tenant.CreatedText()).LeftJustified(),
+            new Text(tenant.LastActivityText()).LeftJustified(),
             new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
             new Text(payLoadSize).RightJustified());
 

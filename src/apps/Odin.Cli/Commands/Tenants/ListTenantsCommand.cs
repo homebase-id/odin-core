@@ -12,7 +12,7 @@ using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenants;
 
-[Description("List all tenants in root directory, with when each was created and last active on this host")]
+[Description("List all tenants in root directory")]
 public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Settings>
 {
     public sealed class Settings : ApiSettings
@@ -36,7 +36,7 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
 
         [Description("Only identities with no activity on this host in the last N days, or none at all. " +
                      "Activity is a request made as the identity here: its owner or apps, or its calls to peers on " +
-                     "this host, including its own background jobs' (such as the monthly recovery-shard check). " +
+                     "this host, its own background jobs' included. " +
                      "It is not an owner login, is kept for 365 days, and does not move with the identity.")]
         [CommandOption("--inactive-days <DAYS>")]
         public int? InactiveDays { get; set; }
@@ -104,8 +104,8 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
                 new Text(tenant.Domain).LeftJustified(),
                 new Text(tenant.Id).LeftJustified(),
                 new Text(Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
-                new Text(tenant.Created.ToCliTime()).LeftJustified(),
-                new Text(tenant.LastActivity.ToCliTime("never")).LeftJustified(),
+                new Text(tenant.CreatedText()).LeftJustified(),
+                new Text(tenant.LastActivityText()).LeftJustified(),
                 new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
                 new Text(payLoadSize).RightJustified());
         }
@@ -124,8 +124,8 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             var t = root.AddNode($"[blue]{tenant.Domain}[/]");
             t.AddNode($"[blue]Id:[/] {tenant.Id}");
             t.AddNode($"[blue]Status:[/] {Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}");
-            t.AddNode($"[blue]Created:[/] {tenant.Created.ToCliTime()}");
-            t.AddNode($"[blue]Last activity:[/] {tenant.LastActivity.ToCliTime("never")}");
+            t.AddNode($"[blue]Created:[/] {tenant.CreatedText()}");
+            t.AddNode($"[blue]Last activity:[/] {tenant.LastActivityText()}");
             t.AddNode($"[blue]Registration Size:[/] {tenant.RegistrationSize.HumanReadableBytes()}");
 
             if (settings.IncludePayload)
