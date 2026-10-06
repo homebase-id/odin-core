@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 
 #nullable enable
@@ -18,6 +19,12 @@ public class ImportResult
     public ExportHeader Header { get; init; } = new();
     public long RowsImported { get; set; }
     public Dictionary<string, long> SkippedRowsByTable { get; } = new();
+
+    /// <summary>Queued Inbox and Outbox items that came along, by table.</summary>
+    public Dictionary<string, long> CarriedQueueItemsByTable { get; } = new();
+
+    /// <summary>Rows a <see cref="RowFilter"/> left out, by table and reason.</summary>
+    public Dictionary<(string table, string reason), long> LeftOutRows { get; } = new();
 }
 
 // Reads an identity export file and replays it into an empty target.
@@ -26,21 +33,16 @@ public class ImportResult
 // The default is to import, so a table added to the generator flows through untouched.
 public static class IdentityJsonImporter
 {
-    // Transient state that describes the SOURCE system's in-flight work rather than the
-    // identity, and that ranges from useless to actively broken on the target.
+    // Nonce rows are short-lived auth nonces; none is still valid by import time.
     //
-    //   Inbox  - rows reference staged files in the inbox folder, which are temp state and
-    //            out of scope. Importing them guarantees "File does not exist <inbox key>".
-    //   Nonce  - short-lived auth nonces; none is still valid by import time.
-    //   Outbox - rows reference long-term files that ARE exported, so replay is structurally
-    //            sound once payloads land. Skipped because we cannot verify payloads are
-    //            present, nor whether the source is still live and also sending.
+    // The Inbox and Outbox queues move with the identity (#1871): messages received but not yet
+    // processed, and messages not yet sent. Their payloads come with the payload move, which fetches
+    // the queued items' payloads before anything else; the source was paused before the export, so it
+    // is not sending them too. An Inbox item from before #1568, whose files are in the source's inbox
+    // folder, cannot come along; the CLI leaves those out with a RowFilter.
     //
     // The export can leave tables out too (leaveOutTables): the CLI leaves DkimKeys out (IdentityKeyMaterial).
-    public static readonly IReadOnlySet<string> DefaultSkippedTables =
-        new HashSet<string> { "Inbox", "Outbox", "Nonce" };
-
-    private static readonly IReadOnlySet<string> QueueTables = new HashSet<string> { "Inbox", "Outbox" };
+    public static readonly IReadOnlySet<string> DefaultSkippedTables = new HashSet<string> { "Nonce" };
 
     public static async Task<ImportResult> ImportAsync(
         ILogger logger,
@@ -50,7 +52,8 @@ public static class IdentityJsonImporter
         bool commit,
         IReadOnlySet<string>? skipTables = null,
         Func<Task>? beforeCommit = null,
-        RowRewriter? rewriteRow = null)
+        RowRewriter? rewriteRow = null,
+        RowFilter? leaveOutRow = null)
     {
         var skip = skipTables ?? DefaultSkippedTables;
 
@@ -84,7 +87,8 @@ public static class IdentityJsonImporter
                     leftovers, header.Domain);
             }
 
-            await ImportRowsAsync(logger, enumerator, targetSystemDatabase, targetIdentityDatabase, skip, rewriteRow, result);
+            await ImportRowsAsync(logger, enumerator, targetSystemDatabase, targetIdentityDatabase, skip, rewriteRow,
+                leaveOutRow, result);
 
             if (beforeCommit != null)
             {
@@ -112,6 +116,7 @@ public static class IdentityJsonImporter
         IdentityDatabase targetIdentityDatabase,
         IReadOnlySet<string> skip,
         RowRewriter? rewriteRow,
+        RowFilter? leaveOutRow,
         ImportResult result)
     {
         while (await MoveNextAsync(enumerator))
@@ -140,25 +145,49 @@ public static class IdentityJsonImporter
                 _ => throw new IdentityImportRefusedException($"Unknown db discriminator '{db}' for table {table}.")
             };
 
-            record = rewriteRow?.Invoke(db, table, record) ?? record;
+            if (leaveOutRow?.Invoke(db, table, record) is { } reason)
+            {
+                result.LeftOutRows.TryGetValue((table, reason), out var leftSoFar);
+                result.LeftOutRows[(table, reason)] = leftSoFar + 1;
+                continue;
+            }
+
+            record = ReleaseQueueClaim(rewriteRow?.Invoke(db, table, record) ?? record);
             result.RowsImported += db == IdentityExportFile.DbIdentity
                 ? await targetIdentityDatabase.ImportRowAsync(table, record)
                 : await targetSystemDatabase.ImportRowAsync(table, record);
+
+            if (record is InboxRecord or OutboxRecord)
+            {
+                result.CarriedQueueItemsByTable.TryGetValue(table, out var carriedSoFar);
+                result.CarriedQueueItemsByTable[table] = carriedSoFar + 1;
+            }
+        }
+
+        foreach (var (table, count) in result.CarriedQueueItemsByTable.OrderBy(kv => kv.Key))
+        {
+            logger.LogInformation("  carried {table}: {count} queued item(s)", table, count);
+        }
+
+        foreach (var ((table, reason), count) in result.LeftOutRows.OrderBy(kv => kv.Key.table))
+        {
+            logger.LogWarning("  left {table}: {count} row(s) behind: {reason}", table, count, reason);
         }
 
         foreach (var (table, count) in result.SkippedRowsByTable.OrderBy(kv => kv.Key))
         {
-            if (QueueTables.Contains(table))
-            {
-                // Messages still waiting to be received or sent: they do not arrive on the target
-                logger.LogWarning("  skipped {table}: {count} queued item(s), which do not move with the identity", table, count);
-            }
-            else
-            {
-                logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
-            }
+            logger.LogInformation("  skipped {table}: {count} row(s)", table, count);
         }
     }
+
+    // A queued item the source had claimed for processing or sending when it was paused is free again
+    // here: no node of the target holds that claim. Its retry state (checkOutCount, nextRunTime) stays.
+    private static object ReleaseQueueClaim(object record) => record switch
+    {
+        InboxRecord inbox => inbox with { popStamp = null },
+        OutboxRecord outbox => outbox with { checkOutStamp = null },
+        _ => record
+    };
 
     // Reads only the header, the file's first element: the rows after it are not parsed, and
     // the reader holds no more of the file than that element.

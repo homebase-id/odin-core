@@ -28,14 +28,16 @@ public enum SliceEnd
 public readonly record struct SliceResult(SliceEnd End, TimeSpan Wait = default);
 
 /// <summary>
-/// The target side of a payload move, one slice at a time: newest files first, from the cursor down to the
-/// oldest file the import brought, fetching each file's payloads and thumbnails from the source, at most
-/// <c>parallelism</c> at once, into the target store. Everything it needs to resume is in the
-/// <see cref="PayloadMoveState"/> it is given. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
+/// The target side of a payload move, one slice at a time. First the files the carried Inbox and Outbox items
+/// need (<see cref="PayloadMoveQueues"/>), then newest files first, from the cursor down to the oldest file the
+/// import brought, fetching each file's payloads and thumbnails from the source, at most <c>parallelism</c> at
+/// once, into the target store. Everything it needs to resume is in the <see cref="PayloadMoveState"/> it is
+/// given. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
 /// </summary>
 public sealed class PayloadMoveTransfer(
     IPayloadMoveSourceClient source,
     IDriveFileStore target,
+    Func<Task<List<FilePayloadRow>>> queuedFiles,
     Func<long, int, Task<List<FilePayloadRow>>> filesBelow,
     Func<PayloadObject, string> targetPathOf,
     int parallelism,
@@ -62,6 +64,17 @@ public sealed class PayloadMoveTransfer(
             return state.IsFinished ? new SliceResult(SliceEnd.Finished) : Backoff(state, null);
         }
 
+        // The queued items' files in one go, not against the budget: queues are a few dozen items
+        if (!state.QueuedItemsDone)
+        {
+            if (await TransferFilesAsync(state, await queuedFiles(), cancellationToken) is { } wait)
+            {
+                return wait;
+            }
+
+            state.QueuedItemsDone = true;
+        }
+
         var until = DateTimeOffset.UtcNow + budget;
         while (DateTimeOffset.UtcNow < until)
         {
@@ -71,47 +84,59 @@ public sealed class PayloadMoveTransfer(
                 return await FinishAsync(state, cancellationToken);
             }
 
-            var unreadable = new List<string>();
-            var objects = files.SelectMany(file => ObjectsOf(file, unreadable)).ToList();
-            var outcomes = await TransferAsync(objects, state.Credential!, cancellationToken);
-
-            // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
-            // wait. What did land is skipped next time, so nothing is fetched twice.
-            var stalled = outcomes.Where(o => o.outcome.Result == Result.Stalled).ToList();
-            if (stalled.Count > 0)
+            if (await TransferFilesAsync(state, files, cancellationToken) is { } wait)
             {
-                return Backoff(state, stalled.Max(o => o.outcome.RetryAfter));
-            }
-
-            unreadable.ForEach(state.AddFailure);
-            foreach (var (payloadObject, outcome) in outcomes)
-            {
-                switch (outcome.Result)
-                {
-                    case Result.Transferred:
-                        state.Objects++;
-                        state.Bytes += outcome.Bytes;
-                        break;
-                    case Result.Skipped:
-                        state.Skipped++;
-                        break;
-                    case Result.Failed:
-                        state.AddFailure($"{payloadObject}: {outcome.Failure}");
-                        logger.LogWarning("Payload move could not transfer {object}: {failure}", payloadObject, outcome.Failure);
-                        break;
-                }
+                return wait;
             }
 
             state.Files += files.Count;
             state.CursorRowId = files.Min(file => file.RowId);
-            state.BackoffSeconds = 0;
-            state.Status = PayloadMoveStatus.Transferring;
         }
 
         return new SliceResult(SliceEnd.Continue);
     }
 
     //
+
+    // Fetches the files' objects and counts how it went, or returns the wait if the source stalled
+    private async Task<SliceResult?> TransferFilesAsync(PayloadMoveState state, List<FilePayloadRow> files,
+        CancellationToken cancellationToken)
+    {
+        var unreadable = new List<string>();
+        var objects = files.SelectMany(file => ObjectsOf(file, unreadable)).Distinct().ToList();
+        var outcomes = await TransferAsync(objects, state.Credential!, cancellationToken);
+
+        // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
+        // wait. What did land is skipped next time, so nothing is fetched twice.
+        var stalled = outcomes.Where(o => o.outcome.Result == Result.Stalled).ToList();
+        if (stalled.Count > 0)
+        {
+            return Backoff(state, stalled.Max(o => o.outcome.RetryAfter));
+        }
+
+        unreadable.ForEach(state.AddFailure);
+        foreach (var (payloadObject, outcome) in outcomes)
+        {
+            switch (outcome.Result)
+            {
+                case Result.Transferred:
+                    state.Objects++;
+                    state.Bytes += outcome.Bytes;
+                    break;
+                case Result.Skipped:
+                    state.Skipped++;
+                    break;
+                case Result.Failed:
+                    state.AddFailure($"{payloadObject}: {outcome.Failure}");
+                    logger.LogWarning("Payload move could not transfer {object}: {failure}", payloadObject, outcome.Failure);
+                    break;
+            }
+        }
+
+        state.BackoffSeconds = 0;
+        state.Status = PayloadMoveStatus.Transferring;
+        return null;
+    }
 
     private async Task<bool> RedeemAsync(PayloadMoveState state, CancellationToken cancellationToken)
     {
