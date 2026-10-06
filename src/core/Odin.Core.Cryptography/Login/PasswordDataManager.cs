@@ -157,19 +157,7 @@ namespace Odin.Core.Cryptography.Login
             if (hostEccFullKey == null)
                 throw new Exception("no matching ECC key");
 
-            // The client's key comes off the wire. BouncyCastle rejects a coordinate outside the field or a point
-            // off the curve with an ArgumentException; that is the caller's bad input, not a server fault (#1812).
-            EccPublicKeyData clientPublicKey;
-            try
-            {
-                clientPublicKey = EccPublicKeyData.FromJwkPublicKey(reply.PublicKeyJwk);
-            }
-            catch (ArgumentException)
-            {
-                throw new OdinClientException("Invalid Jwk public key");
-            }
-
-            var decryptedGcm = DeriveSsAndGcmDecrypt(hostEccFullKey, clientPublicKey, reply.GcmEncrypted64.FromBase64(), reply.Nonce64.FromBase64());
+            var decryptedGcm = DeriveSsAndGcmDecrypt(hostEccFullKey, EccPublicKeyData.FromJwkPublicKey(reply.PublicKeyJwk), reply.GcmEncrypted64.FromBase64(), reply.Nonce64.FromBase64());
 
             string originalResult = decryptedGcm.ToStringFromUtf8Bytes();
 

@@ -92,7 +92,9 @@ namespace Odin.Core.Cryptography.Data
 
                 return publicKey;
             }
-            catch (FormatException)
+            // Malformed base64 throws FormatException; BouncyCastle rejects a coordinate outside the field or a
+            // point off the curve with ArgumentException. Either way the JWK is invalid input (#1812).
+            catch (Exception e) when (e is FormatException or ArgumentException)
             {
                 throw new OdinClientException("Invalid Jwk public key format");
             }
@@ -375,7 +377,7 @@ namespace Odin.Core.Cryptography.Data
 
                 return new EccFullKeyData(key, keys, hours, 0, 0);
             }
-            catch (FormatException)
+            catch (Exception e) when (e is FormatException or ArgumentException) // see FromJwkPublicKey
             {
                 throw new OdinClientException("Invalid Jwk private key format");
             }
