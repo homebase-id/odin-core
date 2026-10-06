@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Http;
 using Odin.Core.Serialization;
 
 #nullable enable
@@ -45,7 +46,11 @@ public interface IPayloadMoveSourceClient
 /// <see cref="FetchResult.Unavailable"/> rather than an exception, so it is retried instead of surfacing to
 /// the job runner as a cancellation.
 /// </summary>
-public class HttpPayloadMoveSourceClient(HttpClient client, string baseUrl, Guid identityId) : IPayloadMoveSourceClient
+public class HttpPayloadMoveSourceClient(
+    IDynamicHttpClientFactory httpClientFactory,
+    string baseUrl,
+    Guid identityId,
+    bool allowUntrustedServerCertificate = false) : IPayloadMoveSourceClient
 {
     public static readonly TimeSpan ObjectTimeout = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(1);
@@ -89,6 +94,16 @@ public class HttpPayloadMoveSourceClient(HttpClient client, string baseUrl, Guid
 
     private Uri Url(string path) => new(new Uri(baseUrl), path);
 
+    // A client per call: a slice runs for minutes, longer than the factory keeps a handler, and a client held
+    // across it fails every call once the factory disposes the handler it was made with (#1867)
+    private HttpClient NewClient()
+    {
+        var client = httpClientFactory.CreateClient($"PayloadMove:{new Uri(baseUrl).Authority}",
+            c => c.AllowUntrustedServerCertificate = allowUntrustedServerCertificate);
+        client.Timeout = Timeout.InfiniteTimeSpan; // each call has its own
+        return client;
+    }
+
     private async Task<FetchOutcome> SendAsync(HttpRequestMessage request, TimeSpan timeout, Func<HttpResponseMessage, Task> onOk,
         CancellationToken cancellationToken)
     {
@@ -97,7 +112,7 @@ public class HttpPayloadMoveSourceClient(HttpClient client, string baseUrl, Guid
         try
         {
             using (request)
-            using (var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutSource.Token))
+            using (var response = await NewClient().SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutSource.Token))
             {
                 switch (response.StatusCode)
                 {
