@@ -30,6 +30,7 @@ public class PayloadMoveTransferTests
     private string _root = null!;
     private DiskFileStore _target = null!;
     private List<FilePayloadRow> _index = null!;
+    private List<PayloadObject> _queued = null!;
     private FakeSource _source = null!;
 
     [SetUp]
@@ -52,6 +53,7 @@ public class PayloadMoveTransferTests
         // Three files the import brought (rowIds 10, 20, 30), each a payload with one thumbnail, and one made on
         // the target after the import (40), whose payloads were never on the source
         _index = [File(10), File(20), File(30), File(40)];
+        _queued = [];
         _source = new FakeSource();
         Seed(ImportedObjects());
     }
@@ -83,6 +85,86 @@ public class PayloadMoveTransferTests
         Assert.That(_source.Fetched.Select(p => p.FileId).Distinct(),
             Is.EqualTo(new[] { FileIdOf(30), FileIdOf(20), FileIdOf(10) }), "newest first");
         Assert.That(_source.Fetched.Any(p => p.FileId == FileIdOf(40)), Is.False, "a file made after the import is not the source's");
+    }
+
+    // #1871: an Inbox item's files are not in the index until it is processed, and an Outbox item's file may be
+    // far down the walk; both are fetched before the walk starts
+    [Test]
+    public async Task FetchesTheQueuedItemsFilesBeforeTheWalkAndNothingTwice()
+    {
+        var inboxFile = File(50);
+        Seed(ObjectsOf(inboxFile));
+        // File(10), the oldest the walk visits, is one an Outbox item sends
+        _queued = [..ObjectsOf(inboxFile), ..ObjectsOf(File(10))];
+        var state = NewState();
+
+        var result = await Transfer(parallelism: 1).RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete), string.Join("; ", state.Failures));
+        Assert.That(state.QueuedItemsDone, Is.True);
+        Assert.That(_source.Fetched.Select(p => p.FileId).Distinct(),
+            Is.EqualTo(new[] { FileIdOf(50), FileIdOf(10), FileIdOf(30), FileIdOf(20) }), "the queued items' files first");
+        Assert.That(_source.Fetched, Has.Count.EqualTo(8), "the walk skips what the queued phase brought");
+        Assert.That(state.Objects, Is.EqualTo(8));
+        Assert.That(state.Skipped, Is.EqualTo(2));
+        Assert.That(state.Files, Is.EqualTo(3), "files counts the walk");
+    }
+
+    [Test]
+    public async Task AStallInTheQueuedPhaseKeepsItAndTheResumeHoldPending()
+    {
+        _queued = [..ObjectsOf(File(30))];
+        _source.ThrottleNextFetches = 1;
+        var state = NewState();
+
+        var first = await Transfer(parallelism: 1).RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(first.End, Is.EqualTo(SliceEnd.Wait));
+        Assert.That(state.QueuedItemsDone, Is.False);
+        Assert.That(state.HoldsResume, Is.True);
+        Assert.That(state.CursorRowId, Is.EqualTo(StartRowId + 1), "the walk has not started");
+
+        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(state.QueuedItemsDone, Is.True);
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete), string.Join("; ", state.Failures));
+    }
+
+    [Test]
+    public async Task AQueuedObjectTheSourceLacksIsAFailureAndReleasesTheResumeHold()
+    {
+        _queued = [..ObjectsOf(File(60))]; // never on the source
+        var state = NewState();
+
+        // No budget: the queued phase runs, the walk does not
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.Zero, CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Continue));
+        Assert.That(state.QueuedItemsDone, Is.True);
+        Assert.That(state.HoldsResume, Is.False, "a hole at the source must not keep the identity down");
+        Assert.That(state.FailureCount, Is.EqualTo(2), string.Join("; ", state.Failures));
+        Assert.That(state.Failures, Has.All.Contains(FileIdOf(60).ToString()));
+    }
+
+    [Test]
+    public void ResumeWaitsOnlyWhileTheQueuedPhaseIsPendingInAnUnfinishedMove()
+    {
+        var state = NewState();
+        Assert.That(state.HoldsResume, Is.True, "a transfer that has not run yet");
+
+        state.QueuedItemsDone = true;
+        Assert.That(state.HoldsResume, Is.False);
+
+        foreach (var finished in new[] { PayloadMoveStatus.Complete, PayloadMoveStatus.CompleteWithFailures, PayloadMoveStatus.Refused })
+        {
+            var stopped = NewState();
+            stopped.Status = finished;
+            Assert.That(stopped.HoldsResume, Is.False, finished.ToString());
+        }
+
+        state.StartFrom(StartRowId);
+        Assert.That(state.QueuedItemsDone, Is.False, "a retry fetches what is still queued again");
     }
 
     [Test]
@@ -234,6 +316,7 @@ public class PayloadMoveTransferTests
     private PayloadMoveTransfer Transfer(int parallelism = 5) => new(
         _source,
         _target,
+        () => Task.FromResult(_queued.ToList()),
         (below, count) => Task.FromResult(_index.Where(f => f.RowId < below).OrderByDescending(f => f.RowId).Take(count).ToList()),
         PathOf,
         parallelism,

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Odin.Core.Time;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 
 #nullable enable
@@ -40,6 +42,25 @@ public sealed record PayloadObject(
     int Height = 0)
 {
     public bool IsThumbnail => Width > 0;
+
+    /// <summary>A file's stored objects: each payload and its thumbnails. A file whose payloads live elsewhere has none.</summary>
+    public static IEnumerable<PayloadObject> AllOf(Guid driveId, Guid fileId, FileMetadata? metadata)
+    {
+        if (metadata?.Payloads == null || metadata.PayloadsAreRemote)
+        {
+            yield break;
+        }
+
+        foreach (var payload in metadata.Payloads)
+        {
+            yield return new PayloadObject(driveId, fileId, payload.Key, payload.Uid, payload.BytesWritten);
+            foreach (var thumbnail in payload.Thumbnails ?? [])
+            {
+                yield return new PayloadObject(driveId, fileId, payload.Key, payload.Uid, thumbnail.BytesWritten,
+                    thumbnail.PixelWidth, thumbnail.PixelHeight);
+            }
+        }
+    }
 
     /// <summary>Where this host keeps it: each host builds its own path from what the object is.</summary>
     public string PathIn(TenantPathManager paths) => IsThumbnail
