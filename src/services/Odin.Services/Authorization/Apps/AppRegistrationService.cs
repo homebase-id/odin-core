@@ -486,6 +486,7 @@ namespace Odin.Services.Authorization.Apps
             }
 
             await db.AppRegistrations.DeleteAsync(appId);
+            await ResetAppPermissionContextCacheAsync();
 
             //TODO: reenable this after youauth domain work
 
@@ -500,6 +501,22 @@ namespace Odin.Services.Authorization.Apps
             //
             //     _appRegistrationValueStorage.Delete(appId);
             // }
+        }
+
+        public async Task RemoveCirclesFromAllAppsAsync(IReadOnlyCollection<Guid> circleIds, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            foreach (var redacted in await GetRegisteredAppsInternalAsync())
+            {
+                var appReg = await GetAppRegistrationInternalAsync(redacted.AppId);
+                if (appReg?.AuthorizedCircles?.RemoveAll(circleIds.Contains) > 0)
+                {
+                    await SaveAsync(appReg);
+                }
+            }
+
+            await ResetAppPermissionContextCacheAsync();
         }
 
         public async Task RemoveDriveFromAllAppsAsync(Guid driveId, IOdinContext odinContext)

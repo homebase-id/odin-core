@@ -114,6 +114,9 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         Task RemoveDriveFromAllAppsAsync(Guid driveId, IOdinContext odinContext);
 
+        /// <summary>Removes circles from every app's authorized circles, ahead of the circles being deleted (#1870).</summary>
+        Task RemoveCirclesFromAllAppsAsync(IReadOnlyCollection<Guid> circleIds, IOdinContext odinContext);
+
         /// <summary>
         /// Deletes the current client calling into the system.  This is used to 'logout' an app
         /// </summary>

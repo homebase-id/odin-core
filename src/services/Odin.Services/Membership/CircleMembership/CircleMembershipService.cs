@@ -397,6 +397,26 @@ public class CircleMembershipService(
         await circleDefinitionService.UpdateAsync(circleDef);
     }
 
+    /// <summary>
+    /// Deletes a circle even though it has members: every member row goes -- identity and YouAuth domain --
+    /// and then the definition. Grants a member holds through the circle on its connection record are the
+    /// caller's to remove first (<c>CircleNetworkService.RemoveAppFromAllConnectionsAsync</c>).
+    /// </summary>
+    public async Task DeleteCircleAndMembersAsync(GuidId circleId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var members = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
+        if (members.Count > 0)
+        {
+            await db.CircleMemberCached.RemoveCircleMembersAsync(circleId, members.Select(m => m.memberId).ToList());
+        }
+
+        await circleDefinitionService.DeleteAsync(circleId);
+        tx.Commit();
+    }
+
     public async Task DeleteAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();

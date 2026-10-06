@@ -3297,6 +3297,64 @@ namespace Odin.Services.Membership.Connections
             await odinContextCache.ResetAsync();
         }
 
+        /// <summary>
+        /// Removes an app from every connected and blocked identity -- its grants, the grants it deposited, and
+        /// the enrollments it owns or asked for -- and deletes the circles it owns, with their members and every
+        /// grant made through them (#1870).
+        /// </summary>
+        public async Task RemoveAppFromAllConnectionsAsync(Guid appId, IReadOnlyCollection<Guid> ownedCircleIds,
+            IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            foreach (var status in new[] { ConnectionStatus.Connected, ConnectionStatus.Blocked })
+            {
+                var (icrs, _) = await circleNetworkStorage.GetListAsync(int.MaxValue, null, status);
+                foreach (var icr in icrs)
+                {
+                    if (icr.PeerKeyStore != null && RemoveApp(icr.PeerKeyStore, appId, ownedCircleIds))
+                    {
+                        await SaveIcrAsync(icr, odinContext);
+                    }
+                }
+            }
+
+            foreach (var circleId in ownedCircleIds)
+            {
+                await circleMembershipService.DeleteCircleAndMembersAsync(circleId, odinContext);
+                await mediator.Publish(new CircleDefinitionChangedNotification
+                {
+                    OdinContext = odinContext,
+                    CircleId = circleId,
+                    Change = CircleDefinitionChangeType.Deleted,
+                });
+            }
+
+            await odinContextCache.ResetAsync();
+        }
+
+        private static bool RemoveApp(PeerKeyStore store, Guid appId, IReadOnlyCollection<Guid> circleIds)
+        {
+            var removed = store.AppGrants.Remove(appId);
+
+            foreach (var circleId in circleIds)
+            {
+                removed |= store.CircleGrants.Remove(circleId);
+                foreach (var byCircle in store.AppGrants.Values)
+                {
+                    removed |= byCircle.Remove(circleId);
+                }
+            }
+
+            removed |= store.DepositedGrants.RemoveAll(d =>
+                d.DepositingAppId == appId || circleIds.Contains(d.CircleId.Value)) > 0;
+
+            removed |= store.PendingEnrollments.RemoveAll(e =>
+                e.OwningAppId == appId || e.RequestedByAppId == appId || circleIds.Contains(e.CircleId.Value)) > 0;
+
+            return removed;
+        }
+
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternalAsync(OdinId odinId)
         {
             var registration = await circleNetworkStorage.GetAsync(odinId);

@@ -16,7 +16,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
     [Route(OwnerApiPathConstants.AppManagementV1)]
     [AuthorizeValidOwnerToken]
     [ApiExplorerSettings(GroupName = "owner-v1")]
-    public class AppRegistrationController(IAppRegistrationService appRegistrationService, IYouAuthUnifiedService youAuthUnifiedService)
+    public class AppRegistrationController(
+        IAppRegistrationService appRegistrationService,
+        IYouAuthUnifiedService youAuthUnifiedService,
+        AppUninstallService appUninstallService)
         : OdinControllerBase
     {
         /// <summary>
@@ -106,6 +109,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<NoResultResponse> DeleteApp([FromBody] GetAppRequest request)
         {
             await appRegistrationService.DeleteAppAsync(request.AppId, WebOdinContext);
+            return new NoResultResponse(true);
+        }
+
+        /// <summary>
+        /// Uninstalls a third-party app fully: its clients and their push subscriptions, its grants on every
+        /// connection, and its registration. An app that owns circles or drives is refused unless
+        /// <see cref="UninstallAppRequest.DeleteOwnedCirclesAndDrives"/> says they go with it.
+        /// </summary>
+        [HttpPost("uninstall")]
+        public async Task<NoResultResponse> UninstallApp([FromBody] UninstallAppRequest request)
+        {
+            await appUninstallService.UninstallAsync(request.AppId, request.DeleteOwnedCirclesAndDrives, WebOdinContext);
             return new NoResultResponse(true);
         }
 
