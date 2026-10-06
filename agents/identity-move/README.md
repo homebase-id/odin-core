@@ -60,6 +60,11 @@ You need:
 
 Throughout, `<domain>` is the identity's domain, for example `frodo.id.pub`.
 
+**Is the identity in use?** `odin-admin tenant show <domain>` against the source shows when it was created
+and its last activity: the last request made as the identity on that host, kept for 365 days. It does not
+move with the identity, so on the target it reads "never" until the owner uses it there.
+`odin-admin tenants list --inactive-days 90` lists the identities nobody has used for 90 days.
+
 ## Steps
 
 ### 1. Check that we control the identity's DNS
