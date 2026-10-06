@@ -124,19 +124,6 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        // Left-pads key material that lost its leading zero bytes. Longer than the field is not a short encoding
-        // but a wrong key, curve or parse, and passing it on yields a silently wrong key -- so it is rejected (#1812).
-        protected static byte[] EnsureLength(byte[] bytes, int length)
-        {
-            if (bytes.Length > length)
-                throw new OdinSystemException($"Key material is {bytes.Length} bytes, expected at most {length}");
-            if (bytes.Length == length) return bytes;
-
-            byte[] paddedBytes = new byte[length];
-            Array.Copy(bytes, 0, paddedBytes, length - bytes.Length, bytes.Length);
-            return paddedBytes;
-        }
-
 
         protected static int CoordinateBytes(EccKeySize size) => size == EccKeySize.P384 ? 384 / 8 : 256 / 8;
 
@@ -446,7 +433,9 @@ namespace Odin.Core.Cryptography.Data
             // with ToByteArrayUnsigned() instead dropped a leading zero byte, so about 1 exchange in 256 derived a
             // different key here than on the client (#1728).
             var sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
-            var sharedSecretBytes = EnsureLength(sharedSecret.ToByteArrayUnsigned(), ecdhUagree.GetFieldSize());
+            // AsUnsignedByteArray also throws if the value is longer than the field: that would be a wrong key, not
+            // a short encoding, and must not reach HKDF as a silently different key (#1812).
+            var sharedSecretBytes = BigIntegers.AsUnsignedByteArray(ecdhUagree.GetFieldSize(), sharedSecret);
 
             // Apply HKDF to derive a symmetric key from the shared secret
             return HashUtil.Hkdf(sharedSecretBytes, randomSalt, 16).ToSensitiveByteArray();
