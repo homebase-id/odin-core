@@ -4,15 +4,10 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Core.Cryptography.Tests
 {
-    /// <summary>
-    /// <c>EnsureLength</c> is the one place that asserts key-material length (#1812). It left-pads the stripped
-    /// leading zero it exists for (#1728), and must reject a value longer than the field: that is a wrong key, a
-    /// wrong curve or a parse error, not a short encoding, and passing it on yields a silently wrong key.
-    /// </summary>
+    /// <summary><c>EnsureLength</c> pads short key material and rejects over-long (#1812; see its comment).</summary>
     [TestFixture]
     public class TestEccEnsureLength
     {
-        // EnsureLength is protected; reach it through a subclass rather than widening it for a test.
         private class Probe : EccPublicKeyData
         {
             public static byte[] Call(byte[] bytes, int length) => EnsureLength(bytes, length);
