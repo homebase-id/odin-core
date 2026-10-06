@@ -126,6 +126,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
+        /// Deletes an archived, non-system drive with all its files, its followers and every grant naming it.
+        /// Local only: peers keep any copies they received.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("delete")]
+        public async Task<IActionResult> DeleteDrive([FromBody] TargetDriveRequest request)
+        {
+            await driveDeletionService.DeleteDriveAsync(request.TargetDrive.Alias, WebOdinContext);
+            return Ok();
+        }
+
+        /// <summary>
         /// Hands one of the owner's own drives to an app that exists.
         /// </summary>
         /// <remarks>

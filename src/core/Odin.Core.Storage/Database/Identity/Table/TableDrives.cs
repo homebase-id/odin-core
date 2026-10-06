@@ -15,6 +15,16 @@ public class TableDrives(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    internal async Task<int> DeleteAsync(Guid driveId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM Drives WHERE identityId = @identityId AND DriveId = @driveId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     internal async Task<DrivesRecord> GetAsync(Guid driveId)
     {
         return await base.GetByDriveIdAsync(odinIdentity, driveId);

@@ -15,4 +15,7 @@ public interface IRefitOwnerDriveDeletion
 
     [Post(OwnerApiPathConstants.DriveManagementV1 + "/empty")]
     Task<ApiResponse<HttpContent>> EmptyDrive([Body] TargetDriveRequest request);
+
+    [Post(OwnerApiPathConstants.DriveManagementV1 + "/delete")]
+    Task<ApiResponse<HttpContent>> DeleteDrive([Body] TargetDriveRequest request);
 }

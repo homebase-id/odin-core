@@ -109,6 +109,12 @@ namespace Odin.Services.Authorization.Apps
         Task DeleteAppAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
+        /// Removes a drive from every app's own grant and from the grant its circles' members get, ahead of the
+        /// drive being deleted (#1869).
+        /// </summary>
+        Task RemoveDriveFromAllAppsAsync(Guid driveId, IOdinContext odinContext);
+
+        /// <summary>
         /// Deletes the current client calling into the system.  This is used to 'logout' an app
         /// </summary>
         Task DeleteCurrentAppClientAsync(IOdinContext odinContext);

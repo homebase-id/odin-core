@@ -20,6 +20,17 @@ public class TableFollowsMe(
     internal const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    /// <summary>Everyone following one drive (a channel); for when the drive is deleted.</summary>
+    internal async Task<int> DeleteByDriveAsync(Guid driveId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM FollowsMe WHERE identityId = @identityId AND driveId = @driveId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     internal async Task<int> DeleteAsync(OdinId identity, Guid driveId)
     {
         return await base.DeleteAsync(odinIdentity, identity.DomainName, driveId);

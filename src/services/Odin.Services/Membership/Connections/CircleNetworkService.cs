@@ -3271,6 +3271,32 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
+        /// <summary>
+        /// Removes a drive from every grant this identity has handed out -- circle definitions, circle and app grants
+        /// (see <see cref="CircleMembershipService.RemoveDriveFromAllGrantsAsync"/>) and the grants deposited on
+        /// connected and blocked identities -- ahead of the drive being deleted (#1869). Apps re-create drives
+        /// with the same alias, so a grant left behind would carry over to the new drive.
+        /// </summary>
+        public async Task RemoveDriveFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+        {
+            await circleMembershipService.RemoveDriveFromAllGrantsAsync(driveId, odinContext);
+
+            foreach (var status in new[] { ConnectionStatus.Connected, ConnectionStatus.Blocked })
+            {
+                var (icrs, _) = await circleNetworkStorage.GetListAsync(int.MaxValue, null, status);
+                foreach (var icr in icrs)
+                {
+                    var deposits = icr.PeerKeyStore?.DepositedGrants ?? [];
+                    if (deposits.Sum(d => d.DriveGrants.RemoveAll(g => g.DriveId == driveId)) > 0)
+                    {
+                        await SaveIcrAsync(icr, odinContext);
+                    }
+                }
+            }
+
+            await odinContextCache.ResetAsync();
+        }
+
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternalAsync(OdinId odinId)
         {
             var registration = await circleNetworkStorage.GetAsync(odinId);

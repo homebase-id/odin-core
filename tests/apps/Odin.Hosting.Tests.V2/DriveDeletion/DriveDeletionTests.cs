@@ -109,7 +109,7 @@ public class DriveDeletionTests : V2Fixture
         Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager
             .GetDrivePayloadPath(drive.Alias);
 
-    private static async Task<ExternalFileIdentifier> UploadAsync(OwnerSession owner, TargetDrive drive, string content)
+    internal static async Task<ExternalFileIdentifier> UploadAsync(OwnerSession owner, TargetDrive drive, string content)
     {
         var fileMetadata = new UploadFileMetadata
         {

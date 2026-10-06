@@ -84,6 +84,53 @@ public class CircleMembershipService(
     }
     
     
+    /// <summary>
+    /// Removes a drive from every circle definition and from every grant minted from one -- each circle member,
+    /// identity or YouAuth domain, and each app's grant on a member -- ahead of the drive being deleted (#1869).
+    /// Those two tables are where a connection's circle and app grants live, so this covers connections too;
+    /// only deposits are kept elsewhere (see <c>CircleNetworkService.RemoveDriveFromAllGrantsAsync</c>).
+    /// </summary>
+    public async Task RemoveDriveFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+
+        foreach (var circle in await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true))
+        {
+            var kept = circle.DriveGrants?.Where(g => g.PermissionedDrive.Drive.Alias != driveId).ToList();
+            if (kept != null && kept.Count != circle.DriveGrants!.Count())
+            {
+                // Unvalidated: a circle that granted only this drive is left granting nothing, which a definition
+                // may not be created as, but which keeps its members until the owner edits or deletes it.
+                circle.DriveGrants = kept;
+                await circleDefinitionService.UpdateAsync(circle, skipValidation: true);
+            }
+        }
+
+        foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
+        {
+            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
+            if (storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
+            {
+                member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
+                await db.CircleMemberCached.UpsertAsync(member);
+            }
+        }
+
+        foreach (var appGrant in await db.AppGrantsCached.GetAllAsync())
+        {
+            var grant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
+            if (grant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
+            {
+                appGrant.data = OdinSystemSerializer.Serialize(grant).ToUtf8ByteArray();
+                await db.AppGrantsCached.UpsertAsync(appGrant);
+            }
+        }
+
+        tx.Commit();
+    }
+
     public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-

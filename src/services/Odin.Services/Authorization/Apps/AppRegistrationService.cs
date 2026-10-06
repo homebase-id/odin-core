@@ -502,6 +502,36 @@ namespace Odin.Services.Authorization.Apps
             // }
         }
 
+        public async Task RemoveDriveFromAllAppsAsync(Guid driveId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            foreach (var redacted in await GetRegisteredAppsInternalAsync())
+            {
+                var appReg = await GetAppRegistrationInternalAsync(redacted.AppId);
+                if (appReg == null)
+                {
+                    continue;
+                }
+
+                var removed = appReg.AppKeyStore?.DriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
+
+                var circleDrives = appReg.CircleMemberPermissionGrant?.Drives?.ToList();
+                if (circleDrives?.RemoveAll(g => g.PermissionedDrive.Drive.Alias == driveId) > 0)
+                {
+                    appReg.CircleMemberPermissionGrant!.Drives = circleDrives;
+                    removed = true;
+                }
+
+                if (removed)
+                {
+                    await SaveAsync(appReg);
+                }
+            }
+
+            await ResetAppPermissionContextCacheAsync();
+        }
+
         public async Task<List<RedactedAppRegistration>> GetRegisteredAppsAsync(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
