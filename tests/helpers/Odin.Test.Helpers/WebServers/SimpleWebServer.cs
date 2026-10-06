@@ -7,7 +7,8 @@ namespace Odin.Test.Helpers.WebServers;
 public class SimpleWebServer
 {
     private readonly WebApplication _app;
-    public string PingUrl => $"{_app.Urls.First()}/ping";
+    public string BaseUrl => _app.Urls.First();
+    public string PingUrl => $"{BaseUrl}/ping";
 
     //
 
