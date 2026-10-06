@@ -361,11 +361,11 @@ public class DriveQuery(
     /// Deletes every file record of the drive, with its index, reaction, transfer-history, outbox and inbox
     /// rows, in one transaction. The drive record stays.
     /// </summary>
-    public async Task DeleteDriveContentAsync(StorageDrive drive)
+    public async Task DeleteDriveContentAsync(Guid driveId)
     {
         await using var tx = await db.BeginStackedTransactionAsync();
-        await metaIndex.DeleteDriveContentAsync(drive.Id);
-        await tblInbox.DeleteBoxAsync(drive.Id);
+        await metaIndex.DeleteDriveContentAsync(driveId);
+        await tblInbox.DeleteBoxAsync(driveId);
         tx.Commit();
     }
 

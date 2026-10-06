@@ -148,30 +148,22 @@ public class S3FileStore(
 
     //
 
-    public async Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default)
+    public Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default) =>
+        DeleteByPrefixAsync(S3Path.Combine(dir, $"{fileId:N}."), ct);
+
+    //
+
+    // S3 has no directories: delete every object under the folder prefix. The trailing slash keeps a sibling
+    // whose name merely starts with the same characters out of it.
+    public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default) =>
+        DeleteByPrefixAsync(dir.TrimEnd('/', '\\') + "/", ct);
+
+    private async Task DeleteByPrefixAsync(string prefix, CancellationToken ct)
     {
-        var prefix = S3Path.Combine(dir, $"{fileId:N}.");
         try
         {
             await TryRetry(async () =>
                 await s3.DeleteByPrefixAsync(prefix, ct), ct);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new DriveFileStoreException(e.Message, e);
-        }
-    }
-
-    //
-
-    public async Task DeleteDirectoryAsync(string dir, CancellationToken ct = default)
-    {
-        // S3 has no directories: delete every object under the prefix.
-        var folder = dir.TrimEnd('/', '\\') + "/";
-        try
-        {
-            await TryRetry(async () =>
-                await s3.DeleteDirectoryAsync(folder, ct), ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

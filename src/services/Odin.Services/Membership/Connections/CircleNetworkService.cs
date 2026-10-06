@@ -1015,23 +1015,7 @@ namespace Odin.Services.Membership.Connections
                 return;
             }
 
-            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
-            {
-                if (!icr.PeerKeyStore.CircleGrants.Remove(circleId))
-                {
-                    throw new OdinClientException($"Failed to remove {circleId} from {odinId}");
-                }
-            }
-
-            // also purge any not-yet-converted deposit for this circle
-            icr.PeerKeyStore.DepositedGrants?.RemoveAll(d => d.CircleId == circleId);
-
-            //find the circle grant across all app grants and remove it
-            foreach (var (_, appCircleGrants) in icr.PeerKeyStore.AppGrants)
-            {
-                appCircleGrants.Remove(circleId.Value);
-            }
-
+            icr.PeerKeyStore.RemoveCircle(circleId);
             await this.SaveIcrAsync(icr, odinContext);
 
             await mediator.Publish(new ConnectionChangedNotification
@@ -3272,52 +3256,28 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Removes a drive from every grant this identity has handed out -- circle definitions, circle and app grants
-        /// (see <see cref="CircleMembershipService.RemoveDriveFromAllGrantsAsync"/>) and the grants deposited on
-        /// connected and blocked identities -- ahead of the drive being deleted (#1869). Apps re-create drives
-        /// with the same alias, so a grant left behind would carry over to the new drive.
+        /// Removes a drive from every grant this identity has handed out: circle definitions, circle and app grants
+        /// (see <see cref="CircleMembershipService.RemoveDriveFromAllGrantsAsync"/>) and deposits. Apps re-create
+        /// drives with the same alias, so a grant left behind would carry over to the new drive.
         /// </summary>
         public async Task RemoveDriveFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
         {
             await circleMembershipService.RemoveDriveFromAllGrantsAsync(driveId, odinContext);
-
-            foreach (var status in new[] { ConnectionStatus.Connected, ConnectionStatus.Blocked })
-            {
-                var (icrs, _) = await circleNetworkStorage.GetListAsync(int.MaxValue, null, status);
-                foreach (var icr in icrs)
-                {
-                    var deposits = icr.PeerKeyStore?.DepositedGrants ?? [];
-                    if (deposits.Sum(d => d.DriveGrants.RemoveAll(g => g.DriveId == driveId)) > 0)
-                    {
-                        await SaveIcrAsync(icr, odinContext);
-                    }
-                }
-            }
-
-            await odinContextCache.ResetAsync();
+            await UpdateAllConnectionsAsync(store => store.RemoveDriveFromDeposits(driveId), odinContext);
         }
 
         /// <summary>
-        /// Removes an app from every connected and blocked identity -- its grants, the grants it deposited, and
-        /// the enrollments it owns or asked for -- and deletes the circles it owns, with their members and every
-        /// grant made through them (#1870).
+        /// Removes an app from every connection, and deletes the circles it owns with their members and every
+        /// grant made through them.
         /// </summary>
         public async Task RemoveAppFromAllConnectionsAsync(Guid appId, IReadOnlyCollection<Guid> ownedCircleIds,
             IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            foreach (var status in new[] { ConnectionStatus.Connected, ConnectionStatus.Blocked })
-            {
-                var (icrs, _) = await circleNetworkStorage.GetListAsync(int.MaxValue, null, status);
-                foreach (var icr in icrs)
-                {
-                    if (icr.PeerKeyStore != null && RemoveApp(icr.PeerKeyStore, appId, ownedCircleIds))
-                    {
-                        await SaveIcrAsync(icr, odinContext);
-                    }
-                }
-            }
+            await UpdateAllConnectionsAsync(store =>
+                ownedCircleIds.Aggregate(store.RemoveApp(appId), (removed, circleId) => store.RemoveCircle(circleId) | removed),
+                odinContext);
 
             foreach (var circleId in ownedCircleIds)
             {
@@ -3329,30 +3289,27 @@ namespace Odin.Services.Membership.Connections
                     Change = CircleDefinitionChangeType.Deleted,
                 });
             }
-
-            await odinContextCache.ResetAsync();
         }
 
-        private static bool RemoveApp(PeerKeyStore store, Guid appId, IReadOnlyCollection<Guid> circleIds)
+        /// <summary>
+        /// Applies <paramref name="update"/> to every connected and blocked identity's key store, saving each one
+        /// it changed. Saving rewrites the circle-member and app-grant rows from the record.
+        /// </summary>
+        private async Task UpdateAllConnectionsAsync(Func<PeerKeyStore, bool> update, IOdinContext odinContext)
         {
-            var removed = store.AppGrants.Remove(appId);
-
-            foreach (var circleId in circleIds)
+            foreach (var status in new[] { ConnectionStatus.Connected, ConnectionStatus.Blocked })
             {
-                removed |= store.CircleGrants.Remove(circleId);
-                foreach (var byCircle in store.AppGrants.Values)
+                var (icrs, _) = await circleNetworkStorage.GetListAsync(int.MaxValue, null, status);
+                foreach (var icr in icrs)
                 {
-                    removed |= byCircle.Remove(circleId);
+                    if (icr.PeerKeyStore != null && update(icr.PeerKeyStore))
+                    {
+                        await SaveIcrAsync(icr, odinContext);
+                    }
                 }
             }
 
-            removed |= store.DepositedGrants.RemoveAll(d =>
-                d.DepositingAppId == appId || circleIds.Contains(d.CircleId.Value)) > 0;
-
-            removed |= store.PendingEnrollments.RemoveAll(e =>
-                e.OwningAppId == appId || e.RequestedByAppId == appId || circleIds.Contains(e.CircleId.Value)) > 0;
-
-            return removed;
+            await odinContextCache.ResetAsync();
         }
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternalAsync(OdinId odinId)

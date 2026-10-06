@@ -270,8 +270,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task DeleteAllFilesAsync(StorageDrive drive)
         {
-            await driveQuery.DeleteDriveContentAsync(drive);
-            await longTermPayloadStore.DeleteDirectoryAsync(_tenantPathManager.GetDrivePayloadPath(drive.Id));
+            await driveQuery.DeleteDriveContentAsync(drive.Id);
+
+            var payloads = _tenantPathManager.GetDrivePayloadPath(drive.Id);
+            TenantPathManager.AssertIsDriveDirectory(payloads, drive.Id);
+            await longTermPayloadStore.DeleteDirectoryAsync(payloads);
         }
 
         public async Task<bool> PayloadExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)

@@ -503,34 +503,12 @@ namespace Odin.Services.Authorization.Apps
             // }
         }
 
-        public async Task RemoveCirclesFromAllAppsAsync(IReadOnlyCollection<Guid> circleIds, IOdinContext odinContext)
-        {
-            odinContext.Caller.AssertHasMasterKey();
+        public Task RemoveCirclesFromAllAppsAsync(IReadOnlyCollection<Guid> circleIds, IOdinContext odinContext) =>
+            UpdateAllAppsAsync(appReg => appReg.AuthorizedCircles?.RemoveAll(circleIds.Contains) > 0, odinContext);
 
-            foreach (var redacted in await GetRegisteredAppsInternalAsync())
+        public Task RemoveDriveFromAllAppsAsync(Guid driveId, IOdinContext odinContext) =>
+            UpdateAllAppsAsync(appReg =>
             {
-                var appReg = await GetAppRegistrationInternalAsync(redacted.AppId);
-                if (appReg?.AuthorizedCircles?.RemoveAll(circleIds.Contains) > 0)
-                {
-                    await SaveAsync(appReg);
-                }
-            }
-
-            await ResetAppPermissionContextCacheAsync();
-        }
-
-        public async Task RemoveDriveFromAllAppsAsync(Guid driveId, IOdinContext odinContext)
-        {
-            odinContext.Caller.AssertHasMasterKey();
-
-            foreach (var redacted in await GetRegisteredAppsInternalAsync())
-            {
-                var appReg = await GetAppRegistrationInternalAsync(redacted.AppId);
-                if (appReg == null)
-                {
-                    continue;
-                }
-
                 var removed = appReg.AppKeyStore?.DriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
 
                 var circleDrives = appReg.CircleMemberPermissionGrant?.Drives?.ToList();
@@ -540,7 +518,17 @@ namespace Odin.Services.Authorization.Apps
                     removed = true;
                 }
 
-                if (removed)
+                return removed;
+            }, odinContext);
+
+        /// <summary>Applies <paramref name="update"/> to every registration, saving each one it changed.</summary>
+        private async Task UpdateAllAppsAsync(Func<AppRegistration, bool> update, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            foreach (var appReg in await GetAllAppRegistrationsInternalAsync())
+            {
+                if (update(appReg))
                 {
                     await SaveAsync(appReg);
                 }
@@ -557,6 +545,11 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task<List<RedactedAppRegistration>> GetRegisteredAppsInternalAsync()
         {
+            return (await GetAllAppRegistrationsInternalAsync()).Select(app => app.Redacted()).ToList();
+        }
+
+        private async Task<List<AppRegistration>> GetAllAppRegistrationsInternalAsync()
+        {
             var apps = (await db.AppRegistrations.GetAllAsync()).Select(FromRecord).ToList();
 
             // Pre-v13 the registrations are still blob rows -- see LegacyDefinitionStore.  A union
@@ -570,8 +563,7 @@ namespace Odin.Services.Authorization.Apps
                     .Where(a => !known.Contains((Guid)a.AppId)));
             }
 
-            var redactedList = apps.Select(app => app.Redacted()).ToList();
-            return redactedList;
+            return apps;
         }
 
         private async Task SaveClientAsync(AppClientRegistration appClientRegistration)

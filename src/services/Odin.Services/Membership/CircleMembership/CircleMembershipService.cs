@@ -85,10 +85,8 @@ public class CircleMembershipService(
     
     
     /// <summary>
-    /// Removes a drive from every circle definition and from every grant minted from one -- each circle member,
-    /// identity or YouAuth domain, and each app's grant on a member -- ahead of the drive being deleted (#1869).
-    /// Those two tables are where a connection's circle and app grants live, so this covers connections too;
-    /// only deposits are kept elsewhere (see <c>CircleNetworkService.RemoveDriveFromAllGrantsAsync</c>).
+    /// Removes a drive from every circle definition, circle-member grant (identity or YouAuth domain) and app grant.
+    /// These rows are where connections hold their circle and app grants, so this covers them too.
     /// </summary>
     public async Task RemoveDriveFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
     {

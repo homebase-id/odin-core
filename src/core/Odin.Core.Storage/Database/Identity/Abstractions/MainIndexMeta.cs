@@ -43,18 +43,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
         /// <summary>
-        /// Every table that holds a drive's files, with the column naming the drive. The Inbox is not here: it
-        /// has its own cache (<c>TableInboxCached.DeleteBoxAsync</c>).
+        /// Every table that holds a drive's files, keyed by driveId. The Inbox is not here: it has its own cache
+        /// (<c>TableInboxCached.DeleteBoxAsync</c>).
         /// </summary>
-        private static readonly (string Table, string DriveColumn)[] DriveContentTables =
+        internal static readonly string[] DriveContentTables =
         [
-            ("DriveMainIndex", "driveId"),
-            ("DriveAclIndex", "driveId"),
-            ("DriveTagIndex", "driveId"),
-            ("DriveLocalTagIndex", "driveId"),
-            ("DriveReactions", "driveId"),
-            ("DriveTransferHistory", "driveId"),
-            ("Outbox", "driveId")
+            "DriveMainIndex", "DriveAclIndex", "DriveTagIndex", "DriveLocalTagIndex", "DriveReactions",
+            "DriveTransferHistory", "Outbox"
         ];
 
         /// <summary>
@@ -67,10 +62,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var tx = await cn.BeginStackedTransactionAsync();
 
             long n = 0;
-            foreach (var (table, driveColumn) in DriveContentTables)
+            foreach (var table in DriveContentTables)
             {
                 await using var cmd = cn.CreateCommand();
-                cmd.CommandText = $"DELETE FROM {table} WHERE identityId = @identityId AND {driveColumn} = @driveId;";
+                cmd.CommandText = $"DELETE FROM {table} WHERE identityId = @identityId AND driveId = @driveId;";
                 cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
                 cmd.AddParameter("@driveId", DbType.Binary, driveId);
                 n += await cmd.ExecuteNonQueryAsync();

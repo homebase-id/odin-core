@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Odin.Core;
+
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.AppNotifications.Push;

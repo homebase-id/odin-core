@@ -64,6 +64,31 @@ public class PeerKeyStore
     [JsonIgnore]
     public bool HasPendingEnrollments => PendingEnrollments?.Count > 0;
 
+    /// <summary>Takes a circle off this connection: its grant, the app grants made through it, and its deposit.</summary>
+    public bool RemoveCircle(Guid circleId)
+    {
+        var removed = CircleGrants.Remove(circleId);
+        removed |= DepositedGrants?.RemoveAll(d => d.CircleId == circleId) > 0;
+        foreach (var appCircleGrants in AppGrants.Values)
+        {
+            removed |= appCircleGrants.Remove(circleId);
+        }
+
+        return removed;
+    }
+
+    /// <summary>Takes an app off this connection: its grants, the grants it deposited, the enrollments it owns or asked for.</summary>
+    public bool RemoveApp(Guid appId)
+    {
+        var removed = AppGrants.Remove(appId);
+        removed |= DepositedGrants?.RemoveAll(d => d.DepositingAppId == appId) > 0;
+        removed |= PendingEnrollments?.RemoveAll(e => e.OwningAppId == appId || e.RequestedByAppId == appId) > 0;
+        return removed;
+    }
+
+    public bool RemoveDriveFromDeposits(Guid driveId) =>
+        DepositedGrants?.Sum(d => d.DriveGrants.RemoveAll(g => g.DriveId == driveId)) > 0;
+
     public void AddUpdateAppCircleGrant(AppCircleGrant appCircleGrant)
     {
         var appKey = appCircleGrant.AppId;

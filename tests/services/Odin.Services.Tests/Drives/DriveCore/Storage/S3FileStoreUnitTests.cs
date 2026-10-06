@@ -411,7 +411,7 @@ public class S3FileStoreUnitTests
     {
         string? captured = null;
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.DeleteDirectoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        storage.Setup(x => x.DeleteByPrefixAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback<string, CancellationToken>((p, _) => captured = p)
             .Returns(Task.CompletedTask);
 

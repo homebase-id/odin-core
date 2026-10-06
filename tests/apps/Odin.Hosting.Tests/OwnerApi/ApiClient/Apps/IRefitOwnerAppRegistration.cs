@@ -52,6 +52,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps
         [Post(RootPath + "/register/client-ecc-exchange")]
         Task<ApiResponse<YouAuthTokenResponse>> ExchangeDigestForToken([Body] YouAuthTokenRequest request);
         
+        [Post(RootPath + "/uninstall")]
+        Task<ApiResponse<NoResultResponse>> Uninstall([Body] UninstallAppRequest request);
+
         [Post(RootPath + "/register/updateauthorizedcircles")]
         Task UpdateAuthorizedCircles([Body] UpdateAuthorizedCirclesRequest request);
 

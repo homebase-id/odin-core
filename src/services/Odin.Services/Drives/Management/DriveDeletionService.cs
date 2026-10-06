@@ -7,6 +7,7 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Drives.Management;
@@ -14,8 +15,8 @@ namespace Odin.Services.Drives.Management;
 #nullable enable
 
 /// <summary>
-/// The owner's bulk removal of drive content (#1869). Local only: nothing is sent to peers, and copies
-/// they already received stay with them.
+/// The owner's bulk removal of drive content. Local only: nothing is sent to peers, and copies they already
+/// received stay with them.
 /// </summary>
 public class DriveDeletionService(
     DriveManager driveManager,
@@ -60,28 +61,34 @@ public class DriveDeletionService(
         {
             await circleNetworkService.RemoveDriveFromAllGrantsAsync(driveId, odinContext);
             await appRegistrationService.RemoveDriveFromAllAppsAsync(driveId, odinContext);
-            await driveQuery.DeleteDriveContentAsync(drive);
+            await driveQuery.DeleteDriveContentAsync(driveId);
             await db.FollowsMeCached.DeleteByDriveAsync(driveId);
             await db.DrivesCached.DeleteAsync(driveId);
             tx.Commit();
         }
 
         var paths = tenantContext.TenantPathManager;
-        await longTermPayloadStore.DeleteDirectoryAsync(paths.GetDrivePath(driveId));
-        await uploadFileStore.DeleteDirectoryAsync(paths.GetDriveUploadPath(driveId));
-        await inboxFileStore.DeleteDirectoryAsync(paths.GetDriveInboxPath(driveId));
+        foreach (var (store, directory) in new (IDriveFileStore, string)[]
+                 {
+                     (longTermPayloadStore, paths.GetDrivePath(driveId)),
+                     (uploadFileStore, paths.GetDriveUploadPath(driveId)),
+                     (inboxFileStore, paths.GetDriveInboxPath(driveId))
+                 })
+        {
+            TenantPathManager.AssertIsDriveDirectory(directory, driveId);
+            await store.DeleteDirectoryAsync(directory);
+        }
     }
 
     private async Task<StorageDrive> GetDeletableDriveAsync(Guid driveId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: true);
-        if (BuiltinDrives.IsProtected(drive!.Id))
+        if (BuiltinDrives.IsProtected(driveId))
         {
             throw new OdinClientException("Cannot delete a system drive or its content");
         }
 
-        return drive;
+        return (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!;
     }
 }

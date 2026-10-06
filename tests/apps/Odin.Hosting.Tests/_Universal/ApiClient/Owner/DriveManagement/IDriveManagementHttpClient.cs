@@ -34,6 +34,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement
         [Post(RootEndpoint + "/set-archive-drive")]
         Task<ApiResponse<HttpContent>> SetArchiveDriveFlag([Body] UpdateDriveArchiveFlag request);
 
+        [Post(RootEndpoint + "/empty")]
+        Task<ApiResponse<HttpContent>> EmptyDrive([Body] TargetDriveRequest request);
+
+        [Post(RootEndpoint + "/delete")]
+        Task<ApiResponse<HttpContent>> DeleteDrive([Body] TargetDriveRequest request);
+
         [Post(RootEndpoint + "/set-allow-cdn")]
         Task<ApiResponse<HttpContent>> SetAllowCdn([Body] UpdateDriveAllowCdnRequest request);
 

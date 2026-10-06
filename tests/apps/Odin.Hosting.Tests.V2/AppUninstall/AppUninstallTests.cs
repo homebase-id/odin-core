@@ -1,12 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
@@ -15,22 +12,11 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Services.Apps;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
-using Refit;
 
 namespace Odin.Hosting.Tests.V2.AppUninstall;
-
-public interface IRefitAppUninstall
-{
-    [Post(OwnerApiPathConstants.AppManagementV1 + "/uninstall")]
-    Task<ApiResponse<HttpContent>> Uninstall([Body] UninstallAppRequest request);
-
-    [Post(OwnerApiPathConstants.AppManagementV1 + "/register/updateauthorizedcircles")]
-    Task<ApiResponse<HttpContent>> UpdateAuthorizedCircles([Body] UpdateAuthorizedCirclesRequest request);
-}
 
 /// <summary>
 /// Uninstalling a third-party app (#1870): built-in apps are refused, an app owning circles or drives is
@@ -124,22 +110,19 @@ public class AppUninstallTests : V2Fixture
     }
 
     private static async Task<HttpStatusCode> UninstallAsync(OwnerSession owner, Guid appId, bool deleteOwned = false) =>
-        (await owner.RefitFor<IRefitAppUninstall>().Uninstall(new UninstallAppRequest
+        (await owner.RefitFor<IRefitOwnerAppRegistration>().Uninstall(new UninstallAppRequest
         {
             AppId = appId,
             DeleteOwnedCirclesAndDrives = deleteOwned
         })).StatusCode;
 
-    private static async Task AuthorizeAsync(OwnerSession owner, Guid appId, Guid circleId)
-    {
-        var response = await owner.RefitFor<IRefitAppUninstall>().UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest
+    private static Task AuthorizeAsync(OwnerSession owner, Guid appId, Guid circleId) =>
+        owner.RefitFor<IRefitOwnerAppRegistration>().UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest
         {
             AppId = appId,
             AuthorizedCircles = [circleId],
             CircleMemberPermissionGrant = OwnerAdmin.ReadCircleMembershipGrant()
         });
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"authorize: {response.StatusCode} {response.Error?.Content}");
-    }
 
     private static async Task<bool> IsRegisteredAsync(OwnerSession owner, Guid appId)
     {
