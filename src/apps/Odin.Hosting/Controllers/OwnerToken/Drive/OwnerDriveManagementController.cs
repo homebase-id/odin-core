@@ -23,6 +23,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDriveManagementController(
         DriveManager driveManager,
+        DriveDeletionService driveDeletionService,
         Defragmenter defragmenter,
         IAppRegistrationService appRegistrationService
         ) : OdinControllerBase
@@ -109,6 +110,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<IActionResult> SetArchiveDriveFlag([FromBody] UpdateDriveArchiveFlag request)
         {
             await driveManager.SetArchiveDriveFlagAsync(request.TargetDrive.Alias, request.Archived, WebOdinContext);
+            return Ok();
+        }
+
+        /// <summary>
+        /// Hard-deletes every file on a non-system drive and keeps the drive. Local only: peers keep any
+        /// copies they received.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("empty")]
+        public async Task<IActionResult> EmptyDrive([FromBody] TargetDriveRequest request)
+        {
+            await driveDeletionService.EmptyDriveAsync(request.TargetDrive.Alias, WebOdinContext);
             return Ok();
         }
 
@@ -242,6 +255,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool AllowCdn { get; set; }
+    }
+
+    public class TargetDriveRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
     }
 
     public class UpdateDriveArchiveFlag

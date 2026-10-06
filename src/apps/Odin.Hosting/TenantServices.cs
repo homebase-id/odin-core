@@ -261,6 +261,7 @@ public static class TenantServices
         cb.RegisterType<OwnerSecurityHealthService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
+        cb.RegisterType<DriveDeletionService>().InstancePerLifetimeScope();
 
         // Upload: ALWAYS disk (uploads are never on S3).
         cb.Register(c => new UploadFileStore(new DiskFileStore(c.Resolve<FileReaderWriter>())))

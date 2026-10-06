@@ -264,6 +264,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
             forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
         }
 
+        /// <summary>
+        /// Hard-deletes every file on the drive, locally: the database rows first, then the drive's payload
+        /// directory. Nothing is sent to peers and no per-file events are raised.
+        /// </summary>
+        public async Task DeleteAllFilesAsync(StorageDrive drive)
+        {
+            await driveQuery.DeleteDriveContentAsync(drive);
+            await longTermPayloadStore.DeleteDirectoryAsync(_tenantPathManager.GetDrivePayloadPath(drive.Id));
+        }
+
         public async Task<bool> PayloadExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);

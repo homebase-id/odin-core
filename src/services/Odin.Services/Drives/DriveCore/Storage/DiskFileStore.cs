@@ -51,6 +51,12 @@ public sealed class DiskFileStore(FileReaderWriter frw) : IDriveFileStore
         return Task.CompletedTask;
     }
 
+    public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default)
+    {
+        frw.DeleteDirectory(dir);
+        return Task.CompletedTask;
+    }
+
     /// <summary>
     /// Promotes a staged file into this disk store. The destination is disk, so the only valid case is a
     /// Disk -&gt; Disk local copy.

@@ -94,6 +94,15 @@ public class TableInboxCached(TableInbox table, IIdentityTransactionalCacheFacto
 
     //
 
+    public async Task<int> DeleteBoxAsync(Guid boxId)
+    {
+        var result = await table.DeleteBoxAsync(boxId);
+        await InvalidateBoxAsync(boxId);
+        return result;
+    }
+
+    //
+
     public async Task<int> PopCancelAllAsync(Guid popstamp)
     {
         var result = await table.PopCancelAllAsync(popstamp);

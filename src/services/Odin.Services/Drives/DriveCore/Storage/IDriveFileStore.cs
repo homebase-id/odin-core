@@ -28,6 +28,7 @@ public interface IDriveFileStore
     Task         DeleteAsync(string path, CancellationToken ct = default);
     Task         DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default); // {fileId:N}.*
     Task         EnsureDirectoryAsync(string dir, CancellationToken ct = default);          // no-op on S3
+    Task         DeleteDirectoryAsync(string dir, CancellationToken ct = default);          // dir and all below; missing is fine
 
     /// <summary>
     /// Promotes a staged file from <paramref name="source"/> into THIS store (the destination): it moves a

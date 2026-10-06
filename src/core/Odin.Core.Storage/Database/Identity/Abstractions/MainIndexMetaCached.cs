@@ -35,6 +35,13 @@ public class MainIndexMetaCached : AbstractTableCaching
         return result;
     }
 
+    public async Task<long> DeleteDriveContentAsync(Guid driveId)
+    {
+        var result = await _meta.DeleteDriveContentAsync(driveId);
+        await InvalidateDriveAsync(driveId);
+        return result;
+    }
+
     //
 
     public async Task UpdateLocalTagsAsync(Guid driveId, Guid fileId, List<Guid> tags)

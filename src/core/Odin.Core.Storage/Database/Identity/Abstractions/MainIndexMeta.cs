@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -18,7 +19,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         TableDriveAclIndex driveAclIndex,
         TableDriveTagIndex driveTagIndex,
         TableDriveLocalTagIndex driveLocalTagIndex,
-        TableDriveMainIndex driveMainIndex)
+        TableDriveMainIndex driveMainIndex,
+        TableDriveReactions driveReactions,
+        TableDriveTransferHistory driveTransferHistory)
     {
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
         public readonly TableDriveLocalTagIndex DriveLocalTagIndex = driveLocalTagIndex;
@@ -28,10 +31,50 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
 
-            var n = 0;
             await driveAclIndex.DeleteAllRowsAsync(driveId, fileId);
             await driveTagIndex.DeleteAllRowsAsync(driveId, fileId);
-            n = await driveMainIndex.DeleteAsync(driveId, fileId);
+            await driveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
+            await driveReactions.DeleteAllForPostAsync(driveId, fileId);
+            await driveTransferHistory.DeleteAllRowsAsync(driveId, fileId);
+            var n = await driveMainIndex.DeleteAsync(driveId, fileId);
+
+            tx.Commit();
+            return n;
+        }
+
+        /// <summary>
+        /// Every table that holds a drive's files, with the column naming the drive. The Inbox is not here: it
+        /// has its own cache (<c>TableInboxCached.DeleteBoxAsync</c>).
+        /// </summary>
+        private static readonly (string Table, string DriveColumn)[] DriveContentTables =
+        [
+            ("DriveMainIndex", "driveId"),
+            ("DriveAclIndex", "driveId"),
+            ("DriveTagIndex", "driveId"),
+            ("DriveLocalTagIndex", "driveId"),
+            ("DriveReactions", "driveId"),
+            ("DriveTransferHistory", "driveId"),
+            ("Outbox", "driveId")
+        ];
+
+        /// <summary>
+        /// Deletes every file of a drive, with its index, reaction, transfer-history and outbox rows, in
+        /// one transaction. The drive itself stays. Payloads are the caller's to remove.
+        /// </summary>
+        internal async Task<long> DeleteDriveContentAsync(Guid driveId)
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var tx = await cn.BeginStackedTransactionAsync();
+
+            long n = 0;
+            foreach (var (table, driveColumn) in DriveContentTables)
+            {
+                await using var cmd = cn.CreateCommand();
+                cmd.CommandText = $"DELETE FROM {table} WHERE identityId = @identityId AND {driveColumn} = @driveId;";
+                cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+                cmd.AddParameter("@driveId", DbType.Binary, driveId);
+                n += await cmd.ExecuteNonQueryAsync();
+            }
 
             tx.Commit();
             return n;

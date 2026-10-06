@@ -441,6 +441,15 @@ public sealed class FileReaderWriter(
         Directory.CreateDirectory(dir);
         logger.LogDebug("Created Directory [{dir}]", dir);
     }
+
+    public void DeleteDirectory(string dir)
+    {
+        if (Directory.Exists(dir))
+        {
+            Directory.Delete(dir, recursive: true);
+            logger.LogDebug("Deleted Directory [{dir}]", dir);
+        }
+    }
     
     private static void AssertFileExists(string filePath)
     {

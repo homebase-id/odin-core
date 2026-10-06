@@ -164,6 +164,23 @@ public class S3FileStore(
 
     //
 
+    public async Task DeleteDirectoryAsync(string dir, CancellationToken ct = default)
+    {
+        // S3 has no directories: delete every object under the prefix.
+        var folder = dir.TrimEnd('/', '\\') + "/";
+        try
+        {
+            await TryRetry(async () =>
+                await s3.DeleteDirectoryAsync(folder, ct), ct);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new DriveFileStoreException(e.Message, e);
+        }
+    }
+
+    //
+
     public Task EnsureDirectoryAsync(string dir, CancellationToken ct = default)
     {
         // No-op: S3 does not have directories.

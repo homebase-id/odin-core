@@ -28,6 +28,7 @@ public class DriveQuery(
     QueryBatchCached queryBatch,
     TableDriveMainIndexCached tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
+    TableInboxCached tblInbox,
     IdentityDatabase db,
     OdinIdentity odinIdentity,
     TenantContext tenantContext
@@ -354,6 +355,18 @@ public class DriveQuery(
     public Task SoftDeleteFileHeader(ServerFileHeader header)
     {
         throw new NotImplementedException("No longer needed, this will be removed");
+    }
+
+    /// <summary>
+    /// Deletes every file record of the drive, with its index, reaction, transfer-history, outbox and inbox
+    /// rows, in one transaction. The drive record stays.
+    /// </summary>
+    public async Task DeleteDriveContentAsync(StorageDrive drive)
+    {
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await metaIndex.DeleteDriveContentAsync(drive.Id);
+        await tblInbox.DeleteBoxAsync(drive.Id);
+        tx.Commit();
     }
 
     public async Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file)
