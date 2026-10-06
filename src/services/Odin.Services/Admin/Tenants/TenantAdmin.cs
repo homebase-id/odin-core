@@ -412,7 +412,9 @@ public class TenantAdmin(
             Status = identityRegistration.Status,
             DisabledReason = identityRegistration.DisabledReason,
             StatusChangedAt = identityRegistration.StatusChangedAt,
-            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence
+            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence,
+            Created = identityRegistration.Created,
+            LastActivity = await lastSeenService.GetLastSeenAsync(identityRegistration.PrimaryDomainName)
         };
 
         if (identityRegistry is FileSystemIdentityRegistry fsir)
