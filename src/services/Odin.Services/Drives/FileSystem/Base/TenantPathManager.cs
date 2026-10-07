@@ -142,10 +142,38 @@ public class TenantPathManager
         return Path.Combine(GetDriveUploadPath(driveId), GetFilename(fileId, extension));
     }
 
+    /// <summary>
+    /// Refuses a directory that is not one drive's own -- too shallow, or without <c>/drives/{driveId}</c> in it --
+    /// before anything deletes it recursively.
+    /// </summary>
+    public static void AssertIsDriveDirectory(string directory, Guid driveId)
+    {
+        // Normalize path and count directories
+        string normalizedPath = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
+        int depth = normalizedPath.Split(Path.DirectorySeparatorChar).Length;
+
+        // Check if path is at least 3 subdirectories deep
+        if (depth < 3)
+            throw new InvalidOperationException("Directory path is too shallow (less than 3 subdirectories).");
+
+        string driveName = GuidToPathSafeString(driveId);
+
+        // Let's make sure that /drives/{driveName} is part of the string
+        string expectedPathSegment = $"{Path.DirectorySeparatorChar}drives{Path.DirectorySeparatorChar}{driveName}";
+        if (!normalizedPath.Contains(expectedPathSegment, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Directory path '{normalizedPath}' does not contain expected segment '{expectedPathSegment}'");
+    }
+
+    // e.g. /data/tenants/payloads/<tenant-id>/drives/<drive-id>
+    public string GetDrivePath(Guid driveId)
+    {
+        return Path.Combine(PayloadsDrivesPath, GuidToPathSafeString(driveId));
+    }
+
     // e.g. /data/tenants/payloads/<tenant-id>/drives/<drive-id>/files
     public string GetDrivePayloadPath(Guid driveId)
     {
-        return Path.Combine(PayloadsDrivesPath, GuidToPathSafeString(driveId), FilesFolder);
+        return Path.Combine(GetDrivePath(driveId), FilesFolder);
     }
 
     // ----------------------

@@ -24,6 +24,18 @@ public class TableDriveReactions(
         return await base.DeleteAllReactionsAsync(odinIdentity, driveId, identity, postId);
     }
 
+    /// <summary>Every identity's reactions to one post (a file), for when the file itself is hard-deleted.</summary>
+    public async Task<int> DeleteAllForPostAsync(Guid driveId, Guid postId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM DriveReactions WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@postId", DbType.Binary, postId);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     public new async Task<int> InsertAsync(DriveReactionsRecord item)
     {
         item.identityId = odinIdentity;
