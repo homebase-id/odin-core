@@ -26,6 +26,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Profile;
 using Odin.Services.PublicPage.Profile;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -795,6 +796,148 @@ public class ContactTests : V2Fixture
         var ss = owner.SharedSecret;
         var fileKey = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
         return new KeyHeader { Iv = descriptor.Iv, AesKey = fileKey.AesKey }.Decrypt(cipher);
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // enrichment / sync — the peer's own photo (peer_pic), kept apart from the user's (prfl_pic)
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task Sync_StoresPeerPhoto_InItsOwnPayload_AndLeavesTheUsersChoiceAlone()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Sam publishes a Connected-only photo — the case circles are supposed to make possible.
+        var (samImage, samThumb) = await SeedProfilePhotoAsync(sam, ProfileAttributeVisibility.Connected);
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        // Frodo also picks his own photo for this contact — sync must never touch it.
+        var (userImage, _) = await SetSampleImageAsync(frodo, contacts, uid, create.Content.VersionTag);
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var header = await GetByUniqueIdAsync(frodo, uid);
+        var peer = header!.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactService.PeerImagePayloadKey);
+        Assert.That(peer, Is.Not.Null, "the peer's photo should be stored under peer_pic");
+        Assert.That(peer!.ContentType, Is.EqualTo("image/jpeg"));
+        Assert.That(peer.Thumbnails, Has.Count.EqualTo(1), "the peer's rendition came across too");
+        Assert.That(peer.DescriptorContent, Is.Not.Null.And.Not.Empty, "the digest is recorded for change detection");
+
+        Assert.That(await ReadPayloadAsync(frodo, uid, ContactService.PeerImagePayloadKey), Is.EqualTo(samImage),
+            "peer photo bytes round-trip, re-encrypted under the contact file's key");
+        Assert.That(await ReadThumbnailAsync(frodo, uid, ContactService.PeerImagePayloadKey, 32), Is.EqualTo(samThumb));
+
+        // The whole point: the user's own choice is untouched and still independently readable.
+        Assert.That(await ReadImagePayloadAsync(frodo, uid), Is.EqualTo(userImage),
+            "sync must never clobber the photo the user picked for this contact");
+    }
+
+    [Test]
+    public async Task Sync_IsANoOp_WhenThePeerPhotoIsUnchanged()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        await SeedProfilePhotoAsync(sam, ProfileAttributeVisibility.Connected);
+        await SeedProfileNameAsync(sam, "Samwise Gamgee");
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        Assert.That((await contacts.SyncAsync(Identities.Sam)).StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+        var afterFirst = await GetByUniqueIdAsync(frodo, uid);
+        var firstDescriptor = afterFirst!.FileMetadata.Payloads!.First(p => p.Key == ContactService.PeerImagePayloadKey);
+
+        // Second sync: nothing changed on Sam's side, so the photo must not be re-staged.
+        Assert.That((await contacts.SyncAsync(Identities.Sam)).StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var afterSecond = await GetByUniqueIdAsync(frodo, uid);
+        var secondDescriptor = afterSecond!.FileMetadata.Payloads!.First(p => p.Key == ContactService.PeerImagePayloadKey);
+
+        // Uid changes on every re-stage, so an unchanged Uid is proof the bytes were not rewritten.
+        // (The header itself is still rewritten — every merge rotates the content IV and advances the
+        // version tag, which is pre-existing behaviour for text sync and not what this guards.)
+        Assert.That(secondDescriptor.Uid, Is.EqualTo(firstDescriptor.Uid), "an unchanged photo must not be re-staged");
+        Assert.That(secondDescriptor.Iv, Is.EqualTo(firstDescriptor.Iv), "and its IV must not be rotated");
+    }
+
+    [Test]
+    public async Task Sync_DropsThePeerPhoto_WhenThePeerNoLongerPublishesOne()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        await SeedProfilePhotoAsync(sam, ProfileAttributeVisibility.Connected);
+        await SeedProfileNameAsync(sam, "Samwise Gamgee");
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+        var (userImage, _) = await SetSampleImageAsync(frodo, contacts, uid, create.Content.VersionTag);
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        Assert.That((await contacts.SyncAsync(Identities.Sam)).StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+        Assert.That((await GetByUniqueIdAsync(frodo, uid))!.FileMetadata.Payloads!
+            .Any(p => p.Key == ContactService.PeerImagePayloadKey), Is.True, "precondition: the peer photo synced");
+
+        // Sam deletes his photo attribute; the next sync must clear the copy we hold.
+        await DeleteProfilePhotoAsync(sam);
+        Assert.That((await contacts.SyncAsync(Identities.Sam)).StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var header = await GetByUniqueIdAsync(frodo, uid);
+        var keys = (header!.FileMetadata.Payloads ?? new List<PayloadDescriptor>()).Select(p => p.Key).ToList();
+        Assert.That(keys, Does.Not.Contain(ContactService.PeerImagePayloadKey), "the stale peer photo is dropped");
+        Assert.That(keys, Does.Contain(ContactService.ProfileImagePayloadKey), "the user's own photo survives");
+        Assert.That(await ReadImagePayloadAsync(frodo, uid), Is.EqualTo(userImage));
+    }
+
+    [Test]
+    public async Task Sync_DoesNotStoreAPeerPhoto_WhenTheContactIsNotConnected()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Anonymous so it is genuinely published — the point is that enrichment does not fetch photos
+        // over the public path at all, not that the ACL blocked it.
+        await SeedProfilePhotoAsync(sam, ProfileAttributeVisibility.Anonymous);
+        await SeedProfileNameAsync(sam, "Samwise Gamgee");
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        // No connection → the public-card fallback, which carries no image.
+        Assert.That((await contacts.SyncAsync(Identities.Sam)).StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var header = await GetByUniqueIdAsync(frodo, uid);
+        Assert.That((header!.FileMetadata.Payloads ?? new List<PayloadDescriptor>())
+            .Any(p => p.Key == ContactService.PeerImagePayloadKey), Is.False);
     }
 
     // -----------------------------------------------------------------------------------------
@@ -1599,6 +1742,94 @@ public class ContactTests : V2Fixture
             new UploadManifest(),
             []);
         Assert.That(seed.IsSuccessStatusCode, Is.True, "seeding the profile attribute should succeed");
+    }
+
+    /// <summary>
+    /// Publishes a Photo attribute (image + one 32px rendition) on the identity's ProfileDrive at the
+    /// given visibility, via the real profile API — the same path a client uses. Returns the plaintext
+    /// bytes so a test can assert they arrive intact on the other side.
+    /// </summary>
+    private static async Task<(byte[] image, byte[] thumb)> SeedProfilePhotoAsync(OwnerSession identity,
+        ProfileAttributeVisibility visibility)
+    {
+        var image = Enumerable.Range(0, 96).Select(i => (byte)(i * 5 + 3)).ToArray();
+        var thumb = Enumerable.Range(0, 24).Select(i => (byte)(i * 11 + 7)).ToArray();
+
+        var resp = await new V2ProfileClient(identity.Identity, identity.Factory).SetPhotoAttributeAsync(
+            new SetPhotoAttributeRequest
+            {
+                Visibility = visibility,
+                ContentType = "image/jpeg",
+                Content = image,
+                Thumbnails =
+                [
+                    new ProfilePhotoThumbnail
+                    {
+                        PixelWidth = 32, PixelHeight = 32, ContentType = "image/jpeg", Content = thumb
+                    }
+                ]
+            });
+
+        Assert.That(resp.IsSuccessStatusCode, Is.True, $"seeding the photo attribute failed: {resp.StatusCode}");
+        return (image, thumb);
+    }
+
+    /// <summary>Deletes every Photo attribute on the identity's ProfileDrive.</summary>
+    private static async Task DeleteProfilePhotoAsync(OwnerSession identity)
+    {
+        var reader = new DriveReaderV2Client(identity.Identity, identity.Factory);
+        var batch = await reader.GetBatchAsync(SystemDriveConstants.ProfileDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1
+            {
+                TargetDrive = SystemDriveConstants.ProfileDrive,
+                FileType = [ContactProfileAttributes.AttributeFileType],
+                TagsMatchAtLeastOne = [BuiltInProfileAttributes.Photo]
+            },
+            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+        });
+
+        Assert.That(batch.IsSuccessStatusCode, Is.True);
+
+        var writer = new DriveWriterV2Client(identity.Identity, identity.Factory);
+        foreach (var result in batch.Content!.SearchResults)
+        {
+            var deleted = await writer.SoftDeleteFile(SystemDriveConstants.ProfileDrive.Alias, result.FileId);
+            Assert.That(deleted.IsSuccessStatusCode, Is.True, "deleting the photo attribute should succeed");
+        }
+    }
+
+    /// <summary>Reads and decrypts an arbitrary contact payload (file AES key under the descriptor's IV).</summary>
+    private static async Task<byte[]> ReadPayloadAsync(OwnerSession owner, Guid uid, string payloadKey)
+    {
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var descriptor = header!.FileMetadata.Payloads!.First(p => p.Key == payloadKey);
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetPayloadByUniqueIdAsync(uid, ContactDriveId, payloadKey);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, $"{payloadKey} payload should be readable");
+
+        var ss = owner.SharedSecret;
+        var fileKey = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
+        return new KeyHeader { Iv = descriptor.Iv, AesKey = fileKey.AesKey }
+            .Decrypt(await resp.Content!.ReadAsByteArrayAsync());
+    }
+
+    /// <summary>Reads and decrypts one thumbnail rendition of a contact payload (same IV as its payload).</summary>
+    private static async Task<byte[]> ReadThumbnailAsync(OwnerSession owner, Guid uid, string payloadKey, int size)
+    {
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var descriptor = header!.FileMetadata.Payloads!.First(p => p.Key == payloadKey);
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetThumbnailUniqueIdAsync(uid, ContactDriveId, size, size, payloadKey,
+            directMatchOnly: true);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, $"{payloadKey} {size}px thumbnail should be readable");
+
+        var ss = owner.SharedSecret;
+        var fileKey = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
+        return new KeyHeader { Iv = descriptor.Iv, AesKey = fileKey.AesKey }
+            .Decrypt(await resp.Content!.ReadAsByteArrayAsync());
     }
 
     private static async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> GetByUniqueIdAsync(
