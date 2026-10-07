@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -73,6 +74,22 @@ public sealed class DnssecHealthResult
     /// <summary>The enclosing zone when Status is Inherited</summary>
     public string EnclosingZone { get; init; } = "";
 
+    /// <summary>
+    /// When Status is Inherited: how the enclosing zone itself grades. "Inherited" used to be
+    /// taken on trust; this is the check. Not the owner's to fix (the enclosing zone of a
+    /// managed domain is ours), so it never counts as owner attention.
+    /// </summary>
+    public DnsHealthDnssecStatus? EnclosingZoneStatus { get; init; }
+
+    /// <summary>
+    /// The zone's keys could not be looked up at all, so ZoneUnsigned here means "could not
+    /// tell". A DNS hiccup must not land in an owner's monthly report as a security finding.
+    /// </summary>
+    public bool LookupFailed { get; init; }
+
+    /// <summary>The server's verdict, shipped so clients (the DNS tab dot) do not keep their own copy of the rule</summary>
+    public bool NeedsAttention => DnsHealthService.NeedsUserAttention(this);
+
     /// <summary>The DS record(s) the user would publish at the parent (CDS verbatim when the zone publishes them, else computed from the zone's public keys)</summary>
     public List<DsRecordData> DsToPublish { get; init; } = [];
 
@@ -80,6 +97,57 @@ public sealed class DnssecHealthResult
     public List<DsRecordData> ParentDsRecords { get; init; } = [];
 
     public bool ParentZoneSigned { get; init; }
+}
+
+public enum MailRelayHealthStatus
+{
+    /// <summary>Nothing to check: no relay configured, tenant mail off, or this tenant never activated email</summary>
+    NotApplicable,
+
+    /// <summary>The relay knows the domain and has verified its records</summary>
+    Registered,
+
+    /// <summary>The relay knows the domain but has not verified its records (yet) - see Problems</summary>
+    Unverified,
+
+    /// <summary>The relay does not know the domain: outbound mail from it cannot be relayed. See LastError</summary>
+    NotRegistered,
+
+    /// <summary>We could not ask the relay. Says nothing about the domain, so it is not the owner's problem</summary>
+    Unreachable,
+}
+
+/// <summary>
+/// The outbound relay's verdict on this tenant. Before it existed, a domain the relay had
+/// refused simply produced no rows - nothing to grade, so every health surface said OK while
+/// the tenant's mail could not leave (2026-10-07).
+/// </summary>
+public sealed class MailRelayHealthResult
+{
+    public MailRelayHealthStatus Status { get; init; }
+
+    /// <summary>The relay's own per-record diagnostics, verbatim</summary>
+    public List<string> Problems { get; init; } = [];
+
+    /// <summary>Why the relay last refused the domain, in its own words; null when it has not</summary>
+    public string? LastError { get; init; }
+
+    /// <summary>
+    /// The verdict described for a human, or null when it needs no attention. The one wording
+    /// every surface shows - the Email tab, the monthly email, the app's health check.
+    /// </summary>
+    public string? Problem => Status switch
+    {
+        MailRelayHealthStatus.NotRegistered => LastError == null
+            ? "Outbound sending is not set up: the mail relay has not registered this domain"
+            : $"Outbound sending is not set up: the mail relay refused this domain ({LastError})",
+        MailRelayHealthStatus.Unverified => Problems.Count == 0
+            ? "Outbound sending is not verified yet by the mail relay"
+            : $"Outbound sending is not verified yet by the mail relay ({string.Join("; ", Problems)})",
+        _ => null,
+    };
+
+    public bool NeedsAttention => Problem != null;
 }
 
 public sealed class DnsHealthResult
@@ -112,6 +180,8 @@ public sealed class DnsHealthResult
     public List<OptionalRecordResult> OptionalRecords { get; init; } = [];
 
     public DnssecHealthResult Dnssec { get; init; } = new();
+
+    public MailRelayHealthResult Relay { get; init; } = new();
 }
 
 /// <summary>
@@ -129,8 +199,15 @@ public class DnsHealthService(
     IDnssecLookup dnssecLookup,
     IDnsLookupService dnsLookupService,
     IDkimStore dkimStore,
-    IMailRelayProvider relayProvider)
+    IMailRelayProvider relayProvider,
+    IMailRelayFailureStore relayFailureStore)
 {
+    // The enclosing zone of a managed domain is one shared apex for thousands of tenants, and
+    // grading it is a chain of uncached authority walks. Graded once per TTL per node instead
+    // of per tenant per request - which also keeps a broken apex to one error line per TTL.
+    private static readonly TimeSpan EnclosingZoneGradeTtl = TimeSpan.FromMinutes(15);
+    private readonly ConcurrentDictionary<string, (DnsHealthDnssecStatus status, DateTimeOffset gradedAt)> _enclosingZoneGrades = new();
+
     private static readonly DnsQueryOptions AuthoritativeQueryOptions = new()
     {
         Recursion = false,
@@ -145,8 +222,15 @@ public class DnsHealthService(
         // from the config-only GetDnsConfiguration. Both sets ride the same extraRecords seam,
         // which means the status lookups, the Optional/mail split and every client's notion of
         // "broken" pick them up without knowing they are different in origin.
-        var extraRecords = await GetDkimRecordsAsync(domain);
-        extraRecords.AddRange(await GetRelayRecordsAsync(domain));
+        var dkimRecords = await GetDkimRecordsAsync(domain);
+        var extraRecords = dkimRecords ?? [];
+
+        // DKIM keys exist exactly when the tenant activated email - the only case in which the
+        // relay is supposed to know the domain at all. An unreadable DKIM store (null) proves
+        // nothing either way, so the relay is asked rather than the tenant assumed inactive -
+        // otherwise a store hiccup would hide a refused domain behind "nothing to check".
+        var (relayRecords, relay) = await GetRelayHealthAsync(domain, mailActivated: dkimRecords is not { Count: 0 });
+        extraRecords.AddRange(relayRecords);
 
         var (recordsAreValid, records) = await dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(
             domain, extraRecords, cancellationToken);
@@ -163,52 +247,85 @@ public class DnsHealthService(
             RecordsAreValid = recordsAreValid,
             OptionalRecords = optionalRecords,
             Dnssec = dnssec,
+            Relay = relay,
         };
     }
 
     //
 
     /// <summary>
+    /// The outbound relay's per-tenant CNAMEs and its verdict, when a relay is configured and
+    /// the tenant activated email. The CNAME names are allocated by the relay, so they are read
+    /// from it rather than derived.
+    ///
+    /// Three answers that used to look identical (no rows) are now told apart: the relay does
+    /// not know the domain (NotRegistered - the owner's problem, with the relay's last refusal
+    /// attached), we could not ask (Unreachable - not the owner's problem), and nothing to ask
+    /// about (NotApplicable).
+    /// </summary>
+    private async Task<(List<DnsConfig> records, MailRelayHealthResult verdict)> GetRelayHealthAsync(
+        AsciiDomainName domain, bool mailActivated)
+    {
+        if (!configuration.Email.TenantMail.Enabled || !relayProvider.IsConfigured || !mailActivated)
+        {
+            return ([], new MailRelayHealthResult { Status = MailRelayHealthStatus.NotApplicable });
+        }
+
+        MailRelayDomainState? state;
+        try
+        {
+            state = await relayProvider.GetDomainAsync(domain);
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not read relay records for {domain}; omitted from the health check",
+                domain.DomainName);
+            return ([], new MailRelayHealthResult { Status = MailRelayHealthStatus.Unreachable });
+        }
+
+        if (state == null)
+        {
+            return ([], new MailRelayHealthResult
+            {
+                Status = MailRelayHealthStatus.NotRegistered,
+                LastError = await TryGetRelayFailureAsync(domain),
+            });
+        }
+
+        return (state.Records, new MailRelayHealthResult
+        {
+            Status = state.Verified ? MailRelayHealthStatus.Registered : MailRelayHealthStatus.Unverified,
+            Problems = state.Problems,
+        });
+    }
+
+    private async Task<string?> TryGetRelayFailureAsync(AsciiDomainName domain)
+    {
+        try
+        {
+            return await relayFailureStore.GetAsync(domain.DomainName);
+        }
+        catch (Exception e)
+        {
+            // The verdict stands without the reason; losing the reason must not lose the verdict
+            logger.LogWarning(e, "Could not read the last relay failure for {domain}", domain.DomainName);
+            return null;
+        }
+    }
+
     /// <summary>
     /// The tenant's DKIM records, so the owner console can check them like any other.
     ///
     /// They cannot come from GetDnsConfiguration: that list is built from configuration,
     /// while DKIM values are per-tenant key material that exists only after email
     /// activation. Returns empty whenever there is nothing to check - tenant mail off,
-    /// no storage key configured, or the tenant never activated email - so the caller
-    /// never has to distinguish "no DKIM" from "DKIM broken".
+    /// no storage key configured, or the tenant never activated email.
     ///
-    /// A read failure is logged and swallowed: DKIM is one block of a health panel, and
-    /// a store hiccup should not take the whole panel down with it.
+    /// A read failure is logged and returns null: DKIM is one block of a health panel, and
+    /// a store hiccup should not take the whole panel down with it - but it must not pass
+    /// for "never activated" either.
     /// </summary>
-    /// <summary>
-    /// The outbound relay's per-tenant CNAMEs, when a relay is configured. Their names are
-    /// allocated by the relay, so they are read from it rather than derived - and an
-    /// unreachable relay omits them rather than reporting them missing, because "we could not
-    /// ask" and "they are not published" are different answers and only one is the owner's
-    /// problem.
-    /// </summary>
-    private async Task<List<DnsConfig>> GetRelayRecordsAsync(AsciiDomainName domain)
-    {
-        if (!configuration.Email.TenantMail.Enabled || !relayProvider.IsConfigured)
-        {
-            return [];
-        }
-
-        try
-        {
-            var state = await relayProvider.GetDomainAsync(domain);
-            return state?.Records ?? [];
-        }
-        catch (Exception e)
-        {
-            logger.LogWarning(e, "Could not read relay records for {domain}; omitted from the health check",
-                domain.DomainName);
-            return [];
-        }
-    }
-
-    private async Task<List<DnsConfig>> GetDkimRecordsAsync(AsciiDomainName domain)
+    private async Task<List<DnsConfig>?> GetDkimRecordsAsync(AsciiDomainName domain)
     {
         if (!configuration.Email.TenantMail.Enabled || !dkimStore.IsConfigured)
         {
@@ -224,10 +341,11 @@ public class DnsHealthService(
         {
             logger.LogWarning(e, "Could not read DKIM keys for {domain}; DKIM records omitted from the health check",
                 domain.DomainName);
-            return [];
+            return null;
         }
     }
 
+    /// <summary>
     /// The optional www record. Deliberately NOT part of GetDnsConfiguration: that list
     /// feeds the signup success rule and certificate checks, and a missing optional
     /// record must never fail either. None of the states here is an error.
@@ -286,17 +404,70 @@ public class DnsHealthService(
         var zoneApex = await authoritativeDnsLookup.LookupZoneApexAsync(domainName, cancellationToken);
         if (zoneApex != domainName)
         {
+            // ...but "governed by" is not "secured by": grade the enclosing zone with the same
+            // rules rather than taking it on trust
             return new DnssecHealthResult
             {
                 Status = DnsHealthDnssecStatus.Inherited,
                 EnclosingZone = zoneApex,
+                EnclosingZoneStatus = IsOurManagedApex(zoneApex)
+                    ? await GradeEnclosingZoneAsync(zoneApex, cancellationToken)
+                    : null,
             };
         }
 
-        var dnsKeys = await dnssecLookup.GetZoneDnsKeysAsync(domainName, cancellationToken);
-        if (dnsKeys.Count == 0)
+        return await GradeZoneAsync(domainName, cancellationToken);
+    }
+
+    // Only our own apexes are graded: an identity can also sit inside an owner's own zone
+    // (home.example.com in example.com), which is neither ours to fix nor ours to log about
+    private bool IsOurManagedApex(string zone) => configuration.Registry.ManagedDomainApexes.Any(
+        x => string.Equals(x.Apex.Trim().TrimEnd('.'), zone, StringComparison.OrdinalIgnoreCase));
+
+    private async Task<DnsHealthDnssecStatus?> GradeEnclosingZoneAsync(string zoneApex, CancellationToken cancellationToken)
+    {
+        if (_enclosingZoneGrades.TryGetValue(zoneApex, out var cached) &&
+            DateTimeOffset.UtcNow - cached.gradedAt < EnclosingZoneGradeTtl)
         {
-            return new DnssecHealthResult { Status = DnsHealthDnssecStatus.ZoneUnsigned };
+            return cached.status;
+        }
+
+        DnssecHealthResult grade;
+        try
+        {
+            grade = await GradeZoneAsync(zoneApex, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            // An extra on the tenant's panel; failing to compute it must not fail the panel
+            logger.LogWarning(e, "DNSSEC: could not grade enclosing zone {zone}", zoneApex);
+            return null;
+        }
+
+        if (grade.LookupFailed)
+        {
+            return null;
+        }
+
+        var status = grade.Status;
+        _enclosingZoneGrades[zoneApex] = (status, DateTimeOffset.UtcNow);
+
+        // Ours, not the owner's: an ops fault, logged once per fresh grade
+        if (status != DnsHealthDnssecStatus.Secure)
+        {
+            logger.LogError("DNSSEC: enclosing zone {zone} of managed domains is {status}, not Secure", zoneApex, status);
+        }
+
+        return status;
+    }
+
+    // The verdict for a zone cut: signed at all, then anchored at the parent
+    private async Task<DnssecHealthResult> GradeZoneAsync(string domainName, CancellationToken cancellationToken)
+    {
+        var dnsKeys = await dnssecLookup.TryGetZoneDnsKeysAsync(domainName, cancellationToken);
+        if (dnsKeys == null || dnsKeys.Count == 0)
+        {
+            return new DnssecHealthResult { Status = DnsHealthDnssecStatus.ZoneUnsigned, LookupFailed = dnsKeys == null };
         }
 
         var parentZoneSigned = await dnssecLookup.IsParentZoneSignedAsync(domainName, cancellationToken);
@@ -324,13 +495,15 @@ public class DnsHealthService(
     //
 
     /// <summary>
-    /// The DNSSEC state when - and only when - the user can act on it, for the monthly
-    /// security health email (docs/owner-console-dnssec-panel-plan.md, security email
-    /// section): DsMismatch always (SERVFAIL risk), DsMissing only when the parent is
-    /// signed (one actionable record away). Everything else - Secure, Inherited,
-    /// ParentUnsigned, third-party unsigned zones - returns null: no monthly nagging
-    /// about states the user cannot change through us. Never throws; a lookup failure
-    /// returns null and must not count as attention.
+    /// The DNSSEC state when it needs the owner, for the monthly security health email:
+    /// DsMismatch (SERVFAIL risk), DsMissing (one record away), and - since 2026-10-07, by
+    /// decision - ParentUnsigned and ZoneUnsigned too: an unanchored zone weakens both the
+    /// identity's security and its mail deliverability, even where the fix lies with the
+    /// registrar or the parent zone's owner rather than with us. (This reverses the original
+    /// "no nagging about states the user cannot change through us" rule in
+    /// docs/owner-console-dnssec-panel-plan.md.) Secure and Inherited return null; an
+    /// enclosing zone that grades badly is ours to fix and is logged instead. Never throws;
+    /// a lookup failure returns null and must not count as attention.
     /// </summary>
     public async Task<DnssecHealthResult?> GetDnssecAttentionAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
@@ -367,10 +540,15 @@ public class DnsHealthService(
         try
         {
             var health = await GetDnsHealthAsync(domain, cancellationToken);
-            return health.MailRecords
+            var attention = health.MailRecords
                 .Where(x => x.Status != DnsLookupRecordStatus.Success)
                 .Select(DescribeBrokenRecord)
                 .ToList();
+            if (health.Relay.Problem is { } relayProblem)
+            {
+                attention.Add(relayProblem);
+            }
+            return attention;
         }
         catch (System.Exception e)
         {
@@ -389,8 +567,10 @@ public class DnsHealthService(
     // Pure trigger rule, data-level testable
     internal static bool NeedsUserAttention(DnssecHealthResult health)
     {
-        return health.Status == DnsHealthDnssecStatus.DsMismatch ||
-               (health.Status == DnsHealthDnssecStatus.DsMissing && health.ParentZoneSigned);
+        return !health.LookupFailed && health.Status is DnsHealthDnssecStatus.DsMismatch
+            or DnsHealthDnssecStatus.DsMissing
+            or DnsHealthDnssecStatus.ParentUnsigned
+            or DnsHealthDnssecStatus.ZoneUnsigned;
     }
 
     //

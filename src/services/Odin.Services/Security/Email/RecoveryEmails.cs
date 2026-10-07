@@ -577,6 +577,19 @@ Review it here: https://{tenant}/owner/security/dns
 ";
         }
 
+        if (dnssec.Status is DnsHealthDnssecStatus.ParentUnsigned or DnsHealthDnssecStatus.ZoneUnsigned)
+        {
+            return @$"
+
+🔒 DNSSEC is not configured for {tenant}
+
+For your security and email deliverability, DNSSEC should be configured.
+{DnssecNotConfiguredReason(tenant, dnssec)}
+
+Review it here: https://{tenant}/owner/security/dns
+";
+        }
+
         // DsMissing with a signed parent
         return @$"
 
@@ -686,6 +699,13 @@ Review it here: https://{tenant}/owner/security/dns
 ");
     }
 
+    // The two states with no DS to add yet: what is in the way, for the text and HTML mail alike
+    private static string DnssecNotConfiguredReason(OdinId tenant, DnssecHealthResult dnssec) =>
+        dnssec.Status == DnsHealthDnssecStatus.ZoneUnsigned
+            ? $"Your DNS host does not sign the zone of {tenant}. Using Homebase nameservers signs it for you."
+            : $"The zone of {tenant} is signed, but its parent zone is not, so the chain of trust cannot reach it. " +
+              "Turn on DNSSEC for the parent zone where it is hosted; the DS record to add there is on the DNS page.";
+
     // Rendered only when the DNSSEC state is user-actionable (the caller passes null otherwise)
     private static string DnssecAttentionHtml(OdinId tenant, DnssecHealthResult dnssec)
     {
@@ -702,6 +722,20 @@ Review it here: https://{tenant}/owner/security/dns
                 $"<td style='padding: 4px 12px 4px 0;'>{ds.DigestType}</td>" +
                 $"<td style='padding: 4px 0; word-break: break-all;'><code>{ds.Digest}</code></td>" +
                 "</tr>"));
+
+        if (dnssec.Status is DnsHealthDnssecStatus.ParentUnsigned or DnsHealthDnssecStatus.ZoneUnsigned)
+        {
+            return @$"
+    <h3 style='margin-top: 25px; margin-bottom: 10px;'>🔒 DNSSEC is not configured for {tenant}</h3>
+
+    <p style='margin-bottom: 15px;'>For your security and email deliverability, DNSSEC should be configured.
+        {DnssecNotConfiguredReason(tenant, dnssec)}</p>
+
+    <p style='margin-bottom: 15px;'>
+        <a href='https://{tenant}/owner/security/dns' style='color: #0052cc; text-decoration: none; font-weight: 600;'>Review DNS &amp; DNSSEC status →</a>
+    </p>
+";
+        }
 
         var isMismatch = dnssec.Status == DnsHealthDnssecStatus.DsMismatch;
         var headline = isMismatch
