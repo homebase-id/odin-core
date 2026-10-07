@@ -145,7 +145,11 @@ public class MailActivationService(
         }
     }
 
-    private async Task ScheduleRelayOnboardingAsync(string domain)
+    /// <param name="recordsWritten">
+    /// Set when the caller has already registered the domain and published its records (the
+    /// repair button): the job then goes straight to verification. Null runs the full setup.
+    /// </param>
+    private async Task ScheduleRelayOnboardingAsync(string domain, bool? recordsWritten = null)
     {
         // The job is unique per domain, and a finished run keeps its row for a while (a failed
         // one for a day). Left there, that row would swallow this request - the scheduler hands
@@ -158,7 +162,12 @@ public class MailActivationService(
         }
 
         var job = jobManager.NewJob<MailRelayOnboardingJob>();
-        job.Data = new MailRelayOnboardingJobData { Domain = domain };
+        job.Data = new MailRelayOnboardingJobData
+        {
+            Domain = domain,
+            SetupDone = recordsWritten.HasValue,
+            RecordsWritten = recordsWritten ?? false,
+        };
 
         await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
@@ -253,7 +262,7 @@ public class MailActivationService(
         // before it writes, so running it after this is safe).
         if (relayProvider.IsConfigured && relayError == null)
         {
-            await ScheduleRelayOnboardingAsync(domain.DomainName);
+            await ScheduleRelayOnboardingAsync(domain.DomainName, recordsWritten: written);
         }
 
         return new MailDnsPublishResult { DnsRecordsWritten = written, Records = records, RelayError = relayError };

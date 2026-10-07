@@ -90,6 +90,14 @@ public sealed class DnssecHealthResult
     /// <summary>The server's verdict, shipped so clients (the DNS tab dot) do not keep their own copy of the rule</summary>
     public bool NeedsAttention => DnsHealthService.NeedsUserAttention(this);
 
+    /// <summary>
+    /// Validating resolvers refuse the domain: a DS that matches none of the keys, on the
+    /// domain's own zone or on the enclosing zone it inherits from. Not the same question as
+    /// <see cref="NeedsAttention"/> (whose job is it?) - this is how bad it is, whoever fixes it.
+    /// </summary>
+    public bool BreaksResolution => !LookupFailed &&
+        (Status == DnsHealthDnssecStatus.DsMismatch || EnclosingZoneStatus == DnsHealthDnssecStatus.DsMismatch);
+
     /// <summary>The DS record(s) the user would publish at the parent (CDS verbatim when the zone publishes them, else computed from the zone's public keys)</summary>
     public List<DsRecordData> DsToPublish { get; init; } = [];
 
@@ -122,7 +130,7 @@ public enum MailRelayHealthStatus
 /// refused simply produced no rows - nothing to grade, so every health surface said OK while
 /// the tenant's mail could not leave (2026-10-07).
 /// </summary>
-public sealed class MailRelayHealthResult
+public sealed record MailRelayHealthResult
 {
     public MailRelayHealthStatus Status { get; init; }
 
@@ -157,6 +165,18 @@ public sealed class MailRelayHealthResult
     };
 
     public bool NeedsAttention => Problem != null;
+
+    /// <summary>Worth saying but not wrong: we could not ask the relay at all.</summary>
+    public string? Warning => Status == MailRelayHealthStatus.Unreachable
+        ? "Outbound sending could not be checked right now"
+        : null;
+
+    /// <summary>The relay's own state, in our vocabulary.</summary>
+    public static MailRelayHealthResult From(MailRelayDomainState state) => new()
+    {
+        Status = state.Verified ? MailRelayHealthStatus.Registered : MailRelayHealthStatus.Unverified,
+        Problems = state.Problems,
+    };
 }
 
 public sealed class DnsHealthResult
@@ -279,7 +299,7 @@ public class DnsHealthService(
         AsciiDomainName domain, MailRelayHealthResult relay, List<DnsConfig> relayRecords,
         CancellationToken cancellationToken)
     {
-        var key = domain.DomainName.ToLowerInvariant();
+        var key = domain.DomainName; // AsciiDomainName is lowercase by construction
         if (relay.Status != MailRelayHealthStatus.Unverified)
         {
             // Nothing left to re-check for this domain; keep the map to domains that need it
@@ -290,20 +310,16 @@ public class DnsHealthService(
         // The authoritative lookup grades the relay's own row objects in place
         if (relayRecords.Any(r => r.Status != DnsLookupRecordStatus.Success))
         {
-            return new MailRelayHealthResult
-            {
-                Status = relay.Status,
-                Problems = relay.Problems,
-                LastError = relay.LastError,
-                RecordsNotLiveYet = true,
-            };
+            return relay with { RecordsNotLiveYet = true };
         }
 
         // Claim the slot atomically: of two overlapping calls (an open tab and the app's check),
         // only the one whose timestamp got stored goes on to ask the relay
         var now = DateTimeOffset.UtcNow;
-        var stored = _relayReverifiedAt.AddOrUpdate(key, now,
-            (_, last) => now - last < RelayReverifyInterval ? last : now);
+        var stored = _relayReverifiedAt.AddOrUpdate(key,
+            static (_, at) => at,
+            static (_, last, at) => at - last < RelayReverifyInterval ? last : at,
+            now);
         if (stored != now)
         {
             return relay;
@@ -313,11 +329,7 @@ public class DnsHealthService(
         {
             var state = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
             logger.LogInformation("Relay: re-verified {domain} from the health check -> {verified}", domain, state.Verified);
-            return new MailRelayHealthResult
-            {
-                Status = state.Verified ? MailRelayHealthStatus.Registered : MailRelayHealthStatus.Unverified,
-                Problems = state.Problems,
-            };
+            return MailRelayHealthResult.From(state);
         }
         catch (Exception e)
         {
@@ -367,11 +379,7 @@ public class DnsHealthService(
             });
         }
 
-        return (state.Records, new MailRelayHealthResult
-        {
-            Status = state.Verified ? MailRelayHealthStatus.Registered : MailRelayHealthStatus.Unverified,
-            Problems = state.Problems,
-        });
+        return (state.Records, MailRelayHealthResult.From(state));
     }
 
     private async Task<string?> TryGetRelayFailureAsync(AsciiDomainName domain)

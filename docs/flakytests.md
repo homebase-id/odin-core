@@ -56,8 +56,14 @@ watchers, and fixtures run in parallel.
 (another `dotnet test`, an IDE) can exhaust it. No other test run was visible by the time it was
 checked, so the competing process was not identified.
 
-**Workaround:** re-run when nothing else is testing, or raise the limit
-(`sudo sysctl fs.inotify.max_user_instances=512`).
+**Cause (measured):** the desktop session itself. With no tests running, desktop processes
+(plasmashell, dolphin, firefox, several `gsettings monitor`, kded6, wireplumber) already held 101
+of the 128 instances, leaving ~27 for V2's parallel test hosts. Whether a run fits depends on how
+many desktop apps are open at the time: the same build passed 1420/1420 once and failed
+320/1501, 320/1501 and 1301/1509 on other runs that day.
+
+**Workaround:** raise the limit (`sudo sysctl fs.inotify.max_user_instances=512`, persist it in
+`/etc/sysctl.d/`), or close desktop apps. CI is unaffected.
 
 ---
 

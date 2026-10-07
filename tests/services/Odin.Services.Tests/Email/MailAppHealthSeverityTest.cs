@@ -1,5 +1,4 @@
 #nullable enable
-using System.Collections.Generic;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Services.Dns.Health;

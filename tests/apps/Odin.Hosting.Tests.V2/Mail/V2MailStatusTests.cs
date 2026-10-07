@@ -1,11 +1,11 @@
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Services.Email;
-using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
+using Odin.Services.Email;
 
 namespace Odin.Hosting.Tests.V2.Mail;
 

@@ -244,7 +244,7 @@ public class DnsHealthServiceTest
             {
                 foreach (var x in extras ?? [])
                 {
-                    x.Status = x.Name.Contains("934313") ? _relayRowGrade : DnsLookupRecordStatus.Success;
+                    x.Status = x.Name == RelayRowName ? _relayRowGrade : DnsLookupRecordStatus.Success;
                 }
                 return (true, new List<DnsConfig> { new() { Type = "A", Name = "", Value = "127.0.0.1" } }
                     .Concat(extras ?? [])
@@ -253,6 +253,7 @@ public class DnsHealthServiceTest
     }
 
     private DnsLookupRecordStatus _relayRowGrade = DnsLookupRecordStatus.Success;
+    private const string RelayRowName = "em934313";
 
     /// <summary>
     /// The monthly report's trigger. A broken mail record is otherwise silent: mail is
@@ -439,11 +440,7 @@ public class DnsHealthServiceTest
             $"extras were: [{string.Join(", ", passedExtras?.Select(x => x.Name) ?? [])}]");
     }
 
-    private static readonly DnsConfig RelayRow = new()
-    {
-        Type = "CNAME", Name = "em934313", Domain = "em934313.frodo.example.com",
-        Value = "return.smtp2go.net", Description = "Relay Return-Path CNAME (SPF)", Optional = true,
-    };
+    private const string Nxdomain = "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN";
 
     // A fresh row per state: the lookup grades rows in place, so tests must not share one
     private static MailRelayDomainState RelayState(bool verified, params string[] problems) => new()
@@ -454,8 +451,8 @@ public class DnsHealthServiceTest
         [
             new DnsConfig
             {
-                Type = RelayRow.Type, Name = RelayRow.Name, Domain = RelayRow.Domain, Value = RelayRow.Value,
-                Description = RelayRow.Description, Optional = true,
+                Type = "CNAME", Name = RelayRowName, Domain = $"{RelayRowName}.frodo.example.com",
+                Value = "return.smtp2go.net", Description = "Relay Return-Path CNAME (SPF)", Optional = true,
             },
         ],
         Problems = [..problems],
@@ -476,7 +473,7 @@ public class DnsHealthServiceTest
             relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => verified
                     ? RelayState(true)
-                    : RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"));
+                    : RelayState(false, Nxdomain));
             relay.Setup(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
                 {
@@ -496,7 +493,7 @@ public class DnsHealthServiceTest
         var (health, attention) = await RelayHealthAsync(relay =>
         {
             relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"));
+                .ReturnsAsync(RelayState(false, Nxdomain));
             relay.Setup(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(RelayState(false, "still NXDOMAIN on their side"));
         });
@@ -513,7 +510,7 @@ public class DnsHealthServiceTest
         var (health, _) = await RelayHealthAsync(relay =>
         {
             relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"));
+                .ReturnsAsync(RelayState(false, Nxdomain));
             relay.Setup(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new HttpRequestException("relay down"));
         });
@@ -534,7 +531,7 @@ public class DnsHealthServiceTest
 
         var (health, attention) = await RelayHealthAsync(relay => relay
             .Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN")));
+            .ReturnsAsync(RelayState(false, Nxdomain)));
 
         Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unverified), $"relay was {health.Relay.Status}");
         Assert.That(health.Relay.RecordsNotLiveYet, Is.True);

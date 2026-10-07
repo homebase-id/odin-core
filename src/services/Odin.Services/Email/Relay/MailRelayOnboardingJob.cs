@@ -23,6 +23,16 @@ public class MailRelayOnboardingJobData
     /// ever. Giving up is visible in the status surface; an endless loop is not.
     /// </summary>
     public int VerifyAttempts { get; set; }
+
+    /// <summary>
+    /// Registration and publishing are done; only verification is left. Set after the first
+    /// run, or up front by the repair button (which has just done both inline), so the ten-
+    /// minute retries are one relay call each instead of re-registering and re-writing DNS.
+    /// </summary>
+    public bool SetupDone { get; set; }
+
+    /// <summary>Whether we published the records ourselves, or they are the owner's to add.</summary>
+    public bool RecordsWritten { get; set; }
 }
 
 /// <summary>
@@ -75,6 +85,55 @@ public class MailRelayOnboardingJob(
 
         var domain = new AsciiDomainName(Data.Domain);
 
+        if (!Data.SetupDone)
+        {
+            var aborted = await SetUpAsync(domain, cancellationToken);
+            if (aborted != null)
+            {
+                return aborted;
+            }
+        }
+
+        var verified = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
+        if (verified.Verified)
+        {
+            logger.LogInformation("Relay: {domain} verified, outbound relay is live", domain);
+            return JobExecutionResult.Success();
+        }
+
+        // Not an error, so NOT Fail(): the records were published moments ago (by us, or by the
+        // owner at their DNS host) and the relay resolves them from public DNS, which has not
+        // caught up. Fail() would spend the transient-flake budget on something that is not a
+        // flake. Defer keeps the job intact and tries again later; the status surface reports
+        // the records as pending meanwhile.
+        Data.VerifyAttempts++;
+        foreach (var problem in verified.Problems)
+        {
+            logger.LogDebug("Relay: {domain} - {problem}", domain, problem);
+        }
+
+        if (Data.VerifyAttempts >= MaxVerifyAttempts)
+        {
+            // Ours to look at only if we published the records; otherwise the owner's to add,
+            // the Email tab tells them so, and the health check re-verifies once they are live
+            logger.Log(Data.RecordsWritten ? LogLevel.Warning : LogLevel.Information,
+                "Relay: {domain} still unverified after {attempts} attempts (~{hours}h); giving up. {next}",
+                domain, Data.VerifyAttempts, MaxVerifyAttempts * RetryMinutes / 60,
+                Data.RecordsWritten
+                    ? "The records are published; the status page reports what the relay cannot resolve."
+                    : "The records are the owner's to add; the health check re-verifies once they are live.");
+            return JobExecutionResult.Success();
+        }
+
+        logger.LogInformation("Relay: {domain} not verified yet ({problems} problem(s)); attempt {n}/{max}",
+            domain, verified.Problems.Count, Data.VerifyAttempts, MaxVerifyAttempts);
+
+        return JobExecutionResult.Defer(DateTimeOffset.Now.AddMinutes(RetryMinutes));
+    }
+
+    /// <summary>Register with the relay and publish its records. Returns a result only to stop the job.</summary>
+    private async Task<JobExecutionResult?> SetUpAsync(AsciiDomainName domain, CancellationToken cancellationToken)
+    {
         MailRelayDomainState state;
         try
         {
@@ -104,60 +163,19 @@ public class MailRelayOnboardingJob(
         // Written wherever the tenant's records live - the shared apex zone for managed
         // domains, its own zone otherwise. False means the DNS is not ours (third-party DNS,
         // or no PowerDNS access): the status surface shows the records as instructions, and
-        // verification below keeps deferring until the owner has added them. It must still
-        // run - stopping here meant nothing ever asked the relay to look again, so a domain
-        // whose owner did add the records stayed "not verified" for good.
-        var written = await identityRegistrationService.WriteOnActivationRecords(domain, state.Records);
-        if (!written)
+        // verification keeps deferring until the owner has added them. It must still run -
+        // stopping here meant nothing ever asked the relay to look again, so a domain whose
+        // owner did add the records stayed "not verified" for good.
+        Data.RecordsWritten = await identityRegistrationService.WriteOnActivationRecords(domain, state.Records);
+        if (!Data.RecordsWritten)
         {
             logger.LogInformation(
                 "Relay: {domain} DNS is not ours to write - {count} record(s) must be added by hand",
                 domain, state.Records.Count);
         }
 
-        var verified = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
-        if (verified.Verified)
-        {
-            logger.LogInformation("Relay: {domain} verified, outbound relay is live", domain);
-            return JobExecutionResult.Success();
-        }
-
-        // Not an error, so NOT Fail(): we published the records seconds ago and the relay
-        // resolves them from public DNS, which has not caught up. Fail() would spend the
-        // transient-flake budget on something that is not a flake. Defer keeps the job intact
-        // and tries again later; the status surface reports the records as pending meanwhile.
-        Data.VerifyAttempts++;
-        foreach (var problem in verified.Problems)
-        {
-            logger.LogDebug("Relay: {domain} - {problem}", domain, problem);
-        }
-
-        if (Data.VerifyAttempts >= MaxVerifyAttempts)
-        {
-            if (written)
-            {
-                // We published them, so this is ours to look at
-                logger.LogWarning(
-                    "Relay: {domain} still unverified after {attempts} attempts (~{hours}h); giving up. " +
-                    "The records are published; the status page reports what the relay cannot resolve.",
-                    domain, Data.VerifyAttempts, MaxVerifyAttempts * RetryMinutes / 60);
-            }
-            else
-            {
-                // The owner's to publish, and the Email tab tells them so; the health check asks
-                // the relay again once the records show up, so stopping here loses nothing
-                logger.LogInformation(
-                    "Relay: {domain} still unverified after {attempts} attempts (~{hours}h); giving up. " +
-                    "The records are the owner's to add; the health check re-verifies once they are live.",
-                    domain, Data.VerifyAttempts, MaxVerifyAttempts * RetryMinutes / 60);
-            }
-            return JobExecutionResult.Success();
-        }
-
-        logger.LogInformation("Relay: {domain} not verified yet ({problems} problem(s)); attempt {n}/{max}",
-            domain, verified.Problems.Count, Data.VerifyAttempts, MaxVerifyAttempts);
-
-        return JobExecutionResult.Defer(DateTimeOffset.Now.AddMinutes(RetryMinutes));
+        Data.SetupDone = true;
+        return null;
     }
 
     /// <summary>

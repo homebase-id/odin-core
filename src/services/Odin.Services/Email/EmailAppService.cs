@@ -381,9 +381,9 @@ public class EmailAppService(
 
         // "Could not ask the relay" says nothing about the domain: worth saying, not an error
         var warnings = verification.Warnings.ToList();
-        if (dns.Relay.Status == MailRelayHealthStatus.Unreachable)
+        if (dns.Relay.Warning is { } relayWarning)
         {
-            warnings.Add("Outbound sending could not be checked right now");
+            warnings.Add(relayWarning);
         }
 
         return new MailAppHealthResult
@@ -505,15 +505,20 @@ public class MailAppHealthResult
     /// domain). Warning: works, but weaker than it should be - an unanchored DNSSEC chain, or a
     /// check that could not be made. A DNSSEC lookup that got no answer raises nothing.
     /// </summary>
-    public MailHealthSeverity Severity =>
-        NeedsAttention ||
-        Dnssec?.Status == DnsHealthDnssecStatus.DsMismatch ||
-        // A managed domain inherits its apex's chain: a stale DS there fails it just the same
-        Dnssec?.EnclosingZoneStatus == DnsHealthDnssecStatus.DsMismatch
-            ? MailHealthSeverity.Error
-            : Dnssec?.NeedsAttention == true || Warnings.Count > 0
+    public MailHealthSeverity Severity
+    {
+        get
+        {
+            if (NeedsAttention || Dnssec?.BreaksResolution == true)
+            {
+                return MailHealthSeverity.Error;
+            }
+
+            return Dnssec?.NeedsAttention == true || Warnings.Count > 0
                 ? MailHealthSeverity.Warning
                 : MailHealthSeverity.Ok;
+        }
+    }
 }
 
 public enum MailHealthSeverity
