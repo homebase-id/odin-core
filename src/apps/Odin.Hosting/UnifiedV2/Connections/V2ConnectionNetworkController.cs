@@ -302,6 +302,40 @@ public class V2ConnectionNetworkController(
     }
 
     /// <summary>
+    /// Creates a circle owned by the calling app and returns its id.
+    /// </summary>
+    /// <remarks>
+    /// Apps only -- the owner creates circles through the circle definitions API.  The circle may grant only
+    /// drives the app owns and permission keys it holds, and is only ever granted explicitly
+    /// (<see cref="CircleMembershipService.CreateAppCircleAsync"/>).
+    /// </remarks>
+    [HttpPost("circles/create")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Create a circle owned by the calling app")]
+    public async Task<Guid> CreateCircle([FromBody] CreateAppCircleRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
+        return await circleMembership.CreateAppCircleAsync(request, WebOdinContext);
+    }
+
+    /// <summary>
+    /// Deletes a circle.  Refused while it has members unless <paramref name="removeMembers"/>, which
+    /// revokes the circle from every member first.
+    /// </summary>
+    /// <remarks>
+    /// The owner may delete any circle but a built-in one; an app only one it owns
+    /// (<see cref="CircleNetworkService.DeleteCircleDefinitionAsync"/>).
+    /// </remarks>
+    [HttpPost("circles/delete")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Delete a circle")]
+    public async Task<IActionResult> DeleteCircle([FromBody] Guid circleId, [FromQuery] bool removeMembers = false)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+        await circleNetwork.DeleteCircleDefinitionAsync(new GuidId(circleId), WebOdinContext, removeMembers);
+        return Ok();
+    }
+
+    /// <summary>
     /// Kept for installed mobile apps; new callers use circles/add-many.  One person, by the same rules,
     /// with the reason as the error when they cannot be added.
     /// </summary>

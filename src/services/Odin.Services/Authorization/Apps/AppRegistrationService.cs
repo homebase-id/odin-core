@@ -458,7 +458,12 @@ namespace Odin.Services.Authorization.Apps
             await SaveClientAsync(client);
         }
 
-        public async Task DeleteAppAsync(GuidId appId, IOdinContext odinContext)
+        /// <summary>
+        /// Deletes the registration row only -- the last step of <see cref="AppUninstallService.UninstallAsync"/>,
+        /// which removes the app's clients, grants, circles and drives first. Off the interface so nothing else can
+        /// half-delete an app.
+        /// </summary>
+        internal async Task DeleteRegistrationAsync(GuidId appId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -470,20 +475,41 @@ namespace Odin.Services.Authorization.Apps
             }
 
             await db.AppRegistrations.DeleteAsync(appId);
+            await ResetAppPermissionContextCacheAsync();
+        }
 
-            //TODO: reenable this after youauth domain work
+        public Task RemoveCirclesFromAllAppsAsync(IReadOnlyCollection<Guid> circleIds, IOdinContext odinContext) =>
+            UpdateAllAppsAsync(appReg => appReg.AuthorizedCircles?.RemoveAll(circleIds.Contains) > 0, odinContext);
 
-            //
-            // var clientsByApp = _appClientValueStorage.GetByKey2<AppClient>(appId);
-            // using (_TenantSystemStorage.CreateCommitUnitOfWork())
-            // {
-            //     foreach (var c in clientsByApp)
-            //     {
-            //         _appClientValueStorage.Delete(c.AccessRegistration.Id);
-            //     }
-            //
-            //     _appRegistrationValueStorage.Delete(appId);
-            // }
+        public Task RemoveDriveFromAllAppsAsync(Guid driveId, IOdinContext odinContext) =>
+            UpdateAllAppsAsync(appReg =>
+            {
+                var removed = appReg.AppKeyStore?.DriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
+
+                var circleDrives = appReg.CircleMemberPermissionGrant?.Drives?.ToList();
+                if (circleDrives?.RemoveAll(g => g.PermissionedDrive.Drive.Alias == driveId) > 0)
+                {
+                    appReg.CircleMemberPermissionGrant!.Drives = circleDrives;
+                    removed = true;
+                }
+
+                return removed;
+            }, odinContext);
+
+        /// <summary>Applies <paramref name="update"/> to every registration, saving each one it changed.</summary>
+        private async Task UpdateAllAppsAsync(Func<AppRegistration, bool> update, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            foreach (var appReg in await GetAllAppRegistrationsInternalAsync())
+            {
+                if (update(appReg))
+                {
+                    await SaveAsync(appReg);
+                }
+            }
+
+            await ResetAppPermissionContextCacheAsync();
         }
 
         public async Task<List<RedactedAppRegistration>> GetRegisteredAppsAsync(IOdinContext odinContext)
@@ -493,6 +519,11 @@ namespace Odin.Services.Authorization.Apps
         }
 
         private async Task<List<RedactedAppRegistration>> GetRegisteredAppsInternalAsync()
+        {
+            return (await GetAllAppRegistrationsInternalAsync()).Select(app => app.Redacted()).ToList();
+        }
+
+        private async Task<List<AppRegistration>> GetAllAppRegistrationsInternalAsync()
         {
             var apps = (await db.AppRegistrations.GetAllAsync()).Select(FromRecord).ToList();
 
@@ -507,8 +538,7 @@ namespace Odin.Services.Authorization.Apps
                     .Where(a => !known.Contains((Guid)a.AppId)));
             }
 
-            var redactedList = apps.Select(app => app.Redacted()).ToList();
-            return redactedList;
+            return apps;
         }
 
         private async Task SaveClientAsync(AppClientRegistration appClientRegistration)

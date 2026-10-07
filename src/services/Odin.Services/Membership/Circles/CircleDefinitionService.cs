@@ -379,7 +379,32 @@ namespace Odin.Services.Membership.Circles
             return circles;
         }
 
+        /// <summary>
+        /// Deletes a circle, if nothing depends on it.
+        /// </summary>
+        /// <remarks>
+        /// Refused for any circle <see cref="AssertDeletableAsync"/> refuses, and for a circle with any
+        /// member, identity or YouAuth domain -- deleting it would strand their grants.
+        /// </remarks>
         public async Task DeleteAsync(GuidId id)
+        {
+            await AssertDeletableAsync(id);
+
+            var members = await db.CircleMemberCached.GetCircleMembersAsync(id);
+            if (members.Count > 0)
+            {
+                throw new OdinClientException("Cannot delete a circle with members",
+                    OdinClientErrorCode.CannotDeleteCircleWithMembers);
+            }
+
+            await db.CircleCached.DeleteAsync(id);
+        }
+
+        /// <summary>
+        /// Throws unless the circle exists and is one that may be deleted at all, members aside: not a
+        /// built-in circle (provisioning and every upgrade assume it exists).
+        /// </summary>
+        public async Task AssertDeletableAsync(GuidId id)
         {
             var circle = await GetCircleAsync(id);
 
@@ -388,8 +413,32 @@ namespace Odin.Services.Membership.Circles
                 throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
             }
 
-            //TODO: update the circle.Permissions and circle.Drives for all members of the circle
-            await db.CircleCached.DeleteAsync(id);
+            if (BuiltinApps.IsTreeDeclaredCircle(id))
+            {
+                throw new OdinClientException($"Circle {id} is a built-in circle and cannot be deleted",
+                    OdinClientErrorCode.CannotDeleteBuiltInCircle);
+            }
+        }
+
+        /// <summary>Throws unless every granted drive is one <paramref name="appId"/> owns.</summary>
+        /// <remarks>
+        /// A grant naming no drive is left to <see cref="AssertValidDriveGrantsAsync"/>, which refuses it.
+        /// </remarks>
+        public async Task AssertDrivesOwnedByAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId)
+        {
+            foreach (var dgr in driveGrantRequests ?? [])
+            {
+                var drive = dgr?.PermissionedDrive?.Drive;
+                if (drive?.Alias == null)
+                {
+                    continue;
+                }
+
+                if ((await driveManager.GetDriveAsync(drive.Alias))?.AppId != appId)
+                {
+                    throw new OdinSecurityException($"App {appId} cannot grant drive {drive}; it does not own it");
+                }
+            }
         }
 
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)

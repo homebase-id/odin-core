@@ -65,11 +65,20 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version19tov20
             Guid.Parse("9e22b42952f74d2580e11250b651d343")
         ];
 
+        /// <summary>
+        /// Family and Work, which left the app tree: new identities no longer get them, but an identity created
+        /// before keeps both, members included, and those members are owed the same profile access as Friends'.
+        /// Their ids live only here now.
+        /// </summary>
+        private static readonly CircleDefinition FamilyCircle = new() { Id = Guid.Parse("cefc4f7cbc8c34762e0f76703e7e174e"), Name = "Family" };
+
+        private static readonly CircleDefinition WorkCircle = new() { Id = Guid.Parse("0f9263536b9fc61ada745644735bfd8f"), Name = "Work" };
+
         private static readonly IReadOnlyList<(CircleDefinition Circle, TargetDrive Drive)> ReadGrants =
         [
-            (BuiltinCircles.FamilyCircle, WellKnownAppDrives.ProfileDrive),
+            (FamilyCircle, WellKnownAppDrives.ProfileDrive),
             (BuiltinCircles.FriendsCircle, WellKnownAppDrives.ProfileDrive),
-            (BuiltinCircles.WorkCircle, WellKnownAppDrives.ProfileDrive),
+            (WorkCircle, WellKnownAppDrives.ProfileDrive),
             (BuiltinCircles.FeedCircle, WellKnownAppDrives.PublicPostsChannelDrive)
         ];
 

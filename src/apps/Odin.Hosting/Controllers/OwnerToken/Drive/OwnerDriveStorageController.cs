@@ -291,6 +291,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return await base.HardDeleteFile(request);
         }
 
+        /// <summary>
+        /// Hard deletes several files, each as <c>harddelete</c> does: gone w/o a trace, and not sent to peers
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("harddeletefileidbatch")]
+        public async Task<IActionResult> HardDeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
+        {
+            foreach (var fileRequest in request.Requests)
+            {
+                await base.HardDeleteFile(fileRequest);
+            }
+
+            return Ok();
+        }
+
         [HttpPost("send-read-receipt")]
         public new async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {

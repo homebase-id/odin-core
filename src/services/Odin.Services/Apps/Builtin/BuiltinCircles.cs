@@ -47,51 +47,12 @@ public static class BuiltinCircles
     };
 
     // --- Contacts ---
-    public static readonly CircleDefinition AcquaintancesCircle = new()
-    {
-        Id = Guid.Parse("55c53cfda992192581cb4f006109df47"),
-        Name = "Acquaintances",
-        Description = "Your network",
-        Emoji = "👋",
-        AppId = SystemAppConstants.ContactsAppId,
-        GrantOn = CircleGrantOn.None,
-        Designation = CircleDesignation.Personal,
-        DriveGrants = [],
-        Permissions = new PermissionSet { Keys = [] }
-    };
-
-    public static readonly CircleDefinition FamilyCircle = new()
-    {
-        Id = Guid.Parse("cefc4f7cbc8c34762e0f76703e7e174e"),
-        Name = "Family",
-        Description = "Your family",
-        Emoji = "👪",
-        AppId = SystemAppConstants.ContactsAppId,
-        GrantOn = CircleGrantOn.None,
-        Designation = CircleDesignation.Personal,
-        DriveGrants = [Grant(WellKnownAppDrives.ProfileDrive, DrivePermission.Read)],
-        Permissions = new PermissionSet { Keys = [] }
-    };
-
     public static readonly CircleDefinition FriendsCircle = new()
     {
         Id = Guid.Parse("3d594614f445f6b00014e9b77730b833"),
         Name = "Friends",
         Description = "Your friends",
         Emoji = "🤝",
-        AppId = SystemAppConstants.ContactsAppId,
-        GrantOn = CircleGrantOn.None,
-        Designation = CircleDesignation.Personal,
-        DriveGrants = [Grant(WellKnownAppDrives.ProfileDrive, DrivePermission.Read)],
-        Permissions = new PermissionSet { Keys = [] }
-    };
-
-    public static readonly CircleDefinition WorkCircle = new()
-    {
-        Id = Guid.Parse("0f9263536b9fc61ada745644735bfd8f"),
-        Name = "Work",
-        Description = "Your professional connections",
-        Emoji = "💼",
         AppId = SystemAppConstants.ContactsAppId,
         GrantOn = CircleGrantOn.None,
         Designation = CircleDesignation.Personal,

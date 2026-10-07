@@ -18,6 +18,9 @@ namespace Odin.Services.Authorization.Apps
 
         public bool IsRevoked { get; set; }
 
+        /// <summary>A built-in app can be revoked but not uninstalled; see <see cref="AppUninstallService.IsBuiltIn"/>.</summary>
+        public bool IsBuiltIn { get; set; }
+
         public UnixTimeUtc Created { get; set; }
 
         public UnixTimeUtc Modified { get; set; }

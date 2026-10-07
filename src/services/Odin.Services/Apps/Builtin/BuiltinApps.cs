@@ -61,13 +61,7 @@ public static class BuiltinApps
                 BuiltinDrives.ContactDrive,
                 BuiltinDrives.ProfileDrive
             ],
-            Circles:
-            [
-                BuiltinCircles.FriendsCircle,
-                BuiltinCircles.FamilyCircle,
-                BuiltinCircles.WorkCircle,
-                BuiltinCircles.AcquaintancesCircle
-            ],
+            Circles: [BuiltinCircles.FriendsCircle],
             Permissions: new PermissionSet()),
 
         new(SystemAppConstants.EmailAppId, "Email", "email",

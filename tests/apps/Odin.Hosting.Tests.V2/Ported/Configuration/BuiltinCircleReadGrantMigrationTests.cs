@@ -39,19 +39,19 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
 
         var (scope, ctx) = await MigrationContextAsync(frodo);
         var network = scope.Resolve<CircleNetworkService>();
-        var family = BuiltinCircles.FamilyCircle.Id;
+        var friends = BuiltinCircles.FriendsCircle.Id;
 
-        // Family had no drives before v20, so rewind the definition first and add the member after:
+        // Friends had no drives before v20, so rewind the definition first and add the member after:
         // their grant is then minted from the old definition, as it would have been.
-        await RewindDefinitionAsync(scope, family, WellKnownAppDrives.ProfileDrive);
-        await network.EnrollInCircleAsync(family, sam.Identity, ctx);
+        await RewindDefinitionAsync(scope, friends, WellKnownAppDrives.ProfileDrive);
+        await network.EnrollInCircleAsync(friends, sam.Identity, ctx);
         Assert.That(await ProfileDriveGrantAsync(scope, sam), Is.Null,
-            "precondition: the member's Family grant should predate the ProfileDrive Read");
+            "precondition: the member's Friends grant should predate the ProfileDrive Read");
 
         var migration = scope.Resolve<V19ToV20VersionMigrationService>();
         await migration.GrantReadToBuiltinCirclesAsync(ctx, CancellationToken.None);
 
-        var def = await scope.Resolve<CircleDefinitionService>().GetCircleAsync(family);
+        var def = await scope.Resolve<CircleDefinitionService>().GetCircleAsync(friends);
         Assert.That(def!.DriveGrants.Any(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive), Is.True);
 
         var grant = await ProfileDriveGrantAsync(scope, sam);
@@ -97,7 +97,7 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
 
         var (scope, ctx) = await MigrationContextAsync(frodo);
         var storage = scope.Resolve<CircleNetworkStorage>();
-        var family = BuiltinCircles.FamilyCircle;
+        var friends = BuiltinCircles.FriendsCircle;
         var depositingApp = System.Guid.NewGuid();
 
         // Stands in for a deposit the pre-pass could not convert: sealed before v20, so without the
@@ -105,7 +105,7 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
         var icr = await storage.GetAsync(sam.Identity);
         icr!.PeerKeyStore.DepositedGrants.Add(new DepositedGrant
         {
-            CircleId = family.Id,
+            CircleId = friends.Id,
             DepositingAppId = depositingApp,
             Deposited = UnixTimeUtc.Now()
         });
@@ -119,11 +119,11 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
         Assert.That(requeued.Select(r => r.DomainName), Does.Contain(sam.Identity.DomainName));
 
         var after = (await storage.GetAsync(sam.Identity))!.PeerKeyStore;
-        Assert.That(after.DepositedGrants.Any(d => d.CircleId == family.Id), Is.False);
+        Assert.That(after.DepositedGrants.Any(d => d.CircleId == friends.Id), Is.False);
 
-        var pending = after.PendingEnrollments.SingleOrDefault(p => p.CircleId == family.Id);
+        var pending = after.PendingEnrollments.SingleOrDefault(p => p.CircleId == friends.Id);
         Assert.That(pending, Is.Not.Null, "the owning app should be left to redo it");
-        Assert.That(pending!.OwningAppId, Is.EqualTo(family.AppId));
+        Assert.That(pending!.OwningAppId, Is.EqualTo(friends.AppId));
         Assert.That(pending.RequestedByAppId, Is.EqualTo(depositingApp), "who asked for it is kept");
 
         Assert.DoesNotThrowAsync(() => migration.ValidateUpgradeAsync(ctx, CancellationToken.None));
@@ -136,7 +136,7 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
 
     /// <summary>
     /// Rewinds a circle's definition to before v20.  Validation is skipped the way built-in provisioning
-    /// skips it: Family had no grants at all then, which the checked path refuses.
+    /// skips it: Friends had no grants at all then, which the checked path refuses.
     /// </summary>
     private static async Task RewindDefinitionAsync(ILifetimeScope scope, System.Guid circleId, TargetDrive drive)
     {
@@ -150,8 +150,8 @@ public class BuiltinCircleReadGrantMigrationTests : V2Fixture
     {
         var icr = await scope.Resolve<CircleNetworkStorage>().GetAsync(member.Identity);
         Assert.That(icr, Is.Not.Null);
-        Assert.That(icr!.PeerKeyStore.CircleGrants.TryGetValue(BuiltinCircles.FamilyCircle.Id, out var circleGrant), Is.True,
-            "precondition: the member should be in Family");
+        Assert.That(icr!.PeerKeyStore.CircleGrants.TryGetValue(BuiltinCircles.FriendsCircle.Id, out var circleGrant), Is.True,
+            "precondition: the member should be in Friends");
         return circleGrant!.KeyStoreKeyEncryptedDriveGrants
             .FirstOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ProfileDrive);
     }

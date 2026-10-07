@@ -59,10 +59,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
             return true;
         }
 
+        /// <summary>
+        /// Deletes a circle.  Refused while it has members unless <paramref name="removeMembers"/>, which
+        /// revokes the circle from every member first.
+        /// </summary>
         [HttpPost("delete")]
-        public async Task<bool> DeleteCircle([FromBody] Guid id)
+        public async Task<bool> DeleteCircle([FromBody] Guid id, [FromQuery] bool removeMembers = false)
         {
-            await _cns.DeleteCircleDefinitionAsync(new GuidId(id), WebOdinContext);
+            await _cns.DeleteCircleDefinitionAsync(new GuidId(id), WebOdinContext, removeMembers);
             return true;
         }
 
