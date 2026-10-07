@@ -113,6 +113,7 @@ public class DriveManager : IDriveManager
         }
 
         // The purge deletes by drive id, so a drive re-created under the alias before it finishes would lose files.
+        // A drive's id is its alias, which is why the alias is the key here.
         if (await _drivePurges.GetAsync(request.TargetDrive.Alias) is { Kind: DrivePurgeKind.Delete })
         {
             throw new OdinClientException("A drive with this alias is still being deleted; try again later",

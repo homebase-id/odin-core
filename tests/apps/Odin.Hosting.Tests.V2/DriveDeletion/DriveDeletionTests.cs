@@ -51,12 +51,18 @@ public class DriveDeletionTests : V2Fixture
     [SetUp]
     public async Task ClearJobs()
     {
-        var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
         foreach (var identity in HostIdentities)
         {
-            await jobManager.DeleteJobsByIdentityIdAsync(IdentityId(identity));
+            await Jobs.DeleteJobsByIdentityIdAsync(IdentityId(identity));
         }
     }
+
+    private static readonly int DefaultBatchSize = DrivePurgeJob.BatchSize;
+
+    [TearDown]
+    public void RestoreBatchSize() => DrivePurgeJob.BatchSize = DefaultBatchSize;
+
+    private IJobManager Jobs => Host.Server.Services.GetRequiredService<IJobManager>();
 
     [Test]
     public async Task HardDeleteFileIdBatchRemovesTheListedFilesAndTheirPayloads()
@@ -228,18 +234,10 @@ public class DriveDeletionTests : V2Fixture
         }
 
         await owner.Admin.SetArchiveFlag(drive, archived: true);
-        var batchSize = DrivePurgeJob.BatchSize;
-        try
-        {
-            DrivePurgeJob.BatchSize = 2;
-            Assert.That(await EmptyAsync(owner, drive), Is.EqualTo(HttpStatusCode.Accepted));
+        DrivePurgeJob.BatchSize = 2;
 
-            Assert.That(await RunPurgeAsync(owner), Is.EqualTo(3), "5 files in batches of 2 is 3 runs");
-        }
-        finally
-        {
-            DrivePurgeJob.BatchSize = batchSize;
-        }
+        Assert.That(await EmptyAsync(owner, drive), Is.EqualTo(HttpStatusCode.Accepted));
+        Assert.That(await RunPurgeAsync(owner), Is.EqualTo(3), "5 files in batches of 2 is 3 runs");
 
         foreach (var file in files)
         {
@@ -260,27 +258,19 @@ public class DriveDeletionTests : V2Fixture
         await owner.Admin.SetArchiveFlag(drive, archived: true);
         Assert.That(await PurgesAsync(owner), Is.Empty, "arrange: nothing pending");
 
-        var batchSize = DrivePurgeJob.BatchSize;
-        try
-        {
-            DrivePurgeJob.BatchSize = 2;
-            await EmptyAsync(owner, drive);
+        DrivePurgeJob.BatchSize = 2;
+        await EmptyAsync(owner, drive);
 
-            var queued = (await PurgesAsync(owner)).Single();
-            Assert.That(queued.TargetDrive, Is.EqualTo(drive));
-            Assert.That(queued.Kind, Is.EqualTo(DrivePurgeKind.Empty));
-            Assert.That(queued.FilesRemaining, Is.EqualTo(3));
-            Assert.That(queued.Stopped, Is.False);
+        var queued = (await PurgesAsync(owner)).Single();
+        Assert.That(queued.TargetDrive, Is.EqualTo(drive));
+        Assert.That(queued.Kind, Is.EqualTo(DrivePurgeKind.Empty));
+        Assert.That(queued.FilesRemaining, Is.EqualTo(3));
+        Assert.That(queued.Stopped, Is.False);
 
-            await RunPurgeOnceAsync(owner);
-            Assert.That((await PurgesAsync(owner)).Single().FilesRemaining, Is.EqualTo(1), "progress after one batch");
+        await RunPurgeAsync(owner, maxRuns: 1);
+        Assert.That((await PurgesAsync(owner)).Single().FilesRemaining, Is.EqualTo(1), "progress after one batch");
 
-            await RunPurgeAsync(owner);
-        }
-        finally
-        {
-            DrivePurgeJob.BatchSize = batchSize;
-        }
+        await RunPurgeAsync(owner);
 
         Assert.That(await PurgesAsync(owner), Is.Empty, "a finished purge still shows");
     }
@@ -338,43 +328,32 @@ public class DriveDeletionTests : V2Fixture
     }
 
     /// <summary>
-    /// Runs the owner's drive purge job until it is done -- the test host does not run jobs on its own -- and
-    /// returns how many runs it took. A finished purge job deletes itself.
+    /// Runs the owner's drive purge jobs until none is left -- the test host does not run jobs on its own -- or for
+    /// <paramref name="maxRuns"/> rounds, and returns how many rounds it took. A finished purge job deletes itself.
     /// </summary>
-    private async Task<int> RunPurgeAsync(OwnerSession owner)
+    private async Task<int> RunPurgeAsync(OwnerSession owner, int maxRuns = 20)
     {
-        var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
-
-        for (var runs = 1; runs <= 20; runs++)
+        for (var runs = 0; runs < maxRuns; runs++)
         {
-            var jobs = (await jobManager.GetJobsByIdentityIdAsync(IdentityId(owner.Identity.DomainName)))
+            var jobs = (await Jobs.GetJobsByIdentityIdAsync(IdentityId(owner.Identity.DomainName)))
                 .Where(j => j.jobType == DrivePurgeJob.JobTypeId.ToString())
                 .ToList();
             if (jobs.Count == 0)
             {
-                return runs - 1;
+                return runs;
             }
 
             foreach (var job in jobs)
             {
-                await jobManager.RunJobNowAsync(job.id, CancellationToken.None);
+                await Jobs.RunJobNowAsync(job.id, CancellationToken.None);
             }
         }
 
-        Assert.Fail("the purge job did not finish");
-        return -1;
+        return maxRuns;
     }
 
     private Guid IdentityId(string domain) =>
         Host.GetTenantScope(domain).Resolve<TenantContext>().DotYouRegistryId;
-
-    private async Task RunPurgeOnceAsync(OwnerSession owner)
-    {
-        var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
-        var job = (await jobManager.GetJobsByIdentityIdAsync(IdentityId(owner.Identity.DomainName)))
-            .Single(j => j.jobType == DrivePurgeJob.JobTypeId.ToString());
-        await jobManager.RunJobNowAsync(job.id, CancellationToken.None);
-    }
 
     private static async Task<List<DrivePurgeStatus>> PurgesAsync(OwnerSession owner)
     {

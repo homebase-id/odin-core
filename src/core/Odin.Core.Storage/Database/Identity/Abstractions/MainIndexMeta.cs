@@ -44,16 +44,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
         /// <summary>
-        /// Every table that holds a drive's files, keyed by driveId. The Inbox is not here: it has its own cache
-        /// (<c>TableInboxCached.DeleteBoxAsync</c>).
-        /// </summary>
-        internal static readonly string[] DriveContentTables =
-        [
-            "DriveMainIndex", "DriveAclIndex", "DriveTagIndex", "DriveLocalTagIndex", "DriveReactions",
-            "DriveTransferHistory", "Outbox"
-        ];
-
-        /// <summary>
         /// Tables holding one row set per file, with the column naming the file. Reactions name it as the post.
         /// </summary>
         internal static readonly (string Table, string FileColumn)[] PerFileTables =
@@ -68,6 +58,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         ];
 
         /// <summary>
+        /// Every table that holds a drive's files, keyed by driveId -- the per-file tables, swept whole. The Inbox is
+        /// not here: it has its own cache (<c>TableInboxCached.DeleteBoxAsync</c>).
+        /// </summary>
+        internal static readonly string[] DriveContentTables = PerFileTables.Select(t => t.Table).ToArray();
+
+        /// <summary>The upper bound <see cref="CountDriveFilesAsync"/> counts to; anything more is reported as this.</summary>
+        internal const long FileCountCap = 10_001;
+
+        /// <summary>
         /// Up to <paramref name="limit"/> of a drive's file ids, for purging in batches. With
         /// <paramref name="createdAtOrBefore"/>, only files created by then: emptying a drive spares what was
         /// uploaded after the owner asked.
@@ -75,17 +74,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         internal async Task<List<Guid>> GetDriveFileIdsAsync(Guid driveId, int limit, long? createdAtOrBefore)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT fileId FROM DriveMainIndex WHERE identityId = @identityId AND driveId = @driveId" +
-                              (createdAtOrBefore.HasValue ? " AND created <= @createdAtOrBefore" : "") +
-                              " LIMIT @limit;";
-            cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
-            cmd.AddParameter("@driveId", DbType.Binary, driveId);
-            cmd.AddParameter("@limit", DbType.Int64, (long)limit);
-            if (createdAtOrBefore.HasValue)
-            {
-                cmd.AddParameter("@createdAtOrBefore", DbType.Int64, createdAtOrBefore.Value);
-            }
+            await using var cmd = DriveFilesCommand(cn, "SELECT fileId", driveId, createdAtOrBefore, limit);
 
             var fileIds = new List<Guid>();
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -97,21 +86,34 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return fileIds;
         }
 
-        /// <summary>How many files <see cref="GetDriveFileIdsAsync"/> would still find, for purge progress.</summary>
+        /// <summary>
+        /// How many files <see cref="GetDriveFileIdsAsync"/> would still find, for purge progress -- counted only up to
+        /// <see cref="FileCountCap"/>, so a poll never scans a drive of millions.
+        /// </summary>
         internal async Task<long> CountDriveFilesAsync(Guid driveId, long? createdAtOrBefore)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM DriveMainIndex WHERE identityId = @identityId AND driveId = @driveId" +
-                              (createdAtOrBefore.HasValue ? " AND created <= @createdAtOrBefore" : "") + ";";
+            await using var inner = DriveFilesCommand(cn, "SELECT 1", driveId, createdAtOrBefore, FileCountCap);
+            inner.CommandText = $"SELECT COUNT(*) FROM ({inner.CommandText.TrimEnd(';')}) AS capped;";
+            return Convert.ToInt64(await inner.ExecuteScalarAsync());
+        }
+
+        private ICommandWrapper DriveFilesCommand(IConnectionWrapper cn, string select, Guid driveId,
+            long? createdAtOrBefore, long limit)
+        {
+            var cmd = cn.CreateCommand();
+            cmd.CommandText = $"{select} FROM DriveMainIndex WHERE identityId = @identityId AND driveId = @driveId" +
+                              (createdAtOrBefore.HasValue ? " AND created <= @createdAtOrBefore" : "") +
+                              " LIMIT @limit;";
             cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
             cmd.AddParameter("@driveId", DbType.Binary, driveId);
+            cmd.AddParameter("@limit", DbType.Int64, limit);
             if (createdAtOrBefore.HasValue)
             {
                 cmd.AddParameter("@createdAtOrBefore", DbType.Int64, createdAtOrBefore.Value);
             }
 
-            return Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            return cmd;
         }
 
         /// <summary>

@@ -35,15 +35,11 @@ public class MainIndexMetaCached : AbstractTableCaching
         return result;
     }
 
-    public async Task<List<Guid>> GetDriveFileIdsAsync(Guid driveId, int limit, long? createdAtOrBefore)
-    {
-        return await _meta.GetDriveFileIdsAsync(driveId, limit, createdAtOrBefore);
-    }
+    public Task<List<Guid>> GetDriveFileIdsAsync(Guid driveId, int limit, long? createdAtOrBefore) =>
+        _meta.GetDriveFileIdsAsync(driveId, limit, createdAtOrBefore);
 
-    public async Task<long> CountDriveFilesAsync(Guid driveId, long? createdAtOrBefore)
-    {
-        return await _meta.CountDriveFilesAsync(driveId, createdAtOrBefore);
-    }
+    public Task<long> CountDriveFilesAsync(Guid driveId, long? createdAtOrBefore) =>
+        _meta.CountDriveFilesAsync(driveId, createdAtOrBefore);
 
     public async Task<long> DeleteFilesAsync(Guid driveId, IReadOnlyList<Guid> fileIds)
     {

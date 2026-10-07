@@ -12,7 +12,6 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -46,6 +45,12 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
 
     /// <summary>Files per run. Internal so a test can force several runs without uploading hundreds.</summary>
     internal static int BatchSize = 500;
+
+    /// <summary>Payload deletes in flight at once: on S3 each is a list plus a delete round trip.</summary>
+    private const int PayloadDeleteParallelism = 8;
+
+    public const int MaxAttempts = 20;
+    public static readonly TimeSpan RetryDelay = TimeSpan.FromMinutes(5);
 
     public DrivePurgeJobData Data { get; set; } = new();
 
@@ -89,16 +94,15 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
             var payloads = scope.Resolve<LongTermPayloadStore>();
             var isDelete = purge.Kind == DrivePurgeKind.Delete;
 
-            var fileIds = await db.MainIndexMetaCached.GetDriveFileIdsAsync(Data.DriveId, BatchSize,
-                isDelete ? null : purge.CreatedAtOrBefore);
+            var fileIds = await db.MainIndexMetaCached.GetDriveFileIdsAsync(Data.DriveId, BatchSize, purge.Cutoff);
 
             // A deleted drive's payloads go with its directory at the end; an emptied drive keeps the directory.
             if (!isDelete)
             {
-                foreach (var fileId in fileIds)
-                {
-                    await payloads.DeleteSetAsync(paths.GetPayloadDirectory(Data.DriveId, fileId), fileId, cancellationToken);
-                }
+                await Parallel.ForEachAsync(fileIds,
+                    new ParallelOptions { MaxDegreeOfParallelism = PayloadDeleteParallelism, CancellationToken = cancellationToken },
+                    async (fileId, ct) =>
+                        await payloads.DeleteSetAsync(paths.GetPayloadDirectory(Data.DriveId, fileId), fileId, ct));
             }
 
             await db.MainIndexMetaCached.DeleteFilesAsync(Data.DriveId, fileIds);
@@ -106,8 +110,7 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
             if (purge.LastError != null)
             {
                 // Progress again: the owner should no longer see the earlier failure.
-                purge.LastError = null;
-                purge.LastErrorAt = null;
+                purge.SetError(null);
                 await registry.SaveAsync(purge);
             }
 
@@ -135,7 +138,7 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
 
             // An empty or delete asked for while this run worked has moved the record on; purge again for it.
             var latest = await registry.GetAsync(Data.DriveId);
-            if (latest != null && (latest.Kind != purge.Kind || latest.CreatedAtOrBefore != purge.CreatedAtOrBefore))
+            if (latest != null && (latest.Kind != purge.Kind || latest.Requested != purge.Requested))
             {
                 return JobExecutionResult.Repeat(DateTimeOffset.UtcNow);
             }
@@ -162,8 +165,7 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
             var purge = await registry.GetAsync(Data.DriveId);
             if (purge != null)
             {
-                purge.LastError = error.Message;
-                purge.LastErrorAt = UnixTimeUtc.Now().milliseconds;
+                purge.SetError(error.Message);
                 await registry.SaveAsync(purge);
             }
         }

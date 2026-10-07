@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Services.Base;
@@ -13,7 +15,7 @@ namespace Odin.Services.Drives.Management;
 
 public enum DrivePurgeKind
 {
-    /// <summary>The drive stays; files created by <see cref="DrivePurge.CreatedAtOrBefore"/> go.</summary>
+    /// <summary>The drive stays; files created by <see cref="DrivePurge.Requested"/> go.</summary>
     Empty = 1,
 
     /// <summary>The drive record is already gone; every file and directory of it goes.</summary>
@@ -34,16 +36,34 @@ public class DrivePurge
 
     public DrivePurgeKind Kind { get; set; }
 
-    /// <summary>When the owner asked, in unix ms.</summary>
+    /// <summary>When the owner asked, in unix ms. Emptying spares files created after it.</summary>
     public long Requested { get; set; }
-
-    /// <summary>For <see cref="DrivePurgeKind.Empty"/>: files created by then go, in unix ms.</summary>
-    public long CreatedAtOrBefore { get; set; }
 
     /// <summary>The last run's failure, cleared by a run that makes progress.</summary>
     public string? LastError { get; set; }
 
     public long? LastErrorAt { get; set; }
+
+    /// <summary>Files created by this time are purged; none for a delete, which takes every file.</summary>
+    [JsonIgnore]
+    public long? Cutoff => Kind == DrivePurgeKind.Empty ? Requested : null;
+
+    public static DrivePurge For(StorageDrive drive, DrivePurgeKind kind) => new()
+    {
+        DriveId = drive.Id,
+        TargetDrive = drive.TargetDriveInfo,
+        Name = drive.Name,
+        AppId = drive.AppId,
+        Kind = kind,
+        Requested = UnixTimeUtc.Now().milliseconds
+    };
+
+    /// <summary>Records a run's failure, or with null clears it.</summary>
+    public void SetError(string? error)
+    {
+        LastError = error;
+        LastErrorAt = error == null ? null : UnixTimeUtc.Now().milliseconds;
+    }
 }
 
 /// <summary>

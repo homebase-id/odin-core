@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Time;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
@@ -45,17 +44,7 @@ public class DriveDeletionService(
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
             await DropPendingTransfersAsync(driveId);
-            var now = UnixTimeUtc.Now().milliseconds;
-            await drivePurges.SaveAsync(new DrivePurge
-            {
-                DriveId = driveId,
-                TargetDrive = drive.TargetDriveInfo,
-                Name = drive.Name,
-                AppId = drive.AppId,
-                Kind = DrivePurgeKind.Empty,
-                Requested = now,
-                CreatedAtOrBefore = now
-            });
+            await drivePurges.SaveAsync(DrivePurge.For(drive, DrivePurgeKind.Empty));
             tx.Commit();
         }
 
@@ -82,15 +71,7 @@ public class DriveDeletionService(
             await DropPendingTransfersAsync(driveId);
             await db.FollowsMeCached.DeleteByDriveAsync(driveId);
             await db.DrivesCached.DeleteAsync(driveId);
-            await drivePurges.SaveAsync(new DrivePurge
-            {
-                DriveId = driveId,
-                TargetDrive = drive.TargetDriveInfo,
-                Name = drive.Name,
-                AppId = drive.AppId,
-                Kind = DrivePurgeKind.Delete,
-                Requested = UnixTimeUtc.Now().milliseconds
-            });
+            await drivePurges.SaveAsync(DrivePurge.For(drive, DrivePurgeKind.Delete));
             tx.Commit();
         }
 
@@ -116,8 +97,7 @@ public class DriveDeletionService(
                 AppId = purge.AppId,
                 Kind = purge.Kind,
                 Requested = purge.Requested,
-                FilesRemaining = await db.MainIndexMetaCached.CountDriveFilesAsync(purge.DriveId,
-                    purge.Kind == DrivePurgeKind.Empty ? purge.CreatedAtOrBefore : null),
+                FilesRemaining = await db.MainIndexMetaCached.CountDriveFilesAsync(purge.DriveId, purge.Cutoff),
                 LastError = purge.LastError,
                 LastErrorAt = purge.LastErrorAt,
                 Stopped = job == null
@@ -134,8 +114,7 @@ public class DriveDeletionService(
 
         var purge = await drivePurges.GetAsync(driveId)
                     ?? throw new OdinClientException("This drive is not being emptied or deleted");
-        purge.LastError = null;
-        purge.LastErrorAt = null;
+        purge.SetError(null);
         await drivePurges.SaveAsync(purge);
 
         await SchedulePurgeAsync(driveId, odinContext);
@@ -154,8 +133,8 @@ public class DriveDeletionService(
         await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             RunAt = DateTimeOffset.UtcNow,
-            MaxAttempts = 20,
-            RetryDelay = TimeSpan.FromMinutes(5),
+            MaxAttempts = DrivePurgeJob.MaxAttempts,
+            RetryDelay = DrivePurgeJob.RetryDelay,
             // Gone at once either way: a job kept under the same hash would swallow the next empty of the drive, or
             // a retry. A failure stays visible on the purge record (LastError) instead.
             OnSuccessDeleteAfter = TimeSpan.Zero,
@@ -193,6 +172,7 @@ public class DrivePurgeStatus
     /// <summary>When the owner asked, in unix ms.</summary>
     public long Requested { get; init; }
 
+    /// <summary>Counted only up to 10,001; more is reported as that.</summary>
     public long FilesRemaining { get; init; }
     public string? LastError { get; init; }
     public long? LastErrorAt { get; init; }
