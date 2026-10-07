@@ -452,7 +452,7 @@ Recovery details:
 - Risk level: {risk.RiskLevel}
 
 {recoverableText}
-
+{RotationPendingText(info)}
 We recommend checking your recovery contacts and ensuring that all listed players are trusted and available.
 
 You can manage your Account Recovery here:
@@ -462,6 +462,45 @@ You can manage your Account Recovery here:
 Team Homebase
 ".Trim();
     }
+
+    /// <summary>
+    /// The shards could not be rotated after a password change, so the ones dealt before it still
+    /// work: automated players release theirs on request, delegates only while still connected
+    /// (#1885). Empty string otherwise.
+    /// </summary>
+    private static string RotationPendingText(RecoveryInfo info)
+    {
+        if (!info.RotationPending)
+        {
+            return "";
+        }
+
+        return $@"
+🔄 Your recovery shards were not refreshed after your password changed.
+{RotationPendingDetail(info)}
+";
+    }
+
+    private static string RotationPendingHtml(RecoveryInfo info)
+    {
+        if (!info.RotationPending)
+        {
+            return "";
+        }
+
+        return $@"
+    <p style='margin-bottom: 15px;'>
+        🔄 <strong>Your recovery shards were not refreshed after your password changed.</strong>
+        {RotationPendingDetail(info)}
+    </p>
+";
+    }
+
+    private static string RotationPendingDetail(RecoveryInfo info) =>
+        (info.UsesAutomaticRecovery
+            ? "The automated recovery shards from before the change can still recover your account."
+            : "Trusted connections you are still connected to can use the shards they held before the change to recover your account.") +
+        " Save your recovery setup again to issue new shards.";
 
     // Rendered only when the DNSSEC state is user-actionable (the caller passes null
     // otherwise): a stale DS that breaks resolution, or a signed parent one DS away
@@ -650,7 +689,7 @@ Review it here: https://{tenant}/owner/security/dns
     <p style='margin-bottom: 15px;'>
         {recoverableText}
     </p>
-
+{RotationPendingHtml(info)}
     <p style='margin-top: 25px;'>
         We recommend reviewing your Account Recovery configuration and ensuring that all your trusted connections are active and secure.
     </p>
