@@ -3,29 +3,37 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Util;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Tests.V2.Ported.Circles;
 
 /// <summary>
 /// Port of <c>AppAPI/Membership/AppCircleDefinitionTests</c>. What an app may do with circles: read
-/// definitions and members when it holds <c>ReadCircleMembership</c>; enable or disable a circle it
-/// owns, which needs no permission key (issue #1760); and nothing else — no create, update or
-/// delete, no toggling a circle it does not own, and no peek at the system circle's members.
+/// definitions and members when it holds <c>ReadCircleMembership</c>; enable, disable or delete a
+/// circle it owns, which needs no permission key (issue #1760); and nothing else — no create or
+/// update, no toggling or deleting a circle it does not own, and no peek at the system circle's members.
 /// </summary>
 /// <remarks>
 /// The app caller is an <see cref="AppSession"/>; the two app-side Refit surfaces the V1
@@ -272,6 +280,127 @@ public class AppCircleDefinitionTests : V2Fixture
     }
 
     [Test]
+    public async Task AppCanDeleteItsOwnCircle()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+
+        // No permission keys, as with disable: owning the circle is the app's whole authority over it.
+        var appClient = await CreateAppAndClient(owner, appId);
+        var def = await CreateRandomCircle(owner, appId);
+
+        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().DeleteCircleDefinition(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var remaining = await owner.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions();
+        Assert.That(remaining.Content!.Any(c => c.Id == def.Id), Is.False);
+    }
+
+    [Test]
+    public async Task AppFailsToDeleteAnotherAppsCircle()
+    {
+        var owner = await LoginAsOwner();
+        var appClient = await CreateAppAndClient(owner,
+            PermissionKeyAllowance.Apps.ToArray());
+
+        var otherAppId = Guid.NewGuid();
+        await CreateAppAndClient(owner, otherAppId, PermissionKeys.ReadCircleMembership);
+        var def = await CreateRandomCircle(owner, otherAppId);
+
+        var response = await appClient.RefitFor<IAppCircleDefinitionClient>().DeleteCircleDefinition(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(await owner.Admin.GetCircleDefinition(def.Id.Value), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task OwnerFailsToDeleteCircleWithMembers()
+    {
+        var owner = await LoginAsOwner();
+        var def = await CreateRandomCircle(owner);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+
+        var response = await owner.RefitFor<IRefitOwnerCircleDefinition>().DeleteCircleDefinition(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!),
+            Is.EqualTo(OdinClientErrorCode.CannotDeleteCircleWithMembers));
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.True);
+    }
+
+    [Test]
+    public async Task OwnerDeletesCircleAndRemovesItsMembers()
+    {
+        var owner = await LoginAsOwner();
+        var def = await CreateRandomCircle(owner);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+
+        const string youAuthDomain = "removemembers.example.org";
+        await owner.Admin.RegisterYouAuthDomain(new AsciiDomainName(youAuthDomain), [def.Id]);
+        Assert.That(await MemberCountAsync(owner, def.Id.Value), Is.EqualTo(2), "an identity and a YouAuth domain");
+
+        var response = await owner.RefitFor<IRefitOwnerCircleDefinition>()
+            .DeleteCircleDefinition(def.Id.Value, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var remaining = await owner.RefitFor<IRefitOwnerCircleDefinition>().GetCircleDefinitions();
+        Assert.That(remaining.Content!.Any(c => c.Id == def.Id), Is.False);
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.False,
+            "the identity's connection must no longer carry the circle");
+        Assert.That(await MemberCountAsync(owner, def.Id.Value), Is.EqualTo(0),
+            "no membership row may outlive the circle");
+    }
+
+    [Test]
+    public async Task RemoveMembersOnABuiltInCircleRemovesNobody()
+    {
+        var owner = await LoginAsOwner();
+        var friends = BuiltinCircles.FriendsCircle.Id.Value;
+        await GrantAsync(owner, friends, Identities.Sam);
+
+        var response = await owner.RefitFor<IRefitOwnerCircleDefinition>()
+            .DeleteCircleDefinition(friends, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!),
+            Is.EqualTo(OdinClientErrorCode.CannotDeleteBuiltInCircle));
+
+        // Refused before anyone was touched: a delete that cannot happen must not strip the circle.
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, friends), Is.True);
+    }
+
+    [Test]
+    public async Task AppDeletesItsOwnCircleAndRemovesItsMembers()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+
+        // No ManageCircleMembership: being allowed to delete the circle is what authorizes the revokes.
+        var appClient = await CreateAppAndClient(owner, appId);
+        var def = await CreateRandomCircle(owner, appId);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+
+        var response = await appClient.RefitFor<IAppCircleDefinitionClient>()
+            .DeleteCircleDefinition(def.Id.Value, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.False);
+    }
+
+    [Test]
+    public async Task AppFailsToRemoveMembersOfAnotherAppsCircle()
+    {
+        var owner = await LoginAsOwner();
+        var appClient = await CreateAppAndClient(owner, PermissionKeyAllowance.Apps.ToArray());
+
+        var otherAppId = Guid.NewGuid();
+        await CreateAppAndClient(owner, otherAppId);
+        var def = await CreateRandomCircle(owner, otherAppId);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+
+        var response = await appClient.RefitFor<IAppCircleDefinitionClient>()
+            .DeleteCircleDefinition(def.Id.Value, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.True);
+    }
+
+    [Test]
     public async Task AppCanDisableAndEnableItsOwnCircleViaV2()
     {
         var owner = await LoginAsOwner();
@@ -288,6 +417,175 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
     }
+
+    [Test]
+    public async Task OwnerDeletesCircleAndRemovesItsMembersViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var def = await CreateRandomCircle(owner);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+        var v2 = new V2ConnectionNetworkClient(owner.Identity, owner.Factory);
+
+        var refused = await v2.DeleteCircleAsync(def.Id.Value);
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(refused.Error!),
+            Is.EqualTo(OdinClientErrorCode.CannotDeleteCircleWithMembers));
+
+        var response = await v2.DeleteCircleAsync(def.Id.Value, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.False);
+        Assert.That(await MemberCountAsync(owner, def.Id.Value), Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task AppDeletesItsOwnCircleAndRemovesItsMembersViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        var appClient = await CreateAppAndClient(owner, appId);
+        var def = await CreateRandomCircle(owner, appId);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+
+        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .DeleteCircle(def.Id.Value, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.False);
+    }
+
+    [Test]
+    public async Task AppFailsToDeleteOwnerCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appClient = await CreateAppAndClient(owner,
+            PermissionKeyAllowance.Apps.ToArray());
+        var def = await CreateRandomCircle(owner);
+
+        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>().DeleteCircle(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(await owner.Admin.GetCircleDefinition(def.Id.Value), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task AppCreatesACircleOnItsOwnDriveViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        var app = await CreateAppAndClient(owner, appId, PermissionKeys.ReadConnections);
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "app's own", allowAnonymousReads: false, appId: appId);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "made by the app",
+            DriveGrants = [WriteOn(drive)],
+            Permissions = new PermissionSet(PermissionKeys.ReadConnections)
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var circle = await owner.Admin.GetCircleDefinition(response.Content);
+        Assert.That(circle.AppId, Is.EqualTo(appId), "the circle belongs to the app that made it");
+        Assert.That(circle.GrantOn, Is.EqualTo(CircleGrantOn.None), "an app's circle is granted only explicitly");
+        Assert.That(circle.DriveGrants.Single().PermissionedDrive.Drive, Is.EqualTo(drive));
+
+        // and, owning it, the app can delete it
+        var delete = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().DeleteCircle(response.Content);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task AppFailsToCreateACircleOnADriveItDoesNotOwnViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var app = await CreateAppAndClient(owner, Guid.NewGuid());
+        var ownersDrive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(ownersDrive, "the owner's", allowAnonymousReads: false);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "reaching too far",
+            DriveGrants = [WriteOn(ownersDrive)]
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task AppFailsToCreateACircleWithAKeyItDoesNotHoldViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var app = await CreateAppAndClient(owner, Guid.NewGuid(), PermissionKeys.ReadConnections);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "handing out more",
+            Permissions = new PermissionSet(PermissionKeys.ReadWhoIFollow)
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    /// <summary>
+    /// Owning the circle is enough to change who is in it: an app holding no permission key adds, removes and
+    /// bulk-adds.  An app's add is a deposit, converted when the owner is next present, so that is what it checks.
+    /// Bulk add offers only Review and Connect circles (<c>IsEnrollmentCandidate</c>), so it gets a Review one.
+    /// </summary>
+    [Test]
+    public async Task AppManagesMembersOfItsOwnCircleWithoutAKeyViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var (app, circleId, drive) = await AppWithItsOwnCircleAsync(owner);
+        var v2 = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
+
+        var add = await v2.GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await SamHasDepositForAsync(owner, circleId), Is.True, "the add left nothing for Sam");
+
+        var revoke = await v2.RevokeCircle(new RevokeCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam });
+        Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await SamHasDepositForAsync(owner, circleId), Is.False, "the revoke left Sam's deposit");
+
+        var reviewCircleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(reviewCircleId, "the app's reviewed circle",
+            new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, app.AppId, CircleGrantOn.Review);
+        var many = await v2.GrantCircleToMany(new AddManyCircleMembershipRequest { CircleId = reviewCircleId, OdinIds = [Identities.Sam] });
+        Assert.That(many.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(many.Content!.Deposited, Is.EqualTo(1), "an app's bulk add deposits");
+        Assert.That(await SamHasDepositForAsync(owner, reviewCircleId), Is.True, "the bulk add left nothing for Sam");
+    }
+
+    [Test]
+    public async Task AppWithoutTheKeyCannotAddToAnotherAppsCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var (_, othersCircleId, _) = await AppWithItsOwnCircleAsync(owner);
+        var app = await CreateAppAndClient(owner, Guid.NewGuid());
+
+        var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .GrantCircle(new AddCircleMembershipRequest { CircleId = othersCircleId, OdinId = Identities.Sam });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(await SamHasDepositForAsync(owner, othersCircleId), Is.False);
+    }
+
+    /// <summary>An app with no permission keys, write on a drive, and a circle of its own granting that drive.</summary>
+    private static async Task<(AppSession App, Guid CircleId, TargetDrive Drive)> AppWithItsOwnCircleAsync(OwnerSession owner)
+    {
+        var appId = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "the app's", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.All, [], knownAppId: appId);
+
+        var circleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(circleId, "the app's circle", new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, appId);
+        return (app, circleId, drive);
+    }
+
+    private async Task<bool> SamHasDepositForAsync(OwnerSession owner, Guid circleId)
+    {
+        var icr = await Host.GetTenantScope(owner.Identity.DomainName)
+            .Resolve<CircleNetworkStorage>().GetAsync(new OdinId(Identities.Sam));
+        return icr!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId);
+    }
+
+    private static DriveGrantRequest WriteOn(TargetDrive drive) =>
+        new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Write } };
 
     [Test]
     public async Task AppFailsToDisableOwnerCircleViaV2()
@@ -459,6 +757,27 @@ public class AppCircleDefinitionTests : V2Fixture
         await owner.Admin.CreateDrive(appDrive, "Some Drive 1", allowAnonymousReads: false);
 
         return await AppSession.SetupAsync(owner, appDrive, DrivePermission.All, permissionKeys, knownAppId: appId);
+    }
+
+    private static async Task GrantAsync(OwnerSession owner, Guid circleId, string identity)
+    {
+        var grant = await owner.Connections.GrantCircle(circleId, new OdinId(identity));
+        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"granting {identity} failed");
+    }
+
+    private static async Task<bool> HoldsCircleAsync(OwnerSession owner, string identity, Guid circleId)
+    {
+        var info = await owner.Connections.GetConnectionInfo(new OdinId(identity));
+        Assert.That(info.IsSuccessStatusCode, Is.True);
+        return info.Content!.AccessGrant.CircleGrants.Any(cg => cg.CircleId == circleId);
+    }
+
+    private static async Task<int> MemberCountAsync(OwnerSession owner, Guid circleId)
+    {
+        var response = await owner.RefitFor<ICircleMembershipOwnerHttpClient>()
+            .GetDomainsInCircle(new GetCircleMembersRequest { CircleId = circleId });
+        Assert.That(response.IsSuccessStatusCode, Is.True);
+        return response.Content!.Count;
     }
 
     private static Task<Refit.ApiResponse<List<CircleDomainResult>>> GetDomainsInCircle(AppSession app, Guid circleId)

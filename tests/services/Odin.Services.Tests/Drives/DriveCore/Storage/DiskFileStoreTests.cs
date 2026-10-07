@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -91,6 +92,16 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         Assert.That(File.Exists(Path.Combine(dir, $"{drop:N}.metadata")), Is.False);
         Assert.That(File.Exists(Path.Combine(dir, $"{drop:N}.p-1.payload")), Is.False);
         Assert.That(File.Exists(Path.Combine(dir, $"{keep:N}.p-2.payload")), Is.True);
+    }
+
+    [TestCase("")]
+    [TestCase("  ")]
+    [TestCase("relative/dir")]
+    [TestCase("/")]
+    public void DeleteDirectory_Refuses_Empty_Relative_And_Root_Paths(string dir)
+    {
+        var sut = new DiskFileStore(_fileReaderWriter);
+        Assert.ThrowsAsync<OdinSystemException>(() => sut.DeleteDirectoryAsync(dir));
     }
 
     [Test]
@@ -195,6 +206,7 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         public Task DeleteAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task EnsureDirectoryAsync(string dir, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default) => throw new NotImplementedException();
         public Task CopyFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default) => throw new NotImplementedException();
         public (string bucket, string fullKey)? GetS3Location(string relativePath) => throw new NotImplementedException();
     }

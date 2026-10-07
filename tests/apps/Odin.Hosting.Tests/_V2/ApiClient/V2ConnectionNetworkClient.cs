@@ -24,6 +24,13 @@ public class V2ConnectionNetworkClient(OdinId identity, IApiClientFactory factor
         return await svc.GetCirclesWithMembers(includeSystemCircle);
     }
 
+    public async Task<ApiResponse<HttpContent>> DeleteCircleAsync(Guid circleId, bool removeMembers = false)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.DeleteCircle(circleId, removeMembers);
+    }
+
     public async Task<ApiResponse<HttpContent>> BlockAsync(OdinId odinId)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
