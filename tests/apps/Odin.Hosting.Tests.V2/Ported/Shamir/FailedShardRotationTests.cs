@@ -52,7 +52,7 @@ public class FailedShardRotationTests : ShamirFixture
         Assert.That(afterConfig.Updated.milliseconds, Is.EqualTo(config.Updated.milliseconds));
         AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: 1);
 
-        // the pre-recovery shards still work, so the owner is told to reconfigure
+        // the three still-connected delegates' pre-recovery shards still work, so the owner is told to reconfigure
         Assert.That(await IsRotationPendingAsync(recovered), Is.True);
     }
 }

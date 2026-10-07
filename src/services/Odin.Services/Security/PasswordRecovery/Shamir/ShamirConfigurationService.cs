@@ -230,7 +230,8 @@ public class ShamirConfigurationService(
 
     /// <summary>
     /// True when <paramref name="package"/> was dealt before the password last changed. Until it is
-    /// rotated, the shards dealt before then still reconstruct the recovery key.
+    /// rotated, the shards dealt before then still reconstruct the recovery key; a delegate can only
+    /// deliver one while still connected (#1885).
     /// </summary>
     public async Task<bool> IsRotationPending(DealerShardPackage package)
     {
