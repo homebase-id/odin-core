@@ -149,7 +149,7 @@ public class S3FileStore(
     //
 
     public Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default) =>
-        DeleteByPrefixAsync(S3Path.Combine(dir, $"{fileId:N}."), ct);
+        DeleteByPrefixAsync(S3Path.Combine(dir, $"{fileId:N}"), ct);
 
     //
 

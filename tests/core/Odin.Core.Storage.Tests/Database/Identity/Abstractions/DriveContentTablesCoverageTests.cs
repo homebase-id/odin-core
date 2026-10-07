@@ -37,4 +37,12 @@ public class DriveContentTablesCoverageTests
 
         Assert.That(unaccounted, Is.Empty);
     }
+
+    // Emptying a drive purges file by file, through PerFileTables; deleting one sweeps DriveContentTables. A table in
+    // one and not the other would survive the empty.
+    [Test]
+    public void ThePerFileTablesAreTheDriveContentTables()
+    {
+        Assert.That(MainIndexMeta.PerFileTables.Select(t => t.Table), Is.EquivalentTo(MainIndexMeta.DriveContentTables));
+    }
 }

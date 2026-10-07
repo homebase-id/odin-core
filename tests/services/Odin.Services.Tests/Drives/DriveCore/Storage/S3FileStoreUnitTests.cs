@@ -402,7 +402,7 @@ public class S3FileStoreUnitTests
         var fileId = Guid.NewGuid();
         await Sut(storage.Object).DeleteSetAsync("ident/drives/abc", fileId);
 
-        Assert.That(captured, Is.EqualTo($"ident/drives/abc/{fileId:N}."));
+        Assert.That(captured, Is.EqualTo($"ident/drives/abc/{fileId:N}"));
     }
 
     [TestCase("ident/drives/abc")]

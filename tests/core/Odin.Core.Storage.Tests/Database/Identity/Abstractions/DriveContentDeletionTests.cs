@@ -64,6 +64,35 @@ public class DriveContentDeletionTests : IocTestBase
         Assert.That(await RowsForFileAsync(scope, other, g1), Is.EqualTo((true, 1, 1, 1)));
     }
 
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task APurgeBatchDeletesOnlyItsFilesAndHonoursTheCutoff(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var meta = scope.Resolve<MainIndexMeta>();
+        var driveId = Guid.NewGuid();
+        var (old1, old2) = (Guid.NewGuid(), Guid.NewGuid());
+        await AddFileWithEverythingAsync(scope, driveId, old1);
+        await AddFileWithEverythingAsync(scope, driveId, old2);
+        var cutoff = UnixTimeUtc.Now().milliseconds;
+        await Task.Delay(5);
+        var newer = Guid.NewGuid();
+        await AddFileWithEverythingAsync(scope, driveId, newer);
+
+        Assert.That(await meta.GetDriveFileIdsAsync(driveId, 10, cutoff), Is.EquivalentTo(new[] { old1, old2 }));
+        Assert.That(await meta.GetDriveFileIdsAsync(driveId, 1, null), Has.Count.EqualTo(1));
+
+        await meta.DeleteFilesAsync(driveId, [old1]);
+
+        Assert.That(await RowsForFileAsync(scope, driveId, old1), Is.EqualTo((false, 0, 0, 0)));
+        Assert.That(await RowsForFileAsync(scope, driveId, old2), Is.EqualTo((true, 1, 1, 1)));
+        Assert.That(await RowsForFileAsync(scope, driveId, newer), Is.EqualTo((true, 1, 1, 1)));
+    }
+
     private static async Task AddFileWithEverythingAsync(ILifetimeScope scope, Guid driveId, Guid fileId)
     {
         await scope.Resolve<MainIndexMeta>().TestAddEntryPassalongToUpsertAsync(driveId, fileId, Guid.NewGuid(), 1, 1,

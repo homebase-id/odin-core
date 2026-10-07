@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Data;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -51,6 +52,85 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             "DriveMainIndex", "DriveAclIndex", "DriveTagIndex", "DriveLocalTagIndex", "DriveReactions",
             "DriveTransferHistory", "Outbox"
         ];
+
+        /// <summary>
+        /// Tables holding one row set per file, with the column naming the file. Reactions name it as the post.
+        /// </summary>
+        internal static readonly (string Table, string FileColumn)[] PerFileTables =
+        [
+            ("DriveMainIndex", "fileId"),
+            ("DriveAclIndex", "fileId"),
+            ("DriveTagIndex", "fileId"),
+            ("DriveLocalTagIndex", "fileId"),
+            ("DriveReactions", "postId"),
+            ("DriveTransferHistory", "fileId"),
+            ("Outbox", "fileId")
+        ];
+
+        /// <summary>
+        /// Up to <paramref name="limit"/> of a drive's file ids, for purging in batches. With
+        /// <paramref name="createdAtOrBefore"/>, only files created by then: emptying a drive spares what was
+        /// uploaded after the owner asked.
+        /// </summary>
+        internal async Task<List<Guid>> GetDriveFileIdsAsync(Guid driveId, int limit, long? createdAtOrBefore)
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = "SELECT fileId FROM DriveMainIndex WHERE identityId = @identityId AND driveId = @driveId" +
+                              (createdAtOrBefore.HasValue ? " AND created <= @createdAtOrBefore" : "") +
+                              " LIMIT @limit;";
+            cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+            cmd.AddParameter("@driveId", DbType.Binary, driveId);
+            cmd.AddParameter("@limit", DbType.Int64, (long)limit);
+            if (createdAtOrBefore.HasValue)
+            {
+                cmd.AddParameter("@createdAtOrBefore", DbType.Int64, createdAtOrBefore.Value);
+            }
+
+            var fileIds = new List<Guid>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                fileIds.Add(new Guid((byte[])rdr[0]));
+            }
+
+            return fileIds;
+        }
+
+        /// <summary>
+        /// Deletes the listed files of a drive with their index, reaction, transfer-history and outbox rows, in one
+        /// transaction. Payloads are the caller's to remove, first.
+        /// </summary>
+        internal async Task<long> DeleteFilesAsync(Guid driveId, IReadOnlyList<Guid> fileIds)
+        {
+            if (fileIds.Count == 0)
+            {
+                return 0;
+            }
+
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var tx = await cn.BeginStackedTransactionAsync();
+
+            var fileParams = string.Join(",", fileIds.Select((_, i) => $"@f{i}"));
+            long n = 0;
+            foreach (var (table, fileColumn) in PerFileTables)
+            {
+                await using var cmd = cn.CreateCommand();
+                cmd.CommandText =
+                    $"DELETE FROM {table} WHERE identityId = @identityId AND driveId = @driveId AND {fileColumn} IN ({fileParams});";
+                cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+                cmd.AddParameter("@driveId", DbType.Binary, driveId);
+                for (var i = 0; i < fileIds.Count; i++)
+                {
+                    cmd.AddParameter($"@f{i}", DbType.Binary, fileIds[i]);
+                }
+
+                n += await cmd.ExecuteNonQueryAsync();
+            }
+
+            tx.Commit();
+            return n;
+        }
 
         /// <summary>
         /// Deletes every file of a drive, with its index, reaction, transfer-history and outbox rows, in

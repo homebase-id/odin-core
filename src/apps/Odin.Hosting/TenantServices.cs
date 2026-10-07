@@ -263,6 +263,7 @@ public static class TenantServices
 
         cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
         cb.RegisterType<DriveDeletionService>().InstancePerLifetimeScope();
+        cb.RegisterType<DrivePurgeRegistry>().InstancePerLifetimeScope();
         cb.RegisterType<AppUninstallService>().InstancePerLifetimeScope();
 
         // Upload: ALWAYS disk (uploads are never on S3).

@@ -26,7 +26,9 @@ public interface IDriveFileStore
     Task<bool>   ExistsAsync(string path, CancellationToken ct = default);
     Task<long>   LengthAsync(string path, CancellationToken ct = default);
     Task         DeleteAsync(string path, CancellationToken ct = default);
-    Task         DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default); // {fileId:N}.*
+    // Every file in dir named for fileId: staging "{fileId:N}.ext" and long-term "{fileId:N}-key-uid..." alike. A
+    // fileId in N format is a fixed 32 hex chars, so the bare id is an exact prefix and cannot match another file.
+    Task         DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default);
     Task         EnsureDirectoryAsync(string dir, CancellationToken ct = default);          // no-op on S3
     Task         DeleteDirectoryAsync(string dir, CancellationToken ct = default);          // dir and all below; missing is fine
 

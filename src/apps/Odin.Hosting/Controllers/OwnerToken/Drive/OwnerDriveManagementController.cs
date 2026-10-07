@@ -115,26 +115,27 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
 
         /// <summary>
         /// Hard-deletes every file on an archived, non-system drive and keeps the drive. Local only: peers keep
-        /// any copies they received.
+        /// any copies they received. Accepted, not done: the files go in the background.
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("empty")]
         public async Task<IActionResult> EmptyDrive([FromBody] TargetDriveRequest request)
         {
             await driveDeletionService.EmptyDriveAsync(request.TargetDrive.Alias, WebOdinContext);
-            return Ok();
+            return Accepted();
         }
 
         /// <summary>
         /// Deletes an archived, non-system drive with all its files, its followers and every grant naming it.
-        /// Local only: peers keep any copies they received.
+        /// Local only: peers keep any copies they received. Accepted, not done: the drive is gone at once, its files
+        /// go in the background, and its alias cannot be reused until they have.
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteDrive([FromBody] TargetDriveRequest request)
         {
             await driveDeletionService.DeleteDriveAsync(request.TargetDrive.Alias, WebOdinContext);
-            return Ok();
+            return Accepted();
         }
 
         /// <summary>
