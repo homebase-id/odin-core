@@ -5,13 +5,17 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
+using Refit;
+using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 
@@ -89,6 +93,16 @@ public abstract class ShamirFixture : V2Fixture
     /// </summary>
     protected static readonly string[] PlayerIdentities =
         [Identities.Sam, Identities.Merry, Identities.Pippin, Identities.TomBombadil];
+
+    /// <summary>
+    /// The identities named by <c>AccountRecovery:AutomatedPasswordRecoveryIdentities</c> in
+    /// <c>appsettings.development.json</c> — the players <c>EnableAutoPasswordRecovery</c> deals to.
+    /// </summary>
+    internal static readonly string[] AutomatedPlayerIdentities =
+        [Identities.TomBombadil, Identities.Collab, Identities.Merry, Identities.Pippin];
+
+    /// <summary>The password a recovery finalizes with.</summary>
+    protected const string NewPassword = "bipbopboop";
 
     /// <summary>Frodo is the dealer in all five originals; the players follow.</summary>
     protected override string[] HostIdentities => [Identities.Frodo, .. PlayerIdentities];
@@ -195,15 +209,24 @@ public abstract class ShamirFixture : V2Fixture
             await security.ConfigureShards(ShardRequest(players, playerType, minMatchingShards));
         Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
+        await DrainAndVerifyShardsAsync(dealer, players.Count);
+    }
+
+    /// <summary>
+    /// Drains the dealer's outbox so its shard sends are delivered, then asks every player to confirm
+    /// it is holding its shard.
+    /// </summary>
+    protected static async Task DrainAndVerifyShardsAsync(OwnerSession dealer, int expectedPlayerCount)
+    {
         await dealer.Sync.DrainOutboxAsync();
 
-        var verifyShardsResponse = await security.VerifyShards();
+        var verifyShardsResponse = await SecurityOf(dealer).VerifyShards();
         Assert.That(verifyShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var results = verifyShardsResponse.Content;
         Assert.That(results, Is.Not.Null);
         Assert.That(results!.Players, Is.Not.Null);
-        Assert.That(results.Players.Count, Is.EqualTo(players.Count),
+        Assert.That(results.Players.Count, Is.EqualTo(expectedPlayerCount),
             "mismatch number of shards in verified results");
         // Names the players that failed rather than printing "Expected: True".
         Assert.That(results.Players.Where(p => !p.Value.IsValid).Select(p => p.Key), Is.Empty,
@@ -282,6 +305,23 @@ public abstract class ShamirFixture : V2Fixture
         Assert.That(getConfigResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getConfigResponse.Content, Is.Not.Null);
         return getConfigResponse.Content!;
+    }
+
+    /// <summary>
+    /// Whether the owner is told their shards predate the password: the flag behind the console's
+    /// needs-attention indicator and the risk report (#1861).
+    /// </summary>
+    /// <remarks>
+    /// <c>recovery-info</c> is exempt from shared-secret encryption, so it answers in plain JSON that
+    /// <see cref="SecurityOf"/>'s decrypting serializer cannot read; a plain Refit client it is.
+    /// </remarks>
+    protected static async Task<bool> IsRotationPendingAsync(OwnerSession owner)
+    {
+        var (client, _) = owner.NewAdminHttpClient();
+        var response = await RestService.For<ITestSecurityContextOwnerClient>(client).GetRecoveryInfo();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content, Is.Not.Null);
+        return response.Content!.RotationPending;
     }
 
     /// <summary>Asserts every player is holding the dealer's release request, and nothing more.</summary>
@@ -366,5 +406,71 @@ public abstract class ShamirFixture : V2Fixture
         }
 
         return match.Properties[propertyName]?.ToString() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Enters recovery mode, has the delegates approve (automated players release unasked), and
+    /// finalizes with <paramref name="newPassword"/>.
+    /// </summary>
+    protected async Task<OwnerSession> RecoverAsync(
+        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config, string newPassword)
+    {
+        await EnterRecoveryModeAsync(dealer);
+
+        if (!config.UsesAutomaticRecovery)
+        {
+            await ApproveEveryShardRequestAsync(dealer, players, config);
+        }
+
+        return await FinalizeRecoveryAndLoginAsync(dealer, newPassword);
+    }
+
+    /// <summary>
+    /// Reads the finalize nonce + final recovery key out of the log, posts
+    /// <paramref name="newPassword"/> against them, and logs in with it.
+    /// </summary>
+    protected async Task<OwnerSession> FinalizeRecoveryAndLoginAsync(OwnerSession dealer, string newPassword)
+    {
+        // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
+        await AssertRecoveryStateAsync(dealer, ShamirRecoveryState.AwaitingOwnerFinalization);
+
+        // scan for the nonceId
+        var finalizeNonceId = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryNonceIdPropertyName);
+        var finalRecoveryKey = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryKeyPropertyName);
+
+        Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
+        Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
+
+        var saltyReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(
+            Host, dealer.Identity.DomainName, newPassword);
+
+        // here we will call finalize to get the recovery key
+        var finalizeRecoveryResponse = await AnonymousSecurityOf(dealer).FinalizeRecovery(new FinalRecoveryRequest
+        {
+            Id = finalizeNonceId,
+            FinalKey = finalRecoveryKey,
+            PasswordReply = saltyReply
+        });
+
+        Assert.That(finalizeRecoveryResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var recovered = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName, newPassword);
+        Assert.That(recovered.Token.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(recovered.Token.AccessTokenHalfKey.IsSet(), Is.True);
+        Assert.That(recovered.SharedSecret.IsSet(), Is.True);
+        return recovered;
+    }
+
+    /// <summary>
+    /// <c>WebScaffold.AssertHasDebugLogEvent</c>: exactly <paramref name="count"/> Debug events whose
+    /// rendered message equals <paramref name="message"/>.
+    /// </summary>
+    protected void AssertHasDebugLogEvent(string message, int count)
+    {
+        var matching = Host.LogStore.GetLogEvents()[LogEventLevel.Debug]
+            .Where(l => l.RenderMessage() == message)
+            .ToList();
+
+        Assert.That(matching, Has.Count.EqualTo(count), $"Debug log events matching '{message}'");
     }
 }
