@@ -33,10 +33,57 @@ attention count of 1 and gets 0; the other throws inside `CheckOptionalWwwAsync`
 **Not caused by the change in flight:** reproduced on a clean tree by stashing (2026-08-26),
 and unaffected by whether the local dev server is running.
 
-**Likely cause (unconfirmed):** these do live DNS lookups, and a local
-`docker/stalwart-dev` setup adds `/etc/hosts` entries for `*.dotyou.cloud`. A developer without
-those entries would likely not see it. Not yet proven — if you confirm it, replace this
-paragraph with what you found.
+**Cause (found 2026-10-07, fixed in #1883):** not DNS. NUnit ran every test on one fixture
+instance, so mock setups made by one test (an authority for the www probe, DKIM keys) leaked into
+the tests that ran after it, and which tests ran first depended on the filter. With nothing set
+up, `LookupDomainAuthorityAsync` returned null and `CheckOptionalWwwAsync` threw. Fixed with
+`[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]` and explicit defaults in `[SetUp]`. If these
+fail again, it is something new.
+
+---
+
+## `Odin.SetupHelper.Tests.TcpProbeTests`
+
+- `ItShouldCacheConnectionResults`
+- `ItShouldConnectToHttpsPortAndGetExpectedResponse`
+
+**Where:** CI, `ubuntu/sqlite/release` (PR #1887, run 37613705154, 2026-10-07).
+
+**Symptom:** `Assert.That(connected, Is.True)`, but was `False`, for both, about two seconds apart.
+
+**Not caused by the change in flight:** #1887 touches mail health and the relay job, nothing in
+SetupHelper or `DockerSetup`. Both tests passed in #1883's CI run the same morning.
+
+**Likely cause (unconfirmed):** `DockerSetup.TcpListen` returns `connected=false` for any exception
+other than cancellation, and the tests in this class reuse fixed local ports (38443, 38080), so a
+port still in use when `listener.Start()` runs would do it. The assertion does not print `error`,
+so the log cannot say. Make it `Assert.That(connected, Is.True, error)` first, so the next
+failure names its cause.
+
+---
+
+## Any V2 fixture: `OneTimeSetUp` fails with "inotify instances has been reached"
+
+**Where:** local only (Linux), seen 2026-10-07 on the `mail-health-severity` branch.
+
+**Symptom:** hundreds of V2 tests fail at once (321 of 1501 in that run), every one in
+`OneTimeSetUp` with `System.IO.IOException: The configured user limit (128) on the number of
+inotify instances has been reached` from `PhysicalFilesWatcher`. Each `OdinHost` boot creates file
+watchers, and fixtures run in parallel.
+
+**Not caused by the change in flight:** the same build, re-run on its own minutes later, passed
+1420/1420. The limit is per user, so another inotify-heavy process running at the same time
+(another `dotnet test`, an IDE) can exhaust it. No other test run was visible by the time it was
+checked, so the competing process was not identified.
+
+**Cause (measured):** the desktop session itself. With no tests running, desktop processes
+(plasmashell, dolphin, firefox, several `gsettings monitor`, kded6, wireplumber) already held 101
+of the 128 instances, leaving ~27 for V2's parallel test hosts. Whether a run fits depends on how
+many desktop apps are open at the time: the same build passed 1420/1420 once and failed
+320/1501, 320/1501 and 1301/1509 on other runs that day.
+
+**Workaround:** raise the limit (`sudo sysctl fs.inotify.max_user_instances=512`, persist it in
+`/etc/sysctl.d/`), or close desktop apps. CI is unaffected.
 
 ---
 
