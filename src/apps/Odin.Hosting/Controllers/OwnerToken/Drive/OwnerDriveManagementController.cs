@@ -114,8 +114,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
-        /// Hard-deletes every file on a non-system drive and keeps the drive. Local only: peers keep any
-        /// copies they received.
+        /// Hard-deletes every file on an archived, non-system drive and keeps the drive. Local only: peers keep
+        /// any copies they received.
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("empty")]

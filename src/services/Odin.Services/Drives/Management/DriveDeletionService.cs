@@ -31,8 +31,8 @@ public class DriveDeletionService(
     InboxFileStore inboxFileStore)
 {
     /// <summary>
-    /// Hard-deletes every file on a drive, of every file system type, and keeps the drive. System drives are
-    /// refused: their content is what the identity runs on.
+    /// Hard-deletes every file on an archived drive, of every file system type, and keeps the drive. System drives
+    /// are refused: their content is what the identity runs on.
     /// </summary>
     public async Task EmptyDriveAsync(Guid driveId, IOdinContext odinContext)
     {
@@ -52,10 +52,6 @@ public class DriveDeletionService(
     public async Task DeleteDriveAsync(Guid driveId, IOdinContext odinContext)
     {
         var drive = await GetDeletableDriveAsync(driveId, odinContext);
-        if (!drive.IsArchived)
-        {
-            throw new OdinClientException("Archive the drive before deleting it");
-        }
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
@@ -89,6 +85,13 @@ public class DriveDeletionService(
             throw new OdinClientException("Cannot delete a system drive or its content");
         }
 
-        return (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!;
+        // Archiving first is the owner's first "are you sure"; it also stops new writes before the purge.
+        var drive = (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!;
+        if (!drive.IsArchived)
+        {
+            throw new OdinClientException("Archive the drive before emptying or deleting it");
+        }
+
+        return drive;
     }
 }

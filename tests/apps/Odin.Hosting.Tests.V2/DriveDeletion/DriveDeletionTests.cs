@@ -29,9 +29,9 @@ using Odin.Services.Membership.Connections;
 namespace Odin.Hosting.Tests.V2.DriveDeletion;
 
 /// <summary>
-/// The owner's drive deletion (#1869): bulk hard delete and emptying a drive (local, no tombstones, payloads gone
-/// from storage), and deleting a whole drive -- archived and non-system only, with no grant left naming it, so a
-/// drive re-created with the same alias, as an app reinstall does, inherits nothing.
+/// The owner's drive deletion (#1869): bulk hard delete, and emptying or deleting a drive -- archived and
+/// non-system only. Local, no tombstones, payloads gone from storage; a deleted drive leaves no grant naming it,
+/// so a drive re-created with the same alias, as an app reinstall does, inherits nothing.
 /// </summary>
 [TestFixture]
 public class DriveDeletionTests : V2Fixture
@@ -78,6 +78,7 @@ public class DriveDeletionTests : V2Fixture
             await UploadAsync(owner, drive, "two")
         };
         var untouched = await UploadAsync(owner, other, "elsewhere");
+        await owner.Admin.SetArchiveFlag(drive, archived: true);
 
         Assert.That(await EmptyAsync(owner, drive), Is.EqualTo(HttpStatusCode.OK));
 
@@ -90,7 +91,8 @@ public class DriveDeletionTests : V2Fixture
         Assert.That((await owner.V1.Drive.GetFileHeader(untouched)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await owner.V1.Drive.GetPayload(untouched, PayloadKey)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        // the drive still works
+        // the drive still works once restored
+        await owner.Admin.SetArchiveFlag(drive, archived: false);
         var again = await UploadAsync(owner, drive, "after");
         Assert.That((await owner.V1.Drive.GetPayload(again, PayloadKey)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
@@ -106,12 +108,15 @@ public class DriveDeletionTests : V2Fixture
     }
 
     [Test]
-    public async Task AnActiveDriveIsNotDeleted()
+    public async Task AnActiveDriveIsNeitherEmptiedNorDeleted()
     {
         var owner = await LoginAsOwner();
         var drive = await CreateDriveAsync(owner);
+        var file = await UploadAsync(owner, drive, "kept");
 
+        Assert.That(await EmptyAsync(owner, drive), Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(await DeleteAsync(owner, drive), Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await owner.V1.Drive.GetFileHeader(file)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.True);
     }
 
