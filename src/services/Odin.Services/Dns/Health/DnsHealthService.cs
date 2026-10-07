@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -80,6 +81,9 @@ public sealed class DnssecHealthResult
     /// </summary>
     public DnsHealthDnssecStatus? EnclosingZoneStatus { get; init; }
 
+    /// <summary>The server's verdict, shipped so clients (the DNS tab dot) do not keep their own copy of the rule</summary>
+    public bool NeedsAttention => DnsHealthService.NeedsUserAttention(this);
+
     /// <summary>The DS record(s) the user would publish at the parent (CDS verbatim when the zone publishes them, else computed from the zone's public keys)</summary>
     public List<DsRecordData> DsToPublish { get; init; } = [];
 
@@ -122,7 +126,22 @@ public sealed class MailRelayHealthResult
     /// <summary>Why the relay last refused the domain, in its own words; null when it has not</summary>
     public string? LastError { get; init; }
 
-    public bool NeedsAttention => Status is MailRelayHealthStatus.NotRegistered or MailRelayHealthStatus.Unverified;
+    /// <summary>
+    /// The verdict described for a human, or null when it needs no attention. The one wording
+    /// every surface shows - the Email tab, the monthly email, the app's health check.
+    /// </summary>
+    public string? Problem => Status switch
+    {
+        MailRelayHealthStatus.NotRegistered => LastError == null
+            ? "Outbound sending is not set up: the mail relay has not registered this domain"
+            : $"Outbound sending is not set up: the mail relay refused this domain ({LastError})",
+        MailRelayHealthStatus.Unverified => Problems.Count == 0
+            ? "Outbound sending is not verified yet by the mail relay"
+            : $"Outbound sending is not verified yet by the mail relay ({string.Join("; ", Problems)})",
+        _ => null,
+    };
+
+    public bool NeedsAttention => Problem != null;
 }
 
 public sealed class DnsHealthResult
@@ -177,6 +196,12 @@ public class DnsHealthService(
     IMailRelayProvider relayProvider,
     IMailRelayFailureStore relayFailureStore)
 {
+    // The enclosing zone of a managed domain is one shared apex for thousands of tenants, and
+    // grading it is a chain of uncached authority walks. Graded once per TTL per node instead
+    // of per tenant per request - which also keeps a broken apex to one error line per TTL.
+    private static readonly TimeSpan EnclosingZoneGradeTtl = TimeSpan.FromMinutes(15);
+    private readonly ConcurrentDictionary<string, (DnsHealthDnssecStatus status, DateTimeOffset gradedAt)> _enclosingZoneGrades = new();
+
     private static readonly DnsQueryOptions AuthoritativeQueryOptions = new()
     {
         Recursion = false,
@@ -251,11 +276,10 @@ public class DnsHealthService(
 
         if (state == null)
         {
-            var failure = await TryGetRelayFailureAsync(domain);
             return ([], new MailRelayHealthResult
             {
                 Status = MailRelayHealthStatus.NotRegistered,
-                LastError = failure?.Message,
+                LastError = await TryGetRelayFailureAsync(domain),
             });
         }
 
@@ -266,7 +290,7 @@ public class DnsHealthService(
         });
     }
 
-    private async Task<MailRelayFailure?> TryGetRelayFailureAsync(AsciiDomainName domain)
+    private async Task<string?> TryGetRelayFailureAsync(AsciiDomainName domain)
     {
         try
         {
@@ -372,23 +396,36 @@ public class DnsHealthService(
         if (zoneApex != domainName)
         {
             // ...but "governed by" is not "secured by": grade the enclosing zone with the same
-            // rules rather than taking it on trust. It is ours, so a gap is an ops fault.
-            var enclosing = await GradeZoneAsync(zoneApex, cancellationToken);
-            if (enclosing.Status != DnsHealthDnssecStatus.Secure)
-            {
-                logger.LogError("DNSSEC: enclosing zone {zone} of {domain} is {status}, not Secure",
-                    zoneApex, domainName, enclosing.Status);
-            }
-
+            // rules rather than taking it on trust
             return new DnssecHealthResult
             {
                 Status = DnsHealthDnssecStatus.Inherited,
                 EnclosingZone = zoneApex,
-                EnclosingZoneStatus = enclosing.Status,
+                EnclosingZoneStatus = await GradeEnclosingZoneAsync(zoneApex, cancellationToken),
             };
         }
 
         return await GradeZoneAsync(domainName, cancellationToken);
+    }
+
+    private async Task<DnsHealthDnssecStatus> GradeEnclosingZoneAsync(string zoneApex, CancellationToken cancellationToken)
+    {
+        if (_enclosingZoneGrades.TryGetValue(zoneApex, out var cached) &&
+            DateTimeOffset.UtcNow - cached.gradedAt < EnclosingZoneGradeTtl)
+        {
+            return cached.status;
+        }
+
+        var status = (await GradeZoneAsync(zoneApex, cancellationToken)).Status;
+        _enclosingZoneGrades[zoneApex] = (status, DateTimeOffset.UtcNow);
+
+        // Ours, not the owner's: an ops fault, logged once per fresh grade
+        if (status != DnsHealthDnssecStatus.Secure)
+        {
+            logger.LogError("DNSSEC: enclosing zone {zone} of managed domains is {status}, not Secure", zoneApex, status);
+        }
+
+        return status;
     }
 
     // The verdict for a zone cut: signed at all, then anchored at the parent
@@ -474,10 +511,9 @@ public class DnsHealthService(
                 .Where(x => x.Status != DnsLookupRecordStatus.Success)
                 .Select(DescribeBrokenRecord)
                 .ToList();
-            var relay = DescribeRelayProblem(health.Relay);
-            if (relay != null)
+            if (health.Relay.Problem is { } relayProblem)
             {
-                attention.Add(relay);
+                attention.Add(relayProblem);
             }
             return attention;
         }
@@ -493,24 +529,6 @@ public class DnsHealthService(
     {
         var what = record.Status == DnsLookupRecordStatus.IncorrectValue ? "has the wrong value" : "is missing";
         return $"{record.Description} ({record.Type} record on {record.Domain}) {what}";
-    }
-
-    /// <summary>
-    /// The relay verdict described for a human, or null when it needs no attention. One
-    /// wording for every surface that reports it (monthly email, app health).
-    /// </summary>
-    public static string? DescribeRelayProblem(MailRelayHealthResult relay)
-    {
-        return relay.Status switch
-        {
-            MailRelayHealthStatus.NotRegistered => relay.LastError == null
-                ? "Outbound sending is not set up: the mail relay has not registered this domain"
-                : $"Outbound sending is not set up: the mail relay refused this domain ({relay.LastError})",
-            MailRelayHealthStatus.Unverified => relay.Problems.Count == 0
-                ? "Outbound sending is not verified yet by the mail relay"
-                : $"Outbound sending is not verified yet by the mail relay ({string.Join("; ", relay.Problems)})",
-            _ => null,
-        };
     }
 
     // Pure trigger rule, data-level testable

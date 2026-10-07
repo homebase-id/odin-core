@@ -73,8 +73,7 @@ public class V2MailRelayRepairTests : V2Fixture
             "no relay records for a domain the relay refused");
 
         var stored = await failureStore.GetAsync(PrimaryIdentity);
-        Assert.That(stored?.Message, Is.EqualTo(PlanLimitRefusal), $"stored failure was '{stored?.Message}'");
-        Assert.That(stored!.Permanent, Is.True, $"stored failure permanent={stored.Permanent}, status={stored.StatusCode}");
+        Assert.That(stored, Is.EqualTo(PlanLimitRefusal), $"stored failure was '{stored}'");
 
         // 2. The relay accepts (say, after a plan upgrade): the same button repairs it
         _relay.Refusal = null;
@@ -87,7 +86,7 @@ public class V2MailRelayRepairTests : V2Fixture
         Assert.That(_relay.Registered, Is.True);
 
         var cleared = await failureStore.GetAsync(PrimaryIdentity);
-        Assert.That(cleared, Is.Null, $"stored failure was still '{cleared?.Message}'");
+        Assert.That(cleared, Is.Null, $"stored failure was still '{cleared}'");
     }
 
     /// <summary>A relay that refuses with the given words while <see cref="Refusal"/> is set.</summary>

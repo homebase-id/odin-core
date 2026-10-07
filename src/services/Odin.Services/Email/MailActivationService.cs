@@ -193,14 +193,12 @@ public class MailActivationService(
         // means the owner's one button really does mean "make my email DNS right", rather than
         // "make the half of it that happens to come from config right".
         string? relayError = null;
-        var relayRegistered = false;
         if (relayProvider.IsConfigured)
         {
             try
             {
                 var relay = await relayProvider.EnsureDomainAsync(domain);
                 records.AddRange(relay.Records);
-                relayRegistered = true;
                 await relayFailureStore.ClearAsync(domain.DomainName);
             }
             catch (Exception e)
@@ -210,8 +208,8 @@ public class MailActivationService(
                 // for, so it goes back to them - and into the store the health check reads -
                 // instead of only into a log line nobody sees.
                 logger.LogError(e, "Relay: could not register {domain}: {error}", domain, e.Message);
-                await relayFailureStore.RecordAsync(domain.DomainName, e);
                 relayError = e.Message;
+                await relayFailureStore.RecordAsync(domain.DomainName, relayError);
             }
         }
 
@@ -232,7 +230,7 @@ public class MailActivationService(
         // Registration and records are done; the relay's own verification waits on DNS
         // propagation, which is the job's business (it re-reads before it writes, so running
         // it after this is safe).
-        if (relayRegistered && written)
+        if (relayProvider.IsConfigured && relayError == null && written)
         {
             await ScheduleRelayOnboardingAsync(domain.DomainName);
         }

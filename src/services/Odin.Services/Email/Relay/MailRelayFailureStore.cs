@@ -1,16 +1,14 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
-using Odin.Core.Time;
 
 #nullable enable
 
 namespace Odin.Services.Email.Relay;
 
 /// <summary>
-/// Why the relay last refused a domain, when it did.
+/// Why the relay last refused a domain, in its own words, when it did.
 ///
 /// Onboarding runs in a job, and a job's error lives on its row - which has no identity, is
 /// read by nothing, and is purged a day after the job gives up. On 2026-10-07 that was the only
@@ -19,22 +17,9 @@ namespace Odin.Services.Email.Relay;
 /// </summary>
 public interface IMailRelayFailureStore
 {
-    Task<MailRelayFailure?> GetAsync(string domain);
-    Task RecordAsync(string domain, Exception exception);
+    Task<string?> GetAsync(string domain);
+    Task RecordAsync(string domain, string message);
     Task ClearAsync(string domain);
-}
-
-public class MailRelayFailure
-{
-    /// <summary>The relay's own words - what the owner needs to see, e.g. the plan-limit refusal.</summary>
-    public string Message { get; init; } = "";
-
-    public int? StatusCode { get; init; }
-
-    /// <summary>True when retrying cannot help until someone changes something.</summary>
-    public bool Permanent { get; init; }
-
-    public UnixTimeUtc At { get; init; }
 }
 
 /// <summary>
@@ -46,43 +31,20 @@ public class MailRelayFailureStore(IServiceProvider serviceProvider) : IMailRela
 {
     private static string Key(string domain) => $"mail-relay-failure:{domain.ToLowerInvariant()}";
 
-    public async Task<MailRelayFailure?> GetAsync(string domain)
+    public async Task<string?> GetAsync(string domain)
     {
-        using var scope = serviceProvider.CreateScope();
-        var table = scope.ServiceProvider.GetRequiredService<TableSettings>();
-
-        var record = await table.GetAsync(Key(domain));
-        return record == null || string.IsNullOrEmpty(record.value)
-            ? null
-            : OdinSystemSerializer.Deserialize<MailRelayFailure>(record.value);
+        var record = await WithTable(table => table.GetAsync(Key(domain)));
+        return string.IsNullOrEmpty(record?.value) ? null : record.value;
     }
 
-    public async Task RecordAsync(string domain, Exception exception)
-    {
-        var relayException = exception as MailRelayException;
-        var failure = new MailRelayFailure
-        {
-            Message = exception.Message,
-            StatusCode = relayException?.StatusCode,
-            Permanent = relayException?.IsPermanent ?? false,
-            At = UnixTimeUtc.Now(),
-        };
+    public Task RecordAsync(string domain, string message) =>
+        WithTable(table => table.UpsertAsync(new SettingsRecord { key = Key(domain), value = message }));
 
-        using var scope = serviceProvider.CreateScope();
-        var table = scope.ServiceProvider.GetRequiredService<TableSettings>();
+    public Task ClearAsync(string domain) => WithTable(table => table.DeleteAsync(Key(domain)));
 
-        await table.UpsertAsync(new SettingsRecord
-        {
-            key = Key(domain),
-            value = OdinSystemSerializer.Serialize(failure),
-        });
-    }
-
-    public async Task ClearAsync(string domain)
+    private async Task<T> WithTable<T>(Func<TableSettings, Task<T>> action)
     {
         using var scope = serviceProvider.CreateScope();
-        var table = scope.ServiceProvider.GetRequiredService<TableSettings>();
-
-        await table.DeleteAsync(Key(domain));
+        return await action(scope.ServiceProvider.GetRequiredService<TableSettings>());
     }
 }

@@ -374,8 +374,7 @@ public class EmailAppService(
         // A domain the relay refused has no relay rows to be broken, so it is reported as an
         // error instead - otherwise this verdict says healthy while no mail can leave.
         var errors = verification.Errors.ToList();
-        var relayProblem = DnsHealthService.DescribeRelayProblem(dns.Relay);
-        if (relayProblem != null)
+        if (dns.Relay.Problem is { } relayProblem)
         {
             errors.Add(relayProblem);
         }

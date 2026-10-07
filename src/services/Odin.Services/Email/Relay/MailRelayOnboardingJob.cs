@@ -80,21 +80,22 @@ public class MailRelayOnboardingJob(
         {
             state = await relayProvider.EnsureDomainAsync(domain, cancellationToken);
         }
-        catch (MailRelayException e) when (e.IsPermanent)
-        {
-            // The relay refused, and will refuse every retry the same way until a person changes
-            // something (on 2026-10-07: a plan's sender-domain cap). Retrying only turned that
-            // into nine warnings and a late error. Say it once, loudly, and leave the reason where
-            // the health check and the Email tab read it; the owner's repair button reschedules.
-            logger.LogError("Relay: {domain} registration refused: {error}", domain, e.Message);
-            await failureStore.RecordAsync(domain.DomainName, e);
-            return JobExecutionResult.Abort();
-        }
         catch (Exception e)
         {
-            // Transient as far as we can tell: keep the latest reason visible, then let the
-            // JobManager retry (its give-up line is already an error).
-            await failureStore.RecordAsync(domain.DomainName, e);
+            // Either way, the latest reason goes where the health check and the Email tab read it
+            await failureStore.RecordAsync(domain.DomainName, e.Message);
+
+            if (e is MailRelayException { IsPermanent: true })
+            {
+                // The relay refused, and will refuse every retry the same way until a person
+                // changes something (on 2026-10-07: a plan's sender-domain cap). Retrying only
+                // turned that into nine warnings and a late error. Say it once, loudly; the
+                // owner's repair button reschedules.
+                logger.LogError("Relay: {domain} registration refused: {error}", domain, e.Message);
+                return JobExecutionResult.Abort();
+            }
+
+            // Transient as far as we can tell: the JobManager retries (its give-up line is an error)
             throw;
         }
 

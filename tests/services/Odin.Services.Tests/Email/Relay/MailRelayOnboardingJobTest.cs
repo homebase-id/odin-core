@@ -46,7 +46,7 @@ public class MailRelayOnboardingJobTest
         var result = await NewJob().Run(CancellationToken.None);
 
         Assert.That(result.Result, Is.EqualTo(RunResult.Abort), $"result was {result.Result}");
-        _failureStore.Verify(x => x.RecordAsync(Domain, refusal), Times.Once);
+        _failureStore.Verify(x => x.RecordAsync(Domain, refusal.Message), Times.Once);
         _registration.Verify(x => x.WriteOnActivationRecords(It.IsAny<AsciiDomainName>(), It.IsAny<List<DnsConfig>>()),
             Times.Never);
     }
@@ -61,7 +61,7 @@ public class MailRelayOnboardingJobTest
         var thrown = Assert.ThrowsAsync<HttpRequestException>(() => NewJob().Run(CancellationToken.None));
 
         Assert.That(thrown, Is.SameAs(blip), $"threw {thrown?.GetType().Name}: {thrown?.Message}");
-        _failureStore.Verify(x => x.RecordAsync(Domain, blip), Times.Once);
+        _failureStore.Verify(x => x.RecordAsync(Domain, blip.Message), Times.Once);
     }
 
     [Test]
@@ -78,7 +78,7 @@ public class MailRelayOnboardingJobTest
 
         Assert.That(result.Result, Is.EqualTo(RunResult.Success), $"result was {result.Result}");
         _failureStore.Verify(x => x.ClearAsync(Domain), Times.Once);
-        _failureStore.Verify(x => x.RecordAsync(It.IsAny<string>(), It.IsAny<Exception>()), Times.Never);
+        _failureStore.Verify(x => x.RecordAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Test]
