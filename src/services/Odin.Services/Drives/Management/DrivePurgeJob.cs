@@ -12,6 +12,7 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -49,8 +50,11 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
     public DrivePurgeJobData Data { get; set; } = new();
 
     // One purge job per drive: a second empty or delete of the same drive rides the queued one.
-    public override string CreateJobHash() =>
-        SHA256.HashData((JobType + Data.Tenant + Data.DriveId).ToUtf8ByteArray()).ToBase64();
+    public override string CreateJobHash() => HashFor(Data.Tenant, Data.DriveId);
+
+    /// <summary>The hash a drive's purge job is queued under, to tell whether one still is.</summary>
+    public static string HashFor(OdinId? tenant, Guid driveId) =>
+        SHA256.HashData((JobTypeId + tenant.ToString() + driveId).ToUtf8ByteArray()).ToBase64();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
@@ -99,6 +103,14 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
 
             await db.MainIndexMetaCached.DeleteFilesAsync(Data.DriveId, fileIds);
 
+            if (purge.LastError != null)
+            {
+                // Progress again: the owner should no longer see the earlier failure.
+                purge.LastError = null;
+                purge.LastErrorAt = null;
+                await registry.SaveAsync(purge);
+            }
+
             if (fileIds.Count == BatchSize)
             {
                 return JobExecutionResult.Repeat(DateTimeOffset.UtcNow);
@@ -135,7 +147,29 @@ public class DrivePurgeJob(IMultiTenantContainer tenantContainer, ILogger<DriveP
         catch (Exception e)
         {
             logger.LogError(e, "{job} failed purging drive {drive}", nameof(DrivePurgeJob), Data.DriveId);
+            await TryRecordErrorAsync(tenantScope, e);
             return JobExecutionResult.Fail();
+        }
+    }
+
+    /// <summary>Puts the failure where the owner's purge status reads it. Best effort: the run has failed already.</summary>
+    private async Task TryRecordErrorAsync(ILifetimeScope tenantScope, Exception error)
+    {
+        try
+        {
+            await using var scope = tenantScope.BeginLifetimeScope($"{nameof(DrivePurgeJob)}:Error:{Guid.NewGuid()}");
+            var registry = scope.Resolve<DrivePurgeRegistry>();
+            var purge = await registry.GetAsync(Data.DriveId);
+            if (purge != null)
+            {
+                purge.LastError = error.Message;
+                purge.LastErrorAt = UnixTimeUtc.Now().milliseconds;
+                await registry.SaveAsync(purge);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "{job} could not record its failure for drive {drive}", nameof(DrivePurgeJob), Data.DriveId);
         }
     }
 

@@ -139,6 +139,25 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
+        /// Drives still being emptied or deleted: files left, and the last failure. Empty when nothing is pending.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpGet("purges")]
+        public async Task<List<DrivePurgeStatus>> GetPurges()
+        {
+            return await driveDeletionService.GetPurgesAsync(WebOdinContext);
+        }
+
+        /// <summary>Restarts an empty or delete whose background job stopped.</summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("purges/retry")]
+        public async Task<IActionResult> RetryPurge([FromBody] TargetDriveRequest request)
+        {
+            await driveDeletionService.RetryPurgeAsync(request.TargetDrive.Alias, WebOdinContext);
+            return Accepted();
+        }
+
+        /// <summary>
         /// Hands one of the owner's own drives to an app that exists.
         /// </summary>
         /// <remarks>

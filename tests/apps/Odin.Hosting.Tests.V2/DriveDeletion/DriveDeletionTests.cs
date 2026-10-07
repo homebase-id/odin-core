@@ -247,6 +247,84 @@ public class DriveDeletionTests : V2Fixture
         }
     }
 
+    [Test]
+    public async Task StatusShowsAnEmptyUntilItIsDone()
+    {
+        var owner = await LoginAsOwner();
+        var drive = await CreateDriveAsync(owner);
+        for (var i = 0; i < 3; i++)
+        {
+            await UploadAsync(owner, drive, $"file {i}");
+        }
+
+        await owner.Admin.SetArchiveFlag(drive, archived: true);
+        Assert.That(await PurgesAsync(owner), Is.Empty, "arrange: nothing pending");
+
+        var batchSize = DrivePurgeJob.BatchSize;
+        try
+        {
+            DrivePurgeJob.BatchSize = 2;
+            await EmptyAsync(owner, drive);
+
+            var queued = (await PurgesAsync(owner)).Single();
+            Assert.That(queued.TargetDrive, Is.EqualTo(drive));
+            Assert.That(queued.Kind, Is.EqualTo(DrivePurgeKind.Empty));
+            Assert.That(queued.FilesRemaining, Is.EqualTo(3));
+            Assert.That(queued.Stopped, Is.False);
+
+            await RunPurgeOnceAsync(owner);
+            Assert.That((await PurgesAsync(owner)).Single().FilesRemaining, Is.EqualTo(1), "progress after one batch");
+
+            await RunPurgeAsync(owner);
+        }
+        finally
+        {
+            DrivePurgeJob.BatchSize = batchSize;
+        }
+
+        Assert.That(await PurgesAsync(owner), Is.Empty, "a finished purge still shows");
+    }
+
+    [Test]
+    public async Task StatusNamesADeletedDriveUntilItsFilesAreGone()
+    {
+        var owner = await LoginAsOwner();
+        var drive = await CreateDriveAsync(owner);
+        await UploadAsync(owner, drive, "content");
+        await owner.Admin.SetArchiveFlag(drive, archived: true);
+
+        await DeleteAsync(owner, drive);
+
+        var pending = (await PurgesAsync(owner)).Single();
+        Assert.That(pending.Kind, Is.EqualTo(DrivePurgeKind.Delete));
+        Assert.That(pending.Name, Is.EqualTo("deletable"), "a deleted drive is still named");
+        Assert.That(pending.FilesRemaining, Is.EqualTo(1));
+
+        await RunPurgeAsync(owner);
+        Assert.That(await PurgesAsync(owner), Is.Empty);
+    }
+
+    [Test]
+    public async Task AStoppedPurgeShowsAsStoppedAndCanBeRetried()
+    {
+        var owner = await LoginAsOwner();
+        var drive = await CreateDriveAsync(owner);
+        await UploadAsync(owner, drive, "content");
+        await owner.Admin.SetArchiveFlag(drive, archived: true);
+        await EmptyAsync(owner, drive);
+
+        // what running out of retries leaves: the purge recorded, no job working on it
+        await ClearJobs();
+        Assert.That((await PurgesAsync(owner)).Single().Stopped, Is.True);
+
+        var retry = await owner.RefitFor<IRefitDriveManagement>().RetryPurge(new TargetDriveRequest { TargetDrive = drive });
+        Assert.That(retry.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+        Assert.That((await PurgesAsync(owner)).Single().Stopped, Is.False);
+
+        await RunPurgeAsync(owner);
+        Assert.That(await PurgesAsync(owner), Is.Empty);
+    }
+
     private static async Task<HttpStatusCode> EmptyAsync(OwnerSession owner, TargetDrive drive) =>
         (await owner.RefitFor<IRefitDriveManagement>().EmptyDrive(new TargetDriveRequest { TargetDrive = drive })).StatusCode;
 
@@ -289,6 +367,21 @@ public class DriveDeletionTests : V2Fixture
 
     private Guid IdentityId(string domain) =>
         Host.GetTenantScope(domain).Resolve<TenantContext>().DotYouRegistryId;
+
+    private async Task RunPurgeOnceAsync(OwnerSession owner)
+    {
+        var jobManager = Host.Server.Services.GetRequiredService<IJobManager>();
+        var job = (await jobManager.GetJobsByIdentityIdAsync(IdentityId(owner.Identity.DomainName)))
+            .Single(j => j.jobType == DrivePurgeJob.JobTypeId.ToString());
+        await jobManager.RunJobNowAsync(job.id, CancellationToken.None);
+    }
+
+    private static async Task<List<DrivePurgeStatus>> PurgesAsync(OwnerSession owner)
+    {
+        var response = await owner.RefitFor<IRefitDriveManagement>().GetPurges();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        return response.Content!;
+    }
 
     private string[] PayloadFiles(OwnerSession owner, TargetDrive drive)
     {

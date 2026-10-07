@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
@@ -39,16 +40,21 @@ public class DriveDeletionService(
     /// </summary>
     public async Task EmptyDriveAsync(Guid driveId, IOdinContext odinContext)
     {
-        await AssertDeletableAsync(driveId, odinContext);
+        var drive = await AssertDeletableAsync(driveId, odinContext);
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
             await DropPendingTransfersAsync(driveId);
+            var now = UnixTimeUtc.Now().milliseconds;
             await drivePurges.SaveAsync(new DrivePurge
             {
                 DriveId = driveId,
+                TargetDrive = drive.TargetDriveInfo,
+                Name = drive.Name,
+                AppId = drive.AppId,
                 Kind = DrivePurgeKind.Empty,
-                CreatedAtOrBefore = UnixTimeUtc.Now().milliseconds
+                Requested = now,
+                CreatedAtOrBefore = now
             });
             tx.Commit();
         }
@@ -67,7 +73,7 @@ public class DriveDeletionService(
     /// </remarks>
     public async Task DeleteDriveAsync(Guid driveId, IOdinContext odinContext)
     {
-        await AssertDeletableAsync(driveId, odinContext);
+        var drive = await AssertDeletableAsync(driveId, odinContext);
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
@@ -76,9 +82,61 @@ public class DriveDeletionService(
             await DropPendingTransfersAsync(driveId);
             await db.FollowsMeCached.DeleteByDriveAsync(driveId);
             await db.DrivesCached.DeleteAsync(driveId);
-            await drivePurges.SaveAsync(new DrivePurge { DriveId = driveId, Kind = DrivePurgeKind.Delete });
+            await drivePurges.SaveAsync(new DrivePurge
+            {
+                DriveId = driveId,
+                TargetDrive = drive.TargetDriveInfo,
+                Name = drive.Name,
+                AppId = drive.AppId,
+                Kind = DrivePurgeKind.Delete,
+                Requested = UnixTimeUtc.Now().milliseconds
+            });
             tx.Commit();
         }
+
+        await SchedulePurgeAsync(driveId, odinContext);
+    }
+
+    /// <summary>
+    /// Every empty and delete still being purged, with the files left and the last failure, so the owner can see
+    /// it happening, know when it is done, and retry one that stopped.
+    /// </summary>
+    public async Task<List<DrivePurgeStatus>> GetPurgesAsync(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var statuses = new List<DrivePurgeStatus>();
+        foreach (var purge in await drivePurges.GetAllAsync())
+        {
+            var job = await jobManager.GetJobByHashAsync(DrivePurgeJob.HashFor(odinContext.Tenant, purge.DriveId));
+            statuses.Add(new DrivePurgeStatus
+            {
+                TargetDrive = purge.TargetDrive,
+                Name = purge.Name,
+                AppId = purge.AppId,
+                Kind = purge.Kind,
+                Requested = purge.Requested,
+                FilesRemaining = await db.MainIndexMetaCached.CountDriveFilesAsync(purge.DriveId,
+                    purge.Kind == DrivePurgeKind.Empty ? purge.CreatedAtOrBefore : null),
+                LastError = purge.LastError,
+                LastErrorAt = purge.LastErrorAt,
+                Stopped = job == null
+            });
+        }
+
+        return statuses;
+    }
+
+    /// <summary>Restarts a purge whose job has stopped -- it ran out of retries, or was never queued.</summary>
+    public async Task RetryPurgeAsync(Guid driveId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var purge = await drivePurges.GetAsync(driveId)
+                    ?? throw new OdinClientException("This drive is not being emptied or deleted");
+        purge.LastError = null;
+        purge.LastErrorAt = null;
+        await drivePurges.SaveAsync(purge);
 
         await SchedulePurgeAsync(driveId, odinContext);
     }
@@ -98,13 +156,14 @@ public class DriveDeletionService(
             RunAt = DateTimeOffset.UtcNow,
             MaxAttempts = 20,
             RetryDelay = TimeSpan.FromMinutes(5),
-            // Gone at once: a finished job kept under the same hash would swallow the next empty of the drive.
+            // Gone at once either way: a job kept under the same hash would swallow the next empty of the drive, or
+            // a retry. A failure stays visible on the purge record (LastError) instead.
             OnSuccessDeleteAfter = TimeSpan.Zero,
-            OnFailureDeleteAfter = TimeSpan.FromDays(30),
+            OnFailureDeleteAfter = TimeSpan.Zero,
         });
     }
 
-    private async Task AssertDeletableAsync(Guid driveId, IOdinContext odinContext)
+    private async Task<StorageDrive> AssertDeletableAsync(Guid driveId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -119,5 +178,25 @@ public class DriveDeletionService(
         {
             throw new OdinClientException("Archive the drive before emptying or deleting it");
         }
+
+        return drive;
     }
+}
+
+public class DrivePurgeStatus
+{
+    public TargetDrive TargetDrive { get; init; } = null!;
+    public string? Name { get; init; }
+    public Guid? AppId { get; init; }
+    public DrivePurgeKind Kind { get; init; }
+
+    /// <summary>When the owner asked, in unix ms.</summary>
+    public long Requested { get; init; }
+
+    public long FilesRemaining { get; init; }
+    public string? LastError { get; init; }
+    public long? LastErrorAt { get; init; }
+
+    /// <summary>No job is working on it any more: it ran out of retries. Retry restarts it.</summary>
+    public bool Stopped { get; init; }
 }

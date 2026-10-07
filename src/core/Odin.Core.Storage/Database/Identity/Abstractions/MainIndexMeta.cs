@@ -97,6 +97,23 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return fileIds;
         }
 
+        /// <summary>How many files <see cref="GetDriveFileIdsAsync"/> would still find, for purge progress.</summary>
+        internal async Task<long> CountDriveFilesAsync(Guid driveId, long? createdAtOrBefore)
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM DriveMainIndex WHERE identityId = @identityId AND driveId = @driveId" +
+                              (createdAtOrBefore.HasValue ? " AND created <= @createdAtOrBefore" : "") + ";";
+            cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+            cmd.AddParameter("@driveId", DbType.Binary, driveId);
+            if (createdAtOrBefore.HasValue)
+            {
+                cmd.AddParameter("@createdAtOrBefore", DbType.Int64, createdAtOrBefore.Value);
+            }
+
+            return Convert.ToInt64(await cmd.ExecuteScalarAsync());
+        }
+
         /// <summary>
         /// Deletes the listed files of a drive with their index, reaction, transfer-history and outbox rows, in one
         /// transaction. Payloads are the caller's to remove, first.
