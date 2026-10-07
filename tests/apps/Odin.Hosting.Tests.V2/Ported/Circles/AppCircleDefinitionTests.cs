@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -24,6 +25,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Tests.V2.Ported.Circles;
 
@@ -518,6 +520,68 @@ public class AppCircleDefinitionTests : V2Fixture
             Permissions = new PermissionSet(PermissionKeys.ReadWhoIFollow)
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    /// <summary>
+    /// Owning the circle is enough to change who is in it: an app holding no permission key adds, removes and
+    /// bulk-adds.  An app's add is a deposit, converted when the owner is next present, so that is what it checks.
+    /// Bulk add offers only Review and Connect circles (<c>IsEnrollmentCandidate</c>), so it gets a Review one.
+    /// </summary>
+    [Test]
+    public async Task AppManagesMembersOfItsOwnCircleWithoutAKeyViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var (app, circleId, drive) = await AppWithItsOwnCircleAsync(owner);
+        var v2 = app.RefitFor<IConnectionNetworkHttpClientApiV2>();
+
+        var add = await v2.GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await SamHasDepositForAsync(owner, circleId), Is.True, "the add left nothing for Sam");
+
+        var revoke = await v2.RevokeCircle(new RevokeCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam });
+        Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await SamHasDepositForAsync(owner, circleId), Is.False, "the revoke left Sam's deposit");
+
+        var reviewCircleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(reviewCircleId, "the app's reviewed circle",
+            new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, app.AppId, CircleGrantOn.Review);
+        var many = await v2.GrantCircleToMany(new AddManyCircleMembershipRequest { CircleId = reviewCircleId, OdinIds = [Identities.Sam] });
+        Assert.That(many.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(many.Content!.Deposited, Is.EqualTo(1), "an app's bulk add deposits");
+        Assert.That(await SamHasDepositForAsync(owner, reviewCircleId), Is.True, "the bulk add left nothing for Sam");
+    }
+
+    [Test]
+    public async Task AppWithoutTheKeyCannotAddToAnotherAppsCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var (_, othersCircleId, _) = await AppWithItsOwnCircleAsync(owner);
+        var app = await CreateAppAndClient(owner, Guid.NewGuid());
+
+        var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .GrantCircle(new AddCircleMembershipRequest { CircleId = othersCircleId, OdinId = Identities.Sam });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(await SamHasDepositForAsync(owner, othersCircleId), Is.False);
+    }
+
+    /// <summary>An app with no permission keys, write on a drive, and a circle of its own granting that drive.</summary>
+    private static async Task<(AppSession App, Guid CircleId, TargetDrive Drive)> AppWithItsOwnCircleAsync(OwnerSession owner)
+    {
+        var appId = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "the app's", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.All, [], knownAppId: appId);
+
+        var circleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(circleId, "the app's circle", new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, appId);
+        return (app, circleId, drive);
+    }
+
+    private async Task<bool> SamHasDepositForAsync(OwnerSession owner, Guid circleId)
+    {
+        var icr = await Host.GetTenantScope(owner.Identity.DomainName)
+            .Resolve<CircleNetworkStorage>().GetAsync(new OdinId(Identities.Sam));
+        return icr!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId);
     }
 
     private static DriveGrantRequest WriteOn(TargetDrive drive) =>

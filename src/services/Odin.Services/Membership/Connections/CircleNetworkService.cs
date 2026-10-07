@@ -781,7 +781,7 @@ namespace Odin.Services.Membership.Connections
         /// </remarks>
         public async Task GrantCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            AssertCanManageCircleMembership(odinContext);
+            await AssertCanManageMembersOfAsync(circleId, odinContext);
 
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
@@ -803,7 +803,10 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
-            var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
+            // Read directly: the gate above already decided this caller may manage the circle, and an owning app
+            // needs no read key on top of that.
+            var circleDefinition = await circleDefinitionService.GetCircleAsync(circleId)
+                ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
 
             if (odinContext.Caller.HasMasterKey)
             {
@@ -1007,7 +1010,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            AssertCanManageCircleMembership(odinContext);
+            await AssertCanManageMembersOfAsync(circleId, odinContext);
             await RevokeCircleAccessInternalAsync(circleId, odinId, odinContext);
         }
 
@@ -1683,7 +1686,7 @@ namespace Odin.Services.Membership.Connections
         public async Task<EnrollmentResult> EnrollManyInCircleAsync(GuidId circleId, List<OdinId> odinIds,
             IOdinContext odinContext)
         {
-            // The per-identity gate is GrantCircleAsync's own (master key, or
+            // The per-identity gate is GrantCircleAsync's own (master key, the owning app, or
             // ManageCircleMembership), so this does not re-state it. What it adds is scope: an app
             // may bulk-enrol only into a circle it owns.
             var circle = await circleDefinitionService.GetCircleAsync(circleId);
@@ -2526,15 +2529,34 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Gate for managing circle membership: the owner (master key) or a caller granted
-        /// <see cref="PermissionKeys.ManageCircleMembership"/> (e.g. an app).
+        /// Gate for adding to or removing from a circle: the owner (master key), the app that owns the circle, or a
+        /// caller granted <see cref="PermissionKeys.ManageCircleMembership"/>.
         /// </summary>
-        private static void AssertCanManageCircleMembership(IOdinContext odinContext)
+        /// <remarks>
+        /// Owning the circle is an app's whole authority over who is in it, as it is for creating, disabling and
+        /// deleting it -- the app is the owner acting.  The key stays the way in for any other circle, so an app
+        /// that manages circles it does not own keeps working.  An owner-console circle is never an app's, even to
+        /// the System app's token, whose id owner-console circles carry.
+        /// </remarks>
+        private async Task AssertCanManageMembersOfAsync(GuidId circleId, IOdinContext odinContext)
         {
-            if (!odinContext.Caller.HasMasterKey)
+            if (odinContext.Caller.HasMasterKey)
             {
-                odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageCircleMembership);
+                return;
             }
+
+            var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+            if (callerAppId != null)
+            {
+                var circle = await circleDefinitionService.GetCircleAsync(circleId);
+                if (circle != null && !SystemAppConstants.IsOwnerConsole(circle.AppId) && circle.AppId == callerAppId)
+                {
+                    odinContext.Caller.AssertCallerIsOwner();
+                    return;
+                }
+            }
+
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageCircleMembership);
         }
 
         /// <summary>
