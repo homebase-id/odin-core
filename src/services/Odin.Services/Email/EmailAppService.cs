@@ -371,13 +371,22 @@ public class EmailAppService(
         var dns = await dnsHealthService.GetDnsHealthAsync(domain, cancellationToken);
         var verification = await emailHealthVerifier.VerifyAsync(cancellationToken);
 
+        // A domain the relay refused has no relay rows to be broken, so it is reported as an
+        // error instead - otherwise this verdict says healthy while no mail can leave.
+        var errors = verification.Errors.ToList();
+        var relayProblem = DnsHealthService.DescribeRelayProblem(dns.Relay);
+        if (relayProblem != null)
+        {
+            errors.Add(relayProblem);
+        }
+
         return new MailAppHealthResult
         {
             TenantMailEnabled = true,
             Activated = verification.Activated,
             Records = dns.MailRecords,
             BrokenRecords = dns.MailRecords.Where(x => x.Status != DnsLookupRecordStatus.Success).ToList(),
-            Errors = verification.Errors,
+            Errors = errors,
             Warnings = verification.Warnings,
         };
     }

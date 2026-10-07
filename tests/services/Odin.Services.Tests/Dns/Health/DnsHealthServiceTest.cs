@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
@@ -44,8 +45,35 @@ public class DnsHealthServiceTest
     // is what every non-mail host looks like, so DKIM contributes no records here.
     private readonly Mock<IDkimStore> _dkimStore = new();
     private readonly Mock<ILookupClient> _dnsClient = new();
+    private readonly Mock<IMailRelayFailureStore> _relayFailureStore = new();
 
-    private DnsHealthService CreateService(bool tenantMailEnabled = false)
+    // NUnit runs every test on one fixture instance, so mock setups outlive the test that made
+    // them. The GetDnsHealthAsync tests used to depend on the www tests having run first to set
+    // up an authority; a default here takes the ordering out of it (www: no authority -> NotSet).
+    [SetUp]
+    public void SetUpDefaults()
+    {
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupDomainAuthorityAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AuthoritativeDnsLookupResult());
+
+        // Inherited now grades the enclosing zone, so every health call reaches these.
+        // Default: an unsigned zone. DNSSEC tests set their own on top.
+        _dnssecLookup
+            .Setup(x => x.GetZoneDnsKeysAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _dnssecLookup
+            .Setup(x => x.IsParentZoneSignedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _dnssecLookup
+            .Setup(x => x.GetParentDsRecordsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _dnssecLookup
+            .Setup(x => x.GetCdsRecordsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+    }
+
+    private DnsHealthService CreateService(bool tenantMailEnabled = false, IMailRelayProvider? relayProvider = null)
     {
         var configuration = new OdinConfiguration
         {
@@ -66,9 +94,10 @@ public class DnsHealthServiceTest
             _dnssecLookup.Object,
             _dnsLookupService.Object,
             _dkimStore.Object,
-            // No relay: these tests are about the config-derived records. A relay would add
-            // per-tenant rows fetched over the network, which is a separate concern.
-            new NullMailRelayProvider());
+            // No relay unless a test asks for one: most tests are about the config-derived
+            // records, and the relay's per-tenant rows are covered by the relay tests below.
+            relayProvider ?? new NullMailRelayProvider(),
+            _relayFailureStore.Object);
     }
 
     //
@@ -284,24 +313,177 @@ public class DnsHealthServiceTest
     }
 
     //
+    // Outbound relay verdict
+    //
+
+    private const string PlanLimitRefusal =
+        "Relay: POST /domain/add returned 400: Free plans can add a maximum of 5 verified senders";
+
+    // DKIM keys present == the tenant activated email, the only case the relay should know it
+    private void SetupActivatedMail()
+    {
+        _dkimStore.Setup(x => x.IsConfigured).Returns(true);
+        _dkimStore.Setup(x => x.GetKeysAsync(Domain.DomainName)).ReturnsAsync([
+            new DkimKey { Selector = "s1", Algorithm = DkimAlgorithm.Ed25519, PublicKey = new byte[32], PrivateKeyPkcs8 = [] },
+        ]);
+    }
+
+    private static Mock<IMailRelayProvider> ConfiguredRelay()
+    {
+        var relay = new Mock<IMailRelayProvider>();
+        relay.Setup(x => x.IsConfigured).Returns(true);
+        return relay;
+    }
+
+    /// <summary>
+    /// The 2026-10-07 failure: the relay refused the domain, so it has no record of it and
+    /// there were no relay rows to grade - every surface said healthy. The verdict must say
+    /// NotRegistered, carry the relay's own refusal, and reach the monthly report.
+    /// </summary>
+    [Test]
+    public async Task ItShouldReportADomainTheRelayRefusedAsNotRegisteredWithTheReason()
+    {
+        SetupLookupCapturing(_ => { });
+        SetupActivatedMail();
+        var relay = ConfiguredRelay();
+        relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>())).ReturnsAsync((MailRelayDomainState?)null);
+        _relayFailureStore.Setup(x => x.GetAsync(Domain.DomainName))
+            .ReturnsAsync(new MailRelayFailure { Message = PlanLimitRefusal, StatusCode = 400, Permanent = true });
+
+        var service = CreateService(tenantMailEnabled: true, relayProvider: relay.Object);
+        var health = await service.GetDnsHealthAsync(Domain, CancellationToken.None);
+        var attention = await service.GetMailRecordAttentionAsync(Domain, CancellationToken.None);
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.NotRegistered), $"relay was {health.Relay.Status}");
+        Assert.That(health.Relay.LastError, Is.EqualTo(PlanLimitRefusal));
+        Assert.That(health.Relay.NeedsAttention, Is.True);
+        Assert.That(attention, Has.Some.Contains("Outbound sending is not set up").And.Some.Contains("maximum of 5"),
+            $"attention was: [{string.Join(" | ", attention)}]");
+    }
+
+    [Test]
+    public async Task ItShouldNotAskTheRelayAboutATenantThatNeverActivatedEmail()
+    {
+        SetupLookupCapturing(_ => { });
+        _dkimStore.Setup(x => x.IsConfigured).Returns(true);
+        _dkimStore.Setup(x => x.GetKeysAsync(Domain.DomainName)).ReturnsAsync([]);
+        var relay = ConfiguredRelay();
+
+        var health = await CreateService(tenantMailEnabled: true, relayProvider: relay.Object)
+            .GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.NotApplicable), $"relay was {health.Relay.Status}");
+        relay.Verify(x => x.GetDomainAsync(It.IsAny<AsciiDomainName>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>"We could not ask" is not "it is broken": no attention, no owner to-do.</summary>
+    [Test]
+    public async Task ItShouldReportAnUnreachableRelayWithoutBlamingTheOwner()
+    {
+        SetupLookupCapturing(_ => { });
+        SetupActivatedMail();
+        var relay = ConfiguredRelay();
+        relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("connection refused"));
+
+        var service = CreateService(tenantMailEnabled: true, relayProvider: relay.Object);
+        var health = await service.GetDnsHealthAsync(Domain, CancellationToken.None);
+        var attention = await service.GetMailRecordAttentionAsync(Domain, CancellationToken.None);
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unreachable), $"relay was {health.Relay.Status}");
+        Assert.That(attention, Is.Empty, $"attention was: [{string.Join(" | ", attention)}]");
+    }
+
+    [Test]
+    public async Task ItShouldCheckTheRelayRecordsOfARegisteredDomain()
+    {
+        IReadOnlyCollection<DnsConfig>? passedExtras = null;
+        SetupLookupCapturing(extras => passedExtras = extras);
+        SetupActivatedMail();
+        var relay = ConfiguredRelay();
+        relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>())).ReturnsAsync(new MailRelayDomainState
+        {
+            Domain = Domain.DomainName,
+            Verified = true,
+            Records =
+            [
+                new DnsConfig { Type = "CNAME", Name = "em934313", Value = "return.smtp2go.net", Optional = true },
+            ],
+        });
+
+        var health = await CreateService(tenantMailEnabled: true, relayProvider: relay.Object)
+            .GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Registered), $"relay was {health.Relay.Status}");
+        Assert.That(passedExtras?.Select(x => x.Name), Has.Member("em934313"),
+            $"extras were: [{string.Join(", ", passedExtras?.Select(x => x.Name) ?? [])}]");
+    }
+
+    [Test]
+    public async Task ItShouldReportTheRelaysOwnProblemsWhileUnverified()
+    {
+        SetupLookupCapturing(_ => { });
+        SetupActivatedMail();
+        var relay = ConfiguredRelay();
+        relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>())).ReturnsAsync(new MailRelayDomainState
+        {
+            Domain = Domain.DomainName,
+            Verified = false,
+            Problems = ["Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"],
+        });
+
+        var service = CreateService(tenantMailEnabled: true, relayProvider: relay.Object);
+        var health = await service.GetDnsHealthAsync(Domain, CancellationToken.None);
+        var attention = await service.GetMailRecordAttentionAsync(Domain, CancellationToken.None);
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unverified), $"relay was {health.Relay.Status}");
+        Assert.That(attention, Has.Some.Contains("NXDOMAIN"), $"attention was: [{string.Join(" | ", attention)}]");
+    }
+
+    //
     // DNSSEC orchestration (mocked seams)
     //
 
-    [Test]
-    public async Task ItShouldReportInheritedWhenTheDomainIsNotAZoneCut()
+    /// <summary>
+    /// Managed-domain case: frodo.example.com lives inside the example.com zone. "Inherited"
+    /// used to be taken on trust; the enclosing zone is now graded with the same rules, so an
+    /// unsigned or unanchored apex shows instead of hiding behind the word.
+    /// </summary>
+    [TestCase(false, false, DnsHealthDnssecStatus.ZoneUnsigned)]
+    [TestCase(true, false, DnsHealthDnssecStatus.DsMissing)]
+    [TestCase(true, true, DnsHealthDnssecStatus.Secure)]
+    public async Task ItShouldReportInheritedAndGradeTheEnclosingZone(
+        bool enclosingSigned, bool enclosingAnchored, DnsHealthDnssecStatus expectedEnclosing)
     {
-        // Managed-domain case: frodo.example.com lives inside the example.com zone
-        _dnssecLookup.Invocations.Clear();
+        const string enclosing = "example.com";
+        var key = TestKey(owner: "example.com.");
         _authoritativeDnsLookup
             .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
-            .ReturnsAsync("example.com");
+            .ReturnsAsync(enclosing);
+        _dnssecLookup
+            .Setup(x => x.GetZoneDnsKeysAsync(enclosing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(enclosingSigned ? [key] : []);
+        _dnssecLookup
+            .Setup(x => x.IsParentZoneSignedAsync(enclosing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _dnssecLookup
+            .Setup(x => x.GetCdsRecordsAsync(enclosing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _dnssecLookup
+            .Setup(x => x.GetParentDsRecordsAsync(enclosing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(enclosingAnchored ? [DnssecLookup.ComputeDsFromDnsKey(enclosing, key)] : []);
 
-        var result = await CreateService().GetDnssecHealthAsync(Domain, CancellationToken.None);
+        var service = CreateService();
+        var result = await service.GetDnssecHealthAsync(Domain, CancellationToken.None);
+        var attention = await service.GetDnssecAttentionAsync(Domain, CancellationToken.None);
 
-        Assert.That(result.Status, Is.EqualTo(DnsHealthDnssecStatus.Inherited));
-        Assert.That(result.EnclosingZone, Is.EqualTo("example.com"));
-        // Inherited short-circuits: no key/DS lookups happen at all
-        _dnssecLookup.VerifyNoOtherCalls();
+        Assert.That(result.Status, Is.EqualTo(DnsHealthDnssecStatus.Inherited),
+            $"status was {result.Status}");
+        Assert.That(result.EnclosingZone, Is.EqualTo(enclosing));
+        Assert.That(result.EnclosingZoneStatus, Is.EqualTo(expectedEnclosing),
+            $"enclosing zone graded {result.EnclosingZoneStatus}");
+        // The enclosing zone is ours to fix, never the owner's monthly to-do
+        Assert.That(attention, Is.Null, $"attention was {attention?.Status}");
     }
 
     [Test]
@@ -504,20 +686,21 @@ public class DnsHealthServiceTest
         return new DnssecHealthResult { Status = status, ParentZoneSigned = parentSigned };
     }
 
-    [Test]
-    public void ItShouldFlagOnlyUserActionableDnssecStates()
+    /// <summary>
+    /// Since 2026-10-07 every unanchored state needs the owner - including ParentUnsigned and
+    /// ZoneUnsigned, which used to be "that is fine". Only an anchored chain (Secure) and a
+    /// domain inside our own zone (Inherited) stay quiet.
+    /// </summary>
+    [TestCase(DnsHealthDnssecStatus.DsMismatch, true, true)]
+    [TestCase(DnsHealthDnssecStatus.DsMissing, true, true)]
+    [TestCase(DnsHealthDnssecStatus.ParentUnsigned, false, true)]
+    [TestCase(DnsHealthDnssecStatus.ZoneUnsigned, false, true)]
+    [TestCase(DnsHealthDnssecStatus.Secure, true, false)]
+    [TestCase(DnsHealthDnssecStatus.Inherited, true, false)]
+    public void ItShouldFlagEveryUnanchoredDnssecState(DnsHealthDnssecStatus status, bool parentSigned, bool expected)
     {
-        // DsMismatch always: the SERVFAIL case
-        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.DsMismatch)), Is.True);
-        // DsMissing only when the parent is signed (one actionable record away)
-        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.DsMissing)), Is.True);
-        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.DsMissing, parentSigned: false)), Is.False);
-
-        // Everything else: no monthly nagging about states the user cannot act on
-        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.Secure)), Is.False);
-        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.Inherited)), Is.False);
-        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.ParentUnsigned, parentSigned: false)), Is.False);
-        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.ZoneUnsigned)), Is.False);
+        var needsAttention = DnsHealthService.NeedsUserAttention(Health(status, parentSigned));
+        Assert.That(needsAttention, Is.EqualTo(expected), $"{status} (parent signed: {parentSigned}) -> {needsAttention}");
     }
 
     [Test]

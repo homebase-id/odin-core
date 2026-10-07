@@ -250,7 +250,8 @@ public class Smtp2GoRelayProvider(
             // Their errors arrive as a 4xx with the detail in data.error. Surface that rather
             // than the status code alone, which on its own says nothing useful.
             var detail = TryReadError(content) ?? content;
-            throw new OdinSystemException($"Relay: POST {path} returned {(int)response.StatusCode}: {detail}");
+            throw new MailRelayException(
+                $"Relay: POST {path} returned {(int)response.StatusCode}: {detail}", (int)response.StatusCode);
         }
 
         return OdinSystemSerializer.Deserialize<Smtp2GoDomainResponse>(content)

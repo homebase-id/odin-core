@@ -45,10 +45,16 @@ public class MailRelayOnboardingJobData
 public class MailRelayOnboardingJob(
     ILogger<MailRelayOnboardingJob> logger,
     IMailRelayProvider relayProvider,
+    IMailRelayFailureStore failureStore,
     IIdentityRegistrationService identityRegistrationService) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("6f1b0c94-3d27-4a58-9b0e-7c2a5f8d41e3");
     public override string JobType => JobTypeId.ToString();
+
+    /// <summary>One onboarding per domain: activation and the owner's repair button both schedule it.</summary>
+    public static string JobHashFor(string domain) => $"{JobTypeId}:{domain.ToLowerInvariant()}";
+
+    public override string? CreateJobHash() => JobHashFor(Data.Domain);
 
     public MailRelayOnboardingJobData Data { get; set; } = new();
 
@@ -69,7 +75,30 @@ public class MailRelayOnboardingJob(
 
         var domain = new AsciiDomainName(Data.Domain);
 
-        var state = await relayProvider.EnsureDomainAsync(domain, cancellationToken);
+        MailRelayDomainState state;
+        try
+        {
+            state = await relayProvider.EnsureDomainAsync(domain, cancellationToken);
+        }
+        catch (MailRelayException e) when (e.IsPermanent)
+        {
+            // The relay refused, and will refuse every retry the same way until a person changes
+            // something (on 2026-10-07: a plan's sender-domain cap). Retrying only turned that
+            // into nine warnings and a late error. Say it once, loudly, and leave the reason where
+            // the health check and the Email tab read it; the owner's repair button reschedules.
+            logger.LogError("Relay: {domain} registration refused: {error}", domain, e.Message);
+            await failureStore.RecordAsync(domain.DomainName, e);
+            return JobExecutionResult.Abort();
+        }
+        catch (Exception e)
+        {
+            // Transient as far as we can tell: keep the latest reason visible, then let the
+            // JobManager retry (its give-up line is already an error).
+            await failureStore.RecordAsync(domain.DomainName, e);
+            throw;
+        }
+
+        await failureStore.ClearAsync(domain.DomainName);
 
         // Written wherever the tenant's records live - the shared apex zone for managed
         // domains, its own zone otherwise. False means the DNS is not ours (third-party DNS,
