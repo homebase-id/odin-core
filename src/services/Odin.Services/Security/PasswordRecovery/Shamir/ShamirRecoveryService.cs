@@ -435,7 +435,8 @@ public class ShamirRecoveryService
         }
 
         // decrypt all the shards
-        var distributionKey = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards.OrderBy(s => s.Index).ToList());
+        var distributionKey = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards.OrderBy(s => s.Index).ToList(),
+            ShamirConfigurationService.DistributionKeyLength);
 
         // put the recovery text in the nonce
         var recoveryText = await _configurationService.DecryptRecoveryKey(distributionKey.ToSensitiveByteArray(), odinContext);
