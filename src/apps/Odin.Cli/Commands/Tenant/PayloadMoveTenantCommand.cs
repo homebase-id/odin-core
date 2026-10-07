@@ -71,18 +71,21 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
         if (report.Source is { } source)
         {
             Row("Source", new Text(source.CompletedAt != null
-                ? $"complete {Show(source.CompletedAt)}"
+                ? $"complete {source.CompletedAt.ToCliTime()}"
                 : source.RedeemedAt != null
-                    ? $"transferring since {Show(source.RedeemedAt)}"
-                    : $"exported; handoff expires {Show(source.HandoffExpiresAt)}"));
+                    ? $"transferring since {source.RedeemedAt.ToCliTime()}"
+                    : $"exported; handoff expires {source.HandoffExpiresAt.ToCliTime()}"));
             Row("Deletable", new Text(source.Pending ? "no, a target may still need the payloads" : "yes"));
         }
 
         if (report.Target is { } target)
         {
             var p = target.Progress;
-            Row("Transfer", new Text($"{p.Status} (job {target.JobState}, next run {Show(target.NextRun)})"));
+            Row("Transfer", new Text($"{p.Status} (job {target.JobState}, next run {target.NextRun.ToCliTime()})"));
             Row("From", new Text(p.BaseUrl));
+            Row("Queued items", new Text(p.QueuedItemsDone
+                ? "payloads fetched"
+                : p.HoldsResume ? "payloads arriving; resume waits for them" : "payloads not fetched"));
             Row("Files", new Text($"{p.Files} (newest first, down from row {p.StartRowId}; now below {p.CursorRowId})"));
             Row("Objects", new Text($"{p.Objects} moved, {p.Bytes.HumanReadableBytes()}; {p.Skipped} already here"));
             Row("Failures", new Text(p.FailureCount.ToString()));
@@ -109,7 +112,4 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
 
         return 0;
     }
-
-    private static string Show(UnixTimeUtc? time) =>
-        time == null ? "-" : time.Value.ToDateTimeOffset().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
 }
