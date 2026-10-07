@@ -11,6 +11,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Services.Authorization.Apps;
 
@@ -29,6 +30,7 @@ namespace Odin.Services.Authorization.Apps;
 public class AppUninstallService(
     AppRegistrationService appRegistrationService,
     CircleNetworkService circleNetworkService,
+    CircleNetworkRequestService circleNetworkRequestService,
     CircleDefinitionService circleDefinitionService,
     DriveManager driveManager,
     DriveDeletionService driveDeletionService,
@@ -73,6 +75,12 @@ public class AppUninstallService(
                 "so that has to be asked for");
         }
 
+        // Before anything is removed: a circle that cannot be deleted must not first lose its grants everywhere.
+        foreach (var circleId in circleIds)
+        {
+            await circleDefinitionService.AssertDeletableAsync(circleId);
+        }
+
         foreach (var drive in drives)
         {
             await driveManager.SetArchiveDriveFlagAsync(drive.Id, true, odinContext);
@@ -81,6 +89,7 @@ public class AppUninstallService(
 
         await appRegistrationService.RemoveCirclesFromAllAppsAsync(circleIds, odinContext);
         await circleNetworkService.RemoveAppFromAllConnectionsAsync(appId, circleIds, odinContext);
+        await circleNetworkRequestService.RemoveAppFromSentRequestsAsync(appId, circleIds, odinContext);
 
         // Every client, live or expired, and the push subscription each may hold.
         var clientIds = (await db.ClientRegistrations.GetByTypeAndCategoryIdAsync(AppClientRegistration.CatType, appId))

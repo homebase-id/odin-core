@@ -121,7 +121,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("empty")]
         public async Task<IActionResult> EmptyDrive([FromBody] TargetDriveRequest request)
         {
-            await driveDeletionService.EmptyDriveAsync(request.TargetDrive.Alias, WebOdinContext);
+            await driveDeletionService.EmptyDriveAsync(ValidDriveId(request), WebOdinContext);
             return Accepted();
         }
 
@@ -134,8 +134,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteDrive([FromBody] TargetDriveRequest request)
         {
-            await driveDeletionService.DeleteDriveAsync(request.TargetDrive.Alias, WebOdinContext);
+            await driveDeletionService.DeleteDriveAsync(ValidDriveId(request), WebOdinContext);
             return Accepted();
+        }
+
+        private static Guid ValidDriveId(TargetDriveRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
+            return request.TargetDrive.Alias;
         }
 
         /// <summary>
@@ -153,7 +160,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("purges/retry")]
         public async Task<IActionResult> RetryPurge([FromBody] TargetDriveRequest request)
         {
-            await driveDeletionService.RetryPurgeAsync(request.TargetDrive.Alias, WebOdinContext);
+            await driveDeletionService.RetryPurgeAsync(ValidDriveId(request), WebOdinContext);
             return Accepted();
         }
 

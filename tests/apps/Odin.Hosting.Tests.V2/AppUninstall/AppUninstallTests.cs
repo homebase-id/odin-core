@@ -117,6 +117,32 @@ public class AppUninstallTests : V2Fixture
         Assert.That(other.AuthorizedCircles, Does.Not.Contain(circleId), "another app still authorizes the deleted circle");
     }
 
+    [Test]
+    public async Task ARequestSentBeforeUninstallAndAcceptedAfterCarriesNothingFromTheApp()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // The app owns a circle and gives its members a grant; a request offering that circle is still pending.
+        var appId = Guid.NewGuid();
+        await frodo.Admin.RegisterApp(appId, new());
+        var circleId = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleId, "app circle", OwnerAdmin.ReadCircleMembershipGrant(), appId);
+        await AuthorizeAsync(frodo, appId, circleId);
+
+        var send = await frodo.Connections.SendConnectionRequest(sam.Identity, [circleId]);
+        Assert.That(send.IsSuccessStatusCode, Is.True, "arrange: sending the request failed");
+
+        Assert.That(await UninstallAsync(frodo, appId, deleteOwned: true), Is.EqualTo(HttpStatusCode.OK));
+
+        var accept = await sam.Connections.AcceptConnectionRequest(frodo.Identity);
+        Assert.That(accept.IsSuccessStatusCode, Is.True, "accepting the request failed");
+
+        var grant = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!.AccessGrant;
+        Assert.That(grant.CircleGrants.Any(c => c.CircleId == circleId), Is.False, "the accepted request brought back the app's circle");
+        Assert.That(grant.AppGrants.ContainsKey(appId), Is.False, "the accepted request brought back a grant from the app");
+    }
+
     private static async Task<HttpStatusCode> UninstallAsync(OwnerSession owner, Guid appId, bool deleteOwned = false) =>
         (await owner.RefitFor<IRefitOwnerAppRegistration>().Uninstall(new UninstallAppRequest
         {

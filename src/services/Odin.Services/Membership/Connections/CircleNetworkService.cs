@@ -3310,9 +3310,7 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            await UpdateAllConnectionsAsync(store =>
-                ownedCircleIds.Aggregate(store.RemoveApp(appId), (removed, circleId) => store.RemoveCircle(circleId) | removed),
-                odinContext);
+            await UpdateAllConnectionsAsync(store => store.RemoveAppAndCircles(appId, ownedCircleIds), odinContext);
 
             foreach (var circleId in ownedCircleIds)
             {

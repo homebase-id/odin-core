@@ -421,6 +421,18 @@ public class S3FileStoreUnitTests
         Assert.That(captured, Is.EqualTo("ident/drives/abc/"));
     }
 
+    [TestCase("")]
+    [TestCase("  ")]
+    [TestCase("/")]
+    [TestCase("//")]
+    public void DeleteDirectory_Refuses_An_Empty_Folder(string dir)
+    {
+        // An empty folder would be the prefix "/": the whole store.
+        var storage = new Mock<IS3Storage>(MockBehavior.Strict);
+        Assert.ThrowsAsync<DriveFileStoreException>(() => Sut(storage.Object).DeleteDirectoryAsync(dir));
+        storage.VerifyNoOtherCalls();
+    }
+
     [Test]
     public async Task EnsureDirectory_Is_NoOp_And_Touches_No_Storage()
     {

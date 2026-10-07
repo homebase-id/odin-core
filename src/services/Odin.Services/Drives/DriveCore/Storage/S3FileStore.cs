@@ -155,8 +155,17 @@ public class S3FileStore(
 
     // S3 has no directories: delete every object under the folder prefix. The trailing slash keeps a sibling
     // whose name merely starts with the same characters out of it.
-    public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default) =>
-        DeleteByPrefixAsync(dir.TrimEnd('/', '\\') + "/", ct);
+    public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default)
+    {
+        // An empty folder would be the prefix "/": the whole store.
+        var folder = dir?.Trim().Trim('/', '\\');
+        if (string.IsNullOrEmpty(folder))
+        {
+            throw new DriveFileStoreException($"Refusing to delete directory '{dir}'");
+        }
+
+        return DeleteByPrefixAsync(dir!.TrimEnd('/', '\\') + "/", ct);
+    }
 
     private async Task DeleteByPrefixAsync(string prefix, CancellationToken ct)
     {

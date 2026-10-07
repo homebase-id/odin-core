@@ -1453,6 +1453,33 @@ namespace Odin.Services.Membership.Connections.Requests
             }
         }
 
+        /// <summary>Takes a deleted drive out of the grants every sent, not-yet-accepted request offers.</summary>
+        public Task RemoveDriveFromSentRequestsAsync(Guid driveId, IOdinContext odinContext) =>
+            UpdateAllSentRequestsAsync(store => store.RemoveDrive(driveId), odinContext);
+
+        /// <summary>Takes an uninstalled app, and the circles it owned, out of every sent, not-yet-accepted request.</summary>
+        public Task RemoveAppFromSentRequestsAsync(Guid appId, IReadOnlyCollection<Guid> ownedCircleIds,
+            IOdinContext odinContext) =>
+            UpdateAllSentRequestsAsync(store => store.RemoveAppAndCircles(appId, ownedCircleIds), odinContext);
+
+        /// <remarks>
+        /// A sent request carries its own copy of the grants it offers, and accepting it turns that copy into the
+        /// connection unchanged -- so a removal that reaches only connections would come back with the acceptance.
+        /// </remarks>
+        private async Task UpdateAllSentRequestsAsync(Func<PeerKeyStore, bool> update, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var requests = await _sentRequestValueStorage.GetByCategoryAsync<ConnectionRequest>(tblKeyThreeValue, SentRequestsDataType);
+            foreach (var request in requests)
+            {
+                if (request.PendingPeerKeyStore != null && update(request.PendingPeerKeyStore))
+                {
+                    await UpsertSentConnectionRequestAsync(request);
+                }
+            }
+        }
+
         private async Task UpsertSentConnectionRequestAsync(ConnectionRequest request)
         {
             request.SenderOdinId = tenantContext.HostOdinId; //store for when we support multiple domains per identity

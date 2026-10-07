@@ -205,6 +205,53 @@ public class DriveDeletionTests : V2Fixture
     }
 
     [Test]
+    public async Task ARequestSentBeforeTheDeleteAndAcceptedAfterCarriesNoGrantOnIt()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // A sent request carries its own copy of the grants it offers, and accepting it turns that copy into the
+        // connection -- so the delete has to reach the request, not only connections.
+        var drive = await CreateDriveAsync(frodo);
+        var circleId = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleId, "on the drive", new PermissionSetGrantRequest
+        {
+            Drives = [new DriveGrantRequest { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Write } }]
+        });
+        var send = await frodo.Connections.SendConnectionRequest(sam.Identity, [circleId]);
+        Assert.That(send.IsSuccessStatusCode, Is.True, "arrange: sending the request failed");
+
+        await frodo.Admin.SetArchiveFlag(drive, archived: true);
+        Assert.That(await DeleteAsync(frodo, drive), Is.EqualTo(HttpStatusCode.Accepted));
+
+        var accept = await sam.Connections.AcceptConnectionRequest(frodo.Identity);
+        Assert.That(accept.IsSuccessStatusCode, Is.True, "accepting the request failed");
+
+        var info = (await frodo.Connections.GetConnectionInfo(sam.Identity)).Content!;
+        Assert.That(info.AccessGrant.CircleGrants.Any(c => c.CircleId == circleId), Is.True, "arrange: the circle did not carry over");
+        Assert.That(await SamHasGrantOnAsync(frodo, sam, drive), Is.False, "the accepted request brought back a grant on the deleted drive");
+    }
+
+    [TestCase("empty")]
+    [TestCase("delete")]
+    [TestCase("retry")]
+    public async Task AMissingTargetDriveIsABadRequest(string action)
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var svc = owner.RefitFor<IRefitDriveManagement>();
+        var request = new TargetDriveRequest { TargetDrive = null! };
+
+        var status = action switch
+        {
+            "empty" => (await svc.EmptyDrive(request)).StatusCode,
+            "delete" => (await svc.DeleteDrive(request)).StatusCode,
+            _ => (await svc.RetryPurge(request)).StatusCode
+        };
+
+        Assert.That(status, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
     public async Task EmptySparesFilesUploadedAfterTheRequest()
     {
         var owner = await LoginAsOwner();

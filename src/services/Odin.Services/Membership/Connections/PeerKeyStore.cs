@@ -86,8 +86,33 @@ public class PeerKeyStore
         return removed;
     }
 
+    /// <summary>Takes an app off this connection along with the circles it owns.</summary>
+    public bool RemoveAppAndCircles(Guid appId, IEnumerable<Guid> ownedCircleIds) =>
+        ownedCircleIds.Aggregate(RemoveApp(appId), (removed, circleId) => RemoveCircle(circleId) | removed);
+
     public bool RemoveDriveFromDeposits(Guid driveId) =>
         DepositedGrants?.Sum(d => d.DriveGrants.RemoveAll(g => g.DriveId == driveId)) > 0;
+
+    /// <summary>
+    /// Takes a drive out of every grant this store carries: circle grants, app grants and deposits.  A connection's
+    /// circle and app grants live in their own tables and are stripped there; this is for a store that keeps its
+    /// own copy, as a sent connection request does until it is accepted.
+    /// </summary>
+    public bool RemoveDrive(Guid driveId)
+    {
+        var removed = RemoveDriveFromDeposits(driveId);
+        foreach (var circleGrant in CircleGrants.Values)
+        {
+            removed |= circleGrant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
+        }
+
+        foreach (var appCircleGrant in AppGrants.Values.SelectMany(g => g.Values))
+        {
+            removed |= appCircleGrant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0;
+        }
+
+        return removed;
+    }
 
     public void AddUpdateAppCircleGrant(AppCircleGrant appCircleGrant)
     {

@@ -9,6 +9,7 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.JobManagement;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Services.Drives.Management;
 
@@ -26,6 +27,7 @@ public class DriveDeletionService(
     DriveManager driveManager,
     DrivePurgeRegistry drivePurges,
     CircleNetworkService circleNetworkService,
+    CircleNetworkRequestService circleNetworkRequestService,
     IAppRegistrationService appRegistrationService,
     IJobManager jobManager,
     IdentityDatabase db,
@@ -53,7 +55,7 @@ public class DriveDeletionService(
 
     /// <summary>
     /// Deletes an archived, non-system drive and everything in it: its files, its followers, and every grant
-    /// that names it -- circles, connections, YouAuth domains, deposits and apps -- so a drive created later
+    /// that names it -- circles, connections, sent connection requests, YouAuth domains, deposits and apps -- so a drive created later
     /// with the same alias, as an app reinstall does, inherits none of them.
     /// </summary>
     /// <remarks>
@@ -67,6 +69,7 @@ public class DriveDeletionService(
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
             await circleNetworkService.RemoveDriveFromAllGrantsAsync(driveId, odinContext);
+            await circleNetworkRequestService.RemoveDriveFromSentRequestsAsync(driveId, odinContext);
             await appRegistrationService.RemoveDriveFromAllAppsAsync(driveId, odinContext);
             await DropPendingTransfersAsync(driveId);
             await db.FollowsMeCached.DeleteByDriveAsync(driveId);
