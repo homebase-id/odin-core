@@ -201,6 +201,7 @@ public class OwnerSecurityHealthService(
                 IsValid = result.IsValid,
                 TrustLevel = result.TrustLevel,
                 IsMissing = false,
+                IsConnected = result.IsConnected,
                 ShardId = envelope.ShardId
             };
 
