@@ -14,6 +14,7 @@ using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
+using Refit;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
@@ -304,6 +305,23 @@ public abstract class ShamirFixture : V2Fixture
         Assert.That(getConfigResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getConfigResponse.Content, Is.Not.Null);
         return getConfigResponse.Content!;
+    }
+
+    /// <summary>
+    /// Whether the owner is told their shards predate the password: the flag behind the console's
+    /// needs-attention indicator and the risk report (#1861).
+    /// </summary>
+    /// <remarks>
+    /// <c>recovery-info</c> is exempt from shared-secret encryption, so it answers in plain JSON that
+    /// <see cref="SecurityOf"/>'s decrypting serializer cannot read; a plain Refit client it is.
+    /// </remarks>
+    protected static async Task<bool> IsRotationPendingAsync(OwnerSession owner)
+    {
+        var (client, _) = owner.NewAdminHttpClient();
+        var response = await RestService.For<ITestSecurityContextOwnerClient>(client).GetRecoveryInfo();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content, Is.Not.Null);
+        return response.Content!.RotationPending;
     }
 
     /// <summary>Asserts every player is holding the dealer's release request, and nothing more.</summary>

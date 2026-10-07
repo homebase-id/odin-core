@@ -24,5 +24,13 @@ public class RecoveryInfo
     public VerificationStatus Status { get; init; }
     
     public DealerRecoveryRiskReport RecoveryRisk { get; set; }
+
+    /// <summary>
+    /// The shards predate the current password and could not be rotated; the shards dealt before
+    /// the change still work until the owner reconfigures recovery (#1861).
+    /// </summary>
+    public bool RotationPending { get; set; }
+
+
     public bool HasRecoveryKeyBeenViewed { get; set; }
 }

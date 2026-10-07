@@ -452,7 +452,7 @@ Recovery details:
 - Risk level: {risk.RiskLevel}
 
 {recoverableText}
-
+{RotationPendingText(info)}
 We recommend checking your recovery contacts and ensuring that all listed players are trusted and available.
 
 You can manage your Account Recovery here:
@@ -461,6 +461,40 @@ You can manage your Account Recovery here:
 --
 Team Homebase
 ".Trim();
+    }
+
+    /// <summary>
+    /// The shards could not be rotated after a password change, so the ones dealt before it still
+    /// work. Empty string otherwise.
+    /// </summary>
+    private static string RotationPendingText(RecoveryInfo info)
+    {
+        if (!info.RotationPending)
+        {
+            return "";
+        }
+
+        return @"
+🔄 Your recovery shards were not refreshed after your password changed.
+The shards your trusted connections held before the change can still recover your account.
+Review your trusted connections and save your recovery setup again to issue new shards.
+";
+    }
+
+    private static string RotationPendingHtml(RecoveryInfo info)
+    {
+        if (!info.RotationPending)
+        {
+            return "";
+        }
+
+        return @"
+    <p style='margin-bottom: 15px;'>
+        🔄 <strong>Your recovery shards were not refreshed after your password changed.</strong>
+        The shards your trusted connections held before the change can still recover your account.
+        Review your trusted connections and save your recovery setup again to issue new shards.
+    </p>
+";
     }
 
     // Rendered only when the DNSSEC state is user-actionable (the caller passes null
@@ -637,7 +671,7 @@ Review it here: https://{tenant}/owner/security/dns
     <p style='margin-bottom: 15px;'>
         {recoverableText}
     </p>
-
+{RotationPendingHtml(info)}
     <p style='margin-top: 25px;'>
         We recommend reviewing your Account Recovery configuration and ensuring that all your trusted connections are active and secure.
     </p>

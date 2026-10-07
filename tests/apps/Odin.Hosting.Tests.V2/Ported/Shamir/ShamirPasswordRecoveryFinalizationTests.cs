@@ -191,6 +191,7 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         // a rotation that saved is done; the handler must not rotate again
         await configuration.GetTenantSettings();
         AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: rotationsSoFar);
+        Assert.That(await IsRotationPendingAsync(recovered), Is.False);
 
         return rotated;
     }

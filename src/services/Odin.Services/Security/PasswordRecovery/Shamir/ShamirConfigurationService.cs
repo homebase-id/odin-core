@@ -229,6 +229,21 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
+    /// True when <paramref name="package"/> was dealt before the password last changed. Until it is
+    /// rotated, the shards dealt before then still reconstruct the recovery key.
+    /// </summary>
+    public async Task<bool> IsRotationPending(DealerShardPackage package)
+    {
+        if (null == package)
+        {
+            return false;
+        }
+
+        var passwordLastUpdated = await secretService.GetPasswordLastUpdated();
+        return passwordLastUpdated != null && package.Updated < passwordLastUpdated.Value;
+    }
+
+    /// <summary>
     /// Rotates keys in the shares using all existing players
     /// </summary>
     public async Task RotateShardKeysIfNeeded(IOdinContext odinContext)
@@ -241,20 +256,7 @@ public class ShamirConfigurationService(
         try
         {
             var package = await this.GetDealerShardPackage(odinContext);
-            if (null == package)
-            {
-                return;
-            }
-
-            var passwordLastUpdated = await secretService.GetPasswordLastUpdated();
-            if (passwordLastUpdated == null)
-            {
-                // password never changed
-                return;
-            }
-
-            // if the package was updated before the password was changed, we need to rotate it
-            if (package.Updated < passwordLastUpdated.Value)
+            if (await IsRotationPending(package))
             {
                 Logger.LogDebug(RotateShardsHasStarted);
                 // same players, threshold and mode; only the shards are new

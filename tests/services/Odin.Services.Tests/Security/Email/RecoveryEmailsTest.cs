@@ -97,4 +97,30 @@ public class RecoveryEmailsTest
         Assert.That(text, Does.Contain("DNSSEC problem"));
         Assert.That(html, Does.Contain("DNSSEC problem"));
     }
+
+    [Test]
+    public void ItShouldOmitTheRotationSectionWhenShardsAreCurrent()
+    {
+        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, ConfiguredInfo());
+        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, ConfiguredInfo());
+
+        Assert.That(text, Does.Not.Contain("not refreshed"));
+        Assert.That(html, Does.Not.Contain("not refreshed"));
+    }
+
+    [Test]
+    public void ItShouldRenderTheRotationSectionWhenRotationIsPending()
+    {
+        var info = ConfiguredInfo();
+        info.RotationPending = true;
+
+        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, info);
+        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, info);
+
+        foreach (var body in new[] { text, html })
+        {
+            Assert.That(body, Does.Contain("not refreshed after your password changed"));
+            Assert.That(body, Does.Contain("/owner/security/password-recovery"));
+        }
+    }
 }
