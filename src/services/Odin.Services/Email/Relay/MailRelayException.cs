@@ -17,7 +17,8 @@ public class MailRelayException(string message, int? statusCode) : OdinSystemExc
     /// A 4xx: the relay understood the request and refused it, so asking again changes
     /// nothing until a person changes something (e.g. the 2026-10-07 free-plan sender cap).
     /// A 5xx stays transient - SMTP2GO answers an unknown API key with a 500, and a key
-    /// mid-rotation is exactly what a retry should ride out.
+    /// mid-rotation is exactly what a retry should ride out. So do the two 4xx that mean
+    /// "not now" rather than "no": 408 (timeout) and 429 (rate limit, e.g. a bulk backfill).
     /// </summary>
-    public bool IsPermanent => StatusCode is >= 400 and < 500;
+    public bool IsPermanent => StatusCode is >= 400 and < 500 and not 408 and not 429;
 }

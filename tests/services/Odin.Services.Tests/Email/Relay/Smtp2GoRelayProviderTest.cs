@@ -62,6 +62,48 @@ public class Smtp2GoRelayProviderTest
         Assert.That(e.IsPermanent, Is.False);
     }
 
+    [TestCase(408)]
+    [TestCase(429)]
+    public void ItShouldTreatTimeoutAndRateLimitAsTransient(int status)
+    {
+        var e = new MailRelayException("Relay: POST /domain/add returned " + status, status);
+        Assert.That(e.IsPermanent, Is.False, $"{status} was treated as permanent");
+    }
+
+    /// <summary>
+    /// Activation's job and the owner's repair button can both see "not registered" and both
+    /// add; the loser gets a 400 "already exists". That is a won race, not a refusal.
+    /// </summary>
+    [Test]
+    public async Task ItShouldTreatLosingTheAddRaceAsRegistered()
+    {
+        var views = 0;
+        var provider = CreateProvider(path =>
+        {
+            if (path.EndsWith("/domain/view"))
+            {
+                return views++ == 0 ? (HttpStatusCode.OK, NoDomainsBody) : (HttpStatusCode.OK, RegisteredBody);
+            }
+            return (HttpStatusCode.BadRequest, AlreadyExistsBody);
+        });
+
+        var state = await provider.EnsureDomainAsync(Domain, CancellationToken.None);
+
+        Assert.That(state.Domain, Is.EqualTo(Domain.DomainName), $"domain was '{state.Domain}'");
+        Assert.That(views, Is.EqualTo(2), $"/domain/view was called {views} time(s)");
+    }
+
+    private const string AlreadyExistsBody =
+        """{"request_id":"x","data":{"error_code":"E_ApiResponseCodes.API_EXCEPTION","error":"A sender domain matching the passed value of frodo.example.com already exists"}}""";
+
+    private const string RegisteredBody = """
+    {"request_id":"x","data":{"domains":[{"domain":{
+      "fulldomain":"frodo.example.com","subdomain":"frodo","domain":"example","suffix":"com",
+      "dkim_expected":"dkim.smtp2go.net","dkim_selector":"s934313","dkim_verified":false,"dkim_status":"","dkim_value":"",
+      "rpath_expected":"return.smtp2go.net","rpath_selector":"em934313","rpath_verified":false,"rpath_status":"","rpath_value":""},
+      "trackers":[]}]}}
+    """;
+
     //
 
     private static Smtp2GoRelayProvider CreateProvider(Func<string, (HttpStatusCode status, string body)> responder)

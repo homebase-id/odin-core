@@ -81,6 +81,12 @@ public sealed class DnssecHealthResult
     /// </summary>
     public DnsHealthDnssecStatus? EnclosingZoneStatus { get; init; }
 
+    /// <summary>
+    /// The zone's keys could not be looked up at all, so ZoneUnsigned here means "could not
+    /// tell". A DNS hiccup must not land in an owner's monthly report as a security finding.
+    /// </summary>
+    public bool LookupFailed { get; init; }
+
     /// <summary>The server's verdict, shipped so clients (the DNS tab dot) do not keep their own copy of the rule</summary>
     public bool NeedsAttention => DnsHealthService.NeedsUserAttention(this);
 
@@ -216,11 +222,14 @@ public class DnsHealthService(
         // from the config-only GetDnsConfiguration. Both sets ride the same extraRecords seam,
         // which means the status lookups, the Optional/mail split and every client's notion of
         // "broken" pick them up without knowing they are different in origin.
-        var extraRecords = await GetDkimRecordsAsync(domain);
+        var dkimRecords = await GetDkimRecordsAsync(domain);
+        var extraRecords = dkimRecords ?? [];
 
         // DKIM keys exist exactly when the tenant activated email - the only case in which the
-        // relay is supposed to know the domain at all
-        var (relayRecords, relay) = await GetRelayHealthAsync(domain, mailActivated: extraRecords.Count > 0);
+        // relay is supposed to know the domain at all. An unreadable DKIM store (null) proves
+        // nothing either way, so the relay is asked rather than the tenant assumed inactive -
+        // otherwise a store hiccup would hide a refused domain behind "nothing to check".
+        var (relayRecords, relay) = await GetRelayHealthAsync(domain, mailActivated: dkimRecords is not { Count: 0 });
         extraRecords.AddRange(relayRecords);
 
         var (recordsAreValid, records) = await dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(
@@ -310,13 +319,13 @@ public class DnsHealthService(
     /// They cannot come from GetDnsConfiguration: that list is built from configuration,
     /// while DKIM values are per-tenant key material that exists only after email
     /// activation. Returns empty whenever there is nothing to check - tenant mail off,
-    /// no storage key configured, or the tenant never activated email - so the caller
-    /// never has to distinguish "no DKIM" from "DKIM broken".
+    /// no storage key configured, or the tenant never activated email.
     ///
-    /// A read failure is logged and swallowed: DKIM is one block of a health panel, and
-    /// a store hiccup should not take the whole panel down with it.
+    /// A read failure is logged and returns null: DKIM is one block of a health panel, and
+    /// a store hiccup should not take the whole panel down with it - but it must not pass
+    /// for "never activated" either.
     /// </summary>
-    private async Task<List<DnsConfig>> GetDkimRecordsAsync(AsciiDomainName domain)
+    private async Task<List<DnsConfig>?> GetDkimRecordsAsync(AsciiDomainName domain)
     {
         if (!configuration.Email.TenantMail.Enabled || !dkimStore.IsConfigured)
         {
@@ -332,7 +341,7 @@ public class DnsHealthService(
         {
             logger.LogWarning(e, "Could not read DKIM keys for {domain}; DKIM records omitted from the health check",
                 domain.DomainName);
-            return [];
+            return null;
         }
     }
 
@@ -401,14 +410,21 @@ public class DnsHealthService(
             {
                 Status = DnsHealthDnssecStatus.Inherited,
                 EnclosingZone = zoneApex,
-                EnclosingZoneStatus = await GradeEnclosingZoneAsync(zoneApex, cancellationToken),
+                EnclosingZoneStatus = IsOurManagedApex(zoneApex)
+                    ? await GradeEnclosingZoneAsync(zoneApex, cancellationToken)
+                    : null,
             };
         }
 
         return await GradeZoneAsync(domainName, cancellationToken);
     }
 
-    private async Task<DnsHealthDnssecStatus> GradeEnclosingZoneAsync(string zoneApex, CancellationToken cancellationToken)
+    // Only our own apexes are graded: an identity can also sit inside an owner's own zone
+    // (home.example.com in example.com), which is neither ours to fix nor ours to log about
+    private bool IsOurManagedApex(string zone) => configuration.Registry.ManagedDomainApexes.Any(
+        x => string.Equals(x.Apex.Trim().TrimEnd('.'), zone, StringComparison.OrdinalIgnoreCase));
+
+    private async Task<DnsHealthDnssecStatus?> GradeEnclosingZoneAsync(string zoneApex, CancellationToken cancellationToken)
     {
         if (_enclosingZoneGrades.TryGetValue(zoneApex, out var cached) &&
             DateTimeOffset.UtcNow - cached.gradedAt < EnclosingZoneGradeTtl)
@@ -416,7 +432,24 @@ public class DnsHealthService(
             return cached.status;
         }
 
-        var status = (await GradeZoneAsync(zoneApex, cancellationToken)).Status;
+        DnssecHealthResult grade;
+        try
+        {
+            grade = await GradeZoneAsync(zoneApex, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            // An extra on the tenant's panel; failing to compute it must not fail the panel
+            logger.LogWarning(e, "DNSSEC: could not grade enclosing zone {zone}", zoneApex);
+            return null;
+        }
+
+        if (grade.LookupFailed)
+        {
+            return null;
+        }
+
+        var status = grade.Status;
         _enclosingZoneGrades[zoneApex] = (status, DateTimeOffset.UtcNow);
 
         // Ours, not the owner's: an ops fault, logged once per fresh grade
@@ -431,10 +464,10 @@ public class DnsHealthService(
     // The verdict for a zone cut: signed at all, then anchored at the parent
     private async Task<DnssecHealthResult> GradeZoneAsync(string domainName, CancellationToken cancellationToken)
     {
-        var dnsKeys = await dnssecLookup.GetZoneDnsKeysAsync(domainName, cancellationToken);
-        if (dnsKeys.Count == 0)
+        var dnsKeys = await dnssecLookup.TryGetZoneDnsKeysAsync(domainName, cancellationToken);
+        if (dnsKeys == null || dnsKeys.Count == 0)
         {
-            return new DnssecHealthResult { Status = DnsHealthDnssecStatus.ZoneUnsigned };
+            return new DnssecHealthResult { Status = DnsHealthDnssecStatus.ZoneUnsigned, LookupFailed = dnsKeys == null };
         }
 
         var parentZoneSigned = await dnssecLookup.IsParentZoneSignedAsync(domainName, cancellationToken);
@@ -534,7 +567,7 @@ public class DnsHealthService(
     // Pure trigger rule, data-level testable
     internal static bool NeedsUserAttention(DnssecHealthResult health)
     {
-        return health.Status is DnsHealthDnssecStatus.DsMismatch
+        return !health.LookupFailed && health.Status is DnsHealthDnssecStatus.DsMismatch
             or DnsHealthDnssecStatus.DsMissing
             or DnsHealthDnssecStatus.ParentUnsigned
             or DnsHealthDnssecStatus.ZoneUnsigned;

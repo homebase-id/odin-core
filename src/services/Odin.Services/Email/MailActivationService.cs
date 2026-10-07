@@ -124,6 +124,27 @@ public class MailActivationService(
         };
     }
 
+    // Bookkeeping for the health check. Its own failure must neither fail the button nor be
+    // reported to the owner as the relay's answer.
+    private async Task TryUpdateRelayFailureAsync(string domain, string? relayError)
+    {
+        try
+        {
+            if (relayError == null)
+            {
+                await relayFailureStore.ClearAsync(domain);
+            }
+            else
+            {
+                await relayFailureStore.RecordAsync(domain, relayError);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Relay: could not update the stored relay failure for {domain}", domain);
+        }
+    }
+
     private async Task ScheduleRelayOnboardingAsync(string domain)
     {
         // The job is unique per domain, and a finished run keeps its row for a while (a failed
@@ -199,7 +220,6 @@ public class MailActivationService(
             {
                 var relay = await relayProvider.EnsureDomainAsync(domain);
                 records.AddRange(relay.Records);
-                await relayFailureStore.ClearAsync(domain.DomainName);
             }
             catch (Exception e)
             {
@@ -209,8 +229,9 @@ public class MailActivationService(
                 // instead of only into a log line nobody sees.
                 logger.LogError(e, "Relay: could not register {domain}: {error}", domain, e.Message);
                 relayError = e.Message;
-                await relayFailureStore.RecordAsync(domain.DomainName, relayError);
             }
+
+            await TryUpdateRelayFailureAsync(domain.DomainName, relayError);
         }
 
         if (records.Count == 0)

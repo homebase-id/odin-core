@@ -60,7 +60,7 @@ public class DnsHealthServiceTest
             .ReturnsAsync(new AuthoritativeDnsLookupResult());
 
         _dnssecLookup
-            .Setup(x => x.GetZoneDnsKeysAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryGetZoneDnsKeysAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         _dnssecLookup
             .Setup(x => x.IsParentZoneSignedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -80,6 +80,8 @@ public class DnsHealthServiceTest
             Registry = new OdinConfiguration.RegistrySection
             {
                 DnsConfigurationSet = new DnsConfigurationSet("131.164.170.62", "identity-host.example"),
+                // Our managed apex: an Inherited domain inside it gets its enclosing zone graded
+                ManagedDomainApexes = [new OdinConfiguration.RegistrySection.ManagedDomainApex { Apex = "example.com" }],
             },
             Email = new OdinConfiguration.EmailSection
             {
@@ -366,6 +368,26 @@ public class DnsHealthServiceTest
             $"attention was: [{string.Join(" | ", attention)}]");
     }
 
+    /// <summary>
+    /// An unreadable DKIM store proves nothing about activation. Assuming "never activated"
+    /// would hide a refused domain behind "nothing to check" - the failure this exists to fix.
+    /// </summary>
+    [Test]
+    public async Task ItShouldStillAskTheRelayWhenTheDkimStoreCannotBeRead()
+    {
+        var (health, _) = await RelayHealthAsync(relay => relay
+            .Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((MailRelayDomainState?)null));
+        // RelayHealthAsync configured readable keys; break the store for this call
+        _dkimStore.Setup(x => x.GetKeysAsync(Domain.DomainName)).ThrowsAsync(new InvalidOperationException("store down"));
+
+        var again = await CreateService(tenantMailEnabled: true, relayProvider: _relay.Object)
+            .GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.NotRegistered));
+        Assert.That(again.Relay.Status, Is.EqualTo(MailRelayHealthStatus.NotRegistered), $"relay was {again.Relay.Status}");
+    }
+
     [Test]
     public async Task ItShouldNotAskTheRelayAboutATenantThatNeverActivatedEmail()
     {
@@ -427,6 +449,43 @@ public class DnsHealthServiceTest
     // DNSSEC orchestration (mocked seams)
     //
 
+    /// <summary>A zone nobody answered for is "could not tell", not a finding for the monthly report.</summary>
+    [Test]
+    public async Task ItShouldNotFlagAZoneWhoseKeysCouldNotBeLookedUp()
+    {
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Domain.DomainName);
+        _dnssecLookup
+            .Setup(x => x.TryGetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((List<DnsKeyRecord>?)null);
+
+        var service = CreateService();
+        var health = await service.GetDnssecHealthAsync(Domain, CancellationToken.None);
+        var attention = await service.GetDnssecAttentionAsync(Domain, CancellationToken.None);
+
+        Assert.That(health.LookupFailed, Is.True, $"status {health.Status}, lookupFailed {health.LookupFailed}");
+        Assert.That(attention, Is.Null, $"attention was {attention?.Status}");
+    }
+
+    /// <summary>
+    /// An identity can sit inside the owner's own zone (home.example.org in example.org). That
+    /// zone is neither ours to fix nor ours to log about, so it is not graded.
+    /// </summary>
+    [Test]
+    public async Task ItShouldNotGradeAnEnclosingZoneThatIsNotOurs()
+    {
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("example.org");
+
+        var result = await CreateService().GetDnssecHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(result.Status, Is.EqualTo(DnsHealthDnssecStatus.Inherited), $"status was {result.Status}");
+        Assert.That(result.EnclosingZoneStatus, Is.Null, $"enclosing graded {result.EnclosingZoneStatus}");
+        _dnssecLookup.Verify(x => x.TryGetZoneDnsKeysAsync("example.org", It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     /// <summary>
     /// Managed-domain case: frodo.example.com lives inside the example.com zone. "Inherited"
     /// used to be taken on trust; the enclosing zone is now graded with the same rules, so an
@@ -444,7 +503,7 @@ public class DnsHealthServiceTest
             .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(enclosing);
         _dnssecLookup
-            .Setup(x => x.GetZoneDnsKeysAsync(enclosing, It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryGetZoneDnsKeysAsync(enclosing, It.IsAny<CancellationToken>()))
             .ReturnsAsync(enclosingSigned ? [key] : []);
         _dnssecLookup
             .Setup(x => x.IsParentZoneSignedAsync(enclosing, It.IsAny<CancellationToken>()))
@@ -473,7 +532,7 @@ public class DnsHealthServiceTest
             .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Domain.DomainName);
         _dnssecLookup
-            .Setup(x => x.GetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryGetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var result = await CreateService().GetDnssecHealthAsync(Domain, CancellationToken.None);
@@ -489,7 +548,7 @@ public class DnsHealthServiceTest
             .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Domain.DomainName);
         _dnssecLookup
-            .Setup(x => x.GetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryGetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync([key]);
         _dnssecLookup
             .Setup(x => x.IsParentZoneSignedAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
@@ -519,7 +578,7 @@ public class DnsHealthServiceTest
             .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Domain.DomainName);
         _dnssecLookup
-            .Setup(x => x.GetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryGetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync([key]);
         _dnssecLookup
             .Setup(x => x.IsParentZoneSignedAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
@@ -544,7 +603,7 @@ public class DnsHealthServiceTest
             .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Domain.DomainName);
         _dnssecLookup
-            .Setup(x => x.GetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryGetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync([key]);
         _dnssecLookup
             .Setup(x => x.IsParentZoneSignedAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
@@ -699,7 +758,7 @@ public class DnsHealthServiceTest
             .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Domain.DomainName);
         _dnssecLookup
-            .Setup(x => x.GetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryGetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
             .ReturnsAsync([key]);
         _dnssecLookup
             .Setup(x => x.IsParentZoneSignedAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
