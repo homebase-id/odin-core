@@ -59,10 +59,19 @@ public abstract class V2Fixture
     protected virtual IReadOnlyDictionary<string, string?> ConfigOverrides =>
         new Dictionary<string, string?>();
 
+    /// <summary>
+    /// Root-container registrations this fixture needs, applied after production's so they win.
+    /// For standing in for a service that would reach outside the process; see
+    /// <see cref="OdinHost.StartAsync"/>.
+    /// </summary>
+    protected virtual void ConfigureRootContainer(ContainerBuilder cb)
+    {
+    }
+
     [OneTimeSetUp]
     public async Task V2FixtureSetUp()
     {
-        Host = await OdinHost.StartAsync(HostIdentities, ConfigOverrides);
+        Host = await OdinHost.StartAsync(HostIdentities, ConfigOverrides, ConfigureRootContainer);
         if (ResetBetweenTests)
         {
             await Host.EnsureTenantsMaterializedAsync();
