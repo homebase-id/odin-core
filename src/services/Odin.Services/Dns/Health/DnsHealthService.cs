@@ -133,6 +133,14 @@ public sealed class MailRelayHealthResult
     public string? LastError { get; init; }
 
     /// <summary>
+    /// Some of the relay's own records are not live yet. Those rows already show as broken, and
+    /// the relay's "not verified" would only say the same thing again - so while this is true,
+    /// Unverified is not a problem of its own. It becomes one when every row is live and the
+    /// relay still has not verified: that is the case nothing else would show.
+    /// </summary>
+    public bool RecordsNotLiveYet { get; init; }
+
+    /// <summary>
     /// The verdict described for a human, or null when it needs no attention. The one wording
     /// every surface shows - the Email tab, the monthly email, the app's health check.
     /// </summary>
@@ -141,6 +149,7 @@ public sealed class MailRelayHealthResult
         MailRelayHealthStatus.NotRegistered => LastError == null
             ? "Outbound sending is not set up: the mail relay has not registered this domain"
             : $"Outbound sending is not set up: the mail relay refused this domain ({LastError})",
+        MailRelayHealthStatus.Unverified when RecordsNotLiveYet => null,
         MailRelayHealthStatus.Unverified => Problems.Count == 0
             ? "Outbound sending is not verified yet by the mail relay"
             : $"Outbound sending is not verified yet by the mail relay ({string.Join("; ", Problems)})",
@@ -208,6 +217,11 @@ public class DnsHealthService(
     private static readonly TimeSpan EnclosingZoneGradeTtl = TimeSpan.FromMinutes(15);
     private readonly ConcurrentDictionary<string, (DnsHealthDnssecStatus status, DateTimeOffset gradedAt)> _enclosingZoneGrades = new();
 
+    // Re-verification asks the relay to do DNS work on its side; once per domain per interval
+    // per node is plenty, and keeps a tab left open (or the monthly sweep) from hammering it
+    private static readonly TimeSpan RelayReverifyInterval = TimeSpan.FromMinutes(10);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _relayReverifiedAt = new();
+
     private static readonly DnsQueryOptions AuthoritativeQueryOptions = new()
     {
         Recursion = false,
@@ -247,8 +261,62 @@ public class DnsHealthService(
             RecordsAreValid = recordsAreValid,
             OptionalRecords = optionalRecords,
             Dnssec = dnssec,
-            Relay = relay,
+            Relay = await SettleUnverifiedRelayAsync(domain, relay, relayRecords, records),
         };
+    }
+
+    /// <summary>
+    /// "Unverified" is the relay's own stored verdict, and it only changes when the relay is
+    /// asked to look again. Our authoritative lookup just told us whether its records are live,
+    /// so the two can be reconciled here instead of shown side by side contradicting each other:
+    ///
+    /// - rows not live yet: the broken rows already say so; the relay's verdict adds nothing.
+    /// - rows live: the verdict is stale (the owner added them after the relay last looked, or
+    ///   after onboarding stopped retrying). Ask it to look again - whoever published them,
+    ///   us or the owner by hand - at most once per domain per interval.
+    /// </summary>
+    private async Task<MailRelayHealthResult> SettleUnverifiedRelayAsync(
+        AsciiDomainName domain, MailRelayHealthResult relay, List<DnsConfig> relayRecords, List<DnsConfig> graded)
+    {
+        if (relay.Status != MailRelayHealthStatus.Unverified)
+        {
+            return relay;
+        }
+
+        if (AnyNotLive(relayRecords, graded))
+        {
+            return new MailRelayHealthResult
+            {
+                Status = relay.Status,
+                Problems = relay.Problems,
+                LastError = relay.LastError,
+                RecordsNotLiveYet = true,
+            };
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var key = domain.DomainName.ToLowerInvariant();
+        if (_relayReverifiedAt.TryGetValue(key, out var last) && now - last < RelayReverifyInterval)
+        {
+            return relay;
+        }
+        _relayReverifiedAt[key] = now;
+
+        try
+        {
+            var state = await relayProvider.VerifyDomainAsync(domain);
+            logger.LogInformation("Relay: re-verified {domain} from the health check -> {verified}", domain, state.Verified);
+            return new MailRelayHealthResult
+            {
+                Status = state.Verified ? MailRelayHealthStatus.Registered : MailRelayHealthStatus.Unverified,
+                Problems = state.Problems,
+            };
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Relay: could not re-verify {domain} from the health check", domain);
+            return relay;
+        }
     }
 
     //
@@ -298,6 +366,12 @@ public class DnsHealthService(
             Problems = state.Problems,
         });
     }
+
+    // The relay's rows, as the authoritative lookup graded them
+    private static bool AnyNotLive(List<DnsConfig> relayRecords, IEnumerable<DnsConfig> graded) =>
+        graded.Any(g => g.Status != DnsLookupRecordStatus.Success && relayRecords.Any(r =>
+            string.Equals(r.Type, g.Type, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(r.Domain, g.Domain, StringComparison.OrdinalIgnoreCase)));
 
     private async Task<string?> TryGetRelayFailureAsync(AsciiDomainName domain)
     {

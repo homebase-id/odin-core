@@ -103,15 +103,16 @@ public class MailRelayOnboardingJob(
 
         // Written wherever the tenant's records live - the shared apex zone for managed
         // domains, its own zone otherwise. False means the DNS is not ours (third-party DNS,
-        // or no PowerDNS access), in which case the records are shown as instructions by the
-        // status surface and verification below will keep failing until someone adds them.
+        // or no PowerDNS access): the status surface shows the records as instructions, and
+        // verification below keeps deferring until the owner has added them. It must still
+        // run - stopping here meant nothing ever asked the relay to look again, so a domain
+        // whose owner did add the records stayed "not verified" for good.
         var written = await identityRegistrationService.WriteOnActivationRecords(domain, state.Records);
         if (!written)
         {
             logger.LogInformation(
                 "Relay: {domain} DNS is not ours to write - {count} record(s) must be added by hand",
                 domain, state.Records.Count);
-            return JobExecutionResult.Success();
         }
 
         var verified = await relayProvider.VerifyDomainAsync(domain, cancellationToken);

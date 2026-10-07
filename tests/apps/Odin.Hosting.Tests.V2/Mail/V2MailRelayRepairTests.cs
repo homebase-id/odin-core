@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Mail;
 using Odin.Services.Email.Relay;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry.Registration;
 
 #nullable enable
@@ -87,6 +88,13 @@ public class V2MailRelayRepairTests : V2Fixture
 
         var cleared = await failureStore.GetAsync(PrimaryIdentity);
         Assert.That(cleared, Is.Null, $"stored failure was still '{cleared}'");
+
+        // This host writes no DNS (DnsRecordsWritten is false, as for an owner on their own DNS
+        // host), and the relay must still be asked to verify once the owner publishes them
+        var jobs = Host.Server.Services.GetRequiredService<IJobManager>();
+        var job = await jobs.GetJobByHashAsync(MailRelayOnboardingJob.JobHashFor(PrimaryIdentity));
+        Assert.That(repaired.Content.DnsRecordsWritten, Is.False, "the test host writes no DNS");
+        Assert.That(job, Is.Not.Null, "repair must schedule relay verification even when it wrote no DNS");
     }
 
     /// <summary>A relay that refuses with the given words while <see cref="Refusal"/> is set.</summary>

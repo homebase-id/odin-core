@@ -238,11 +238,20 @@ public class DnsHealthServiceTest
                 Domain, It.IsAny<IReadOnlyCollection<DnsConfig>>(), It.IsAny<CancellationToken>()))
             .Callback<AsciiDomainName, IReadOnlyCollection<DnsConfig>, CancellationToken>(
                 (_, extras, _) => capture(extras ?? []))
-            .ReturnsAsync((true, new List<DnsConfig>
-            {
-                new() { Type = "A", Name = "", Value = "127.0.0.1" },
-            }));
+            // The extras come back graded like the real lookup does: live, unless a test says
+            // the relay's rows are not published yet
+            .ReturnsAsync((AsciiDomainName _, IReadOnlyCollection<DnsConfig> extras, CancellationToken _) =>
+                (true, new List<DnsConfig> { new() { Type = "A", Name = "", Value = "127.0.0.1" } }
+                    .Concat((extras ?? []).Select(x => new DnsConfig
+                    {
+                        Type = x.Type, Name = x.Name, Domain = x.Domain, Value = x.Value, Optional = x.Optional,
+                        Description = x.Description,
+                        Status = x.Name.Contains("934313") ? _relayRowGrade : DnsLookupRecordStatus.Success,
+                    }))
+                    .ToList()));
     }
+
+    private DnsLookupRecordStatus _relayRowGrade = DnsLookupRecordStatus.Success;
 
     /// <summary>
     /// The monthly report's trigger. A broken mail record is otherwise silent: mail is
@@ -429,20 +438,101 @@ public class DnsHealthServiceTest
             $"extras were: [{string.Join(", ", passedExtras?.Select(x => x.Name) ?? [])}]");
     }
 
-    [Test]
-    public async Task ItShouldReportTheRelaysOwnProblemsWhileUnverified()
+    private static readonly DnsConfig RelayRow = new()
     {
-        var (health, attention) = await RelayHealthAsync(relay => relay
-            .Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MailRelayDomainState
-            {
-                Domain = Domain.DomainName,
-                Verified = false,
-                Problems = ["Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"],
-            }));
+        Type = "CNAME", Name = "em934313", Domain = "em934313.frodo.example.com",
+        Value = "return.smtp2go.net", Description = "Relay Return-Path CNAME (SPF)", Optional = true,
+    };
 
+    private static MailRelayDomainState RelayState(bool verified, params string[] problems) => new()
+    {
+        Domain = Domain.DomainName,
+        Verified = verified,
+        Records = [RelayRow],
+        Problems = [..problems],
+    };
+
+    /// <summary>
+    /// The relay still says what it said last time it looked, even though our live lookup
+    /// finds its rows published. It is asked again, and the fresh answer is the verdict -
+    /// so an owner who published the records by hand does not have to press anything.
+    /// </summary>
+    [Test]
+    public async Task ItShouldAskTheRelayAgainWhenItsRowsAreLiveButItHasNotVerified()
+    {
+        // Like the real relay: its stored verdict changes once it has been asked to look again
+        var verified = false;
+        var (health, attention) = await RelayHealthAsync(relay =>
+        {
+            relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => verified
+                    ? RelayState(true)
+                    : RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"));
+            relay.Setup(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    verified = true;
+                    return RelayState(true);
+                });
+        });
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Registered), $"relay was {health.Relay.Status}");
+        Assert.That(attention, Is.Empty, $"attention was: [{string.Join(" | ", attention)}]");
+    }
+
+    /// <summary>Asking is rate-limited: a tab left open must not hammer the relay.</summary>
+    [Test]
+    public async Task ItShouldAskTheRelayAgainAtMostOncePerInterval()
+    {
+        var (health, attention) = await RelayHealthAsync(relay =>
+        {
+            relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"));
+            relay.Setup(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(RelayState(false, "still NXDOMAIN on their side"));
+        });
+
+        // RelayHealthAsync made two health calls (panel + monthly attention) on one service
+        _relay.Verify(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()), Times.Once);
         Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unverified), $"relay was {health.Relay.Status}");
         Assert.That(attention, Has.Some.Contains("NXDOMAIN"), $"attention was: [{string.Join(" | ", attention)}]");
+    }
+
+    [Test]
+    public async Task ItShouldKeepTheStoredVerdictWhenAskingAgainFails()
+    {
+        var (health, _) = await RelayHealthAsync(relay =>
+        {
+            relay.Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN"));
+            relay.Setup(x => x.VerifyDomainAsync(Domain, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new HttpRequestException("relay down"));
+        });
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unverified), $"relay was {health.Relay.Status}");
+        Assert.That(health.Relay.Problem, Does.Contain("NXDOMAIN"), $"problem was '{health.Relay.Problem}'");
+    }
+
+    /// <summary>
+    /// While the relay's rows are not published yet, those rows already say what is wrong. The
+    /// relay's "not verified" would say it a second time, so it is not a problem of its own -
+    /// and there is nothing for the relay to re-check yet.
+    /// </summary>
+    [Test]
+    public async Task ItShouldNotRepeatWhatTheBrokenRelayRowsAlreadySay()
+    {
+        _relayRowGrade = DnsLookupRecordStatus.DomainOrRecordNotFound;
+
+        var (health, attention) = await RelayHealthAsync(relay => relay
+            .Setup(x => x.GetDomainAsync(Domain, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RelayState(false, "Lookup CNAME(em934313.frodo.example.com) failed: NXDOMAIN")));
+
+        Assert.That(health.Relay.Status, Is.EqualTo(MailRelayHealthStatus.Unverified), $"relay was {health.Relay.Status}");
+        Assert.That(health.Relay.RecordsNotLiveYet, Is.True);
+        Assert.That(health.Relay.Problem, Is.Null, $"problem was '{health.Relay.Problem}'");
+        Assert.That(attention, Has.Count.EqualTo(1).And.Some.Contains("Relay Return-Path CNAME"),
+            $"attention was: [{string.Join(" | ", attention)}]");
+        _relay.Verify(x => x.VerifyDomainAsync(It.IsAny<AsciiDomainName>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     //

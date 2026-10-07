@@ -33,10 +33,31 @@ attention count of 1 and gets 0; the other throws inside `CheckOptionalWwwAsync`
 **Not caused by the change in flight:** reproduced on a clean tree by stashing (2026-08-26),
 and unaffected by whether the local dev server is running.
 
-**Likely cause (unconfirmed):** these do live DNS lookups, and a local
-`docker/stalwart-dev` setup adds `/etc/hosts` entries for `*.dotyou.cloud`. A developer without
-those entries would likely not see it. Not yet proven — if you confirm it, replace this
-paragraph with what you found.
+**Cause (found 2026-10-07, fixed in #1883):** not DNS. NUnit ran every test on one fixture
+instance, so mock setups made by one test (an authority for the www probe, DKIM keys) leaked into
+the tests that ran after it, and which tests ran first depended on the filter. With nothing set
+up, `LookupDomainAuthorityAsync` returned null and `CheckOptionalWwwAsync` threw. Fixed with
+`[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]` and explicit defaults in `[SetUp]`. If these
+fail again, it is something new.
+
+---
+
+## Any V2 fixture: `OneTimeSetUp` fails with "inotify instances has been reached"
+
+**Where:** local only (Linux), seen 2026-10-07 on the `mail-health-severity` branch.
+
+**Symptom:** hundreds of V2 tests fail at once (321 of 1501 in that run), every one in
+`OneTimeSetUp` with `System.IO.IOException: The configured user limit (128) on the number of
+inotify instances has been reached` from `PhysicalFilesWatcher`. Each `OdinHost` boot creates file
+watchers, and fixtures run in parallel.
+
+**Not caused by the change in flight:** the same build, re-run on its own minutes later, passed
+1420/1420. The limit is per user, so another inotify-heavy process running at the same time
+(another `dotnet test`, an IDE) can exhaust it. No other test run was visible by the time it was
+checked, so the competing process was not identified.
+
+**Workaround:** re-run when nothing else is testing, or raise the limit
+(`sudo sysctl fs.inotify.max_user_instances=512`).
 
 ---
 

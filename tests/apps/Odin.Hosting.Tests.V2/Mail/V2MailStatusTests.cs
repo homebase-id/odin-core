@@ -1,6 +1,7 @@
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Email;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -85,6 +86,8 @@ public class V2MailStatusTests : V2Fixture
         Assert.That(health.BrokenRecords, Is.Empty);
         Assert.That(health.Errors, Is.Empty);
         Assert.That(health.NeedsAttention, Is.False, "a server without email must not raise a warning");
+        Assert.That(health.Severity, Is.EqualTo(MailHealthSeverity.Ok), $"severity was {health.Severity}");
+        Assert.That(health.Dnssec, Is.Null, "no email here, so no DNSSEC verdict to report");
     }
 
     [Test]

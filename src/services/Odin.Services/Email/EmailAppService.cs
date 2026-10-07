@@ -379,6 +379,13 @@ public class EmailAppService(
             errors.Add(relayProblem);
         }
 
+        // "Could not ask the relay" says nothing about the domain: worth saying, not an error
+        var warnings = verification.Warnings.ToList();
+        if (dns.Relay.Status == MailRelayHealthStatus.Unreachable)
+        {
+            warnings.Add("Outbound sending could not be checked right now");
+        }
+
         return new MailAppHealthResult
         {
             TenantMailEnabled = true,
@@ -386,7 +393,8 @@ public class EmailAppService(
             Records = dns.MailRecords,
             BrokenRecords = dns.MailRecords.Where(x => x.Status != DnsLookupRecordStatus.Success).ToList(),
             Errors = errors,
-            Warnings = verification.Warnings,
+            Warnings = warnings,
+            Dnssec = dns.Dnssec,
         };
     }
 
@@ -475,10 +483,39 @@ public class MailAppHealthResult
     public List<string> Warnings { get; init; } = [];
 
     /// <summary>
-    /// The one verdict a client should branch on, so "is my email healthy" is decided here
-    /// rather than re-derived - differently - in each client.
+    /// The domain's DNSSEC state, as the owner console's DNS tab shows it. Null when there is no
+    /// email here to report on (tenant mail off).
+    /// </summary>
+    public DnssecHealthResult? Dnssec { get; init; }
+
+    /// <summary>
+    /// The binary verdict, unchanged for clients that predate <see cref="Severity"/>.
     /// </summary>
     public bool NeedsAttention => BrokenRecords.Count > 0 || Errors.Count > 0;
+
+    /// <summary>
+    /// The one verdict a client should branch on, so "is my email healthy" - and how badly - is
+    /// decided here rather than re-derived, differently, in each client (#1862).
+    ///
+    /// Error: mail is not delivered, or is rejected or spam-foldered - a broken record (DMARC
+    /// included), a failed check (DKIM pair proof, key drift, the relay refusing or not
+    /// verifying the domain), or a DNSSEC DS mismatch (validating resolvers SERVFAIL the whole
+    /// domain). Warning: works, but weaker than it should be - an unanchored DNSSEC chain, or a
+    /// check that could not be made. A DNSSEC lookup that got no answer raises nothing.
+    /// </summary>
+    public MailHealthSeverity Severity =>
+        NeedsAttention || Dnssec?.Status == DnsHealthDnssecStatus.DsMismatch
+            ? MailHealthSeverity.Error
+            : Dnssec?.NeedsAttention == true || Warnings.Count > 0
+                ? MailHealthSeverity.Warning
+                : MailHealthSeverity.Ok;
+}
+
+public enum MailHealthSeverity
+{
+    Ok,
+    Warning,
+    Error,
 }
 
 /// <summary>

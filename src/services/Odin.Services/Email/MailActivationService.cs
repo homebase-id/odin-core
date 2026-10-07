@@ -248,10 +248,10 @@ public class MailActivationService(
             "Mail DNS records published for {domain}: {count} record(s), written={written}",
             domain, records.Count, written);
 
-        // Registration and records are done; the relay's own verification waits on DNS
-        // propagation, which is the job's business (it re-reads before it writes, so running
-        // it after this is safe).
-        if (relayProvider.IsConfigured && relayError == null && written)
+        // Registration and records are done (or handed back as instructions); the relay's own
+        // verification waits on DNS propagation, which is the job's business (it re-reads
+        // before it writes, so running it after this is safe).
+        if (relayProvider.IsConfigured && relayError == null)
         {
             await ScheduleRelayOnboardingAsync(domain.DomainName);
         }
