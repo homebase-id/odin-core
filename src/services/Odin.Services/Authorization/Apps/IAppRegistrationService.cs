@@ -106,6 +106,10 @@ namespace Odin.Services.Authorization.Apps
 
         Task AllowClientAsync(GuidId accessRegistrationId, IOdinContext odinContext);
 
+        /// <summary>
+        /// Deletes the registration row only -- the last step of <see cref="AppUninstallService.UninstallAsync"/>,
+        /// which removes the app's clients, grants, circles and drives first. Not a removal on its own.
+        /// </summary>
         Task DeleteAppAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>

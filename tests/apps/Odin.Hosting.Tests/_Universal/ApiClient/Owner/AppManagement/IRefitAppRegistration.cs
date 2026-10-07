@@ -26,8 +26,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement
         [Post(RootPath + "/revoke")]
         Task<ApiResponse<NoResultResponse>> RevokeApp([Body] GetAppRequest request);
         
-        [Post(RootPath + "/deleteapp")]
-        Task<ApiResponse<NoResultResponse>> DeleteApp([Body] GetAppRequest request);
 
         [Post(RootPath + "/allow")]
         Task<ApiResponse<NoResultResponse>> RemoveAppRevocation([Body] GetAppRequest request);

@@ -101,18 +101,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         }
 
         /// <summary>
-        /// Removes the revocation for a given app.
-        /// </summary>
-        /// <param name="request"></param>
-        /// <returns></returns>
-        [HttpPost("deleteApp")]
-        public async Task<NoResultResponse> DeleteApp([FromBody] GetAppRequest request)
-        {
-            await appRegistrationService.DeleteAppAsync(request.AppId, WebOdinContext);
-            return new NoResultResponse(true);
-        }
-
-        /// <summary>
         /// Uninstalls a third-party app fully: its clients and their push subscriptions, its grants on every
         /// connection, and its registration. An app that owns circles or drives is refused unless
         /// <see cref="UninstallAppRequest.DeleteOwnedCirclesAndDrives"/> says they go with it.

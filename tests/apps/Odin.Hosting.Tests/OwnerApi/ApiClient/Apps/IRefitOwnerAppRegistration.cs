@@ -28,8 +28,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps
         Task<ApiResponse<NoResultResponse>> RevokeApp([Body] GetAppRequest request);
 
 
-        [Post(RootPath + "/deleteapp")]
-        Task<ApiResponse<NoResultResponse>> DeleteApp([Body] GetAppRequest request);
 
         [Post(RootPath + "/allow")]
         Task<ApiResponse<NoResultResponse>> RemoveAppRevocation([Body] GetAppRequest request);
