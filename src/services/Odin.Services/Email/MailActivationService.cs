@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -35,6 +36,7 @@ public class MailActivationService(
     IIdentityRegistrationService identityRegistrationService,
     IDnsLookupService dnsLookupService,
     IMailRelayProvider relayProvider,
+    IMailRelayFailureStore relayFailureStore,
     IJobManager jobManager,
     EmailPublicKeyService emailPublicKeyService,
     EmailSetupStateService setupStateService,
@@ -122,8 +124,39 @@ public class MailActivationService(
         };
     }
 
+    // Bookkeeping for the health check. Its own failure must neither fail the button nor be
+    // reported to the owner as the relay's answer.
+    private async Task TryUpdateRelayFailureAsync(string domain, string? relayError)
+    {
+        try
+        {
+            if (relayError == null)
+            {
+                await relayFailureStore.ClearAsync(domain);
+            }
+            else
+            {
+                await relayFailureStore.RecordAsync(domain, relayError);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Relay: could not update the stored relay failure for {domain}", domain);
+        }
+    }
+
     private async Task ScheduleRelayOnboardingAsync(string domain)
     {
+        // The job is unique per domain, and a finished run keeps its row for a while (a failed
+        // one for a day). Left there, that row would swallow this request - the scheduler hands
+        // back the existing job - and the repair button would silently do nothing. A queued or
+        // running job is left alone: it is already doing what we ask.
+        var existing = await jobManager.GetJobByHashAsync(MailRelayOnboardingJob.JobHashFor(domain));
+        if (existing != null && (JobState)existing.state is JobState.Succeeded or JobState.Failed)
+        {
+            await jobManager.DeleteJobByHashAsync(existing.jobHash);
+        }
+
         var job = jobManager.NewJob<MailRelayOnboardingJob>();
         job.Data = new MailRelayOnboardingJobData { Domain = domain };
 
@@ -153,6 +186,10 @@ public class MailActivationService(
     /// nothing else, which leaves a mailbox that works outbound but has no MX to receive on.
     /// The CLI backfill fixes that fleet-wide; this is the owner's own button for one identity.
     ///
+    /// It is also the repair for the outbound relay: it (re)registers the domain there, publishes
+    /// the CNAMEs the relay allocates, and reschedules verification. A relay refusal does not
+    /// stop the other records; it comes back as <see cref="MailDnsPublishResult.RelayError"/>.
+    ///
     /// Idempotent - rrset writes are REPLACE - so the whole set is published rather than
     /// diffing which records are currently broken.
     ///
@@ -176,6 +213,7 @@ public class MailActivationService(
         // and onboarding the domain is what allocates them in the first place. Doing that here
         // means the owner's one button really does mean "make my email DNS right", rather than
         // "make the half of it that happens to come from config right".
+        string? relayError = null;
         if (relayProvider.IsConfigured)
         {
             try
@@ -186,10 +224,14 @@ public class MailActivationService(
             catch (Exception e)
             {
                 // Publishing what we do have beats failing the whole button on someone else's
-                // outage. The relay rows simply stay missing and the status page keeps saying so.
-                logger.LogWarning(e, "Could not reach the mail relay for {domain}; its records are not published",
-                    domain);
+                // refusal or outage. But the refusal is the answer the owner pressed the button
+                // for, so it goes back to them - and into the store the health check reads -
+                // instead of only into a log line nobody sees.
+                logger.LogError(e, "Relay: could not register {domain}: {error}", domain, e.Message);
+                relayError = e.Message;
             }
+
+            await TryUpdateRelayFailureAsync(domain.DomainName, relayError);
         }
 
         if (records.Count == 0)
@@ -197,7 +239,7 @@ public class MailActivationService(
             // Tenant mail is on but the config names no mail infrastructure. Nothing to write,
             // and writing an empty set would be indistinguishable from success to the caller.
             logger.LogWarning("No mail DNS records to publish for {domain}; check Email:TenantMail config", domain);
-            return new MailDnsPublishResult { DnsRecordsWritten = false, Records = records };
+            return new MailDnsPublishResult { DnsRecordsWritten = false, Records = records, RelayError = relayError };
         }
 
         var written = await identityRegistrationService.WriteOnActivationRecords(domain, records);
@@ -206,7 +248,15 @@ public class MailActivationService(
             "Mail DNS records published for {domain}: {count} record(s), written={written}",
             domain, records.Count, written);
 
-        return new MailDnsPublishResult { DnsRecordsWritten = written, Records = records };
+        // Registration and records are done; the relay's own verification waits on DNS
+        // propagation, which is the job's business (it re-reads before it writes, so running
+        // it after this is safe).
+        if (relayProvider.IsConfigured && relayError == null && written)
+        {
+            await ScheduleRelayOnboardingAsync(domain.DomainName);
+        }
+
+        return new MailDnsPublishResult { DnsRecordsWritten = written, Records = records, RelayError = relayError };
     }
 
     /// <summary>
@@ -409,6 +459,12 @@ public class MailDnsPublishResult
 {
     public bool DnsRecordsWritten { get; init; }
     public List<DnsConfig> Records { get; init; } = [];
+
+    /// <summary>
+    /// Why the outbound relay would not register the domain, in the relay's own words; null
+    /// when it did, or when no relay is configured. The other records are published regardless.
+    /// </summary>
+    public string? RelayError { get; init; }
 }
 
 public class MailStatusResult
