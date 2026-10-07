@@ -45,10 +45,16 @@ public class MailRelayOnboardingJobData
 public class MailRelayOnboardingJob(
     ILogger<MailRelayOnboardingJob> logger,
     IMailRelayProvider relayProvider,
+    IMailRelayFailureStore failureStore,
     IIdentityRegistrationService identityRegistrationService) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("6f1b0c94-3d27-4a58-9b0e-7c2a5f8d41e3");
     public override string JobType => JobTypeId.ToString();
+
+    /// <summary>One onboarding per domain: activation and the owner's repair button both schedule it.</summary>
+    public static string JobHashFor(string domain) => $"{JobTypeId}:{domain.ToLowerInvariant()}";
+
+    public override string? CreateJobHash() => JobHashFor(Data.Domain);
 
     public MailRelayOnboardingJobData Data { get; set; } = new();
 
@@ -69,7 +75,31 @@ public class MailRelayOnboardingJob(
 
         var domain = new AsciiDomainName(Data.Domain);
 
-        var state = await relayProvider.EnsureDomainAsync(domain, cancellationToken);
+        MailRelayDomainState state;
+        try
+        {
+            state = await relayProvider.EnsureDomainAsync(domain, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            // Either way, the latest reason goes where the health check and the Email tab read it
+            await failureStore.RecordAsync(domain.DomainName, e.Message);
+
+            if (e is MailRelayException { IsPermanent: true })
+            {
+                // The relay refused, and will refuse every retry the same way until a person
+                // changes something (on 2026-10-07: a plan's sender-domain cap). Retrying only
+                // turned that into nine warnings and a late error. Say it once, loudly; the
+                // owner's repair button reschedules.
+                logger.LogError("Relay: {domain} registration refused: {error}", domain, e.Message);
+                return JobExecutionResult.Abort();
+            }
+
+            // Transient as far as we can tell: the JobManager retries (its give-up line is an error)
+            throw;
+        }
+
+        await failureStore.ClearAsync(domain.DomainName);
 
         // Written wherever the tenant's records live - the shared apex zone for managed
         // domains, its own zone otherwise. False means the DNS is not ours (third-party DNS,
