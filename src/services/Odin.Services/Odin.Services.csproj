@@ -43,6 +43,8 @@
          a test makes fail once to prove it is retried, and the outbox drain hook, because an item
          deferred by a retry-later answer sits for minutes, which no test can wait out. -->
     <InternalsVisibleTo Include="Odin.Hosting.Tests" />
+    <!-- ShardRotationGate's clock, so its cooldown is unit-tested in Release CI. -->
+    <InternalsVisibleTo Include="Odin.Services.Tests" />
   </ItemGroup>
 
 </Project>
