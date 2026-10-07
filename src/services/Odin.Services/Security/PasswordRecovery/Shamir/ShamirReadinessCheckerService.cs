@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -101,7 +102,7 @@ public class ShamirReadinessCheckerService(
         var results = new Dictionary<string, ShardVerificationResult>();
         foreach (var envelope in package.Envelopes)
         {
-            var result = await VerifyRemotePlayerShard(envelope.Player.OdinId, envelope.ShardId, odinContext);
+            var result = await VerifyPlayerShardAsync(envelope.Player, envelope.ShardId, odinContext);
             results.Add(envelope.Player.OdinId, result);
         }
 
@@ -111,7 +112,59 @@ public class ShamirReadinessCheckerService(
         };
     }
 
+    /// <summary>
+    /// Verifies the shard <paramref name="player"/> holds for this dealer; see <see cref="VerifyPlayerShardAsync"/>.
+    /// </summary>
     public async Task<ShardVerificationResult> VerifyRemotePlayerShard(OdinId player, Guid shardId, IOdinContext odinContext)
+    {
+        var package = await this.GetDealerShardPackage(odinContext);
+        var envelope = package?.Envelopes.FirstOrDefault(e => e.Player.OdinId == player && e.ShardId == shardId);
+        if (null == envelope)
+        {
+            // not a shard this dealer configured, so not one recovery can use
+            return NotUsable(remoteServerError: false);
+        }
+
+        return await VerifyPlayerShardAsync(envelope.Player, shardId, odinContext);
+    }
+
+    /// <summary>
+    /// A shard counts only if the player can deliver it during recovery. A delegate delivers by
+    /// writing to this identity, which needs a confirmed connection; holding the shard is not
+    /// enough (#1885). Automated players are never connections and reply in-band.
+    /// </summary>
+    private async Task<ShardVerificationResult> VerifyPlayerShardAsync(ShamiraPlayer player, Guid shardId, IOdinContext odinContext)
+    {
+        if (player.Type == PlayerType.Delegate && !await CanDeliverShardAsync(player.OdinId, odinContext))
+        {
+            _logger.LogDebug("Delegate {identity} is not connected, so cannot deliver its shard", player.OdinId);
+            var notConnected = NotUsable(remoteServerError: false);
+            notConnected.IsConnected = false;
+            return notConnected;
+        }
+
+        return await VerifyRemoteShardAsync(player.OdinId, shardId, odinContext);
+    }
+
+    /// <summary>
+    /// One rule for whether a delegate can hold and deliver a shard, used both when choosing
+    /// delegates and when checking them later.
+    /// </summary>
+    private async Task<bool> CanDeliverShardAsync(OdinId odinId, IOdinContext odinContext)
+    {
+        var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
+        return icr.IsConfirmedConnection();
+    }
+
+    private static ShardVerificationResult NotUsable(bool remoteServerError) => new()
+    {
+        RemoteServerError = remoteServerError,
+        IsValid = false,
+        Created = UnixTimeUtc.Now(),
+        TrustLevel = ShardTrustLevel.Critical
+    };
+
+    private async Task<ShardVerificationResult> VerifyRemoteShardAsync(OdinId player, Guid shardId, IOdinContext odinContext)
     {
         //todo: change to generic file system call
         try
@@ -141,13 +194,7 @@ public class ShamirReadinessCheckerService(
             _logger.LogError(e, "Failed during shard verification for identity: {identity}", player);
         }
 
-        return new ShardVerificationResult
-        {
-            RemoteServerError = true,
-            IsValid = false,
-            Created = UnixTimeUtc.Now(),
-            TrustLevel = ShardTrustLevel.Critical
-        };
+        return NotUsable(remoteServerError: true);
     }
 
     /// <summary>
