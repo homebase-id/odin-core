@@ -15,6 +15,11 @@ public class TableDrives(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    internal async Task<int> DeleteAsync(Guid driveId)
+    {
+        return await base.DeleteAsync(odinIdentity, driveId);
+    }
+
     internal async Task<DrivesRecord> GetAsync(Guid driveId)
     {
         return await base.GetByDriveIdAsync(odinIdentity, driveId);

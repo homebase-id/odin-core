@@ -150,27 +150,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        private void DirectorySafetyCheck(string directory, Guid driveId)
-        {
-            // Normalize path and count directories
-            string normalizedPath = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
-            int depth = normalizedPath.Split(Path.DirectorySeparatorChar).Length;
-
-            // Check if path is at least 3 subdirectories deep
-            if (depth < 3)
-                throw new InvalidOperationException("Directory path is too shallow (less than 3 subdirectories).");
-
-            string driveName = TenantPathManager.GuidToPathSafeString(driveId);
-
-            // Let's make sure that /drives/{driveName} is part of the string
-            string expectedPathSegment = $"{Path.DirectorySeparatorChar}drives{Path.DirectorySeparatorChar}{driveName}";
-            if (!normalizedPath.Contains(expectedPathSegment, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"Directory path '{normalizedPath}' does not contain expected segment '{expectedPathSegment}'");
-        }
-
         private void SafeDeleteDirectory(string directory, Guid driveId, bool cleanup)
         {
-            DirectorySafetyCheck(directory, driveId);
+            TenantPathManager.AssertIsDriveDirectory(directory, driveId);
 
             if (cleanup)
                 Directory.Delete(directory, recursive: true);
@@ -179,7 +161,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private bool SafeDeleteEmptyDirectory(string directory, Guid driveId, bool cleanup)
         {
-            DirectorySafetyCheck(directory, driveId);
+            TenantPathManager.AssertIsDriveDirectory(directory, driveId);
 
             // Check if the directory is completely empty (no files or subdirectories)
             var directoryInfo = new DirectoryInfo(directory);

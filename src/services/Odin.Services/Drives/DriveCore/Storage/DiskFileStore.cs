@@ -41,13 +41,19 @@ public sealed class DiskFileStore(FileReaderWriter frw) : IDriveFileStore
     public Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default)
     {
         if (Directory.Exists(dir))
-            frw.DeleteFiles(Directory.GetFiles(dir, $"{fileId:N}.*"));
+            frw.DeleteFiles(Directory.GetFiles(dir, $"{fileId:N}*"));
         return Task.CompletedTask;
     }
 
     public Task EnsureDirectoryAsync(string dir, CancellationToken ct = default)
     {
         frw.CreateDirectory(dir);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default)
+    {
+        frw.DeleteDirectory(dir);
         return Task.CompletedTask;
     }
 

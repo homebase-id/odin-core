@@ -100,6 +100,15 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
 
     //
 
+    public async Task<int> DeleteAsync(Guid driveId)
+    {
+        var result = await table.DeleteAsync(driveId);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
     public async Task<int> UpsertAsync(DrivesRecord item)
     {
         var result = await table.UpsertAsync(item);
