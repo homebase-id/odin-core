@@ -67,5 +67,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         
         [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/status")]
         Task<ApiResponse<ShamirRecoveryStatusRedacted>> GetShamirRecoverStatus();
+
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/recovery-info")]
+        Task<ApiResponse<RecoveryInfo>> GetRecoveryInfo();
     }
 }
