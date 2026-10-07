@@ -506,6 +506,27 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
+        /// <summary>Throws unless every granted drive is one <paramref name="appId"/> owns.</summary>
+        /// <remarks>
+        /// A grant naming no drive is left to <see cref="AssertValidDriveGrantsAsync"/>, which refuses it.
+        /// </remarks>
+        public async Task AssertDrivesOwnedByAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId)
+        {
+            foreach (var dgr in driveGrantRequests ?? [])
+            {
+                var drive = dgr?.PermissionedDrive?.Drive;
+                if (drive?.Alias == null)
+                {
+                    continue;
+                }
+
+                if ((await driveManager.GetDriveAsync(drive.Alias))?.AppId != appId)
+                {
+                    throw new OdinSecurityException($"App {appId} cannot grant drive {drive}; it does not own it");
+                }
+            }
+        }
+
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)
         {
             if (null == driveGrantRequests)

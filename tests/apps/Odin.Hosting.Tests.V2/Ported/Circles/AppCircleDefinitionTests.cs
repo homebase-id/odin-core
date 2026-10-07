@@ -464,6 +464,66 @@ public class AppCircleDefinitionTests : V2Fixture
     }
 
     [Test]
+    public async Task AppCreatesACircleOnItsOwnDriveViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        var app = await CreateAppAndClient(owner, appId, PermissionKeys.ReadConnections);
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "app's own", allowAnonymousReads: false, appId: appId);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "made by the app",
+            DriveGrants = [WriteOn(drive)],
+            Permissions = new PermissionSet(PermissionKeys.ReadConnections)
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var circle = await owner.Admin.GetCircleDefinition(response.Content);
+        Assert.That(circle.AppId, Is.EqualTo(appId), "the circle belongs to the app that made it");
+        Assert.That(circle.GrantOn, Is.EqualTo(CircleGrantOn.None), "an app's circle is granted only explicitly");
+        Assert.That(circle.DriveGrants.Single().PermissionedDrive.Drive, Is.EqualTo(drive));
+
+        // and, owning it, the app can delete it
+        var delete = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().DeleteCircle(response.Content);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task AppFailsToCreateACircleOnADriveItDoesNotOwnViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var app = await CreateAppAndClient(owner, Guid.NewGuid());
+        var ownersDrive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(ownersDrive, "the owner's", allowAnonymousReads: false);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "reaching too far",
+            DriveGrants = [WriteOn(ownersDrive)]
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task AppFailsToCreateACircleWithAKeyItDoesNotHoldViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var app = await CreateAppAndClient(owner, Guid.NewGuid(), PermissionKeys.ReadConnections);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "handing out more",
+            Permissions = new PermissionSet(PermissionKeys.ReadWhoIFollow)
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    private static DriveGrantRequest WriteOn(TargetDrive drive) =>
+        new() { PermissionedDrive = new PermissionedDrive { Drive = drive, Permission = DrivePermission.Write } };
+
+    [Test]
     public async Task AppFailsToDisableOwnerCircleViaV2()
     {
         var owner = await LoginAsOwner();

@@ -352,6 +352,62 @@ public class CircleMembershipService(
     }
 
     /// <summary>
+    /// Creates a circle owned by the calling app, and returns the id the server picked for it.
+    /// </summary>
+    /// <remarks>
+    /// No permission key: an app is the owner acting, and the circle is its own.  What it may put on the circle is
+    /// bounded by what it already has, so creating one is never a way to hand out more -- drives only its own,
+    /// permission keys only ones it holds -- and the circle is granted only explicitly
+    /// (<see cref="CircleGrantOn.None"/>), never to every connection on its own.  The id is the server's, so a
+    /// deleted circle's id, which leftover deposits and enrollments may still name, is never reused.
+    /// </remarks>
+    public async Task<Guid> CreateAppCircleAsync(CreateAppCircleRequest request, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsOwner();
+
+        // The owner console's circles are the owner's; its token must not create them as an app.
+        var appId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+        if (appId == null || SystemAppConstants.IsOwnerConsole(appId))
+        {
+            throw new OdinSecurityException("Only an app can create a circle it owns");
+        }
+
+        var notHeld = (request.Permissions?.Keys ?? [])
+            .Where(key => !odinContext.PermissionsContext.HasPermission(key))
+            .ToList();
+        if (notHeld.Count > 0)
+        {
+            throw new OdinSecurityException(
+                $"App {appId} cannot grant permission keys it does not hold: {string.Join(", ", notHeld)}");
+        }
+
+        await circleDefinitionService.AssertDrivesOwnedByAsync(request.DriveGrants, appId.Value);
+
+        var circleId = Guid.NewGuid();
+        await circleDefinitionService.CreateAsync(new CreateCircleRequest
+        {
+            Id = circleId,
+            Name = request.Name,
+            Description = request.Description,
+            Emoji = request.Emoji,
+            DriveGrants = request.DriveGrants,
+            Permissions = request.Permissions,
+            AppId = appId,
+            GrantOn = CircleGrantOn.None,
+            Designation = CircleDesignation.Personal
+        });
+
+        await mediator.Publish(new CircleDefinitionChangedNotification
+        {
+            OdinContext = odinContext,
+            CircleId = circleId,
+            Change = CircleDefinitionChangeType.Created,
+        });
+
+        return circleId;
+    }
+
+    /// <summary>
     /// Gets a list of all circle definitions
     /// </summary>
     public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle, IOdinContext odinContext)

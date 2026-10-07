@@ -7,6 +7,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.UnifiedV2;
 using Odin.Hosting.UnifiedV2.Connections;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Refit;
 
@@ -66,6 +67,9 @@ public interface IConnectionNetworkHttpClientApiV2
 
     [Post(Root + "/circles/enable")]
     Task<ApiResponse<HttpContent>> EnableCircle([Body] Guid circleId);
+
+    [Post(Root + "/circles/create")]
+    Task<ApiResponse<Guid>> CreateCircle([Body] CreateAppCircleRequest request);
 
     [Post(Root + "/circles/delete")]
     Task<ApiResponse<HttpContent>> DeleteCircle([Body] Guid circleId, [Query] bool removeMembers = false);
