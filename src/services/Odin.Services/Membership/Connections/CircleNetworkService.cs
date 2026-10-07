@@ -1016,6 +1016,9 @@ namespace Odin.Services.Membership.Connections
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
             if (icr.PeerKeyStore == null)
             {
+                // Nothing to save, so nothing rewrites the membership rows -- drop this one directly, or
+                // it outlives the grant and blocks deleting the circle.
+                await circleMembershipService.RemoveCircleMembersAsync(circleId, [odinId]);
                 return;
             }
 
@@ -1973,17 +1976,13 @@ namespace Odin.Services.Membership.Connections
             await circleMembershipService.AssertCallerMayDeleteAsync(circleId, odinContext);
 
             var members = await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
-            foreach (var member in members)
+            foreach (var member in members.Where(m => m.DomainType == DomainType.Identity))
             {
-                if (member.DomainType == DomainType.Identity)
-                {
-                    await RevokeCircleAccessInternalAsync(circleId, new OdinId(member.Domain), odinContext);
-                }
-
-                // An identity's revoke normally drops its row too, but returns early for a connection
-                // with no key store; for a YouAuth domain the row is the whole grant.
-                await circleMembershipService.RemoveCircleMemberAsync(circleId, member.Domain);
+                await RevokeCircleAccessInternalAsync(circleId, new OdinId(member.Domain), odinContext);
             }
+
+            await circleMembershipService.RemoveCircleMembersAsync(circleId,
+                members.Where(m => m.DomainType == DomainType.YouAuth).Select(m => m.Domain));
 
             if (members.Count > 0)
             {

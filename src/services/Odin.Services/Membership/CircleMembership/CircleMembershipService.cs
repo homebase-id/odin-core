@@ -360,12 +360,13 @@ public class CircleMembershipService(
     /// </remarks>
     public async Task DeleteAsync(GuidId circleId, IOdinContext odinContext)
     {
-        await AssertCallerMayDeleteAsync(circleId, odinContext);
+        await AssertCallerMayManageCircleAsync(circleId, "delete", odinContext);
         await circleDefinitionService.DeleteAsync(circleId);
     }
 
     /// <summary>
-    /// Throws unless this caller may delete this circle once it has no members.
+    /// Throws unless this caller may delete this circle once it has no members -- the question to ask
+    /// before stripping its members, which <see cref="DeleteAsync"/> only answers after.
     /// </summary>
     public async Task AssertCallerMayDeleteAsync(GuidId circleId, IOdinContext odinContext)
     {
@@ -374,12 +375,17 @@ public class CircleMembershipService(
     }
 
     /// <summary>
-    /// Drops a domain's membership row for one circle.  For a YouAuth domain the row is the grant
-    /// itself -- its registration keeps no copy -- so this is the whole of revoking it.
+    /// Drops these domains' membership rows for one circle.  For a YouAuth domain the row is the grant
+    /// itself -- <c>YouAuthDomainRegistrationService.SaveRegistrationAsync</c> moves grants into the
+    /// rows and keeps no copy -- so this is the whole of revoking it.
     /// </summary>
-    public async Task RemoveCircleMemberAsync(GuidId circleId, AsciiDomainName domainName)
+    public async Task RemoveCircleMembersAsync(GuidId circleId, IEnumerable<AsciiDomainName> domainNames)
     {
-        await db.CircleMemberCached.DeleteAsync(circleId, OdinId.ToHashId(domainName));
+        var memberIds = domainNames.Select(d => OdinId.ToHashId(d)).ToList();
+        if (memberIds.Count > 0)
+        {
+            await db.CircleMemberCached.RemoveCircleMembersAsync(circleId, memberIds);
+        }
     }
 
     /// <summary>
