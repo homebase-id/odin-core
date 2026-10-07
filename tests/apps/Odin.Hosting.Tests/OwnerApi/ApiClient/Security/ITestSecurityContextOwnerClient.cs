@@ -5,6 +5,7 @@ using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Security;
+using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
@@ -67,5 +68,14 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         
         [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/status")]
         Task<ApiResponse<ShamirRecoveryStatusRedacted>> GetShamirRecoverStatus();
+
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/recovery-info")]
+        Task<ApiResponse<RecoveryInfo>> GetRecoveryInfo();
+
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/recovery-risk-report")]
+        Task<ApiResponse<PeriodicSecurityHealthCheckStatus>> RunRecoveryHealthCheck();
+
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-remote-player-shard")]
+        Task<ApiResponse<ShardVerificationResult>> VerifyRemotePlayerShard(VerifyRemotePlayerShardRequest request);
     }
 }
