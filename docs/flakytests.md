@@ -42,6 +42,26 @@ fail again, it is something new.
 
 ---
 
+## `Odin.SetupHelper.Tests.TcpProbeTests`
+
+- `ItShouldCacheConnectionResults`
+- `ItShouldConnectToHttpsPortAndGetExpectedResponse`
+
+**Where:** CI, `ubuntu/sqlite/release` (PR #1887, run 37613705154, 2026-10-07).
+
+**Symptom:** `Assert.That(connected, Is.True)`, but was `False`, for both, about two seconds apart.
+
+**Not caused by the change in flight:** #1887 touches mail health and the relay job, nothing in
+SetupHelper or `DockerSetup`. Both tests passed in #1883's CI run the same morning.
+
+**Likely cause (unconfirmed):** `DockerSetup.TcpListen` returns `connected=false` for any exception
+other than cancellation, and the tests in this class reuse fixed local ports (38443, 38080), so a
+port still in use when `listener.Start()` runs would do it. The assertion does not print `error`,
+so the log cannot say. Make it `Assert.That(connected, Is.True, error)` first, so the next
+failure names its cause.
+
+---
+
 ## Any V2 fixture: `OneTimeSetUp` fails with "inotify instances has been reached"
 
 **Where:** local only (Linux), seen 2026-10-07 on the `mail-health-severity` branch.
