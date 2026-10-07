@@ -474,7 +474,12 @@ namespace Odin.Services.Authorization.Apps
             await SaveClientAsync(client);
         }
 
-        public async Task DeleteAppAsync(GuidId appId, IOdinContext odinContext)
+        /// <summary>
+        /// Deletes the registration row only -- the last step of <see cref="AppUninstallService.UninstallAsync"/>,
+        /// which removes the app's clients, grants, circles and drives first. Off the interface so nothing else can
+        /// half-delete an app.
+        /// </summary>
+        internal async Task DeleteRegistrationAsync(GuidId appId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -487,20 +492,6 @@ namespace Odin.Services.Authorization.Apps
 
             await db.AppRegistrations.DeleteAsync(appId);
             await ResetAppPermissionContextCacheAsync();
-
-            //TODO: reenable this after youauth domain work
-
-            //
-            // var clientsByApp = _appClientValueStorage.GetByKey2<AppClient>(appId);
-            // using (_TenantSystemStorage.CreateCommitUnitOfWork())
-            // {
-            //     foreach (var c in clientsByApp)
-            //     {
-            //         _appClientValueStorage.Delete(c.AccessRegistration.Id);
-            //     }
-            //
-            //     _appRegistrationValueStorage.Delete(appId);
-            // }
         }
 
         public Task RemoveCirclesFromAllAppsAsync(IReadOnlyCollection<Guid> circleIds, IOdinContext odinContext) =>

@@ -112,7 +112,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
             return new NoResultResponse(true);
         }
 
-
         /// <summary>
         /// Gets a list of registered clients
         /// </summary>

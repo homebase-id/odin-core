@@ -27,7 +27,7 @@ namespace Odin.Services.Authorization.Apps;
 /// and the registration last -- so until the last step the app is still there to uninstall again.
 /// </remarks>
 public class AppUninstallService(
-    IAppRegistrationService appRegistrationService,
+    AppRegistrationService appRegistrationService,
     CircleNetworkService circleNetworkService,
     CircleDefinitionService circleDefinitionService,
     DriveManager driveManager,
@@ -90,6 +90,6 @@ public class AppUninstallService(
 
         await clientRegistrationStorage.DeleteManyAsync(clientIds);
 
-        await appRegistrationService.DeleteAppAsync(appId, odinContext);
+        await appRegistrationService.DeleteRegistrationAsync(appId, odinContext);
     }
 }

@@ -51,7 +51,7 @@ public class DriveDeletionService(
     /// </remarks>
     public async Task DeleteDriveAsync(Guid driveId, IOdinContext odinContext)
     {
-        var drive = await GetDeletableDriveAsync(driveId, odinContext);
+        await GetDeletableDriveAsync(driveId, odinContext);
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
@@ -85,7 +85,7 @@ public class DriveDeletionService(
             throw new OdinClientException("Cannot delete a system drive or its content");
         }
 
-        // Archiving first is the owner's first "are you sure"; it also stops new writes before the purge.
+        // Archiving first is the owner's first "are you sure"; it also stops apps writing to the drive during the purge.
         var drive = (await driveManager.GetDriveAsync(driveId, failIfInvalid: true))!;
         if (!drive.IsArchived)
         {
