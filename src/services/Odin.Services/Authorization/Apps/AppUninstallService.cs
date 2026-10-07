@@ -37,6 +37,9 @@ public class AppUninstallService(
     LegacyDefinitionStore legacyStore,
     IdentityDatabase db)
 {
+    /// <summary>The owner console and the platform's own apps: never uninstalled, only revoked.</summary>
+    public static bool IsBuiltIn(Guid appId) => SystemAppConstants.IsOwnerConsole(appId) || BuiltinApps.IsPlatformApp(appId);
+
     public async Task UninstallAsync(Guid appId, bool deleteOwnedCirclesAndDrives, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -46,7 +49,7 @@ public class AppUninstallService(
             throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
         }
 
-        if (SystemAppConstants.IsOwnerConsole(appId) || BuiltinApps.IsPlatformApp(appId))
+        if (IsBuiltIn(appId))
         {
             throw new OdinClientException("A built-in app cannot be uninstalled");
         }

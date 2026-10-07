@@ -32,8 +32,16 @@ public class AppUninstallTests : V2Fixture
     public async Task ABuiltInAppIsRefused()
     {
         var owner = await LoginAsOwner();
+        var registrations = owner.RefitFor<IRefitOwnerAppRegistration>();
+
+        // registered, and said to be built in -- so the refusal below is for that, not for a missing app
+        var chat = (await registrations.GetRegisteredApp(new GetAppRequest { AppId = SystemAppConstants.ChatAppId })).Content;
+        Assert.That(chat?.IsBuiltIn, Is.True);
+        var bareAppId = await owner.Admin.RegisterBareApp();
+        Assert.That((await registrations.GetRegisteredApp(new GetAppRequest { AppId = bareAppId })).Content!.IsBuiltIn, Is.False);
 
         Assert.That(await UninstallAsync(owner, SystemAppConstants.ChatAppId), Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await IsRegisteredAsync(owner, SystemAppConstants.ChatAppId), Is.True);
     }
 
     [Test]
