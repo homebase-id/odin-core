@@ -1008,7 +1008,11 @@ namespace Odin.Services.Membership.Connections
         public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
             AssertCanManageCircleMembership(odinContext);
+            await RevokeCircleAccessInternalAsync(circleId, odinId, odinContext);
+        }
 
+        private async Task RevokeCircleAccessInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        {
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
             if (icr.PeerKeyStore == null)
             {
@@ -1934,15 +1938,14 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Tests if a circle has members and indicates if it can be deleted
+        /// Deletes a circle.  Refused while it has members unless <paramref name="removeMembers"/>, which
+        /// first revokes the circle from every member, identity and YouAuth domain alike.
         /// </summary>
-        public async Task DeleteCircleDefinitionAsync(GuidId circleId, IOdinContext odinContext)
+        public async Task DeleteCircleDefinitionAsync(GuidId circleId, IOdinContext odinContext, bool removeMembers = false)
         {
-            var members = await this.GetCircleMembersAsync(circleId, odinContext);
-
-            if (members.Any())
+            if (removeMembers)
             {
-                throw new OdinClientException("Cannot delete a circle with members", OdinClientErrorCode.CannotDeleteCircleWithMembers);
+                await RemoveAllCircleMembersAsync(circleId, odinContext);
             }
 
             await circleMembershipService.DeleteAsync(circleId, odinContext);
@@ -1953,6 +1956,39 @@ namespace Odin.Services.Membership.Connections
                 CircleId = circleId.Value,
                 Change = CircleDefinitionChangeType.Deleted,
             });
+        }
+
+        /// <remarks>
+        /// Asks whether the circle may be deleted before touching anyone, so a refused delete never
+        /// leaves the circle stripped of its members.  Deleting authorizes the revokes: the caller may
+        /// delete this circle, so needs no <see cref="PermissionKeys.ManageCircleMembership"/> as well.
+        /// <para>
+        /// Not one transaction -- each identity's revoke takes the connection lock and saves its ICR.  A
+        /// failure part-way leaves some members removed and the circle in place; running it again
+        /// finishes the job.
+        /// </para>
+        /// </remarks>
+        private async Task RemoveAllCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
+        {
+            await circleMembershipService.AssertCallerMayDeleteAsync(circleId, odinContext);
+
+            var members = await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
+            foreach (var member in members)
+            {
+                if (member.DomainType == DomainType.Identity)
+                {
+                    await RevokeCircleAccessInternalAsync(circleId, new OdinId(member.Domain), odinContext);
+                }
+
+                // An identity's revoke normally drops its row too, but returns early for a connection
+                // with no key store; for a YouAuth domain the row is the whole grant.
+                await circleMembershipService.RemoveCircleMemberAsync(circleId, member.Domain);
+            }
+
+            if (members.Count > 0)
+            {
+                await odinContextCache.ResetAsync();
+            }
         }
 
         public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
