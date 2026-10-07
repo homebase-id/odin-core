@@ -261,7 +261,7 @@ public class DnsHealthService(
             RecordsAreValid = recordsAreValid,
             OptionalRecords = optionalRecords,
             Dnssec = dnssec,
-            Relay = await SettleUnverifiedRelayAsync(domain, relay, relayRecords, records),
+            Relay = await SettleUnverifiedRelayAsync(domain, relay, relayRecords, cancellationToken),
         };
     }
 
@@ -276,14 +276,19 @@ public class DnsHealthService(
     ///   us or the owner by hand - at most once per domain per interval.
     /// </summary>
     private async Task<MailRelayHealthResult> SettleUnverifiedRelayAsync(
-        AsciiDomainName domain, MailRelayHealthResult relay, List<DnsConfig> relayRecords, List<DnsConfig> graded)
+        AsciiDomainName domain, MailRelayHealthResult relay, List<DnsConfig> relayRecords,
+        CancellationToken cancellationToken)
     {
+        var key = domain.DomainName.ToLowerInvariant();
         if (relay.Status != MailRelayHealthStatus.Unverified)
         {
+            // Nothing left to re-check for this domain; keep the map to domains that need it
+            _relayReverifiedAt.TryRemove(key, out _);
             return relay;
         }
 
-        if (AnyNotLive(relayRecords, graded))
+        // The authoritative lookup grades the relay's own row objects in place
+        if (relayRecords.Any(r => r.Status != DnsLookupRecordStatus.Success))
         {
             return new MailRelayHealthResult
             {
@@ -294,17 +299,19 @@ public class DnsHealthService(
             };
         }
 
+        // Claim the slot atomically: of two overlapping calls (an open tab and the app's check),
+        // only the one whose timestamp got stored goes on to ask the relay
         var now = DateTimeOffset.UtcNow;
-        var key = domain.DomainName.ToLowerInvariant();
-        if (_relayReverifiedAt.TryGetValue(key, out var last) && now - last < RelayReverifyInterval)
+        var stored = _relayReverifiedAt.AddOrUpdate(key, now,
+            (_, last) => now - last < RelayReverifyInterval ? last : now);
+        if (stored != now)
         {
             return relay;
         }
-        _relayReverifiedAt[key] = now;
 
         try
         {
-            var state = await relayProvider.VerifyDomainAsync(domain);
+            var state = await relayProvider.VerifyDomainAsync(domain, cancellationToken);
             logger.LogInformation("Relay: re-verified {domain} from the health check -> {verified}", domain, state.Verified);
             return new MailRelayHealthResult
             {
@@ -366,12 +373,6 @@ public class DnsHealthService(
             Problems = state.Problems,
         });
     }
-
-    // The relay's rows, as the authoritative lookup graded them
-    private static bool AnyNotLive(List<DnsConfig> relayRecords, IEnumerable<DnsConfig> graded) =>
-        graded.Any(g => g.Status != DnsLookupRecordStatus.Success && relayRecords.Any(r =>
-            string.Equals(r.Type, g.Type, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(r.Domain, g.Domain, StringComparison.OrdinalIgnoreCase)));
 
     private async Task<string?> TryGetRelayFailureAsync(AsciiDomainName domain)
     {

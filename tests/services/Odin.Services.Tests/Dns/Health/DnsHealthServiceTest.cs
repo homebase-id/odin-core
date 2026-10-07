@@ -238,17 +238,18 @@ public class DnsHealthServiceTest
                 Domain, It.IsAny<IReadOnlyCollection<DnsConfig>>(), It.IsAny<CancellationToken>()))
             .Callback<AsciiDomainName, IReadOnlyCollection<DnsConfig>, CancellationToken>(
                 (_, extras, _) => capture(extras ?? []))
-            // The extras come back graded like the real lookup does: live, unless a test says
-            // the relay's rows are not published yet
+            // The extras come back graded IN PLACE, like the real lookup does: live, unless a
+            // test says the relay's rows are not published yet
             .ReturnsAsync((AsciiDomainName _, IReadOnlyCollection<DnsConfig> extras, CancellationToken _) =>
-                (true, new List<DnsConfig> { new() { Type = "A", Name = "", Value = "127.0.0.1" } }
-                    .Concat((extras ?? []).Select(x => new DnsConfig
-                    {
-                        Type = x.Type, Name = x.Name, Domain = x.Domain, Value = x.Value, Optional = x.Optional,
-                        Description = x.Description,
-                        Status = x.Name.Contains("934313") ? _relayRowGrade : DnsLookupRecordStatus.Success,
-                    }))
-                    .ToList()));
+            {
+                foreach (var x in extras ?? [])
+                {
+                    x.Status = x.Name.Contains("934313") ? _relayRowGrade : DnsLookupRecordStatus.Success;
+                }
+                return (true, new List<DnsConfig> { new() { Type = "A", Name = "", Value = "127.0.0.1" } }
+                    .Concat(extras ?? [])
+                    .ToList());
+            });
     }
 
     private DnsLookupRecordStatus _relayRowGrade = DnsLookupRecordStatus.Success;
@@ -444,11 +445,19 @@ public class DnsHealthServiceTest
         Value = "return.smtp2go.net", Description = "Relay Return-Path CNAME (SPF)", Optional = true,
     };
 
+    // A fresh row per state: the lookup grades rows in place, so tests must not share one
     private static MailRelayDomainState RelayState(bool verified, params string[] problems) => new()
     {
         Domain = Domain.DomainName,
         Verified = verified,
-        Records = [RelayRow],
+        Records =
+        [
+            new DnsConfig
+            {
+                Type = RelayRow.Type, Name = RelayRow.Name, Domain = RelayRow.Domain, Value = RelayRow.Value,
+                Description = RelayRow.Description, Optional = true,
+            },
+        ],
         Problems = [..problems],
     };
 

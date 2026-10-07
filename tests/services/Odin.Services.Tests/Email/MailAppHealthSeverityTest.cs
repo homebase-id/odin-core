@@ -1,6 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
 using NUnit.Framework;
+using Odin.Core.Serialization;
 using Odin.Services.Dns.Health;
 using Odin.Services.Email;
 using Odin.Services.Registry.Registration;
@@ -16,6 +17,7 @@ public class MailAppHealthSeverityTest
     [TestCase(Case.BrokenRecord, MailHealthSeverity.Error)]
     [TestCase(Case.FailedCheck, MailHealthSeverity.Error)]
     [TestCase(Case.DsMismatch, MailHealthSeverity.Error)]
+    [TestCase(Case.InheritedFromMismatchedApex, MailHealthSeverity.Error)]
     [TestCase(Case.DsMissing, MailHealthSeverity.Warning)]
     [TestCase(Case.ParentUnsigned, MailHealthSeverity.Warning)]
     [TestCase(Case.ZoneUnsigned, MailHealthSeverity.Warning)]
@@ -30,9 +32,24 @@ public class MailAppHealthSeverityTest
         Assert.That(health.Severity, Is.EqualTo(expected), $"{c} -> {health.Severity}");
     }
 
+    /// <summary>
+    /// What clients actually receive. Severity is a computed property, so a test that
+    /// deserializes into this same type recomputes it locally and would pass even if the wire
+    /// dropped it - this pins the field and its spelling.
+    /// </summary>
+    [Test]
+    public void ItShouldSendSeverityAndDnssecOnTheWire()
+    {
+        var json = OdinSystemSerializer.Serialize(Build(Case.ParentUnsigned));
+
+        Assert.That(json, Does.Contain("\"severity\":\"warning\""), json);
+        Assert.That(json, Does.Contain("\"dnssec\":{"), json);
+        Assert.That(json, Does.Contain("\"needsAttention\":false"), json);
+    }
+
     public enum Case
     {
-        BrokenRecord, FailedCheck, DsMismatch, DsMissing, ParentUnsigned, ZoneUnsigned, CouldNotCheck,
+        BrokenRecord, FailedCheck, DsMismatch, InheritedFromMismatchedApex, DsMissing, ParentUnsigned, ZoneUnsigned, CouldNotCheck,
         Secure, Inherited, DnskeyLookupFailed, TenantMailOff,
     }
 
@@ -51,6 +68,14 @@ public class MailAppHealthSeverityTest
             },
             Case.FailedCheck => new MailAppHealthResult { TenantMailEnabled = true, Dnssec = secure, Errors = ["DKIM pair proof failed"] },
             Case.DsMismatch => new MailAppHealthResult { TenantMailEnabled = true, Dnssec = Dnssec(DnsHealthDnssecStatus.DsMismatch) },
+            Case.InheritedFromMismatchedApex => new MailAppHealthResult
+            {
+                TenantMailEnabled = true,
+                Dnssec = new DnssecHealthResult
+                {
+                    Status = DnsHealthDnssecStatus.Inherited, EnclosingZoneStatus = DnsHealthDnssecStatus.DsMismatch,
+                },
+            },
             Case.DsMissing => new MailAppHealthResult { TenantMailEnabled = true, Dnssec = Dnssec(DnsHealthDnssecStatus.DsMissing) },
             Case.ParentUnsigned => new MailAppHealthResult { TenantMailEnabled = true, Dnssec = Dnssec(DnsHealthDnssecStatus.ParentUnsigned) },
             Case.ZoneUnsigned => new MailAppHealthResult { TenantMailEnabled = true, Dnssec = Dnssec(DnsHealthDnssecStatus.ZoneUnsigned) },

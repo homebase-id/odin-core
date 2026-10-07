@@ -134,10 +134,23 @@ public class MailRelayOnboardingJob(
 
         if (Data.VerifyAttempts >= MaxVerifyAttempts)
         {
-            logger.LogWarning(
-                "Relay: {domain} still unverified after {attempts} attempts (~{hours}h); giving up. " +
-                "The records are published; the status page reports what the relay cannot resolve.",
-                domain, Data.VerifyAttempts, MaxVerifyAttempts * RetryMinutes / 60);
+            if (written)
+            {
+                // We published them, so this is ours to look at
+                logger.LogWarning(
+                    "Relay: {domain} still unverified after {attempts} attempts (~{hours}h); giving up. " +
+                    "The records are published; the status page reports what the relay cannot resolve.",
+                    domain, Data.VerifyAttempts, MaxVerifyAttempts * RetryMinutes / 60);
+            }
+            else
+            {
+                // The owner's to publish, and the Email tab tells them so; the health check asks
+                // the relay again once the records show up, so stopping here loses nothing
+                logger.LogInformation(
+                    "Relay: {domain} still unverified after {attempts} attempts (~{hours}h); giving up. " +
+                    "The records are the owner's to add; the health check re-verifies once they are live.",
+                    domain, Data.VerifyAttempts, MaxVerifyAttempts * RetryMinutes / 60);
+            }
             return JobExecutionResult.Success();
         }
 

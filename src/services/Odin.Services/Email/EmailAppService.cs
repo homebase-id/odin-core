@@ -394,7 +394,9 @@ public class EmailAppService(
             BrokenRecords = dns.MailRecords.Where(x => x.Status != DnsLookupRecordStatus.Success).ToList(),
             Errors = errors,
             Warnings = warnings,
-            Dnssec = dns.Dnssec,
+            // Only for an email setup that exists: an unsigned zone is no email warning before
+            // the owner has activated email at all
+            Dnssec = verification.Activated ? dns.Dnssec : null,
         };
     }
 
@@ -484,7 +486,7 @@ public class MailAppHealthResult
 
     /// <summary>
     /// The domain's DNSSEC state, as the owner console's DNS tab shows it. Null when there is no
-    /// email here to report on (tenant mail off).
+    /// email here to report on (tenant mail off, or email not activated).
     /// </summary>
     public DnssecHealthResult? Dnssec { get; init; }
 
@@ -504,7 +506,10 @@ public class MailAppHealthResult
     /// check that could not be made. A DNSSEC lookup that got no answer raises nothing.
     /// </summary>
     public MailHealthSeverity Severity =>
-        NeedsAttention || Dnssec?.Status == DnsHealthDnssecStatus.DsMismatch
+        NeedsAttention ||
+        Dnssec?.Status == DnsHealthDnssecStatus.DsMismatch ||
+        // A managed domain inherits its apex's chain: a stale DS there fails it just the same
+        Dnssec?.EnclosingZoneStatus == DnsHealthDnssecStatus.DsMismatch
             ? MailHealthSeverity.Error
             : Dnssec?.NeedsAttention == true || Warnings.Count > 0
                 ? MailHealthSeverity.Warning
