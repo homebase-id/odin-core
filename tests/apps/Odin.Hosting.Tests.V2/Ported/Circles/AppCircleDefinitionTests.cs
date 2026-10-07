@@ -417,6 +417,53 @@ public class AppCircleDefinitionTests : V2Fixture
     }
 
     [Test]
+    public async Task OwnerDeletesCircleAndRemovesItsMembersViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var def = await CreateRandomCircle(owner);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+        var v2 = new V2ConnectionNetworkClient(owner.Identity, owner.Factory);
+
+        var refused = await v2.DeleteCircleAsync(def.Id.Value);
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(refused.Error!),
+            Is.EqualTo(OdinClientErrorCode.CannotDeleteCircleWithMembers));
+
+        var response = await v2.DeleteCircleAsync(def.Id.Value, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.False);
+        Assert.That(await MemberCountAsync(owner, def.Id.Value), Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task AppDeletesItsOwnCircleAndRemovesItsMembersViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        var appClient = await CreateAppAndClient(owner, appId);
+        var def = await CreateRandomCircle(owner, appId);
+        await GrantAsync(owner, def.Id.Value, Identities.Sam);
+
+        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .DeleteCircle(def.Id.Value, removeMembers: true);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await HoldsCircleAsync(owner, Identities.Sam, def.Id.Value), Is.False);
+    }
+
+    [Test]
+    public async Task AppFailsToDeleteOwnerCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appClient = await CreateAppAndClient(owner,
+            PermissionKeyAllowance.Apps.ToArray());
+        var def = await CreateRandomCircle(owner);
+
+        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>().DeleteCircle(def.Id.Value);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(await owner.Admin.GetCircleDefinition(def.Id.Value), Is.Not.Null);
+    }
+
+    [Test]
     public async Task AppFailsToDisableOwnerCircleViaV2()
     {
         var owner = await LoginAsOwner();

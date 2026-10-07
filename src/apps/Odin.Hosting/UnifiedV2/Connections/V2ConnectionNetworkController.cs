@@ -308,6 +308,23 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
+    /// <summary>
+    /// Deletes a circle.  Refused while it has members unless <paramref name="removeMembers"/>, which
+    /// revokes the circle from every member first.
+    /// </summary>
+    /// <remarks>
+    /// The owner may delete any circle but a system or built-in one; an app only one it owns
+    /// (<see cref="CircleNetworkService.DeleteCircleDefinitionAsync"/>).
+    /// </remarks>
+    [HttpPost("circles/delete")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Delete a circle")]
+    public async Task<IActionResult> DeleteCircle([FromBody] Guid circleId, [FromQuery] bool removeMembers = false)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(circleId, nameof(circleId));
+        await circleNetwork.DeleteCircleDefinitionAsync(new GuidId(circleId), WebOdinContext, removeMembers);
+        return Ok();
+    }
+
     [HttpPost("circles/add")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Add an identity to a circle")]
     public async Task<IActionResult> GrantCircle([FromBody] AddCircleMembershipRequest request)
