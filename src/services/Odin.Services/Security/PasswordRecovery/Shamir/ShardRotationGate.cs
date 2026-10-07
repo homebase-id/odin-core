@@ -1,6 +1,5 @@
 using System;
 using System.Threading;
-using Odin.Core.Time;
 
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -18,7 +17,8 @@ public class ShardRotationGate
     private int _busy;
     private long _lastFailureMs;
 
-    public ShardRotationGate() : this(() => UnixTimeUtc.Now().milliseconds)
+    // monotonic: a wall-clock jump must not stretch or cut the cooldown
+    public ShardRotationGate() : this(() => Environment.TickCount64)
     {
     }
 
@@ -34,16 +34,28 @@ public class ShardRotationGate
     /// </summary>
     public bool TryEnter()
     {
-        var lastFailureMs = Interlocked.Read(ref _lastFailureMs);
-        if (lastFailureMs != 0 && _nowMs() - lastFailureMs < CooldownMs)
+        if (IsCoolingDown() || Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
         {
             return false;
         }
 
-        return Interlocked.CompareExchange(ref _busy, 1, 0) == 0;
+        // the previous holder may have failed between the check and the claim
+        if (IsCoolingDown())
+        {
+            Exit();
+            return false;
+        }
+
+        return true;
     }
 
     public void Failed() => Interlocked.Exchange(ref _lastFailureMs, _nowMs());
 
     public void Exit() => Volatile.Write(ref _busy, 0);
+
+    private bool IsCoolingDown()
+    {
+        var lastFailureMs = Interlocked.Read(ref _lastFailureMs);
+        return lastFailureMs != 0 && _nowMs() - lastFailureMs < CooldownMs;
+    }
 }

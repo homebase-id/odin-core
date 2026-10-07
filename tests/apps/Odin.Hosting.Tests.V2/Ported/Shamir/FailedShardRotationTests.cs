@@ -18,7 +18,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// reset; tripping it in a shared fixture would stop rotation in the tests that follow.
 /// </remarks>
 [TestFixture]
-public class ShardRotationGateTests : ShamirFixture
+public class FailedShardRotationTests : ShamirFixture
 {
     protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
     [
