@@ -69,11 +69,29 @@ public class Smtp2GoRelayProvider(
 
         // auto_verify off: our DNS is not published yet at this point, so letting them verify
         // now would only record a failure. The job verifies once the records are written.
-        var response = await PostAsync("/domain/add", new
+        Smtp2GoDomainResponse response;
+        try
         {
-            domain = domain.DomainName,
-            auto_verify = false,
-        }, cancellationToken);
+            response = await PostAsync("/domain/add", new
+            {
+                domain = domain.DomainName,
+                auto_verify = false,
+            }, cancellationToken);
+        }
+        catch (MailRelayException)
+        {
+            // Lost a race (activation's job and the owner's repair button both looked, both saw
+            // nothing, both added): their 400 "already exists" is indistinguishable from a real
+            // refusal by code, so look again instead of reading the English. Registered now means
+            // the other caller won; anything else is the refusal it appears to be.
+            var raced = await GetDomainAsync(domain, cancellationToken);
+            if (raced != null)
+            {
+                return raced;
+            }
+
+            throw;
+        }
 
         var entry = response.Data.Domains.FirstOrDefault()
                     ?? throw new OdinSystemException($"Relay: /domain/add returned no domain for {domain}");
@@ -250,7 +268,8 @@ public class Smtp2GoRelayProvider(
             // Their errors arrive as a 4xx with the detail in data.error. Surface that rather
             // than the status code alone, which on its own says nothing useful.
             var detail = TryReadError(content) ?? content;
-            throw new OdinSystemException($"Relay: POST {path} returned {(int)response.StatusCode}: {detail}");
+            throw new MailRelayException(
+                $"Relay: POST {path} returned {(int)response.StatusCode}: {detail}", (int)response.StatusCode);
         }
 
         return OdinSystemSerializer.Deserialize<Smtp2GoDomainResponse>(content)

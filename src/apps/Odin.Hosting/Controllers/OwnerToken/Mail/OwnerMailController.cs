@@ -38,7 +38,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Mail
         /// <summary>
         /// Publishes this identity's static mail DNS records (MX, SPF, DMARC, MTA-STS,
         /// TLS-RPT, mta-sts CNAME) - the Email tab's fix for a tenant provisioned before
-        /// Email:TenantMail was enabled, which therefore never received them.
+        /// Email:TenantMail was enabled, which therefore never received them. Also
+        /// (re)registers the sender domain at the outbound relay and publishes its CNAMEs;
+        /// a relay refusal comes back in RelayError.
         ///
         /// Deliberately here and not on OwnerDnsHealthController: that controller is
         /// documented read-only and must never touch the PowerDNS API, because it also runs
