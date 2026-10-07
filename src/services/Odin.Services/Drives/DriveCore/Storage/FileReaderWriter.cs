@@ -441,6 +441,23 @@ public sealed class FileReaderWriter(
         Directory.CreateDirectory(dir);
         logger.LogDebug("Created Directory [{dir}]", dir);
     }
+
+    public void DeleteDirectory(string dir)
+    {
+        // Recursive: refuse anything that is not an absolute path below a filesystem root.
+        if (string.IsNullOrWhiteSpace(dir) || !Path.IsPathRooted(dir) ||
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir)) ==
+            Path.TrimEndingDirectorySeparator(Path.GetPathRoot(Path.GetFullPath(dir)) ?? ""))
+        {
+            throw new OdinSystemException($"Refusing to delete directory '{dir}'");
+        }
+
+        if (Directory.Exists(dir))
+        {
+            Directory.Delete(dir, recursive: true);
+            logger.LogDebug("Deleted Directory [{dir}]", dir);
+        }
+    }
     
     private static void AssertFileExists(string filePath)
     {

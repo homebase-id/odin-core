@@ -84,6 +84,51 @@ public class CircleMembershipService(
     }
     
     
+    /// <summary>
+    /// Removes a drive from every circle definition, circle-member grant (identity or YouAuth domain) and app grant.
+    /// These rows are where connections hold their circle and app grants, so this covers them too.
+    /// </summary>
+    public async Task RemoveDriveFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+
+        foreach (var circle in await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true))
+        {
+            var kept = circle.DriveGrants?.Where(g => g.PermissionedDrive.Drive.Alias != driveId).ToList();
+            if (kept != null && kept.Count != circle.DriveGrants!.Count())
+            {
+                // Unvalidated: a circle that granted only this drive is left granting nothing, which a definition
+                // may not be created as, but which keeps its members until the owner edits or deletes it.
+                circle.DriveGrants = kept;
+                await circleDefinitionService.UpdateAsync(circle, skipValidation: true);
+            }
+        }
+
+        foreach (var member in await db.CircleMemberCached.GetAllCirclesAsync())
+        {
+            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(member.data.ToStringFromUtf8Bytes());
+            if (storageData.CircleGrant?.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
+            {
+                member.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
+                await db.CircleMemberCached.UpsertAsync(member);
+            }
+        }
+
+        foreach (var appGrant in await db.AppGrantsCached.GetAllAsync())
+        {
+            var grant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
+            if (grant.KeyStoreKeyEncryptedDriveGrants?.RemoveAll(g => g.DriveId == driveId) > 0)
+            {
+                appGrant.data = OdinSystemSerializer.Serialize(grant).ToUtf8ByteArray();
+                await db.AppGrantsCached.UpsertAsync(appGrant);
+            }
+        }
+
+        tx.Commit();
+    }
+
     public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
@@ -307,6 +352,62 @@ public class CircleMembershipService(
     }
 
     /// <summary>
+    /// Creates a circle owned by the calling app, and returns the id the server picked for it.
+    /// </summary>
+    /// <remarks>
+    /// No permission key: an app is the owner acting, and the circle is its own.  What it may put on the circle is
+    /// bounded by what it already has, so creating one is never a way to hand out more -- drives only its own,
+    /// permission keys only ones it holds -- and the circle is granted only explicitly
+    /// (<see cref="CircleGrantOn.None"/>), never to every connection on its own.  The id is the server's, so a
+    /// deleted circle's id, which leftover deposits and enrollments may still name, is never reused.
+    /// </remarks>
+    public async Task<Guid> CreateAppCircleAsync(CreateAppCircleRequest request, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsOwner();
+
+        // The owner console's circles are the owner's; its token must not create them as an app.
+        var appId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+        if (appId == null || SystemAppConstants.IsOwnerConsole(appId))
+        {
+            throw new OdinSecurityException("Only an app can create a circle it owns");
+        }
+
+        var notHeld = (request.Permissions?.Keys ?? [])
+            .Where(key => !odinContext.PermissionsContext.HasPermission(key))
+            .ToList();
+        if (notHeld.Count > 0)
+        {
+            throw new OdinSecurityException(
+                $"App {appId} cannot grant permission keys it does not hold: {string.Join(", ", notHeld)}");
+        }
+
+        await circleDefinitionService.AssertDrivesOwnedByAsync(request.DriveGrants, appId.Value);
+
+        var circleId = Guid.NewGuid();
+        await circleDefinitionService.CreateAsync(new CreateCircleRequest
+        {
+            Id = circleId,
+            Name = request.Name,
+            Description = request.Description,
+            Emoji = request.Emoji,
+            DriveGrants = request.DriveGrants,
+            Permissions = request.Permissions,
+            AppId = appId,
+            GrantOn = CircleGrantOn.None,
+            Designation = CircleDesignation.Personal
+        });
+
+        await mediator.Publish(new CircleDefinitionChangedNotification
+        {
+            OdinContext = odinContext,
+            CircleId = circleId,
+            Change = CircleDefinitionChangeType.Created,
+        });
+
+        return circleId;
+    }
+
+    /// <summary>
     /// Gets a list of all circle definitions
     /// </summary>
     public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle, IOdinContext odinContext)
@@ -350,11 +451,62 @@ public class CircleMembershipService(
         await circleDefinitionService.UpdateAsync(circleDef);
     }
 
-    public async Task DeleteAsync(GuidId circleId, IOdinContext odinContext)
+    /// <summary>
+    /// Deletes a circle even though it has members: every member row goes -- identity and YouAuth domain --
+    /// and then the definition. Grants a member holds through the circle on its connection record are the
+    /// caller's to remove first (<c>CircleNetworkService.RemoveAppFromAllConnectionsAsync</c>).
+    /// </summary>
+    public async Task DeleteCircleAndMembersAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var members = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
+        if (members.Count > 0)
+        {
+            await db.CircleMemberCached.RemoveCircleMembersAsync(circleId, members.Select(m => m.memberId).ToList());
+        }
+
         await circleDefinitionService.DeleteAsync(circleId);
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// Deletes a circle that has no members.
+    /// </summary>
+    /// <remarks>
+    /// The owner console may delete any circle but a system or tree-declared one; an app only one it
+    /// owns.  See <see cref="AssertCallerMayManageCircleAsync"/> and
+    /// <see cref="CircleDefinitionService.DeleteAsync"/>.
+    /// </remarks>
+    public async Task DeleteAsync(GuidId circleId, IOdinContext odinContext)
+    {
+        await AssertCallerMayManageCircleAsync(circleId, "delete", odinContext);
+        await circleDefinitionService.DeleteAsync(circleId);
+    }
+
+    /// <summary>
+    /// Throws unless this caller may delete this circle once it has no members -- the question to ask
+    /// before stripping its members, which <see cref="DeleteAsync"/> only answers after.
+    /// </summary>
+    public async Task AssertCallerMayDeleteAsync(GuidId circleId, IOdinContext odinContext)
+    {
+        await AssertCallerMayManageCircleAsync(circleId, "delete", odinContext);
+        await circleDefinitionService.AssertDeletableAsync(circleId);
+    }
+
+    /// <summary>
+    /// Drops these domains' membership rows for one circle.  For a YouAuth domain the row is the grant
+    /// itself -- <c>YouAuthDomainRegistrationService.SaveRegistrationAsync</c> moves grants into the
+    /// rows and keeps no copy -- so this is the whole of revoking it.
+    /// </summary>
+    public async Task RemoveCircleMembersAsync(GuidId circleId, IEnumerable<AsciiDomainName> domainNames)
+    {
+        var memberIds = domainNames.Select(d => OdinId.ToHashId(d)).ToList();
+        if (memberIds.Count > 0)
+        {
+            await db.CircleMemberCached.RemoveCircleMembersAsync(circleId, memberIds);
+        }
     }
 
     /// <summary>
@@ -362,7 +514,7 @@ public class CircleMembershipService(
     /// </summary>
     /// <remarks>
     /// The owner console may disable any circle but a system circle; an app only one it owns.  See
-    /// <see cref="AssertCallerMayToggleCircleAsync"/>.
+    /// <see cref="AssertCallerMayManageCircleAsync"/>.
     /// </remarks>
     public Task DisableCircleAsync(GuidId circleId, IOdinContext odinContext) =>
         SetDisabledAsync(circleId, true, odinContext);
@@ -375,7 +527,7 @@ public class CircleMembershipService(
 
     private async Task SetDisabledAsync(GuidId circleId, bool disabled, IOdinContext odinContext)
     {
-        await AssertCallerMayToggleCircleAsync(circleId, odinContext);
+        await AssertCallerMayManageCircleAsync(circleId, disabled ? "disable" : "enable", odinContext);
         await circleDefinitionService.SetDisabledAsync(circleId, disabled);
 
         await mediator.Publish(new CircleDefinitionChangedNotification
@@ -397,7 +549,7 @@ public class CircleMembershipService(
     }
 
     /// <summary>
-    /// Who may enable or disable a circle: the owner console (master key) any circle; otherwise the
+    /// Who may enable, disable or delete a circle: the owner console (master key) any circle; otherwise the
     /// owner acting through an app, and only on a circle that app owns.
     /// </summary>
     /// <remarks>
@@ -405,7 +557,7 @@ public class CircleMembershipService(
     /// authority over it.  An owner-console circle (no AppId, or the owner console's) is never an
     /// app's, and that includes the system circles.
     /// </remarks>
-    private async Task AssertCallerMayToggleCircleAsync(GuidId circleId, IOdinContext odinContext)
+    private async Task AssertCallerMayManageCircleAsync(GuidId circleId, string action, IOdinContext odinContext)
     {
         if (odinContext.Caller.HasMasterKey)
         {
@@ -417,7 +569,7 @@ public class CircleMembershipService(
         var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
         if (callerAppId == null)
         {
-            throw new OdinSecurityException($"Caller cannot enable or disable circle {circleId}; it is not an app");
+            throw new OdinSecurityException($"Caller cannot {action} circle {circleId}; it is not an app");
         }
 
         var circle = await circleDefinitionService.GetCircleAsync(circleId);
@@ -433,7 +585,7 @@ public class CircleMembershipService(
         if (SystemAppConstants.IsOwnerConsole(circle.AppId) || circle.AppId != callerAppId)
         {
             throw new OdinSecurityException(
-                $"App {callerAppId} cannot enable or disable circle {circleId}; it belongs to {circle.AppId?.ToString() ?? "the owner"}");
+                $"App {callerAppId} cannot {action} circle {circleId}; it belongs to {circle.AppId?.ToString() ?? "the owner"}");
         }
     }
 

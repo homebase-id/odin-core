@@ -1,3 +1,4 @@
+using Odin.Services.Drives.Management;
 using System;
 using Autofac;
 using Odin.Services.Admin.Tenants.Jobs;
@@ -44,6 +45,7 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<MailRelayOnboardingJob>(cb, MailRelayOnboardingJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ExpireFileJob>(cb, ExpireFileJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<ReapFileJob>(cb, ReapFileJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<DrivePurgeJob>(cb, DrivePurgeJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<SyncChannelFilesJob>(cb, SyncChannelFilesJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<PayloadMoveJob>(cb, PayloadMoveJob.JobTypeId);
 

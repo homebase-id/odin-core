@@ -59,6 +59,7 @@ namespace Odin.Services.Authorization.Apps
                 AppSlug = this.AppSlug,
                 Name = this.Name,
                 IsRevoked = this.AppKeyStore.IsRevoked,
+                IsBuiltIn = AppUninstallService.IsBuiltIn(this.AppId),
                 Created = this.AppKeyStore.Created,
                 AuthorizedCircles = this.AuthorizedCircles,
                 CircleMemberPermissionSetGrantRequest = this.CircleMemberPermissionGrant ?? new PermissionSetGrantRequest(),

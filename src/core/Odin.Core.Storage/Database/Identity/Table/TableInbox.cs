@@ -20,6 +20,17 @@ public class TableInbox(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    /// <summary>Every inbox item for one box (a drive), popped or not; for deleting the drive's content.</summary>
+    internal async Task<int> DeleteBoxAsync(Guid boxId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM Inbox WHERE identityId = @identityId AND boxId = @boxId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@boxId", DbType.Binary, boxId);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     public async Task<InboxRecord> GetAsync(Guid fileId)
     {
         return await base.GetAsync(odinIdentity, fileId);

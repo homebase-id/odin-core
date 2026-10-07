@@ -781,7 +781,7 @@ namespace Odin.Services.Membership.Connections
         /// </remarks>
         public async Task GrantCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            AssertCanManageCircleMembership(odinContext);
+            await AssertCanManageMembersOfAsync(circleId, odinContext);
 
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
@@ -803,7 +803,10 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
-            var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
+            // Read directly: the gate above already decided this caller may manage the circle, and an owning app
+            // needs no read key on top of that.
+            var circleDefinition = await circleDefinitionService.GetCircleAsync(circleId)
+                ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
 
             if (odinContext.Caller.HasMasterKey)
             {
@@ -1007,31 +1010,22 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            AssertCanManageCircleMembership(odinContext);
+            await AssertCanManageMembersOfAsync(circleId, odinContext);
+            await RevokeCircleAccessInternalAsync(circleId, odinId, odinContext);
+        }
 
+        private async Task RevokeCircleAccessInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        {
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
             if (icr.PeerKeyStore == null)
             {
+                // Nothing to save, so nothing rewrites the membership rows -- drop this one directly, or
+                // it outlives the grant and blocks deleting the circle.
+                await circleMembershipService.RemoveCircleMembersAsync(circleId, [odinId]);
                 return;
             }
 
-            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
-            {
-                if (!icr.PeerKeyStore.CircleGrants.Remove(circleId))
-                {
-                    throw new OdinClientException($"Failed to remove {circleId} from {odinId}");
-                }
-            }
-
-            // also purge any not-yet-converted deposit for this circle
-            icr.PeerKeyStore.DepositedGrants?.RemoveAll(d => d.CircleId == circleId);
-
-            //find the circle grant across all app grants and remove it
-            foreach (var (_, appCircleGrants) in icr.PeerKeyStore.AppGrants)
-            {
-                appCircleGrants.Remove(circleId.Value);
-            }
-
+            icr.PeerKeyStore.RemoveCircle(circleId);
             await this.SaveIcrAsync(icr, odinContext);
 
             await mediator.Publish(new ConnectionChangedNotification
@@ -1692,7 +1686,7 @@ namespace Odin.Services.Membership.Connections
         public async Task<EnrollmentResult> EnrollManyInCircleAsync(GuidId circleId, List<OdinId> odinIds,
             IOdinContext odinContext)
         {
-            // The per-identity gate is GrantCircleAsync's own (master key, or
+            // The per-identity gate is GrantCircleAsync's own (master key, the owning app, or
             // ManageCircleMembership), so this does not re-state it. What it adds is scope: an app
             // may bulk-enrol only into a circle it owns.
             var circle = await circleDefinitionService.GetCircleAsync(circleId);
@@ -1934,15 +1928,14 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Tests if a circle has members and indicates if it can be deleted
+        /// Deletes a circle.  Refused while it has members unless <paramref name="removeMembers"/>, which
+        /// first revokes the circle from every member, identity and YouAuth domain alike.
         /// </summary>
-        public async Task DeleteCircleDefinitionAsync(GuidId circleId, IOdinContext odinContext)
+        public async Task DeleteCircleDefinitionAsync(GuidId circleId, IOdinContext odinContext, bool removeMembers = false)
         {
-            var members = await this.GetCircleMembersAsync(circleId, odinContext);
-
-            if (members.Any())
+            if (removeMembers)
             {
-                throw new OdinClientException("Cannot delete a circle with members", OdinClientErrorCode.CannotDeleteCircleWithMembers);
+                await RemoveAllCircleMembersAsync(circleId, odinContext);
             }
 
             await circleMembershipService.DeleteAsync(circleId, odinContext);
@@ -1953,6 +1946,35 @@ namespace Odin.Services.Membership.Connections
                 CircleId = circleId.Value,
                 Change = CircleDefinitionChangeType.Deleted,
             });
+        }
+
+        /// <remarks>
+        /// Asks whether the circle may be deleted before touching anyone, so a refused delete never
+        /// leaves the circle stripped of its members.  Deleting authorizes the revokes: the caller may
+        /// delete this circle, so needs no <see cref="PermissionKeys.ManageCircleMembership"/> as well.
+        /// <para>
+        /// Not one transaction -- each identity's revoke takes the connection lock and saves its ICR.  A
+        /// failure part-way leaves some members removed and the circle in place; running it again
+        /// finishes the job.
+        /// </para>
+        /// </remarks>
+        private async Task RemoveAllCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
+        {
+            await circleMembershipService.AssertCallerMayDeleteAsync(circleId, odinContext);
+
+            var members = await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
+            foreach (var member in members.Where(m => m.DomainType == DomainType.Identity))
+            {
+                await RevokeCircleAccessInternalAsync(circleId, new OdinId(member.Domain), odinContext);
+            }
+
+            await circleMembershipService.RemoveCircleMembersAsync(circleId,
+                members.Where(m => m.DomainType == DomainType.YouAuth).Select(m => m.Domain));
+
+            if (members.Count > 0)
+            {
+                await odinContextCache.ResetAsync();
+            }
         }
 
         public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
@@ -2507,15 +2529,34 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Gate for managing circle membership: the owner (master key) or a caller granted
-        /// <see cref="PermissionKeys.ManageCircleMembership"/> (e.g. an app).
+        /// Gate for adding to or removing from a circle: the owner (master key), the app that owns the circle, or a
+        /// caller granted <see cref="PermissionKeys.ManageCircleMembership"/>.
         /// </summary>
-        private static void AssertCanManageCircleMembership(IOdinContext odinContext)
+        /// <remarks>
+        /// Owning the circle is an app's whole authority over who is in it, as it is for creating, disabling and
+        /// deleting it -- the app is the owner acting.  The key stays the way in for any other circle, so an app
+        /// that manages circles it does not own keeps working.  An owner-console circle is never an app's, even to
+        /// the System app's token, whose id owner-console circles carry.
+        /// </remarks>
+        private async Task AssertCanManageMembersOfAsync(GuidId circleId, IOdinContext odinContext)
         {
-            if (!odinContext.Caller.HasMasterKey)
+            if (odinContext.Caller.HasMasterKey)
             {
-                odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageCircleMembership);
+                return;
             }
+
+            var callerAppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+            if (callerAppId != null)
+            {
+                var circle = await circleDefinitionService.GetCircleAsync(circleId);
+                if (circle != null && !SystemAppConstants.IsOwnerConsole(circle.AppId) && circle.AppId == callerAppId)
+                {
+                    odinContext.Caller.AssertCallerIsOwner();
+                    return;
+                }
+            }
+
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageCircleMembership);
         }
 
         /// <summary>
@@ -3269,6 +3310,61 @@ namespace Odin.Services.Membership.Connections
             {
                 throw new OdinSecurityException("OdinId is blocked");
             }
+        }
+
+        /// <summary>
+        /// Removes a drive from every grant this identity has handed out: circle definitions, circle and app grants
+        /// (see <see cref="CircleMembershipService.RemoveDriveFromAllGrantsAsync"/>) and deposits. Apps re-create
+        /// drives with the same alias, so a grant left behind would carry over to the new drive.
+        /// </summary>
+        public async Task RemoveDriveFromAllGrantsAsync(Guid driveId, IOdinContext odinContext)
+        {
+            await circleMembershipService.RemoveDriveFromAllGrantsAsync(driveId, odinContext);
+            await UpdateAllConnectionsAsync(store => store.RemoveDriveFromDeposits(driveId), odinContext);
+        }
+
+        /// <summary>
+        /// Removes an app from every connection, and deletes the circles it owns with their members and every
+        /// grant made through them.
+        /// </summary>
+        public async Task RemoveAppFromAllConnectionsAsync(Guid appId, IReadOnlyCollection<Guid> ownedCircleIds,
+            IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            await UpdateAllConnectionsAsync(store => store.RemoveAppAndCircles(appId, ownedCircleIds), odinContext);
+
+            foreach (var circleId in ownedCircleIds)
+            {
+                await circleMembershipService.DeleteCircleAndMembersAsync(circleId, odinContext);
+                await mediator.Publish(new CircleDefinitionChangedNotification
+                {
+                    OdinContext = odinContext,
+                    CircleId = circleId,
+                    Change = CircleDefinitionChangeType.Deleted,
+                });
+            }
+        }
+
+        /// <summary>
+        /// Applies <paramref name="update"/> to every connected and blocked identity's key store, saving each one
+        /// it changed. Saving rewrites the circle-member and app-grant rows from the record.
+        /// </summary>
+        private async Task UpdateAllConnectionsAsync(Func<PeerKeyStore, bool> update, IOdinContext odinContext)
+        {
+            foreach (var status in new[] { ConnectionStatus.Connected, ConnectionStatus.Blocked })
+            {
+                var (icrs, _) = await circleNetworkStorage.GetListAsync(int.MaxValue, null, status);
+                foreach (var icr in icrs)
+                {
+                    if (icr.PeerKeyStore != null && update(icr.PeerKeyStore))
+                    {
+                        await SaveIcrAsync(icr, odinContext);
+                    }
+                }
+            }
+
+            await odinContextCache.ResetAsync();
         }
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternalAsync(OdinId odinId)
