@@ -67,6 +67,9 @@ public interface IConnectionNetworkHttpClientApiV2
     [Post(Root + "/circles/enable")]
     Task<ApiResponse<HttpContent>> EnableCircle([Body] Guid circleId);
 
+    [Post(Root + "/circles/delete")]
+    Task<ApiResponse<HttpContent>> DeleteCircle([Body] Guid circleId, [Query] bool removeMembers = false);
+
     [Post(Root + "/circles/revoke")]
     Task<ApiResponse<HttpContent>> RevokeCircle([Body] RevokeCircleMembershipRequest request);
 }
