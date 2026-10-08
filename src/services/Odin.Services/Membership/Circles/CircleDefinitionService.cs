@@ -506,23 +506,52 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
-        /// <summary>Throws unless every granted drive is one <paramref name="appId"/> owns.</summary>
+        /// <summary>
+        /// Throws unless <paramref name="appId"/> may put these drive grants on a circle it creates: on a drive it
+        /// owns, any access it holds itself; on any other drive, Read alone, and only with that drive's storage key.
+        /// </summary>
         /// <remarks>
+        /// Every member the app adds is handed the circle's access out of the app's own -- write needs write, and
+        /// read is sealed with a key only a reader has -- so holding what it grants is required either way, and a
+        /// circle the app could never fill is refused here rather than at its first member.  Owning a drive does not
+        /// give an app access to it; its registration does.
+        /// <para>
+        /// Read on another app's drive passes on only what the app can already see: a profile circle Chat makes,
+        /// granting the Contacts app's ProfileDrive, as Family, Friends and Work do.  Write or React there would let
+        /// the app's contacts change another app's data, so that stays the owner's to grant.
+        /// </para>
+        /// <para>
         /// A grant naming no drive is left to <see cref="AssertValidDriveGrantsAsync"/>, which refuses it.
+        /// </para>
         /// </remarks>
-        public async Task AssertDrivesOwnedByAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId)
+        public async Task AssertAppMayGrantDrivesAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId,
+            IOdinContext odinContext)
         {
+            var permissions = odinContext.PermissionsContext;
             foreach (var dgr in driveGrantRequests ?? [])
             {
-                var drive = dgr?.PermissionedDrive?.Drive;
-                if (drive?.Alias == null)
+                var granted = dgr?.PermissionedDrive;
+                if (granted?.Drive?.Alias == null)
                 {
                     continue;
                 }
 
-                if ((await driveManager.GetDriveAsync(drive.Alias))?.AppId != appId)
+                Guid driveId = granted.Drive.Alias;
+                if (!permissions.HasDrivePermission(driveId, granted.Permission))
                 {
-                    throw new OdinSecurityException($"App {appId} cannot grant drive {drive}; it does not own it");
+                    throw new OdinSecurityException(
+                        $"App {appId} cannot grant {granted.Permission} on drive {granted.Drive}; it does not hold that access");
+                }
+
+                if ((await driveManager.GetDriveAsync(driveId))?.AppId == appId)
+                {
+                    continue;
+                }
+
+                if (granted.Permission != DrivePermission.Read || !permissions.TryGetDriveStorageKey(driveId, out _))
+                {
+                    throw new OdinSecurityException(
+                        $"App {appId} can grant only Read, with the storage key, on drive {granted.Drive}, which it does not own");
                 }
             }
         }
