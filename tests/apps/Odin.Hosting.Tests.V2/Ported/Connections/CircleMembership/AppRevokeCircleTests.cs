@@ -20,12 +20,13 @@ using Odin.Services.Membership.Connections;
 namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 
 /// <summary>
-/// An app may remove a connection from a circle it owns, and from no other.
+/// An app may remove a connection from a circle it owns; from any other only while it still holds the
+/// retired <c>ManageCircleMembership</c>.
 /// </summary>
 /// <remarks>
-/// Owning the circle is the app's authority.  The apps that succeed hold no permission keys, so
-/// ownership alone lets them in; the apps that are refused hold <c>ManageCircleMembership</c>, which
-/// used to let an app remove members from any circle, so ownership is the only thing refusing them.
+/// Owning the circle is the app's authority.  The apps that succeed on their own circles hold no permission
+/// keys, so ownership alone lets them in.  Another app's circle and the owner's own are refused to an app
+/// without the key; one that still holds it keeps the access it had, for the transition.
 /// </remarks>
 [TestFixture]
 public class AppRevokeCircleTests : V2Fixture
@@ -82,8 +83,9 @@ public class AppRevokeCircleTests : V2Fixture
         Assert.That(processed.Content!.EnrollmentsCompleted, Is.EqualTo(0));
     }
 
-    [Test]
-    public async Task AppCannotRemoveAMember_FromAnotherAppsCircle()
+    [TestCase(false, HttpStatusCode.Forbidden, TestName = "AppCannotRemoveAMember_FromAnotherAppsCircle")]
+    [TestCase(true, HttpStatusCode.OK, TestName = "AppHoldingTheRetiredKey_CanStillRemoveAMember_FromAnotherAppsCircle")]
+    public async Task AppRemovingAMember_FromAnotherAppsCircle(bool holdsKey, HttpStatusCode expected)
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -91,29 +93,29 @@ public class AppRevokeCircleTests : V2Fixture
 
         var (_, otherAppsCircle) = await SetupAppOwningACircleAsync(frodo, DrivePermission.Write | DrivePermission.React);
         var (app, _) = await SetupAppOwningACircleAsync(frodo, DrivePermission.Write | DrivePermission.React,
-            HoldsManageCircleMembership);
+            holdsKey ? HoldsManageCircleMembership : null);
         await GrantAsOwnerAsync(frodo, otherAppsCircle, sam.Identity);
 
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .RevokeCircleAsync(otherAppsCircle, sam.Identity);
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
-            $"an app must not act on a circle another app owns; got {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expected), $"got {response.StatusCode}");
 
         var icr = await GetIcrAsync(frodo, sam.Identity);
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(otherAppsCircle), Is.True,
-            "the refused revoke must leave the membership as it was");
+        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(otherAppsCircle), Is.EqualTo(!holdsKey),
+            holdsKey ? "the key still lets the app remove the member" : "the refused revoke must leave the membership as it was");
     }
 
-    [Test]
-    public async Task AppCannotRemoveAMember_FromAnOwnerCircle()
+    [TestCase(false, HttpStatusCode.Forbidden, TestName = "AppCannotRemoveAMember_FromAnOwnerCircle")]
+    [TestCase(true, HttpStatusCode.OK, TestName = "AppHoldingTheRetiredKey_CanStillRemoveAMember_FromAnOwnerCircle")]
+    public async Task AppRemovingAMember_FromAnOwnerCircle(bool holdsKey, HttpStatusCode expected)
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
 
         var (app, _) = await SetupAppOwningACircleAsync(frodo, DrivePermission.Write | DrivePermission.React,
-            HoldsManageCircleMembership);
+            holdsKey ? HoldsManageCircleMembership : null);
 
         // No owning app: the owner console's own circle.
         var ownerDrive = TargetDrive.NewTargetDrive();
@@ -126,12 +128,11 @@ public class AppRevokeCircleTests : V2Fixture
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory)
             .RevokeCircleAsync(ownerCircle, sam.Identity);
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
-            $"an app must not act on the owner's own circle; got {response.StatusCode}");
+        Assert.That(response.StatusCode, Is.EqualTo(expected), $"got {response.StatusCode}");
 
         var icr = await GetIcrAsync(frodo, sam.Identity);
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(ownerCircle), Is.True,
-            "the refused revoke must leave the membership as it was");
+        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(ownerCircle), Is.EqualTo(!holdsKey),
+            holdsKey ? "the key still lets the app remove the member" : "the refused revoke must leave the membership as it was");
     }
 
     [Test]

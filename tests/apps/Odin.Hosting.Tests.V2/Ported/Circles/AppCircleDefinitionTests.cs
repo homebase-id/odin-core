@@ -606,6 +606,24 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That(await SamIsInCircleAsync(owner, othersCircleId), Is.False);
     }
 
+    /// <summary>
+    /// The transition path: an app still holding the retired <c>ManageCircleMembership</c> may add to a circle it
+    /// does not own, as it could before ownership decided membership (<c>GetCircleCallerMayChangeMembersOfAsync</c>).
+    /// </summary>
+    [Test]
+    public async Task AppHoldingTheRetiredKeyCanStillAddToAnotherAppsCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var (_, othersCircleId, drive) = await AppWithItsOwnCircleAsync(owner);
+        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.All, [PermissionKeys.ManageCircleMembership],
+            knownAppId: Guid.NewGuid());
+
+        var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .GrantCircle(new AddCircleMembershipRequest { CircleId = othersCircleId, OdinId = Identities.Sam });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await SamIsInCircleAsync(owner, othersCircleId), Is.True);
+    }
+
     /// <summary>An app with no permission keys, write on a drive, and a circle of its own granting that drive.</summary>
     private static async Task<(AppSession App, Guid CircleId, TargetDrive Drive)> AppWithItsOwnCircleAsync(OwnerSession owner)
     {

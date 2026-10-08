@@ -935,16 +935,17 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         /// <remarks>
         /// The owner console may remove anyone from any circle, including one whose definition is
-        /// gone (the migrations clean up orphaned grants this way).  An app may remove members only
-        /// from a circle it owns: owning the circle is its authority, so no permission key is asked
-        /// for, and an owner-console circle is refused like any other circle that is not its own.
+        /// gone (the migrations clean up orphaned grants this way).  An app may remove members from a
+        /// circle it owns -- owning the circle is its authority, so no permission key is asked for -- and,
+        /// for now, from any circle if it still holds the retired key
+        /// (<see cref="GetCircleCallerMayChangeMembersOfAsync"/>).
         /// </remarks>
         public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
             if (!odinContext.Caller.HasMasterKey)
             {
                 odinContext.Caller.AssertCallerIsOwner();
-                await GetCircleCallerMayActOnAsync(circleId, "remove identities from", odinContext);
+                await GetCircleCallerMayChangeMembersOfAsync(circleId, "remove identities from", odinContext);
             }
 
             await RevokeCircleAccessInternalAsync(circleId, odinId, odinContext);
@@ -1622,13 +1623,38 @@ namespace Odin.Services.Membership.Connections
 
         /// <summary>
         /// The circle an explicit add names, once the caller is allowed to add to it: the owner console
-        /// to any circle, an app only to one it owns.  Owning the circle is an app's authority; no
-        /// permission key is asked for.
+        /// to any circle, an app to one it owns -- owning the circle is its authority, no permission key
+        /// asked for -- or, for now, to any circle if it still holds the retired key
+        /// (<see cref="GetCircleCallerMayChangeMembersOfAsync"/>).
         /// </summary>
         private async Task<CircleDefinition> GetCircleForExplicitEnrollmentAsync(GuidId circleId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertCallerIsOwner();
-            return await GetCircleCallerMayActOnAsync(circleId, "enrol identities into", odinContext);
+            return await GetCircleCallerMayChangeMembersOfAsync(circleId, "enrol identities into", odinContext);
+        }
+
+        /// <summary>
+        /// The circle a caller adds to or removes from: what <see cref="GetCircleCallerMayActOnAsync"/> allows,
+        /// or any circle for a caller still holding <see cref="PermissionKeys.ManageCircleMembership"/>.
+        /// </summary>
+        /// <remarks>
+        /// Transitional.  Before ownership was stamped everywhere, the key was how apps such as Chat changed the
+        /// members of circles they do not own, and the ownership rule alone refuses them in three places while
+        /// that settles: a built-in circle not yet stamped with its app (an identity the upgrade has not
+        /// reached), another app's circle (Chat adding to Friends), and the owner's own circles.  51 is no
+        /// longer granted, so this path narrows to registrations made before it was retired; remove it once
+        /// those are gone.  Reads ("ask about") stay ownership-only.
+        /// </remarks>
+        private async Task<CircleDefinition> GetCircleCallerMayChangeMembersOfAsync(GuidId circleId, string verb,
+            IOdinContext odinContext)
+        {
+            if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.ManageCircleMembership))
+            {
+                return await GetCircleCallerMayActOnAsync(circleId, verb, odinContext);
+            }
+
+            return await circleDefinitionService.GetCircleAsync(circleId)
+                   ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
         }
 
         /// <summary>
