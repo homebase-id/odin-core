@@ -40,5 +40,10 @@ public enum ClientTokenType
 
     PeerAutomatedPasswordRecovery = 4,
 
-    Cdn = 17
+    Cdn = 17,
+
+    /// <summary>
+    /// One client token mapped to several registered apps (a bundle token)
+    /// </summary>
+    AppBundle = 18
 }

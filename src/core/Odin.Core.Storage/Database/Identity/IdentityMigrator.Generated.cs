@@ -28,6 +28,8 @@ public partial class IdentityMigrator
                 new TableAppNotificationsMigrationList(),
                 new TableClientRegistrationsMigrationList(),
                 new TableAppRegistrationsMigrationList(),
+                new TableBundleTokensMigrationList(),
+                new TableBundleTokenAppsMigrationList(),
                 new TableCircleMigrationList(),
                 new TableCircleMemberMigrationList(),
                 new TableConnectionsMigrationList(),

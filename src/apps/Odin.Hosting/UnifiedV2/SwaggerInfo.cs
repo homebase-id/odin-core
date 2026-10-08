@@ -42,6 +42,9 @@ public static class SwaggerInfo
     /// </summary>
     public const string NewStuff = "New Stuff (slug addressing)";
 
+    // App registration V2 and bundle tokens
+    public const string AppRegistrations = "App Registrations (V2)";
+
     // Peer notification subscriptions (live updates on drives hosted by other identities)
     public const string Notifications = "Notifications";
 }

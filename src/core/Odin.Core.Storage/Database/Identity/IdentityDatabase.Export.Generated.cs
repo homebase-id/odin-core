@@ -27,6 +27,8 @@ public partial class IdentityDatabase
         "AppNotifications",
         "ClientRegistrations",
         "AppRegistrations",
+        "BundleTokens",
+        "BundleTokenApps",
         "Circle",
         "CircleMember",
         "Connections",
@@ -55,6 +57,8 @@ public partial class IdentityDatabase
             ["AppNotifications"] = typeof(AppNotificationsRecord),
             ["ClientRegistrations"] = typeof(ClientRegistrationsRecord),
             ["AppRegistrations"] = typeof(AppRegistrationsRecord),
+            ["BundleTokens"] = typeof(BundleTokensRecord),
+            ["BundleTokenApps"] = typeof(BundleTokenAppsRecord),
             ["Circle"] = typeof(CircleRecord),
             ["CircleMember"] = typeof(CircleMemberRecord),
             ["Connections"] = typeof(ConnectionsRecord),
@@ -82,6 +86,8 @@ public partial class IdentityDatabase
         await AppNotifications.ExportRowsAsync(identityId, async r => await onRow("AppNotifications", r));
         await ClientRegistrations.ExportRowsAsync(identityId, async r => await onRow("ClientRegistrations", r));
         await AppRegistrations.ExportRowsAsync(identityId, async r => await onRow("AppRegistrations", r));
+        await BundleTokens.ExportRowsAsync(identityId, async r => await onRow("BundleTokens", r));
+        await BundleTokenApps.ExportRowsAsync(identityId, async r => await onRow("BundleTokenApps", r));
         await Circle.ExportRowsAsync(identityId, async r => await onRow("Circle", r));
         await CircleMember.ExportRowsAsync(identityId, async r => await onRow("CircleMember", r));
         await Connections.ExportRowsAsync(identityId, async r => await onRow("Connections", r));
@@ -121,6 +127,10 @@ public partial class IdentityDatabase
                 return await ClientRegistrations.ImportRowAsync((ClientRegistrationsRecord)record);
             case "AppRegistrations":
                 return await AppRegistrations.ImportRowAsync((AppRegistrationsRecord)record);
+            case "BundleTokens":
+                return await BundleTokens.ImportRowAsync((BundleTokensRecord)record);
+            case "BundleTokenApps":
+                return await BundleTokenApps.ImportRowAsync((BundleTokenAppsRecord)record);
             case "Circle":
                 return await Circle.ImportRowAsync((CircleRecord)record);
             case "CircleMember":
