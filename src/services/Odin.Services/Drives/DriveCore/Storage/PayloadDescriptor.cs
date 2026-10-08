@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.FileSystem.Base;
@@ -50,6 +51,12 @@ public class PayloadDescriptor
     /// and changes each time you upload a new payload with this key
     /// </summary>
     public UnixTimeUtcUnique Uid { get; set; }
+
+    /// <summary>
+    /// Optional client-computed hashes, see <see cref="PayloadHash"/>
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PayloadHash Hash { get; set; }
 
     public string GetLastModifiedHttpHeaderValue()
     {

@@ -430,6 +430,63 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// The drive's requirePayloadHashes rule, checked per payload before any of its bytes are read
+        /// </summary>
+        public async Task AssertPayloadHashPresentIfRequiredAsync(Guid driveId, string payloadKey, PayloadHash hash)
+        {
+            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
+            PayloadHash.AssertRequired(payloadKey, hash, drive.RequirePayloadHashes);
+        }
+
+        /// <summary>
+        /// Writes one payload received from a peer, to the upload folder (<paramref name="directWrite"/>) or straight to
+        /// long-term. When the sender's descriptor carries hashes (#1895) the stored hash is verified as the bytes stream
+        /// in, and a mismatch deletes what was written before rethrowing; the callers' own cleanup does not cover a
+        /// payload that failed part way.
+        /// </summary>
+        public async Task WriteIncomingPeerPayload(InternalDriveFileId file, PayloadDescriptor descriptor, bool isEncrypted,
+            bool directWrite, Stream data, IOdinContext odinContext)
+        {
+            await AssertPayloadHashPresentIfRequiredAsync(file.DriveId, descriptor.Key, descriptor.Hash);
+            PayloadHash.AssertValid(descriptor.Key, descriptor.Hash, isEncrypted);
+
+            var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
+            await using var hashing = descriptor.Hash?.Verifying(descriptor.Key, data);
+            if (directWrite)
+            {
+                await WriteUploadStream(file, extension, hashing ?? data, odinContext);
+            }
+            else
+            {
+                await WritePayloadDirectlyToLongTerm(file, extension, hashing ?? data, odinContext);
+            }
+
+            if (hashing == null)
+            {
+                return;
+            }
+
+            try
+            {
+                descriptor.Hash.AssertStoredHashMatches(descriptor.Key, hashing);
+            }
+            catch (OdinClientException)
+            {
+                List<PayloadDescriptor> written = [new() { Key = descriptor.Key, Uid = descriptor.Uid }];
+                if (directWrite)
+                {
+                    await CleanupUploadTemporaryFiles(file, written, odinContext);
+                }
+                else
+                {
+                    await CleanupAbandonedLongTermPayloads(file, written, odinContext);
+                }
+
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
         /// </summary>
         // TODO:INBOX Reads from the folder-based inbox; delete once the inbox folder is drained.

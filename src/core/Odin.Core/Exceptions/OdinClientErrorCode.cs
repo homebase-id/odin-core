@@ -101,6 +101,9 @@ public enum OdinClientErrorCode
     MustRotateKeyHeaderIvWhenUpdating = 4172,
     CannotSourceDriveStorageKeyForGrant = 4173,
     PayloadVersionGone = 4174,
+    PayloadHashMismatch = 4175,
+    InvalidPayloadHash = 4176,
+    PayloadHashRequired = 4177,
 
 
     // Connection errors 50xx

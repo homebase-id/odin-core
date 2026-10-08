@@ -45,6 +45,11 @@ public class TestPayloadDefinition
 
     public List<ThumbnailContent> Thumbnails { get; set; }
 
+    /// <summary>
+    /// Optional client-computed hashes sent on the manifest descriptor (#1895)
+    /// </summary>
+    public PayloadHash Hash { get; set; }
+
     public UploadManifestPayloadDescriptor ToPayloadDescriptor(
         PayloadUpdateOperationType updateOperationType = PayloadUpdateOperationType.None)
     {
@@ -63,7 +68,8 @@ public class TestPayloadDefinition
             PreviewThumbnail = this.PreviewThumbnail,
             Thumbnails = t,
             PayloadUpdateOperationType = updateOperationType,
-            ContentType = this.ContentType
+            ContentType = this.ContentType,
+            Hash = this.Hash
         };
     }
 }
