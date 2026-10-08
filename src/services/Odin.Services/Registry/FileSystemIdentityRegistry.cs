@@ -19,6 +19,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Storage.PubSub;
 using Odin.Core.Threading;
@@ -246,7 +247,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
-            // Deleting purges the payloads, which a target may still be pulling after a move
+            // Deleting purges the payloads, which a target may still be pulling after a move. Checked before anything
+            // changes, so a refused delete leaves the status as it was
             await using (var guardScope = _serviceProvider.BeginLifetimeScope($"DeleteRegistrationGuard:{registration.PrimaryDomainName}"))
             {
                 if (await guardScope.Resolve<PayloadMoveSource>().IsTransferPendingAsync(registration.Id))
@@ -255,6 +257,24 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                         $"{domain} was exported and its payloads have not all reached the target yet; " +
                         "it can be deleted once the target reports the transfer complete");
                 }
+            }
+
+            // Disabled before anything is deleted, whoever is deleting: requests get a 503 and background services
+            // stop, so nothing writes to the identity while its rows and storage are removed. An identity already
+            // disabled keeps its reason: Moved is locked (TenantStatusRules.Validate) and marks a moved copy.
+            if (registration.Status != TenantStatus.Disabled)
+            {
+                await SetStatusAsync(domain, TenantStatus.Disabled, DisabledReason.PendingDeletion);
+            }
+
+            // PostgreSQL keeps every identity's rows in one shared database, so deleting the tenant folder below does
+            // not remove them (#1792). Purged first, while the registration exists: if it fails, the delete fails
+            // and can be retried, instead of leaving rows behind that nothing knows the id of.
+            if (_config.Database.Type == DatabaseType.Postgres)
+            {
+                await using var tenantScope = GetOrCreateMultiTenantScope(registration)
+                    .BeginLifetimeScope($"PurgeIdentity:{registration.PrimaryDomainName}");
+                await tenantScope.Resolve<IdentityDatabase>().PurgeIdentityAsync(registration.Id);
             }
 
             long version;

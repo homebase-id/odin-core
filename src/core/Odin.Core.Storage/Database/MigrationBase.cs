@@ -25,9 +25,14 @@ namespace Odin.Core.Storage.Database
             PreviousVersion = previousVersion;
         }
 
+        /// <summary>
+        /// A migration renames the table it replaces to <c>{Table}MigrationsV{version}</c> and keeps it for its down step.
+        /// </summary>
+        public const string BackupTableInfix = "MigrationsV";
+
         public string MigrationTableName(string tableName, Int64 version)
         {
-            return $"{tableName}MigrationsV{PreviousVersion}";
+            return $"{tableName}{BackupTableInfix}{PreviousVersion}";
         }
 
         public async Task CheckSqlTableVersion(IConnectionWrapper cn, string tableName, Int64 versionMustBe)
