@@ -949,6 +949,10 @@ namespace Odin.Services.Membership.Connections
             }
 
             await RevokeCircleAccessInternalAsync(circleId, odinId, odinContext);
+
+            // Peer permission contexts are cached by token; without this a removed member keeps what the circle
+            // gave them until their cached context expires.
+            await odinContextCache.ResetAsync();
         }
 
         private async Task RevokeCircleAccessInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
@@ -1589,6 +1593,12 @@ namespace Odin.Services.Membership.Connections
                 "Bulk enrolment into circle {circleId}: {enrolled} enrolled, {deposited} deposited, {skipped} skipped",
                 circleId, result.Enrolled, result.Deposited, result.Skipped);
 
+            // Once for the whole batch, as on a single add (EnrollInCircleAsync).
+            if (result.Enrolled + result.Deposited > 0)
+            {
+                await odinContextCache.ResetAsync();
+            }
+
             return result;
         }
 
@@ -1619,6 +1629,10 @@ namespace Odin.Services.Membership.Connections
             }
 
             await EnrollInCircleInternalAsync(circle.Id, odinId, odinContext);
+
+            // As on revoke: a member whose permission context is cached would otherwise not see the new circle --
+            // nor, for an app's add, convert its deposit at their next call -- until that context expires.
+            await odinContextCache.ResetAsync();
         }
 
         /// <summary>
