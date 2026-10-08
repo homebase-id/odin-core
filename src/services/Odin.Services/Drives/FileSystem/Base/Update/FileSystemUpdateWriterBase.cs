@@ -164,9 +164,12 @@ public abstract class FileSystemUpdateWriterBase
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
 
+        await FileSystem.Storage.AssertPayloadHashPresentIfRequiredAsync(Package.InternalFile.DriveId, key, descriptor.Hash);
+
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
 
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, data, odinContext);
+        await using var hashing = descriptor.Hash?.Verifying(key, data);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, hashing ?? data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -174,7 +177,9 @@ public abstract class FileSystemUpdateWriterBase
                 $"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {data.Length}");
         }
 
+        // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
+        descriptor.Hash?.AssertStoredHashMatches(key, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -477,6 +482,15 @@ public abstract class FileSystemUpdateWriterBase
         {
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
                 OdinClientErrorCode.DriveSecurityAndAclMismatch);
+        }
+
+        // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
+        PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);
+
+        if (package.InstructionSet.Locale == UpdateLocale.Local)
+        {
+            await PayloadHash.AssertIvsRotatedAsync(package.Payloads, metadata.IsEncrypted,
+                () => FileSystem.Storage.GetServerFileHeader(package.InternalFile, odinContext));
         }
 
         if (metadata.AppData.UniqueId.HasValue)

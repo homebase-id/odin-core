@@ -122,15 +122,20 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
 
+        await FileSystem.Storage.AssertPayloadHashPresentIfRequiredAsync(Package.InternalFile.DriveId, key, descriptor.Hash);
+
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, data, odinContext);
+        await using var hashing = descriptor.Hash?.Verifying(key, data);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, hashing ?? data, odinContext);
 
         if (bytesWritten != data.Length)
         {
             throw new OdinSystemException($"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {data.Length}");
         }
 
+        // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
+        descriptor.Hash?.AssertStoredHashMatches(key, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -228,11 +233,16 @@ public abstract class FileSystemStreamWriterBase
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
+            // Loaded at most once, and only when one of the checks below needs it
+            ServerFileHeader loadedHeader = null;
+            async Task<ServerFileHeader> ExistingFileHeader() =>
+                loadedHeader ??= await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
+
             // If the uniqueId is being changed, validate that uniqueId is not in use by another file
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
+                var existingFileHeader = await ExistingFileHeader();
 
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
@@ -250,6 +260,8 @@ public abstract class FileSystemStreamWriterBase
                     }
                 }
             }
+
+            await PayloadHash.AssertIvsRotatedAsync(Package.Payloads, metadata.IsEncrypted, ExistingFileHeader);
 
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
@@ -573,6 +585,9 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
                 OdinClientErrorCode.DriveSecurityAndAclMismatch);
         }
+
+        // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
+        PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);
 
         if (metadata.AppData.UniqueId.HasValue)
         {

@@ -25,6 +25,8 @@ public class PackagePayloadDescriptor
     
     public PayloadUpdateOperationType UpdateOperationType { get; set; }
 
+    public PayloadHash Hash { get; set; }
+
     public bool HasIv()
     {
         if (Iv == null || Iv.Length == 0)

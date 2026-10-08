@@ -307,8 +307,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = TenantPathManager.GetBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
-            await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext);
+            await _incomingTransferService.AcceptPayload(payloadDescriptor, fileMetadata.IsEncrypted, fileSection.FileStream, WebOdinContext);
             return payloadDescriptor;
         }
 

@@ -71,11 +71,26 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
+        await FileSystem.Storage.AssertPayloadHashPresentIfRequiredAsync(_package.InternalFile.DriveId, key, descriptor.Hash);
+
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, data, odinContext);
+        await using var hashing = descriptor.Hash?.Verifying(key, data);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, hashing ?? data, odinContext);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
+        }
+
+        try
+        {
+            descriptor.Hash?.AssertStoredHashMatches(key, hashing);
+        }
+        catch (OdinClientException) when (bytesWritten == 0)
+        {
+            // An empty payload is never added to the package, so CleanupStagingFiles would not remove its staged file
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile,
+                [new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid }], odinContext);
+            throw;
         }
     }
 
@@ -210,6 +225,14 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes",
                 OdinClientErrorCode.InvalidUpload);
         }
+
+        var isEncrypted = existingServerFileHeader.FileMetadata.IsEncrypted;
+        foreach (var payload in _package.Payloads)
+        {
+            PayloadHash.AssertValid(payload.PayloadKey, payload.Hash, isEncrypted);
+        }
+
+        await PayloadHash.AssertIvsRotatedAsync(_package.Payloads, isEncrypted, () => Task.FromResult(existingServerFileHeader));
     }
 
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
