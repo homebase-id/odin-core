@@ -1,9 +1,7 @@
 #nullable enable
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -12,7 +10,6 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -37,14 +34,13 @@ public class PayloadHashPeerTests : V2Fixture
     {
         var (frodo, sam, drive) = await ConnectAsync();
 
-        var payload = Hashed(SamplePayloadDefinitions.GetPayloadDefinition1());
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         var sent = await SendUnencrypted(frodo, sam, drive, payload);
 
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
 
         var received = await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key);
-        AssertSameHash(received?.Hash, payload.Hash);
+        DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
     }
 
     [Test]
@@ -54,12 +50,11 @@ public class PayloadHashPeerTests : V2Fixture
 
         var (sent, payload) = await SendEncrypted(frodo, sam, drive);
 
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
 
         // Sam's server verified the ciphertext against storedHash on receipt; the opaque content hash came along as-is
         var received = await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key);
-        AssertSameHash(received?.Hash, payload.Hash);
+        DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
     }
 
     [Test]
@@ -67,13 +62,12 @@ public class PayloadHashPeerTests : V2Fixture
     {
         var (frodo, sam, drive) = await ConnectAsync();
 
-        var payload = Hashed(SamplePayloadDefinitions.GetPayloadDefinition1());
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         var sent = await SendUnencrypted(frodo, sam, drive, payload);
 
         await CorruptStoredPayload(frodo, drive, sent, payload.Key);
 
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
 
         await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.RecipientIdentityReturnedBadRequest);
         Assert.That(await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key), Is.Null);
@@ -90,8 +84,7 @@ public class PayloadHashPeerTests : V2Fixture
         var (sent, payload) = await SendEncrypted(frodo, sam, drive);
         await CorruptStoredPayload(frodo, drive, sent, payload.Key);
 
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
 
         await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.RecipientIdentityReturnedBadRequest);
         Assert.That(await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key), Is.Null);
@@ -105,17 +98,16 @@ public class PayloadHashPeerTests : V2Fixture
         await sam.Admin.SetRequirePayloadHashes(drive, true);
 
         var unhashed = await SendUnencrypted(frodo, sam, drive, SamplePayloadDefinitions.GetPayloadDefinition1());
-        var hashedPayload = Hashed(SamplePayloadDefinitions.GetPayloadDefinition2());
+        var hashedPayload = SamplePayloadDefinitions.GetPayloadDefinition2().WithHash(ContentHashAlgorithm.Blake3);
         var hashed = await SendUnencrypted(frodo, sam, drive, hashedPayload);
 
-        await frodo.Sync.DrainOutboxAsync();
-        await sam.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
 
         await DriveAsserts.AssertTransferStatus(frodo, FileOf(unhashed, drive), sam.Identity, LatestTransferStatus.RecipientIdentityReturnedBadRequest);
         await DriveAsserts.AssertTransferStatus(frodo, FileOf(hashed, drive), sam.Identity, LatestTransferStatus.Delivered);
 
         var received = await ReceivedDescriptor(sam, drive, hashed.GlobalTransitId!.Value, hashedPayload.Key);
-        AssertSameHash(received?.Hash, hashedPayload.Hash);
+        DriveAsserts.AssertSameHash(received?.Hash, hashedPayload.Hash);
     }
 
     //
@@ -139,7 +131,7 @@ public class PayloadHashPeerTests : V2Fixture
     {
         var descriptor = (await sender.Drives.Reader.GetFileHeaderAsync(sent.DriveId, sent.FileId)).Content!
             .FileMetadata.Payloads.Single(p => p.Key == key);
-        var storedPath = Paths(sender).GetPayloadDirectoryAndFileName(drive.Alias, sent.FileId, key, descriptor.Uid);
+        var storedPath = TenantPaths(sender).GetPayloadDirectoryAndFileName(drive.Alias, sent.FileId, key, descriptor.Uid);
         var bytes = await File.ReadAllBytesAsync(storedPath);
         bytes[0] ^= 0xFF;
         await File.WriteAllBytesAsync(storedPath, bytes);
@@ -157,19 +149,13 @@ public class PayloadHashPeerTests : V2Fixture
         payload.Iv = ByteArrayUtil.GetRndByteArray(16);
         var ciphertext = new KeyHeader { Iv = payload.Iv, AesKey = new SensitiveByteArray(keyHeader.AesKey.GetKey()) }
             .EncryptDataAes(payload.Content);
-        payload.Hash = new PayloadHash
-        {
-            Algorithm = ContentHashAlgorithm.Blake3,
-            StoredHash = IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, ciphertext),
-            ContentHash = AesCbc.Encrypt(IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, payload.Content),
-                keyHeader.AesKey.GetKey(), PayloadHash.ContentHashIv(payload.Iv))
-        };
+        payload.WithEncryptedHash(ciphertext, keyHeader.AesKey.GetKey(), ContentHashAlgorithm.Blake3);
 
         var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "encrypted app content", AccessControlList.Connected);
         metadata.AllowDistribution = true;
         var (response, _, _, _) = await frodo.Drives.Writer.CreateEncryptedFile(drive.Alias, metadata,
             new TransitOptions { Recipients = [sam.Identity] },
-            new UploadManifest { PayloadDescriptors = new[] { payload }.ToPayloadDescriptorList().ToList() }, [payload],
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload],
             keyHeader: keyHeader);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"actual {response.StatusCode}");
         return (response.Content!, payload);
@@ -178,13 +164,6 @@ public class PayloadHashPeerTests : V2Fixture
     private static ExternalFileIdentifier FileOf(CreateFileResult result, TargetDrive drive) =>
         new() { FileId = result.FileId, TargetDrive = drive };
 
-    private static TestPayloadDefinition Hashed(TestPayloadDefinition payload)
-    {
-        var hash = IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, payload.Content);
-        payload.Hash = new PayloadHash { Algorithm = ContentHashAlgorithm.Blake3, StoredHash = hash, ContentHash = (byte[])hash.Clone() };
-        return payload;
-    }
-
     private static async Task<CreateFileResult> SendUnencrypted(OwnerSession frodo, OwnerSession sam, TargetDrive drive,
         TestPayloadDefinition payload)
     {
@@ -192,7 +171,7 @@ public class PayloadHashPeerTests : V2Fixture
         metadata.AllowDistribution = true;
 
         var response = await frodo.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
-            new UploadManifest { PayloadDescriptors = new[] { payload }.ToPayloadDescriptorList().ToList() }, [payload],
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload],
             new TransitOptions { Recipients = [sam.Identity] });
         Assert.That(response.IsSuccessStatusCode, Is.True, $"actual {response.StatusCode}");
         return response.Content!;
@@ -212,29 +191,12 @@ public class PayloadHashPeerTests : V2Fixture
 
     private void AssertNoPayloadFiles(OwnerSession owner, TargetDrive drive)
     {
-        var paths = Paths(owner);
-        var leftovers = new List<string>();
-        foreach (var directory in new[] { paths.GetDrivePayloadPath(drive.Alias), paths.GetDriveUploadPath(drive.Alias) })
-        {
-            if (Directory.Exists(directory))
-            {
-                // Payload bytes only: the transfer's .metadata/.transferkeyheader staging files are written before any
-                // payload arrives and are not removed when a peer transfer fails for any reason (pre-existing: #1897)
-                leftovers.AddRange(Directory.GetFiles(directory, "*.payload", SearchOption.AllDirectories));
-            }
-        }
+        // Payload bytes only: the transfer's .metadata/.transferkeyheader staging files are written before any
+        // payload arrives and are not removed when a peer transfer fails for any reason (pre-existing: #1897)
+        var paths = TenantPaths(owner);
+        var leftovers = FilesUnder(paths.GetDrivePayloadPath(drive.Alias), "*.payload")
+            .Concat(FilesUnder(paths.GetDriveUploadPath(drive.Alias), "*.payload"));
 
         Assert.That(leftovers, Is.Empty, "the rejected payload must not be left behind on the receiving server");
-    }
-
-    private Odin.Services.Drives.FileSystem.Base.TenantPathManager Paths(OwnerSession owner) =>
-        Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
-
-    private static void AssertSameHash(PayloadHash? actual, PayloadHash expected)
-    {
-        Assert.That(actual, Is.Not.Null, "the received descriptor has no hash");
-        Assert.That(actual!.Algorithm, Is.EqualTo(expected.Algorithm));
-        Assert.That(actual.StoredHash, Is.EqualTo(expected.StoredHash));
-        Assert.That(actual.ContentHash, Is.EqualTo(expected.ContentHash));
     }
 }

@@ -7,7 +7,6 @@ using Odin.Core.Serialization;
 using Odin.Services.Base;
 using Odin.Services.Registry;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.Management;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -21,18 +20,15 @@ public abstract class PayloadStreamWriterBase
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard, IDriveManager driveManager)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard)
     {
         FileSystem = fileSystem;
         QuotaGuard = quotaGuard;
-        DriveManager = driveManager;
     }
 
     protected IDriveFileSystem FileSystem { get; }
 
     protected TenantQuotaGuard QuotaGuard { get; }
-
-    protected IDriveManager DriveManager { get; }
 
     public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
@@ -75,8 +71,7 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
-        var drive = await DriveManager.GetDriveAsync(_package.InternalFile.DriveId, true);
-        PayloadHash.AssertRequired(key, descriptor.Hash, drive.RequirePayloadHashes);
+        await FileSystem.Storage.AssertPayloadHashPresentIfRequiredAsync(_package.InternalFile.DriveId, key, descriptor.Hash);
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         await using var hashing = descriptor.Hash?.Verifying(key, data);
@@ -86,14 +81,9 @@ public abstract class PayloadStreamWriterBase
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
 
-        if (hashing == null)
-        {
-            return;
-        }
-
         try
         {
-            descriptor.Hash.AssertStoredHashMatches(key, hashing);
+            descriptor.Hash?.AssertStoredHashMatches(key, hashing);
         }
         catch (OdinClientException) when (bytesWritten == 0)
         {
@@ -240,9 +230,9 @@ public abstract class PayloadStreamWriterBase
         foreach (var payload in _package.Payloads)
         {
             PayloadHash.AssertValid(payload.PayloadKey, payload.Hash, isEncrypted);
-            PayloadHash.AssertIvRotated(payload.PayloadKey, payload.Hash, payload.Iv, isEncrypted,
-                existingServerFileHeader.FileMetadata.Payloads);
         }
+
+        await PayloadHash.AssertIvsRotatedAsync(_package.Payloads, isEncrypted, () => Task.FromResult(existingServerFileHeader));
     }
 
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)

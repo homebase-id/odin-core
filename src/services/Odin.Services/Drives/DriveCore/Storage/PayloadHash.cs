@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
@@ -57,7 +59,7 @@ public class PayloadHash
         }
     }
 
-    public void AssertMatchesEncryption(string payloadKey, bool isEncrypted)
+    private void AssertMatchesEncryption(string payloadKey, bool isEncrypted)
     {
         if (isEncrypted)
         {
@@ -135,6 +137,34 @@ public class PayloadHash
 
         hash.AssertIsWellFormed(payloadKey);
         hash.AssertMatchesEncryption(payloadKey, isEncrypted);
+    }
+
+    public static void AssertValid(IEnumerable<PayloadDescriptor> payloads, bool isEncrypted)
+    {
+        foreach (var payload in payloads ?? [])
+        {
+            AssertValid(payload.Key, payload.Hash, isEncrypted);
+        }
+    }
+
+    /// <summary>
+    /// <see cref="AssertIvRotated"/> for every uploaded payload. The existing header is only loaded when the rule can
+    /// apply: an encrypted file with at least one hashed payload.
+    /// </summary>
+    public static async Task AssertIvsRotatedAsync(IEnumerable<PackagePayloadDescriptor> uploaded, bool isEncrypted,
+        Func<Task<ServerFileHeader>> loadExistingHeader)
+    {
+        var hashed = uploaded.Where(p => p.Hash != null).ToList();
+        if (!isEncrypted || hashed.Count == 0)
+        {
+            return;
+        }
+
+        var existing = (await loadExistingHeader())?.FileMetadata.Payloads;
+        foreach (var payload in hashed)
+        {
+            AssertIvRotated(payload.PayloadKey, payload.Hash, payload.Iv, isEncrypted, existing);
+        }
     }
 
     /// <summary>

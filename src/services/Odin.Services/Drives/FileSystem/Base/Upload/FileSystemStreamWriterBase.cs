@@ -122,8 +122,7 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
 
-        var drive = await _driveManager.GetDriveAsync(Package.InternalFile.DriveId, true);
-        PayloadHash.AssertRequired(key, descriptor.Hash, drive.RequirePayloadHashes);
+        await FileSystem.Storage.AssertPayloadHashPresentIfRequiredAsync(Package.InternalFile.DriveId, key, descriptor.Hash);
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         await using var hashing = descriptor.Hash?.Verifying(key, data);
@@ -234,11 +233,16 @@ public abstract class FileSystemStreamWriterBase
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
+            // Loaded at most once, and only when one of the checks below needs it
+            ServerFileHeader loadedHeader = null;
+            async Task<ServerFileHeader> ExistingFileHeader() =>
+                loadedHeader ??= await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
+
             // If the uniqueId is being changed, validate that uniqueId is not in use by another file
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
+                var existingFileHeader = await ExistingFileHeader();
 
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
@@ -257,12 +261,7 @@ public abstract class FileSystemStreamWriterBase
                 }
             }
 
-            var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
-            foreach (var payload in Package.Payloads)
-            {
-                PayloadHash.AssertIvRotated(payload.PayloadKey, payload.Hash, payload.Iv, metadata.IsEncrypted,
-                    existingHeader?.FileMetadata.Payloads);
-            }
+            await PayloadHash.AssertIvsRotatedAsync(Package.Payloads, metadata.IsEncrypted, ExistingFileHeader);
 
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
@@ -588,10 +587,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
-        foreach (var payload in metadata.Payloads ?? [])
-        {
-            PayloadHash.AssertValid(payload.Key, payload.Hash, metadata.IsEncrypted);
-        }
+        PayloadHash.AssertValid(metadata.Payloads, metadata.IsEncrypted);
 
         if (metadata.AppData.UniqueId.HasValue)
         {

@@ -430,6 +430,15 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// The drive's requirePayloadHashes rule, checked per payload before any of its bytes are read
+        /// </summary>
+        public async Task AssertPayloadHashPresentIfRequiredAsync(Guid driveId, string payloadKey, PayloadHash hash)
+        {
+            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
+            PayloadHash.AssertRequired(payloadKey, hash, drive.RequirePayloadHashes);
+        }
+
+        /// <summary>
         /// Writes one payload received from a peer, to the upload folder (<paramref name="directWrite"/>) or straight to
         /// long-term. When the sender's descriptor carries hashes (#1895) the stored hash is verified as the bytes stream
         /// in, and a mismatch deletes what was written before rethrowing; the callers' own cleanup does not cover a
@@ -438,8 +447,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task WriteIncomingPeerPayload(InternalDriveFileId file, PayloadDescriptor descriptor, bool isEncrypted,
             bool directWrite, Stream data, IOdinContext odinContext)
         {
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            PayloadHash.AssertRequired(descriptor.Key, descriptor.Hash, drive.RequirePayloadHashes);
+            await AssertPayloadHashPresentIfRequiredAsync(file.DriveId, descriptor.Key, descriptor.Hash);
             PayloadHash.AssertValid(descriptor.Key, descriptor.Hash, isEncrypted);
 
             var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);

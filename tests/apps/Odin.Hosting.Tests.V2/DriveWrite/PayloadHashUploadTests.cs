@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -15,11 +12,9 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
@@ -45,11 +40,11 @@ public class PayloadHashUploadTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
 
-        var payload = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), algorithm);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(algorithm);
         var result = await CreateUnencrypted(owner, spec.TargetDrive, payload);
 
         var stored = await StoredDescriptor(owner, result, payload.Key);
-        AssertSameHash(stored.Hash, payload.Hash);
+        DriveAsserts.AssertSameHash(stored.Hash, payload.Hash);
     }
 
     [TestCase(ContentHashAlgorithm.Sha256)]
@@ -62,16 +57,18 @@ public class PayloadHashUploadTests : V2Fixture
         var keyHeader = KeyHeader.NewRandom16();
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
         payload.Iv = ByteArrayUtil.GetRndByteArray(16);
-        payload.Hash = EncryptedHash(payload, keyHeader, algorithm);
+        var ciphertext = new KeyHeader { Iv = payload.Iv, AesKey = new SensitiveByteArray(keyHeader.AesKey.GetKey()) }
+            .EncryptDataAes(payload.Content);
+        payload.WithEncryptedHash(ciphertext, keyHeader.AesKey.GetKey(), algorithm);
 
         var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "encrypted app content", AccessControlList.OwnerOnly);
-        var manifest = new UploadManifest { PayloadDescriptors = new[] { payload }.ToPayloadDescriptorList().ToList() };
+        var manifest = new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] };
         var (response, _, _, _) = await owner.Drives.Writer.CreateEncryptedFile(spec.TargetDrive.Alias, metadata,
             transitOptions: null, manifest, [payload], keyHeader: keyHeader);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"actual {response.StatusCode}");
 
         var stored = await StoredDescriptor(owner, response.Content!, payload.Key);
-        AssertSameHash(stored.Hash, payload.Hash);
+        DriveAsserts.AssertSameHash(stored.Hash, payload.Hash);
         Assert.That(stored.Hash.ContentHash.Length, Is.EqualTo(PayloadHash.EncryptedContentHashLength));
 
         // The client can decrypt the content hash with the file key and the derived IV
@@ -97,7 +94,7 @@ public class PayloadHashUploadTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
 
-        var payload = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         payload.Content = "not the bytes that were hashed".ToUtf8ByteArray();
 
         await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.PayloadHashMismatch);
@@ -109,7 +106,7 @@ public class PayloadHashUploadTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
 
-        var payload = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Sha256);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Sha256);
         payload.Hash.ContentHash = null;
 
         await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.InvalidPayloadHash);
@@ -121,7 +118,7 @@ public class PayloadHashUploadTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
 
-        var payload = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Sha256);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Sha256);
         payload.Hash.ContentHash = IncrementalContentHash.Compute(ContentHashAlgorithm.Sha256, "something else"u8);
 
         await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.InvalidPayloadHash);
@@ -137,18 +134,18 @@ public class PayloadHashUploadTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
 
-        var kept = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
-        var cleared = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition2(), ContentHashAlgorithm.Blake3);
+        var kept = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        var cleared = SamplePayloadDefinitions.GetPayloadDefinition2().WithHash(ContentHashAlgorithm.Blake3);
         var seedMetadata = SampleMetadataData.Create(fileType: 100);
         var seed = await owner.Drives.Writer.CreateNewUnencryptedFile(spec.TargetDrive.Alias, seedMetadata,
-            new UploadManifest { PayloadDescriptors = new[] { kept, cleared }.ToPayloadDescriptorList().ToList() }, [kept, cleared]);
+            new UploadManifest { PayloadDescriptors = [kept.ToPayloadDescriptor(), cleared.ToPayloadDescriptor()] }, [kept, cleared]);
         Assert.That(seed.IsSuccessStatusCode, Is.True, $"actual {seed.StatusCode}");
         var file = seed.Content!;
 
         // Overwrite `cleared` without a hash, add a new payload with a SHA-256 hash, leave `kept` untouched
         var replacement = SamplePayloadDefinitions.GetPayloadDefinition2();
         replacement.Content = "replacement content without a hash".ToUtf8ByteArray();
-        var added = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(), ContentHashAlgorithm.Sha256);
+        var added = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1().WithHash(ContentHashAlgorithm.Sha256);
 
         seedMetadata.VersionTag = file.NewVersionTag;
         var update = await owner.Drives.Writer.UpdateFileByFileId(file.DriveId, file.FileId, UpdateInstructions(
@@ -158,8 +155,8 @@ public class PayloadHashUploadTests : V2Fixture
         Assert.That(update.IsSuccessStatusCode, Is.True, $"actual {update.StatusCode}");
 
         var payloads = (await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId)).Content!.FileMetadata.Payloads;
-        AssertSameHash(payloads.Single(p => p.Key == kept.Key).Hash, kept.Hash);
-        AssertSameHash(payloads.Single(p => p.Key == added.Key).Hash, added.Hash);
+        DriveAsserts.AssertSameHash(payloads.Single(p => p.Key == kept.Key).Hash, kept.Hash);
+        DriveAsserts.AssertSameHash(payloads.Single(p => p.Key == added.Key).Hash, added.Hash);
         Assert.That(payloads.Single(p => p.Key == cleared.Key).Hash, Is.Null, "an overwrite without a hash must clear the old one");
     }
 
@@ -172,7 +169,7 @@ public class PayloadHashUploadTests : V2Fixture
         var seedMetadata = SampleMetadataData.Create(fileType: 100);
         var file = (await owner.Drives.Writer.UploadNewMetadata(spec.TargetDrive.Alias, seedMetadata)).Content!;
 
-        var payload = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         payload.Content = "not the bytes that were hashed".ToUtf8ByteArray();
 
         seedMetadata.VersionTag = file.NewVersionTag;
@@ -197,20 +194,20 @@ public class PayloadHashUploadTests : V2Fixture
 
         var file = (await drive.UploadNewMetadata(spec.TargetDrive, SampleMetadataData.Create(fileType: 100))).Content!;
 
-        var bad = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Sha256);
+        var bad = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Sha256);
         bad.Content = "not the bytes that were hashed".ToUtf8ByteArray();
         var rejected = await drive.UploadPayloads(file.File, file.NewVersionTag,
-            new UploadManifest { PayloadDescriptors = new[] { bad }.ToPayloadDescriptorList().ToList() }, [bad]);
+            new UploadManifest { PayloadDescriptors = [bad.ToPayloadDescriptor()] }, [bad]);
         AssertRejected(rejected, OdinClientErrorCode.PayloadHashMismatch);
         AssertNoStagedFiles(owner, spec.TargetDrive);
 
-        var good = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        var good = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         var accepted = await drive.UploadPayloads(file.File, file.NewVersionTag,
-            new UploadManifest { PayloadDescriptors = new[] { good }.ToPayloadDescriptorList().ToList() }, [good]);
+            new UploadManifest { PayloadDescriptors = [good.ToPayloadDescriptor()] }, [good]);
         Assert.That(accepted.IsSuccessStatusCode, Is.True, $"actual {accepted.StatusCode}");
 
         var header = (await drive.GetFileHeader(file.File)).Content!;
-        AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == good.Key).Hash, good.Hash);
+        DriveAsserts.AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == good.Key).Hash, good.Hash);
     }
 
     [Test]
@@ -223,10 +220,10 @@ public class PayloadHashUploadTests : V2Fixture
         var file = (await drive.UploadNewMetadata(spec.TargetDrive, SampleMetadataData.Create(fileType: 100))).Content!;
 
         // An empty payload is never added to the package, so its staged file needs its own cleanup on a mismatch
-        var empty = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Sha256);
+        var empty = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Sha256);
         empty.Content = [];
         var rejected = await drive.UploadPayloads(file.File, file.NewVersionTag,
-            new UploadManifest { PayloadDescriptors = new[] { empty }.ToPayloadDescriptorList().ToList() }, [empty]);
+            new UploadManifest { PayloadDescriptors = [empty.ToPayloadDescriptor()] }, [empty]);
 
         AssertRejected(rejected, OdinClientErrorCode.PayloadHashMismatch);
         AssertNoStagedFiles(owner, spec.TargetDrive);
@@ -243,15 +240,15 @@ public class PayloadHashUploadTests : V2Fixture
         var (_, owner) = await SetupCallerWithOwner(spec);
         await owner.Admin.SetRequirePayloadHashes(spec.TargetDrive, true);
 
-        var malformed = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        var malformed = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         malformed.Hash.StoredHash = new byte[4];
         AssertRejected(await UploadRemote(owner, spec.TargetDrive, malformed), OdinClientErrorCode.InvalidPayloadHash);
 
-        var wellFormed = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        var wellFormed = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         var stored = await UploadRemote(owner, spec.TargetDrive, wellFormed);
         Assert.That(stored.IsSuccessStatusCode, Is.True, $"actual {stored.StatusCode}: {stored.Error?.Content}");
         var header = (await owner.V1.Drive.GetFileHeader(stored.Content!.File)).Content!;
-        AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == wellFormed.Key).Hash, wellFormed.Hash);
+        DriveAsserts.AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == wellFormed.Key).Hash, wellFormed.Hash);
 
         // requirePayloadHashes applies to bytes written here, which a remote payload never has
         var unhashed = await UploadRemote(owner, spec.TargetDrive, SamplePayloadDefinitions.GetPayloadDefinition2());
@@ -263,7 +260,7 @@ public class PayloadHashUploadTests : V2Fixture
         var metadata = SampleMetadataData.Create(fileType: 100);
         metadata.DataSource = new DataSource { Identity = new OdinId(Identities.Frodo), DriveId = Guid.NewGuid(), PayloadsAreRemote = true };
         return owner.V1.Drive.UploadNewFile(drive, metadata,
-            new UploadManifest { PayloadDescriptors = new[] { payload }.ToPayloadDescriptorList().ToList() }, payloads: []);
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, payloads: []);
     }
 
     //
@@ -290,7 +287,7 @@ public class PayloadHashUploadTests : V2Fixture
         overwrite.Content = "new content for the same key".ToUtf8ByteArray();
         overwrite.Iv = (byte[])seedPayload.Iv.Clone();
         keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16); // the header IV must rotate on every update anyway
-        overwrite.Hash = V1EncryptedHash(overwrite, keyHeader);
+        WithV1EncryptedHash(overwrite, keyHeader);
         metadata.VersionTag = seed.Content!.NewVersionTag;
 
         var (reused, _, _, _) = await drive.UpdateEncryptedFile(OverwriteInstructions(seed.Content.File, overwrite), metadata,
@@ -298,14 +295,14 @@ public class PayloadHashUploadTests : V2Fixture
         AssertRejected(reused, OdinClientErrorCode.InvalidPayloadHash);
 
         overwrite.Iv = ByteArrayUtil.GetRndByteArray(16);
-        overwrite.Hash = V1EncryptedHash(overwrite, keyHeader);
+        WithV1EncryptedHash(overwrite, keyHeader);
         metadata.AppData.Content = "some content";
         var (rotated, _, _, _) = await drive.UpdateEncryptedFile(OverwriteInstructions(seed.Content.File, overwrite), metadata,
             [overwrite], keyHeader);
         Assert.That(rotated.IsSuccessStatusCode, Is.True, $"actual {rotated.StatusCode}: {rotated.Error?.Content}");
 
         var header = (await drive.GetFileHeader(seed.Content.File)).Content!;
-        AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == overwrite.Key).Hash, overwrite.Hash);
+        DriveAsserts.AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == overwrite.Key).Hash, overwrite.Hash);
     }
 
     private static FileUpdateInstructionSet OverwriteInstructions(ExternalFileIdentifier file, TestPayloadDefinition payload) => new()
@@ -318,15 +315,10 @@ public class PayloadHashUploadTests : V2Fixture
 
     /// <summary>
     /// The V1 test client encrypts payloads with the key header's own IV (not the payload IV it declares), so the
-    /// stored bytes are hashed the same way; the content hash uses the declared payload IV, as a real client would.
+    /// stored bytes are that ciphertext; the content hash still uses the declared payload IV, as a real client would.
     /// </summary>
-    private static PayloadHash V1EncryptedHash(TestPayloadDefinition payload, KeyHeader keyHeader) => new()
-    {
-        Algorithm = ContentHashAlgorithm.Blake3,
-        StoredHash = IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, keyHeader.EncryptDataAes(payload.Content)),
-        ContentHash = AesCbc.Encrypt(IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, payload.Content),
-            keyHeader.AesKey.GetKey(), PayloadHash.ContentHashIv(payload.Iv))
-    };
+    private static void WithV1EncryptedHash(TestPayloadDefinition payload, KeyHeader keyHeader) =>
+        payload.WithEncryptedHash(keyHeader.EncryptDataAes(payload.Content), keyHeader.AesKey.GetKey(), ContentHashAlgorithm.Blake3);
 
     //
     // Drive setting
@@ -345,7 +337,7 @@ public class PayloadHashUploadTests : V2Fixture
         await AssertCreateRejected(owner, spec.TargetDrive, SamplePayloadDefinitions.GetPayloadDefinition1(),
             OdinClientErrorCode.PayloadHashRequired);
 
-        var hashed = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        var hashed = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
         await CreateUnencrypted(owner, spec.TargetDrive, hashed);
 
         // Files without payloads are unaffected
@@ -360,35 +352,13 @@ public class PayloadHashUploadTests : V2Fixture
     // Helpers
     //
 
-    private static TestPayloadDefinition WithUnencryptedHash(TestPayloadDefinition payload, ContentHashAlgorithm algorithm)
-    {
-        var hash = IncrementalContentHash.Compute(algorithm, payload.Content);
-        payload.Hash = new PayloadHash { Algorithm = algorithm, StoredHash = hash, ContentHash = (byte[])hash.Clone() };
-        return payload;
-    }
-
-    /// <summary>
-    /// What a client computes: storedHash over the ciphertext it sends, contentHash over the plaintext encrypted
-    /// with the file key under the derived IV
-    /// </summary>
-    private static PayloadHash EncryptedHash(TestPayloadDefinition payload, KeyHeader fileKeyHeader, ContentHashAlgorithm algorithm)
-    {
-        var payloadKeyHeader = new KeyHeader { Iv = payload.Iv, AesKey = new SensitiveByteArray(fileKeyHeader.AesKey.GetKey()) };
-        var ciphertext = payloadKeyHeader.EncryptDataAes(payload.Content);
-
-        var contentHash = IncrementalContentHash.Compute(algorithm, payload.Content);
-        return new PayloadHash
-        {
-            Algorithm = algorithm,
-            StoredHash = IncrementalContentHash.Compute(algorithm, ciphertext),
-            ContentHash = AesCbc.Encrypt(contentHash, fileKeyHeader.AesKey.GetKey(), PayloadHash.ContentHashIv(payload.Iv))
-        };
-    }
+    private static Task<Refit.ApiResponse<CreateFileResult>> Create(OwnerSession owner, TargetDrive drive, TestPayloadDefinition payload) =>
+        owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, SampleMetadataData.Create(fileType: 100),
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload]);
 
     private static async Task<CreateFileResult> CreateUnencrypted(OwnerSession owner, TargetDrive drive, TestPayloadDefinition payload)
     {
-        var response = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, SampleMetadataData.Create(fileType: 100),
-            new UploadManifest { PayloadDescriptors = new[] { payload }.ToPayloadDescriptorList().ToList() }, [payload]);
+        var response = await Create(owner, drive, payload);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"actual {response.StatusCode}: {response.Error?.Content}");
         return response.Content!;
     }
@@ -396,9 +366,7 @@ public class PayloadHashUploadTests : V2Fixture
     private async Task AssertCreateRejected(OwnerSession owner, TargetDrive drive, TestPayloadDefinition payload,
         OdinClientErrorCode expected)
     {
-        var response = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, SampleMetadataData.Create(fileType: 100),
-            new UploadManifest { PayloadDescriptors = new[] { payload }.ToPayloadDescriptorList().ToList() }, [payload]);
-        AssertRejected(response, expected);
+        AssertRejected(await Create(owner, drive, payload), expected);
 
         var files = await owner.Drives.Reader.GetBatchAsync(drive.Alias, new QueryBatchRequest
         {
@@ -418,24 +386,14 @@ public class PayloadHashUploadTests : V2Fixture
 
     private void AssertNoStagedFiles(OwnerSession owner, TargetDrive drive)
     {
-        var paths = Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
-        var uploadDirectory = paths.GetDriveUploadPath(drive.Alias);
-        var staged = Directory.Exists(uploadDirectory) ? Directory.GetFiles(uploadDirectory, "*", SearchOption.AllDirectories) : [];
-        Assert.That(staged, Is.Empty, "the rejected payload must not be left in the upload folder");
+        Assert.That(FilesUnder(TenantPaths(owner).GetDriveUploadPath(drive.Alias)), Is.Empty,
+            "the rejected payload must not be left in the upload folder");
     }
 
     private static async Task<PayloadDescriptor> StoredDescriptor(OwnerSession owner, CreateFileResult file, string key)
     {
         var header = (await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId)).Content!;
         return header.FileMetadata.Payloads.Single(p => p.Key == key);
-    }
-
-    private static void AssertSameHash(PayloadHash actual, PayloadHash expected)
-    {
-        Assert.That(actual, Is.Not.Null, "the stored descriptor has no hash");
-        Assert.That(actual.Algorithm, Is.EqualTo(expected.Algorithm));
-        Assert.That(actual.StoredHash, Is.EqualTo(expected.StoredHash));
-        Assert.That(actual.ContentHash, Is.EqualTo(expected.ContentHash));
     }
 
     private static FileUpdateInstructionSetV2 UpdateInstructions(params UploadManifestPayloadDescriptor[] payloads) => new()

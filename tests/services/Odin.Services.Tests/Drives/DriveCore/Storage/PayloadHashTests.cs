@@ -85,7 +85,7 @@ public class PayloadHashTests
         var hash = UnencryptedHash();
         hash.ContentHash[0] ^= 1;
 
-        Assert.That(CodeOf(() => hash.AssertMatchesEncryption("pk", isEncrypted: false)),
+        Assert.That(CodeOf(() => PayloadHash.AssertValid("pk", hash, isEncrypted: false)),
             Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
     }
 
@@ -96,7 +96,7 @@ public class PayloadHashTests
         var hash = EncryptedHash();
         hash.ContentHash = new byte[length];
 
-        Assert.That(CodeOf(() => hash.AssertMatchesEncryption("pk", isEncrypted: true)),
+        Assert.That(CodeOf(() => PayloadHash.AssertValid("pk", hash, isEncrypted: true)),
             Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
     }
 
@@ -104,7 +104,7 @@ public class PayloadHashTests
     public void APlaintextHashOnAnEncryptedPayloadIsRejected()
     {
         // A 32-byte content hash on an encrypted file is a plaintext hash the server should never see
-        Assert.That(CodeOf(() => UnencryptedHash().AssertMatchesEncryption("pk", isEncrypted: true)),
+        Assert.That(CodeOf(() => PayloadHash.AssertValid("pk", UnencryptedHash(), isEncrypted: true)),
             Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
     }
 
