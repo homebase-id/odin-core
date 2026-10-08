@@ -19,6 +19,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Storage.PubSub;
 using Odin.Core.Threading;
@@ -734,6 +735,18 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // version newer than the rows we hold and silently skip that change.
             var version = await ReadRegistryVersionAsync(systemDatabase);
             var registrations = await systemDatabase.Registrations.GetAllAsync();
+
+            // On PostgreSQL every tenant shares one identity schema version, so a database migrated by
+            // newer software fails every tenant the same way. Refuse to start instead of logging it once
+            // per tenant and serving nothing (#1701). On SQLite each tenant has its own database, so a
+            // skewed one is a per-tenant fault and stays in the per-tenant catch below.
+            if (_config.Database.Type == DatabaseType.Postgres && registrations.Count > 0)
+            {
+                await using var identitySchemaScope = _serviceProvider.BeginLifetimeScope(cb =>
+                    cb.AddPgsqlIdentityDatabaseServices(Guid.Empty, _config.Database.ConnectionString));
+                await identitySchemaScope.Resolve<IdentityMigrator>().EnsureNotNewerThanSoftwareAsync();
+            }
+
             int loaded = 0, alreadyLoaded = 0, failed = 0;
             foreach (var registrationRecord in registrations)
             {
