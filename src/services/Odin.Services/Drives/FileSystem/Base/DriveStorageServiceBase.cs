@@ -439,7 +439,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool directWrite, Stream data, IOdinContext odinContext)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            PayloadHash.AssertUploadRules(descriptor.Key, descriptor.Hash, isEncrypted, drive.RequirePayloadHashes);
+            PayloadHash.AssertRequired(descriptor.Key, descriptor.Hash, drive.RequirePayloadHashes);
+            PayloadHash.AssertValid(descriptor.Key, descriptor.Hash, isEncrypted);
 
             var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             await using var hashing = descriptor.Hash?.Verifying(descriptor.Key, data);

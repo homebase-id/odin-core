@@ -219,7 +219,7 @@ public class PayloadHashPeerTests : V2Fixture
             if (Directory.Exists(directory))
             {
                 // Payload bytes only: the transfer's .metadata/.transferkeyheader staging files are written before any
-                // payload arrives and are not removed when a peer transfer fails for any reason (pre-existing, not #1895)
+                // payload arrives and are not removed when a peer transfer fails for any reason (pre-existing: #1897)
                 leftovers.AddRange(Directory.GetFiles(directory, "*.payload", SearchOption.AllDirectories));
             }
         }

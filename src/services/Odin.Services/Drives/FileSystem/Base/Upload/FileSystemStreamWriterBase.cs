@@ -122,6 +122,9 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
 
+        var drive = await _driveManager.GetDriveAsync(Package.InternalFile.DriveId, true);
+        PayloadHash.AssertRequired(key, descriptor.Hash, drive.RequirePayloadHashes);
+
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         await using var hashing = descriptor.Hash?.Verifying(key, data);
         var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, hashing ?? data, odinContext);
@@ -252,6 +255,13 @@ public abstract class FileSystemStreamWriterBase
                             OdinClientErrorCode.ExistingFileWithUniqueId);
                     }
                 }
+            }
+
+            var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
+            foreach (var payload in Package.Payloads)
+            {
+                PayloadHash.AssertIvRotated(payload.PayloadKey, payload.Hash, payload.Iv, metadata.IsEncrypted,
+                    existingHeader?.FileMetadata.Payloads);
             }
 
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
@@ -577,9 +587,10 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
-        foreach (var payload in package.Payloads)
+        // The final descriptors: uploaded payloads, or the manifest's when the payloads are remote
+        foreach (var payload in metadata.Payloads ?? [])
         {
-            PayloadHash.AssertUploadRules(payload.PayloadKey, payload.Hash, metadata.IsEncrypted, drive.RequirePayloadHashes);
+            PayloadHash.AssertValid(payload.Key, payload.Hash, metadata.IsEncrypted);
         }
 
         if (metadata.AppData.UniqueId.HasValue)

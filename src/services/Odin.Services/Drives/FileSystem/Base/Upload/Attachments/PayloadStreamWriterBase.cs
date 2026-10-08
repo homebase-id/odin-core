@@ -75,6 +75,9 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
+        var drive = await DriveManager.GetDriveAsync(_package.InternalFile.DriveId, true);
+        PayloadHash.AssertRequired(key, descriptor.Hash, drive.RequirePayloadHashes);
+
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         await using var hashing = descriptor.Hash?.Verifying(key, data);
         var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, hashing ?? data, odinContext);
@@ -83,8 +86,22 @@ public abstract class PayloadStreamWriterBase
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
 
-        // After the add so CleanupStagingFiles removes the staged bytes on a mismatch
-        descriptor.Hash?.AssertStoredHashMatches(key, hashing);
+        if (hashing == null)
+        {
+            return;
+        }
+
+        try
+        {
+            descriptor.Hash.AssertStoredHashMatches(key, hashing);
+        }
+        catch (OdinClientException) when (bytesWritten == 0)
+        {
+            // An empty payload is never added to the package, so CleanupStagingFiles would not remove its staged file
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile,
+                [new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid }], odinContext);
+            throw;
+        }
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
@@ -219,10 +236,12 @@ public abstract class PayloadStreamWriterBase
                 OdinClientErrorCode.InvalidUpload);
         }
 
-        var drive = await DriveManager.GetDriveAsync(_package.InternalFile.DriveId, true);
+        var isEncrypted = existingServerFileHeader.FileMetadata.IsEncrypted;
         foreach (var payload in _package.Payloads)
         {
-            PayloadHash.AssertUploadRules(payload.PayloadKey, payload.Hash, existingServerFileHeader.FileMetadata.IsEncrypted, drive.RequirePayloadHashes);
+            PayloadHash.AssertValid(payload.PayloadKey, payload.Hash, isEncrypted);
+            PayloadHash.AssertIvRotated(payload.PayloadKey, payload.Hash, payload.Iv, isEncrypted,
+                existingServerFileHeader.FileMetadata.Payloads);
         }
     }
 

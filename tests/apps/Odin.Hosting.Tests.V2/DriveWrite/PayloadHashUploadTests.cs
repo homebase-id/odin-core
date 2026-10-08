@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -211,6 +212,121 @@ public class PayloadHashUploadTests : V2Fixture
         var header = (await drive.GetFileHeader(file.File)).Content!;
         AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == good.Key).Hash, good.Hash);
     }
+
+    [Test]
+    public async Task AddPayloadCleansUpAnEmptyPayloadWhoseHashDoesNotMatch()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var drive = owner.V1.Drive;
+
+        var file = (await drive.UploadNewMetadata(spec.TargetDrive, SampleMetadataData.Create(fileType: 100))).Content!;
+
+        // An empty payload is never added to the package, so its staged file needs its own cleanup on a mismatch
+        var empty = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Sha256);
+        empty.Content = [];
+        var rejected = await drive.UploadPayloads(file.File, file.NewVersionTag,
+            new UploadManifest { PayloadDescriptors = new[] { empty }.ToPayloadDescriptorList().ToList() }, [empty]);
+
+        AssertRejected(rejected, OdinClientErrorCode.PayloadHashMismatch);
+        AssertNoStagedFiles(owner, spec.TargetDrive);
+    }
+
+    //
+    // Remote payloads: no bytes pass through, so the hash is optional and only its shape is checked
+    //
+
+    [Test]
+    public async Task AHashOnARemotePayloadIsValidatedButNotRequired()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        await owner.Admin.SetRequirePayloadHashes(spec.TargetDrive, true);
+
+        var malformed = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        malformed.Hash.StoredHash = new byte[4];
+        AssertRejected(await UploadRemote(owner, spec.TargetDrive, malformed), OdinClientErrorCode.InvalidPayloadHash);
+
+        var wellFormed = WithUnencryptedHash(SamplePayloadDefinitions.GetPayloadDefinition1(), ContentHashAlgorithm.Blake3);
+        var stored = await UploadRemote(owner, spec.TargetDrive, wellFormed);
+        Assert.That(stored.IsSuccessStatusCode, Is.True, $"actual {stored.StatusCode}: {stored.Error?.Content}");
+        var header = (await owner.V1.Drive.GetFileHeader(stored.Content!.File)).Content!;
+        AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == wellFormed.Key).Hash, wellFormed.Hash);
+
+        // requirePayloadHashes applies to bytes written here, which a remote payload never has
+        var unhashed = await UploadRemote(owner, spec.TargetDrive, SamplePayloadDefinitions.GetPayloadDefinition2());
+        Assert.That(unhashed.IsSuccessStatusCode, Is.True, $"actual {unhashed.StatusCode}: {unhashed.Error?.Content}");
+    }
+
+    private static Task<Refit.ApiResponse<UploadResult>> UploadRemote(OwnerSession owner, TargetDrive drive, TestPayloadDefinition payload)
+    {
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.DataSource = new DataSource { Identity = new OdinId(Identities.Frodo), DriveId = Guid.NewGuid(), PayloadsAreRemote = true };
+        return owner.V1.Drive.UploadNewFile(drive, metadata,
+            new UploadManifest { PayloadDescriptors = new[] { payload }.ToPayloadDescriptorList().ToList() }, payloads: []);
+    }
+
+    //
+    // Binding rule: an encrypted content hash is tied to the payload IV
+    //
+
+    [Test]
+    public async Task AHashedEncryptedOverwriteMustUseANewPayloadIv()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var drive = owner.V1.Drive;
+
+        var keyHeader = KeyHeader.NewRandom16();
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.AppData.Content = "some content";
+        var seedPayload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        seedPayload.Iv = ByteArrayUtil.GetRndByteArray(16);
+        var (seed, _, _, _) = await drive.UploadNewEncryptedFile(spec.TargetDrive, keyHeader, metadata,
+            new UploadManifest { PayloadDescriptors = [seedPayload.ToPayloadDescriptor()] }, [seedPayload]);
+        Assert.That(seed.IsSuccessStatusCode, Is.True, $"actual {seed.StatusCode}");
+
+        var overwrite = SamplePayloadDefinitions.GetPayloadDefinition1();
+        overwrite.Content = "new content for the same key".ToUtf8ByteArray();
+        overwrite.Iv = (byte[])seedPayload.Iv.Clone();
+        keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16); // the header IV must rotate on every update anyway
+        overwrite.Hash = V1EncryptedHash(overwrite, keyHeader);
+        metadata.VersionTag = seed.Content!.NewVersionTag;
+
+        var (reused, _, _, _) = await drive.UpdateEncryptedFile(OverwriteInstructions(seed.Content.File, overwrite), metadata,
+            [overwrite], keyHeader);
+        AssertRejected(reused, OdinClientErrorCode.InvalidPayloadHash);
+
+        overwrite.Iv = ByteArrayUtil.GetRndByteArray(16);
+        overwrite.Hash = V1EncryptedHash(overwrite, keyHeader);
+        metadata.AppData.Content = "some content";
+        var (rotated, _, _, _) = await drive.UpdateEncryptedFile(OverwriteInstructions(seed.Content.File, overwrite), metadata,
+            [overwrite], keyHeader);
+        Assert.That(rotated.IsSuccessStatusCode, Is.True, $"actual {rotated.StatusCode}: {rotated.Error?.Content}");
+
+        var header = (await drive.GetFileHeader(seed.Content.File)).Content!;
+        AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == overwrite.Key).Hash, overwrite.Hash);
+    }
+
+    private static FileUpdateInstructionSet OverwriteInstructions(ExternalFileIdentifier file, TestPayloadDefinition payload) => new()
+    {
+        Locale = UpdateLocale.Local,
+        TransferIv = ByteArrayUtil.GetRndByteArray(16),
+        File = file.ToFileIdentifier(),
+        Manifest = new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)] }
+    };
+
+    /// <summary>
+    /// The V1 test client encrypts payloads with the key header's own IV (not the payload IV it declares), so the
+    /// stored bytes are hashed the same way; the content hash uses the declared payload IV, as a real client would.
+    /// </summary>
+    private static PayloadHash V1EncryptedHash(TestPayloadDefinition payload, KeyHeader keyHeader) => new()
+    {
+        Algorithm = ContentHashAlgorithm.Blake3,
+        StoredHash = IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, keyHeader.EncryptDataAes(payload.Content)),
+        ContentHash = AesCbc.Encrypt(IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, payload.Content),
+            keyHeader.AesKey.GetKey(), PayloadHash.ContentHashIv(payload.Iv))
+    };
 
     //
     // Drive setting

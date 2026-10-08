@@ -33,25 +33,27 @@ Bytes are standard base64, like `iv`. Clients send the same object on the upload
    - Clients hash the plaintext going in and the ciphertext coming out of the same encryption pass.
    - The server hashes the request stream as it writes it to storage.
    - Future features (resumable upload, payload move) must keep this property.
-4. **The server verifies `storedHash`** against the received bytes. Mismatch → 400 `PayloadHashMismatch`, and the written bytes are deleted. Match → stored unchanged. Nothing is returned, because the client already has both values.
+4. **The server verifies `storedHash`** against the bytes it receives (the length check, not the hash, guards against a storage write that stores fewer bytes than were received). Mismatch → 400 `PayloadHashMismatch`, and the written bytes are deleted. Match → stored unchanged. Nothing is returned, because the client already has both values.
 5. **Unencrypted payloads:** `contentHash` must equal `storedHash`.
 6. **Encrypted payloads:** `contentHash` is the 32-byte plaintext hash encrypted by the client with the file's AES key (48 bytes for AES-CBC+PKCS7 and for AES-GCM+tag). The server treats it as opaque and only checks its length. A plaintext hash in the clear would let anyone with server or storage access confirm that a tenant holds a known file.
-7. **Drive setting `requirePayloadHashes`** (default off; drives created before it existed read as off). When on, every payload written to the drive must carry a `hash` → otherwise 400 `PayloadHashRequired`. Applies to new upload, update, add-payload and peer receive. Set at drive creation or via owner endpoint `drive/mgmt/set-require-payload-hashes`.
+7. **Drive setting `requirePayloadHashes`** (default off; drives created before it existed read as off). When on, every payload written to the drive must carry a `hash` → otherwise 400 `PayloadHashRequired`, checked per payload before any of its bytes are read. Applies to new upload, update, add-payload and peer receive. Set at drive creation or via owner endpoint `drive/mgmt/set-require-payload-hashes`.
 8. **Peer transfer:** the stored bytes are identical over peer, so `hash` travels unchanged. The receiving server verifies `storedHash` (rule 4) and applies its own drive's rule 7.
 9. **Scope:** payloads only. Thumbnails are not hashed. Server-generated payloads (profile, contacts) carry no hash.
+10. **Remote payloads** (`dataSource.payloadsAreRemote`): no bytes pass through this server, so a `hash` stays optional even on a drive with rule 7, and when present only rules 2, 5 and 6 are checked.
 
 ### Content-hash IV and binding rule
 - `contentHashIv = payloadIv XOR 0xAA…AA`, over the full IV length. It is derived, so nothing extra is stored. XOR with a non-zero constant never yields the payload IV itself.
 - **Binding rule:** the encrypted content hash is tied to the payload IV.
   - A *different* hash must never be encrypted under an unchanged payload IV: under GCM that is nonce reuse.
   - Hashes are therefore set only together with a payload upload. Changing the algorithm or correcting a hash means re-uploading the payload, which rotates the IV.
+  - **Enforced:** on an encrypted file, a payload with a `hash` that overwrites an existing payload key must use a different payload IV than the one it replaces → otherwise 400 `InvalidPayloadHash` (update, add-payload, and the V1 overwrite upload).
   - Any future "attach hash" operation is only allowed on a payload that has no hash yet.
 
 ### Errors (HTTP 400)
 | Code | Value | When |
 |---|---|---|
 | `PayloadHashMismatch` | 4175 | received bytes ≠ `storedHash` |
-| `InvalidPayloadHash` | 4176 | incomplete, unknown algorithm, wrong length, unencrypted `contentHash ≠ storedHash` |
+| `InvalidPayloadHash` | 4176 | incomplete, unknown algorithm, wrong length, unencrypted `contentHash ≠ storedHash`, hashed encrypted overwrite reusing the payload IV |
 | `PayloadHashRequired` | 4177 | drive requires hashes and none was sent |
 
 ### Golden vectors
@@ -82,7 +84,7 @@ A GCM vector is added when payloads move to GCM.
 | BLAKE3 dependency | **Blake3.NET 3.0.2** (BSD-2-Clause, fully managed SIMD, no native binaries) behind `IncrementalContentHash`; matches all 35 official vectors. BouncyCastle's `Blake3Digest` was rejected: 86 MiB/s, slower than SHA-256 |
 | CPU cost of hashing on the request path | Only when a hash is sent. Measured single thread, i7-8700K (AVX2, no SHA extensions), 64 KiB chunks: SHA-256 506 MiB/s, BLAKE3 1,407 MiB/s |
 | A peer payload written straight to long-term can't be cleaned on mismatch by existing code | `WriteIncomingPeerPayload` deletes it explicitly |
-| Storage retry re-reads a partly consumed stream | Already broken today (length check); with a hash it surfaces as a mismatch |
+| Storage retry re-reads a partly consumed stream | Caught by the existing length check, **not** by the hash: the hash covers every byte received across attempts, not the bytes stored |
 | No DB change | Hash lives in `hdrFileMetaData` JSON; ~160 chars per payload against the 60,000 cap |
 
 ### Where the single-pass hash happens
@@ -91,7 +93,7 @@ A GCM vector is added when payloads move to GCM.
 | New upload, update, add-payload | the request stream is written to staging (`HashingReadStream` around `WriteUploadStream`) |
 | Peer receive (direct write or straight to long-term) | the peer's request stream is written (`DriveStorageServiceBase.WriteIncomingPeerPayload`) |
 | Staging → long-term copy at commit | not hashed again (already verified) |
-| `PayloadsAreRemote` | not hashed: no bytes here; passed through as-is |
+| `PayloadsAreRemote` | not hashed: no bytes here; an optional hash is shape-checked (rule 10) and stored |
 
 ### Status
 **Done on the branch (uncommitted):**
@@ -102,6 +104,7 @@ A GCM vector is added when payloads move to GCM.
 - [x] Peer receive through `WriteIncomingPeerPayload` (new-file + update)
 - [x] Drive flag end to end (details JSON, `StorageDrive`, `DriveManager` setter, endpoint, owner DTOs, comparer)
 - [x] Error codes 4175–4177
+- [x] Review fixes: required check before streaming; remote hashes shape-checked; binding rule enforced; empty add-payload mismatch cleaned up
 
 **To do:**
 - [x] `PayloadHashTests` 27/27, incl. the golden vectors
@@ -121,4 +124,3 @@ A GCM vector is added when payloads move to GCM.
 ### Follow-ups (not in this PR)
 - Payload move: verify by hashing while fetching (wrap the fetch stream, single pass), not by re-reading the temp file.
 - Resumable upload: keep the hasher across chunks in memory; never re-read the staged file (rule 3).
-- Optional hardening: reject a reused payload IV on overwrite (binding rule).

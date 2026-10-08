@@ -41,8 +41,8 @@ public class PayloadHashTests
     [Test]
     public void AWellFormedHashPasses()
     {
-        Assert.DoesNotThrow(() => PayloadHash.AssertUploadRules("pk", UnencryptedHash(), isEncrypted: false, driveRequiresHashes: true));
-        Assert.DoesNotThrow(() => PayloadHash.AssertUploadRules("pk", EncryptedHash(), isEncrypted: true, driveRequiresHashes: true));
+        Assert.DoesNotThrow(() => PayloadHash.AssertValid("pk", UnencryptedHash(), isEncrypted: false));
+        Assert.DoesNotThrow(() => PayloadHash.AssertValid("pk", EncryptedHash(), isEncrypted: true));
     }
 
     [TestCase(0)]
@@ -111,9 +111,37 @@ public class PayloadHashTests
     [Test]
     public void NoHashIsFineUnlessTheDriveRequiresOne()
     {
-        Assert.DoesNotThrow(() => PayloadHash.AssertUploadRules("pk", null, isEncrypted: false, driveRequiresHashes: false));
-        Assert.That(CodeOf(() => PayloadHash.AssertUploadRules("pk", null, isEncrypted: true, driveRequiresHashes: true)),
+        Assert.DoesNotThrow(() => PayloadHash.AssertValid("pk", null, isEncrypted: true));
+        Assert.DoesNotThrow(() => PayloadHash.AssertRequired("pk", null, driveRequiresHashes: false));
+        Assert.DoesNotThrow(() => PayloadHash.AssertRequired("pk", UnencryptedHash(), driveRequiresHashes: true));
+        Assert.That(CodeOf(() => PayloadHash.AssertRequired("pk", null, driveRequiresHashes: true)),
             Is.EqualTo(OdinClientErrorCode.PayloadHashRequired));
+    }
+
+    //
+    // Binding rule: a hashed overwrite of an encrypted payload must rotate the payload IV
+    //
+
+    private static readonly byte[] OldIv = Convert.FromHexString("3c1f8e5a9b2d47e0a6c4d8f1027b9e35");
+    private static readonly PayloadDescriptor[] Existing = [new() { Key = "pk", Iv = OldIv }];
+
+    [Test]
+    public void AHashedEncryptedOverwriteThatReusesThePayloadIvIsRejected()
+    {
+        Assert.That(CodeOf(() => PayloadHash.AssertIvRotated("PK", EncryptedHash(), (byte[])OldIv.Clone(), true, Existing)),
+            Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash), "payload keys compare case-insensitively");
+    }
+
+    [Test]
+    public void TheIvRuleOnlyAppliesToHashedEncryptedOverwrites()
+    {
+        var newIv = PayloadHash.ContentHashIv(OldIv);
+
+        Assert.DoesNotThrow(() => PayloadHash.AssertIvRotated("pk", EncryptedHash(), newIv, true, Existing), "new IV");
+        Assert.DoesNotThrow(() => PayloadHash.AssertIvRotated("pk", null, OldIv, true, Existing), "no hash");
+        Assert.DoesNotThrow(() => PayloadHash.AssertIvRotated("pk", UnencryptedHash(), OldIv, false, Existing), "not encrypted");
+        Assert.DoesNotThrow(() => PayloadHash.AssertIvRotated("other_key", EncryptedHash(), OldIv, true, Existing), "new key");
+        Assert.DoesNotThrow(() => PayloadHash.AssertIvRotated("pk", EncryptedHash(), OldIv, true, null), "new file");
     }
 
     //

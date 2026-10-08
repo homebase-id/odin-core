@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
@@ -108,23 +110,50 @@ public class PayloadHash
     }
 
     /// <summary>
-    /// All upload-time rules for one newly written payload, once the file's encryption and drive are known
+    /// The drive's requirePayloadHashes rule. Checked per payload before any of its bytes are read, so a client
+    /// without hashes is refused before it streams a large payload for nothing.
     /// </summary>
-    public static void AssertUploadRules(string payloadKey, PayloadHash hash, bool isEncrypted, bool driveRequiresHashes)
+    public static void AssertRequired(string payloadKey, PayloadHash hash, bool driveRequiresHashes)
+    {
+        if (hash == null && driveRequiresHashes)
+        {
+            throw new OdinClientException($"Payload {payloadKey}: this drive requires payload hashes",
+                OdinClientErrorCode.PayloadHashRequired);
+        }
+    }
+
+    /// <summary>
+    /// Shape and encryption rules for an optional hash, once the file's encryption is known. Also applied to
+    /// descriptors of remote payloads, whose bytes never pass through this server.
+    /// </summary>
+    public static void AssertValid(string payloadKey, PayloadHash hash, bool isEncrypted)
     {
         if (hash == null)
         {
-            if (driveRequiresHashes)
-            {
-                throw new OdinClientException($"Payload {payloadKey}: this drive requires payload hashes",
-                    OdinClientErrorCode.PayloadHashRequired);
-            }
-
             return;
         }
 
         hash.AssertIsWellFormed(payloadKey);
         hash.AssertMatchesEncryption(payloadKey, isEncrypted);
+    }
+
+    /// <summary>
+    /// The binding rule: a hashed payload that overwrites an existing payload key on an encrypted file must use a new
+    /// payload IV, otherwise its encrypted content hash would reuse the previous one's IV (see <see cref="ContentHashIv"/>).
+    /// </summary>
+    public static void AssertIvRotated(string payloadKey, PayloadHash hash, byte[] payloadIv, bool isEncrypted,
+        IEnumerable<PayloadDescriptor> existingPayloads)
+    {
+        if (hash == null || !isEncrypted)
+        {
+            return;
+        }
+
+        var previous = existingPayloads?.FirstOrDefault(p => p.KeyEquals(payloadKey));
+        if (previous?.Iv != null && payloadIv != null && previous.Iv.AsSpan().SequenceEqual(payloadIv))
+        {
+            throw Invalid(payloadKey, "an encrypted payload with a hash must use a new payload IV when it overwrites an existing payload");
+        }
     }
 
     private static OdinClientException Invalid(string payloadKey, string reason)
