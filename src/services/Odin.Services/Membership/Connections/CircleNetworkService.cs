@@ -1638,12 +1638,11 @@ namespace Odin.Services.Membership.Connections
         /// or any circle for a caller still holding <see cref="PermissionKeys.ManageCircleMembership"/>.
         /// </summary>
         /// <remarks>
-        /// Transitional.  Before ownership was stamped everywhere, the key was how apps such as Chat changed the
-        /// members of circles they do not own, and the ownership rule alone refuses them in three places while
-        /// that settles: a built-in circle not yet stamped with its app (an identity the upgrade has not
-        /// reached), another app's circle (Chat adding to Friends), and the owner's own circles.  51 is no
-        /// longer granted, so this path narrows to registrations made before it was retired; remove it once
-        /// those are gone.  Reads ("ask about") stay ownership-only.
+        /// The key is how an app changes the members of circles it does not own, which ownership alone refuses
+        /// in three places: a built-in circle not yet stamped with its app (an identity the upgrade has not
+        /// reached), another app's circle (Chat adding to Friends or Emergency Location Access), and the
+        /// owner's own circles.  New third-party registrations are not offered 51, but Chat keeps it by
+        /// default for the second case.  Reads ("ask about") stay ownership-only.
         /// </remarks>
         private async Task<CircleDefinition> GetCircleCallerMayChangeMembersOfAsync(GuidId circleId, string verb,
             IOdinContext odinContext)

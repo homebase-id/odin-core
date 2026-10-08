@@ -53,7 +53,9 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.ManageContacts,
                 PermissionKeys.ManageProfile,
-                PermissionKeys.ReadCircleMembership)),
+                PermissionKeys.ReadCircleMembership,
+                // Kept for Chat alone: see SystemAppConstants.ChatAppRegistrationRequest.
+                PermissionKeys.ManageCircleMembership)),
 
         new(SystemAppConstants.ContactsAppId, "Contacts", "contacts",
             Drives:

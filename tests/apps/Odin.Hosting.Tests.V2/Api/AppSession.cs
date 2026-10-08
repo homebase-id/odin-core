@@ -95,6 +95,16 @@ public sealed class AppSession : IV2Caller
     /// for an app whose grant cannot be expressed as one drive plus one permission, e.g. a
     /// batch-collection query that has to span three drives at once.
     /// </summary>
+    /// <summary>
+    /// A session for an app that is already registered -- a built-in one, say -- under its registration as it
+    /// stands: only a client is added, so the app's permissions are exactly what provisioning gave it.
+    /// </summary>
+    public static async Task<AppSession> ForRegisteredAppAsync(OwnerSession owner, Guid appId)
+    {
+        var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);
+        return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);
+    }
+
     public static async Task<AppSession> SetupAsync(
         OwnerSession owner,
         PermissionSetGrantRequest permissions,

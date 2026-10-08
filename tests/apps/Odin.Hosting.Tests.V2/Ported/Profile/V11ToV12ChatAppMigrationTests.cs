@@ -18,21 +18,22 @@ namespace Odin.Hosting.Tests.V2.Ported.Profile;
 
 /// <summary>
 /// Verifies the v11 → v12 migration: the Chat app (<see cref="SystemAppConstants.ChatAppId"/>) is
-/// granted <see cref="PermissionKeys.ReadCircleMembership"/>, which it used to get only through the
-/// retired ReadCircleMembership (#1809). Runs the migration service directly out of the tenant scope
-/// under a real owner (master-key) context, mirroring how <c>VersionUpgradeService</c> drives it in
-/// production. Each test re-registers the Chat app (already auto-provisioned by <see cref="V2Fixture"/>)
-/// with its pre-v12 shape (no ReadCircleMembership) before running the migration.
+/// granted <see cref="PermissionKeys.ManageCircleMembership"/>, so it can add a connected peer to a circle
+/// it does not own (<c>CircleNetworkService.GetCircleCallerMayChangeMembersOfAsync</c>). Runs the
+/// migration service directly out of the tenant scope under a real owner (master-key) context,
+/// mirroring how <c>VersionUpgradeService</c> drives it in production. Each test re-registers the
+/// Chat app (already auto-provisioned by <see cref="V2Fixture"/>) with its pre-v12 shape (no
+/// ManageCircleMembership) before running the migration.
 /// </summary>
 [TestFixture]
 public class V11ToV12ChatAppMigrationTests : V2Fixture
 {
     [Test]
-    public async Task V12_GrantsReadCircleMembership_ToChatApp_PreservingExistingGrants()
+    public async Task V12_GrantsManageCircleMembership_ToChatApp_PreservingExistingGrants()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        // A pre-v12 Chat app: no ReadCircleMembership, plus an unrelated drive grant and
+        // A pre-v12 Chat app: no ManageCircleMembership, plus an unrelated drive grant and
         // permission key that must survive the migration untouched.
         await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
         {
@@ -55,16 +56,16 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
         var apps = scope.Resolve<AppRegistrationService>();
 
         var before = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
-        Assert.That(HasReadCircleMembership(before!), Is.False,
-            "precondition: chat app should not yet have ReadCircleMembership");
+        Assert.That(HasManageCircleMembership(before!), Is.False,
+            "precondition: chat app should not yet have ManageCircleMembership");
 
         var migration = scope.Resolve<V11ToV12VersionMigrationService>();
         await migration.UpgradeAsync(ctx, CancellationToken.None);
         await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
 
         var after = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
-        Assert.That(HasReadCircleMembership(after!), Is.True,
-            "migration should grant ReadCircleMembership to the chat app");
+        Assert.That(HasManageCircleMembership(after!), Is.True,
+            "migration should grant ManageCircleMembership to the chat app");
 
         // Pre-existing drive grant and permission key are preserved.
         Assert.That(after!.Grant.DriveGrants.Any(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ChatDrive), Is.True,
@@ -110,8 +111,8 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
         // migration must leave a revoked chat app untouched.
         var after = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
         Assert.That(after!.IsRevoked, Is.True, "the migration must not un-revoke a revoked chat app");
-        Assert.That(HasReadCircleMembership(after), Is.False,
-            "a revoked chat app must not be granted ReadCircleMembership");
+        Assert.That(HasManageCircleMembership(after), Is.False,
+            "a revoked chat app must not be granted ManageCircleMembership");
     }
 
     [Test]
@@ -146,16 +147,16 @@ public class V11ToV12ChatAppMigrationTests : V2Fixture
         await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
 
         var after = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
-        Assert.That(HasReadCircleMembership(after!), Is.True);
+        Assert.That(HasManageCircleMembership(after!), Is.True);
 
         // The permission key must not be duplicated by a repeated run.
-        Assert.That(after!.Grant.PermissionSet.Keys.Count(k => k == PermissionKeys.ReadCircleMembership), Is.EqualTo(1),
-            "ReadCircleMembership should appear exactly once after repeated migration runs");
+        Assert.That(after!.Grant.PermissionSet.Keys.Count(k => k == PermissionKeys.ManageCircleMembership), Is.EqualTo(1),
+            "ManageCircleMembership should appear exactly once after repeated migration runs");
     }
 
-    private static bool HasReadCircleMembership(RedactedAppRegistration app)
+    private static bool HasManageCircleMembership(RedactedAppRegistration app)
     {
-        return app.Grant?.PermissionSet?.Keys?.Contains(PermissionKeys.ReadCircleMembership) ?? false;
+        return app.Grant?.PermissionSet?.Keys?.Contains(PermissionKeys.ManageCircleMembership) ?? false;
     }
 
 }

@@ -207,9 +207,11 @@ public static class SystemAppConstants
             // Writes to the ProfileDrive funnel through the Profile attribute API, which requires
             // ManageProfile. Granted by default so the Chat app can edit profile attributes.
             PermissionKeys.ManageProfile,
-            // Lets the Chat app list circles' members. Adding to a circle needs no key: an app may add
-            // to the circles it owns (#1809).
-            PermissionKeys.ReadCircleMembership)
+            // Lets the Chat app list circles' members. Adding to a circle it owns needs no key (#1809).
+            PermissionKeys.ReadCircleMembership,
+            // Kept for Chat alone: it adds people to circles it does not own -- Friends (Contacts) and
+            // Emergency Location Access (Location) -- which ownership alone would refuse.
+            PermissionKeys.ManageCircleMembership)
     };
 
     public static readonly AppRegistrationRequest FeedAppRegistrationRequest = new()
