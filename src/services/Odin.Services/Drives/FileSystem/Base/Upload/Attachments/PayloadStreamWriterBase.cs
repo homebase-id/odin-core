@@ -7,6 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Services.Base;
 using Odin.Services.Registry;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.Management;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -20,15 +21,18 @@ public abstract class PayloadStreamWriterBase
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard, IDriveManager driveManager)
     {
         FileSystem = fileSystem;
         QuotaGuard = quotaGuard;
+        DriveManager = driveManager;
     }
 
     protected IDriveFileSystem FileSystem { get; }
 
     protected TenantQuotaGuard QuotaGuard { get; }
+
+    protected IDriveManager DriveManager { get; }
 
     public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
@@ -72,11 +76,15 @@ public abstract class PayloadStreamWriterBase
         }
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, data, odinContext);
+        await using var hashing = descriptor.Hash?.Verifying(key, data);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, hashing ?? data, odinContext);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
+
+        // After the add so CleanupStagingFiles removes the staged bytes on a mismatch
+        descriptor.Hash?.AssertStoredHashMatches(key, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
@@ -209,6 +217,12 @@ public abstract class PayloadStreamWriterBase
         {
             throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes",
                 OdinClientErrorCode.InvalidUpload);
+        }
+
+        var drive = await DriveManager.GetDriveAsync(_package.InternalFile.DriveId, true);
+        foreach (var payload in _package.Payloads)
+        {
+            PayloadHash.AssertUploadRules(payload.PayloadKey, payload.Hash, existingServerFileHeader.FileMetadata.IsEncrypted, drive.RequirePayloadHashes);
         }
     }
 

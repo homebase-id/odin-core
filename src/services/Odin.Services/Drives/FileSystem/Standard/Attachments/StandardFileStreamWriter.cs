@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.Management;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Registry;
 
@@ -11,8 +12,8 @@ namespace Odin.Services.Drives.FileSystem.Standard.Attachments;
 public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
-    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem, TenantQuotaGuard quotaGuard)
-        : base(fileSystem, quotaGuard)
+    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem, TenantQuotaGuard quotaGuard, IDriveManager driveManager)
+        : base(fileSystem, quotaGuard, driveManager)
     {
     }
 

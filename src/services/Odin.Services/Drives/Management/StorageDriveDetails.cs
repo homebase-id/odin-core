@@ -41,6 +41,12 @@ public class StorageDriveDetails
     /// </summary>
     public virtual bool AllowCdn { get; set; }
 
+    /// <summary>
+    /// When set, every payload written to this drive must carry client-computed hashes (#1895).
+    /// Off for every drive stored before the flag existed.
+    /// </summary>
+    public virtual bool RequirePayloadHashes { get; set; }
+
     public virtual Dictionary<string, string> Attributes { get; set; }
     
     public bool IsArchived { get; set; }

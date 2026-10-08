@@ -82,7 +82,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
                     LastModified = UnixTimeUtc.Now(),
                     BytesWritten = p.BytesWritten,
                     DescriptorContent = p.DescriptorContent,
-                    PreviewThumbnail = p.PreviewThumbnail
+                    PreviewThumbnail = p.PreviewThumbnail,
+                    Hash = p.Hash
                 };
             });
             return descriptors.ToList();
@@ -111,7 +112,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
                     LastModified = 0, //UnixTimeUtc.Now(),
                     BytesWritten = 0,
                     DescriptorContent = p.DescriptorContent,
-                    PreviewThumbnail = p.PreviewThumbnail
+                    PreviewThumbnail = p.PreviewThumbnail,
+                    Hash = p.Hash
                 };
             });
             

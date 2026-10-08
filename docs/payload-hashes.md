@@ -79,8 +79,8 @@ A GCM vector is added when payloads move to GCM.
 |---|---|
 | `"hash": null` on every descriptor (server serializes nulls) | `[JsonIgnore(WhenWritingNull)]`, pinned by a test |
 | Clients parsing strictly | chat-kmp `ignoreUnknownKeys = true`; System.Text.Json ignores unknown fields on peers |
-| BLAKE3 dependency | BouncyCastle 2.7.0 (already referenced) `Blake3Digest`; managed, no native lib; matches all 35 official vectors |
-| CPU cost of hashing on the request path | Only when a hash is sent. **To do:** measure BC BLAKE3 throughput; if too slow, swap the implementation behind `IncrementalContentHash` |
+| BLAKE3 dependency | **Blake3.NET 3.0.2** (BSD-2-Clause, fully managed SIMD, no native binaries) behind `IncrementalContentHash`; matches all 35 official vectors. BouncyCastle's `Blake3Digest` was rejected: 86 MiB/s, slower than SHA-256 |
+| CPU cost of hashing on the request path | Only when a hash is sent. Measured single thread, i7-8700K (AVX2, no SHA extensions), 64 KiB chunks: SHA-256 506 MiB/s, BLAKE3 1,407 MiB/s |
 | A peer payload written straight to long-term can't be cleaned on mismatch by existing code | `WriteIncomingPeerPayload` deletes it explicitly |
 | Storage retry re-reads a partly consumed stream | Already broken today (length check); with a hash it surfaces as a mismatch |
 | No DB change | Hash lives in `hdrFileMetaData` JSON; ~160 chars per payload against the 60,000 cap |
@@ -95,8 +95,8 @@ A GCM vector is added when payloads move to GCM.
 
 ### Status
 **Done on the branch (uncommitted):**
-- [x] `ContentHashAlgorithm`, `IncrementalContentHash`, `HashingReadStream` (Odin.Core.Cryptography) + tests passing
-- [x] `PayloadHash` (rules, `Verifying`, `ContentHashIv`) + `Hash` on the 3 descriptor types and 5 builders
+- [x] `ContentHashAlgorithm`, `IncrementalContentHash` (SHA-256 built in, BLAKE3 via Blake3.NET), `HashingReadStream` (Odin.Core.Cryptography) + tests passing
+- [x] `PayloadHash` (rules, `Verifying`, `ContentHashIv` via `ByteArrayUtil.EquiByteArrayXor`) + `Hash` on the 3 descriptor types and 5 builders
 - [x] Verification in the 3 upload writers (descriptor registered before the check, so existing staging cleanup removes the bytes)
 - [x] Rules 5–7 in the 3 writers' validation
 - [x] Peer receive through `WriteIncomingPeerPayload` (new-file + update)
@@ -104,8 +104,8 @@ A GCM vector is added when payloads move to GCM.
 - [x] Error codes 4175–4177
 
 **To do:**
-- [ ] Run `PayloadHashTests` (written, not run)
-- [ ] Integration tests (Odin.Hosting.Tests.V2):
+- [x] `PayloadHashTests` 27/27, incl. the golden vectors
+- [x] Integration tests (Odin.Hosting.Tests.V2), 17/17; the upload check and both peer cleanup branches mutation-checked:
   - upload SHA-256/BLAKE3 × encrypted/unencrypted → header returns the hash
   - wrong / incomplete / unencrypted-unequal → right 400, no file left
   - no hash → unchanged
@@ -113,8 +113,9 @@ A GCM vector is added when payloads move to GCM.
   - add-payload: ok + mismatch
   - required drive: reject / accept / metadata-only ok
   - peer: hash arrives unchanged; receiver mismatch; receiver required flag
-- [ ] BC BLAKE3 throughput measurement
-- [ ] Release build `--warnaserror`; full V2 + services tests; CI SQLite + Postgres
+- [x] BLAKE3 throughput measured; swapped BouncyCastle → Blake3.NET
+- [x] Release build `--warnaserror` (CI define constants)
+- [ ] Full V2 + services + hosting test projects; CI SQLite + Postgres
 - [ ] `/simplify` reminder before PR
 
 ### Follow-ups (not in this PR)

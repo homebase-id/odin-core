@@ -40,6 +40,7 @@ public static class StorageDriveComparer
         
         if (drive1.AllowAnonymousReads != drive2.AllowAnonymousReads) diffs.Add("AllowAnonymousReads differs");
         if (drive1.IsCdnEnabled() != drive2.IsCdnEnabled()) diffs.Add("AllowCdn differs");
+        if (drive1.RequirePayloadHashes != drive2.RequirePayloadHashes) diffs.Add("RequirePayloadHashes differs");
         if (drive1.OwnerOnly != drive2.OwnerOnly) diffs.Add("OwnerOnly differs");
         if (!DictionariesEqual(drive1.Attributes, drive2.Attributes)) diffs.Add("Attributes differ");
 
