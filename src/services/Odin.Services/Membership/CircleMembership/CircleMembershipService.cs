@@ -353,8 +353,10 @@ public class CircleMembershipService(
     /// </summary>
     /// <remarks>
     /// No permission key: an app is the owner acting, and the circle is its own.  What it may put on the circle is
-    /// bounded by what it already has, so creating one is never a way to hand out more -- drives only its own and
-    /// only as far as it can reach them itself, permission keys only ones it holds -- and the circle is granted only explicitly
+    /// bounded by what it already has, so creating one is never a way to hand out more -- drive access only as far as
+    /// it holds it itself, and on a drive it does not own only Read with the storage key
+    /// (<see cref="CircleDefinitionService.AssertAppMayGrantDrivesAsync"/>); permission keys only ones it holds -- and
+    /// the circle is granted only explicitly
     /// (<see cref="CircleGrantOn.None"/>), never to every connection on its own.  The id is the server's, so a
     /// deleted circle's id, which leftover deposits and enrollments may still name, is never reused.
     /// </remarks>
@@ -378,22 +380,7 @@ public class CircleMembershipService(
                 $"App {appId} cannot grant permission keys it does not hold: {string.Join(", ", notHeld)}");
         }
 
-        await circleDefinitionService.AssertDrivesOwnedByAsync(request.DriveGrants, appId.Value);
-
-        // Adding a member hands on what the circle grants out of the app's own access: write needs write, and read
-        // is sealed with a key only a reader has.  Owning a drive does not give an app access to it -- its
-        // registration does -- so a circle it could never add anyone to is refused here, not at its first member.
-        var unreachable = (request.DriveGrants ?? [])
-            .Select(g => g?.PermissionedDrive)
-            .Where(pd => pd?.Drive?.Alias != null &&
-                         !odinContext.PermissionsContext.HasDrivePermission(pd.Drive.Alias, pd.Permission))
-            .Select(pd => $"{pd!.Permission} on {pd.Drive}")
-            .ToList();
-        if (unreachable.Count > 0)
-        {
-            throw new OdinSecurityException(
-                $"App {appId} cannot grant drive access it does not hold: {string.Join(", ", unreachable)}");
-        }
+        await circleDefinitionService.AssertAppMayGrantDrivesAsync(request.DriveGrants, appId.Value, odinContext);
 
         var circleId = Guid.NewGuid();
         await circleDefinitionService.CreateAsync(new CreateCircleRequest
