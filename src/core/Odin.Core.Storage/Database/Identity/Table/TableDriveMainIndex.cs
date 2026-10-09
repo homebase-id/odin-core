@@ -492,6 +492,25 @@ public class TableDriveMainIndex(
         return (0, 0);
     }
 
+    /// <summary>
+    /// For testing only. Sets modified for the supplied item, e.g. ahead of now.
+    /// </summary>
+    internal async Task<int> TestSetModifiedAsync(Guid driveId, Guid fileId, UnixTimeUtc modified)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText =
+            "UPDATE drivemainindex SET modified = @modified WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileId;";
+
+        cmd.AddParameter("@modified", DbType.Int64, modified.milliseconds);
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     // For defragmenter only (that's why it's internal)
     // Copy of UpdateAsync with Validation() and modified time removed
     // It does NOT update reactionSummary and transferHistory and localAppData! 

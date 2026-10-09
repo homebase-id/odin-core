@@ -271,8 +271,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string timeField;
-            var oldestFirst = sortOrder == QueryBatchSortOrder.OldestFirst;
-            var queryNowColumn = "";
+            var trimAtNow = false;
             var listWhereAnd = new List<string>();
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -295,12 +294,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 //          thread1: QueryBatch(AnyChangeDate) with the cursor above (7,2). Will NOT return the rec1 because it has (7,1).
                 //          Therefore, if QB() doesn't include results from the current ms this is not a problem.
                 //
-                // Oldest first, the held-back rows sort last, so they are read and trimmed below rather than
-                // filtered here: the caller can then tell an answer that held rows back -- one that depends on
-                // the clock as well as the data -- from one that did not (#1905).
-                if (oldestFirst)
+                // Oldest first, these rows sort last and are held back after the read instead (see below)
+                if (sortOrder == QueryBatchSortOrder.OldestFirst)
                 {
-                    queryNowColumn = $", {cmd.SqlNow()} AS queryNow";
+                    trimAtNow = true;
                 }
                 else
                 {
@@ -362,42 +359,42 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
-            // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT DISTINCT {SelectOutputFields}{queryNowColumn} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
+            // Read +1 more than requested to see if we're at the end of the dataset.
+            // The sub-select makes Postgres evaluate now once rather than per row.
+            var nowColumn = trimAtNow ? $", (SELECT {cmd.SqlNow()}) AS queryNow" : "";
+            string stm = $"SELECT DISTINCT {SelectOutputFields}{nowColumn} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
 
             cmd.CommandText = stm;
-            var rows = new List<DriveMainIndexRecord>();
-            decimal? queryNow = null;
+            var resultList = new List<DriveMainIndexRecord>();
+            decimal queryNow = 0;
+            bool hasMoreRows;
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
-                while (await rdr.ReadAsync())
+                while (resultList.Count < noOfItems && await rdr.ReadAsync())
                 {
-                    rows.Add(driveMainIndex.ReadAllColumns(rdr, driveId));
+                    resultList.Add(driveMainIndex.ReadAllColumns(rdr, driveId));
 
-                    if (queryNowColumn != "")
-                    {
-                        // The last column. Postgres gives a fractional millisecond, so compare as the SQL would.
-                        // SQLite may read 'now' again per row; the earliest is the safe cutoff.
-                        var now = Convert.ToDecimal(rdr.GetValue(rdr.FieldCount - 1));
-                        queryNow = queryNow == null ? now : Math.Min(queryNow.Value, now);
-                    }
+                    // Read with the first row, so the earliest if it were to move while reading. Postgres gives a
+                    // fractional millisecond, so compare as the SQL would.
+                    if (trimAtNow && resultList.Count == 1)
+                        queryNow = Convert.ToDecimal(rdr.GetValue(rdr.FieldCount - 1));
                 }
+
+                hasMoreRows = await rdr.ReadAsync(); // Unfortunately, this seems like the only way to know if there's more rows
             }
 
-            // Hold back rows at or after now. Oldest first they are the last ones, and if any were read, the rest of
-            // the n + 1 rows are what is visible: a full page of visible rows cannot change with time, since anything
+            // Oldest first, rows at or after now come last: hold them back, and report more rows so the client asks
+            // again rather than thinking it is caught up (#1905). A full page cannot change with time, since anything
             // written later sorts after it.
-            var visibleCount = rows.Count;
-            while (queryNow != null && visibleCount > 0 && rows[visibleCount - 1].modified.milliseconds >= queryNow.Value)
-            {
+            var visibleCount = resultList.Count;
+            while (trimAtNow && visibleCount > 0 && resultList[visibleCount - 1].modified.milliseconds >= queryNow)
                 visibleCount--;
+
+            if (visibleCount < resultList.Count)
+            {
+                resultList.RemoveRange(visibleCount, resultList.Count - visibleCount);
+                hasMoreRows = true;
             }
-
-            var heldBack = visibleCount < rows.Count;
-
-            // A held-back row is still to come: say so, so the client asks again rather than thinking it is caught up
-            var hasMoreRows = visibleCount > noOfItems || heldBack;
-            var resultList = rows.GetRange(0, Math.Min(visibleCount, noOfItems));
 
             if (resultList.Count > 0)
             {

@@ -5,11 +5,9 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
-using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions;
 
@@ -44,13 +42,13 @@ public class QueryBatchClockCacheTests : IocTestBase
         var queryBatchCached = scope.Resolve<QueryBatchCached>();
         var driveId = Guid.NewGuid();
 
-        var a = await AddAsync(scope, driveId);
+        await AddAsync(scope, driveId);
         await Task.Delay(5);
         var (_, _, atEnd) = await queryBatch.QueryBatchAsync(driveId, 10, null, QueryBatchSortOrder.OldestFirst,
             QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: _allIntRange);
 
         var b = await AddAsync(scope, driveId);
-        var visibleAt = await MoveModifiedIntoTheFutureAsync(scope, databaseType, b);
+        var visibleAt = await MoveModifiedIntoTheFutureAsync(scope, driveId, b);
 
         var before = await queryBatchCached.QueryBatchAsync(driveId, 10, atEnd, QueryBatchSortOrder.OldestFirst,
             QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: _allIntRange);
@@ -61,7 +59,7 @@ public class QueryBatchClockCacheTests : IocTestBase
         var after = await queryBatchCached.QueryBatchAsync(driveId, 10, atEnd, QueryBatchSortOrder.OldestFirst,
             QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: _allIntRange);
         Assert.That(Ids(after.Records), Is.EqualTo(new[] { b }),
-            $"the identical query must see b once the clock has passed it (a = {a})");
+            "the identical query must see b once the clock has passed it");
         Assert.That(before.MoreRows, Is.True, "a row was held back, so the earlier answer must tell the client to come back");
     }
 
@@ -79,7 +77,7 @@ public class QueryBatchClockCacheTests : IocTestBase
 
         // Moving modified away from created is also what makes it count as modified
         var b = await AddAsync(scope, driveId);
-        var visibleAt = await MoveModifiedIntoTheFutureAsync(scope, databaseType, b);
+        var visibleAt = await MoveModifiedIntoTheFutureAsync(scope, driveId, b);
 
         var before = await queryBatchCached.QueryModifiedAsync(driveId, 10, null, requiredSecurityGroup: _allIntRange);
         Assert.That(Ids(before.Records), Is.Empty, "b is not visible before the clock reaches its modified");
@@ -106,7 +104,7 @@ public class QueryBatchClockCacheTests : IocTestBase
         var a = await AddAsync(scope, driveId);
         await Task.Delay(5);
         var b = await AddAsync(scope, driveId);
-        var visibleAt = await MoveModifiedIntoTheFutureAsync(scope, databaseType, b);
+        var visibleAt = await MoveModifiedIntoTheFutureAsync(scope, driveId, b);
 
         var before = await queryBatchCached.QueryBatchSmartCursorAsync(driveId, 10, null, QueryBatchSortOrder.NewestFirst,
             QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: _allIntRange);
@@ -162,20 +160,13 @@ public class QueryBatchClockCacheTests : IocTestBase
     }
 
     /// <summary>
-    /// Sets the row's modified a little ahead of now, directly in the database, and returns that time
+    /// Sets the row's modified a little ahead of now and returns that time
     /// </summary>
-    private static async Task<UnixTimeUtc> MoveModifiedIntoTheFutureAsync(ILifetimeScope scope, DatabaseType databaseType,
-        Guid fileId)
+    private static async Task<UnixTimeUtc> MoveModifiedIntoTheFutureAsync(ILifetimeScope scope, Guid driveId, Guid fileId)
     {
         var future = new UnixTimeUtc(UnixTimeUtc.Now().milliseconds + FutureMs);
-
-        var factory = scope.Resolve<ScopedIdentityConnectionFactory>();
-        await using var cn = await factory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-        cmd.CommandText = $"UPDATE driveMainIndex SET modified = {future.milliseconds} WHERE fileId = {fileId.BytesToSql(databaseType)}";
-        var updated = await cmd.ExecuteNonQueryAsync();
+        var updated = await scope.Resolve<TableDriveMainIndex>().TestSetModifiedAsync(driveId, fileId, future);
         Assert.That(updated, Is.EqualTo(1), "rows updated");
-
         return future;
     }
 

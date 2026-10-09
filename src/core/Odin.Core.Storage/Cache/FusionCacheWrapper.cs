@@ -223,9 +223,10 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
                 ctx.Options.Size = entrySizeFactory(result);
                 if (storeIf != null && !storeIf(result))
                 {
-                    // Hand the value to the caller (and to callers waiting on the same key) without storing it
+                    // Return the value without storing it, and without telling other nodes of a write that did not happen
                     ctx.Options.SkipMemoryCacheWrite = true;
                     ctx.Options.SkipDistributedCacheWrite = true;
+                    ctx.Options.SkipBackplaneNotifications = true;
                 }
                 return result;
             },
