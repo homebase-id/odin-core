@@ -42,6 +42,30 @@ public class QueryBatchCached : AbstractTableCaching
         return _cacheKeys.GetDriveIdInvalidationTags(driveId);
     }
 
+    /// <summary>
+    /// Whether an answer depends on the clock as well as on the data, and so must not be cached: the cache is only
+    /// cleared by writes, so an identical query would keep getting it after the clock has moved on (#1905).
+    /// A change-date query holds back rows with modified at or after now. Newest first those are the first rows, so
+    /// any answer may be missing them. Oldest first they come last, and QueryBatch reports them as more rows: a
+    /// short page that still has more rows is exactly an answer that held rows back. A full page is safe to cache,
+    /// as anything held back sorts after it.
+    /// </summary>
+    private static bool DependsOnClock(QueryBatchSortOrder sortOrder, QueryBatchSortField sortField, int noOfItems,
+        int recordCount, bool moreRows)
+    {
+        if (sortField != QueryBatchSortField.AnyChangeDate && sortField != QueryBatchSortField.OnlyModifiedDate)
+        {
+            return false;
+        }
+
+        if (sortOrder != QueryBatchSortOrder.OldestFirst)
+        {
+            return true;
+        }
+
+        return moreRows && recordCount < noOfItems;
+    }
+
 
     public async Task<QueryBatchCachedResult> QueryBatchAsync(
         Guid driveId,
@@ -125,7 +149,8 @@ public class QueryBatchCached : AbstractTableCaching
             _ => query(),
             cacheTtl ?? DefaultTtl,
             EntrySize.Large,
-            GetDriveIdInvalidationTags(driveId));
+            GetDriveIdInvalidationTags(driveId),
+            storeIf: r => !DependsOnClock(sortOrder, sortField, noOfItems, r.Records.Count, r.MoreRows));
 
         return result;
     }
@@ -211,7 +236,8 @@ public class QueryBatchCached : AbstractTableCaching
             _ => query(),
             cacheTtl ?? DefaultTtl,
             EntrySize.Large,
-            GetDriveIdInvalidationTags(driveId));
+            GetDriveIdInvalidationTags(driveId),
+            storeIf: r => !DependsOnClock(sortOrder, sortField, noOfItems, r.Records.Count, r.MoreRows));
 
         return result;
     }
@@ -291,7 +317,9 @@ public class QueryBatchCached : AbstractTableCaching
             _ => query(),
             cacheTtl ?? DefaultTtl,
             EntrySize.Large,
-            GetDriveIdInvalidationTags(driveId));
+            GetDriveIdInvalidationTags(driveId),
+            storeIf: r => !DependsOnClock(QueryBatchSortOrder.OldestFirst, QueryBatchSortField.OnlyModifiedDate, noOfItems,
+                r.Records.Count, r.MoreRows));
 
         return result;
     }

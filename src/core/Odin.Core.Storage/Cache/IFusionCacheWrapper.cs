@@ -80,6 +80,7 @@ public interface IFusionCacheWrapper
         TimeSpan duration,
         Func<TValue, long> entrySizeFactory,
         IEnumerable<string>? tags = null,
+        Func<TValue, bool>? storeIf = null,
         CancellationToken cancellationToken = default);
 
     //

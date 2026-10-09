@@ -181,7 +181,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         ///     Be aware that it does not return results inserted in the same millisecond as the query. If you're running e.g. a TEST you may need to do an await Task.Delay(2);
         /// For <c>UserDate</c> or <c>CreatedDate</c>, clients may need to separately query for modifications using <c>OnlyModifiedDate</c> (once implemented) to capture updated records, which could result in duplicates or require additional logic to handle updates.
         /// </param>
-        /// <returns>A tuple containing the list of <c>DriveMainIndexRecord</c>, a boolean indicating if more rows are available, and the updated <c>QueryBatchCursor</c>.</returns>
+        /// <returns>A tuple containing the list of <c>DriveMainIndexRecord</c>, a boolean indicating if more rows are available, and the updated <c>QueryBatchCursor</c>.
+        /// For <c>AnyChangeDate</c> / <c>OnlyModifiedDate</c> oldest first, more rows is also true when rows were held back because their modified
+        /// is at or after now, so the page may be short or empty with more rows to come.</returns>
         /// <example>
         /// To fetch 10 records sorted by their latest change (newest first) before March 15, 2023, from a drive with a specific security group:
         /// <code>
@@ -269,6 +271,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string timeField;
+            var oldestFirst = sortOrder == QueryBatchSortOrder.OldestFirst;
+            var queryNowColumn = "";
             var listWhereAnd = new List<string>();
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -277,13 +281,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 timeField = "created";
             else if (sortField == QueryBatchSortField.UserDate)
                 timeField = "userDate";
-            else if (sortField == QueryBatchSortField.AnyChangeDate)
+            else if (sortField == QueryBatchSortField.AnyChangeDate || sortField == QueryBatchSortField.OnlyModifiedDate)
             {
                 // IMPORTANT: When querying by modified and getting a cursor back, it is important we do not
                 // query for the last millisecond, otherwise we risk getting a cursor with a millisecond that
                 // might in parallel get an update on another row in the database with the same timestamp, and
-                // in such a case, that record would be missing from the dataset unless we add this less than
-                // condition to the query. This means in our testing of modified cursor types we may need to
+                // in such a case, that record would be missing from the dataset unless we hold back rows with
+                // modified >= now. This means in our testing of modified cursor types we may need to
                 // add delays before calling QueryBatch()
                 // Example: rec1: modified time stamp(mts) = 1, rowid 1, rec2: modified time stamp = now() = 7, rowid 2
                 // Example: thread1: QueryBatch(AnyChangeDate), cursor (timestamp 7, row 2)
@@ -291,16 +295,24 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 //          thread1: QueryBatch(AnyChangeDate) with the cursor above (7,2). Will NOT return the rec1 because it has (7,1).
                 //          Therefore, if QB() doesn't include results from the current ms this is not a problem.
                 //
-                listWhereAnd.Add($"modified < {cmd.SqlNow()}");
-                timeField = "modified";
-            }
-            else if (sortField == QueryBatchSortField.OnlyModifiedDate)
-            {
-                // Same important note as above
-                listWhereAnd.Add($"modified < {cmd.SqlNow()}");
+                // Oldest first, the held-back rows sort last, so they are read and trimmed below rather than
+                // filtered here: the caller can then tell an answer that held rows back -- one that depends on
+                // the clock as well as the data -- from one that did not (#1905).
+                if (oldestFirst)
+                {
+                    queryNowColumn = $", {cmd.SqlNow()} AS queryNow";
+                }
+                else
+                {
+                    listWhereAnd.Add($"modified < {cmd.SqlNow()}");
+                }
 
-                // When modified != created, it means it's an item that has been modified, not newly created
-                listWhereAnd.Add($"modified != created"); 
+                if (sortField == QueryBatchSortField.OnlyModifiedDate)
+                {
+                    // When modified != created, it means it's an item that has been modified, not newly created
+                    listWhereAnd.Add($"modified != created");
+                }
+
                 timeField = "modified";
             }
             else
@@ -351,43 +363,56 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT DISTINCT {SelectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {SelectOutputFields}{queryNowColumn} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
 
             cmd.CommandText = stm;
+            var rows = new List<DriveMainIndexRecord>();
+            decimal? queryNow = null;
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
-                var resultList = new List<DriveMainIndexRecord>();
-
-                int i = 0;
-                DriveMainIndexRecord record = null;
-
                 while (await rdr.ReadAsync())
                 {
-                    record = driveMainIndex.ReadAllColumns(rdr, driveId);
+                    rows.Add(driveMainIndex.ReadAllColumns(rdr, driveId));
 
-                    resultList.Add(record);
-
-                    i++;
-                    if (i >= noOfItems)
-                        break;
+                    if (queryNowColumn != "")
+                    {
+                        // The last column. Postgres gives a fractional millisecond, so compare as the SQL would.
+                        // SQLite may read 'now' again per row; the earliest is the safe cutoff.
+                        var now = Convert.ToDecimal(rdr.GetValue(rdr.FieldCount - 1));
+                        queryNow = queryNow == null ? now : Math.Min(queryNow.Value, now);
+                    }
                 }
+            }
 
-                if (i > 0)
-                {
-                    if (sortField == QueryBatchSortField.UserDate)
-                        cursor.pagingCursor = new TimeRowCursor(record.userDate, record.rowId);
-                    else if (sortField == QueryBatchSortField.AnyChangeDate || sortField == QueryBatchSortField.OnlyModifiedDate)
-                        cursor.pagingCursor = new TimeRowCursor(record.modified, record.rowId);
-                    else if (sortField == QueryBatchSortField.FileId || sortField == QueryBatchSortField.CreatedDate)
-                        cursor.pagingCursor = new TimeRowCursor(record.created, record.rowId);
-                    else
-                        throw new OdinSystemException("Invalid QueryBatchSortField type");
-                }
+            // Hold back rows at or after now. Oldest first they are the last ones, and if any were read, the rest of
+            // the n + 1 rows are what is visible: a full page of visible rows cannot change with time, since anything
+            // written later sorts after it.
+            var visibleCount = rows.Count;
+            while (queryNow != null && visibleCount > 0 && rows[visibleCount - 1].modified.milliseconds >= queryNow.Value)
+            {
+                visibleCount--;
+            }
 
-                bool hasMoreRows = await rdr.ReadAsync(); // Unfortunately, this seems like the only way to know if there's more rows
+            var heldBack = visibleCount < rows.Count;
 
-                return (resultList, hasMoreRows, cursor);
-            } // using rdr
+            // A held-back row is still to come: say so, so the client asks again rather than thinking it is caught up
+            var hasMoreRows = visibleCount > noOfItems || heldBack;
+            var resultList = rows.GetRange(0, Math.Min(visibleCount, noOfItems));
+
+            if (resultList.Count > 0)
+            {
+                var record = resultList[^1];
+                if (sortField == QueryBatchSortField.UserDate)
+                    cursor.pagingCursor = new TimeRowCursor(record.userDate, record.rowId);
+                else if (sortField == QueryBatchSortField.AnyChangeDate || sortField == QueryBatchSortField.OnlyModifiedDate)
+                    cursor.pagingCursor = new TimeRowCursor(record.modified, record.rowId);
+                else if (sortField == QueryBatchSortField.FileId || sortField == QueryBatchSortField.CreatedDate)
+                    cursor.pagingCursor = new TimeRowCursor(record.created, record.rowId);
+                else
+                    throw new OdinSystemException("Invalid QueryBatchSortField type");
+            }
+
+            return (resultList, hasMoreRows, cursor);
         }
 
         /// <summary>
