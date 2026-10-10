@@ -48,6 +48,30 @@ public class LazyOpenStreamTests
         var sut = new LazyOpenStream(() => Task.FromException<Stream>(failure));
 
         Assert.ThrowsAsync<FileNotFoundException>(async () => await sut.ReadExactlyAsync(new byte[1]));
-        Assert.That(sut.OpenException, Is.SameAs(failure));
+        Assert.That(sut.Failure, Is.SameAs(failure));
+    }
+
+    [Test]
+    public void KeepsAFailedReadForTheCallerToReport()
+    {
+        var failure = new IOException("S3 body reset part way");
+        var sut = new LazyOpenStream(() => Task.FromResult<Stream>(new FailingStream(failure)));
+
+        Assert.ThrowsAsync<IOException>(async () => await sut.ReadExactlyAsync(new byte[1]));
+        Assert.That(sut.Failure, Is.SameAs(failure));
+    }
+
+    private sealed class FailingStream(Exception failure) : Stream
+    {
+        public override int Read(byte[] buffer, int offset, int count) => throw failure;
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => 0; set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

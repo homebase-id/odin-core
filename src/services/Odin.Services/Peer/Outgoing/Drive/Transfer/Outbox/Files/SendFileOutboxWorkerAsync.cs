@@ -123,7 +123,7 @@ public class SendFileOutboxWorkerAsync(
                     "transferInstructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
                 
-                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = PackageFileStreams(
+                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = await PackageFileStreamsAsync(
                     header,
                     odinContext,
                     options.OverrideRemoteGlobalTransitId,
@@ -144,7 +144,7 @@ public class SendFileOutboxWorkerAsync(
             {
                 logger.LogDebug(e, "SendOutboxFileItemAsync:TrySendFile recipient:{recipient} (TryRetry) {message}",
                     recipient.ToString(), e.Message);
-                RethrowPartOpenFailure(payloadStreams);
+                RethrowPartFailure(payloadStreams);
                 throw;
             }
             finally

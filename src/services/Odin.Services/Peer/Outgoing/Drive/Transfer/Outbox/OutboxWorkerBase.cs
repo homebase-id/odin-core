@@ -186,11 +186,11 @@ public abstract class OutboxWorkerBase(
         return UnixTimeUtc.Now().AddSeconds(CalculateSecondsDelay(FileItem.AttemptCount));
     }
 
-    protected (Stream metadataStream,
+    protected async Task<(Stream metadataStream,
             StreamPart metadataStreamPart,
             List<Stream> payloadStreams,
-            List<StreamPart> payloadStreamParts)
-        PackageFileStreams(
+            List<StreamPart> payloadStreamParts)>
+        PackageFileStreamsAsync(
             ServerFileHeader header,
             IOdinContext odinContext,
             Guid? overrideGlobalTransitId = null,
@@ -242,6 +242,9 @@ public abstract class OutboxWorkerBase(
         var shouldSendPayloads = !redactedMetadata.PayloadsAreRemote;
         if (shouldSendPayloads)
         {
+            // Every part is opened as it is sent, so check up front that each is there
+            await fileSystem.Storage.AssertPayloadsStoredAsync(file, redactedMetadata.Payloads ?? [], odinContext);
+
             foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
             {
                 var payloadKey = descriptor.Key;
@@ -249,9 +252,9 @@ public abstract class OutboxWorkerBase(
                 string contentType = "application/unknown";
 
                 // Opened when its part is sent, not here: see LazyOpenStream. The caller disposes the streams, and
-                // RethrowPartOpenFailure reports a part that failed to open (e.g. a payload missing from storage).
-                var payloadStream = new LazyOpenStream(async () =>
-                    (await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext)).Stream);
+                // RethrowPartFailure reports a part that failed to open or read. The version is the snapshot's,
+                // whose IV the metadata part carries, not whatever has replaced it since.
+                var payloadStream = new LazyOpenStream(() => fileSystem.Storage.OpenPayloadVersionAsync(file, descriptor, odinContext));
                 payloadStreams.Add(payloadStream);
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -283,12 +286,12 @@ public abstract class OutboxWorkerBase(
     }
 
     /// <summary>
-    /// A part that failed to open mid-send surfaces from the HTTP stack as a failure to copy the content, which the
-    /// worker would classify as the recipient not responding. Rethrow what actually failed instead.
+    /// A part that failed to open or read mid-send surfaces from the HTTP stack as a failure to copy the content,
+    /// which the worker would classify as the recipient not responding. Rethrow what actually failed instead.
     /// </summary>
-    protected static void RethrowPartOpenFailure(IEnumerable<Stream> streams)
+    protected static void RethrowPartFailure(IEnumerable<Stream> streams)
     {
-        var failure = streams.OfType<LazyOpenStream>().Select(s => s.OpenException).FirstOrDefault(e => e != null);
+        var failure = streams.OfType<LazyOpenStream>().Select(s => s.Failure).FirstOrDefault(e => e != null);
         if (failure != null)
         {
             ExceptionDispatchInfo.Throw(failure);

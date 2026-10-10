@@ -13,14 +13,14 @@ namespace Odin.Core.Util;
 /// part being sent: an S3 response opened up front and left idle behind a long upload can be closed under it.
 /// </summary>
 /// <remarks>
-/// An open that fails is kept on <see cref="OpenException"/>, because the HTTP stack reports it wrapped as a failure
-/// to copy the request content, which reads like a network error.
+/// An open or read that fails is kept on <see cref="Failure"/>, because the HTTP stack reports it wrapped as a
+/// failure to copy the request content, which reads like a network error.
 /// </remarks>
 public sealed class LazyOpenStream(Func<Task<Stream>> open) : Stream
 {
     private Stream? _inner;
 
-    public Exception? OpenException { get; private set; }
+    public Exception? Failure { get; private set; }
 
     private async ValueTask<Stream> InnerAsync()
     {
@@ -35,7 +35,7 @@ public sealed class LazyOpenStream(Func<Task<Stream>> open) : Stream
         }
         catch (Exception e)
         {
-            OpenException = e;
+            Failure = e;
             throw;
         }
 
@@ -55,14 +55,37 @@ public sealed class LazyOpenStream(Func<Task<Stream>> open) : Stream
 
     public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
 
-    public override int Read(Span<byte> buffer) => InnerAsync().AsTask().GetAwaiter().GetResult().Read(buffer);
+    public override int Read(Span<byte> buffer)
+    {
+        var inner = InnerAsync().AsTask().GetAwaiter().GetResult();
+        try
+        {
+            return inner.Read(buffer);
+        }
+        catch (Exception e)
+        {
+            Failure = e;
+            throw;
+        }
+    }
 
     public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
 
     [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-        => await (await InnerAsync()).ReadAsync(buffer, cancellationToken);
+    {
+        var inner = await InnerAsync();
+        try
+        {
+            return await inner.ReadAsync(buffer, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            Failure = e;
+            throw;
+        }
+    }
 
     public override void Flush() { }
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

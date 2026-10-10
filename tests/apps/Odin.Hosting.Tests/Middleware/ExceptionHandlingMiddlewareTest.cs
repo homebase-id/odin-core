@@ -652,7 +652,7 @@ public class ExceptionHandlingMiddlewareTest
     }
 
     [Test]
-    public async Task ExceptionBeforeThePayloadStartsDropsItsContentLength()
+    public async Task ExceptionBeforeThePayloadStartsDropsItsContentHeaders()
     {
         // Arrange: a payload endpoint has set the payload's length, and the first read fails before anything is sent
         var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
@@ -660,6 +660,7 @@ public class ExceptionHandlingMiddlewareTest
         {
             ctx.Response.ContentLength = 5_000_000;
             ctx.Response.Headers.ContentRange = "bytes 0-4999999/9000000";
+            ctx.Response.Headers.CacheControl = "max-age=31536000";
             throw new IOException("storage went away before the first byte");
         });
         var client = server.CreateClient();
@@ -673,6 +674,7 @@ public class ExceptionHandlingMiddlewareTest
         Assert.That((int)response.StatusCode, Is.EqualTo(500));
         Assert.That(response.Content.Headers.ContentLength, Is.Null.Or.EqualTo(System.Text.Encoding.UTF8.GetByteCount(content)));
         Assert.That(response.Content.Headers.ContentRange, Is.Null);
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True, "a cache must not keep an error");
         var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
         Assert.That(problems!.Status, Is.EqualTo(500));
     }

@@ -117,7 +117,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             // NOTE: caller takes ownership of ps and is responsible for disposing
             var ps = await fileSystem.Storage.GetTemporalPayloadStreamAsync(file, key, chunk, odinContext);
 
-            await MaybeNotifyAsync(file.DriveId, odinContext);
+            await NotifyOrDisposeAsync(file.DriveId, ps, odinContext);
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, ps);
         }
 
@@ -155,9 +155,26 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                     odinContext);
             var encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
 
-            await MaybeNotifyAsync(file.DriveId, odinContext);
+            await NotifyOrDisposeAsync(file.DriveId, thumb, odinContext);
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType,
                 payloadDescriptor.LastModified, thumb);
+        }
+
+        /// <summary>
+        /// <see cref="MaybeNotifyAsync"/> after a stream was opened for the caller: if it fails, the stream (an open
+        /// file or S3 response) is disposed rather than left for the GC.
+        /// </summary>
+        private async Task NotifyOrDisposeAsync(Guid driveId, IDisposable opened, IOdinContext odinContext)
+        {
+            try
+            {
+                await MaybeNotifyAsync(driveId, odinContext);
+            }
+            catch
+            {
+                opened?.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

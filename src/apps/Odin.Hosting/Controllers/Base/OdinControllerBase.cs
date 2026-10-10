@@ -195,11 +195,18 @@ public abstract class OdinControllerBase : ControllerBase
         }
         else if (chunkStart.HasValue)
         {
-            // A route has no way to leave the length out, so 0 says "to the end" there, as it always has
+            // A route has no way to leave the length out, so 0 says "to the end" there, as it always has; from the
+            // start to the end is the whole payload, a plain read (an empty payload included)
+            var length = chunkLength is null or 0 ? null : chunkLength;
+            if (chunkStart == 0 && length == null)
+            {
+                return null;
+            }
+
             return new FileChunk()
             {
                 Start = chunkStart.Value,
-                Length = chunkLength is null or 0 ? null : chunkLength
+                Length = length
             };
         }
 

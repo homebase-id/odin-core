@@ -38,7 +38,7 @@ namespace Odin.Hosting.Middleware
             {
                 // Caught ahead of OdinClientException, which it derives from. Content-Range tells the client the size.
                 await HandleExceptionAsync(context, new RequestedRangeNotSatisfiableException(e.Message, inner: e),
-                    contentRange: $"bytes */{e.Size}");
+                    contentRange: e.Size == null ? null : $"bytes */{e.Size}");
             }
             catch (OdinPayloadVersionGoneException e) // => HTTP 404
             {
@@ -173,9 +173,11 @@ namespace Odin.Hosting.Middleware
             var result = OdinSystemSerializer.Serialize(problemDetails);
 
             // A payload endpoint sets these before streaming; a failure before the first byte must not send the
-            // problem body under the payload's length (Kestrel would reset the connection) or range
+            // problem body under the payload's length (Kestrel would reset the connection), range, or cache lifetime:
+            // an error is a temporary answer, so a cache (the CDN in front of payloads) must not keep it
             context.Response.ContentLength = null;
             context.Response.Headers.Remove("Content-Range");
+            context.Response.Headers.CacheControl = "no-store";
             if (contentRange != null)
             {
                 context.Response.Headers.ContentRange = contentRange;
@@ -187,8 +189,6 @@ namespace Odin.Hosting.Middleware
             {
                 context.Response.Headers.RetryAfter =
                     ((int)Math.Ceiling(retryLater.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
-                // A temporary answer: a cache (the CDN in front of payloads) must not keep it
-                context.Response.Headers.CacheControl = "no-store";
             }
 
             return context.Response.WriteAsync(result);

@@ -24,7 +24,7 @@ public class FileChunkTests
     public void AStartAtOrPastTheEndIsNotSatisfiable(long start)
     {
         var e = Assert.Throws<OdinRangeNotSatisfiableException>(() => new FileChunk { Start = start }.ResolveAgainst(100));
-        Assert.That(e!.Size, Is.EqualTo(100));
+        Assert.That(e!.Size, Is.EqualTo(100L));
     }
 
     [Test]

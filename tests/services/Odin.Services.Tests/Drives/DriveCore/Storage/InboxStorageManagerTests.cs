@@ -22,6 +22,7 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
     private TenantPathManager _tenantPathManager = null!;
     private FileReaderWriter _fileReaderWriter = null!;
     private InboxStorageManager _sut = null!;
+    private InboxFileStore _inboxFileStore = null!;
 
     [SetUp]
     public void Setup()
@@ -51,8 +52,8 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
         _tenantPathManager = _tenantContext.TenantPathManager;
 
         _fileReaderWriter = new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object);
-        var inboxFileStore = new InboxFileStore(new DiskFileStore(_fileReaderWriter));
-        _sut = new InboxStorageManager(inboxFileStore, new Mock<ILogger<InboxStorageManager>>().Object, _tenantContext);
+        _inboxFileStore = new InboxFileStore(new DiskFileStore(_fileReaderWriter));
+        _sut = new InboxStorageManager(_inboxFileStore, new Mock<ILogger<InboxStorageManager>>().Object, _tenantContext);
     }
 
     [TearDown]
@@ -138,7 +139,8 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
 
         Assert.That(written, Is.EqualTo(bytes.Length));
         Assert.That(await _sut.InboxFileExists(file, ext), Is.True);
-        Assert.That(await File.ReadAllBytesAsync(_tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, ext)),
+        // Read back through the inbox store, so its read path is covered too
+        Assert.That(await _inboxFileStore.ReadAllBytesAsync(_tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, ext)),
             Is.EqualTo(bytes));
     }
 

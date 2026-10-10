@@ -130,17 +130,19 @@ public class StaticFileContentService(
                             continue;
                         }
 
-                        // The static file embeds payloads whole; skip big ones rather than hold them in memory. Error,
-                        // not Warning: the published page silently lacks content, and the cap is a stopgap (#1917)
-                        if (pd.BytesWritten > MaxEmbeddedPayloadBytes)
+                        using var ps = await fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
+
+                        // The static file embeds payloads whole; skip big ones rather than hold them in memory. The
+                        // stored size, not the header's: it is what the read below is capped on. Error, not Warning:
+                        // the published page silently lacks content, and the cap is a stopgap (#1917)
+                        if (ps.ContentLength > MaxEmbeddedPayloadBytes)
                         {
                             logger.LogError(
                                 "Static file {Filename}: payload {Key} of file {FileId} is {Bytes} bytes, over {Max}; not embedded (#1917)",
-                                filename, pd.Key, fileHeader.FileId, pd.BytesWritten, MaxEmbeddedPayloadBytes);
+                                filename, pd.Key, fileHeader.FileId, ps.ContentLength, MaxEmbeddedPayloadBytes);
                             continue;
                         }
 
-                        using var ps = await fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
                         payloads.Add(new PayloadStaticFileResponse()
                         {
                             Key = ps.Key,

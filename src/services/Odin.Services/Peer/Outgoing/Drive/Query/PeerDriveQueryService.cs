@@ -1002,7 +1002,7 @@ public class PeerDriveQueryService(
 
             if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
             {
-                throw new OdinRangeNotSatisfiableException(response.ContentHeaders?.ContentRange?.Length ?? 0,
+                throw new OdinRangeNotSatisfiableException(response.ContentHeaders?.ContentRange?.Length,
                     $"The range is not satisfiable at [{odinId}]");
             }
 
