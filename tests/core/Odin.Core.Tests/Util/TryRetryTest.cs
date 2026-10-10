@@ -797,7 +797,9 @@ public class TryRetryTests
         var duration = endTime - startTime;
         Assert.That(callCount, Is.EqualTo(2));
         Assert.That(duration, Is.GreaterThanOrEqualTo(minDelay - TimeSpan.FromMilliseconds(20))); // Small margin
-        Assert.That(duration, Is.LessThanOrEqualTo(maxDelay + TimeSpan.FromMilliseconds(50))); // Allow some margin
+        // Wall clock only bounds the delay from above loosely: a loaded CI runner stalled past a 50 ms margin
+        // (2026-10-01). The lower bound is the claim; this one only rules out a delay far outside the range.
+        Assert.That(duration, Is.LessThanOrEqualTo(maxDelay + TimeSpan.FromMilliseconds(400)));
     }
 
     [Test]

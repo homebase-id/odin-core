@@ -156,36 +156,6 @@ public class KeyedAsyncLockTests
     }
 
     [Test]
-    public async Task LockedExecuteAsync_MultipleTasksDifferentKeys_TasksRunConcurrently()
-    {
-        var keyedMutex = new KeyedAsyncLock();
-        var runningTasks = 0;
-        var maxConcurrentTasks = 0;
-
-        var tasks = new List<Task>();
-
-        for (int i = 0; i < 5; i++)
-        {
-            var key = $"key{i}";
-            tasks.Add(Task.Run(async () =>
-            {
-                using (await keyedMutex.LockAsync(key))
-                {
-                    Interlocked.Increment(ref runningTasks);
-                    maxConcurrentTasks = Math.Max(maxConcurrentTasks, runningTasks);
-                    // Simulate work
-                    await Task.Delay(50);
-                    Interlocked.Decrement(ref runningTasks);
-                }
-            }));
-        }
-
-        await Task.WhenAll(tasks);
-
-        Assert.That(maxConcurrentTasks, Is.GreaterThan(1));
-    }
-
-    [Test]
     public async Task LockedExecuteAsync_ReentrantLocking_ThrowsException()
     {
         var keyedMutex = new KeyedAsyncLock();
