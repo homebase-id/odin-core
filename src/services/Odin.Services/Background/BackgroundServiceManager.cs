@@ -216,59 +216,53 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
 
         ScopedAbstractBackgroundService? backgroundService;
-        using (await _lock.ReaderLockAsync())
+        const int attempts = 30;
+        for (var attempt = 0; ; attempt++)
         {
-            if (_stopped.Contains(serviceIdentifier))
+            using (await _lock.ReaderLockAsync())
             {
-                // Stopped on purpose, not yet started: nothing to wake
+                if (_stopped.Contains(serviceIdentifier))
+                {
+                    // Stopped on purpose, not yet started: nothing to wake
+                    return;
+                }
+                _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
+            }
+
+            if (backgroundService != null)
+            {
+                break;
+            }
+
+            if (_allStopped)
+            {
+                // Nothing to wake: the services were stopped on purpose and will catch up when started again
                 return;
             }
-            _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
-        }
 
-        if (backgroundService == null)
-        {
-            const int attempts = 30;
-            var attempt = 0;
-            while (backgroundService == null && attempt < attempts)
+            if (attempt == attempts)
             {
-                if (_allStopped)
-                {
-                    // Nothing to wake: the services were stopped on purpose and will catch up when started again
-                    return;
-                }
-
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);
-                }
-                catch (OperationCanceledException)
+                if (_stoppingCts.IsCancellationRequested)
                 {
                     return;
                 }
-
-                using (await _lock.ReaderLockAsync())
-                {
-                    if (_stopped.Contains(serviceIdentifier))
-                    {
-                        return;
-                    }
-                    _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
-                }
-
-                attempt++;
-            }
-
-            if (backgroundService == null && !_stoppingCts.IsCancellationRequested)
-            {
                 throw new InvalidOperationException(
                     $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
         }
 
         if (!_stoppingCts.IsCancellationRequested)
         {
-            backgroundService?.BackgroundService.InternalNotifyWorkAvailable();
+            backgroundService.BackgroundService.InternalNotifyWorkAvailable();
         }
     }
 

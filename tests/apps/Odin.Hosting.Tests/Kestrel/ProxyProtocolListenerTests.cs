@@ -151,7 +151,7 @@ public class ProxyProtocolListenerTests
         Stream connected;
         try
         {
-            connected = await ConnectAsync(port, proxyHeader);
+            connected = await ConnectOrFail(port, proxyHeader);
         }
         catch (Exception e) when (IsReset(e))
         {
@@ -159,11 +159,6 @@ public class ProxyProtocolListenerTests
             // header went out: an untrusted peer is aborted on accept, before anything is read (#1783).
             // A port nobody listens on refuses instead, so this is the rejection.
             return;
-        }
-        catch (SocketException e)
-        {
-            Assert.Fail($"listener on port {port} is not accepting connections ({e.SocketErrorCode}); a rejection cannot be asserted");
-            throw;
         }
 
         await using var transport = connected;
@@ -184,7 +179,7 @@ public class ProxyProtocolListenerTests
         {
             return await ConnectAsync(port, proxyHeader);
         }
-        catch (SocketException e)
+        catch (SocketException e) when (!IsReset(e))
         {
             Assert.Fail($"listener on port {port} is not accepting connections ({e.SocketErrorCode}); a rejection cannot be asserted");
             throw;
@@ -325,16 +320,10 @@ public class ProxyProtocolListenerTests
             await transport.DisposeAsync();
         }
 
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        while (ProxyEvents(LogEventLevel.Warning).Count + ProxyEvents(LogEventLevel.Verbose).Count < peers &&
-               sw.Elapsed < TimeSpan.FromSeconds(10))
-        {
-            await Task.Delay(100);
-        }
-
+        var warnings = await WaitForProxyEventsAsync(LogEventLevel.Warning, atLeast: peers);
         Assert.That(ProxyEvents(LogEventLevel.Verbose), Is.Empty,
             $"{ProxyEvents(LogEventLevel.Verbose).Count} of {peers} peers that sent bytes were logged as silent");
-        Assert.That(ProxyEvents(LogEventLevel.Warning), Has.Count.EqualTo(peers));
+        Assert.That(warnings, Has.Count.EqualTo(peers));
     }
 
     // ...and so does a header from a peer that is not trusted to send one. This is the message
@@ -353,13 +342,13 @@ public class ProxyProtocolListenerTests
         .Where(e => e.MessageTemplate.Text.StartsWith("PROXY protocol:"))
         .ToList();
 
-    private async Task<List<LogEvent>> WaitForProxyEventsAsync(LogEventLevel level, TimeSpan? maxWait = null)
+    private async Task<List<LogEvent>> WaitForProxyEventsAsync(LogEventLevel level, TimeSpan? maxWait = null, int atLeast = 1)
     {
         var deadline = DateTime.UtcNow + (maxWait ?? TimeSpan.FromSeconds(10));
         while (true)
         {
             var events = ProxyEvents(level);
-            if (events.Count > 0 || DateTime.UtcNow > deadline)
+            if (events.Count >= atLeast || DateTime.UtcNow > deadline)
             {
                 return events;
             }

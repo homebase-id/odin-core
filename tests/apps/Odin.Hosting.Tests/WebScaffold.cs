@@ -542,11 +542,8 @@ namespace Odin.Hosting.Tests
 
         private static void DefaultAssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
         {
-            LogEvents.DumpEvents(logEvents[LogEventLevel.Error]);
-            Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
-
-            LogEvents.DumpEvents(logEvents[LogEventLevel.Fatal]);
-            Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), LogEvents.Unexpected(LogEventLevel.Fatal, logEvents));
+            LogEvents.DumpErrorEvents(logEvents);
+            LogEvents.AssertEvents(logEvents);
         }
 
         public void AssertHasDebugLogEvent(string message, int count)

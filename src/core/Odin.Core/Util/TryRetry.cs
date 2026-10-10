@@ -401,7 +401,7 @@ public class RetryBuilder
 
     //
 
-    private int CalculateDelay(int attempt)
+    internal int CalculateDelay(int attempt)
     {
         if (_delay.HasValue)
         {

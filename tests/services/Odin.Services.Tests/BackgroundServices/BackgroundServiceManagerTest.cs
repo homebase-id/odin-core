@@ -461,7 +461,7 @@ public class BackgroundServiceManagerTest
              var logEvents = _logEventMemoryStore.GetLogEvents();
              LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Error], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to min.");
          
-             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
+             LogEvents.AssertCount(logEvents, LogEventLevel.Error, 2);
          }
          
          // Bad sleep
@@ -478,7 +478,7 @@ public class BackgroundServiceManagerTest
              var logEvents = _logEventMemoryStore.GetLogEvents();
              LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Error], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to max.");
              
-             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
+             LogEvents.AssertCount(logEvents, LogEventLevel.Error, 2);
          }
          
          // Bad sleep

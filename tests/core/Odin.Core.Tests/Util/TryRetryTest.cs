@@ -797,9 +797,18 @@ public class TryRetryTests
         var duration = endTime - startTime;
         Assert.That(callCount, Is.EqualTo(2));
         Assert.That(duration, Is.GreaterThanOrEqualTo(minDelay - TimeSpan.FromMilliseconds(20))); // Small margin
-        // Wall clock only bounds the delay from above loosely: a loaded CI runner stalled past a 50 ms margin
-        // (2026-10-01). The lower bound is the claim; this one only rules out a delay far outside the range.
-        Assert.That(duration, Is.LessThanOrEqualTo(maxDelay + TimeSpan.FromMilliseconds(400)));
+    }
+
+    // The upper bound is asserted on the delay itself: a wall-clock bound failed when a loaded CI runner
+    // stalled past its margin (2026-10-01), and Thread.Sleep only guarantees a floor.
+    [Test]
+    public void RandomDelay_StaysInRange()
+    {
+        var builder = TryRetry.Create().WithRandomDelay(TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(200));
+        for (var i = 0; i < 1000; i++)
+        {
+            Assert.That(builder.CalculateDelay(1), Is.InRange(100, 199));
+        }
     }
 
     [Test]
