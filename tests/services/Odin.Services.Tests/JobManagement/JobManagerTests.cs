@@ -864,7 +864,7 @@ public class JobManagerTests
             : Is.EqualTo("unspecified error"));
         
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
     }
     
     //
@@ -909,7 +909,7 @@ public class JobManagerTests
             : Is.EqualTo("unspecified error"));
         
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
     }
     
 
@@ -1338,7 +1338,7 @@ public class JobManagerTests
         Assert.That(completedJob2, Is.Not.Null);
 
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
     }
 
     //
@@ -1405,7 +1405,7 @@ public class JobManagerTests
         Assert.That(completedJob2, Is.Not.Null);
 
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
     }
 #endif
     
@@ -1670,7 +1670,7 @@ public class JobManagerTests
 
         // Only the final give-up logs an error; the recurring failures do not.
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
     }
 
     //
@@ -1704,7 +1704,7 @@ public class JobManagerTests
 
         // The swallowed exception is logged once at error level.
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), LogEvents.Unexpected(LogEventLevel.Error, logEvents));
     }
 
     //
