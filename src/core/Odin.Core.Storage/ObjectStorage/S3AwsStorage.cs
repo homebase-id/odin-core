@@ -258,25 +258,41 @@ public class S3AwsStorage : IS3Storage
 
     //
 
-    public Task<byte[]> ReadBytesAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<Stream> OpenReadAsync(string path, Int64 start = 0, Int64? length = null,
+        CancellationToken cancellationToken = default)
     {
-        return ReadBytesAsync(path, 0, long.MaxValue, cancellationToken);
-    }
+        ArgumentOutOfRangeException.ThrowIfNegative(start);
+        if (length < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), "Length must be greater than 0");
+        }
 
-    //
-
-    public async Task<Stream> OpenReadAsync(string path, CancellationToken cancellationToken = default)
-    {
         S3Path.AssertFileName(path);
         var key = S3Path.Combine(_rootPath, path);
+        var request = new GetObjectRequest { BucketName = BucketName, Key = key };
+
+        // A whole read sends no Range header: 'bytes=0-' against a zero-length object is unsatisfiable on any
+        // compliant S3 (AWS included) and yields 416, while a rangeless GET returns 200 with an empty body.
+        // A range running past the end is clamped by S3, and the response's ContentLength says what came back.
+        var end = length == null || length.Value > Int64.MaxValue - start ? (Int64?)null : start + length.Value - 1;
+        if (end != null)
+        {
+            request.ByteRange = new ByteRange(start, end.Value);
+        }
+        else if (start > 0)
+        {
+            request.ByteRange = new ByteRange($"bytes={start}-");
+        }
+
         try
         {
-            var response = await _s3Client.GetObjectAsync(new GetObjectRequest { BucketName = BucketName, Key = key }, cancellationToken);
+            var response = await _s3Client.GetObjectAsync(request, cancellationToken);
             return new ResponseOwningStream(response);
         }
         catch (Exception ex)
         {
-            throw CreateS3StorageException(ex, $"Failed to open object '{key}' in bucket '{BucketName}' for reading.");
+            throw CreateS3StorageException(ex,
+                $"Failed to open object '{key}' in bucket '{BucketName}' for reading (start {start}, length {length}).");
         }
     }
 
@@ -309,70 +325,6 @@ public class S3AwsStorage : IS3Storage
                 response.Dispose();
             }
             base.Dispose(disposing);
-        }
-    }
-
-    //
-
-    public async Task<byte[]> ReadBytesAsync(string path, long offset, long length, CancellationToken cancellationToken = default)
-    {
-        if (offset < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative");
-        }
-
-        if (length < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(offset), "Length must be greater than 0");
-        }
-
-        // _logger.LogDebug("Requesting bytes from S3: Path={Path}, Offset={Offset}, Length={Length}", path, offset, length);
-
-        S3Path.AssertFileName(path);
-        path = S3Path.Combine(_rootPath, path);
-
-        var memoryStream = new MemoryStream();
-        try
-        {
-            var request = new GetObjectRequest
-            {
-                BucketName = BucketName,
-                Key = path,
-            };
-
-            // length == long.MaxValue is the "read to end of object" sentinel (see the
-            // ReadBytesAsync(path) overload). Read the whole object with a plain GetObject (no Range
-            // header) instead of synthesizing a 'bytes=0-<huge>' range. A 'bytes=0-' range against a
-            // zero-length object is unsatisfiable on any compliant S3 (AWS included) and yields 416
-            // RequestedRangeNotSatisfiable; a rangeless GET returns 200 with the whole body (0 bytes
-            // for an empty object). For a from-offset read-to-end, use an open-ended suffix range.
-            if (length == long.MaxValue)
-            {
-                if (offset > 0)
-                {
-                    request.ByteRange = new ByteRange($"bytes={offset}-");
-                }
-            }
-            else
-            {
-                request.ByteRange = new ByteRange(offset, offset + length - 1);
-            }
-
-            using var response = await _s3Client.GetObjectAsync(request, cancellationToken);
-            await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
-
-            // _logger.LogDebug("Got bytes from S3: Path={Path}, Length={Size}", path, memoryStream.Length);
-
-            return memoryStream.ToArray();
-        }
-        catch (Exception ex)
-        {
-            throw CreateS3StorageException(ex,
-                $"Failed to read object '{path}' from bucket '{BucketName}' with offset {offset} and length {length}.");
-        }
-        finally
-        {
-            await memoryStream.DisposeAsync();
         }
     }
 

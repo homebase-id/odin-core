@@ -8,6 +8,7 @@ using Odin.Services.Base;
 using Odin.Services.Registry;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Util;
+using Odin.Core.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
@@ -32,7 +33,7 @@ public abstract class PayloadStreamWriterBase
 
     public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
-        string json = await new StreamReader(data).ReadToEndAsync();
+        string json = await BoundedRead.ReadAllTextAsync(data);
         var instructionSet = OdinSystemSerializer.Deserialize<UploadPayloadInstructionSet>(json);
         await this.StartUpload(instructionSet, odinContext);
     }

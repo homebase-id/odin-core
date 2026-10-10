@@ -13,6 +13,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Util;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -32,6 +33,14 @@ namespace Odin.Hosting.Middleware
     public class SharedSecretEncryptionMiddleware
     {
         private const string SharedSecretQueryStringParam = "ss";
+
+        /// <summary>
+        /// An encrypted body is decrypted whole, so it is bounded here; Kestrel does not bound it
+        /// (<c>MaxRequestBodySize = null</c>, for payloads, which come as multipart and skip this middleware). The
+        /// largest legitimate one is a contact image: <see cref="Odin.Services.Contacts.ContactService.MaxImageContentBytes"/>
+        /// of ciphertext, base64 in the JSON, then base64 again in the encrypted envelope, plus its thumbnails.
+        /// </summary>
+        private const int MaxEncryptedRequestBodyBytes = 32 * 1024 * 1024;
 
         private readonly RequestDelegate _next;
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
@@ -197,7 +206,7 @@ namespace Odin.Hosting.Middleware
                 else if (request.Method.ToUpper() == "DELETE")
                 {
                     // Some hand-holding for delete verbs; i don't understand why i have to do this, however.
-                    var bytes = request.Body.ToByteArray();
+                    var bytes = await BoundedRead.ReadAllBytesAsync(request.Body, MaxEncryptedRequestBodyBytes, context.RequestAborted);
                     if (bytes.Length > 0)
                     {
                         var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(new MemoryStream(bytes),
@@ -209,7 +218,8 @@ namespace Odin.Hosting.Middleware
                 else
                 {
                     //TODO: add try/catch to ensure we have a valid shared secret payload
-                    var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context),
+                    var body = await BoundedRead.ReadAllBytesAsync(request.Body, MaxEncryptedRequestBodyBytes, context.RequestAborted);
+                    var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(new MemoryStream(body), this.GetSharedSecret(context),
                         context.RequestAborted);
 
                     //update the body with the decrypted json file so it can be read down stream as expected

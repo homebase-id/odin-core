@@ -17,6 +17,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Drives.Management;
 using Odin.Services.Util;
+using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -106,7 +107,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 var section = await ReadNextMultipartSectionAsync(reader);
                 AssertIsPart(section, MultipartUploadParts.Instructions);
 
-                string json = await new StreamReader(section!.Body).ReadToEndAsync();
+                string json = await BoundedRead.ReadAllTextAsync(section!.Body);
                 var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
 
                 //v2 reads from the driveId and fileId params, so we overwrite it. this stops callers
@@ -211,7 +212,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             try
             {
                 logger.LogDebug("ReceiveFileStream: StartUpload");
-                string json = await new StreamReader(section!.Body).ReadToEndAsync();
+                string json = await BoundedRead.ReadAllTextAsync(section!.Body);
                 var instructionSet = OdinSystemSerializer.Deserialize<UploadInstructionSet>(json);
 
                 Guid driveId;

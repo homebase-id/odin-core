@@ -39,6 +39,9 @@ public class HomebaseChannelContentService(
     private const int ChannelDefinitionFileType = 103;
     private const string PostFullTextPayloadKey = "pst_text";
 
+    // A post's JSON is parsed whole, and clients set no bound on it
+    private const Int64 MaxPostPayloadBytes = 1024 * 1024;
+
     public async Task<ChannelPost> GetPost(
         string channelKey,
         string postKey,
@@ -307,17 +310,17 @@ public class HomebaseChannelContentService(
         async Task<PostContent> LoadBodyFromPayload(InternalDriveFileId fileId)
         {
             using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, PostFullTextPayloadKey, null, odinContext);
-            using var reader = new StreamReader(payloadStream.Stream);
-            var json = await reader.ReadToEndAsync(cancellationToken);
-            return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+            payloadStream.AssertAtMost(MaxPostPayloadBytes);
+            return await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken)
+                   ?? throw new OdinSystemException("Failed to deserialize data");
         }
 
         async Task<PostContent> LoadContentFromPayload(InternalDriveFileId fileId)
         {
             using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-            using var reader = new StreamReader(payloadStream.Stream);
-            var json = await reader.ReadToEndAsync(cancellationToken);
-            return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+            payloadStream.AssertAtMost(MaxPostPayloadBytes);
+            return await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken)
+                   ?? throw new OdinSystemException("Failed to deserialize data");
         }
 
         var fileId = new InternalDriveFileId()

@@ -115,7 +115,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
-            HttpContext.Response.Headers.ContentLength = payloadStream.Stream.Length;
+            HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
 
             return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
@@ -146,6 +146,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
+            HttpContext.Response.ContentLength = thumb.Length; // a streamed thumbnail cannot seek; see GetPayloadStream
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 
@@ -252,7 +253,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
-            HttpContext.Response.Headers.ContentLength = payloadStream.Stream.Length;
+            HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
 
             return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
@@ -273,6 +274,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
+            HttpContext.Response.ContentLength = thumb.Length; // a streamed thumbnail cannot seek; see GetPayloadStream
             return new FileStreamResult(thumb, "application/octet-stream");
         }
         

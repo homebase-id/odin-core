@@ -155,22 +155,26 @@ namespace Odin.Hosting.Middleware
                 problemDetails.Extensions["stackTrace"] = exception.StackTrace;
             }
 
-            var result = OdinSystemSerializer.Serialize(problemDetails);
-
-            if (!context.Response.HasStarted)
+            if (context.Response.HasStarted)
             {
-                // Avoids error "Headers are read-only, response has already started."
-                context.Response.ContentType = "application/problem+json";
-                context.Response.StatusCode = problemDetails.Status.Value;
-                if (exception is OdinRetryLaterException retryLater)
-                {
-                    context.Response.Headers.RetryAfter =
-                        ((int)Math.Ceiling(retryLater.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
-                    // A temporary answer: a cache (the CDN in front of payloads) must not keep it
-                    context.Response.Headers.CacheControl = "no-store";
-                }
+                // Part of the body is already on the wire, e.g. a payload streaming from storage when the read
+                // fails. Appending problem+json would hand the client a corrupt body that looks complete;
+                // aborting makes the truncation visible to it instead.
+                context.Abort();
+                return Task.CompletedTask;
             }
 
+            var result = OdinSystemSerializer.Serialize(problemDetails);
+
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = problemDetails.Status.Value;
+            if (exception is OdinRetryLaterException retryLater)
+            {
+                context.Response.Headers.RetryAfter =
+                    ((int)Math.Ceiling(retryLater.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+                // A temporary answer: a cache (the CDN in front of payloads) must not keep it
+                context.Response.Headers.CacheControl = "no-store";
+            }
 
             return context.Response.WriteAsync(result);
         }

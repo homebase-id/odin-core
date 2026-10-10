@@ -618,5 +618,37 @@ public class ExceptionHandlingMiddlewareTest
             Times.Once);
     }
 
+    [Test]
+    public void ExceptionAfterTheResponseStartedAbortsInsteadOfAppendingProblemJson()
+    {
+        // Arrange: a streamed payload whose storage read fails part way through the body
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await ctx.Response.Body.WriteAsync("partial payload"u8.ToArray());
+            await ctx.Response.Body.FlushAsync();
+            throw new IOException("storage went away mid-stream");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        string body = null;
+        var caught = Assert.CatchAsync(async () =>
+        {
+            var response = await client.GetAsync("/");
+            body = await response.Content.ReadAsStringAsync();
+        });
+
+        // Assert: the client sees a broken transfer, not "partial payload{problem+json}" with a 200
+        Assert.That(caught, Is.Not.Null, $"expected an aborted response, got body: {body}");
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
 
 }

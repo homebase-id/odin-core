@@ -76,7 +76,7 @@ public class ProfileAttributeService(
     /// the main payload has no size check downstream, and Kestrel's request body size limit is unbounded
     /// (<c>Program.cs</c> sets <c>MaxRequestBodySize = null</c>).
     /// </summary>
-    private const int MaxPhotoContentBytes = 2 * 1024 * 1024;
+    internal const int MaxPhotoContentBytes = 2 * 1024 * 1024;
 
     /// <summary>
     /// Max size (UTF-8 bytes) of the attribute JSON carried inline in the file header. Mirrors odin-js

@@ -486,17 +486,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        /// <summary>
-        /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
-        /// </summary>
-        // TODO:INBOX Reads from the folder-based inbox; delete once the inbox folder is drained.
-        public async Task<byte[]> GetAllFileBytesFromInboxFile(InternalDriveFileId file, string extension, IOdinContext odinContext)
-        {
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanReadDriveAsync(file.DriveId, odinContext);
-            return await inboxStorageManager.GetAllInboxFileBytes(file, extension);
-        }
-
         public async Task<bool> UploadFileExists(InternalDriveFileId file, string extension, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -524,7 +513,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             return false;
         }
 
-        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(InternalDriveFileId file, string extension,
+        /// <summary>
+        /// Opens a staged file for reading; the caller disposes the stream.
+        /// </summary>
+        public async Task<Stream> OpenTempFileForReadingAsync(InternalDriveFileId file, string extension,
             StagingArea sourceArea, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -533,7 +525,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var store = ResolveStore(sourceArea);
             var path = Path.Combine(StagingRoot(sourceArea, drive), TenantPathManager.GetFilename(file.FileId, extension));
-            return await store.ReadAllBytesAsync(path);
+            return await store.OpenReadAsync(path);
         }
 
         /// <summary>

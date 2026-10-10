@@ -156,19 +156,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     async () =>
                     {
                         var extension = MultipartHostTransferParts.Metadata.ToString().ToLower();
-                        var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file, extension, sourceArea, odinContext);
+                        await using var stream = await fs.Storage.OpenTempFileForReadingAsync(file, extension, sourceArea, odinContext);
 
-                        if (bytes == null)
-                        {
-                            // this is bad error.
-                            logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ",
-                                file.FileId, file.DriveId);
-                            throw new OdinFileWriteException("Missing temp file while processing inbox");
-                        }
-
-                        string json = bytes.ToStringFromUtf8Bytes();
-
-                        incomingMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+                        incomingMetadata = await OdinSystemSerializer.Deserialize<FileMetadata>(stream);
                         if (null == incomingMetadata)
                         {
                             logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ",

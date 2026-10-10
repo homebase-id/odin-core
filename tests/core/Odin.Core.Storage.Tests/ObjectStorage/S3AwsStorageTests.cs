@@ -580,6 +580,41 @@ public class S3AwsStorageTests
     //
 
     [Test]
+    public async Task S3AwsStorage_ItShouldOpenRangesForStreamingReads()
+    {
+        const string path = "the-ranged-file";
+        var bytes = new byte[3 * 1024 * 1024 + 17];
+        Random.Shared.NextBytes(bytes);
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        await bucket.WriteBytesAsync(path, bytes);
+
+        // ReadBytesAsync (test helper) also checks that the stream's Length is what it yields
+        const long start = 1024 * 1024 - 3;
+        Assert.That(await bucket.ReadBytesAsync(path, start, 100), Is.EqualTo(bytes[(int)start..((int)start + 100)]));
+        Assert.That(await bucket.ReadBytesAsync(path, start, null), Is.EqualTo(bytes[(int)start..]), "open-ended");
+        Assert.That(await bucket.ReadBytesAsync(path, bytes.Length - 1, 1000), Is.EqualTo(bytes[^1..]),
+            "a range past the end is clamped");
+        Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => bucket.OpenReadAsync(path, 0, 0));
+        Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => bucket.OpenReadAsync(path, -1, null));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldReadAZeroLengthObjectWhole()
+    {
+        const string path = "the-empty-file";
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        await bucket.WriteBytesAsync(path, []);
+
+        // A whole read sends no Range header: 'bytes=0-' on an empty object is a 416
+        Assert.That(await bucket.ReadBytesAsync(path), Is.Empty);
+    }
+
+    //
+
+    [Test]
     public void S3AwsStorage_ItShouldThrowWhenReadingNotExistingPath()
     {
         const string path = "the-file-not-existing";

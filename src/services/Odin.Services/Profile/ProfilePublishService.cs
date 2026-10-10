@@ -397,9 +397,18 @@ public class ProfilePublishService(
 
         if (thumbnail != null)
         {
-            using (thumbStream)
+            await using (thumbStream)
             {
-                imageBytes = thumbStream.ToByteArray();
+                if (thumbStream.Length > ThumbnailDescriptor.MaxThumbnailSize)
+                {
+                    logger.LogError("Profile thumbnail is {Length} bytes, over {Max}; publishing the fallback image",
+                        thumbStream.Length, ThumbnailDescriptor.MaxThumbnailSize);
+                    await PublishFallbackProfileImageAsync(publishContext);
+                    return;
+                }
+
+                imageBytes = new byte[thumbStream.Length];
+                await thumbStream.ReadExactlyAsync(imageBytes);
             }
 
             contentType = thumbnail.ContentType;
@@ -413,7 +422,15 @@ public class ProfilePublishService(
                 return;
             }
 
-            imageBytes = payloadStream.Stream.ToByteArray();
+            if (payloadStream.ContentLength > ProfileAttributeService.MaxPhotoContentBytes)
+            {
+                logger.LogError("Profile photo is {Length} bytes, over {Max}, which the profile API refuses; publishing the fallback image",
+                    payloadStream.ContentLength, ProfileAttributeService.MaxPhotoContentBytes);
+                await PublishFallbackProfileImageAsync(publishContext);
+                return;
+            }
+
+            imageBytes = await payloadStream.ReadAllBytesAsync(ProfileAttributeService.MaxPhotoContentBytes);
             contentType = payloadStream.ContentType;
         }
 

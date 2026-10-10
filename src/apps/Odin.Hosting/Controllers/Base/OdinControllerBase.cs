@@ -167,7 +167,10 @@ public abstract class OdinControllerBase : ControllerBase
         }
     }
 
-    protected FileChunk GetChunk(int? chunkStart, int? chunkLength)
+    /// <summary>
+    /// The requested byte range: a Range header wins over the query/route values. No length means "to the end".
+    /// </summary>
+    protected FileChunk GetChunk(Int64? chunkStart, Int64? chunkLength)
     {
         if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
             RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
@@ -177,22 +180,11 @@ public abstract class OdinControllerBase : ControllerBase
             {
                 HttpContext.Response.StatusCode = 206;
 
-                int start = Convert.ToInt32(firstRange.From ?? 0);
-                if (firstRange.To == null)
-                {
-                    return new FileChunk()
-                    {
-                        Start = start,
-                        Length = int.MaxValue
-                    };
-                }
-
-                int end = Convert.ToInt32(firstRange.To);
-
+                var start = firstRange.From.Value;
                 return new FileChunk()
                 {
                     Start = start,
-                    Length = end - start + 1
+                    Length = firstRange.To == null ? null : firstRange.To.Value - start + 1
                 };
             }
 
@@ -202,8 +194,8 @@ public abstract class OdinControllerBase : ControllerBase
         {
             return new FileChunk()
             {
-                Start = chunkStart.GetValueOrDefault(),
-                Length = chunkLength.GetValueOrDefault(int.MaxValue)
+                Start = chunkStart.Value,
+                Length = chunkLength
             };
         }
 

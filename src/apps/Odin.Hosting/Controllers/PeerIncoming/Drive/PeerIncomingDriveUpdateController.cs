@@ -29,6 +29,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -149,7 +150,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var metadataSection = await reader.ReadNextSectionAsync();
             AssertIsPart(metadataSection, MultipartHostTransferParts.Metadata);
-            var json = await new StreamReader(metadataSection!.Body).ReadToEndAsync();
+            var json = await BoundedRead.ReadAllTextAsync(metadataSection!.Body);
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
 
             _fileUpdateService = GetPerimeterService(_fileSystem);
@@ -205,7 +206,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private async Task<EncryptedRecipientFileUpdateInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
-            string json = await new StreamReader(section.Body).ReadToEndAsync();
+            string json = await BoundedRead.ReadAllTextAsync(section.Body);
             var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(json);
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));

@@ -113,7 +113,7 @@ public class PayloadMoveController(
                 return Ok();
             }
 
-            var stream = await store.OpenReadAsync(path, HttpContext.RequestAborted);
+            var stream = await store.OpenReadAsync(path, ct: HttpContext.RequestAborted);
             Response.ContentLength = stream.Length;
             return File(stream, "application/octet-stream");
         }

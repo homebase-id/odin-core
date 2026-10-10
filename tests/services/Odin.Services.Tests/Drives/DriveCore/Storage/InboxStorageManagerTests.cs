@@ -138,7 +138,8 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
 
         Assert.That(written, Is.EqualTo(bytes.Length));
         Assert.That(await _sut.InboxFileExists(file, ext), Is.True);
-        Assert.That(await _sut.GetAllInboxFileBytes(file, ext), Is.EqualTo(bytes));
+        Assert.That(await File.ReadAllBytesAsync(_tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, ext)),
+            Is.EqualTo(bytes));
     }
 
     [Test]

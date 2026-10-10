@@ -113,7 +113,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpGet("files/payload")]
         public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
             [FromQuery] string key,
-            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+            [FromQuery] Int64? chunkStart, [FromQuery] Int64? chunkLength)
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
 

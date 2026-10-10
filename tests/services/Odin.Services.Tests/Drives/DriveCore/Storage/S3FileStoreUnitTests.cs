@@ -85,31 +85,31 @@ public class S3FileStoreUnitTests
     {
         using var cts = new CancellationTokenSource();
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        storage.Setup(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()))
             .Callback(() => cts.Cancel())
             .ThrowsAsync(failure);
 
-        var caught = await Capture(() => Sut(storage.Object).ReadAllBytesAsync("d/drives/f.metadata", cts.Token));
+        var caught = await Capture(() => Sut(storage.Object).OpenReadAsync("d/drives/f.metadata", ct: cts.Token));
 
         Assert.That(caught, Is.InstanceOf<OperationCanceledException>(),
             "a retryable failure must advance into the (cancelled) backoff delay");
-        storage.Verify(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        storage.Verify(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private static async Task AssertNotRetryable(Exception failure)
     {
         using var cts = new CancellationTokenSource();
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        storage.Setup(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()))
             .Callback(() => cts.Cancel())
             .ThrowsAsync(failure);
 
-        var caught = await Capture(() => Sut(storage.Object).ReadAllBytesAsync("d/drives/f.metadata", cts.Token));
+        var caught = await Capture(() => Sut(storage.Object).OpenReadAsync("d/drives/f.metadata", ct: cts.Token));
 
         Assert.That(caught, Is.InstanceOf<DriveFileStoreException>(),
             "a non-retryable failure must surface immediately, even with the token cancelled");
         Assert.That(caught!.InnerException, Is.SameAs(failure));
-        storage.Verify(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        storage.Verify(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // --- backend type ---
@@ -156,14 +156,14 @@ public class S3FileStoreUnitTests
     {
         var bytes = new byte[] { 1, 2, 3 };
         var storage = new Mock<IS3Storage>();
-        storage.SetupSequence(x => x.ReadBytesAsync("p", It.IsAny<CancellationToken>()))
+        storage.SetupSequence(x => x.OpenReadAsync("p", 0, null, It.IsAny<CancellationToken>()))
             .ThrowsAsync(S3Failure(HttpStatusCode.ServiceUnavailable))
-            .ReturnsAsync(bytes);
+            .ReturnsAsync(new MemoryStream(bytes));
 
         var result = await Sut(storage.Object).ReadAllBytesAsync("p");
 
         Assert.That(result, Is.EqualTo(bytes));
-        storage.Verify(x => x.ReadBytesAsync("p", It.IsAny<CancellationToken>()), Times.Exactly(2));
+        storage.Verify(x => x.OpenReadAsync("p", 0, null, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Test]
@@ -171,13 +171,13 @@ public class S3FileStoreUnitTests
     {
         var failure = S3Failure(HttpStatusCode.ServiceUnavailable);
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync("p", It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+        storage.Setup(x => x.OpenReadAsync("p", 0, null, It.IsAny<CancellationToken>())).ThrowsAsync(failure);
 
         // attempts=1 -> even a normally-retryable 5xx is attempted exactly once, then wrapped.
-        var caught = await Capture(() => Sut(storage.Object, Config(attempts: 1)).ReadAllBytesAsync("p"));
+        var caught = await Capture(() => Sut(storage.Object, Config(attempts: 1)).OpenReadAsync("p"));
 
         Assert.That(caught, Is.InstanceOf<DriveFileStoreException>());
-        storage.Verify(x => x.ReadBytesAsync("p", It.IsAny<CancellationToken>()), Times.Once);
+        storage.Verify(x => x.OpenReadAsync("p", 0, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // --- cancellation passthrough ---
@@ -186,15 +186,15 @@ public class S3FileStoreUnitTests
     public async Task Propagates_Cancellation_Unwrapped()
     {
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        storage.Setup(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
-        var caught = await Capture(() => Sut(storage.Object).ReadAllBytesAsync("p"));
+        var caught = await Capture(() => Sut(storage.Object).OpenReadAsync("p"));
 
         Assert.That(caught, Is.InstanceOf<OperationCanceledException>());
         Assert.That(caught, Is.Not.InstanceOf<DriveFileStoreException>());
         // OCE is never retried.
-        storage.Verify(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        storage.Verify(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // --- exception translation per method ---
@@ -229,28 +229,28 @@ public class S3FileStoreUnitTests
     }
 
     [Test]
-    public async Task ReadAllBytes_Wraps_Failure_In_DriveFileStoreException()
+    public async Task OpenRead_Wraps_Failure_In_DriveFileStoreException()
     {
         var failure = S3Failure(HttpStatusCode.Forbidden);
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        storage.Setup(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(failure);
 
-        var caught = await Capture(() => Sut(storage.Object).ReadAllBytesAsync("p"));
+        var caught = await Capture(() => Sut(storage.Object).OpenReadAsync("p"));
 
         Assert.That(caught, Is.InstanceOf<DriveFileStoreException>());
         Assert.That(caught!.InnerException, Is.SameAs(failure));
     }
 
     [Test]
-    public async Task ReadBytes_Wraps_Failure_In_DriveFileStoreException()
+    public async Task OpenReadRange_Wraps_Failure_In_DriveFileStoreException()
     {
         var failure = S3Failure(HttpStatusCode.Forbidden);
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+        storage.Setup(x => x.OpenReadAsync(It.IsAny<string>(), It.IsAny<Int64>(), It.IsAny<Int64?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(failure);
 
-        var caught = await Capture(() => Sut(storage.Object).ReadBytesAsync("p", 0, 10));
+        var caught = await Capture(() => Sut(storage.Object).OpenReadAsync("p", 0, 10));
 
         Assert.That(caught, Is.InstanceOf<DriveFileStoreException>());
         Assert.That(caught!.InnerException, Is.SameAs(failure));
@@ -341,24 +341,24 @@ public class S3FileStoreUnitTests
     }
 
     [Test]
-    public async Task ReadAllBytes_Returns_Underlying_Bytes()
+    public async Task OpenRead_Returns_Underlying_Stream()
     {
         var bytes = new byte[] { 9, 8, 7 };
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync("p", It.IsAny<CancellationToken>())).ReturnsAsync(bytes);
+        storage.Setup(x => x.OpenReadAsync("p", 0, null, It.IsAny<CancellationToken>())).ReturnsAsync(new MemoryStream(bytes));
 
         Assert.That(await Sut(storage.Object).ReadAllBytesAsync("p"), Is.EqualTo(bytes));
     }
 
     [Test]
-    public async Task ReadBytes_Delegates_With_Offset_And_Length()
+    public async Task OpenRead_Delegates_Start_And_Length()
     {
         var bytes = new byte[] { 4, 5, 6 };
         var storage = new Mock<IS3Storage>();
-        storage.Setup(x => x.ReadBytesAsync("p", 10L, 20L, It.IsAny<CancellationToken>())).ReturnsAsync(bytes);
+        storage.Setup(x => x.OpenReadAsync("p", 10L, 20L, It.IsAny<CancellationToken>())).ReturnsAsync(new MemoryStream(bytes));
 
         Assert.That(await Sut(storage.Object).ReadBytesAsync("p", 10, 20), Is.EqualTo(bytes));
-        storage.Verify(x => x.ReadBytesAsync("p", 10L, 20L, It.IsAny<CancellationToken>()), Times.Once);
+        storage.Verify(x => x.OpenReadAsync("p", 10L, 20L, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -449,9 +449,7 @@ public class S3FileStoreUnitTests
         public StorageBackendType Backend => backend;
         public Task<uint> WriteStreamAsync(string p, Stream s, CancellationToken ct = default) => throw new NotImplementedException();
         public Task WriteBytesAsync(string p, byte[] b, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<byte[]> ReadAllBytesAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<byte[]> ReadBytesAsync(string p, long start, long length, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<Stream> OpenReadAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Stream> OpenReadAsync(string p, Int64 start = 0, Int64? length = null, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ExistsAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<long> LengthAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();

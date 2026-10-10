@@ -110,103 +110,6 @@ public sealed class FileReaderWriter(
 
     //
     
-    public async Task<byte[]> GetAllFileBytesAsync(string filePath)
-    {
-        AssertFileExists(filePath);
-        
-        byte[] bytes = null;
-
-        bool notFound = false;
-        await TryRetry.Create()
-            .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
-            .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
-            .ExecuteAsync(async () =>
-            {
-                try
-                {
-                    bytes = await File.ReadAllBytesAsync(filePath);
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    notFound = true;
-                }
-                catch (FileNotFoundException)
-                {
-                    notFound = true;
-                }
-                catch (Exception e)
-                {
-                    logger.LogDebug(e, "Unexpected error reading file {filePath}", filePath);
-                    throw;
-                }
-            });
-
-        if (notFound)
-        {
-            throw new OdinSystemException($"File or directory does not exist {filePath}");
-        }
-        
-        return bytes;
-    }
-
-    //
-
-    public async Task<byte[]> GetFileBytesAsync(string filePath, long offset, long length, CancellationToken cancellationToken = default)
-    {
-        
-        AssertFileExists(filePath);
-
-        byte[] bytes = null;
-        
-        bool notFound = false;
-
-        await TryRetry.Create()
-            .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
-            .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
-            .ExecuteAsync(async () =>
-            {
-                try
-                {
-                    await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-                    // Check if offset is valid
-                    if (offset < 0 || offset > fileStream.Length)
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(offset), "Offset is outside the file bounds.");
-                    }
-
-                    // Calculate the number of bytes to read
-                    var bytesToRead = Math.Min(fileStream.Length - offset, length);
-
-                    bytes = new byte[bytesToRead];
-                    fileStream.Seek(offset, SeekOrigin.Begin);
-                    await fileStream.ReadExactlyAsync(bytes, cancellationToken);
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    notFound = true;
-                }
-                catch (FileNotFoundException)
-                {
-                    notFound = true;
-                }
-                catch (Exception e)
-                {
-                    logger.LogDebug(e, "Unexpected error reading file {filePath}", filePath);
-                    throw;
-                }
-            });
-
-        if (notFound)
-        {
-            throw new OdinSystemException($"File or directory does not exist {filePath}");
-        }
-
-        return bytes;
-    }
-
-    //
-
     public void MoveFile(string sourceFilePath, string destinationFilePath)
     {
         AssertFileExists(sourceFilePath);
@@ -337,11 +240,22 @@ public sealed class FileReaderWriter(
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
-    public Stream OpenStreamForReading(string filePath)
+    /// <summary>
+    /// Opens <paramref name="length"/> bytes from <paramref name="start"/> for reading, or to the end when length
+    /// is null. A range running past the end is clamped to it; a start past the end throws. The stream's Length is
+    /// the number of bytes it yields.
+    /// </summary>
+    public Stream OpenStreamForReading(string filePath, Int64 start = 0, Int64? length = null)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(start);
+        if (length < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), "Length must be greater than 0");
+        }
+
         AssertFileExists(filePath);
 
-        Stream fileStream = Stream.Null;
+        FileStream fileStream = null;
 
         try
         {
@@ -352,7 +266,8 @@ public sealed class FileReaderWriter(
                 {
                     try
                     {
-                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
+                            FileOptions.Asynchronous | FileOptions.SequentialScan);
                     }
                     catch (Exception e)
                     {
@@ -366,7 +281,20 @@ public sealed class FileReaderWriter(
             throw e.InnerException!;
         }
 
-        return fileStream;
+        if (start == 0 && length == null)
+        {
+            return fileStream;
+        }
+
+        var available = fileStream.Length - start;
+        if (available < 0)
+        {
+            fileStream.Dispose();
+            throw new ArgumentOutOfRangeException(nameof(start), $"Start {start} is past the end of {filePath}");
+        }
+
+        fileStream.Seek(start, SeekOrigin.Begin);
+        return new ReadOnlyWindowStream(fileStream, length == null ? available : Math.Min(length.Value, available));
     }
 
     //

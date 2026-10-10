@@ -29,7 +29,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         [HttpGet("payload")]
         public async Task<IActionResult> GetPayloadStreamByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type,
             [FromQuery] string key,
-            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+            [FromQuery] Int64? chunkStart, [FromQuery] Int64? chunkLength)
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias);

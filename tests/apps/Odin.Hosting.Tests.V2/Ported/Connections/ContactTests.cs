@@ -746,6 +746,26 @@ public class ContactTests : V2Fixture
         Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
     }
 
+    [Test]
+    public async Task SetImage_OverTheSizeLimit_Returns400()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var resp = await contacts.SetImageAsync(uid, new SetContactImageRequest
+        {
+            VersionTag = create.Content.VersionTag, ContentType = "image/jpeg", Iv = new byte[16],
+            Content = new byte[ContactService.MaxImageContentBytes + 1]
+        });
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
     private static async Task<(byte[] image, byte[] thumb)> SetSampleImageAsync(
         OwnerSession owner, V2ContactsClient contacts, Guid uid, Guid versionTag)
     {

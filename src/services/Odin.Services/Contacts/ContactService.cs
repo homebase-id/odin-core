@@ -59,6 +59,21 @@ public class ContactService(
     /// </summary>
     public const int AppExtDataBlobMaxBytes = 256 * 1024;
 
+    /// <summary>
+    /// Max size of a contact image's ciphertext. A sanity ceiling against a buggy or abusive caller, not a target:
+    /// clients send the picked image without resizing it, so it sits well above the profile photo's
+    /// <see cref="Odin.Services.Profile.ProfileAttributeService.MaxPhotoContentBytes"/>. Kestrel does not bound the
+    /// request body (<c>MaxRequestBodySize = null</c>), so nothing else does.
+    /// </summary>
+    public const int MaxImageContentBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Bound on reading the <c>appextdata</c> and merge-log payloads whole to decrypt them. Server writes keep
+    /// them well under it (<see cref="AppExtDataBlobMaxBytes"/> per app, <see cref="ContactMergeLog.MaxEntries"/>);
+    /// a generic upload to the contact drive is not bound by either.
+    /// </summary>
+    private const Int64 MaxPayloadReadBytes = 8 * 1024 * 1024;
+
     /// <summary>Generic per-field character cap for core contact text fields (keeps the list query cheap).</summary>
     private const int MaxContactFieldChars = 256;
 
@@ -264,6 +279,11 @@ public class ContactService(
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "image content is required");
+        if (request.Content.Length > MaxImageContentBytes)
+        {
+            throw new OdinClientException($"Image content exceeds the {MaxImageContentBytes} byte limit",
+                OdinClientErrorCode.MaxContentLengthExceeded);
+        }
         OdinValidationUtils.AssertIsTrue(request.Iv is { Length: 16 }, "a 16-byte image iv is required");
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "image contentType is required");
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
@@ -622,9 +642,7 @@ public class ContactService(
             return null;
         }
 
-        using var ms = new MemoryStream();
-        await stream.Stream.CopyToAsync(ms);
-        var cipher = ms.ToArray();
+        var cipher = await stream.ReadAllBytesAsync(MaxPayloadReadBytes);
         if (cipher.Length == 0)
         {
             return null;
@@ -1071,9 +1089,7 @@ public class ContactService(
             return new List<ContactMergeLogEntry>();
         }
 
-        using var ms = new MemoryStream();
-        await stream.Stream.CopyToAsync(ms);
-        var cipher = ms.ToArray();
+        var cipher = await stream.ReadAllBytesAsync(MaxPayloadReadBytes);
         if (cipher.Length == 0)
         {
             return new List<ContactMergeLogEntry>();
