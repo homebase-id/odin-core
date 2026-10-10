@@ -21,7 +21,13 @@ public enum PayloadMoveStatus
     CompleteWithFailures,
 
     /// <summary>The source refused the handoff token: already redeemed (a second import) or expired.</summary>
-    Refused
+    Refused,
+
+    /// <summary>
+    /// Was <see cref="CompleteWithFailures"/>, and the operator gave up the objects the source does not have (#1868):
+    /// the next run asks the source for each once more and completes the move without them.
+    /// </summary>
+    AcceptingMissing
 }
 
 /// <summary>
@@ -73,9 +79,6 @@ public class PayloadMoveState
 
     public long MissingCount { get; set; }
 
-    /// <summary>The operator asked to give up <see cref="Missing"/>; the next run checks them once more and completes.</summary>
-    public bool AcceptMissingRequested { get; set; }
-
     /// <summary>How many objects the operator gave up, and when. The move completed without them.</summary>
     public long AcceptedMissing { get; set; }
 
@@ -106,6 +109,21 @@ public class PayloadMoveState
                                           "listed; look into the source first"
         : null;
 
+    /// <summary>
+    /// Gives up <see cref="Missing"/>: the next run checks them at the source once more and completes without them.
+    /// Returns why it cannot, or null once asked.
+    /// </summary>
+    public string? RequestAcceptMissing()
+    {
+        if (WhyMissingCannotBeAccepted is { } why)
+        {
+            return why;
+        }
+
+        Status = PayloadMoveStatus.AcceptingMissing;
+        return null;
+    }
+
     /// <summary>(Re)starts the walk at the newest file the import brought, with nothing counted yet.</summary>
     public void StartFrom(long startRowId)
     {
@@ -115,7 +133,6 @@ public class PayloadMoveState
         Files = Objects = Bytes = Skipped = FailureCount = MissingCount = AcceptedMissing = 0;
         Failures = [];
         Missing = [];
-        AcceptMissingRequested = false;
         AcceptedMissingAt = null;
         BackoffSeconds = 0;
         Status = PayloadMoveStatus.Transferring;

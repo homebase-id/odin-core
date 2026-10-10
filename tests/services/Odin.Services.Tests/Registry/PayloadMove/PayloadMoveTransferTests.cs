@@ -270,7 +270,7 @@ public class PayloadMoveTransferTests
         var state = missing.state;
         Assert.That(state.WhyMissingCannotBeAccepted, Is.Null);
 
-        state.AcceptMissingRequested = true;
+        RequestAccept(state);
         var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
 
         Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
@@ -279,7 +279,6 @@ public class PayloadMoveTransferTests
         Assert.That(_source.Checked, Is.EquivalentTo(missing.objects), "each is asked for once more");
         Assert.That(state.AcceptedMissing, Is.EqualTo(2));
         Assert.That(state.AcceptedMissingAt, Is.Not.Null);
-        Assert.That(state.AcceptMissingRequested, Is.False);
 
         state.StartFrom(StartRowId);
         Assert.That((state.Missing.Count, state.MissingCount, state.AcceptedMissing, state.AcceptedMissingAt),
@@ -292,13 +291,12 @@ public class PayloadMoveTransferTests
         var (state, objects) = await EndWithTwoMissingAsync();
         Seed([objects[1]]);
 
-        state.AcceptMissingRequested = true;
+        RequestAccept(state);
         var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
 
         Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
         Assert.That(_source.CompleteCalls, Is.EqualTo(0));
-        Assert.That(state.AcceptMissingRequested, Is.False);
         Assert.That(state.Failures, Has.Some.Contains("accept-missing refused").And.Some.Contains("run --retry"));
         Assert.That(state.WhyMissingCannotBeAccepted, Is.Not.Null, "not again until a retry");
     }
@@ -310,13 +308,12 @@ public class PayloadMoveTransferTests
         _source.ThrottleNextChecks = 1;
         _source.RetryAfter = TimeSpan.FromSeconds(42);
 
-        state.AcceptMissingRequested = true;
+        RequestAccept(state);
         var first = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
 
         Assert.That(first.End, Is.EqualTo(SliceEnd.Wait));
         Assert.That(first.Wait, Is.EqualTo(TimeSpan.FromSeconds(42)));
-        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), "unchanged while waiting");
-        Assert.That(state.AcceptMissingRequested, Is.True);
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.AcceptingMissing), "still asked while waiting");
 
         await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete));
@@ -331,6 +328,8 @@ public class PayloadMoveTransferTests
         state.Status = PayloadMoveStatus.CompleteWithFailures;
 
         Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("run --retry first"));
+        Assert.That(state.RequestAcceptMissing(), Does.Contain("run --retry first"));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), "not asked");
     }
 
     [Test]
@@ -393,6 +392,13 @@ public class PayloadMoveTransferTests
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), string.Join("; ", state.Failures));
         Assert.That(state.Missing, Is.EquivalentTo(objects));
         return (state, objects);
+    }
+
+    // As the admin asks it. The job runs a slice only for a move that is not finished, so the request must undo that.
+    private static void RequestAccept(PayloadMoveState state)
+    {
+        Assert.That(state.RequestAcceptMissing(), Is.Null);
+        Assert.That(state.IsFinished, Is.False, "the job would never run the request");
     }
 
     private IEnumerable<PayloadObject> ImportedObjects() => _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf);

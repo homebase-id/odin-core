@@ -137,12 +137,11 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
                 return new PayloadMoveAcceptOutcome(PayloadMoveAcceptResult.Running);
             }
 
-            if (job.Data.WhyMissingCannotBeAccepted is { } why)
+            if (job.Data.RequestAcceptMissing() is { } why)
             {
                 return new PayloadMoveAcceptOutcome(PayloadMoveAcceptResult.Refused, why);
             }
 
-            job.Data.AcceptMissingRequested = true;
             await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now);
             return new PayloadMoveAcceptOutcome(PayloadMoveAcceptResult.Requested, Objects: job.Data.Missing);
         }

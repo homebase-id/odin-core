@@ -55,14 +55,14 @@ public sealed class PayloadMoveTransfer(
 
     public async Task<SliceResult> RunSliceAsync(PayloadMoveState state, TimeSpan budget, CancellationToken cancellationToken)
     {
-        if (state.AcceptMissingRequested)
-        {
-            return await AcceptMissingAsync(state, cancellationToken);
-        }
-
         if (state.IsFinished)
         {
             return new SliceResult(SliceEnd.Finished);
+        }
+
+        if (state.Status == PayloadMoveStatus.AcceptingMissing)
+        {
+            return await AcceptMissingAsync(state, cancellationToken);
         }
 
         if (state.Credential == null && !await RedeemAsync(state, cancellationToken))
@@ -198,16 +198,9 @@ public sealed class PayloadMoveTransfer(
     }
 
     // The operator gives up the objects the source did not have (#1868). They are asked for once more, and only if
-    // every one is still a 404 does the move complete without them. Until then the status stays as it is.
+    // every one is still a 404 does the move complete without them.
     private async Task<SliceResult> AcceptMissingAsync(PayloadMoveState state, CancellationToken cancellationToken)
     {
-        if (state.WhyMissingCannotBeAccepted is { } why)
-        {
-            state.AcceptMissingRequested = false;
-            logger.LogWarning("Payload move cannot accept the missing objects: {reason}", why);
-            return new SliceResult(SliceEnd.Finished);
-        }
-
         foreach (var payloadObject in state.Missing)
         {
             var outcome = await source.ExistsAsync(payloadObject, state.Credential!, cancellationToken);
@@ -216,7 +209,7 @@ public sealed class PayloadMoveTransfer(
                 case FetchResult.NotFound:
                     continue;
                 case FetchResult.Fetched:
-                    state.AcceptMissingRequested = false;
+                    state.Status = PayloadMoveStatus.CompleteWithFailures;
                     state.AddFailure($"accept-missing refused: {payloadObject} is at the source now; run --retry");
                     logger.LogWarning("Payload move did not give up {object}: the source has it now", payloadObject);
                     return new SliceResult(SliceEnd.Finished);
@@ -232,7 +225,6 @@ public sealed class PayloadMoveTransfer(
             logger.LogWarning("Payload move gave up {object}: the source does not have it (accepted by the operator)", payloadObject);
         }
 
-        state.AcceptMissingRequested = false;
         state.AcceptedMissing = state.MissingCount;
         state.AcceptedMissingAt = UnixTimeUtc.Now();
         return await FinishAsync(state, cancellationToken);

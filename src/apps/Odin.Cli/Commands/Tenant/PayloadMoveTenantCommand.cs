@@ -127,7 +127,7 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
             {
                 Row("Gave up", new Text($"{p.AcceptedMissing} object(s) the source did not have, {p.AcceptedMissingAt.ToCliTime()}"));
             }
-            else if (p.AcceptMissingRequested)
+            else if (p.Status == PayloadMoveStatus.AcceptingMissing)
             {
                 Row("Accepting", new Text($"{p.MissingCount} missing object(s): checking them at the source once more"));
             }
