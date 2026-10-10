@@ -11,11 +11,11 @@ public interface IDriveFileByGtidHttpClientApiV2
 {
     private const string Endpoint = UnifiedApiRouteConstants.ByGtid;
 
-    [Get(Endpoint + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(Endpoint + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayloadByGtid([AliasAs("driveId:guid")] Guid driveId, [AliasAs("gtid:guid")] Guid gtid,
         [AliasAs("payloadKey")] string payloadKey,
-        [AliasAs("start:int")] int start,
-        [AliasAs("length:int")] int length,
+        [AliasAs("start:long")] Int64 start,
+        [AliasAs("length:long")] Int64 length,
         FileSystemType fileSystemType);
 
     [Get(Endpoint + "/payload/{payloadKey}")]

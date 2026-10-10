@@ -167,7 +167,10 @@ public abstract class OdinControllerBase : ControllerBase
         }
     }
 
-    protected FileChunk GetChunk(int? chunkStart, int? chunkLength)
+    /// <summary>
+    /// The requested byte range: a Range header wins over the query/route values. No length (or 0) means "to the end".
+    /// </summary>
+    protected FileChunk GetChunk(Int64? chunkStart, Int64? chunkLength)
     {
         if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
             RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
@@ -177,22 +180,14 @@ public abstract class OdinControllerBase : ControllerBase
             {
                 HttpContext.Response.StatusCode = 206;
 
-                int start = Convert.ToInt32(firstRange.From ?? 0);
-                if (firstRange.To == null)
-                {
-                    return new FileChunk()
-                    {
-                        Start = start,
-                        Length = int.MaxValue
-                    };
-                }
-
-                int end = Convert.ToInt32(firstRange.To);
-
+                // To - From cannot overflow (both are non-negative); adding 1 can, for an end of long.MaxValue,
+                // which only means "to the end" anyway
+                var start = firstRange.From.Value;
+                var span = firstRange.To - start;
                 return new FileChunk()
                 {
                     Start = start,
-                    Length = end - start + 1
+                    Length = span == null || span == Int64.MaxValue ? null : span + 1
                 };
             }
 
@@ -200,10 +195,18 @@ public abstract class OdinControllerBase : ControllerBase
         }
         else if (chunkStart.HasValue)
         {
+            // A route has no way to leave the length out, so 0 says "to the end" there, as it always has; from the
+            // start to the end is the whole payload, a plain read (an empty payload included)
+            var length = chunkLength is null or 0 ? null : chunkLength;
+            if (chunkStart == 0 && length == null)
+            {
+                return null;
+            }
+
             return new FileChunk()
             {
-                Start = chunkStart.GetValueOrDefault(),
-                Length = chunkLength.GetValueOrDefault(int.MaxValue)
+                Start = chunkStart.Value,
+                Length = length
             };
         }
 
@@ -234,8 +237,31 @@ public abstract class OdinControllerBase : ControllerBase
         HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
         HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
         HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
-        HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
-        return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
+        return PayloadResult(payloadStream, "application/octet-stream");
+    }
+
+    /// <summary>
+    /// The response for a payload stream, with its Content-Length and, for a range, Content-Range. FileStreamResult
+    /// sets Content-Length only for a stream that can seek, and a payload streamed from storage cannot (#1892).
+    /// </summary>
+    protected FileStreamResult PayloadResult(PayloadStream payloadStream, string contentType)
+    {
+        HttpContext.Response.ContentLength = payloadStream.ContentLength;
+        if (payloadStream.ContentRange != null)
+        {
+            HttpContext.Response.Headers.ContentRange = payloadStream.ContentRange.ToString();
+        }
+
+        return new FileStreamResult(payloadStream.Stream, contentType);
+    }
+
+    /// <summary>
+    /// The response for a thumbnail streamed from local storage, with its Content-Length; see <see cref="PayloadResult"/>.
+    /// </summary>
+    protected FileStreamResult StoredStreamResult(Stream stream, string contentType)
+    {
+        HttpContext.Response.ContentLength = stream.Length;
+        return new FileStreamResult(stream, contentType);
     }
 
     /// <summary>

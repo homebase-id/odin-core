@@ -54,7 +54,7 @@ public class DrivePeerReaderV2Client(OdinId identity, IApiClientFactory factory)
             return await svc.GetPayload(peer.DomainName, driveId, fileId, payloadKey);
         }
 
-        return await svc.GetPayload(peer.DomainName, driveId, fileId, payloadKey, chunk.Start, chunk.Length);
+        return await svc.GetPayload(peer.DomainName, driveId, fileId, payloadKey, chunk.Start, chunk.Length ?? 0);
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(OdinId peer, Guid driveId, Guid fileId, string payloadKey,
@@ -85,7 +85,7 @@ public class DrivePeerReaderV2Client(OdinId identity, IApiClientFactory factory)
             return await svc.GetPayloadByGtid(peer.DomainName, driveId, gtid, payloadKey);
         }
 
-        return await svc.GetPayloadByGtid(peer.DomainName, driveId, gtid, payloadKey, chunk.Start, chunk.Length);
+        return await svc.GetPayloadByGtid(peer.DomainName, driveId, gtid, payloadKey, chunk.Start, chunk.Length ?? 0);
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnailByGtidAsync(OdinId peer, Guid driveId, Guid gtid, string payloadKey,

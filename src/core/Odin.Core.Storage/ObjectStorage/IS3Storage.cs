@@ -17,12 +17,13 @@ public interface IS3Storage
     Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default);
     Task WriteBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default);
     Task<long> WriteStreamAsync(string path, System.IO.Stream stream, CancellationToken cancellationToken = default);
-    Task<byte[]> ReadBytesAsync(string path, CancellationToken cancellationToken = default);
-    Task<byte[]> ReadBytesAsync(string path, long offset, long length, CancellationToken cancellationToken = default);
 
-    /// Opens the object for reading without loading it into memory. The caller disposes the stream, which
-    /// releases the underlying response. Length is the object's size.
-    Task<System.IO.Stream> OpenReadAsync(string path, CancellationToken cancellationToken = default);
+    /// Opens the object, or <paramref name="length"/> bytes of it from <paramref name="start"/>, for reading without
+    /// loading it into memory. There is deliberately no read into a byte[]: an object is unbounded (#1892).
+    /// A null length reads to the end, and a range running past the end is clamped to it. The caller disposes
+    /// the stream, which releases the underlying response. Length is the number of bytes the stream yields.
+    Task<System.IO.Stream> OpenReadAsync(string path, Int64 start = 0, Int64? length = null,
+        CancellationToken cancellationToken = default);
     Task DeleteFileAsync(string path, CancellationToken cancellationToken = default);
     Task DeleteDirectoryAsync(string path, CancellationToken cancellationToken = default);
     Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default);

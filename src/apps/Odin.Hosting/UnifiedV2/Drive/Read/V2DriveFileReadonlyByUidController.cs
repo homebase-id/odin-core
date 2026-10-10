@@ -55,7 +55,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await this.GetPayloadByUniqueIdInternal(driveId, uid, payloadKey);
         }
 
-        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
+        [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
@@ -63,10 +63,10 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             [FromRoute] Guid driveId,
             [FromRoute] Guid uid,
             [FromRoute] string payloadKey,
-            [FromRoute] int start,
-            [FromRoute] int length)
+            [FromRoute] Int64 start,
+            [FromRoute] Int64 length)
         {
-            FileChunk chunk = this.GetChunk(start == 0 ? null : start, length == 0 ? null : length);
+            FileChunk chunk = this.GetChunk(start, length);
 
             return await GetPayloadByUniqueIdInternal(driveId, uid, payloadKey, chunk);
         }

@@ -51,10 +51,10 @@ public interface IPeerAppDriveHttpClientApiV2
     Task<ApiResponse<HttpContent>> GetPayload(string odinId, string appSlug, string driveSlug,
         [AliasAs("fileId:guid")] Guid fileId, string payloadKey);
 
-    [Get(ByFileId + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(ByFileId + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayload(string odinId, string appSlug, string driveSlug,
         [AliasAs("fileId:guid")] Guid fileId, string payloadKey,
-        [AliasAs("start:int")] int start, [AliasAs("length:int")] int length);
+        [AliasAs("start:long")] Int64 start, [AliasAs("length:long")] Int64 length);
 
     [Get(ByFileId + "/payload/{payloadKey}/thumb/{width}/{height}")]
     Task<ApiResponse<HttpContent>> GetThumbnail(string odinId, string appSlug, string driveSlug,
@@ -78,10 +78,10 @@ public interface IPeerAppDriveHttpClientApiV2
     Task<ApiResponse<HttpContent>> GetPayloadByGtid(string odinId, string appSlug, string driveSlug,
         [AliasAs("gtid:guid")] Guid gtid, string payloadKey);
 
-    [Get(ByGtid + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(ByGtid + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayloadByGtid(string odinId, string appSlug, string driveSlug,
         [AliasAs("gtid:guid")] Guid gtid, string payloadKey,
-        [AliasAs("start:int")] int start, [AliasAs("length:int")] int length);
+        [AliasAs("start:long")] Int64 start, [AliasAs("length:long")] Int64 length);
 
     [Get(ByGtid + "/payload/{payloadKey}/thumb/{width}/{height}")]
     Task<ApiResponse<HttpContent>> GetThumbnailByGtid(string odinId, string appSlug, string driveSlug,
@@ -104,10 +104,10 @@ public interface IPeerAppDriveHttpClientApiV2
     Task<ApiResponse<HttpContent>> TemporalGetPayload(string odinId, string appSlug, string driveSlug,
         [AliasAs("fileId:guid")] Guid fileId, string payloadKey);
 
-    [Get(TemporalByFileId + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(TemporalByFileId + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> TemporalGetPayload(string odinId, string appSlug, string driveSlug,
         [AliasAs("fileId:guid")] Guid fileId, string payloadKey,
-        [AliasAs("start:int")] int start, [AliasAs("length:int")] int length);
+        [AliasAs("start:long")] Int64 start, [AliasAs("length:long")] Int64 length);
 
     [Get(TemporalByFileId + "/payload/{payloadKey}/thumb/{width}/{height}")]
     Task<ApiResponse<HttpContent>> TemporalGetThumbnail(string odinId, string appSlug, string driveSlug,

@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -199,11 +200,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            // Every reader's range is resolved here, before anything is opened
+            var range = chunk?.ResolveAgainst(descriptor.BytesWritten);
+
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
-                return new PayloadStream(descriptor, stream.Length, stream);
+                return await OpenPayloadStreamAsync(drive, file.FileId, descriptor, range);
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
@@ -486,17 +489,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        /// <summary>
-        /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
-        /// </summary>
-        // TODO:INBOX Reads from the folder-based inbox; delete once the inbox folder is drained.
-        public async Task<byte[]> GetAllFileBytesFromInboxFile(InternalDriveFileId file, string extension, IOdinContext odinContext)
-        {
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanReadDriveAsync(file.DriveId, odinContext);
-            return await inboxStorageManager.GetAllInboxFileBytes(file, extension);
-        }
-
         public async Task<bool> UploadFileExists(InternalDriveFileId file, string extension, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -524,7 +516,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             return false;
         }
 
-        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(InternalDriveFileId file, string extension,
+        /// <summary>
+        /// Opens a staged file for reading; the caller disposes the stream.
+        /// </summary>
+        public async Task<Stream> OpenTempFileForReadingAsync(InternalDriveFileId file, string extension,
             StagingArea sourceArea, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -533,7 +528,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var store = ResolveStore(sourceArea);
             var path = Path.Combine(StagingRoot(sourceArea, drive), TenantPathManager.GetFilename(file.FileId, extension));
-            return await store.ReadAllBytesAsync(path);
+            return await store.OpenReadAsync(path);
         }
 
         /// <summary>
@@ -784,6 +779,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            // Every reader's range is resolved here, before anything is opened (or an expiry clock started)
+            var range = chunk?.ResolveAgainst(descriptor.BytesWritten);
+
             if (startExpiryClock)
             {
                 await TryResolveTtlOnFirstReadAsync(header, odinContext);
@@ -792,8 +790,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
-                return new PayloadStream(descriptor, stream.Length, stream);
+                return await OpenPayloadStreamAsync(drive, file.FileId, descriptor, range);
             }
             catch (OdinFileHeaderHasCorruptPayloadException e)
             {
@@ -805,6 +802,21 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await ExplainMissingPayloadAsync(file, key, descriptor.Uid, odinContext, e);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Opens the payload, or <paramref name="range"/> of it (already resolved against the payload).
+        /// </summary>
+        private async Task<PayloadStream> OpenPayloadStreamAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
+            FileChunk range)
+        {
+            var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, fileId, descriptor, range);
+            return new PayloadStream(descriptor, stream.Length, stream)
+            {
+                ContentRange = range == null
+                    ? null
+                    : new ContentRangeHeaderValue(range.Start, range.Start + range.Length!.Value - 1, descriptor.BytesWritten)
+            };
         }
 
         public async Task<bool> FileExists(InternalDriveFileId file, IOdinContext odinContext)

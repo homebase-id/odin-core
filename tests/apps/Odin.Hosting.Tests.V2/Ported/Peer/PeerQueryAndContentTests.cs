@@ -136,6 +136,36 @@ public class PeerQueryAndContentTests : V2Fixture
     }
 
     [Test]
+    public async Task Member_RangedPayloadOverPeer_IsClampedWithContentRange_AndPastTheEndIs416()
+    {
+        var (member, owner, drive) = await SetupMemberCanReadOwnerDriveAsync();
+
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var manifest = new UploadManifest
+        {
+            PayloadDescriptors = new List<TestPayloadDefinition> { payload }.ToPayloadDescriptorList().ToList()
+        };
+        var uploaded = await owner.Drives.Writer.CreateNewUnencryptedFile(
+            drive.Alias, metadata, manifest, new List<TestPayloadDefinition> { payload });
+        Assert.That(uploaded.IsSuccessStatusCode, Is.True, $"owner upload failed: {uploaded.StatusCode}");
+        var fileId = uploaded.Content!.FileId;
+        var size = payload.Content.Length;
+
+        // Past the end: the owner's server clamps it, and the member's server passes its Content-Range on
+        var clamped = await member.Drives.Peer.GetPayloadAsync(
+            owner.Identity, drive.Alias, fileId, payload.Key, new FileChunk { Start = 2, Length = size + 100 });
+        Assert.That(clamped.IsSuccessStatusCode, Is.True, $"clamped ranged read over peer: {clamped.StatusCode}");
+        Assert.That(clamped.ContentHeaders!.ContentRange?.ToString(), Is.EqualTo($"bytes 2-{size - 1}/{size}"));
+        Assert.That(await clamped.Content!.ReadAsByteArrayAsync(), Is.EqualTo(payload.Content.Skip(2).ToArray()));
+
+        // Starting at the end: 416 at the owner's server, and 416 from the member's, not a 500
+        var pastTheEnd = await member.Drives.Peer.GetPayloadAsync(
+            owner.Identity, drive.Alias, fileId, payload.Key, new FileChunk { Start = size, Length = 10 });
+        Assert.That(pastTheEnd.StatusCode, Is.EqualTo(HttpStatusCode.RequestedRangeNotSatisfiable));
+    }
+
+    [Test]
     public async Task Member_GetHeaderOverPeer_MissingFile_ReturnsNotFound()
     {
         var (member, owner, drive) = await SetupMemberCanReadOwnerDriveAsync();

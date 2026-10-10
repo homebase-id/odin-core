@@ -618,5 +618,65 @@ public class ExceptionHandlingMiddlewareTest
             Times.Once);
     }
 
+    [Test]
+    public void ExceptionAfterTheResponseStartedAbortsInsteadOfAppendingProblemJson()
+    {
+        // Arrange: a streamed payload whose storage read fails part way through the body
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await ctx.Response.Body.WriteAsync("partial payload"u8.ToArray());
+            await ctx.Response.Body.FlushAsync();
+            throw new IOException("storage went away mid-stream");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        string body = null;
+        var caught = Assert.CatchAsync(async () =>
+        {
+            var response = await client.GetAsync("/");
+            body = await response.Content.ReadAsStringAsync();
+        });
+
+        // Assert: the client sees a broken transfer, not "partial payload{problem+json}" with a 200
+        Assert.That(caught, Is.Not.Null, $"expected an aborted response, got body: {body}");
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task ExceptionBeforeThePayloadStartsDropsItsContentHeaders()
+    {
+        // Arrange: a payload endpoint has set the payload's length, and the first read fails before anything is sent
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, ctx =>
+        {
+            ctx.Response.ContentLength = 5_000_000;
+            ctx.Response.Headers.ContentRange = "bytes 0-4999999/9000000";
+            ctx.Response.Headers.CacheControl = "max-age=31536000";
+            throw new IOException("storage went away before the first byte");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert: the problem body is not sent under the payload's length (TestServer tolerates the mismatch, Kestrel
+        // resets the connection), nor its range
+        Assert.That((int)response.StatusCode, Is.EqualTo(500));
+        Assert.That(response.Content.Headers.ContentLength, Is.Null.Or.EqualTo(System.Text.Encoding.UTF8.GetByteCount(content)));
+        Assert.That(response.Content.Headers.ContentRange, Is.Null);
+        Assert.That(response.Headers.CacheControl?.NoStore, Is.True, "a cache must not keep an error");
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems!.Status, Is.EqualTo(500));
+    }
 
 }
