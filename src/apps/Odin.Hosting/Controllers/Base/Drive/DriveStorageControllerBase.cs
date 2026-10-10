@@ -6,7 +6,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -16,7 +15,6 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
-using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -145,19 +143,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
             }
 
-            if (payloadStream.Range != null)
-            {
-                HttpContext.Response.Headers.ContentRange = ContentRange(payloadStream);
-            }
-
-            // Explicit, because a streamed payload cannot seek, and FileStreamResult only sets it for a seekable stream
-            HttpContext.Response.ContentLength = payloadStream.ContentLength;
-
             AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
 
-            var result = new FileStreamResult(payloadStream.Stream, payloadStream.ContentType);
-
-            return result;
+            return PayloadResult(payloadStream, payloadStream.ContentType);
         }
 
         /// <summary>
@@ -212,14 +200,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     encryptedKeyHeaderForPayload?.ToBase64());
             }
             
-            HttpContext.Response.ContentLength = thumbPayload.Length; // a streamed thumbnail cannot seek; see GetPayloadStream
             AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
 
-            var result = new FileStreamResult(thumbPayload, header.FileMetadata.IsEncrypted
+            return StoredStreamResult(thumbPayload, header.FileMetadata.IsEncrypted
                 ? "application/octet-stream"
                 : thumbHeader.ContentType);
-
-            return result;
         }
 
         protected async Task<SendReadReceiptResult> SendReadReceipt(SendReadReceiptRequest request)

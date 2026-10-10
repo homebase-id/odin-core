@@ -263,7 +263,9 @@ public sealed class FileReaderWriter(
                 {
                     try
                     {
-                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
+                        // Unbuffered (bufferSize 0): readers copy in 16-80 KB reads, so a FileStream buffer only adds
+                        // an allocation per open and a copy of every byte
+                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 0,
                             FileOptions.Asynchronous | FileOptions.SequentialScan);
                     }
                     catch (Exception e)

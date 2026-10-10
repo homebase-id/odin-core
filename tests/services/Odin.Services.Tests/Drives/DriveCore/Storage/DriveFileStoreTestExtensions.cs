@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Test.Helpers;
 
 namespace Odin.Services.Tests.Drives.DriveCore.Storage;
 
@@ -22,17 +23,5 @@ public static class DriveFileStoreTestExtensions
     {
         await using var stream = await store.OpenReadAsync(path, start, length, ct);
         return await stream.ReadToEndAsync(ct);
-    }
-
-    /// Reads to the end, and checks the stream yielded exactly the Length it promised.
-    public static async Task<byte[]> ReadToEndAsync(this Stream stream, CancellationToken ct = default)
-    {
-        using var copy = new MemoryStream();
-        await stream.CopyToAsync(copy, ct);
-        if (copy.Length != stream.Length)
-        {
-            throw new InvalidDataException($"Stream promised {stream.Length} bytes and yielded {copy.Length}");
-        }
-        return copy.ToArray();
     }
 }

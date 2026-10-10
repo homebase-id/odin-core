@@ -1,9 +1,11 @@
 using System;
 using System.IO;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Drives.FileSystem.Base;
@@ -37,13 +39,10 @@ public class PayloadStream : IDisposable
     }
 
     /// <summary>
-    /// The byte range this stream yields, resolved against the payload (clamped, exact length); null for the whole
-    /// payload. With <see cref="PayloadSize"/> it is what a Content-Range header says.
+    /// The byte range this stream yields within the whole payload, as its Content-Range header says it; null when
+    /// the stream is the whole payload.
     /// </summary>
-    public FileChunk? Range { get; init; }
-
-    /// <summary>The whole payload's size, when <see cref="Range"/> is set.</summary>
-    public Int64 PayloadSize { get; init; }
+    public ContentRangeHeaderValue? ContentRange { get; init; }
 
     public UnixTimeUtc LastModified { get; }
     
@@ -66,14 +65,19 @@ public class PayloadStream : IDisposable
     }
 
     /// <summary>
+    /// Reads the whole payload, or returns null, without reading a byte, when it is larger than
+    /// <paramref name="maxBytes"/>.
+    /// </summary>
+    public Task<byte[]?> TryReadAllBytesAsync(Int64 maxBytes, CancellationToken cancellationToken = default)
+        => BoundedRead.TryReadAllBytesAsync(Stream, ContentLength, maxBytes, cancellationToken);
+
+    /// <summary>
     /// Reads the whole payload, refusing one larger than <paramref name="maxBytes"/> before reading a byte.
     /// </summary>
     public async Task<byte[]> ReadAllBytesAsync(Int64 maxBytes, CancellationToken cancellationToken = default)
     {
         AssertAtMost(maxBytes);
-        var bytes = new byte[ContentLength];
-        await Stream.ReadExactlyAsync(bytes, cancellationToken);
-        return bytes;
+        return (await TryReadAllBytesAsync(maxBytes, cancellationToken))!;
     }
 
     private bool _disposed;

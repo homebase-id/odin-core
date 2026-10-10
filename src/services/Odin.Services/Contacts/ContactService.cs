@@ -279,11 +279,7 @@ public class ContactService(
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "image content is required");
-        if (request.Content.Length > MaxImageContentBytes)
-        {
-            throw new OdinClientException($"Image content exceeds the {MaxImageContentBytes} byte limit",
-                OdinClientErrorCode.MaxContentLengthExceeded);
-        }
+        OdinValidationUtils.AssertMaxByteLength(request.Content, MaxImageContentBytes, "Image content");
         OdinValidationUtils.AssertIsTrue(request.Iv is { Length: 16 }, "a 16-byte image iv is required");
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "image contentType is required");
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);

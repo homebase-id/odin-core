@@ -153,6 +153,18 @@ public static class OdinValidationUtils
         AssertIsTrue((content?.Length ?? 0) < maxLength, message);
     }
 
+    /// <summary>
+    /// Throws <see cref="OdinClientErrorCode.MaxContentLengthExceeded"/> when <paramref name="content"/> is longer than
+    /// <paramref name="maxBytes"/>.
+    /// </summary>
+    public static void AssertMaxByteLength(byte[] content, int maxBytes, string what)
+    {
+        if ((content?.Length ?? 0) > maxBytes)
+        {
+            throw new OdinClientException($"{what} exceeds the {maxBytes} byte limit", OdinClientErrorCode.MaxContentLengthExceeded);
+        }
+    }
+
     public static void AssertValidEmail(string email, string message)
     {
         if (!MailAddress.TryCreate(email, out _))

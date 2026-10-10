@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -205,8 +206,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, range);
-                return new PayloadStream(descriptor, stream.Length, stream) { Range = range, PayloadSize = descriptor.BytesWritten };
+                return await OpenPayloadStreamAsync(drive, file.FileId, descriptor, range);
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
@@ -790,8 +790,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, range);
-                return new PayloadStream(descriptor, stream.Length, stream) { Range = range, PayloadSize = descriptor.BytesWritten };
+                return await OpenPayloadStreamAsync(drive, file.FileId, descriptor, range);
             }
             catch (OdinFileHeaderHasCorruptPayloadException e)
             {
@@ -803,6 +802,21 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await ExplainMissingPayloadAsync(file, key, descriptor.Uid, odinContext, e);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Opens the payload, or <paramref name="range"/> of it (already resolved against the payload).
+        /// </summary>
+        private async Task<PayloadStream> OpenPayloadStreamAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
+            FileChunk range)
+        {
+            var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, fileId, descriptor, range);
+            return new PayloadStream(descriptor, stream.Length, stream)
+            {
+                ContentRange = range == null
+                    ? null
+                    : new ContentRangeHeaderValue(range.Start, range.Start + range.Length!.Value - 1, descriptor.BytesWritten)
+            };
         }
 
         public async Task<bool> FileExists(InternalDriveFileId file, IOdinContext odinContext)

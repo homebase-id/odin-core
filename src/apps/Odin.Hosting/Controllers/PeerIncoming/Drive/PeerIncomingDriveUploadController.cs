@@ -189,8 +189,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var metadataSection = await reader.ReadNextSectionAsync();
             AssertIsPart(metadataSection, MultipartHostTransferParts.Metadata);
-            var json = await BoundedRead.ReadAllTextAsync(metadataSection!.Body);
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+            var metadata = await BoundedRead.DeserializeAsync<FileMetadata>(metadataSection!.Body);
 
             _incomingTransferService = GetPerimeterService(_fileSystem);
             await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet,
@@ -287,8 +286,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private async Task<EncryptedRecipientTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
-            string json = await BoundedRead.ReadAllTextAsync(section.Body);
-            var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
+            var transferInstructionSet = await BoundedRead.DeserializeAsync<EncryptedRecipientTransferInstructionSet>(section.Body);
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
             OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(),

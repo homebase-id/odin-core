@@ -168,8 +168,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// </remarks>
         protected virtual async Task<UploadInstructionSet> RemapTransitInstructionSet(Stream transitInstructionStream)
         {
-            string json = await BoundedRead.ReadAllTextAsync(transitInstructionStream);
-            var transitInstructionSet = OdinSystemSerializer.Deserialize<TransitInstructionSet>(json);
+            var transitInstructionSet = await BoundedRead.DeserializeAsync<TransitInstructionSet>(transitInstructionStream);
 
             var uploadInstructionSet = new UploadInstructionSet()
             {

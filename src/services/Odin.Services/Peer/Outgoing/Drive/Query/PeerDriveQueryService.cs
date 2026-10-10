@@ -942,45 +942,57 @@ public class PeerDriveQueryService(
         // connection stays checked out of the pool until the GC finds it.
         try
         {
-            if (response.StatusCode == HttpStatusCode.NotFound)
-            {
-                response.Dispose();
-                return (null, default, null, null, Stream.Null);
-            }
-
-            await HandleInvalidResponseAsync(odinId, response, odinContext);
-
-            var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-            var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-
-            if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
-            {
-                logger.LogDebug($"Could not parse remote server response last modified for thumbnail");
-            }
-
-            EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-            if (payloadIsEncrypted)
-            {
-                var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-                var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-                sharedSecretEncryptedKeyHeader = ReEncrypt(
-                    icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
-                    icrEncryptedKeyHeader, odinContext);
-            }
-            else
-            {
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-            }
-
-            var stream = await response!.Content!.ReadAsStreamAsync();
-
-            return (sharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, lastModified, stream);
+            return await ParseThumbnailResponseAsync(odinId, icr, response, odinContext);
         }
         catch
         {
             response.Dispose();
             throw;
         }
+    }
+
+    private async Task<(
+            EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
+            bool payloadIsEncrypted,
+            string decryptedContentType,
+            UnixTimeUtc? lastModified,
+            Stream thumbnail)>
+        ParseThumbnailResponseAsync(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response,
+            IOdinContext odinContext)
+    {
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            response.Dispose();
+            return (null, default, null, null, Stream.Null);
+        }
+
+        await HandleInvalidResponseAsync(odinId, response, odinContext);
+
+        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
+
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
+        {
+            logger.LogDebug($"Could not parse remote server response last modified for thumbnail");
+        }
+
+        EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
+        if (payloadIsEncrypted)
+        {
+            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
+            sharedSecretEncryptedKeyHeader = ReEncrypt(
+                icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret,
+                icrEncryptedKeyHeader, odinContext);
+        }
+        else
+        {
+            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+
+        var stream = await response!.Content!.ReadAsStreamAsync();
+
+        return (sharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, lastModified, stream);
     }
 
 
@@ -992,64 +1004,68 @@ public class PeerDriveQueryService(
         // connection stays checked out of the pool until the GC finds it.
         try
         {
-            var permissionContext = odinContext.PermissionsContext;
-
-            if (response.StatusCode == HttpStatusCode.NotFound)
-            {
-                response.Dispose();
-                return (null, default, null);
-            }
-
-            if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
-            {
-                throw new OdinRangeNotSatisfiableException(response.ContentHeaders?.ContentRange?.Length,
-                    $"The range is not satisfiable at [{odinId}]");
-            }
-
-            await HandleInvalidResponseAsync(odinId, response, odinContext);
-
-            var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-            var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-
-            if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
-            {
-                logger.LogInformation($"Could not parse last modified for payload (key:{key})");
-            }
-
-            EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-            if (payloadIsEncrypted)
-            {
-                var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-
-                var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-                ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
-                    icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
-                    icrEncryptedKeyHeader, odinContext);
-            }
-            else
-            {
-                ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-            }
-
-            var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
-
-            var stream = await response.Content!.ReadAsStreamAsync();
-            var remoteRange = response.Content.Headers.ContentRange;
-            var payloadStream = new PayloadStream(key, decryptedContentType, contentLength, lastModified.GetValueOrDefault(UnixTimeUtc.Now()),
-                stream)
-            {
-                Range = remoteRange is { From: not null, To: not null }
-                    ? new FileChunk { Start = remoteRange.From.Value, Length = remoteRange.To.Value - remoteRange.From.Value + 1 }
-                    : null,
-                PayloadSize = remoteRange?.Length ?? contentLength
-            };
-            return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
+            return await ParsePayloadResponseAsync(odinId, icr, key, response, odinContext);
         }
         catch
         {
             response.Dispose();
             throw;
         }
+    }
+
+    private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
+        ParsePayloadResponseAsync(
+            OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
+    {
+        var permissionContext = odinContext.PermissionsContext;
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            response.Dispose();
+            return (null, default, null);
+        }
+
+        if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+        {
+            throw new OdinRangeNotSatisfiableException(response.ContentHeaders?.ContentRange?.Length,
+                $"The range is not satisfiable at [{odinId}]");
+        }
+
+        await HandleInvalidResponseAsync(odinId, response, odinContext);
+
+        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
+
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
+        {
+            logger.LogInformation($"Could not parse last modified for payload (key:{key})");
+        }
+
+        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
+        if (payloadIsEncrypted)
+        {
+            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
+
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
+                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
+                icrEncryptedKeyHeader, odinContext);
+        }
+        else
+        {
+            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+
+        var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
+
+        var stream = await response.Content!.ReadAsStreamAsync();
+        var remoteRange = response.Content.Headers.ContentRange;
+        var payloadStream = new PayloadStream(key, decryptedContentType, contentLength, lastModified.GetValueOrDefault(UnixTimeUtc.Now()),
+            stream)
+        {
+            ContentRange = remoteRange is { From: not null, To: not null } ? remoteRange : null
+        };
+        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
 
     private void HandleTryRetryException(TryRetryException ex, OdinId odinId)

@@ -219,8 +219,14 @@ namespace Odin.Hosting.Middleware
                 else
                 {
                     //TODO: add try/catch to ensure we have a valid shared secret payload
-                    var body = await BoundedRead.ReadAllBytesAsync(request.Body, MaxEncryptedRequestBodyBytes, context.RequestAborted);
-                    var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(new MemoryStream(body), this.GetSharedSecret(context),
+                    if (request.ContentLength > MaxEncryptedRequestBodyBytes)
+                    {
+                        throw new OdinClientException($"Request body exceeds the {MaxEncryptedRequestBodyBytes} byte limit",
+                            OdinClientErrorCode.MaxContentLengthExceeded);
+                    }
+
+                    var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(
+                        BoundedRead.Limit(request.Body, MaxEncryptedRequestBodyBytes), this.GetSharedSecret(context),
                         context.RequestAborted);
 
                     //update the body with the decrypted json file so it can be read down stream as expected

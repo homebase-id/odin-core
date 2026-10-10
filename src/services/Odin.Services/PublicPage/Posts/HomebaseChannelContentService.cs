@@ -313,21 +313,16 @@ public class HomebaseChannelContentService(
         CancellationToken cancellationToken,
         bool includePayloadBody = true)
     {
-        async Task<PostContent> LoadBodyFromPayload(InternalDriveFileId fileId)
+        async Task<PostContent> LoadPayload(InternalDriveFileId fileId, string key)
         {
-            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, PostFullTextPayloadKey, null, odinContext);
+            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, key, null, odinContext);
             payloadStream.AssertAtMost(MaxPostPayloadBytes);
-            return await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken)
-                   ?? throw new OdinSystemException("Failed to deserialize data");
+            return await OdinSystemSerializer.DeserializeOrThrow<PostContent>(payloadStream.Stream, cancellationToken);
         }
 
-        async Task<PostContent> LoadContentFromPayload(InternalDriveFileId fileId)
-        {
-            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-            payloadStream.AssertAtMost(MaxPostPayloadBytes);
-            return await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken)
-                   ?? throw new OdinSystemException("Failed to deserialize data");
-        }
+        // Not a parse failure: a payload over MaxPostPayloadBytes
+        void LogTooLarge(OdinPayloadTooLargeException e) =>
+            logger.LogError("Post {FileId}: payload not loaded, it is over the cap: {Message}", postFile.FileId, e.Message);
 
         var fileId = new InternalDriveFileId()
         {
@@ -336,7 +331,6 @@ public class HomebaseChannelContentService(
         };
 
         PostContent content = null;
-        OdinPayloadTooLargeException tooLarge = null;
         var payloads = postFile.FileMetadata.Payloads ?? [];
         var payloadHeader = payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
 
@@ -350,13 +344,13 @@ public class HomebaseChannelContentService(
                     DefaultPayloadKey,
                     postFile.FileMetadata.AppData.Content);
 
-                content = await LoadContentFromPayload(fileId);
+                content = await LoadPayload(fileId, DefaultPayloadKey);
             }
             else
             {
                 if (includePayloadBody && payloads.Any(p => p.KeyEquals(PostFullTextPayloadKey)))
                 {
-                    var bodyFromPayload = await LoadBodyFromPayload(fileId);
+                    var bodyFromPayload = await LoadPayload(fileId, PostFullTextPayloadKey);
                     content.Body = bodyFromPayload.Body;
                 }
             }
@@ -368,9 +362,12 @@ public class HomebaseChannelContentService(
         }
         catch (OdinPayloadTooLargeException e)
         {
-            // Not a parse failure: a payload over MaxPostPayloadBytes. Whatever the header holds is served.
-            logger.LogError("Post {FileId}: payload not loaded, it is over the cap: {Message}", postFile.FileId, e.Message);
-            tooLarge = e;
+            // Whatever the header holds is served; with nothing, the caller is told why, so a listing can skip just this post
+            LogTooLarge(e);
+            if (content == null)
+            {
+                throw;
+            }
         }
         catch (Exception e)
         {
@@ -383,20 +380,22 @@ public class HomebaseChannelContentService(
                 // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
                 try
                 {
-                    content = await LoadContentFromPayload(fileId);
+                    content = await LoadPayload(fileId, DefaultPayloadKey);
                 }
-                catch (OdinPayloadTooLargeException tooLargeFallback)
+                catch (OdinPayloadTooLargeException tooLarge)
                 {
-                    logger.LogError("Post {FileId}: payload not loaded, it is over the cap: {Message}", postFile.FileId, tooLargeFallback.Message);
-                    tooLarge = tooLargeFallback;
+                    LogTooLarge(tooLarge);
+                    if (content == null)
+                    {
+                        throw;
+                    }
                 }
             }
         }
 
         if (null == content)
         {
-            // Nothing to serve: say why when it is the cap, so a listing can skip just this post
-            throw tooLarge ?? new OdinSystemException("Could not parse post content");
+            throw new OdinSystemException("Could not parse post content");
         }
 
         content.UserDate = postFile.FileMetadata.AppData.UserDate;

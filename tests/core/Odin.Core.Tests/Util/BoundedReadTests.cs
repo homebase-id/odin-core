@@ -33,21 +33,46 @@ public class BoundedReadTests
     }
 
     [Test]
-    public async Task DecodesTextLikeStreamReader()
+    public async Task DeserializesASectionWithAByteOrderMark()
     {
         var json = "{\"name\":\"Frodo – ringbearer\"}";
         var withBom = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(json)).ToArray();
 
-        Assert.That(await BoundedRead.ReadAllTextAsync(new MemoryStream(withBom)), Is.EqualTo(json));
+        var section = await BoundedRead.DeserializeAsync<Named>(new MemoryStream(withBom));
+
+        Assert.That(section!.Name, Is.EqualTo("Frodo – ringbearer"));
+    }
+
+    [Test]
+    public void RefusesASectionPastTheLimitWhileDeserializing()
+    {
+        // A JSON string that never ends: the deserializer keeps reading until the limit stops it
+        var endless = new EndlessStream(first: (byte)'"', rest: (byte)'a');
+
+        var e = Assert.ThrowsAsync<OdinClientException>(() => BoundedRead.DeserializeAsync<Named>(endless, maxBytes: 100_000));
+
+        Assert.That(e!.ErrorCode, Is.EqualTo(OdinClientErrorCode.MaxContentLengthExceeded));
+        Assert.That(endless.BytesRead, Is.LessThan(100_000 + 64 * 1024), "it must stop reading at the limit");
+    }
+
+    private sealed class Named
+    {
+        public string? Name { get; set; }
     }
 
     // A sender that never stops
-    private sealed class EndlessStream : Stream
+    private sealed class EndlessStream(byte first = 0, byte rest = 0) : Stream
     {
         public long BytesRead { get; private set; }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            buffer.AsSpan(offset, count).Fill(rest);
+            if (BytesRead == 0 && count > 0)
+            {
+                buffer[offset] = first;
+            }
+
             BytesRead += count;
             return count;
         }

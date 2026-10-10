@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Test.Helpers;
 
 namespace Odin.Core.Storage.Tests.ObjectStorage;
 
@@ -18,12 +19,6 @@ public static class S3StorageTestExtensions
         CancellationToken ct = default)
     {
         await using var stream = await storage.OpenReadAsync(path, start, length, ct);
-        using var copy = new MemoryStream();
-        await stream.CopyToAsync(copy, ct);
-        if (copy.Length != stream.Length)
-        {
-            throw new InvalidDataException($"Stream promised {stream.Length} bytes and yielded {copy.Length}");
-        }
-        return copy.ToArray();
+        return await stream.ReadToEndAsync(ct);
     }
 }

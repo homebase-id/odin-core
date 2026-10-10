@@ -237,22 +237,31 @@ public abstract class OdinControllerBase : ControllerBase
         HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
         HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
         HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
-        HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
-        if (payloadStream.Range != null)
-        {
-            HttpContext.Response.Headers.ContentRange = ContentRange(payloadStream);
-        }
-
-        return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
+        return PayloadResult(payloadStream, "application/octet-stream");
     }
 
     /// <summary>
-    /// The Content-Range header of a ranged payload stream (its <see cref="PayloadStream.Range"/> is set).
+    /// The response for a payload stream, with its Content-Length and, for a range, Content-Range. FileStreamResult
+    /// sets Content-Length only for a stream that can seek, and a payload streamed from storage cannot (#1892).
     /// </summary>
-    protected static string ContentRange(PayloadStream payloadStream)
+    protected FileStreamResult PayloadResult(PayloadStream payloadStream, string contentType)
     {
-        var range = payloadStream.Range!;
-        return new ContentRangeHeaderValue(range.Start, range.Start + range.Length!.Value - 1, payloadStream.PayloadSize).ToString();
+        HttpContext.Response.ContentLength = payloadStream.ContentLength;
+        if (payloadStream.ContentRange != null)
+        {
+            HttpContext.Response.Headers.ContentRange = payloadStream.ContentRange.ToString();
+        }
+
+        return new FileStreamResult(payloadStream.Stream, contentType);
+    }
+
+    /// <summary>
+    /// The response for a thumbnail streamed from local storage, with its Content-Length; see <see cref="PayloadResult"/>.
+    /// </summary>
+    protected FileStreamResult StoredStreamResult(Stream stream, string contentType)
+    {
+        HttpContext.Response.ContentLength = stream.Length;
+        return new FileStreamResult(stream, contentType);
     }
 
     /// <summary>

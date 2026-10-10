@@ -9,6 +9,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -399,16 +400,14 @@ public class ProfilePublishService(
         {
             await using (thumbStream)
             {
-                if (thumbStream.Length > ThumbnailDescriptor.MaxThumbnailSize)
+                imageBytes = await BoundedRead.TryReadAllBytesAsync(thumbStream, thumbStream.Length, ThumbnailDescriptor.MaxThumbnailSize);
+                if (imageBytes == null)
                 {
                     logger.LogError("Profile thumbnail is {Length} bytes, over {Max}; publishing the fallback image",
                         thumbStream.Length, ThumbnailDescriptor.MaxThumbnailSize);
                     await PublishFallbackProfileImageAsync(publishContext);
                     return;
                 }
-
-                imageBytes = new byte[thumbStream.Length];
-                await thumbStream.ReadExactlyAsync(imageBytes);
             }
 
             contentType = thumbnail.ContentType;
@@ -422,7 +421,8 @@ public class ProfilePublishService(
                 return;
             }
 
-            if (payloadStream.ContentLength > ProfileAttributeService.MaxPhotoContentBytes)
+            imageBytes = await payloadStream.TryReadAllBytesAsync(ProfileAttributeService.MaxPhotoContentBytes);
+            if (imageBytes == null)
             {
                 logger.LogError("Profile photo is {Length} bytes, over {Max}, which the profile API refuses; publishing the fallback image",
                     payloadStream.ContentLength, ProfileAttributeService.MaxPhotoContentBytes);
@@ -430,7 +430,6 @@ public class ProfilePublishService(
                 return;
             }
 
-            imageBytes = await payloadStream.ReadAllBytesAsync(ProfileAttributeService.MaxPhotoContentBytes);
             contentType = payloadStream.ContentType;
         }
 

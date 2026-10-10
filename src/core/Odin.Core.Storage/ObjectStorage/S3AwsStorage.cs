@@ -274,10 +274,9 @@ public class S3AwsStorage : IS3Storage
         // A whole read sends no Range header: 'bytes=0-' against a zero-length object is unsatisfiable on any
         // compliant S3 (AWS included) and yields 416, while a rangeless GET returns 200 with an empty body.
         // A range running past the end is clamped by S3, and the response's ContentLength says what came back.
-        var end = length == null || length.Value > Int64.MaxValue - start ? (Int64?)null : start + length.Value - 1;
-        if (end != null)
+        if (length != null && length.Value <= Int64.MaxValue - start)
         {
-            request.ByteRange = new ByteRange(start, end.Value);
+            request.ByteRange = new ByteRange(start, start + length.Value - 1);
         }
         else if (start > 0)
         {

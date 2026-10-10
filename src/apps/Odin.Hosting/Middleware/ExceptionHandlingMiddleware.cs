@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
@@ -38,7 +39,7 @@ namespace Odin.Hosting.Middleware
             {
                 // Caught ahead of OdinClientException, which it derives from. Content-Range tells the client the size.
                 await HandleExceptionAsync(context, new RequestedRangeNotSatisfiableException(e.Message, inner: e),
-                    contentRange: e.Size == null ? null : $"bytes */{e.Size}");
+                    contentRange: e.Size == null ? null : new ContentRangeHeaderValue(e.Size.Value).ToString());
             }
             catch (OdinPayloadVersionGoneException e) // => HTTP 404
             {
