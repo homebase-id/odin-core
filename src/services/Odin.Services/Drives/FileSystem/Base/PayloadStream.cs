@@ -36,6 +36,15 @@ public class PayloadStream : IDisposable
         Stream = stream;
     }
 
+    /// <summary>
+    /// The byte range this stream yields, resolved against the payload (clamped, exact length); null for the whole
+    /// payload. With <see cref="PayloadSize"/> it is what a Content-Range header says.
+    /// </summary>
+    public FileChunk? Range { get; init; }
+
+    /// <summary>The whole payload's size, when <see cref="Range"/> is set.</summary>
+    public Int64 PayloadSize { get; init; }
+
     public UnixTimeUtc LastModified { get; }
     
     public string Key { get; }
@@ -51,7 +60,7 @@ public class PayloadStream : IDisposable
     {
         if (ContentLength > maxBytes)
         {
-            throw new OdinSystemException(
+            throw new OdinPayloadTooLargeException(
                 $"Payload '{Key}' is {ContentLength} bytes, over the {maxBytes} bytes allowed for reading it whole");
         }
     }

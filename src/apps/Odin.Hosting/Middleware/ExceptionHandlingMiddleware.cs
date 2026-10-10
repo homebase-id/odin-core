@@ -34,6 +34,12 @@ namespace Odin.Hosting.Middleware
             {
                 await next(context);
             }
+            catch (OdinRangeNotSatisfiableException e) // => HTTP 416
+            {
+                // Caught ahead of OdinClientException, which it derives from. Content-Range tells the client the size.
+                await HandleExceptionAsync(context, new RequestedRangeNotSatisfiableException(e.Message, inner: e),
+                    contentRange: $"bytes */{e.Size}");
+            }
             catch (OdinPayloadVersionGoneException e) // => HTTP 404
             {
                 // Caught ahead of OdinClientException, which it derives from: a payload replaced while it
@@ -73,7 +79,7 @@ namespace Odin.Hosting.Middleware
 
         //
 
-        private Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private Task HandleExceptionAsync(HttpContext context, Exception exception, string contentRange = null)
         {
             // We're not allowed to write anything back on a websocket CONNECT,
             // so for now just log whatever it is as an error.
@@ -165,6 +171,15 @@ namespace Odin.Hosting.Middleware
             }
 
             var result = OdinSystemSerializer.Serialize(problemDetails);
+
+            // A payload endpoint sets these before streaming; a failure before the first byte must not send the
+            // problem body under the payload's length (Kestrel would reset the connection) or range
+            context.Response.ContentLength = null;
+            context.Response.Headers.Remove("Content-Range");
+            if (contentRange != null)
+            {
+                context.Response.Headers.ContentRange = contentRange;
+            }
 
             context.Response.ContentType = "application/problem+json";
             context.Response.StatusCode = problemDetails.Status.Value;

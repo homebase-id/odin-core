@@ -116,6 +116,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
+            if (payloadStream.Range != null)
+            {
+                HttpContext.Response.Headers.ContentRange = ContentRange(payloadStream);
+            }
 
             return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
@@ -254,6 +258,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
+            if (payloadStream.Range != null)
+            {
+                HttpContext.Response.Headers.ContentRange = ContentRange(payloadStream);
+            }
 
             return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }

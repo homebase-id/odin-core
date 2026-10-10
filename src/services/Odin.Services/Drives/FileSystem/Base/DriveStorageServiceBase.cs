@@ -199,11 +199,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            // Every reader's range is resolved here, before anything is opened
+            var range = chunk?.ResolveAgainst(descriptor.BytesWritten);
+
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
-                return new PayloadStream(descriptor, stream.Length, stream);
+                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, range);
+                return new PayloadStream(descriptor, stream.Length, stream) { Range = range, PayloadSize = descriptor.BytesWritten };
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {
@@ -776,6 +779,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            // Every reader's range is resolved here, before anything is opened (or an expiry clock started)
+            var range = chunk?.ResolveAgainst(descriptor.BytesWritten);
+
             if (startExpiryClock)
             {
                 await TryResolveTtlOnFirstReadAsync(header, odinContext);
@@ -784,8 +790,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
-                return new PayloadStream(descriptor, stream.Length, stream);
+                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, range);
+                return new PayloadStream(descriptor, stream.Length, stream) { Range = range, PayloadSize = descriptor.BytesWritten };
             }
             catch (OdinFileHeaderHasCorruptPayloadException e)
             {

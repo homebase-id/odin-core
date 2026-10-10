@@ -168,7 +168,7 @@ public abstract class OdinControllerBase : ControllerBase
     }
 
     /// <summary>
-    /// The requested byte range: a Range header wins over the query/route values. No length means "to the end".
+    /// The requested byte range: a Range header wins over the query/route values. No length (or 0) means "to the end".
     /// </summary>
     protected FileChunk GetChunk(Int64? chunkStart, Int64? chunkLength)
     {
@@ -180,11 +180,14 @@ public abstract class OdinControllerBase : ControllerBase
             {
                 HttpContext.Response.StatusCode = 206;
 
+                // To - From cannot overflow (both are non-negative); adding 1 can, for an end of long.MaxValue,
+                // which only means "to the end" anyway
                 var start = firstRange.From.Value;
+                var span = firstRange.To - start;
                 return new FileChunk()
                 {
                     Start = start,
-                    Length = firstRange.To == null ? null : firstRange.To.Value - start + 1
+                    Length = span == null || span == Int64.MaxValue ? null : span + 1
                 };
             }
 
@@ -192,10 +195,11 @@ public abstract class OdinControllerBase : ControllerBase
         }
         else if (chunkStart.HasValue)
         {
+            // A route has no way to leave the length out, so 0 says "to the end" there, as it always has
             return new FileChunk()
             {
                 Start = chunkStart.Value,
-                Length = chunkLength
+                Length = chunkLength is null or 0 ? null : chunkLength
             };
         }
 
@@ -227,7 +231,21 @@ public abstract class OdinControllerBase : ControllerBase
         HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
         HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
         HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
+        if (payloadStream.Range != null)
+        {
+            HttpContext.Response.Headers.ContentRange = ContentRange(payloadStream);
+        }
+
         return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
+    }
+
+    /// <summary>
+    /// The Content-Range header of a ranged payload stream (its <see cref="PayloadStream.Range"/> is set).
+    /// </summary>
+    protected static string ContentRange(PayloadStream payloadStream)
+    {
+        var range = payloadStream.Range!;
+        return new ContentRangeHeaderValue(range.Start, range.Start + range.Length!.Value - 1, payloadStream.PayloadSize).ToString();
     }
 
     /// <summary>

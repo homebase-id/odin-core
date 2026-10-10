@@ -359,6 +359,11 @@ public class HomebaseChannelContentService(
             // Client disconnected (or the request timed out) mid-read; not a failure, don't try to recover.
             throw;
         }
+        catch (OdinPayloadTooLargeException e)
+        {
+            // Not a parse failure: a payload over MaxPostPayloadBytes. Whatever the header holds is served.
+            logger.LogError("Post {FileId} served without its payload: {Message}", postFile.FileId, e.Message);
+        }
         catch (Exception e)
         {
             // if incomplete and there is a payload try parsing that

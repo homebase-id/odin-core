@@ -38,9 +38,10 @@ namespace Odin.Hosting.Middleware
         /// An encrypted body is decrypted whole, so it is bounded here; Kestrel does not bound it
         /// (<c>MaxRequestBodySize = null</c>, for payloads, which come as multipart and skip this middleware). The
         /// largest legitimate one is a contact image: <see cref="Odin.Services.Contacts.ContactService.MaxImageContentBytes"/>
-        /// of ciphertext, base64 in the JSON, then base64 again in the encrypted envelope, plus its thumbnails.
+        /// of ciphertext, base64 in the JSON, then base64 again in the encrypted envelope (about 36 MB), plus its
+        /// thumbnails.
         /// </summary>
-        private const int MaxEncryptedRequestBodyBytes = 32 * 1024 * 1024;
+        private const int MaxEncryptedRequestBodyBytes = 48 * 1024 * 1024;
 
         private readonly RequestDelegate _next;
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;

@@ -123,7 +123,7 @@ public class UpdateRemoteFileOutboxWorker(
                     "transferInstructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = await PackageFileStreamsAsync(
+                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = PackageFileStreams(
                     header,
                     odinContext,
                     datasourceOverride: FileItem.State.DataSourceOverride);
@@ -141,6 +141,7 @@ public class UpdateRemoteFileOutboxWorker(
             catch (Exception e)
             {
                 logger.LogDebug(e, "SendUpdatedFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                RethrowPartOpenFailure(payloadStreams);
                 throw;
             }
             finally

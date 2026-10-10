@@ -20,9 +20,10 @@ public interface IDriveFileStore
 
     /// Opens the file, or <paramref name="length"/> bytes of it from <paramref name="start"/>, for reading without
     /// loading it into memory. There is deliberately no read into a byte[]: a payload is unbounded (#1892).
-    /// A null length reads to the end, a range running past the end is clamped to it, and a start past the end
-    /// throws, as does a missing file. The caller disposes the stream. Its Length is the number of bytes it yields,
-    /// which callers send as Content-Length.
+    /// A null length reads to the end and a range running past the end is clamped to it; a missing file throws.
+    /// Payload readers resolve the range against the payload first (<c>FileChunk.ResolveAgainst</c>), so a start at
+    /// or past the end never reaches a store, where disk and S3 answer it differently. The caller disposes the
+    /// stream. Its Length is the number of bytes it yields, which callers send as Content-Length.
     Task<Stream> OpenReadAsync(string path, Int64 start = 0, Int64? length = null, CancellationToken ct = default);
     Task<bool>   ExistsAsync(string path, CancellationToken ct = default);
     Task<long>   LengthAsync(string path, CancellationToken ct = default);

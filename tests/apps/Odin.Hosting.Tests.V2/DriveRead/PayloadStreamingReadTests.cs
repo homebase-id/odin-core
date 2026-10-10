@@ -118,6 +118,33 @@ public class PayloadStreamingReadTests : V2Fixture
     }
 
     [Test]
+    public async Task RangeEndingAtLongMaxValueIsToTheEnd()
+    {
+        var (owner, drive, file, bytes) = await UploadBigPayload();
+
+        // To - From + 1 used to overflow to long.MinValue, a 400
+        using var response = await GetV1WithRange(owner, drive, file, new RangeHeaderValue(0, long.MaxValue));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.PartialContent), await Body(response));
+        AssertContentRange(response, 0, bytes.Length - 1, bytes.Length);
+    }
+
+    [Test]
+    public async Task V2RangeRouteLengthZeroIsToTheEnd()
+    {
+        var (owner, _, file, bytes) = await UploadBigPayload();
+        const long start = 5 * 1024 * 1024 - 3;
+
+        // A FileChunk without a Length goes on the route as length 0
+        var response = await owner.Drives.Reader.GetPayloadAsync(file.DriveId, file.FileId, PayloadKey,
+            new Services.Drives.FileSystem.Base.FileChunk { Start = start });
+
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"actual {response.StatusCode}");
+        Assert.That(response.ContentHeaders!.ContentRange?.ToString(), Is.EqualTo($"bytes {start}-{bytes.Length - 1}/{bytes.Length}"));
+        Assert.That(await response.Content!.ReadAsByteArrayAsync(), Is.EqualTo(bytes[(int)start..]));
+    }
+
+    [Test]
     public async Task V2RangeRouteStreamsTheRange()
     {
         var (owner, _, file, bytes) = await UploadBigPayload();

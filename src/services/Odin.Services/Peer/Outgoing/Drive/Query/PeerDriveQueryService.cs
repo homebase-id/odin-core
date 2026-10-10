@@ -1000,6 +1000,12 @@ public class PeerDriveQueryService(
                 return (null, default, null);
             }
 
+            if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+            {
+                throw new OdinRangeNotSatisfiableException(response.ContentHeaders?.ContentRange?.Length ?? 0,
+                    $"The range is not satisfiable at [{odinId}]");
+            }
+
             await HandleInvalidResponseAsync(odinId, response, odinContext);
 
             var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
@@ -1028,8 +1034,15 @@ public class PeerDriveQueryService(
             var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 
             var stream = await response.Content!.ReadAsStreamAsync();
+            var remoteRange = response.Content.Headers.ContentRange;
             var payloadStream = new PayloadStream(key, decryptedContentType, contentLength, lastModified.GetValueOrDefault(UnixTimeUtc.Now()),
-                stream);
+                stream)
+            {
+                Range = remoteRange is { From: not null, To: not null }
+                    ? new FileChunk { Start = remoteRange.From.Value, Length = remoteRange.To.Value - remoteRange.From.Value + 1 }
+                    : null,
+                PayloadSize = remoteRange?.Length ?? contentLength
+            };
             return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
         }
         catch

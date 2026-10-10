@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -184,11 +186,11 @@ public abstract class OutboxWorkerBase(
         return UnixTimeUtc.Now().AddSeconds(CalculateSecondsDelay(FileItem.AttemptCount));
     }
 
-    protected async Task<(Stream metadataStream,
+    protected (Stream metadataStream,
             StreamPart metadataStreamPart,
             List<Stream> payloadStreams,
-            List<StreamPart> payloadStreamParts)>
-        PackageFileStreamsAsync(
+            List<StreamPart> payloadStreamParts)
+        PackageFileStreams(
             ServerFileHeader header,
             IOdinContext odinContext,
             Guid? overrideGlobalTransitId = null,
@@ -246,11 +248,10 @@ public abstract class OutboxWorkerBase(
 
                 string contentType = "application/unknown";
 
-                //TODO: consider what happens if the payload has been delete from disk
-
-                // NOTE: caller takes ownership of the stream inside 'p' and is responsible for disposing
-                var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext);
-                var payloadStream = p.Stream;
+                // Opened when its part is sent, not here: see LazyOpenStream. The caller disposes the streams, and
+                // RethrowPartOpenFailure reports a part that failed to open (e.g. a payload missing from storage).
+                var payloadStream = new LazyOpenStream(async () =>
+                    (await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext)).Stream);
                 payloadStreams.Add(payloadStream);
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -258,11 +259,12 @@ public abstract class OutboxWorkerBase(
 
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
-                    var (thumbStream, thumbHeader) = await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth,
-                        thumb.PixelHeight, descriptor.Key,
-                        descriptor.Uid,
-                        odinContext);
-
+                    var thumbStream = new LazyOpenStream(async () =>
+                    {
+                        var (stream, _) = await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth,
+                            thumb.PixelHeight, descriptor.Key, descriptor.Uid, odinContext);
+                        return stream;
+                    });
                     payloadStreams.Add(thumbStream);
 
                     var thumbnailKey = $"{payloadKey}" +
@@ -271,13 +273,26 @@ public abstract class OutboxWorkerBase(
                                        $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
                                        $"{thumb.PixelHeight}";
 
-                    payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                    payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumb.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
             }
         }
 
         return (metaDataStream, metaDataStreamPart, payloadStreams, payloadStreamParts);
+    }
+
+    /// <summary>
+    /// A part that failed to open mid-send surfaces from the HTTP stack as a failure to copy the content, which the
+    /// worker would classify as the recipient not responding. Rethrow what actually failed instead.
+    /// </summary>
+    protected static void RethrowPartOpenFailure(IEnumerable<Stream> streams)
+    {
+        var failure = streams.OfType<LazyOpenStream>().Select(s => s.OpenException).FirstOrDefault(e => e != null);
+        if (failure != null)
+        {
+            ExceptionDispatchInfo.Throw(failure);
+        }
     }
 
     protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext)

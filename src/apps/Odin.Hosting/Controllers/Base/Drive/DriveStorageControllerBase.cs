@@ -121,32 +121,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Cannot get payloads when marked as remote");
             }
 
-            // Validated before the payload is opened: a throw after that would leak the open file or S3 response.
-            ContentRangeHeaderValue contentRange = null;
-            if (chunk != null)
-            {
-                if (chunk.Start < 0 || chunk.Length < 1)
-                {
-                    throw new OdinClientException(
-                        $"Invalid byte range: start={chunk.Start}, length={chunk.Length}");
-                }
-
-                // RFC 9110 14.1.2: a range starting at or past the end is unsatisfiable; one running past the end is
-                // satisfiable and clamped to it (storage clamps the read the same way)
-                var payloadSize = payloadDescriptor.BytesWritten;
-                if (chunk.Start >= payloadSize)
-                {
-                    HttpContext.Response.Headers.ContentRange = new ContentRangeHeaderValue(payloadSize).ToString();
-                    throw new RequestedRangeNotSatisfiableException($"Range start {chunk.Start} >= payload size {payloadSize}");
-                }
-
-                var to = chunk.Length == null || chunk.Length.Value > payloadSize - chunk.Start
-                    ? payloadSize - 1
-                    : chunk.Start + chunk.Length.Value - 1;
-
-                contentRange = new ContentRangeHeaderValue(chunk.Start, to, payloadSize);
-            }
-
             // This is the reader actually opening the file, so it is the one read that starts an
             // expire-after-first-read clock.
             var payloadStream = await fs.Storage.GetPayloadStreamAsync(file, key, chunk, WebOdinContext, startExpiryClock: true);
@@ -171,9 +145,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
             }
 
-            if (contentRange != null)
+            if (payloadStream.Range != null)
             {
-                HttpContext.Response.Headers.Append("Content-Range", contentRange.ToString());
+                HttpContext.Response.Headers.ContentRange = ContentRange(payloadStream);
             }
 
             // Explicit, because a streamed payload cannot seek, and FileStreamResult only sets it for a seekable stream

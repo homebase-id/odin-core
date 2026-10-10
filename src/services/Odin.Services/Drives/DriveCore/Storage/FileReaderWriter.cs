@@ -238,9 +238,6 @@ public sealed class FileReaderWriter(
     //
 
     /// <summary>
-    /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
-    /// </summary>
-    /// <summary>
     /// Opens <paramref name="length"/> bytes from <paramref name="start"/> for reading, or to the end when length
     /// is null. A range running past the end is clamped to it; a start past the end throws. The stream's Length is
     /// the number of bytes it yields.

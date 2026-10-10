@@ -651,4 +651,30 @@ public class ExceptionHandlingMiddlewareTest
             Times.Once);
     }
 
+    [Test]
+    public async Task ExceptionBeforeThePayloadStartsDropsItsContentLength()
+    {
+        // Arrange: a payload endpoint has set the payload's length, and the first read fails before anything is sent
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, ctx =>
+        {
+            ctx.Response.ContentLength = 5_000_000;
+            ctx.Response.Headers.ContentRange = "bytes 0-4999999/9000000";
+            throw new IOException("storage went away before the first byte");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert: the problem body is not sent under the payload's length (TestServer tolerates the mismatch, Kestrel
+        // resets the connection), nor its range
+        Assert.That((int)response.StatusCode, Is.EqualTo(500));
+        Assert.That(response.Content.Headers.ContentLength, Is.Null.Or.EqualTo(System.Text.Encoding.UTF8.GetByteCount(content)));
+        Assert.That(response.Content.Headers.ContentRange, Is.Null);
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems!.Status, Is.EqualTo(500));
+    }
+
 }

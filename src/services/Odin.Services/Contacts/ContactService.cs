@@ -65,7 +65,7 @@ public class ContactService(
     /// <see cref="Odin.Services.Profile.ProfileAttributeService.MaxPhotoContentBytes"/>. Kestrel does not bound the
     /// request body (<c>MaxRequestBodySize = null</c>), so nothing else does.
     /// </summary>
-    public const int MaxImageContentBytes = 10 * 1024 * 1024;
+    public const int MaxImageContentBytes = 20 * 1024 * 1024;
 
     /// <summary>
     /// Bound on reading the <c>appextdata</c> and merge-log payloads whole to decrypt them. Server writes keep
