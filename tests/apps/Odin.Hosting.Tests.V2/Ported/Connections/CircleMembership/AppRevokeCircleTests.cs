@@ -20,13 +20,13 @@ using Odin.Services.Membership.Connections;
 namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 
 /// <summary>
-/// An app may remove a connection from a circle it owns; from any other only while it still holds the
-/// retired <c>ManageCircleMembership</c>.
+/// An app may remove a connection from a circle it owns; from any other only if it holds
+/// <c>ManageCircleMembership</c>.
 /// </summary>
 /// <remarks>
 /// Owning the circle is the app's authority.  The apps that succeed on their own circles hold no permission
 /// keys, so ownership alone lets them in.  Another app's circle and the owner's own are refused to an app
-/// without the key; one that still holds it keeps the access it had, for the transition.
+/// without the key; one that holds it (as Chat does by default) may.
 /// </remarks>
 [TestFixture]
 public class AppRevokeCircleTests : V2Fixture

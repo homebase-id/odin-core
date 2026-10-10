@@ -31,8 +31,8 @@ public class BuiltinProvisioner(
     IAppRegistrationService appRegistrationService)
 {
     /// <summary>
-    /// Drives that must exist even though their app is not built-in, because the Chat and Mail app
-    /// registrations grant them to their circle members and issuing a grant for an absent drive throws
+    /// Drives that must exist even though their app is not built-in, because the Chat app
+    /// registration grants them to their circle members and issuing a grant for an absent drive throws
     /// (<c>ExchangeGrantService</c> resolves with <c>failIfInvalid: true</c>).
     /// </summary>
     /// <remarks>
@@ -45,9 +45,9 @@ public class BuiltinProvisioner(
         BuiltinDrives.ListsDrive,
         BuiltinDrives.MomentsDrive,
 
-        // Mail joined this list when its app left BuiltinApps.Builtin: Mail's registration grants
-        // MailDrive, so without the drive here identity setup throws invalidGrantNonExistingDrive
-        // before it finishes.
+        // Mail joined this list when its app left BuiltinApps.Builtin and its registration still granted
+        // MailDrive.  Nothing registers Mail any more; dropping the drive would change what a new identity
+        // is given, so that is a decision of its own rather than part of this list's upkeep.
         BuiltinDrives.MailDrive
     ];
 
@@ -59,7 +59,6 @@ public class BuiltinProvisioner(
         new Dictionary<Guid, AppRegistrationRequest>
         {
             [SystemAppConstants.ChatAppId] = SystemAppConstants.ChatAppRegistrationRequest,
-            [SystemAppConstants.MailAppId] = SystemAppConstants.MailAppRegistrationRequest,
             [SystemAppConstants.FeedAppId] = SystemAppConstants.FeedAppRegistrationRequest,
             [SystemAppConstants.ContactsAppId] = SystemAppConstants.ContactsAppRegistrationRequest,
             [SystemAppConstants.EmailAppId] = SystemAppConstants.EmailAppRegistrationRequest,

@@ -455,12 +455,7 @@ public class CircleMembershipService(
         odinContext.Caller.AssertHasMasterKey();
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        var members = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
-        if (members.Count > 0)
-        {
-            await db.CircleMemberCached.RemoveCircleMembersAsync(circleId, members.Select(m => m.memberId).ToList());
-        }
-
+        await DeleteAllMembersOfCircleAsync(circleId);
         await circleDefinitionService.DeleteAsync(circleId);
         tx.Commit();
     }

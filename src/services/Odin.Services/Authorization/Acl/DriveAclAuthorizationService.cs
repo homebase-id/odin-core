@@ -33,28 +33,35 @@ namespace Odin.Services.Authorization.Acl
                 return false;
             }
 
-            var icr = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
-
-            // What they would be admitted as: a connection at Connected, lowered to Authenticated until
-            // reviewed (ReviewedSecurityTier); anyone else at Authenticated, as a peer calling in unconnected is.
-            var level = icr.IsConnected()
-                ? ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr)
-                : SecurityGroupType.Authenticated;
-
-            // Enabled circles only, as a caller's circles are: a disabled circle grants nothing.
-            var circles = new List<Guid>();
-            if (icr.IsConnected())
+            // Anyone we send to is admitted at least at Authenticated, so an ACL asking no more than that,
+            // and naming no circles, is decided without reading their connection record.
+            var requiredCircles = acl.GetRequiredCircles().ToList();
+            if (requiredCircles.Count == 0 && (int)acl.RequiredSecurityGroup <= (int)SecurityGroupType.Authenticated)
             {
-                foreach (var circleId in icr.PeerKeyStore?.CircleGrants.Keys ?? Enumerable.Empty<Guid>())
+                return Allows(acl, SecurityGroupType.Authenticated, []);
+            }
+
+            var icr = await circleNetwork.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
+
+            // Anyone not connected is admitted at Authenticated, as a peer calling in unconnected is.
+            if (!icr.IsConnected())
+            {
+                return Allows(acl, SecurityGroupType.Authenticated, []);
+            }
+
+            // A connection at Connected, lowered to Authenticated until reviewed (ReviewedSecurityTier), holding
+            // its enabled circles only, as a caller's circles are: a disabled circle grants nothing.  Only the
+            // circles the ACL names can matter.
+            var circles = new List<Guid>();
+            foreach (var circleId in (icr.PeerKeyStore?.CircleGrants.Keys ?? Enumerable.Empty<Guid>()).Intersect(requiredCircles))
+            {
+                if (await circleDefinitionService.IsEnabledAsync(circleId))
                 {
-                    if (await circleDefinitionService.IsEnabledAsync(circleId))
-                    {
-                        circles.Add(circleId);
-                    }
+                    circles.Add(circleId);
                 }
             }
 
-            return Allows(acl, level, circles);
+            return Allows(acl, ReviewedSecurityTier.For(tenantContext.DataVersionNumber, icr), circles);
         }
 
         public Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)

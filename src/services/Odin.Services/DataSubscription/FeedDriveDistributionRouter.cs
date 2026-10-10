@@ -416,20 +416,16 @@ namespace Odin.Services.DataSubscription
             // An encrypted post's payload is fetched from this identity and needs the drive's storage key, so
             // only followers holding keyed Read on the post's drive go this way.  This was membership of the
             // Confirmed Connections circle until it retired (#1809).  Sequential: the checks share the
-            // request's database connection.
+            // request's database connection.  The ACL goes first: for a public post it reads nothing.
             var connectedFollowers = new List<OdinId>();
             foreach (var follower in followers)
             {
                 var odinId = (OdinId)follower.DomainName;
-                if (!await _circleNetworkService.CanDecryptDriveAsync(odinId, notification.File.DriveId))
-                {
-                    continue;
-                }
-
                 if (await _driveAcl.IdentityHasPermissionAsync(
                         odinId,
                         notification.ServerFileHeader.ServerMetadata.AccessControlList,
-                        odinContext))
+                        odinContext) &&
+                    await _circleNetworkService.CanDecryptDriveAsync(odinId, notification.File.DriveId))
                 {
                     connectedFollowers.Add(odinId);
                 }

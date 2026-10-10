@@ -48,9 +48,7 @@ public class ShamirReadinessCheckerService(
     /// </summary>
     public async Task<RemotePlayerReadinessResult> VerifyRemotePlayerReadiness(OdinId odinId, IOdinContext odinContext)
     {
-        var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
-
-        if (!icr.IsReviewed())
+        if (!await CanDeliverShardAsync(odinId, odinContext))
         {
             return new RemotePlayerReadinessResult()
             {

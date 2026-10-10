@@ -936,15 +936,12 @@ namespace Odin.Services.Membership.Connections
         /// <remarks>
         /// The owner console may remove anyone from any circle, including one whose definition is
         /// gone (the migrations clean up orphaned grants this way).  An app may remove members from a
-        /// circle it owns -- owning the circle is its authority, so no permission key is asked for -- and,
-        /// for now, from any circle if it still holds the retired key
-        /// (<see cref="GetCircleCallerMayChangeMembersOfAsync"/>).
+        /// circle it owns, or from others as <see cref="GetCircleCallerMayChangeMembersOfAsync"/> allows.
         /// </remarks>
         public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
             if (!odinContext.Caller.HasMasterKey)
             {
-                odinContext.Caller.AssertCallerIsOwner();
                 await GetCircleCallerMayChangeMembersOfAsync(circleId, "remove identities from", odinContext);
             }
 
@@ -1534,7 +1531,7 @@ namespace Odin.Services.Membership.Connections
         public async Task<EnrollmentResult> EnrollManyInCircleAsync(GuidId circleId, List<OdinId> odinIds,
             IOdinContext odinContext)
         {
-            var circle = await GetCircleForExplicitEnrollmentAsync(circleId, odinContext);
+            var circle = await GetCircleCallerMayChangeMembersOfAsync(circleId, "enrol identities into", odinContext);
 
             var result = new EnrollmentResult();
 
@@ -1614,7 +1611,7 @@ namespace Odin.Services.Membership.Connections
         /// </remarks>
         public async Task EnrollInCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            var circle = await GetCircleForExplicitEnrollmentAsync(circleId, odinContext);
+            var circle = await GetCircleCallerMayChangeMembersOfAsync(circleId, "enrol identities into", odinContext);
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
             var refusal = ExplicitEnrollmentRefusal(icr, odinId, circle);
@@ -1636,20 +1633,9 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// The circle an explicit add names, once the caller is allowed to add to it: the owner console
-        /// to any circle, an app to one it owns -- owning the circle is its authority, no permission key
-        /// asked for -- or, for now, to any circle if it still holds the retired key
-        /// (<see cref="GetCircleCallerMayChangeMembersOfAsync"/>).
-        /// </summary>
-        private async Task<CircleDefinition> GetCircleForExplicitEnrollmentAsync(GuidId circleId, IOdinContext odinContext)
-        {
-            odinContext.Caller.AssertCallerIsOwner();
-            return await GetCircleCallerMayChangeMembersOfAsync(circleId, "enrol identities into", odinContext);
-        }
-
-        /// <summary>
-        /// The circle a caller adds to or removes from: what <see cref="GetCircleCallerMayActOnAsync"/> allows,
-        /// or any circle for a caller still holding <see cref="PermissionKeys.ManageCircleMembership"/>.
+        /// The circle an owner-side caller adds to or removes from: what <see cref="GetCircleCallerMayActOnAsync"/>
+        /// allows -- the owner console any circle, an app one it owns, owning it being its authority -- or any
+        /// circle for a caller holding <see cref="PermissionKeys.ManageCircleMembership"/>.
         /// </summary>
         /// <remarks>
         /// The key is how an app changes the members of circles it does not own, which ownership alone refuses
@@ -1661,19 +1647,17 @@ namespace Odin.Services.Membership.Connections
         private async Task<CircleDefinition> GetCircleCallerMayChangeMembersOfAsync(GuidId circleId, string verb,
             IOdinContext odinContext)
         {
-            if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.ManageCircleMembership))
-            {
-                return await GetCircleCallerMayActOnAsync(circleId, verb, odinContext);
-            }
-
-            return await circleDefinitionService.GetCircleAsync(circleId)
-                   ?? throw new OdinClientException($"Circle {circleId} does not exist", OdinClientErrorCode.CircleNotFound);
+            odinContext.Caller.AssertCallerIsOwner();
+            return await GetCircleCallerMayActOnAsync(circleId, verb, odinContext,
+                anyCircle: odinContext.PermissionsContext.HasPermission(PermissionKeys.ManageCircleMembership));
         }
 
         /// <summary>
-        /// The circle, once <see cref="AssertCallerMayActOnCircle"/> has let the caller <paramref name="verb"/> it.
+        /// The circle, once <see cref="AssertCallerMayActOnCircle"/> has let the caller <paramref name="verb"/> it,
+        /// or unchecked when <paramref name="anyCircle"/>.
         /// </summary>
-        private async Task<CircleDefinition> GetCircleCallerMayActOnAsync(GuidId circleId, string verb, IOdinContext odinContext)
+        private async Task<CircleDefinition> GetCircleCallerMayActOnAsync(GuidId circleId, string verb, IOdinContext odinContext,
+            bool anyCircle = false)
         {
             var circle = await circleDefinitionService.GetCircleAsync(circleId);
             if (circle == null)
@@ -1682,7 +1666,11 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.CircleNotFound);
             }
 
-            AssertCallerMayActOnCircle(circle, verb, odinContext);
+            if (!anyCircle)
+            {
+                AssertCallerMayActOnCircle(circle, verb, odinContext);
+            }
+
             return circle;
         }
 

@@ -607,8 +607,8 @@ public class AppCircleDefinitionTests : V2Fixture
     }
 
     /// <summary>
-    /// The transition path: an app still holding the retired <c>ManageCircleMembership</c> may add to a circle it
-    /// does not own, as it could before ownership decided membership (<c>GetCircleCallerMayChangeMembersOfAsync</c>).
+    /// An app holding <c>ManageCircleMembership</c> (as Chat does by default) may add to a circle it does not own
+    /// (<c>GetCircleCallerMayChangeMembersOfAsync</c>).
     /// </summary>
     [Test]
     public async Task AppHoldingTheRetiredKeyCanStillAddToAnotherAppsCircleViaV2()
