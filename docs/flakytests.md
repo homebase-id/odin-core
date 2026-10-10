@@ -959,9 +959,9 @@ searches for such a key and fails on the old code with the CI message.
 
 **Where:** CI, `ubuntu/postgres/release`, once (2026-10-01, run 36868772437).
 
-**Symptom:** the retry took longer than `maxDelay + 50 ms`. **Changed 2026-10-10 (branch `flaky-tests-fixes`):** the upper
-bound allows 400 ms, as its exponential-backoff sibling's does; a wall-clock upper bound only rules out a
-delay far outside the range, and the lower bound is the claim.
+**Symptom:** the retry took longer than `maxDelay + 50 ms`. **Changed 2026-10-10 (branch `flaky-tests-fixes`):** the wall-clock
+upper bound is gone. `RandomDelay_StaysInRange` asserts the range on `CalculateDelay` itself, and the
+wall-clock test keeps only the lower bound (Thread.Sleep guarantees a floor, not a ceiling).
 
 ---
 
