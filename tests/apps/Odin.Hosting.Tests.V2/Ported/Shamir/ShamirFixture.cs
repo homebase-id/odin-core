@@ -249,7 +249,8 @@ public abstract class ShamirFixture : V2Fixture
         Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
 
         var verifyEnterResponse = await security.VerifyEnterRecoveryMode(nonceId);
-        Assert.That(verifyEnterResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        // Windows CI has answered 403 here (docs/flakytests.md); the body names the exception behind it
+        Assert.That(verifyEnterResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), verifyEnterResponse.Error?.Content);
     }
 
     /// <summary>
@@ -266,7 +267,8 @@ public abstract class ShamirFixture : V2Fixture
         var exitRecoveryNonceId = ReadLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName);
 
         var verifyExitResponse = await security.VerifyExitRecoveryMode(exitRecoveryNonceId);
-        Assert.That(verifyExitResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        // Windows CI has answered 403 here (docs/flakytests.md); the body names the exception behind it
+        Assert.That(verifyExitResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), verifyExitResponse.Error?.Content);
     }
 
     /// <summary>

@@ -26,6 +26,7 @@ using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry;
 using Odin.Services.Tests.JobManagement.Jobs;
+using Odin.Test.Helpers;
 using Odin.Test.Helpers.Logging;
 using NSubstitute;
 using Serilog.Events;
@@ -864,7 +865,7 @@ public class JobManagerTests
             : Is.EqualTo("unspecified error"));
         
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        LogEvents.AssertCount(logEvents, LogEventLevel.Error, 1);
     }
     
     //
@@ -909,7 +910,7 @@ public class JobManagerTests
             : Is.EqualTo("unspecified error"));
         
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        LogEvents.AssertCount(logEvents, LogEventLevel.Error, 1);
     }
     
 
@@ -956,12 +957,9 @@ public class JobManagerTests
         var job = jobManager.NewJob<AbortingJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
 
-        // Act
-        await Task.Delay(200);
-
-        // Assert
-        var exists = await jobManager.JobExistsAsync(jobId);
-        Assert.That(exists, Is.False);
+        // Act, Assert
+        await Poll.UntilAsync(async () => !await jobManager.JobExistsAsync(jobId),
+            TimeSpan.FromSeconds(5), () => "the aborted job was not removed");
 
         AssertLogEvents();
     }
@@ -1016,9 +1014,14 @@ public class JobManagerTests
         var jobId = await jobManager.ScheduleJobAsync(job);
 
         // Act
-        await Task.Delay(200);
+        var deferredTo = new DateTimeOffset(2100, 1, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
+        DeferJobTest? rescheduledJob = null;
+        await Poll.UntilAsync(async () =>
+        {
+            rescheduledJob = await jobManager.GetJobAsync<DeferJobTest>(jobId);
+            return rescheduledJob?.Record?.nextRun.milliseconds == deferredTo;
+        }, TimeSpan.FromSeconds(5), () => $"job was not deferred; nextRun is {rescheduledJob?.Record?.nextRun.milliseconds}");
 
-        var rescheduledJob = await jobManager.GetJobAsync<DeferJobTest>(jobId);
         Assert.That(rescheduledJob, Is.Not.Null);
         Assert.That(rescheduledJob!.Id, Is.EqualTo(jobId));
         Assert.That(rescheduledJob!.State, Is.EqualTo(JobState.Scheduled));
@@ -1083,9 +1086,12 @@ public class JobManagerTests
         var jobId = await jobManager.ScheduleJobAsync(job);
 
         // Act
-        await Task.Delay(200);
+        await Poll.UntilAsync(async () =>
+        {
+            job = await jobManager.GetJobAsync<DeferOnCancelJobTest>(jobId);
+            return job?.Record?.lastError != null;
+        }, TimeSpan.FromSeconds(5), () => "the job was not run and rescheduled");
 
-        job = await jobManager.GetJobAsync<DeferOnCancelJobTest>(jobId);
         Assert.That(job, Is.Not.Null);
         Assert.That(job!.State, Is.EqualTo(JobState.Scheduled));
         Assert.That(job!.Record!.runCount, Is.EqualTo(0));
@@ -1239,14 +1245,11 @@ public class JobManagerTests
             OnSuccessDeleteAfter = TimeSpan.FromDays(1)
         });
         
-        await Task.Delay(200);        
-
         // Assert JobManager deletes the job immediately if deleteAfterMilliseconds is 0
         if (deleteAfterMilliseconds == 0)
         {
-            await Task.Delay(100);
-            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-            Assert.That(completedJob1, Is.Null);
+            await Poll.UntilAsync(async () => await jobManager.GetJobAsync<SimpleJobTest>(jobId1) == null,
+                TimeSpan.FromSeconds(5), () => "succeeded job with OnSuccessDeleteAfter 0 was not deleted");
         }
         else
         {
@@ -1269,14 +1272,9 @@ public class JobManagerTests
         // Act
         await backgroundServiceManager.NotifyWorkAvailableAsync(nameof(JobCleanUpBackgroundService));
 
-        // Wait a bit so JobCleanUpBackgroundService has time to do its thing
-        await Task.Delay(200);
-
         // Assert
-        {
-            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-            Assert.That(completedJob1, Is.Null);
-        }
+        await Poll.UntilAsync(async () => await jobManager.GetJobAsync<SimpleJobTest>(jobId1) == null,
+            TimeSpan.FromSeconds(5), () => "JobCleanUpBackgroundService did not delete the expired job");
 
         completedJob2 = await jobManager.GetJobAsync<SimpleJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
@@ -1341,7 +1339,7 @@ public class JobManagerTests
         Assert.That(completedJob2, Is.Not.Null);
 
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
+        LogEvents.AssertCount(logEvents, LogEventLevel.Error, 2);
     }
 
     //
@@ -1376,9 +1374,8 @@ public class JobManagerTests
         // Assert JobManager deletes the job immediately if deleteAfterMilliseconds is 0
         if (deleteAfterMilliseconds == 0)
         {
-            await Task.Delay(100);
-            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
-            Assert.That(completedJob1, Is.Null);
+            await Poll.UntilAsync(async () => await jobManager.GetJobAsync<FailingJobTest>(jobId1) == null,
+                TimeSpan.FromSeconds(5), () => "failed job with OnFailureDeleteAfter 0 was not deleted");
         }
         else
         {
@@ -1401,20 +1398,15 @@ public class JobManagerTests
         // Act
         await backgroundServiceManager.NotifyWorkAvailableAsync(nameof(JobCleanUpBackgroundService));
 
-        // Wait a bit so JobCleanUpBackgroundService has time to do its thing
-        await Task.Delay(200);
-
         // Assert
-        {
-            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
-            Assert.That(completedJob1, Is.Null);
-        }
+        await Poll.UntilAsync(async () => await jobManager.GetJobAsync<FailingJobTest>(jobId1) == null,
+            TimeSpan.FromSeconds(5), () => "JobCleanUpBackgroundService did not delete the expired job");
 
         completedJob2 = await jobManager.GetJobAsync<FailingJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
+        LogEvents.AssertCount(logEvents, LogEventLevel.Error, 2);
     }
 #endif
     
@@ -1679,7 +1671,7 @@ public class JobManagerTests
 
         // Only the final give-up logs an error; the recurring failures do not.
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        LogEvents.AssertCount(logEvents, LogEventLevel.Error, 1);
     }
 
     //
@@ -1713,7 +1705,7 @@ public class JobManagerTests
 
         // The swallowed exception is logged once at error level.
         var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
-        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+        LogEvents.AssertCount(logEvents, LogEventLevel.Error, 1);
     }
 
     //
@@ -1821,25 +1813,14 @@ public class JobManagerTests
 
     //
 
-    private async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
+    private static async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {
-        var logger = _container.Resolve<ILogger<JobManagerTests>>();
-        var sw = Stopwatch.StartNew();
-        while (true)
+        JobState? last = null;
+        await Poll.UntilAsync(async () =>
         {
-            logger.LogInformation($"> {jobId}");
             var job = await jobManager.GetJobAsync<T>(jobId) ?? throw new Exception("Test job not found");
-            logger.LogInformation($"< {jobId}");
-            if (job.State == status)
-            {
-                break;
-            }
-            if (sw.Elapsed > maxWaitTime)
-            {
-                throw new TimeoutException(
-                    $"Job did not reach status {status} within {maxWaitTime}. Last status: {job.State}");
-            }
-            await Task.Delay(100);
-        }
+            last = job.State;
+            return job.State == status;
+        }, maxWaitTime, () => $"job did not reach status {status}; last status: {last}");
     }
 }
