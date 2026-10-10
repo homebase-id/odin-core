@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Odin.Core.Time;
 
 #nullable enable
 
@@ -31,6 +32,9 @@ public class PayloadMoveState
 {
     public const int MaxRecordedFailures = 200;
 
+    /// <summary>Beyond this many objects missing at the source, they are counted but not listed, and cannot be accepted.</summary>
+    public const int MaxRecordedMissing = 1000;
+
     public string BaseUrl { get; set; } = "";
 
     /// <summary>Until the first run redeems it; then null, and <see cref="Credential"/> is set.</summary>
@@ -60,6 +64,23 @@ public class PayloadMoveState
 
     public long FailureCount { get; set; }
 
+    /// <summary>
+    /// The failures that are objects the source does not have (it answered 404), the first
+    /// <see cref="MaxRecordedMissing"/> of them; <see cref="MissingCount"/> counts them all. An operator can accept
+    /// them (#1868).
+    /// </summary>
+    public List<PayloadObject> Missing { get; set; } = [];
+
+    public long MissingCount { get; set; }
+
+    /// <summary>The operator asked to give up <see cref="Missing"/>; the next run checks them once more and completes.</summary>
+    public bool AcceptMissingRequested { get; set; }
+
+    /// <summary>How many objects the operator gave up, and when. The move completed without them.</summary>
+    public long AcceptedMissing { get; set; }
+
+    public UnixTimeUtc? AcceptedMissingAt { get; set; }
+
     public int BackoffSeconds { get; set; }
 
     public PayloadMoveStatus Status { get; set; }
@@ -74,14 +95,28 @@ public class PayloadMoveState
     [JsonIgnore]
     public bool HoldsResume => !IsFinished && !QueuedItemsDone;
 
+    /// <summary>Why <see cref="Missing"/> cannot be accepted, or null if it can: the move ended with nothing but those.</summary>
+    [JsonIgnore]
+    public string? WhyMissingCannotBeAccepted =>
+        Status != PayloadMoveStatus.CompleteWithFailures ? $"the transfer is {Status}, not CompleteWithFailures"
+        : MissingCount == 0 ? "no failure is recorded as missing at the source; a transfer that finished before " +
+                              "accept-missing existed does not record them: run --retry first"
+        : FailureCount != MissingCount ? $"{FailureCount - MissingCount} failure(s) are not objects missing at the source"
+        : MissingCount != Missing.Count ? $"{MissingCount} objects are missing, more than the {MaxRecordedMissing} " +
+                                          "listed; look into the source first"
+        : null;
+
     /// <summary>(Re)starts the walk at the newest file the import brought, with nothing counted yet.</summary>
     public void StartFrom(long startRowId)
     {
         StartRowId = startRowId;
         CursorRowId = startRowId + 1;
         QueuedItemsDone = false;
-        Files = Objects = Bytes = Skipped = FailureCount = 0;
+        Files = Objects = Bytes = Skipped = FailureCount = MissingCount = AcceptedMissing = 0;
         Failures = [];
+        Missing = [];
+        AcceptMissingRequested = false;
+        AcceptedMissingAt = null;
         BackoffSeconds = 0;
         Status = PayloadMoveStatus.Transferring;
     }
@@ -95,6 +130,17 @@ public class PayloadMoveState
         }
     }
 
+    /// <summary>An object the source answered 404 for: a failure, recorded so an operator can accept it.</summary>
+    public void AddMissing(PayloadObject payloadObject)
+    {
+        AddFailure($"{payloadObject}: the source does not have it");
+        MissingCount++;
+        if (Missing.Count < MaxRecordedMissing)
+        {
+            Missing.Add(payloadObject);
+        }
+    }
+
     /// <summary>A copy without the secrets, for anything shown outside the job.</summary>
     public PayloadMoveState Redacted()
     {
@@ -102,6 +148,7 @@ public class PayloadMoveState
         copy.HandoffToken = HandoffToken == null ? null : "(redacted)";
         copy.Credential = Credential == null ? null : "(redacted)";
         copy.Failures = [..Failures];
+        copy.Missing = [..Missing];
         return copy;
     }
 }

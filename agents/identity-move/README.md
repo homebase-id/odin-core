@@ -224,6 +224,22 @@ You do not have to wait for the payload transfer to finish: until a payload arri
 read the failures it lists; `--retry` runs it again from the newest file, skipping everything that already
 arrived.
 
+**Objects the source never had.** Long-used identities often have holes: payloads their headers name that
+are not in the source's store (failed or abandoned uploads). They fail as `the source does not have it`, and
+the move cannot complete, so the source copy can never be deleted (step 10). When `payload-move` shows
+"Missing: N at the source, and nothing else failed":
+
+1. Confirm on the source's payload store that a few of the listed objects really are absent: under
+   `<identityId>/drives/<driveId, 32 hex>/files/<x>/<y>/<fileId, 32 hex>-<key>-<uid>...` on disk or S3, where
+   `<x>/<y>` are the two hex digits of the file id's last byte.
+2. With the operator's go-ahead for that domain: `odin-admin tenant payload-move <domain> --accept-missing`
+   against the target. It lists the objects it gives up. The transfer asks the source for each once more and,
+   if every one is still missing, completes without them; the source then reads complete and "Deletable: yes".
+   If one has turned up, it refuses: run `--retry`.
+
+A transfer that finished before accept-missing existed does not record which failures were missing objects:
+run `--retry` first, then `--accept-missing`.
+
 **Leave the source copy paused for a day or two** before step 9: rolling back is cheapest then.
 
 ### 9. Retire the source copy

@@ -132,6 +132,26 @@ public class AdminController : ControllerBase
     //
 
     /// <summary>
+    /// Gives up the objects the source of the tenant's move does not have, so the move can complete. Returns the
+    /// objects; the transfer checks each at the source once more before it completes. 400 with the reason when the
+    /// move did not end with nothing but such objects, 404 if it has no transfer here, 409 while a slice is running.
+    /// </summary>
+    [HttpPost("tenants/{domain}/payload-move/accept-missing")]
+    public async Task<IActionResult> AcceptMissingPayloads(string domain)
+    {
+        var outcome = await _payloadMoveAdmin.AcceptMissingAsync(domain);
+        return outcome.Result switch
+        {
+            PayloadMoveAcceptResult.Requested => Ok(outcome.Objects),
+            PayloadMoveAcceptResult.Running => Conflict(),
+            PayloadMoveAcceptResult.Refused => BadRequest(outcome.Reason),
+            _ => NotFound()
+        };
+    }
+
+    //
+
+    /// <summary>
     /// Sets the tenant's status and returns the previous one. 400 if the transition is not allowed.
     /// </summary>
     [HttpPatch("tenants/{domain}/status")]

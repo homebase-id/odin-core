@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -48,12 +49,17 @@ public sealed class PayloadMoveTransfer(
     public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
     private const int AttemptsPerObject = 3;
 
-    private enum Result { Transferred, Skipped, Failed, Stalled }
+    private enum Result { Transferred, Skipped, Missing, Failed, Stalled }
 
     private readonly record struct ObjectOutcome(Result Result, long Bytes = 0, string? Failure = null, TimeSpan? RetryAfter = null);
 
     public async Task<SliceResult> RunSliceAsync(PayloadMoveState state, TimeSpan budget, CancellationToken cancellationToken)
     {
+        if (state.AcceptMissingRequested)
+        {
+            return await AcceptMissingAsync(state, cancellationToken);
+        }
+
         if (state.IsFinished)
         {
             return new SliceResult(SliceEnd.Finished);
@@ -126,6 +132,10 @@ public sealed class PayloadMoveTransfer(
                 case Result.Skipped:
                     state.Skipped++;
                     break;
+                case Result.Missing:
+                    state.AddMissing(payloadObject);
+                    logger.LogWarning("Payload move could not transfer {object}: the source does not have it", payloadObject);
+                    break;
                 case Result.Failed:
                     state.AddFailure($"{payloadObject}: {outcome.Failure}");
                     logger.LogWarning("Payload move could not transfer {object}: {failure}", payloadObject, outcome.Failure);
@@ -162,7 +172,8 @@ public sealed class PayloadMoveTransfer(
 
     private async Task<SliceResult> FinishAsync(PayloadMoveState state, CancellationToken cancellationToken)
     {
-        if (state.FailureCount > 0)
+        // Objects the operator gave up count as done
+        if (state.FailureCount > state.AcceptedMissing)
         {
             // The source keeps the identity's payloads, and cannot be deleted, until someone looks at these
             state.Status = PayloadMoveStatus.CompleteWithFailures;
@@ -184,6 +195,47 @@ public sealed class PayloadMoveTransfer(
         logger.LogInformation("Payload move complete: {objects} object(s), {bytes} bytes, {skipped} already here",
             state.Objects, state.Bytes, state.Skipped);
         return new SliceResult(SliceEnd.Finished);
+    }
+
+    // The operator gives up the objects the source did not have (#1868). They are asked for once more, and only if
+    // every one is still a 404 does the move complete without them. Until then the status stays as it is.
+    private async Task<SliceResult> AcceptMissingAsync(PayloadMoveState state, CancellationToken cancellationToken)
+    {
+        if (state.WhyMissingCannotBeAccepted is { } why)
+        {
+            state.AcceptMissingRequested = false;
+            logger.LogWarning("Payload move cannot accept the missing objects: {reason}", why);
+            return new SliceResult(SliceEnd.Finished);
+        }
+
+        foreach (var payloadObject in state.Missing)
+        {
+            var outcome = await source.ExistsAsync(payloadObject, state.Credential!, cancellationToken);
+            switch (outcome.Result)
+            {
+                case FetchResult.NotFound:
+                    continue;
+                case FetchResult.Fetched:
+                    state.AcceptMissingRequested = false;
+                    state.AddFailure($"accept-missing refused: {payloadObject} is at the source now; run --retry");
+                    logger.LogWarning("Payload move did not give up {object}: the source has it now", payloadObject);
+                    return new SliceResult(SliceEnd.Finished);
+                default:
+                    logger.LogWarning("Payload move could not check {object} at the source: {result} {error}",
+                        payloadObject, outcome.Result, outcome.Error);
+                    return new SliceResult(SliceEnd.Wait, outcome.RetryAfter ?? FirstBackoff);
+            }
+        }
+
+        foreach (var payloadObject in state.Missing)
+        {
+            logger.LogWarning("Payload move gave up {object}: the source does not have it (accepted by the operator)", payloadObject);
+        }
+
+        state.AcceptMissingRequested = false;
+        state.AcceptedMissing = state.MissingCount;
+        state.AcceptedMissingAt = UnixTimeUtc.Now();
+        return await FinishAsync(state, cancellationToken);
     }
 
     private static SliceResult Backoff(PayloadMoveState state, TimeSpan? retryAfter)
@@ -252,7 +304,7 @@ public sealed class PayloadMoveTransfer(
                     return new ObjectOutcome(Result.Transferred, file.Length);
 
                 case FetchResult.NotFound:
-                    return new ObjectOutcome(Result.Failed, Failure: "the source does not have it");
+                    return new ObjectOutcome(Result.Missing);
 
                 case FetchResult.Throttled:
                     return new ObjectOutcome(Result.Stalled, RetryAfter: fetched.RetryAfter);

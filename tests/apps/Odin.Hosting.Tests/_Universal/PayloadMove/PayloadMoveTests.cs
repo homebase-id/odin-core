@@ -14,6 +14,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -79,6 +80,11 @@ public class PayloadMoveTests
         var head = await SendAsync(HttpMethod.Head, PayloadPath(file, payload), credential);
         Assert.That(head.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(head.Content.Headers.ContentLength, Is.EqualTo(payload.BytesWritten));
+
+        // What accept-missing asks before giving an object up (#1868): an object the source lacks is a 404
+        var absent = new PayloadObject(file.driveId, file.fileId, payload.Key, new UnixTimeUtcUnique(payload.Uid.uniqueTime + 1), 0);
+        var headAbsent = await SendAsync(HttpMethod.Head, absent.SourcePath(file.identityId), credential);
+        Assert.That(headAbsent.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
         var thumbnail = payload.Thumbnails.Single();
         var thumb = await SendAsync(HttpMethod.Get, ThumbnailPath(file, payload, thumbnail), credential);
@@ -205,6 +211,34 @@ public class PayloadMoveTests
 
         var noJob = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
         Assert.That(noJob.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    // #1868: only a move that ended with nothing but objects the source lacks can give them up
+    [Test]
+    public async Task AcceptMissingNeedsAMoveThatEndedWithOnlyMissingObjects()
+    {
+        var noMove = await SendAdminAsync(HttpMethod.Post, $"tenants/{TestIdentities.Samwise.OdinId.DomainName}/payload-move/accept-missing");
+        Assert.That(noMove.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        var domain = TestIdentities.Frodo.OdinId.DomainName;
+        var identityId = IdOf(TestIdentities.Frodo);
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+        await PayloadMoveJob.ScheduleAsync(jobManager, identityId, "https://127.0.0.1:1", "token", 7); // still transferring
+        try
+        {
+            var refused = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing");
+            var body = await refused.Content.ReadAsStringAsync();
+            Assert.That(refused.StatusCode, Is.AnyOf(HttpStatusCode.BadRequest, HttpStatusCode.Conflict),
+                $"conflict only if the runner holds it right now: {body}");
+            if (refused.StatusCode == HttpStatusCode.BadRequest)
+            {
+                Assert.That(body, Does.Contain("not CompleteWithFailures"));
+            }
+        }
+        finally
+        {
+            await jobManager.DeleteJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
+        }
     }
 
     // #1871: an Inbox item a peer sent with payloads is not in the drive index until it is processed. What the

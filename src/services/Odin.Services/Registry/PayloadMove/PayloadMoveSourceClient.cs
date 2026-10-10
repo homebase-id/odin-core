@@ -38,6 +38,9 @@ public interface IPayloadMoveSourceClient
     /// <summary>Copies the object's bytes to <paramref name="destination"/> when the result is Fetched.</summary>
     Task<FetchOutcome> FetchAsync(PayloadObject payloadObject, string credential, Stream destination, CancellationToken cancellationToken);
 
+    /// <summary>Whether the source has the object now: Fetched if it does, NotFound if not.</summary>
+    Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken);
+
     Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken);
 }
 
@@ -81,6 +84,13 @@ public class HttpPayloadMoveSourceClient(
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         return SendAsync(request, ObjectTimeout,
             async response => await response.Content.CopyToAsync(destination, cancellationToken), cancellationToken);
+    }
+
+    public Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Head, Url(payloadObject.SourcePath(identityId)));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
+        return SendAsync(request, CallTimeout, _ => Task.CompletedTask, cancellationToken);
     }
 
     public Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.System.Table;
@@ -42,6 +43,11 @@ public class PayloadMoveTargetView
 }
 
 public enum PayloadMoveRetryResult { Rearmed, NoMove, Running }
+
+public enum PayloadMoveAcceptResult { Requested, NoMove, Running, Refused }
+
+/// <summary>What an accept-missing request did; <see cref="Objects"/> are the ones it gives up.</summary>
+public record PayloadMoveAcceptOutcome(PayloadMoveAcceptResult Result, string? Reason = null, List<PayloadObject>? Objects = null);
 
 /// <summary>The operator's view of payload moves: progress on either side, and re-arming the target's transfer.</summary>
 public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager, PayloadMoveSource source)
@@ -108,6 +114,37 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
 
             await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now);
             return PayloadMoveRetryResult.Rearmed;
+        }
+    }
+
+    /// <summary>
+    /// Asks the target's transfer to give up the objects its source does not have, so the move can complete and
+    /// the source copy can be deleted (#1868). Only for a move that ended with nothing but those; its next run asks
+    /// the source for each once more and completes only if every one is still missing.
+    /// </summary>
+    public async Task<PayloadMoveAcceptOutcome> AcceptMissingAsync(string domain)
+    {
+        var registration = await registry.GetAsync(domain);
+        if (registration == null || await LoadJobAsync(registration.Id) is not { } job)
+        {
+            return new PayloadMoveAcceptOutcome(PayloadMoveAcceptResult.NoMove);
+        }
+
+        using (job)
+        {
+            if (job.State is JobState.Running or JobState.Preflight)
+            {
+                return new PayloadMoveAcceptOutcome(PayloadMoveAcceptResult.Running);
+            }
+
+            if (job.Data.WhyMissingCannotBeAccepted is { } why)
+            {
+                return new PayloadMoveAcceptOutcome(PayloadMoveAcceptResult.Refused, why);
+            }
+
+            job.Data.AcceptMissingRequested = true;
+            await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now);
+            return new PayloadMoveAcceptOutcome(PayloadMoveAcceptResult.Requested, Objects: job.Data.Missing);
         }
     }
 
