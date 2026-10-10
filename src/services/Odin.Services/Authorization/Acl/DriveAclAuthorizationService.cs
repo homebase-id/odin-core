@@ -42,8 +42,12 @@ namespace Odin.Services.Authorization.Acl
                     //let it continue on
                 }
 
-                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.PeerKeyStore.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
-                    .Any();
+                // Their circles as when they call in (CircleNetworkService.CreatePermissionContextInternalAsync,
+                // applyAppCircleGrants: true): the circles they are members of and those an app's grant names.
+                var circles = (icr.PeerKeyStore.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
+                    .Concat(icr.PeerKeyStore.AppGrants?.Values.SelectMany(a => a.Keys) ?? Array.Empty<Guid>());
+
+                var hasAtLeastOneCircle = requiredCircles.Intersect(circles).Any();
                 return hasAtLeastOneCircle;
             }
 
