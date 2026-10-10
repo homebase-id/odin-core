@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -115,7 +116,7 @@ public class PayloadMoveTransferTests
     public async Task AStallInTheQueuedPhaseKeepsItAndTheResumeHoldPending()
     {
         _queued = [..ObjectsOf(File(30))];
-        _source.ThrottleNextFetches = 1;
+        _source.ThrottleNext = 1;
         var state = NewState();
 
         var first = await Transfer(parallelism: 1).RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
@@ -185,7 +186,7 @@ public class PayloadMoveTransferTests
     [Test]
     public async Task AThrottledSourceIsWaitedOutWithoutAdvancingOrFailing()
     {
-        _source.ThrottleNextFetches = 1;
+        _source.ThrottleNext = 1;
         _source.RetryAfter = TimeSpan.FromSeconds(42);
         var state = NewState();
 
@@ -305,7 +306,7 @@ public class PayloadMoveTransferTests
     public async Task AThrottledCheckWaitsWithTheAcceptanceStillAsked()
     {
         var (state, _) = await EndWithTwoMissingAsync();
-        _source.ThrottleNextChecks = 1;
+        _source.ThrottleNext = 1;
         _source.RetryAfter = TimeSpan.FromSeconds(42);
 
         RequestAccept(state);
@@ -470,8 +471,8 @@ public class PayloadMoveTransferTests
         public int CompleteCalls { get; private set; }
         public int MaxInFlight { get; private set; }
         public TimeSpan Delay { get; set; }
-        public int ThrottleNextFetches { get; set; }
-        public int ThrottleNextChecks { get; set; }
+        /// <summary>Fetches and checks alike.</summary>
+        public int ThrottleNext { get; set; }
         public List<PayloadObject> Checked { get; } = [];
         public TimeSpan? RetryAfter { get; set; }
         public bool RefuseRedeem { get; set; }
@@ -499,9 +500,8 @@ public class PayloadMoveTransferTests
             cancellationToken.ThrowIfCancellationRequested();
             lock (_lock)
             {
-                if (ThrottleNextFetches > 0)
+                if (Throttled())
                 {
-                    ThrottleNextFetches--;
                     return new FetchOutcome(FetchResult.Throttled, RetryAfter);
                 }
 
@@ -512,7 +512,7 @@ public class PayloadMoveTransferTests
             try
             {
                 await Task.Delay(Delay, cancellationToken);
-                if (credential != "credential" || !Objects.TryGetValue(payloadObject.SourcePath(Guid.Empty), out var bytes))
+                if (!Has(payloadObject, credential, out var bytes))
                 {
                     return new FetchOutcome(FetchResult.NotFound);
                 }
@@ -539,16 +539,35 @@ public class PayloadMoveTransferTests
 
         public Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken)
         {
-            if (ThrottleNextChecks > 0)
+            lock (_lock)
             {
-                ThrottleNextChecks--;
-                return Task.FromResult(new FetchOutcome(FetchResult.Throttled, RetryAfter));
+                if (Throttled())
+                {
+                    return Task.FromResult(new FetchOutcome(FetchResult.Throttled, RetryAfter));
+                }
+
+                Checked.Add(payloadObject);
             }
 
-            Checked.Add(payloadObject);
-            return Task.FromResult(new FetchOutcome(Objects.ContainsKey(payloadObject.SourcePath(Guid.Empty))
-                ? FetchResult.Fetched
-                : FetchResult.NotFound));
+            return Task.FromResult(new FetchOutcome(Has(payloadObject, credential, out _) ? FetchResult.Fetched : FetchResult.NotFound));
+        }
+
+        // Under _lock
+        private bool Throttled()
+        {
+            if (ThrottleNext <= 0)
+            {
+                return false;
+            }
+
+            ThrottleNext--;
+            return true;
+        }
+
+        private bool Has(PayloadObject payloadObject, string credential, [NotNullWhen(true)] out byte[]? bytes)
+        {
+            bytes = null;
+            return credential == "credential" && Objects.TryGetValue(payloadObject.SourcePath(Guid.Empty), out bytes);
         }
 
         public Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken)

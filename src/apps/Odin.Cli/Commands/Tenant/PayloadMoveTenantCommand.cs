@@ -41,43 +41,29 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
         var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
         var path = $"tenants/{settings.TenantDomain}/payload-move";
 
-        if (settings.Retry)
+        async Task PostAsync(string action)
         {
-            var retry = await httpClient.PostAsync($"{path}/retry", null);
-            if (retry.StatusCode == HttpStatusCode.NotFound)
+            var posted = await httpClient.PostAsync($"{path}/{action}", null);
+            if (posted.StatusCode == HttpStatusCode.NotFound)
             {
                 throw new Exception($"{settings.TenantDomain} has no payload transfer on this host");
             }
-            if (retry.StatusCode == HttpStatusCode.Conflict)
+            if (posted.StatusCode == HttpStatusCode.Conflict)
             {
                 throw new Exception("The transfer is running a slice right now; try again in a few minutes");
             }
-            await ApiResponse.EnsureAsync(retry);
+            await ApiResponse.EnsureAsync(posted);
+        }
+
+        if (settings.Retry)
+        {
+            await PostAsync("retry");
             AnsiConsole.MarkupLine("[green]Transfer re-armed from the newest file[/]");
         }
 
         if (settings.AcceptMissing)
         {
-            var accept = await httpClient.PostAsync($"{path}/accept-missing", null);
-            if (accept.StatusCode == HttpStatusCode.NotFound)
-            {
-                throw new Exception($"{settings.TenantDomain} has no payload transfer on this host");
-            }
-            if (accept.StatusCode == HttpStatusCode.Conflict)
-            {
-                throw new Exception("The transfer is running a slice right now; try again in a few minutes");
-            }
-            await ApiResponse.EnsureAsync(accept);
-
-            var objects = OdinSystemSerializer.Deserialize<List<PayloadObject>>(await accept.Content.ReadAsStringAsync()) ?? [];
-            AnsiConsole.MarkupLine($"[yellow]Giving up {objects.Count} object(s) the source does not have:[/]");
-            foreach (var o in objects)
-            {
-                AnsiConsole.WriteLine($"  {o}");
-            }
-            AnsiConsole.MarkupLine("The target asks the source for each once more, then completes the move without them. " +
-                                   "Follow it below; it reads Complete once done.");
-            AnsiConsole.WriteLine();
+            await PostAsync("accept-missing");
         }
 
         var response = await httpClient.GetAsync(path);
@@ -89,6 +75,19 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
 
         var report = OdinSystemSerializer.Deserialize<PayloadMoveReport>(await response.Content.ReadAsStringAsync())
                      ?? new PayloadMoveReport();
+
+        if (settings.AcceptMissing && report.Target is { } accepted)
+        {
+            var objects = accepted.Progress.Missing;
+            AnsiConsole.MarkupLine($"[yellow]Giving up {objects.Count} object(s) the source does not have:[/]");
+            foreach (var o in objects)
+            {
+                AnsiConsole.WriteLine($"  {o}");
+            }
+            AnsiConsole.MarkupLine("The target asks the source for each once more, then completes the move without them. " +
+                                   "Follow it below; it reads Complete once done.");
+            AnsiConsole.WriteLine();
+        }
 
         var grid = new Grid();
         grid.AddColumn();

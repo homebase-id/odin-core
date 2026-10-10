@@ -201,6 +201,16 @@ public class PayloadMoveTests
             Assert.That(report.Target!.Progress.StartRowId, Is.EqualTo(7));
             Assert.That(report.Target.Progress.BaseUrl, Is.EqualTo("https://127.0.0.1:1"));
 
+            // #1868: only a move that ended with nothing but objects the source lacks can give them up
+            var accept = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing");
+            var acceptBody = await accept.Content.ReadAsStringAsync();
+            Assert.That(accept.StatusCode, Is.AnyOf(HttpStatusCode.BadRequest, HttpStatusCode.Conflict),
+                $"conflict only if the runner holds it right now: {acceptBody}");
+            if (accept.StatusCode == HttpStatusCode.BadRequest)
+            {
+                Assert.That(acceptBody, Does.Contain("not CompleteWithFailures"));
+            }
+
             var retry = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
             Assert.That(retry.StatusCode, Is.AnyOf(HttpStatusCode.OK, HttpStatusCode.Conflict), "conflict only if the runner holds it right now");
         }
@@ -211,34 +221,8 @@ public class PayloadMoveTests
 
         var noJob = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
         Assert.That(noJob.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-    }
-
-    // #1868: only a move that ended with nothing but objects the source lacks can give them up
-    [Test]
-    public async Task AcceptMissingNeedsAMoveThatEndedWithOnlyMissingObjects()
-    {
-        var noMove = await SendAdminAsync(HttpMethod.Post, $"tenants/{TestIdentities.Samwise.OdinId.DomainName}/payload-move/accept-missing");
-        Assert.That(noMove.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-
-        var domain = TestIdentities.Frodo.OdinId.DomainName;
-        var identityId = IdOf(TestIdentities.Frodo);
-        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
-        await PayloadMoveJob.ScheduleAsync(jobManager, identityId, "https://127.0.0.1:1", "token", 7); // still transferring
-        try
-        {
-            var refused = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing");
-            var body = await refused.Content.ReadAsStringAsync();
-            Assert.That(refused.StatusCode, Is.AnyOf(HttpStatusCode.BadRequest, HttpStatusCode.Conflict),
-                $"conflict only if the runner holds it right now: {body}");
-            if (refused.StatusCode == HttpStatusCode.BadRequest)
-            {
-                Assert.That(body, Does.Contain("not CompleteWithFailures"));
-            }
-        }
-        finally
-        {
-            await jobManager.DeleteJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
-        }
+        var noJobAccept = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing");
+        Assert.That(noJobAccept.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     // #1871: an Inbox item a peer sent with payloads is not in the drive index until it is processed. What the

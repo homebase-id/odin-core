@@ -79,10 +79,11 @@ public class PayloadMoveState
 
     public long MissingCount { get; set; }
 
-    /// <summary>How many objects the operator gave up, and when. The move completed without them.</summary>
-    public long AcceptedMissing { get; set; }
-
+    /// <summary>When the operator gave up <see cref="Missing"/>: the move completed without them.</summary>
     public UnixTimeUtc? AcceptedMissingAt { get; set; }
+
+    [JsonIgnore]
+    public long AcceptedMissing => AcceptedMissingAt == null ? 0 : MissingCount;
 
     public int BackoffSeconds { get; set; }
 
@@ -130,7 +131,7 @@ public class PayloadMoveState
         StartRowId = startRowId;
         CursorRowId = startRowId + 1;
         QueuedItemsDone = false;
-        Files = Objects = Bytes = Skipped = FailureCount = MissingCount = AcceptedMissing = 0;
+        Files = Objects = Bytes = Skipped = FailureCount = MissingCount = 0;
         Failures = [];
         Missing = [];
         AcceptedMissingAt = null;

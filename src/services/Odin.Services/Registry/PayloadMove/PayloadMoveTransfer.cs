@@ -111,7 +111,7 @@ public sealed class PayloadMoveTransfer(
     private async Task<SliceResult?> TransferObjectsAsync(PayloadMoveState state, List<PayloadObject> objects,
         CancellationToken cancellationToken)
     {
-        var outcomes = await TransferAsync(objects, state.Credential!, cancellationToken);
+        var outcomes = await EachAsync(objects, o => TransferOneAsync(o, state.Credential!, cancellationToken), cancellationToken);
 
         // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
         // wait. What did land is skipped next time, so nothing is fetched twice.
@@ -201,23 +201,21 @@ public sealed class PayloadMoveTransfer(
     // every one is still a 404 does the move complete without them.
     private async Task<SliceResult> AcceptMissingAsync(PayloadMoveState state, CancellationToken cancellationToken)
     {
-        foreach (var payloadObject in state.Missing)
+        var checks = await EachAsync(state.Missing, o => source.ExistsAsync(o, state.Credential!, cancellationToken), cancellationToken);
+
+        if (checks.FirstOrDefault(c => c.outcome.Result == FetchResult.Fetched).payloadObject is { } found)
         {
-            var outcome = await source.ExistsAsync(payloadObject, state.Credential!, cancellationToken);
-            switch (outcome.Result)
-            {
-                case FetchResult.NotFound:
-                    continue;
-                case FetchResult.Fetched:
-                    state.Status = PayloadMoveStatus.CompleteWithFailures;
-                    state.AddFailure($"accept-missing refused: {payloadObject} is at the source now; run --retry");
-                    logger.LogWarning("Payload move did not give up {object}: the source has it now", payloadObject);
-                    return new SliceResult(SliceEnd.Finished);
-                default:
-                    logger.LogWarning("Payload move could not check {object} at the source: {result} {error}",
-                        payloadObject, outcome.Result, outcome.Error);
-                    return new SliceResult(SliceEnd.Wait, outcome.RetryAfter ?? FirstBackoff);
-            }
+            state.Status = PayloadMoveStatus.CompleteWithFailures;
+            state.AddFailure($"accept-missing refused: {found} is at the source now; run --retry");
+            logger.LogWarning("Payload move did not give up {object}: the source has it now", found);
+            return new SliceResult(SliceEnd.Finished);
+        }
+
+        if (checks.FirstOrDefault(c => c.outcome.Result != FetchResult.NotFound) is { payloadObject: not null } unknown)
+        {
+            logger.LogWarning("Payload move could not check {object} at the source: {result} {error}",
+                unknown.payloadObject, unknown.outcome.Result, unknown.outcome.Error);
+            return new SliceResult(SliceEnd.Wait, unknown.outcome.RetryAfter ?? FirstBackoff);
         }
 
         foreach (var payloadObject in state.Missing)
@@ -225,7 +223,6 @@ public sealed class PayloadMoveTransfer(
             logger.LogWarning("Payload move gave up {object}: the source does not have it (accepted by the operator)", payloadObject);
         }
 
-        state.AcceptedMissing = state.MissingCount;
         state.AcceptedMissingAt = UnixTimeUtc.Now();
         return await FinishAsync(state, cancellationToken);
     }
@@ -243,8 +240,9 @@ public sealed class PayloadMoveTransfer(
         return new SliceResult(SliceEnd.Wait, wait);
     }
 
-    private async Task<List<(PayloadObject payloadObject, ObjectOutcome outcome)>> TransferAsync(
-        List<PayloadObject> objects, string credential, CancellationToken cancellationToken)
+    // Each object, at most `parallelism` at a time
+    private async Task<List<(PayloadObject payloadObject, T outcome)>> EachAsync<T>(
+        List<PayloadObject> objects, Func<PayloadObject, Task<T>> each, CancellationToken cancellationToken)
     {
         using var gate = new SemaphoreSlim(Math.Max(1, parallelism));
         var transfers = objects.Select(async payloadObject =>
@@ -252,7 +250,7 @@ public sealed class PayloadMoveTransfer(
             await gate.WaitAsync(cancellationToken);
             try
             {
-                return (payloadObject, await TransferOneAsync(payloadObject, credential, cancellationToken));
+                return (payloadObject, await each(payloadObject));
             }
             finally
             {
