@@ -956,12 +956,9 @@ public class JobManagerTests
         var job = jobManager.NewJob<AbortingJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
 
-        // Act
-        await Task.Delay(200);
-
-        // Assert
-        var exists = await jobManager.JobExistsAsync(jobId);
-        Assert.That(exists, Is.False);
+        // Act, Assert
+        await WaitUntilAsync(async () => !await jobManager.JobExistsAsync(jobId),
+            TimeSpan.FromSeconds(5), () => "the aborted job was not removed");
 
         AssertLogEvents();
     }
@@ -1088,9 +1085,12 @@ public class JobManagerTests
         var jobId = await jobManager.ScheduleJobAsync(job);
 
         // Act
-        await Task.Delay(200);
+        await WaitUntilAsync(async () =>
+        {
+            job = await jobManager.GetJobAsync<DeferOnCancelJobTest>(jobId);
+            return job?.Record?.lastError != null;
+        }, TimeSpan.FromSeconds(5), () => "the job was not run and rescheduled");
 
-        job = await jobManager.GetJobAsync<DeferOnCancelJobTest>(jobId);
         Assert.That(job, Is.Not.Null);
         Assert.That(job!.State, Is.EqualTo(JobState.Scheduled));
         Assert.That(job!.Record!.runCount, Is.EqualTo(0));
@@ -1244,14 +1244,11 @@ public class JobManagerTests
             OnSuccessDeleteAfter = TimeSpan.FromDays(1)
         });
         
-        await Task.Delay(200);        
-
         // Assert JobManager deletes the job immediately if deleteAfterMilliseconds is 0
         if (deleteAfterMilliseconds == 0)
         {
-            await Task.Delay(100);
-            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-            Assert.That(completedJob1, Is.Null);
+            await WaitUntilAsync(async () => await jobManager.GetJobAsync<SimpleJobTest>(jobId1) == null,
+                TimeSpan.FromSeconds(5), () => "succeeded job with OnSuccessDeleteAfter 0 was not deleted");
         }
         else
         {
@@ -1274,14 +1271,9 @@ public class JobManagerTests
         // Act
         await backgroundServiceManager.NotifyWorkAvailableAsync(nameof(JobCleanUpBackgroundService));
 
-        // Wait a bit so JobCleanUpBackgroundService has time to do its thing
-        await Task.Delay(200);
-
         // Assert
-        {
-            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-            Assert.That(completedJob1, Is.Null);
-        }
+        await WaitUntilAsync(async () => await jobManager.GetJobAsync<SimpleJobTest>(jobId1) == null,
+            TimeSpan.FromSeconds(5), () => "JobCleanUpBackgroundService did not delete the expired job");
 
         completedJob2 = await jobManager.GetJobAsync<SimpleJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
