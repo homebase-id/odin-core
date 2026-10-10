@@ -38,6 +38,20 @@ public class HttpPayloadMoveSourceClientTests
         Assert.That(second.Result, Is.EqualTo(FetchResult.NotFound), second.Error);
     }
 
+    // #1868: accept-missing asks the source whether it has an object now, without fetching it
+    [Test]
+    public async Task AnObjectTheSourceDoesNotHaveIsNotFound()
+    {
+        await using var server = new SimpleWebServer();
+        using var factory = new DynamicHttpClientFactory(NullLogger<DynamicHttpClientFactory>.Instance);
+        var source = new HttpPayloadMoveSourceClient(factory, server.BaseUrl, Guid.NewGuid());
+
+        var outcome = await source.ExistsAsync(new PayloadObject(Guid.NewGuid(), Guid.NewGuid(), "pay_key1",
+            new Odin.Core.Time.UnixTimeUtcUnique(1), 0), "credential", CancellationToken.None);
+
+        Assert.That(outcome.Result, Is.EqualTo(FetchResult.NotFound), outcome.Error);
+    }
+
     private static async Task WaitUntilEveryHandlerIsDisposedAsync(DynamicHttpClientFactory factory)
     {
         var clock = Stopwatch.StartNew();

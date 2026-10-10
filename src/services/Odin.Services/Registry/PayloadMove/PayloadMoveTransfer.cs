@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -48,7 +49,7 @@ public sealed class PayloadMoveTransfer(
     public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
     private const int AttemptsPerObject = 3;
 
-    private enum Result { Transferred, Skipped, Failed, Stalled }
+    private enum Result { Transferred, Skipped, Missing, Failed, Stalled }
 
     private readonly record struct ObjectOutcome(Result Result, long Bytes = 0, string? Failure = null, TimeSpan? RetryAfter = null);
 
@@ -57,6 +58,11 @@ public sealed class PayloadMoveTransfer(
         if (state.IsFinished)
         {
             return new SliceResult(SliceEnd.Finished);
+        }
+
+        if (state.Status == PayloadMoveStatus.AcceptingMissing)
+        {
+            return await AcceptMissingAsync(state, cancellationToken);
         }
 
         if (state.Credential == null && !await RedeemAsync(state, cancellationToken))
@@ -105,7 +111,7 @@ public sealed class PayloadMoveTransfer(
     private async Task<SliceResult?> TransferObjectsAsync(PayloadMoveState state, List<PayloadObject> objects,
         CancellationToken cancellationToken)
     {
-        var outcomes = await TransferAsync(objects, state.Credential!, cancellationToken);
+        var outcomes = await EachAsync(objects, o => TransferOneAsync(o, state.Credential!, cancellationToken), cancellationToken);
 
         // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
         // wait. What did land is skipped next time, so nothing is fetched twice.
@@ -125,6 +131,10 @@ public sealed class PayloadMoveTransfer(
                     break;
                 case Result.Skipped:
                     state.Skipped++;
+                    break;
+                case Result.Missing:
+                    state.AddMissing(payloadObject);
+                    logger.LogWarning("Payload move could not transfer {object}: the source does not have it", payloadObject);
                     break;
                 case Result.Failed:
                     state.AddFailure($"{payloadObject}: {outcome.Failure}");
@@ -162,7 +172,8 @@ public sealed class PayloadMoveTransfer(
 
     private async Task<SliceResult> FinishAsync(PayloadMoveState state, CancellationToken cancellationToken)
     {
-        if (state.FailureCount > 0)
+        // Objects the operator gave up count as done
+        if (state.FailureCount > state.AcceptedMissing)
         {
             // The source keeps the identity's payloads, and cannot be deleted, until someone looks at these
             state.Status = PayloadMoveStatus.CompleteWithFailures;
@@ -186,6 +197,36 @@ public sealed class PayloadMoveTransfer(
         return new SliceResult(SliceEnd.Finished);
     }
 
+    // The operator gives up the objects the source did not have (#1868). They are asked for once more, and only if
+    // every one is still a 404 does the move complete without them.
+    private async Task<SliceResult> AcceptMissingAsync(PayloadMoveState state, CancellationToken cancellationToken)
+    {
+        var checks = await EachAsync(state.Missing, o => source.ExistsAsync(o, state.Credential!, cancellationToken), cancellationToken);
+
+        if (checks.FirstOrDefault(c => c.outcome.Result == FetchResult.Fetched).payloadObject is { } found)
+        {
+            state.Status = PayloadMoveStatus.CompleteWithFailures;
+            state.AddFailure($"accept-missing refused: {found} is at the source now; run --retry");
+            logger.LogWarning("Payload move did not give up {object}: the source has it now", found);
+            return new SliceResult(SliceEnd.Finished);
+        }
+
+        if (checks.FirstOrDefault(c => c.outcome.Result != FetchResult.NotFound) is { payloadObject: not null } unknown)
+        {
+            logger.LogWarning("Payload move could not check {object} at the source: {result} {error}",
+                unknown.payloadObject, unknown.outcome.Result, unknown.outcome.Error);
+            return new SliceResult(SliceEnd.Wait, unknown.outcome.RetryAfter ?? FirstBackoff);
+        }
+
+        foreach (var payloadObject in state.Missing)
+        {
+            logger.LogWarning("Payload move gave up {object}: the source does not have it (accepted by the operator)", payloadObject);
+        }
+
+        state.AcceptedMissingAt = UnixTimeUtc.Now();
+        return await FinishAsync(state, cancellationToken);
+    }
+
     private static SliceResult Backoff(PayloadMoveState state, TimeSpan? retryAfter)
     {
         var wait = retryAfter ?? (state.BackoffSeconds == 0 ? FirstBackoff : TimeSpan.FromSeconds(state.BackoffSeconds * 2));
@@ -199,8 +240,9 @@ public sealed class PayloadMoveTransfer(
         return new SliceResult(SliceEnd.Wait, wait);
     }
 
-    private async Task<List<(PayloadObject payloadObject, ObjectOutcome outcome)>> TransferAsync(
-        List<PayloadObject> objects, string credential, CancellationToken cancellationToken)
+    // Each object, at most `parallelism` at a time
+    private async Task<List<(PayloadObject payloadObject, T outcome)>> EachAsync<T>(
+        List<PayloadObject> objects, Func<PayloadObject, Task<T>> each, CancellationToken cancellationToken)
     {
         using var gate = new SemaphoreSlim(Math.Max(1, parallelism));
         var transfers = objects.Select(async payloadObject =>
@@ -208,7 +250,7 @@ public sealed class PayloadMoveTransfer(
             await gate.WaitAsync(cancellationToken);
             try
             {
-                return (payloadObject, await TransferOneAsync(payloadObject, credential, cancellationToken));
+                return (payloadObject, await each(payloadObject));
             }
             finally
             {
@@ -252,7 +294,7 @@ public sealed class PayloadMoveTransfer(
                     return new ObjectOutcome(Result.Transferred, file.Length);
 
                 case FetchResult.NotFound:
-                    return new ObjectOutcome(Result.Failed, Failure: "the source does not have it");
+                    return new ObjectOutcome(Result.Missing);
 
                 case FetchResult.Throttled:
                     return new ObjectOutcome(Result.Stalled, RetryAfter: fetched.RetryAfter);

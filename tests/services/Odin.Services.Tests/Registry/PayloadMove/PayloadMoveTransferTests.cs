@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -115,7 +116,7 @@ public class PayloadMoveTransferTests
     public async Task AStallInTheQueuedPhaseKeepsItAndTheResumeHoldPending()
     {
         _queued = [..ObjectsOf(File(30))];
-        _source.ThrottleNextFetches = 1;
+        _source.ThrottleNext = 1;
         var state = NewState();
 
         var first = await Transfer(parallelism: 1).RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
@@ -185,7 +186,7 @@ public class PayloadMoveTransferTests
     [Test]
     public async Task AThrottledSourceIsWaitedOutWithoutAdvancingOrFailing()
     {
-        _source.ThrottleNextFetches = 1;
+        _source.ThrottleNext = 1;
         _source.RetryAfter = TimeSpan.FromSeconds(42);
         var state = NewState();
 
@@ -255,6 +256,81 @@ public class PayloadMoveTransferTests
         Assert.That(state.Failures, Has.Some.Contains("does not have it").And.Some.Contains("the header records"));
         Assert.That(state.Objects, Is.EqualTo(4), "the rest still moved");
         Assert.That(_source.CompleteCalls, Is.EqualTo(0), "the source is not released");
+
+        // Only the 404 is an object the source does not have; a wrong size is not something to accept
+        Assert.That(state.Missing, Is.EqualTo(new[] { objects[0] }));
+        Assert.That(state.MissingCount, Is.EqualTo(1));
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("not objects missing at the source"));
+    }
+
+    // #1868: holes the source had before the move must not keep it from completing for good
+    [Test]
+    public async Task AcceptingTheMissingObjectsCompletesTheMoveAndReleasesTheSource()
+    {
+        var missing = await EndWithTwoMissingAsync();
+        var state = missing.state;
+        Assert.That(state.WhyMissingCannotBeAccepted, Is.Null);
+
+        RequestAccept(state);
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete), string.Join("; ", state.Failures));
+        Assert.That(_source.CompleteCalls, Is.EqualTo(1), "the source is released");
+        Assert.That(_source.Checked, Is.EquivalentTo(missing.objects), "each is asked for once more");
+        Assert.That(state.AcceptedMissing, Is.EqualTo(2));
+        Assert.That(state.AcceptedMissingAt, Is.Not.Null);
+
+        state.StartFrom(StartRowId);
+        Assert.That((state.Missing.Count, state.MissingCount, state.AcceptedMissing, state.AcceptedMissingAt),
+            Is.EqualTo((0, 0L, 0L, (UnixTimeUtc?)null)), "a retry starts the record over");
+    }
+
+    [Test]
+    public async Task AnObjectThatTurnedUpAtTheSourceRefusesTheAcceptance()
+    {
+        var (state, objects) = await EndWithTwoMissingAsync();
+        Seed([objects[1]]);
+
+        RequestAccept(state);
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(_source.CompleteCalls, Is.EqualTo(0));
+        Assert.That(state.Failures, Has.Some.Contains("accept-missing refused").And.Some.Contains("run --retry"));
+        Assert.That(state.WhyMissingCannotBeAccepted, Is.Not.Null, "not again until a retry");
+    }
+
+    [Test]
+    public async Task AThrottledCheckWaitsWithTheAcceptanceStillAsked()
+    {
+        var (state, _) = await EndWithTwoMissingAsync();
+        _source.ThrottleNext = 1;
+        _source.RetryAfter = TimeSpan.FromSeconds(42);
+
+        RequestAccept(state);
+        var first = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(first.End, Is.EqualTo(SliceEnd.Wait));
+        Assert.That(first.Wait, Is.EqualTo(TimeSpan.FromSeconds(42)));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.AcceptingMissing), "still asked while waiting");
+
+        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete));
+    }
+
+    [Test]
+    public void AFinishedTransferWithoutAMissingRecordAsksForARetryFirst()
+    {
+        // As a transfer that finished before accept-missing existed: failures as text only
+        var state = NewState();
+        state.AddFailure("payload pay_key1 (1000010) in file x: the source does not have it");
+        state.Status = PayloadMoveStatus.CompleteWithFailures;
+
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("run --retry first"));
+        Assert.That(state.RequestAcceptMissing(), Does.Contain("run --retry first"));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), "not asked");
     }
 
     [Test]
@@ -303,6 +379,29 @@ public class PayloadMoveTransferTests
     //
 
     // What the source has: every object of the files the import brought
+    // A move that ends with both objects of File(20) missing at the source, and nothing else wrong
+    private async Task<(PayloadMoveState state, List<PayloadObject> objects)> EndWithTwoMissingAsync()
+    {
+        var objects = ObjectsOf(File(20)).ToList();
+        foreach (var o in objects)
+        {
+            _source.Objects.Remove(o.SourcePath(Guid.Empty), out _);
+        }
+
+        var state = NewState();
+        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), string.Join("; ", state.Failures));
+        Assert.That(state.Missing, Is.EquivalentTo(objects));
+        return (state, objects);
+    }
+
+    // As the admin asks it. The job runs a slice only for a move that is not finished, so the request must undo that.
+    private static void RequestAccept(PayloadMoveState state)
+    {
+        Assert.That(state.RequestAcceptMissing(), Is.Null);
+        Assert.That(state.IsFinished, Is.False, "the job would never run the request");
+    }
+
     private IEnumerable<PayloadObject> ImportedObjects() => _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf);
 
     private void Seed(IEnumerable<PayloadObject> objects)
@@ -372,7 +471,9 @@ public class PayloadMoveTransferTests
         public int CompleteCalls { get; private set; }
         public int MaxInFlight { get; private set; }
         public TimeSpan Delay { get; set; }
-        public int ThrottleNextFetches { get; set; }
+        /// <summary>Fetches and checks alike.</summary>
+        public int ThrottleNext { get; set; }
+        public List<PayloadObject> Checked { get; } = [];
         public TimeSpan? RetryAfter { get; set; }
         public bool RefuseRedeem { get; set; }
         public bool UnavailableRedeem { get; set; }
@@ -399,9 +500,8 @@ public class PayloadMoveTransferTests
             cancellationToken.ThrowIfCancellationRequested();
             lock (_lock)
             {
-                if (ThrottleNextFetches > 0)
+                if (Throttled())
                 {
-                    ThrottleNextFetches--;
                     return new FetchOutcome(FetchResult.Throttled, RetryAfter);
                 }
 
@@ -412,7 +512,7 @@ public class PayloadMoveTransferTests
             try
             {
                 await Task.Delay(Delay, cancellationToken);
-                if (credential != "credential" || !Objects.TryGetValue(payloadObject.SourcePath(Guid.Empty), out var bytes))
+                if (!Has(payloadObject, credential, out var bytes))
                 {
                     return new FetchOutcome(FetchResult.NotFound);
                 }
@@ -435,6 +535,39 @@ public class PayloadMoveTransferTests
                     _inFlight--;
                 }
             }
+        }
+
+        public Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken)
+        {
+            lock (_lock)
+            {
+                if (Throttled())
+                {
+                    return Task.FromResult(new FetchOutcome(FetchResult.Throttled, RetryAfter));
+                }
+
+                Checked.Add(payloadObject);
+            }
+
+            return Task.FromResult(new FetchOutcome(Has(payloadObject, credential, out _) ? FetchResult.Fetched : FetchResult.NotFound));
+        }
+
+        // Under _lock
+        private bool Throttled()
+        {
+            if (ThrottleNext <= 0)
+            {
+                return false;
+            }
+
+            ThrottleNext--;
+            return true;
+        }
+
+        private bool Has(PayloadObject payloadObject, string credential, [NotNullWhen(true)] out byte[]? bytes)
+        {
+            bytes = null;
+            return credential == "credential" && Objects.TryGetValue(payloadObject.SourcePath(Guid.Empty), out bytes);
         }
 
         public Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken)

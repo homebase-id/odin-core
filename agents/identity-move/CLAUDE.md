@@ -14,6 +14,8 @@ step by step and in order. It touches production identities, production DNS and 
   rows.
 - **Never delete, with one exception:** step 10, and only when the operator explicitly says so for that domain.
   Never `delete-identity-dns`, and never `--discard-mail` unless the operator has said that mail may be lost.
+  Never `payload-move --accept-missing` unless the operator has said, for that domain, that the listed objects
+  may be given up: it completes the move without them.
 - **Never run `populate-managed-domain-records` or `create-own-domain-zones` on a source host.** They
   rewrite the DNS of every identity the host has registered, the moved one included, back to the
   source. The move uses `repoint-identity-dns`, which writes one identity.

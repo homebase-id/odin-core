@@ -38,6 +38,9 @@ public interface IPayloadMoveSourceClient
     /// <summary>Copies the object's bytes to <paramref name="destination"/> when the result is Fetched.</summary>
     Task<FetchOutcome> FetchAsync(PayloadObject payloadObject, string credential, Stream destination, CancellationToken cancellationToken);
 
+    /// <summary>Whether the source has the object now: Fetched if it does, NotFound if not.</summary>
+    Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken);
+
     Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken);
 }
 
@@ -77,22 +80,28 @@ public class HttpPayloadMoveSourceClient(
 
     public Task<FetchOutcome> FetchAsync(PayloadObject payloadObject, string credential, Stream destination, CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, Url(payloadObject.SourcePath(identityId)));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        return SendAsync(request, ObjectTimeout,
+        return SendAsync(Authorized(HttpMethod.Get, payloadObject.SourcePath(identityId), credential), ObjectTimeout,
             async response => await response.Content.CopyToAsync(destination, cancellationToken), cancellationToken);
+    }
+
+    public Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken)
+    {
+        return SendAsync(Authorized(HttpMethod.Head, payloadObject.SourcePath(identityId), credential), CallTimeout,
+            _ => Task.CompletedTask, cancellationToken);
     }
 
     public Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, Url($"{PayloadMoveProtocol.IdentityPath(identityId)}/complete"));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        return SendAsync(request, CallTimeout, _ => Task.CompletedTask, cancellationToken);
+        return SendAsync(Authorized(HttpMethod.Post, $"{PayloadMoveProtocol.IdentityPath(identityId)}/complete", credential),
+            CallTimeout, _ => Task.CompletedTask, cancellationToken);
     }
 
     //
 
     private Uri Url(string path) => new(new Uri(baseUrl), path);
+
+    private HttpRequestMessage Authorized(HttpMethod method, string path, string credential) =>
+        new(method, Url(path)) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", credential) } };
 
     // A client per call: a slice runs for minutes, longer than the factory keeps a handler, and a client held
     // across it fails every call once the factory disposes the handler it was made with (#1867)

@@ -14,6 +14,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -79,6 +80,11 @@ public class PayloadMoveTests
         var head = await SendAsync(HttpMethod.Head, PayloadPath(file, payload), credential);
         Assert.That(head.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(head.Content.Headers.ContentLength, Is.EqualTo(payload.BytesWritten));
+
+        // What accept-missing asks before giving an object up (#1868): an object the source lacks is a 404
+        var absent = new PayloadObject(file.driveId, file.fileId, payload.Key, new UnixTimeUtcUnique(payload.Uid.uniqueTime + 1), 0);
+        var headAbsent = await SendAsync(HttpMethod.Head, absent.SourcePath(file.identityId), credential);
+        Assert.That(headAbsent.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
         var thumbnail = payload.Thumbnails.Single();
         var thumb = await SendAsync(HttpMethod.Get, ThumbnailPath(file, payload, thumbnail), credential);
@@ -195,6 +201,16 @@ public class PayloadMoveTests
             Assert.That(report.Target!.Progress.StartRowId, Is.EqualTo(7));
             Assert.That(report.Target.Progress.BaseUrl, Is.EqualTo("https://127.0.0.1:1"));
 
+            // #1868: only a move that ended with nothing but objects the source lacks can give them up
+            var accept = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing");
+            var acceptBody = await accept.Content.ReadAsStringAsync();
+            Assert.That(accept.StatusCode, Is.AnyOf(HttpStatusCode.BadRequest, HttpStatusCode.Conflict),
+                $"conflict only if the runner holds it right now: {acceptBody}");
+            if (accept.StatusCode == HttpStatusCode.BadRequest)
+            {
+                Assert.That(acceptBody, Does.Contain("not CompleteWithFailures"));
+            }
+
             var retry = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
             Assert.That(retry.StatusCode, Is.AnyOf(HttpStatusCode.OK, HttpStatusCode.Conflict), "conflict only if the runner holds it right now");
         }
@@ -205,6 +221,8 @@ public class PayloadMoveTests
 
         var noJob = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
         Assert.That(noJob.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        var noJobAccept = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing");
+        Assert.That(noJobAccept.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     // #1871: an Inbox item a peer sent with payloads is not in the drive index until it is processed. What the

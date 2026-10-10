@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.System.Table;
@@ -41,7 +42,10 @@ public class PayloadMoveTargetView
     public PayloadMoveState Progress { get; set; } = new();
 }
 
-public enum PayloadMoveRetryResult { Rearmed, NoMove, Running }
+public enum PayloadMoveRearmResult { Rearmed, NoMove, Running, Refused }
+
+/// <summary>What a retry or accept-missing request did; <see cref="Reason"/> says why it was refused.</summary>
+public record PayloadMoveRearmOutcome(PayloadMoveRearmResult Result, string? Reason = null);
 
 /// <summary>The operator's view of payload moves: progress on either side, and re-arming the target's transfer.</summary>
 public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager, PayloadMoveSource source)
@@ -88,28 +92,18 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
     /// Runs the target's transfer again from the newest file. Cheap: whatever already arrived is skipped, and a
     /// redeemed credential is kept. For a move that finished with failures, or that stalled.
     /// </summary>
-    public async Task<PayloadMoveRetryResult> RetryAsync(string domain)
+    public Task<PayloadMoveRearmOutcome> RetryAsync(string domain) => RearmAsync(domain, state =>
     {
-        var registration = await registry.GetAsync(domain);
-        if (registration == null || await LoadJobAsync(registration.Id) is not { } job)
-        {
-            return PayloadMoveRetryResult.NoMove;
-        }
+        state.StartFrom(state.StartRowId);
+        return null;
+    });
 
-        using (job)
-        {
-            if (job.State is JobState.Running or JobState.Preflight)
-            {
-                // Its slice would save its own checkpoint over ours; ask again once it is between slices
-                return PayloadMoveRetryResult.Running;
-            }
-
-            job.Data.StartFrom(job.Data.StartRowId);
-
-            await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now);
-            return PayloadMoveRetryResult.Rearmed;
-        }
-    }
+    /// <summary>
+    /// Asks the target's transfer to give up the objects its source does not have, so the move can complete and
+    /// the source copy can be deleted (#1868). Only for a move that ended with nothing but those; its next run asks
+    /// the source for each once more and completes only if every one is still missing.
+    /// </summary>
+    public Task<PayloadMoveRearmOutcome> AcceptMissingAsync(string domain) => RearmAsync(domain, state => state.RequestAcceptMissing());
 
     /// <summary>
     /// Whether this identity, moved here, must stay down until its carried queue items' payloads arrive
@@ -125,6 +119,33 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
         using (job)
         {
             return job.Data.HoldsResume;
+        }
+    }
+
+    // Changes the target's transfer between its slices and runs it now; `change` returns why it cannot, or null
+    private async Task<PayloadMoveRearmOutcome> RearmAsync(string domain, Func<PayloadMoveState, string?> change)
+    {
+        var registration = await registry.GetAsync(domain);
+        if (registration == null || await LoadJobAsync(registration.Id) is not { } job)
+        {
+            return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.NoMove);
+        }
+
+        using (job)
+        {
+            if (job.State is JobState.Running or JobState.Preflight)
+            {
+                // Its slice would save its own checkpoint over ours; ask again once it is between slices
+                return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Running);
+            }
+
+            if (change(job.Data) is { } why)
+            {
+                return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Refused, why);
+            }
+
+            await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now);
+            return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Rearmed);
         }
     }
 
