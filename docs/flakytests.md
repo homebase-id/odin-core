@@ -60,6 +60,14 @@ port still in use when `listener.Start()` runs would do it. The assertion does n
 so the log cannot say. Make it `Assert.That(connected, Is.True, error)` first, so the next
 failure names its cause.
 
+**FIXED 2026-10-10 (branch `flaky-tests-fixes`), cause inferred.** `TcpListen` binds synchronously before its first `await`,
+so the probe never ran ahead of the listener -- that part of #1779's reading does not hold. What the
+fixed ports did do: 38080 and 38443 lie in Linux's ephemeral range (32768-60999), where any outgoing
+connection on a busy runner can hold them, which fits both 38443 tests failing two seconds apart while
+38080 passed. Not reproduced. The tests now listen on a port the kernel picks (`TcpListen` takes a
+started listener) and the assertion prints the listener's error. CI history 2026-09-05 to 10-10: 7
+failures of this fixture.
+
 ---
 
 ## Any V2 fixture: `OneTimeSetUp` fails with "inotify instances has been reached"
@@ -99,6 +107,11 @@ landed by the time the assertion runs.
 **Not caused by the change in flight:** the change was a mail-DNS endpoint, which this test does
 not touch; the same job passes on recent `main` runs.
 
+**Not seen in CI 2026-09-05 to 10-10** (every failed Host CI run in that window was parsed). Still
+open in principle: the window is 4 s, and if the verify call plus the read take longer on a stalled
+runner the fresh file falls out of it -- which would answer exactly `NotFound`. Inferred, not shown;
+widening the window means sleeping longer for the old file, so it was left alone.
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.Peer.InboxDrainOnQueryTests`
@@ -118,6 +131,11 @@ change under test touched only `Email/*`, which this test does not reach.
 **Pattern worth noting:** this is the third entry from the same family — peer transfers and
 timing-sensitive delivery assertions (`TemporalReadTests`, and this). If a fourth appears,
 the shared cause is probably worth chasing rather than re-running.
+
+**Not seen in CI 2026-09-05 to 10-10.** V2 hosts never start background services, so nothing races
+the inline drain; the recorded failure predates the 2026-09-19 WAL harness fix, and a
+`database is locked` inside `DrainIfReadyAsync` is caught and logged, leaving the query without the
+file. That is the likely cause, inferred -- the failing run's server log cannot be checked.
 
 ---
 
@@ -147,6 +165,11 @@ Two places on that path can raise one -- `HandleReleaseShardRequest` on a *playe
 (`sender != requester`, or a `RecoveryEmailHash` mismatch) and the dealer-side collect. A player's
 non-2xx is swallowed by the `if (response.IsSuccessStatusCode)` guard, so it would have to be raised
 dealer-side. Unconfirmed: this is analysis, not a reproduction.
+
+**Seen again 2026-09-16, 09-28 (on `main`, run 36464837400) and 10-01** -- Windows only, `Forbidden`
+each time, each run taking the usual 9 s. Still undiagnosed: a security exception is logged at Warning,
+which the per-test teardown does not print. Since 2026-10-10 the assertion carries the response body,
+so the next failure should name the exception.
 
 ---
 
@@ -183,6 +206,9 @@ project in parallel, dev servers up). The test alone then passed 5/5.
 which added an orphan-rescue step to the same clean-up service). Not reproduced after: 10/10 alone and
 5/5 for the whole class, with the change and without it (stashed).
 
+**FIXED 2026-10-10 (branch `flaky-tests-fixes`).** The fixed 100-200 ms sleeps in this test and its successful-jobs twin are
+waits on the condition now (`WaitUntilAsync`, 5 s), naming what did not happen when they give up.
+
 ---
 
 ## `Odin.Core.Tests.Threading.KeyedAsyncLockTest`
@@ -206,6 +232,12 @@ tasks, which a loaded CI runner can exceed. Verified by reading the test
 (`tests/core/Odin.Core.Tests/Threading/KeyedAsyncLockTest.cs:316`); no fix attempted here — the
 budget would need widening, or the assertion rewritten to measure concurrency rather than
 wall-clock.
+
+**FIXED 2026-10-10 (branch `flaky-tests-fixes`).** Each of the 50 tasks keeps its lock until all 50 hold theirs, which only
+happens if different keys lock concurrently; no wall clock left. Verified the other way round: with
+every task on one key it fails, naming "1 of 50". The sibling
+`LockedExecuteAsync_MultipleTasksDifferentKeys_TasksRunConcurrently` failed the same way once in CI
+(2026-09-25, 5 tasks x 50 ms, non-atomic max) and was removed as a weaker copy of this claim.
 
 ---
 
@@ -307,6 +339,21 @@ keeping: a positive control in the same test is what made "entry 1 up, entry 2 d
 and an assertion message that says *what it could not do* ("a rejection cannot be asserted") is why
 this was diagnosable from a log alone.
 
+**FIXED 2026-10-10 (branch `flaky-tests-fixes`); all three tests run again.**
+
+- **#1734 was a product bug, now measured.** Hammering the trusted port with 300 peers that send
+  `GET /` and hang up at once: the old middleware logged 247 and 241 of them at Verbose (two runs) --
+  the read was cancelled by `ConnectionClosed` before it returned the buffered bytes. Without that
+  link a close completes the input after the bytes; 300 of 300 now warn.
+  `ManyPeersThatSendGarbageAndHangUp_AreAllLoggedAtWarning` pins it (45 of 50 silent on the old code).
+- **#1783 was a test bug -- inferred from the error code, not reproduced.** The failure was
+  `ConnectionReset`, not `ConnectionRefused`: a port nobody listens on refuses, and a reset means the
+  listener accepted and aborted, which is exactly what it does to an untrusted peer, on accept. On
+  Linux a non-blocking connect reads `SO_ERROR` once epoll reports the socket writable, so an abort that
+  lands in between surfaces as a reset from `ConnectAsync`, and `ConnectOrFail` called that "not
+  accepting connections". The rejection assertion now counts a reset as the rejection. Close #1783 once
+  CI runs the 8445 tests green.
+
 ---
 
 ## `Odin.Hosting.Tests.AppAPI.Transit.TransferFileTests`
@@ -331,6 +378,10 @@ start.
 **Cause:** unknown. The assertion runs immediately after the transfer, so a delayed deletion of
 the sender's transient copy on the slower Windows runner is a plausible explanation, but it has
 not been confirmed.
+
+**Likely resolved by the port, inferred.** 5 Windows failures 2026-09-08 to 09-15, all in the V1
+fixture. The V2 port (`Ported/Transit/TransferFileTests`) drains the outbox and processes the inbox
+explicitly, and it has not failed in CI since (to 2026-10-10).
 
 ---
 
@@ -377,6 +428,16 @@ STUN-URLs branch; the same Windows job passed 17 minutes earlier on that branch'
 handshake reply and their tests, none of which the Shamir fixture exercises. The PR auto-merged on
 the two green Release rows.
 
+**Still open, 2026-10-10.** 4 Windows failures 2026-09-11 to 10-01; the sibling
+`ShamirPasswordRecoveryTestForDelegates.DelegatePlayersCanApproveShardRequests` failed the same way on
+`main` 2026-09-30 (run 36690679599). Read from the code: an approval is a synchronous
+`accept-player-shard` call, and the player's approve only answers 200 once the dealer accepted the
+shard -- so every shard reached the dealer, yet its status read stayed
+`AwaitingSufficientDelegateConfirmation`, once through a 40 s poll. Inside the dealer's transaction
+reads bypass the cache, so its own count is not stale. **#1909** (a cache fill that read before a write
+can outlive the write's invalidation, for 2 h) would explain a status read that stays stale; that link
+is a hypothesis -- no concurrent reader has been identified here.
+
 ---
 
 ## `Odin.Services.Tests.JobManagement.JobManagerTests` (second entry)
@@ -409,6 +470,17 @@ guaranteed 30 s stall plus an error. That distinction is a real defect in
 `BackgroundServiceManager` (it also stalls CLI mode and pre-provisioned-cert hosts, and PR #1757
 works around it in the fast test host); fixing it would likely make this flake impossible too.
 
+**CORRECTED and FIXED 2026-10-10 (branch `flaky-tests-fixes`).** The CI log of that run (attempt 1) shows the opposite of a
+startup race: the job ran and succeeded within 5 ms of being scheduled. The test saw `Succeeded` and
+stopped the services; the runner was still in the tail of that job, where `JobManager.UpdateAsync`
+notifies `JobRunnerBackgroundService` -- which `StopAsync` had already removed, so the notify took the
+"not started yet" path: 30 s of polling, then the Error. `StopAllAsync` already made such a notify a
+no-op; stopping one service did not. It does now (`BackgroundServiceManager._stopped`), pinned by
+`ItShouldNotWaitToNotifyAServiceStoppedByStopAsync`, which fails on the old code. No production caller
+stops a single service, so only tests reached it. The Postgres failures of `ItShouldCalculateOverdueBy`,
+`ItShouldRunAChainedJobInTheBackground` and `ItShouldRunRepeatingUniqueJobInTheBackground` (33 s each,
+2026-09-06/07) carry the same Error and the same fix.
+
 ---
 
 ## `Odin.Services.Tests.JobManagement.JobManagerTests` (third entry)
@@ -440,6 +512,12 @@ access to the requested resource is not authorized"}` when pulling images, plus 
 `TearDown : NullReferenceException` that follows a failed setup. Not a test at all; the runners
 could not pull from the registry. The same error hit every ubuntu run on
 `feed-sync-under-system-context` that day (e.g. 36045191834). Re-run once the registry is reachable.
+
+**FIXED 2026-10-10 (branch `flaky-tests-fixes`).** Seen again 2026-10-07 (run 37595709353). The sleep is a wait on the
+deferred `nextRun` now; `ItShouldRunAndAbortInTheBackground` (2 Windows failures, 09-14 and 10-06)
+and `ItShouldRescheduleOnOperationCancelledInTheBackground` (1, 10-07) had the same shape and are
+fixed the same way.
+
 ## Every fixture that starts an S3 container (2026-09-24, all ubuntu CI jobs, all branches)
 
 **Symptom:** `OneTimeSetUp: Docker.DotNet.DockerApiException : Docker API responded with status
@@ -756,6 +834,15 @@ changes add `IDriveFileStore.OpenReadAsync` and a check on the payload *read* pa
 missing; nothing on the overwrite or hard-delete path that logs this (`LongTermStorageManager.cs:210`)
 changed.
 
+**CORRECTION 2026-10-10: the `HardDeletePayloadFile` failures are a different fixture.**
+`PayloadConcurrentHammerEncryptedTests` has a method of the same name,
+`Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads`, and that is what failed on
+2026-09-25, 09-29 and the seven Ubuntu runs since: its output reads "Threads 9, Iterations 100" and the
+missing file carries its payload key `pknt0001`, while this fixture runs 20 x 50 and uploads no payload
+at all. See the new `PayloadConcurrentHammerEncryptedTests` entry. This fixture's own symptom, the 500
+of #1780, has not been seen in CI since 2026-09-17 -- two days before the WAL harness fix; whether that
+fix is why is not established.
+
 ---
 
 ## `Odin.SetupHelper.Tests.TcpProbeTests`
@@ -798,6 +885,9 @@ precomputed bool, so the failure prints `Expected: True` and never says which of
 `error` before `connected` so the message survives. Note the file already carries a retry for
 external flakiness (`843ab7f64`, #1328), so this area has a history.
 
+**FIXED 2026-10-10 (branch `flaky-tests-fixes`)** -- see the first `TcpProbeTests` entry above. Kernel-picked ports, and the
+assertion prints `error`.
+
 ## `Odin.Services.Tests.LinkMetaExtractor.LinkMetaExtractorTests` — the live-website tests
 
 - `TestFacebookUrl` (and, by the same mechanism, every test in this file that calls `ExtractAsync`
@@ -819,3 +909,102 @@ answering an anonymous crawler, and nothing retries or isolates that.
 (`lookaside.fbsbx.com/lookaside/crawler/media/...`) answers this crawler with `text/html`. Before
 #1754 that HTML went out as `data:text/html;base64,...` and `ClassicAssert.NotNull(ogp.ImageUrl)`
 passed on it. #1754 rejects it, so the assertion is now "no image, or a real png/jpeg/gif".
+
+---
+
+## `Odin.Hosting.Tests.V2.Ported.DriveWrite.PayloadConcurrentHammerEncryptedTests`
+
+- `Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads`
+
+**Where:** CI, Ubuntu (sqlite and postgres) and Windows, 9 failures 2026-09-25 to 10-08 across
+unrelated branches (e.g. runs 36131064361, 36566548856, 37839445685). Not reproduced locally: 10 of 10
+runs green on an idle machine. Previously filed under `ConcurrentOverwriteEncryptedHeaderTests` by
+mistake (same method name).
+
+**Symptom:** the per-test teardown finds `HardDeletePayloadFile -> source payload does not exist`
+(`LongTermStorageManager.cs:210`), for a `pknt0001` payload.
+
+**Why it should not happen, read from the code:** each of the 9 threads replaces the payload of its own
+file, one request after another, so the payload `UpdatePayloads` deletes -- the one the header it just
+read references -- should still exist.
+
+**Candidate cause, a hypothesis:** **#1909**. If the header read came from a cache entry two versions
+old, the request would delete the payload its predecessor already deleted (this Error) and leak the
+real previous one. #1909 shows deterministically that such a stale entry can survive an invalidation;
+it does not show that a concurrent reader of this file exists. Leave the test running: the Error is the
+only signal.
+
+---
+
+## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`
+
+- `TheExportRefusesACertificateKeyItCannotRead`
+
+**Where:** CI, Windows, 2026-10-07 and 10-08 (runs 37616111370, 37768076321).
+
+**Symptom:** `Expected: IdentityExportRefusedException, But was: null`.
+
+**Cause -- verified, a product bug, FIXED 2026-10-10 (branch `flaky-tests-fixes`).** The export decided it could read a
+certificate key by decrypting it (AES-CBC). Under a wrong storage key about one decryption in 256 still
+ends in valid PKCS7 padding, and the garbage decodes as a string, so the export carried it as the key.
+Each run makes a new certificate, so each run had that 1-in-256 chance. The export now checks the key
+fits its certificate, as the import already did. `TheExportRefusesAWrongKeyWhoseDecryptionHappensToLookValid`
+searches for such a key and fails on the old code with the CI message.
+
+---
+
+## `Odin.Core.Tests.Util.TryRetryTests`
+
+- `Execute_Void_WithRandomDelay_AppliesDelayInRange`
+
+**Where:** CI, `ubuntu/postgres/release`, once (2026-10-01, run 36868772437).
+
+**Symptom:** the retry took longer than `maxDelay + 50 ms`. **Changed 2026-10-10 (branch `flaky-tests-fixes`):** the upper
+bound allows 400 ms, as its exponential-backoff sibling's does; a wall-clock upper bound only rules out a
+delay far outside the range, and the lower bound is the claim.
+
+---
+
+## `Odin.Hosting.Tests.AdminApi.AdminApiRestrictedAttributeTest` -- a tenant service notifies the job runner before it starts
+
+- `PingShouldReturn401IfWrongApiKey` (any V1 fixture can be the one that catches it)
+
+**Where:** CI, `windows/sqlite/debug`, 2026-10-01 (run 36868760644); the test took 55 s.
+
+**Cause -- verified from the log, a product bug, filed as #1910.** Startup starts every tenant's
+background services in `LoadRegistrations` before the system services, `JobRunnerBackgroundService`
+among them. frodo's `SecurityHealthCheckBackgroundScheduler` (5 s delay in Debug, 65 s in Release)
+scheduled its job while tenants were still migrating; the notify polled 30 s for the job runner, threw,
+and the scheduler exited with an unhandled exception -- the Error the teardown counted. Not fixed here:
+the fix is a startup-order decision.
+
+---
+
+## `Odin.Hosting.Tests._Universal.TenantStatus.TenantStatusTests`
+
+- `TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume`
+
+**Where:** CI, `ubuntu/postgres/release`, once (2026-10-06, run 37425156109).
+
+**Symptom:** after the resume and a drain, the item stayed in the sender's outbox, not checked out,
+for the full 90 s (`Total Items: 1 Checked Out 0`) -- i.e. it was deferred again rather than delivered,
+which fits the recipient still answering 503 after the admin call returned. The fixture teardown also
+counted one Error event, but the V1 assertion printed only the count. **Undiagnosed.** Since 2026-10-10
+the V1 and services log-event assertions list the events in their message, so a recurrence will say more.
+
+---
+
+## Seen once, not chased (2026-09-05 to 10-10)
+
+- `TransitCommentFileRoutingTests.FailsWhenSenderCannotWriteCommentOnRecipientServer` --
+  `NullReferenceException`, `main`, 2026-09-15 (run 34917362703), ubuntu/sqlite. Before #1771 changed
+  that refusal to a 400; not seen since.
+- `SignatureCheckTest.ItShouldDownloadCertificate` (PushNotification) -- downloads from the internet;
+  Windows, 2026-09-17.
+- `ConnectionChangeNotificationTests` (3 tests) and `OwnerAppSettingsTests.CanGetAndReadOwnerAppSetting`
+  -- `OneTimeSetUp` could not resolve `*.dotyou.cloud` (2026-09-11, 09-13): runner DNS, not a test.
+- `DnsProbeTests` -- failed on every run while the live DNS records they assert on were changing
+  (2026-10-01), fixed by #1858 and b195cf613. Broken, not flaky; a test that asserts on live DNS will
+  do it again.
+- Two Windows runs stopped after about an hour with no failing test in the log (36480736192,
+  36573203843): a hang, test unknown.
