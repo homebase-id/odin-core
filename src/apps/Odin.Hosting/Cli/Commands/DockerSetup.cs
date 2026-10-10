@@ -548,13 +548,28 @@ public static class DockerSetup
 
     //
 
-    internal static async Task<(bool connected, string? error)> TcpListen(int port, CancellationToken cancellationToken)
+    internal static Task<(bool connected, string? error)> TcpListen(int port, CancellationToken cancellationToken)
     {
+        TcpListener listener;
         try
         {
-            using var listener = new TcpListener(IPAddress.Any, port);
+            listener = new TcpListener(IPAddress.Any, port);
             listener.Start();
+        }
+        catch (Exception e)
+        {
+            return Task.FromResult<(bool, string?)>((false, e.Message));
+        }
 
+        return TcpListen(listener, cancellationToken);
+    }
+
+    // Answers one connection on an already started listener, then disposes the listener
+    internal static async Task<(bool connected, string? error)> TcpListen(TcpListener listener, CancellationToken cancellationToken)
+    {
+        using var _ = listener;
+        try
+        {
             using var tcpClient = await listener.AcceptTcpClientAsync(cancellationToken);
 
             await using var networkStream = tcpClient.GetStream();
