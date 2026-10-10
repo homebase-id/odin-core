@@ -15,9 +15,9 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Hosting.Tests.V2.Peer;
 
 /// <summary>
-/// The outbox opens each payload and thumbnail only as its part is sent (#1892), so it checks up front that every
-/// part is in storage. A missing one is the sender's fault: the item is given up (UnknownServerError) before anything
-/// goes over the network, not retried as if the recipient were down (RecipientServerNotResponding).
+/// A part missing from the sender's storage is the sender's fault: the outbox gives the item up (UnknownServerError)
+/// rather than retrying it as if the recipient were down (RecipientServerNotResponding). Pinned because the payload
+/// reads under the outbox became streams in #1892.
 /// </summary>
 [TestFixture]
 public class OutboxMissingPartTests : V2Fixture

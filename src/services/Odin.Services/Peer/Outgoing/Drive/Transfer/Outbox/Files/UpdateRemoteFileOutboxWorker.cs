@@ -141,7 +141,6 @@ public class UpdateRemoteFileOutboxWorker(
             catch (Exception e)
             {
                 logger.LogDebug(e, "SendUpdatedFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
-                RethrowPartFailure(payloadStreams);
                 throw;
             }
             finally

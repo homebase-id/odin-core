@@ -144,7 +144,6 @@ public class SendFileOutboxWorkerAsync(
             {
                 logger.LogDebug(e, "SendOutboxFileItemAsync:TrySendFile recipient:{recipient} (TryRetry) {message}",
                     recipient.ToString(), e.Message);
-                RethrowPartFailure(payloadStreams);
                 throw;
             }
             finally

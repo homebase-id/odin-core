@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -239,63 +237,84 @@ public abstract class OutboxWorkerBase(
         var payloadStreams = new List<Stream>();
         var payloadStreamParts = new List<StreamPart>();
 
-        var shouldSendPayloads = !redactedMetadata.PayloadsAreRemote;
-        if (shouldSendPayloads)
+        // Every part is opened here, up front, before the request starts. Since #1892 these are open files or S3
+        // responses, not in-memory copies, so if a later one fails to open, the ones already open are closed below
+        // rather than left to the GC.
+        //
+        // Known cost of opening up front (inferred, not observed): on S3, the responses for later parts sit unread
+        // while an earlier, large part uploads to the peer, and an idle timeout on the S3 side or a proxy could close
+        // them. That shows up as a failed send that is given up, not retried.
+        //
+        // Opening each part only as it is sent avoids that, and was built and taken out again (PR for #1892) after
+        // three review passes kept finding edges in it. What a lazy version has to get right:
+        // - Open every part at the snapshot's version (key and uid), thumbnails included. GetPayloadStreamAsync and
+        //   GetThumbnailPayloadStreamAsync read the CURRENT header, so a payload replaced or deleted mid-send goes out
+        //   under the snapshot's IV, or as a silent 0-byte thumbnail (Stream.Null).
+        // - Check that every part exists before connecting, or a missing one is found only after uploading every part
+        //   ahead of it, on every retry. One check per part per recipient per retry is a round trip each on S3.
+        // - A part that fails to open or read mid-send comes out of HttpClient as an HttpRequestException ("error while
+        //   copying content"), which the workers classify as RecipientServerNotResponding (retried), not
+        //   UnknownServerError (given up). Keep the original failure and rethrow it.
+        // - The stream must refuse to open after it is disposed, and pass the read's cancellation token to the open.
+        // - The open's DB and permission checks run inside the HTTP send, on the scoped connection, and count against
+        //   the peer client's timeout.
+        // - A stream of unknown length makes the multipart request chunked (no Content-Length); opening up front keeps
+        //   Content-Length on disk-backed storage.
+        // - On the feed drive a missing thumbnail is sent as an empty part today (Stream.Null); a check up front must
+        //   not turn that into a failed transfer.
+        try
         {
-            // Every part is opened as it is sent, so check up front that each is there
-            await fileSystem.Storage.AssertPayloadsStoredAsync(file, redactedMetadata.Payloads ?? [], odinContext);
-
-            foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
+            var shouldSendPayloads = !redactedMetadata.PayloadsAreRemote;
+            if (shouldSendPayloads)
             {
-                var payloadKey = descriptor.Key;
-
-                string contentType = "application/unknown";
-
-                // Opened when its part is sent, not here: see LazyOpenStream. The caller disposes the streams, and
-                // RethrowPartFailure reports a part that failed to open or read. The version is the snapshot's,
-                // whose IV the metadata part carries, not whatever has replaced it since.
-                var payloadStream = new LazyOpenStream(() => fileSystem.Storage.OpenPayloadVersionAsync(file, descriptor, odinContext));
-                payloadStreams.Add(payloadStream);
-
-                var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
-                payloadStreamParts.Add(payload);
-
-                foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
+                foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
                 {
-                    var thumbStream = new LazyOpenStream(async () =>
+                    var payloadKey = descriptor.Key;
+
+                    string contentType = "application/unknown";
+
+                    //TODO: consider what happens if the payload has been delete from disk
+
+                    // NOTE: caller takes ownership of the stream inside 'p' and is responsible for disposing
+                    var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext);
+                    var payloadStream = p.Stream;
+                    payloadStreams.Add(payloadStream);
+
+                    var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
+                    payloadStreamParts.Add(payload);
+
+                    foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
-                        var (stream, _) = await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth,
-                            thumb.PixelHeight, descriptor.Key, descriptor.Uid, odinContext);
-                        return stream;
-                    });
-                    payloadStreams.Add(thumbStream);
+                        var (thumbStream, thumbHeader) = await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth,
+                            thumb.PixelHeight, descriptor.Key,
+                            descriptor.Uid,
+                            odinContext);
 
-                    var thumbnailKey = $"{payloadKey}" +
-                                       $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
-                                       $"{thumb.PixelWidth}" +
-                                       $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
-                                       $"{thumb.PixelHeight}";
+                        payloadStreams.Add(thumbStream);
 
-                    payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumb.ContentType,
-                        Enum.GetName(MultipartUploadParts.Thumbnail)));
+                        var thumbnailKey = $"{payloadKey}" +
+                                           $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
+                                           $"{thumb.PixelWidth}" +
+                                           $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
+                                           $"{thumb.PixelHeight}";
+
+                        payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                            Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    }
                 }
             }
         }
+        catch
+        {
+            foreach (var stream in payloadStreams)
+            {
+                await stream.DisposeAsync();
+            }
+
+            throw;
+        }
 
         return (metaDataStream, metaDataStreamPart, payloadStreams, payloadStreamParts);
-    }
-
-    /// <summary>
-    /// A part that failed to open or read mid-send surfaces from the HTTP stack as a failure to copy the content,
-    /// which the worker would classify as the recipient not responding. Rethrow what actually failed instead.
-    /// </summary>
-    protected static void RethrowPartFailure(IEnumerable<Stream> streams)
-    {
-        var failure = streams.OfType<LazyOpenStream>().Select(s => s.Failure).FirstOrDefault(e => e != null);
-        if (failure != null)
-        {
-            ExceptionDispatchInfo.Throw(failure);
-        }
     }
 
     protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext)
