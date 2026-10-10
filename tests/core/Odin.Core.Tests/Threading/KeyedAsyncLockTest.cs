@@ -315,30 +315,36 @@ public class KeyedAsyncLockTests
     [Test]
     public async Task LockedExecuteAsync_ConcurrentDifferentKeys_ExecutesConcurrently()
     {
+        const int taskCount = 50;
         var keyedMutex = new KeyedAsyncLock();
         var runningTasks = new List<Task>();
-        var counter = 0;
+        var holders = 0;
+        var allHolding = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // Set up tasks to execute concurrently with different keys
-        for (int i = 0; i < 50; i++)
+        // Each task keeps its lock until every task holds its own. That can only happen if locks on
+        // different keys are held at the same time; serialized locks never get past the first task.
+        // This measures concurrency directly instead of racing a wall-clock budget.
+        for (var i = 0; i < taskCount; i++)
         {
             var key = $"key-{i}";
             runningTasks.Add(Task.Run(async () =>
             {
                 using (await keyedMutex.LockAsync(key))
                 {
-                    Interlocked.Increment(ref counter);
-                    await Task.Delay(100);
+                    if (Interlocked.Increment(ref holders) == taskCount)
+                    {
+                        allHolding.SetResult();
+                    }
+                    await allHolding.Task;
                 }
             }));
         }
 
-        var allTasks = Task.WhenAll(runningTasks);
+        var completed = await Task.WhenAny(allHolding.Task, Task.Delay(TimeSpan.FromSeconds(30)));
 
-        var completed = await Task.WhenAny(allTasks, Task.Delay(150));
-
-        ClassicAssert.AreEqual(50, counter);
-        ClassicAssert.AreEqual(allTasks, completed, "Actions with different keys should execute concurrently.");
+        Assert.That(completed, Is.SameAs(allHolding.Task),
+            $"Actions with different keys should execute concurrently, but only {holders} of {taskCount} held their lock at once.");
+        await Task.WhenAll(runningTasks);
         ClassicAssert.AreEqual(0, keyedMutex.Count, "The count should be zero after all actions complete.");
     }
 
