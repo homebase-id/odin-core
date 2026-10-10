@@ -97,4 +97,21 @@ public class FileReaderWriterTests
         Assert.That(stream.Length, Is.EqualTo(input.Length - start));
         Assert.That(await stream.ReadToEndAsync(), Is.EqualTo(input[(int)start..]));
     }
+
+    [Test]
+    public async Task OpenStreamForReading_DoesNotBlockADeleteOfTheFile()
+    {
+        // A download holds the file open while the client reads; an update replacing that version deletes it
+        // meanwhile. Linux allows that anyway; on Windows it needs FileShare.Delete
+        var filePath = Path.Combine(_testRootPath, "file.txt");
+        var input = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        await File.WriteAllBytesAsync(filePath, input);
+
+        var rw = new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object);
+
+        await using var stream = rw.OpenStreamForReading(filePath, 0, null);
+        rw.DeleteFile(filePath);
+
+        Assert.That(await stream.ReadToEndAsync(), Is.EqualTo(input), "the open reader keeps its bytes");
+    }
 }

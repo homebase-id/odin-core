@@ -264,8 +264,11 @@ public sealed class FileReaderWriter(
                     try
                     {
                         // Unbuffered (bufferSize 0): readers copy in 16-80 KB reads, so a FileStream buffer only adds
-                        // an allocation per open and a copy of every byte
-                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 0,
+                        // an allocation per open and a copy of every byte.
+                        // FileShare.Delete: a download now holds the file open for as long as the client takes, and
+                        // on Windows a plain FileShare.Read makes a concurrent update's delete of the old version
+                        // fail. With it, Windows behaves like Linux: the delete succeeds and the reader keeps its bytes
+                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, bufferSize: 0,
                             FileOptions.Asynchronous | FileOptions.SequentialScan);
                     }
                     catch (Exception e)
