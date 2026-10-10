@@ -34,6 +34,7 @@ public interface IJobManager
     Task<IReadOnlyList<JobsRecord>> GetJobsByIdentityIdAsync(Guid identityId);
     Task<bool> DeleteJobByIdAsync(Guid jobId);
     Task<bool> DeleteJobByIdAsync(Guid jobId, Guid identityId);
+    /// <summary>False if the job is gone, or a runner holds it right now.</summary>
     Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt);
     Task<bool> DeleteJobByHashAsync(string jobHash);
     Task<JobsRecord?> GetJobByHashAsync(string jobHash);

@@ -225,20 +225,21 @@ read the failures it lists; `--retry` runs it again from the newest file, skippi
 arrived.
 
 **Objects the source never had.** Long-used identities often have holes: payloads their headers name that
-are not in the source's store (failed or abandoned uploads). They fail as `the source does not have it`, and
-the move cannot complete, so the source copy can never be deleted (step 10). When `payload-move` shows
-"Missing: N at the source, and nothing else failed":
+are not in the source's store (failed or abandoned uploads). The source says so explicitly for each (a refusal
+never counts), and the move cannot complete, so the source copy can never be deleted (step 10). When
+`payload-move` shows "Missing: N at the source, and nothing else failed":
 
-1. Confirm on the source's payload store that a few of the listed objects really are absent: under
-   `<identityId>/drives/<driveId, 32 hex>/files/<x>/<y>/<fileId, 32 hex>-<key>-<uid>...` on disk or S3, where
-   `<x>/<y>` are the two hex digits of the file id's last byte.
-2. With the operator's go-ahead for that domain: `odin-admin tenant payload-move <domain> --accept-missing`
-   against the target. It lists the objects it gives up. The transfer asks the source for each once more and,
-   if every one is still missing, completes without them; the source then reads complete and "Deletable: yes".
-   If one has turned up, it refuses: run `--retry`.
+1. List them: `odin-admin tenant payload-move <domain> --list-missing` against the target. Each line is the
+   object's key in the source's payload store: the S3 key, or the path under the payloads folder on disk.
+2. Confirm on the source's store that a few of them really are absent, and that the source copy is still paused.
+3. With the operator's go-ahead for that domain and that count: `odin-admin tenant payload-move <domain>
+   --accept-missing N`, N being the count listed. Any other count is refused. The transfer asks the source for
+   each once more and, if every one is still missing, completes without them; the source then reads complete and
+   "Deletable: yes". If one has turned up, it refuses: run `--retry`.
 
 A transfer that finished before accept-missing existed does not record which failures were missing objects:
-run `--retry` first, then `--accept-missing`.
+run `--retry` first. More than 200 objects missing at the source stops the transfer: that is not holes, look
+into the source. Once a move reads Complete, `--retry` is refused: the source has released it.
 
 **Leave the source copy paused for a day or two** before step 9: rolling back is cheapest then.
 

@@ -403,6 +403,19 @@ public class TableJobsTests : IocTestBase
         // Updating a non-existing job returns 0.
         var noneUpdated = await jobs.UpdateAsync(Guid.NewGuid(), identity1, "data", newNextRun);
         Assert.That(noneUpdated, Is.EqualTo(0));
+
+        // A job a runner holds is left alone: it would run on, and its own save would overwrite this one (#1919)
+        foreach (var held in new[] { JobState.Preflight, JobState.Running })
+        {
+            var running = NewJobsRecord();
+            running.identityId = identity1;
+            running.state = (int)held;
+            await jobs.InsertAsync(running);
+
+            Assert.That(await jobs.UpdateAsync(running.id, identity1, "new job data", newNextRun), Is.EqualTo(0), held.ToString());
+            var untouched = await jobs.GetAsync(running.id);
+            Assert.That((untouched!.state, untouched.jobData), Is.EqualTo(((int)held, "job.SerializeJobData()")), held.ToString());
+        }
     }
 
     //

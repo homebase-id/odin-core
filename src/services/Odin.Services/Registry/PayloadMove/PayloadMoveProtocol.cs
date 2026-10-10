@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -15,6 +17,12 @@ public static class PayloadMoveProtocol
     public const string RootPath = "/api/payload-move";
 
     public static string IdentityPath(Guid identityId) => $"{RootPath}/v1/{identityId}";
+
+    /// <summary>
+    /// On a 404 for an object: the source served the request and its store does not have the object. Every refusal
+    /// is a bare 404, so absence is never assumed (#1919). A source too old to send it is never taken at its word.
+    /// </summary>
+    public const string AbsentHeader = "Odin-Payload-Absent";
 }
 
 public class PayloadMoveRedeemRequest
@@ -38,9 +46,11 @@ public sealed record PayloadObject(
     string Key,
     UnixTimeUtcUnique Uid,
     long ExpectedLength,
-    int Width = 0,
-    int Height = 0)
+    // Left out for a payload: a move keeps up to MaxRecordedMissing of these in its job row
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int Width = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int Height = 0)
 {
+    [JsonIgnore]
     public bool IsThumbnail => Width > 0;
 
     /// <summary>A file's stored objects: each payload and its thumbnails. A file whose payloads live elsewhere has none.</summary>
@@ -70,6 +80,13 @@ public sealed record PayloadObject(
     public string SourcePath(Guid identityId) => IsThumbnail
         ? $"{PayloadMoveProtocol.IdentityPath(identityId)}/thumb/{DriveId}/{FileId}/{Key}/{Uid.uniqueTime}/{Width}x{Height}"
         : $"{PayloadMoveProtocol.IdentityPath(identityId)}/payload/{DriveId}/{FileId}/{Key}/{Uid.uniqueTime}";
+
+    /// <summary>
+    /// Where a host keeps it, relative to its payload store: the key on S3, under the payloads folder on disk. The
+    /// same on both sides of a move, so an operator can look for it on the source.
+    /// </summary>
+    public string StoreKey(TenantPathManager paths, Guid identityId) =>
+        $"{identityId}/{Path.GetRelativePath(paths.PayloadsPath, PathIn(paths)).Replace('\\', '/')}";
 
     public override string ToString() => IsThumbnail
         ? $"thumbnail {Width}x{Height} of {Key} ({Uid.uniqueTime}) in file {FileId}"
