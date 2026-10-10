@@ -119,7 +119,7 @@ public class OwnershipMigrationTests : V2Fixture
         var (scope, ctx) = await MigrationContextAsync(owner);
         var circles = scope.Resolve<CircleDefinitionService>();
 
-        foreach (var circle in await circles.GetCirclesAsync(includeSystemCircle: true))
+        foreach (var circle in await circles.GetCirclesAsync())
         {
             await StripCircleOwnershipAsync(scope, circle.Id);
         }
@@ -127,7 +127,7 @@ public class OwnershipMigrationTests : V2Fixture
         await scope.Resolve<V18ToV19VersionMigrationService>()
             .StampOwnerConsoleCirclesAsync(ctx, CancellationToken.None);
 
-        var afterAll = await circles.GetCirclesAsync(includeSystemCircle: true);
+        var afterAll = await circles.GetCirclesAsync();
         Assert.That(afterAll.Any(), Is.True, "precondition: the identity has circles to stamp");
         Assert.That(afterAll.All(c => c.AppId != null), Is.True, "no circle may be left ownerless");
     }

@@ -269,9 +269,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     }
                 });
 
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/mail"),
-                homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3004/"); }); });
-
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
@@ -362,26 +359,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 logger.LogWarning("chat app directory not found at {Path}. Requests to /apps/chat will return 404.",
                     chatPath);
             }
-
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/mail"),
-                mailApp =>
-                {
-                    var mailPath = Path.Combine(env.ContentRootPath, "client", "apps", "mail");
-                    mailApp.UseStaticFiles(new StaticFileOptions()
-                    {
-                        OnPrepareResponse = SpaFallback.NoCacheIndexHtml,
-                        FileProvider = new PhysicalFileProvider(mailPath),
-                        RequestPath = "/apps/mail"
-                    });
-
-                    mailApp.Run(async context =>
-                    {
-                        SpaFallback.ApplyShellNoCache(context.Response);
-                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                        await context.Response.SendFileAsync(Path.Combine(mailPath, "index.html"));
-                        return;
-                    });
-                });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 communityApp =>

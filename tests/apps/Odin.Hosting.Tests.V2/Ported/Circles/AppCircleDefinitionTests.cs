@@ -82,16 +82,6 @@ public class AppCircleDefinitionTests : V2Fixture
         [Identities.Frodo, Identities.Sam, Identities.Merry, Identities.Pippin];
 
     [Test]
-    public async Task AppCannotSeeSystemCircleMembers()
-    {
-        var owner = await LoginAsOwner();
-        var appClient = await CreateAppAndClient(owner, PermissionKeys.All.ToArray());
-
-        var response = await GetDomainsInCircle(appClient, SystemCircleConstants.ConfirmedConnectionsCircleId);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-    }
-
-    [Test]
     public async Task AppCanGetCircleMembers()
     {
         var owner = await LoginAsOwner();
@@ -576,8 +566,8 @@ public class AppCircleDefinitionTests : V2Fixture
 
     /// <summary>
     /// Owning the circle is enough to change who is in it: an app holding no permission key adds, removes and
-    /// bulk-adds.  An app's add is a deposit, converted when the owner is next present, so that is what it checks.
-    /// Bulk add offers only Review and Connect circles (<c>IsEnrollmentCandidate</c>), so it gets a Review one.
+    /// bulk-adds.  Membership is checked in either form an app's add can take -- a grant, or a deposit the owner
+    /// converts later -- since which one depends on what the circle grants, not on who may add.
     /// </summary>
     [Test]
     public async Task AppManagesMembersOfItsOwnCircleWithoutAKeyViaV2()
@@ -588,19 +578,19 @@ public class AppCircleDefinitionTests : V2Fixture
 
         var add = await v2.GrantCircle(new AddCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam });
         Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await SamHasDepositForAsync(owner, circleId), Is.True, "the add left nothing for Sam");
+        Assert.That(await SamIsInCircleAsync(owner, circleId), Is.True, "Sam is not in the circle after the add");
 
         var revoke = await v2.RevokeCircle(new RevokeCircleMembershipRequest { CircleId = circleId, OdinId = Identities.Sam });
         Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await SamHasDepositForAsync(owner, circleId), Is.False, "the revoke left Sam's deposit");
+        Assert.That(await SamIsInCircleAsync(owner, circleId), Is.False, "Sam is still in the circle after the revoke");
 
         var reviewCircleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(reviewCircleId, "the app's reviewed circle",
             new PermissionSetGrantRequest { Drives = [WriteOn(drive)] }, app.AppId, CircleGrantOn.Review);
         var many = await v2.GrantCircleToMany(new AddManyCircleMembershipRequest { CircleId = reviewCircleId, OdinIds = [Identities.Sam] });
         Assert.That(many.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(many.Content!.Deposited, Is.EqualTo(1), "an app's bulk add deposits");
-        Assert.That(await SamHasDepositForAsync(owner, reviewCircleId), Is.True, "the bulk add left nothing for Sam");
+        Assert.That(many.Content!.Enrolled + many.Content.Deposited, Is.EqualTo(1), "the bulk add added nobody");
+        Assert.That(await SamIsInCircleAsync(owner, reviewCircleId), Is.True, "Sam is not in the circle after the bulk add");
     }
 
     [Test]
@@ -613,7 +603,25 @@ public class AppCircleDefinitionTests : V2Fixture
         var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
             .GrantCircle(new AddCircleMembershipRequest { CircleId = othersCircleId, OdinId = Identities.Sam });
         Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-        Assert.That(await SamHasDepositForAsync(owner, othersCircleId), Is.False);
+        Assert.That(await SamIsInCircleAsync(owner, othersCircleId), Is.False);
+    }
+
+    /// <summary>
+    /// An app holding <c>ManageCircleMembership</c> (as Chat does by default) may add to a circle it does not own
+    /// (<c>GetCircleCallerMayChangeMembersOfAsync</c>).
+    /// </summary>
+    [Test]
+    public async Task AppHoldingTheRetiredKeyCanStillAddToAnotherAppsCircleViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var (_, othersCircleId, drive) = await AppWithItsOwnCircleAsync(owner);
+        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.All, [PermissionKeys.ManageCircleMembership],
+            knownAppId: Guid.NewGuid());
+
+        var add = await app.RefitFor<IConnectionNetworkHttpClientApiV2>()
+            .GrantCircle(new AddCircleMembershipRequest { CircleId = othersCircleId, OdinId = Identities.Sam });
+        Assert.That(add.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await SamIsInCircleAsync(owner, othersCircleId), Is.True);
     }
 
     /// <summary>An app with no permission keys, write on a drive, and a circle of its own granting that drive.</summary>
@@ -629,11 +637,12 @@ public class AppCircleDefinitionTests : V2Fixture
         return (app, circleId, drive);
     }
 
-    private async Task<bool> SamHasDepositForAsync(OwnerSession owner, Guid circleId)
+    private async Task<bool> SamIsInCircleAsync(OwnerSession owner, Guid circleId)
     {
         var icr = await Host.GetTenantScope(owner.Identity.DomainName)
             .Resolve<CircleNetworkStorage>().GetAsync(new OdinId(Identities.Sam));
-        return icr!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId);
+        return icr!.PeerKeyStore.CircleGrants.ContainsKey(circleId) ||
+               icr.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleId);
     }
 
     private static DriveGrantRequest WriteOn(TargetDrive drive) =>
@@ -650,18 +659,6 @@ public class AppCircleDefinitionTests : V2Fixture
         var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>().DisableCircle(def.Id.Value);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await owner.Admin.GetCircleDefinition(def.Id.Value)).Disabled, Is.False);
-    }
-
-    [Test]
-    public async Task AppFailsToDisableSystemCircleViaV2()
-    {
-        var owner = await LoginAsOwner();
-        var appClient = await CreateAppAndClient(owner,
-            PermissionKeyAllowance.Apps.ToArray());
-
-        var response = await appClient.RefitFor<IConnectionNetworkHttpClientApiV2>()
-            .DisableCircle(SystemCircleConstants.ConfirmedConnectionsCircleId.Value);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
     [Test]

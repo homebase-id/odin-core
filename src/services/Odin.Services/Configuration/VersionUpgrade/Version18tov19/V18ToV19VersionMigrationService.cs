@@ -163,7 +163,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var circles = await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true);
+            var circles = await circleDefinitionService.GetCirclesAsync();
 
             var stamped = 0;
             foreach (var circle in circles)
@@ -219,7 +219,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version18tov19
                     string.Join(", ", unaddressed));
             }
 
-            var circles = await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true);
+            var circles = await circleDefinitionService.GetCirclesAsync();
 
             var ownerless = circles
                 .Where(c => c.AppId == null)

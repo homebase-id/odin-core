@@ -18,9 +18,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Profile;
 
 /// <summary>
 /// Verifies the v11 → v12 migration: the Chat app (<see cref="SystemAppConstants.ChatAppId"/>) is
-/// granted <see cref="PermissionKeys.ManageCircleMembership"/>, so it can call
-/// <c>CircleNetworkService.GrantCircleAsync</c> to deposit a circle grant for a connected peer (the
-/// write-only deposit path — see <c>CircleNetworkService.CreateDepositedGrantAsync</c>). Runs the
+/// granted <see cref="PermissionKeys.ManageCircleMembership"/>, so it can add a connected peer to a circle
+/// it does not own (<c>CircleNetworkService.GetCircleCallerMayChangeMembersOfAsync</c>). Runs the
 /// migration service directly out of the tenant scope under a real owner (master-key) context,
 /// mirroring how <c>VersionUpgradeService</c> drives it in production. Each test re-registers the
 /// Chat app (already auto-provisioned by <see cref="V2Fixture"/>) with its pre-v12 shape (no

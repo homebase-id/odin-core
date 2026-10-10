@@ -63,7 +63,7 @@ public class AppUninstallService(
         }
 
         var drives = await driveManager.GetDrivesByAppIdAsync(appId, odinContext);
-        var circleIds = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true))
+        var circleIds = (await circleDefinitionService.GetCirclesAsync())
             .Where(c => c.AppId == appId)
             .Select(c => c.Id.Value)
             .ToList();

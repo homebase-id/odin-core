@@ -23,8 +23,7 @@ public static class BuiltinCircles
     // THE CIRCLES
     //
     // Every circle here grants only drives its own app owns -- no exceptions -- which is why circles
-    // nest in the tree while cross-app drive grants do not. The two system circles are owned by no
-    // app and grant across six drives, so they stay in SystemCircleConstants until they retire.
+    // nest in the tree while cross-app drive grants do not.
     // ============================================================================================
     //
 
@@ -57,7 +56,7 @@ public static class BuiltinCircles
         AppId = SystemAppConstants.ContactsAppId,
         GrantOn = CircleGrantOn.None,
         Designation = CircleDesignation.Personal,
-        DriveGrants = [],
+        DriveGrants = [Grant(WellKnownAppDrives.ProfileDrive, DrivePermission.Read)],
         Permissions = new PermissionSet { Keys = [] }
     };
 
@@ -85,7 +84,11 @@ public static class BuiltinCircles
         AppId = SystemAppConstants.FeedAppId,
         GrantOn = CircleGrantOn.None,
         Designation = CircleDesignation.Personal,
-        DriveGrants = [Grant(WellKnownAppDrives.FeedDrive, WriteReact)],
+        DriveGrants =
+        [
+            Grant(WellKnownAppDrives.FeedDrive, WriteReact),
+            Grant(WellKnownAppDrives.PublicPostsChannelDrive, DrivePermission.Read)
+        ],
         Permissions = new PermissionSet { Keys = [] }
     };
 

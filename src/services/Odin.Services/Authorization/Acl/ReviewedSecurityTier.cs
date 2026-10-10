@@ -1,7 +1,6 @@
 #nullable enable
 using Odin.Core.Time;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Authorization.Acl;
@@ -15,22 +14,29 @@ namespace Odin.Services.Authorization.Acl;
 /// connection" keeps working.  Content evaluation -- the drive query's security range and the connected-ACL
 /// check -- asks this class instead.
 /// <para>
-/// The recut it implements: a connection the owner has reviewed is <see cref="SecurityGroupType.Connected"/>,
-/// one they have not is <see cref="SecurityGroupType.Authenticated"/> -- no better placed than any
-/// logged-in stranger, which is what an unreviewed connection is. Off by default, and off means Connected,
-/// exactly as before.
+/// A connection the owner has reviewed is <see cref="SecurityGroupType.Connected"/>; one they have not is
+/// <see cref="SecurityGroupType.Authenticated"/> -- no better placed than any logged-in stranger, which is what
+/// an unreviewed connection is.  Review is what the retired Confirmed Connections circle used to stand for.
+/// </para>
+/// <para>
+/// The one exception is an identity whose data predates <see cref="ReviewedAtBackfilledVersion"/>: until that
+/// upgrade runs, no connection carries a review date, so every one of them is treated as reviewed rather than
+/// demoting the whole address book at once.  Upgrades run when the owner next signs in.
 /// </para>
 /// </remarks>
 public static class ReviewedSecurityTier
 {
-    /// <param name="reviewedAt">
-    /// When the owner reviewed this connection, or null if they never have.  Null with the setting on is
-    /// what demotes; the setting is refused on a tenant that has not run the upgrade which fills this in,
-    /// so null here means genuinely unreviewed rather than not yet backfilled.
-    /// </param>
-    public static SecurityGroupType For(TenantSettings? settings, UnixTimeUtc? reviewedAt)
+    /// <summary>
+    /// The data version from which <c>ReviewedAt</c> is filled in (v15 -&gt; v16 backfills it from prior
+    /// Confirmed-circle membership).
+    /// </summary>
+    public const int ReviewedAtBackfilledVersion = 16;
+
+    /// <param name="dataVersionNumber">This identity's data version.</param>
+    /// <param name="reviewedAt">When the owner reviewed this connection, or null if they never have.</param>
+    public static SecurityGroupType For(int dataVersionNumber, UnixTimeUtc? reviewedAt)
     {
-        if (!(settings?.UseReviewedSecurityTier ?? false))
+        if (dataVersionNumber < ReviewedAtBackfilledVersion)
         {
             return SecurityGroupType.Connected;
         }
@@ -39,19 +45,14 @@ public static class ReviewedSecurityTier
     }
 
     /// <summary>Convenience for callers that hold the registration rather than the timestamp.</summary>
-    public static SecurityGroupType For(TenantSettings? settings, IdentityConnectionRegistration? icr)
-        => For(settings, icr?.ReviewedAt);
+    public static SecurityGroupType For(int dataVersionNumber, IdentityConnectionRegistration? icr)
+        => For(dataVersionNumber, icr?.ReviewedAt);
 
     /// <summary>
     /// The tier to evaluate content with for this caller: their admitted tier, except that an unreviewed
-    /// connection is treated as <see cref="SecurityGroupType.Authenticated"/> when <b>both</b> identities have the
-    /// setting on -- this one, and the caller's (announced through <see cref="CallerContext.CallerUsesReviewedTier"/>).
+    /// connection is treated as <see cref="SecurityGroupType.Authenticated"/>.
     /// </summary>
-    /// <remarks>
-    /// Both, not just this one, so a dark launch among a few identities never changes anything for anyone else.
-    /// A caller that cannot announce it -- a browser login, an older server -- is never demoted.
-    /// </remarks>
-    public static SecurityGroupType EffectiveLevel(TenantSettings? settings, CallerContext caller)
+    public static SecurityGroupType EffectiveLevel(TenantContext tenantContext, CallerContext caller)
     {
         // Only connections are ever demoted
         if (caller.SecurityLevel != SecurityGroupType.Connected)
@@ -59,24 +60,8 @@ public static class ReviewedSecurityTier
             return caller.SecurityLevel;
         }
 
-        // A reviewed connection keeps its tier
-        if (caller.IsReviewed)
-        {
-            return SecurityGroupType.Connected;
-        }
-
-        // This identity has the tier off
-        if (!(settings?.UseReviewedSecurityTier ?? false))
-        {
-            return SecurityGroupType.Connected;
-        }
-
-        // The caller did not announce it has the tier on
-        if (!caller.CallerUsesReviewedTier)
-        {
-            return SecurityGroupType.Connected;
-        }
-
-        return SecurityGroupType.Authenticated;
+        return caller.IsReviewed
+            ? SecurityGroupType.Connected
+            : For(tenantContext.DataVersionNumber, reviewedAt: null);
     }
 }

@@ -24,11 +24,6 @@ namespace Odin.Services.Apps.Builtin;
 /// the owner installs them.
 /// </para>
 ///
-/// <para>
-/// The two system circles are excluded throughout -- they are owned by no app and grant across six
-/// drives, which is exactly why they do not fit this shape.  They stay in
-/// <c>SystemCircleConstants</c> until they retire.
-/// </para>
 /// </remarks>
 public static class BuiltinApps
 {
@@ -58,6 +53,8 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.ManageContacts,
                 PermissionKeys.ManageProfile,
+                PermissionKeys.ReadCircleMembership,
+                // Kept for Chat alone: see SystemAppConstants.ChatAppRegistrationRequest.
                 PermissionKeys.ManageCircleMembership)),
 
         new(SystemAppConstants.ContactsAppId, "Contacts", "contacts",
@@ -109,8 +106,7 @@ public static class BuiltinApps
             Circles: [BuiltinCircles.RecoveryCircle],
             Permissions: new PermissionSet()),
 
-        // Owns the transient drive. The two system circles are NOT listed: they belong to no app and
-        // grant across six drives, which is exactly why they do not fit this shape.
+        // Owns the transient drive.
 
         new(SystemAppConstants.SystemAppId, "System", "system",
             Drives: [BuiltinDrives.TransientTempDrive],
@@ -134,7 +130,7 @@ public static class BuiltinApps
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.ManageContacts,
                 PermissionKeys.ManageProfile,
-                PermissionKeys.ManageCircleMembership)),
+                PermissionKeys.ReadCircleMembership)),
         
         new(SystemAppConstants.VaultAppId, "Vault", "vault",
             Drives: [BuiltinDrives.VaultDrive],
@@ -168,9 +164,8 @@ public static class BuiltinApps
             Circles: [BuiltinCircles.SocialSyncCircle],
             Permissions: new PermissionSet()),
         
-        // BuiltinDrives.ListsDrive and BuiltinDrives.MomentsDrive are seeded today despite their apps not being built-in, because
-        // the system circles grant them and issuing a grant for an absent drive throws. That ends with
-        // those circles.
+        // BuiltinDrives.ListsDrive is seeded despite its app not being built-in, because Chat's circle-member
+        // grant names it and issuing a grant for an absent drive throws (BuiltinProvisioner.CarryOverDrives).
         //
         // new(SystemAppConstants.ListsAppId, "Lists", "lists",
         //     Drives: [BuiltinDrives.ListsDrive],
@@ -189,7 +184,7 @@ public static class BuiltinApps
     /// <summary>Drives a new identity is configured with.</summary>
     public static IEnumerable<CreateDriveRequest> SeededDrives => Builtin.SelectMany(a => a.Drives);
 
-    /// <summary>Circles a new identity is configured with, excluding the two system circles.</summary>
+    /// <summary>Circles a new identity is configured with.</summary>
     public static IEnumerable<CircleDefinition> SeededCircles => Builtin.SelectMany(a => a.Circles);
 
     public static IEnumerable<Guid> BuiltinAppIds => Builtin.Select(a => a.AppId);
@@ -240,10 +235,10 @@ public static class BuiltinApps
 
     /// <remarks>
     /// Lists and Mail own <c>BuiltinDrives.ListsDrive</c> and <c>BuiltinDrives.MailDrive</c>, which
-    /// <c>BuiltinProvisioner.SystemCircleCarryOverDrives</c> creates because the system circles grant
+    /// <c>BuiltinProvisioner.CarryOverDrives</c> creates because the Chat and Mail registrations grant
     /// them -- while neither app is on the tree (Lists is commented out below; Mail left
     /// <c>Builtin</c> and was never added to <c>Wellknown</c>).  Both entries retire with that
-    /// carry-over list when the system circles do.
+    /// carry-over list.
     /// </remarks>
     private static readonly HashSet<Guid> PlatformAppIds =
     [

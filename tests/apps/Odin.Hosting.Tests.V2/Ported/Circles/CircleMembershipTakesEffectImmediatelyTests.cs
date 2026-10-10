@@ -24,8 +24,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// context happens to expire.
 /// </summary>
 /// <remarks>
-/// Peer permission contexts are cached by token for up to an hour.  Before the cache was reset on a single add or
-/// revoke, a member removed from a circle kept reading what it shared for that long.
+/// Peer permission contexts are cached by token for up to an hour.  Before the cache was reset on a single add,
+/// a bulk add or a revoke, a member removed from a circle kept reading what it shared for that long, and one
+/// added after a recent call did not see the circle.
 /// </remarks>
 [TestFixture]
 public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
@@ -34,6 +35,37 @@ public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
 
     [Test]
     public async Task ARemovedMember_LosesWhatTheCircleShared_OnTheirNextCall()
+    {
+        var (frodo, sam, circleId, fileType, uniqueId) = await ArrangeAsync();
+        var grant = await frodo.Connections.GrantCircle(circleId, sam.Identity);
+        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"arrange: grant failed: {grant.StatusCode}");
+
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.True, "precondition: a member sees the card");
+
+        var revoke = await frodo.Connections.RevokeCircle(circleId, sam.Identity);
+        Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"revoke failed: {revoke.StatusCode}");
+
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.False,
+            "removed from the circle, Sam must not see what it shares on his very next call");
+    }
+
+    [Test]
+    public async Task AnAddedMember_GetsWhatTheCircleShares_OnTheirNextCall()
+    {
+        var (frodo, sam, circleId, fileType, uniqueId) = await ArrangeAsync();
+
+        // Sam calls first, so his context is cached without the circle.
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.False, "precondition: not a member yet");
+
+        var grant = await frodo.Connections.GrantCircle(circleId, sam.Identity);
+        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"grant failed: {grant.StatusCode}");
+
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.True,
+            "added to the circle, Sam must see what it shares on his very next call");
+    }
+
+    /// <summary>Frodo and a reviewed Sam, a circle granting ProfileDrive Read, and a card shared only with it.</summary>
+    private async Task<(OwnerSession Frodo, OwnerSession Sam, Guid CircleId, int FileType, Guid UniqueId)> ArrangeAsync()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -52,8 +84,6 @@ public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
                 }
             ]
         });
-        var grant = await frodo.Connections.GrantCircle(circleId, sam.Identity);
-        Assert.That(grant.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"arrange: grant failed: {grant.StatusCode}");
 
         var attribute = await new V2ProfileClient(frodo.Identity, frodo.Factory).SetAttributeAsync(new SetProfileAttributeRequest
         {
@@ -68,13 +98,7 @@ public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
         var fileType = (await new DriveReaderV2Client(frodo.Identity, frodo.Factory)
             .GetFileHeaderByUniqueIdAsync(uniqueId, WellKnownAppDrives.ProfileDrive.Alias)).Content!.FileMetadata.AppData.FileType;
 
-        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.True, "precondition: a member sees the card");
-
-        var revoke = await frodo.Connections.RevokeCircle(circleId, sam.Identity);
-        Assert.That(revoke.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"revoke failed: {revoke.StatusCode}");
-
-        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.False,
-            "removed from the circle, Sam must not see what it shares on his very next call");
+        return (frodo, sam, circleId, fileType, uniqueId);
     }
 
     private static async Task<bool> SamSeesItAsync(OwnerSession sam, OwnerSession frodo, int fileType, Guid uniqueId)

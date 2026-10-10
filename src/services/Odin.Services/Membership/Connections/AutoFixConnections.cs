@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization.Apps;
@@ -25,9 +27,27 @@ namespace Odin.Services.Membership.Connections
 
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
-            foreach (var identity in allIdentities.Results)
+            // Re-mint every circle any connection holds, once per circle: UpdateCircleDefinitionAsync
+            // re-creates the grant, storage keys included, for each connected member.  This used to
+            // revoke and re-grant per connection through GrantCircleAsync, which is retired -- and which
+            // refused anyone in the Auto Connections circle, so auto-connected contacts were skipped.
+            // A grant for a circle whose definition is gone is left alone.
+            var circleIds = allIdentities.Results
+                .SelectMany(identity => identity.PeerKeyStore?.CircleGrants.Keys ?? Enumerable.Empty<Guid>())
+                .Distinct()
+                .ToList();
+
+            foreach (var circleId in circleIds)
             {
-                await FixIdentityAsync(identity, odinContext);
+                var definition = await circleDefinitionService.GetCircleAsync(circleId);
+                if (definition == null)
+                {
+                    logger.LogDebug("Circle {circleId} has no definition; leaving its grants alone", circleId);
+                    continue;
+                }
+
+                logger.LogDebug("Re-minting circle {circle} for its members", definition.Name);
+                await circleNetworkService.UpdateCircleDefinitionAsync(definition, odinContext);
             }
 
             var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
@@ -38,30 +58,6 @@ namespace Odin.Services.Membership.Connections
             }
 
             tx.Commit();
-        }
-
-        private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
-        {
-            // Skip auto-connected (unconfirmed) identities. Re-issuing their grants goes through
-            // GrantCircleAsync, which refuses to grant additional circles to an auto-connected identity;
-            // one that also holds another circle grant (an anomalous state seen in older data) would throw
-            // and roll back the fix. They must be confirmed before their circle memberships can change.
-            if (icr.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId))
-            {
-                logger.LogDebug("Skipping auto-connected identity {odinId} during circle-grant fix", icr.OdinId);
-                return;
-            }
-
-            foreach (var circleGrant in icr.PeerKeyStore.CircleGrants)
-            {
-                var circleId = circleGrant.Value.CircleId;
-                
-                var def = await circleDefinitionService.GetCircleAsync(circleId);
-                logger.LogDebug("Fixing Identity {odinId} in {circle}", icr.OdinId, def.Name);
-                
-                await circleNetworkService.RevokeCircleAccessAsync(circleId, icr.OdinId, odinContext);
-                await circleNetworkService.GrantCircleAsync(circleId, icr.OdinId, odinContext);
-            }
         }
     }
 }

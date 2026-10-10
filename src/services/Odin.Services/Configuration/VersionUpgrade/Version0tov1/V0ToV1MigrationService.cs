@@ -57,80 +57,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            //
-            // Validate system circles are correct
-            //
-            logger.LogDebug("Validate system circles are correct...");
-            await AssertCircleDefinitionIsCorrect(SystemCircleConstants.ConfirmedConnectionsDefinition);
-            await AssertCircleDefinitionIsCorrect(SystemCircleConstants.AutoConnectionsSystemCircleDefinition);
-            cancellationToken.ThrowIfCancellationRequested();
-            logger.LogDebug("Validate system circles are correct - OK");
-
-
-            //
-            //
-            //
-            logger.LogDebug("Validate new permission exists on all ICRs for ConfirmedConnectionsDefinition...");
-
-            var invalidMembers = await circleNetworkService.GetInvalidMembersOfCircleDefinition(
-                SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
-
-            if (invalidMembers.Any())
-            {
-                logger.LogError("Identities with invalid circle grant for confirmed connections circle : [{list}]",
-                    string.Join(",", invalidMembers));
-
-                throw new OdinSystemException("Invalid members found for confirmed connections circle");
-            }
-
-            logger.LogDebug("Validate new permission exists on all ICRs for ConfirmedConnectionsDefinition - OK");
-
-            cancellationToken.ThrowIfCancellationRequested();
+            // The system circles this release created and re-granted are retired (#1809); V19 -> V20 deletes
+            // them, so there is nothing about them left to validate here.
 
             //
             // Update the apps that use the new circle
             //
             logger.LogDebug("Verifying system apps have new circles and permissions...");
+            // Mail is not updated or verified: the app is retired and a current identity does not register it.
             await VerifyApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
-            await VerifyApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
             logger.LogDebug("Verifying system apps have new circles and permissions - OK");
             cancellationToken.ThrowIfCancellationRequested();
-        }
-
-        private async Task AssertCircleDefinitionIsCorrect(CircleDefinition expectedDefinition)
-        {
-            var existingDefinition = await circleDefinitionService.GetCircleAsync(expectedDefinition.Id);
-            if (existingDefinition == null)
-            {
-                throw new OdinSystemException($"Definition does not exist with ID {expectedDefinition.Id}");
-            }
-
-            if (existingDefinition.Name != expectedDefinition.Name)
-            {
-                throw new OdinSystemException($"Name does not match expected definition with ID {expectedDefinition.Id}");
-            }
-
-            if (existingDefinition.Description != expectedDefinition.Description)
-            {
-                throw new OdinSystemException($"Description does not match expected definition for {expectedDefinition.Name}");
-            }
-
-            if (existingDefinition.Disabled != expectedDefinition.Disabled)
-            {
-                throw new OdinSystemException($"Disabled does not match expected definition for {expectedDefinition.Name}");
-            }
-
-            if (existingDefinition.Permissions != expectedDefinition.Permissions)
-            {
-                throw new OdinSystemException(
-                    $"Circle Definition permission do not match expected definition for {expectedDefinition.Name}");
-            }
-
-            if (expectedDefinition.DriveGrants.Intersect(existingDefinition.DriveGrants).Count() != expectedDefinition.DriveGrants.Count())
-            {
-                throw new OdinSystemException(
-                    $"Circle Definition DriveGrants do not match expected definition for {expectedDefinition.Name}");
-            }
         }
 
         public async Task AutoFixCircleGrantsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -140,11 +77,29 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
             await using var tx = await db.BeginStackedTransactionAsync();
 
-            foreach (var identity in allIdentities.Results)
+            // Re-mint every circle any connection holds, once per circle: UpdateCircleDefinitionAsync
+            // re-creates the grant, storage keys included, for each connected member.  This used to revoke and
+            // re-grant per connection through GrantCircleAsync, which is being retired -- and which refused anyone in
+            // the Auto Connections circle, so auto-connected identities had to be skipped.  A grant for a circle
+            // whose definition is gone is left alone.
+            var circleIds = allIdentities.Results
+                .SelectMany(identity => identity.PeerKeyStore?.CircleGrants.Keys ?? Enumerable.Empty<Guid>())
+                .Distinct()
+                .ToList();
+
+            foreach (var circleId in circleIds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                await FixIdentityAsync(identity, odinContext);
+                var definition = await circleDefinitionService.GetCircleAsync(circleId);
+                if (definition == null)
+                {
+                    logger.LogDebug("Circle {circleId} has no definition; leaving its grants alone", circleId);
+                    continue;
+                }
+
+                logger.LogDebug("Re-minting circle {circle} for its members", definition.Name);
+                await circleNetworkService.UpdateCircleDefinitionAsync(definition, odinContext);
             }
 
             var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
@@ -193,26 +148,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             await tenantConfigService.EnsureBuiltInApps(odinContext);
             cancellationToken.ThrowIfCancellationRequested();
 
-            //
-            // Create new circles, rename existing ones
-            //
-            logger.LogDebug("Creating new circles; renaming existing ones");
-            await circleDefinitionService.EnsureSystemCirclesExistAsync();
-            cancellationToken.ThrowIfCancellationRequested();
-
-            //
-            // This will reapply the grants since we added a new permission
-            //
-            logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
-            await circleNetworkService.UpdateCircleDefinitionAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
-            cancellationToken.ThrowIfCancellationRequested();
+            // Creating the system circles and re-granting Confirmed used to happen here.  Both circles are
+            // retired (#1809) and V19 -> V20 deletes them, so the work is skipped.
 
             //
             // Update the apps that use the new circle
             //
             logger.LogDebug("Updating system apps with new circles and permissions");
             await UpdateApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
-            await UpdateApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
             cancellationToken.ThrowIfCancellationRequested();
         }
 
@@ -299,32 +242,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             {
                 throw new OdinSystemException($"Failed to upgrade app {request.AppId} | {request.Name}. " +
                                               $"Drives does not match");
-            }
-        }
-
-        private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
-        {
-            // Skip auto-connected (unconfirmed) identities. Re-issuing their grants here goes through
-            // GrantCircleAsync, which refuses to grant additional circles to an auto-connected identity.
-            // An auto-connected identity that also holds another circle grant (an anomalous state seen in
-            // older data) would therefore throw and roll back the whole migration. These identities are
-            // introduced by the very feature this migration releases, so genuine v0 data has none; where
-            // they exist they were created by current code and already hold correct grants — nothing to fix.
-            if (icr.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId))
-            {
-                logger.LogDebug("Skipping auto-connected identity {odinId} during circle-grant fix", icr.OdinId);
-                return;
-            }
-
-            foreach (var circleGrant in icr.PeerKeyStore.CircleGrants)
-            {
-                var circleId = circleGrant.Value.CircleId;
-
-                var def = await circleDefinitionService.GetCircleAsync(circleId);
-                logger.LogDebug("Fixing Identity {odinId} in {circle}", icr.OdinId, def.Name);
-
-                await circleNetworkService.RevokeCircleAccessAsync(circleId, icr.OdinId, odinContext);
-                await circleNetworkService.GrantCircleAsync(circleId, icr.OdinId, odinContext);
             }
         }
     }

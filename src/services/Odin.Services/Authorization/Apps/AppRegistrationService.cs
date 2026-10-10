@@ -149,22 +149,6 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
             }
 
-            if (request.AppId == SystemAppConstants.ChatAppId)
-            {
-                foreach (var cid in SystemAppConstants.ChatAppRegistrationRequest.AuthorizedCircles)
-                {
-                    request.AuthorizedCircles.EnsureItem(cid);
-                }
-            }
-
-            if (request.AppId == SystemAppConstants.MailAppId)
-            {
-                foreach (var cid in SystemAppConstants.MailAppRegistrationRequest.AuthorizedCircles)
-                {
-                    request.AuthorizedCircles.EnsureItem(cid);
-                }
-            }
-
             if (request.AppId == SystemAppConstants.FeedAppId)
             {
                 foreach (var cid in SystemAppConstants.FeedAppRegistrationRequest.AuthorizedCircles)

@@ -53,10 +53,9 @@ public class OdinContextCache(
 
     public Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
-        Func<Task<IOdinContext?>> dotYouContextFactory,
-        string? keySuffix = null)
+        Func<Task<IOdinContext?>> dotYouContextFactory)
     {
-        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), null), keySuffix);
+        return GetOrAddContextAsync(token, async () => (await dotYouContextFactory(), null));
     }
 
     /// <summary>
@@ -66,11 +65,9 @@ public class OdinContextCache(
     /// </summary>
     public async Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
-        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory,
-        string? keySuffix = null)
+        Func<Task<(IOdinContext? Context, TimeSpan? CacheFor)>> dotYouContextFactory)
     {
-        // The suffix separates contexts built for the same token under different request inputs.
-        var key = token.AsKey().ToString().ToLower() + (keySuffix == null ? "" : ":" + keySuffix);
+        var key = token.AsKey().ToString().ToLower();
 
         // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory
         // We accept the risk for a potential race condition since they should always produce the same result for the same token

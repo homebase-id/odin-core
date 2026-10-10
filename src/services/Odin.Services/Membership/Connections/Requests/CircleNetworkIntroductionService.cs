@@ -243,14 +243,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         // tell "you are not connected here" apart from "connected, but introductions are not allowed".
         var isCallerConnected = odinContext.Caller.IsConnected;
 
-        var callerCircles = odinContext.Caller.Circles?.ToList();
-        var isCallerConfirmed = isCallerConnected &&
-                                (callerCircles?.Any(c => c == SystemCircleConstants.ConfirmedConnectionsCircleId) ?? false);
-
-        // Needed to tell "never confirmed" from "confirmed and then revoked": both leave the caller out of
-        // Confirmed Connections, but only the former is still in Auto-connected.
-        var isCallerAutoConnected = isCallerConnected &&
-                                    (callerCircles?.Any(c => c == SystemCircleConstants.AutoConnectionsCircleId) ?? false);
+        // "Confirmed" is the owner's review (#1809); the Confirmed and Auto circles are gone.
+        var isCallerConfirmed = isCallerConnected && odinContext.Caller.IsReviewed;
+        var isCallerAutoConnected = IsCallerAutoConnected(odinContext);
 
         var allowsIntroductions = CallerMayIntroduce(odinContext);
 
@@ -318,12 +313,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     }
 
     /// <summary>
-    /// Whether the caller holds a connected context that sits in the Auto-connected circle.
+    /// Whether the caller is connected but not yet reviewed by the owner (what the Auto-connected circle
+    /// used to mark).
     /// </summary>
     private static bool IsCallerAutoConnected(IOdinContext odinContext)
     {
-        return odinContext.Caller.IsConnected &&
-               (odinContext.Caller.Circles?.Any(c => c == SystemCircleConstants.AutoConnectionsCircleId) ?? false);
+        return odinContext.Caller.IsConnected && !odinContext.Caller.IsReviewed;
     }
 
     /// <summary>
@@ -601,8 +596,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// <para>
     /// A recipient refuses a connected caller only when its owner has turned introductions off
     /// (<see cref="TenantSettings.DisableAllowIntroductions"/>).  That is the recipient's decision, so it reports
-    /// as <see cref="IntroductionPreflightStatus.IntroductionsNotPermitted"/>.  Which system circle the caller is in
-    /// no longer decides the answer, so <see cref="IntroductionPreflightStatus.RecipientConnectionNotConfirmed"/>
+    /// as <see cref="IntroductionPreflightStatus.IntroductionsNotPermitted"/>.  Whether the caller is reviewed no
+    /// longer decides the answer, so <see cref="IntroductionPreflightStatus.RecipientConnectionNotConfirmed"/>
     /// is not produced here.
     /// </para>
     /// </summary>

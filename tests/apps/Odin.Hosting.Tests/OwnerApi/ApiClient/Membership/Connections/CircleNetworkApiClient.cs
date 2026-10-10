@@ -187,13 +187,15 @@ public class CircleNetworkApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
-            var apiResponse = await svc.AddCircle(new AddCircleMembershipRequest()
+            // circles/add is retired; one person through add-many, which must enrol them.
+            var apiResponse = await svc.AddManyToCircle(new AddManyCircleMembershipRequest()
             {
                 CircleId = circleId,
-                OdinId = recipient.OdinId
+                OdinIds = [recipient.OdinId.DomainName]
             });
 
             ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
+            ClassicAssert.AreEqual(1, apiResponse.Content!.Enrolled, $"{recipient.OdinId} was not enrolled");
         }
     }
 

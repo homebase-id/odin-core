@@ -94,10 +94,12 @@ public sealed class ConnectionsHandle
         => _network.GetConnectionInfo(recipient);
 
     /// <summary>Upgrades an auto-connection to a confirmed connection (owner/master-key only).</summary>
-    public Task<ApiResponse<IcrVerificationResult>> ConfirmConnection(OdinId odinId) => _network.ConfirmConnection(odinId);
 
     public Task<ApiResponse<HttpContent>> BlockConnection(OdinId odinId) => _network.BlockConnection(odinId);
     public Task<ApiResponse<HttpContent>> UnblockConnection(OdinId odinId) => _network.UnblockConnection(odinId);
-    public Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, OdinId odinId) => _network.GrantCircle(circleId, odinId);
+    // V1 circles/add is retired; the owner adds one person through the V2 route, which reports a
+    // refusal (e.g. an unreviewed contact) as the response rather than skipping it.
+    public Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, OdinId odinId) =>
+        new V2ConnectionNetworkClient(_owner.Identity, _owner.Factory).GrantCircleAsync(circleId, odinId);
     public Task<ApiResponse<HttpContent>> RevokeCircle(Guid circleId, OdinId odinId) => _network.RevokeCircle(circleId, odinId);
 }

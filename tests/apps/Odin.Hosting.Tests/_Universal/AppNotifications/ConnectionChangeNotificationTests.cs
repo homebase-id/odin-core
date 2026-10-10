@@ -74,9 +74,10 @@ public class ConnectionChangeNotificationTests
         await handler.ConnectAsync(frodo);
         try
         {
-            var grantResponse = await frodo.Network.GrantCircle(circleId, sam.OdinId);
+            var grantResponse = await frodo.Network.GrantCircleToMany(circleId, [sam.OdinId]);
             ClassicAssert.IsTrue(grantResponse.IsSuccessStatusCode,
                 $"Grant failed: {grantResponse.StatusCode}");
+            ClassicAssert.AreEqual(1, grantResponse.Content!.Enrolled, "sam should have been enrolled");
 
             var granted = await handler.WaitForConnectionChange(
                 ConnectionChangeType.CircleGranted, sam.OdinId, WaitTimeout);

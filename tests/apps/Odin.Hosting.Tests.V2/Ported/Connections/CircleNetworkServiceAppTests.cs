@@ -163,7 +163,7 @@ public class CircleNetworkServiceAppTests : V2Fixture
         //
 
         var appGrants = await GetConnectedAppGrants(frodoOwnerClient, samOwnerClient.Identity);
-        Assert.That(appGrants.Keys, Does.Contain(SystemAppConstants.ChatAppId));
+        Assert.That(appGrants.Keys, Does.Not.Contain(SystemAppConstants.ChatAppId));
         Assert.That(appGrants.Keys, Does.Contain(setup.App.AppId.Value));
 
         var chatAppCircleGrants = AppCircleGrantsFor(appGrants, setup.App, expectedCount: 1);
@@ -376,7 +376,9 @@ public class CircleNetworkServiceAppTests : V2Fixture
         Assert.That(connectionInfo.Status, Is.EqualTo(ConnectionStatus.Connected));
 
         var appGrants = connectionInfo.AccessGrant.AppGrants;
-        Assert.That(appGrants.Count, Is.EqualTo(2), "there should be 2 app grants; the built-in chat app and the app created in this test");
+        // Only the app created in this test: the built-in Chat app's grant came from the system circles it
+        // authorized, which retired in #1809.
+        Assert.That(appGrants.Count, Is.EqualTo(1), "there should be 1 app grant; the app created in this test");
         return appGrants;
     }
 

@@ -151,7 +151,7 @@ public class ShamirReadinessCheckerService(
     private async Task<bool> CanDeliverShardAsync(OdinId odinId, IOdinContext odinContext)
     {
         var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
-        return icr.IsConfirmedConnection();
+        return icr.IsReviewed();
     }
 
     private static ShardVerificationResult NotUsable(bool remoteServerError) => new()

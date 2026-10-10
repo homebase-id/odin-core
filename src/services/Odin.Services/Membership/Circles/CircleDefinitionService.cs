@@ -45,54 +45,6 @@ namespace Odin.Services.Membership.Circles
             return await this.CreateCircleInternalAsync(request);
         }
 
-        public async Task EnsureSystemCirclesExistAsync()
-        {
-            var confirmedCircleDefinition = await GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId);
-            if (null == confirmedCircleDefinition)
-            {
-                var def = SystemCircleConstants.ConfirmedConnectionsDefinition;
-                await this.CreateCircleInternalAsync(new CreateCircleRequest
-                {
-                    Id = def.Id,
-                    Name = def.Name,
-                    Description = def.Description,
-                    DriveGrants = def.DriveGrants,
-                    Permissions = def.Permissions
-                }, skipValidation: true);
-            }
-            else
-            {
-                if (SystemCircleConstants.ConfirmedConnectionsDefinition != confirmedCircleDefinition)
-                {
-                    // System circle definitions are trusted constants whose drive grants reference system
-                    // drives guaranteed to exist via EnsureSystemDrivesExist. Skip validation so the reconcile
-                    // doesn't deadlock during initial setup, where circles are created before system drives.
-                    await this.UpdateAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, skipValidation: true);
-                }
-            }
-
-            var autoCircleDef = await GetCircleAsync(SystemCircleConstants.AutoConnectionsCircleId);
-            if (null == autoCircleDef)
-            {
-                var def = SystemCircleConstants.AutoConnectionsSystemCircleDefinition;
-                await CreateCircleInternalAsync(new CreateCircleRequest
-                {
-                    Id = def.Id,
-                    Name = def.Name,
-                    Description = def.Description,
-                    DriveGrants = def.DriveGrants,
-                    Permissions = def.Permissions
-                }, skipValidation: true);
-            }
-            else
-            {
-                if (SystemCircleConstants.AutoConnectionsSystemCircleDefinition != autoCircleDef)
-                {
-                    await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition, skipValidation: true);
-                }
-            }
-        }
-
         // The app-owned circles are not created here.  They have one declaration -- the tree -- and one
         // creator, EnsureCircleExistsAsync, which is the only path that carries AppId, GrantOn and
         // Designation onto the row.  Emergency Location Access used to be created here too, from a second
@@ -221,10 +173,6 @@ namespace Odin.Services.Membership.Circles
         /// rewrite lives with the connections in
         /// <c>CircleNetworkService.ReassignCircleOwningAppAsync</c>, which is the only caller.
         /// </para>
-        /// <para>
-        /// System circles are refused: they are the owner console's, and the app tree is what stamps
-        /// the ones an app owns.
-        /// </para>
         /// </remarks>
         internal async Task ReassignOwningAppAsync(GuidId circleId, Guid appId)
         {
@@ -233,12 +181,6 @@ namespace Odin.Services.Membership.Circles
             {
                 throw new OdinClientException($"Circle {circleId} does not exist",
                     OdinClientErrorCode.CircleNotFound);
-            }
-
-            if (SystemCircleConstants.IsSystemCircle(circleId.Value))
-            {
-                throw new OdinClientException($"Circle {circleId} is a system circle and cannot belong to an app",
-                    OdinClientErrorCode.CannotReassignSystemCircle);
             }
 
             circle.AppId = appId;
@@ -255,12 +197,6 @@ namespace Odin.Services.Membership.Circles
         /// <remarks>
         /// Fills, never corrects: a circle that already names an app is left alone, so the v18 -&gt; v19
         /// pass can be repeated without moving anything.
-        /// <para>
-        /// System circles included, unlike <see cref="ReassignOwningAppAsync"/>, which refuses them.  That
-        /// refusal is about handing them to an app; this hands them to the owner console, which is where
-        /// they are already administered, and leaving them null would leave the column with exactly the
-        /// nulls the upgrade exists to remove.
-        /// </para>
         /// <para>
         /// No <see cref="AssertDepositOnlyIfAmbientAsync"/> call, for the same reason
         /// <see cref="ApplyTreeEmojiIfUnsetAsync"/> makes none: that invariant is about <c>GrantOn</c> and
@@ -375,19 +311,8 @@ namespace Odin.Services.Membership.Circles
         /// The only writer of <see cref="CircleDefinition.Disabled"/>; <see cref="UpdateAsync"/> keeps
         /// the stored value.
         /// </summary>
-        /// <remarks>
-        /// A system circle cannot be disabled by anyone: disabling Confirmed Connections would take the
-        /// base grants away from every connection at once.  Enabling one is allowed, so a system circle
-        /// left disabled can always be recovered.
-        /// </remarks>
         public async Task SetDisabledAsync(GuidId circleId, bool disabled)
         {
-            if (disabled && SystemCircleConstants.IsSystemCircle(circleId))
-            {
-                throw new OdinClientException($"System circle {circleId} cannot be disabled",
-                    OdinClientErrorCode.CannotDisableSystemCircle);
-            }
-
             var circle = await GetCircleAsync(circleId);
             if (null == circle)
             {
@@ -435,7 +360,7 @@ namespace Odin.Services.Membership.Circles
             return records.Select(FromRecord).ToList();
         }
 
-        public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
+        public async Task<List<CircleDefinition>> GetCirclesAsync()
         {
             var circles = (await db.CircleCached.GetAllAsync()).Select(FromRecord).ToList();
 
@@ -450,10 +375,6 @@ namespace Odin.Services.Membership.Circles
                     .Where(c => !known.Contains((Guid)c.Id)));
             }
 
-            if (!includeSystemCircle)
-            {
-                circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
-            }
 
             return circles;
         }
@@ -481,8 +402,7 @@ namespace Odin.Services.Membership.Circles
 
         /// <summary>
         /// Throws unless the circle exists and is one that may be deleted at all, members aside: not a
-        /// system circle (every connection's base grants hang off one), and not a built-in circle
-        /// (provisioning and every upgrade assume it exists).
+        /// built-in circle (provisioning and every upgrade assume it exists).
         /// </summary>
         public async Task AssertDeletableAsync(GuidId id)
         {
@@ -491,12 +411,6 @@ namespace Odin.Services.Membership.Circles
             if (null == circle)
             {
                 throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
-            }
-
-            if (SystemCircleConstants.IsSystemCircle(id))
-            {
-                throw new OdinClientException($"System circle {id} cannot be deleted",
-                    OdinClientErrorCode.CannotDeleteSystemCircle);
             }
 
             if (BuiltinApps.IsTreeDeclaredCircle(id))

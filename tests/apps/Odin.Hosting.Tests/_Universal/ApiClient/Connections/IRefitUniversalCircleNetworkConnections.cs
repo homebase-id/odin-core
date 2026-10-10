@@ -28,8 +28,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Post(RootPath + "/circles/add-many")]
         Task<ApiResponse<EnrollmentResult>> GrantCircleToMany([Body] AddManyCircleMembershipRequest request);
 
-        [Post(RootPath + "/circles/add")]
-        Task<ApiResponse<HttpContent>> AddCircle([Body] AddCircleMembershipRequest request);
         
         [Post(RootPath + "/circles/revoke")]
         Task<ApiResponse<HttpContent>> RevokeCircle([Body] RevokeCircleMembershipRequest request);
@@ -55,8 +53,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Post(RootPath + "/verify-connection")]
         Task<ApiResponse<IcrVerificationResult>> VerifyConnection([Body] OdinIdRequest request);
 
-        [Post(RootPath + "/confirm-connection")]
-        Task<ApiResponse<IcrVerificationResult>> ConfirmConnection([Body] OdinIdRequest request);
 
         [Post(RootPath + "/review")]
         Task<ApiResponse<HttpContent>> MarkReviewed([Body] MarkConnectionReviewedRequest request);

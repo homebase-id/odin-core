@@ -45,10 +45,7 @@ public class SendReviewedConnectionRequestTests : V2Fixture
 
         var icr = await GetIcrAsync(frodo, sam.Identity);
         Assert.That(icr.ReviewedAt, Is.Not.Null, "an app sending as the owner is a review");
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.ConfirmedConnectionsCircleId), Is.True,
-            "a reviewed connection is a confirmed one");
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId), Is.False,
-            "and not an auto-connection");
+        Assert.That(icr.IsReviewed(), Is.True, "a reviewed connection is a confirmed one");
     }
 
     [Test]
@@ -71,7 +68,6 @@ public class SendReviewedConnectionRequestTests : V2Fixture
 
         var frodosView = await GetIcrAsync(frodo, sam.Identity);
         Assert.That(frodosView.ReviewedAt, Is.Not.Null, "the sender's half: stamped when the accept calls back");
-        Assert.That(frodosView.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.ConfirmedConnectionsCircleId), Is.True);
 
         var samsView = await GetIcrAsync(sam, frodo.Identity);
         Assert.That(samsView.ReviewedAt, Is.Not.Null, "the accepter's half: Sam accepted it himself");
@@ -103,7 +99,6 @@ public class SendReviewedConnectionRequestTests : V2Fixture
 
         var icr = await GetIcrAsync(frodo, sam.Identity);
         Assert.That(icr.ReviewedAt, Is.Null, "the older endpoint keeps its behaviour");
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId), Is.True);
     }
 
     [Test]
@@ -175,7 +170,6 @@ public class SendReviewedConnectionRequestTests : V2Fixture
 
         var icr = await GetIcrAsync(frodo, sam.Identity);
         Assert.That(icr.ReviewedAt, Is.Not.Null);
-        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(SystemCircleConstants.ConfirmedConnectionsCircleId), Is.True);
     }
 
     [Test]

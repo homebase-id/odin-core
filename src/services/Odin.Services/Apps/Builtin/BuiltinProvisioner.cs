@@ -31,36 +31,34 @@ public class BuiltinProvisioner(
     IAppRegistrationService appRegistrationService)
 {
     /// <summary>
-    /// Drives that must exist even though their app is not built-in, because the system circles grant
-    /// them and issuing a grant for an absent drive throws
+    /// Drives that must exist even though their app is not built-in, because the Chat app
+    /// registration grants them to their circle members and issuing a grant for an absent drive throws
     /// (<c>ExchangeGrantService</c> resolves with <c>failIfInvalid: true</c>).
     /// </summary>
     /// <remarks>
-    /// <b>Temporary.</b>  This is not an ownership fact, which is why the tree cannot express it.  It
-    /// goes when the system circles retire.
+    /// <b>Temporary.</b>  This is not an ownership fact, which is why the tree cannot express it.  The
+    /// system circles that first needed it retired in #1809; it goes when those registrations stop
+    /// naming these drives.
     /// </remarks>
-    private static readonly IReadOnlyList<CreateDriveRequest> SystemCircleCarryOverDrives =
+    private static readonly IReadOnlyList<CreateDriveRequest> CarryOverDrives =
     [
         BuiltinDrives.ListsDrive,
         BuiltinDrives.MomentsDrive,
 
-        // Mail joined this list when its app left BuiltinApps.Builtin.  CircleConstants grants
-        // MailDrive from both system circles, so without the drive here identity setup throws
-        // invalidGrantNonExistingDrive before it finishes -- the same reason Lists and Moments are
-        // here.  Remove it with the other two when the system circles retire.
+        // Mail joined this list when its app left BuiltinApps.Builtin and its registration still granted
+        // MailDrive.  Nothing registers Mail any more; dropping the drive would change what a new identity
+        // is given, so that is a decision of its own rather than part of this list's upkeep.
         BuiltinDrives.MailDrive
     ];
 
     /// <summary>
     /// The registration for each built-in app.  Not on the tree yet: a registration carries
-    /// <c>AuthorizedCircles</c>, and Chat's and Mail's point at the system circles, which the tree
-    /// excludes.  Derivable once those retire.
+    /// <c>AuthorizedCircles</c> and a circle-member grant, which the tree does not model.
     /// </summary>
     private static readonly IReadOnlyDictionary<Guid, AppRegistrationRequest> Registrations =
         new Dictionary<Guid, AppRegistrationRequest>
         {
             [SystemAppConstants.ChatAppId] = SystemAppConstants.ChatAppRegistrationRequest,
-            [SystemAppConstants.MailAppId] = SystemAppConstants.MailAppRegistrationRequest,
             [SystemAppConstants.FeedAppId] = SystemAppConstants.FeedAppRegistrationRequest,
             [SystemAppConstants.ContactsAppId] = SystemAppConstants.ContactsAppRegistrationRequest,
             [SystemAppConstants.EmailAppId] = SystemAppConstants.EmailAppRegistrationRequest,
@@ -79,12 +77,8 @@ public class BuiltinProvisioner(
     /// <remarks>
     /// The order is load-bearing, and each step is why the next can succeed:
     /// <list type="number">
-    /// <item><b>Drives, non-anonymous first.</b>  Creating an anonymous-read drive makes
-    /// <c>CircleNetworkService.HandleDriveAdded</c> grant read on it to the two system circles, and every
-    /// drive those circles already grant must exist by then.  All six are non-anonymous, so ordering on
-    /// that flag satisfies it by construction rather than by hand-sorting the list.  The system circles
-    /// themselves are created by the caller before this runs -- if they were not,
-    /// <c>HandleDriveAdded</c> would log a warning and silently skip the grant.</item>
+    /// <item><b>Drives, non-anonymous first.</b>  The order the system circles needed, when creating an
+    /// anonymous-read drive granted them read on it (retired, #1809).  Harmless now, and kept.</item>
     /// <item><b>Circles after drives.</b>  A circle that enrols ambiently is checked for deposit-only
     /// grants when it is written, and that check reads the drive to see whether it allows anonymous
     /// reads.  Creating circles first meant that lookup found nothing, so a read grant on an ambient
@@ -101,13 +95,13 @@ public class BuiltinProvisioner(
     }
 
     /// <summary>
-    /// Creates the drives of every built-in app, plus the system-circle carry-overs.  Idempotent.
+    /// Creates the drives of every built-in app, plus the carry-overs.  Idempotent.
     /// </summary>
     public async Task EnsureDrivesAsync(IOdinContext odinContext)
     {
         // Non-anonymous first -- see EnsureAllAsync for why.
         var drives = BuiltinApps.SeededDrives
-            .Concat(SystemCircleCarryOverDrives)
+            .Concat(CarryOverDrives)
             .DistinctBy(d => d.TargetDrive.Alias.Value)
             .OrderBy(d => d.AllowAnonymousReads)
             .ToList();
@@ -134,10 +128,6 @@ public class BuiltinProvisioner(
     /// <summary>
     /// Creates the circles owned by every built-in app.  Idempotent.
     /// </summary>
-    /// <remarks>
-    /// The two system circles are not here: they belong to no app, so the tree does not carry them and
-    /// <c>CircleDefinitionService.CreateSystemCirclesAsync</c> still provisions them.
-    /// </remarks>
     public async Task EnsureCirclesAsync(IOdinContext odinContext)
     {
         foreach (var def in BuiltinApps.SeededCircles)

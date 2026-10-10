@@ -129,11 +129,7 @@ namespace Odin.Hosting.Middleware
                     var user = httpContext.User;
                     var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
                     var callerOdinId = (OdinId)user.Identity!.Name;
-                    var callerUsesReviewedTier =
-                        bool.TryParse(httpContext.Request.Headers[OdinHeaderNames.UsesReviewedSecurityTier].ToString(), out var usesTier) &&
-                        usesTier;
-                    var ctx = await transitRegService.GetDotYouContextAsync(callerOdinId, clientAuthToken, callerUsesReviewedTier,
-                        odinContext);
+                    var ctx = await transitRegService.GetDotYouContextAsync(callerOdinId, clientAuthToken, odinContext);
 
                     if (ctx != null)
                     {

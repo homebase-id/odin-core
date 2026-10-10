@@ -48,13 +48,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return result;
         }
 
-        [HttpPost("confirm-connection")]
-        public async Task<IActionResult> ConfirmConnection([FromBody] OdinIdRequest request)
-        {
-            await circleNetwork.ConfirmConnectionAsync((OdinId)request.OdinId, WebOdinContext);
-            return Ok();
-        }
-
         [HttpPost("review")]
         public async Task<IActionResult> MarkReviewed([FromBody] MarkConnectionReviewedRequest request)
         {
@@ -135,13 +128,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IEnumerable<PendingCircleMember>> GetPendingCircleMembers([FromBody] GetCircleMembersRequest request)
         {
             return await circleNetwork.GetPendingCircleMembersAsync(request.CircleId, WebOdinContext);
-        }
-
-        [HttpPost("circles/add")]
-        public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
-        {
-            await circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
-            return true;
         }
 
         /// <summary>
