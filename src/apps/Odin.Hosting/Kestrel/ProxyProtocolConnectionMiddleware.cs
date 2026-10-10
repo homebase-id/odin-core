@@ -68,15 +68,17 @@ public static class ProxyProtocolConnectionMiddleware
     private static async Task<ProxyProtocolHeader?> ReadHeaderAsync(ConnectionContext context, ILogger logger)
     {
         var input = context.Transport.Input;
+        // Not linked to ConnectionClosed: a peer that sends bytes and hangs up at once would cancel the
+        // read before it returns them, and be logged as having sent nothing (#1734). A close completes
+        // the input instead, after the buffered bytes, and shows up as result.IsCompleted.
         using var timeout = new CancellationTokenSource(HeaderReadTimeout);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, context.ConnectionClosed);
         var bytesReceived = 0L;
 
         try
         {
             while (true)
             {
-                var result = await input.ReadAsync(linked.Token);
+                var result = await input.ReadAsync(timeout.Token);
                 var buffer = result.Buffer;
                 bytesReceived = Math.Max(bytesReceived, buffer.Length);
                 var status = ProxyProtocolParser.TryParse(buffer, out var header, out var consumed);
@@ -100,12 +102,7 @@ public static class ProxyProtocolConnectionMiddleware
         }
         catch (OperationCanceledException)
         {
-            // ConnectionClosed is linked in as well, so say which of the two actually fired rather
-            // than blaming the timeout for a peer that hung up.
-            LogNoHeader(logger, context, bytesReceived,
-                timeout.IsCancellationRequested
-                    ? $"no header within {HeaderReadTimeout}"
-                    : "connection closed before header");
+            LogNoHeader(logger, context, bytesReceived, $"no header within {HeaderReadTimeout}");
             return null;
         }
         catch (ConnectionResetException)

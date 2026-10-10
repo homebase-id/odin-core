@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -26,6 +25,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
+using Odin.Test.Helpers;
 using Status = Odin.Services.Registry.TenantStatus;
 
 namespace Odin.Hosting.Tests._Universal.TenantStatus;
@@ -115,17 +115,9 @@ internal static class TenantStatusTestSupport
         return WaitUntilAsync(() => Task.FromResult(condition()), what, timeout);
     }
 
-    public static async Task WaitUntilAsync(Func<Task<bool>> condition, string what, TimeSpan? timeout = null)
+    public static Task WaitUntilAsync(Func<Task<bool>> condition, string what, TimeSpan? timeout = null)
     {
-        var sw = Stopwatch.StartNew();
-        while (!await condition())
-        {
-            if (sw.Elapsed > (timeout ?? TimeSpan.FromSeconds(30)))
-            {
-                Assert.Fail($"Timed out waiting for {what}");
-            }
-            await Task.Delay(50);
-        }
+        return Poll.UntilAsync(condition, timeout ?? TimeSpan.FromSeconds(30), () => $"Timed out waiting for {what}");
     }
 
     public static UploadManifest ManifestFor(TestPayloadDefinition payload)
