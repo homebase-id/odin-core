@@ -277,7 +277,7 @@ public abstract class OutboxWorkerBase(
 
                     // NOTE: caller takes ownership of the stream inside 'p' and is responsible for disposing
                     var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext);
-                    var payloadStream = p.Stream;
+                    var payloadStream = Measurable(p.Stream);
                     payloadStreams.Add(payloadStream);
 
                     var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -290,6 +290,7 @@ public abstract class OutboxWorkerBase(
                             descriptor.Uid,
                             odinContext);
 
+                        thumbStream = Measurable(thumbStream);
                         payloadStreams.Add(thumbStream);
 
                         var thumbnailKey = $"{payloadKey}" +
@@ -315,6 +316,28 @@ public abstract class OutboxWorkerBase(
         }
 
         return (metaDataStream, metaDataStreamPart, payloadStreams, payloadStreamParts);
+    }
+
+    /// <summary>
+    /// The request carries a Content-Length only if HttpClient can measure every part, and it measures only seekable
+    /// streams. A payload streamed from S3 is not seekable (#1892), so it is wrapped to report the length the store
+    /// gave; a file on disk is measured as before. A stream of unknown length is left as it is, and goes out chunked.
+    /// </summary>
+    private static Stream Measurable(Stream stream)
+    {
+        if (stream.CanSeek)
+        {
+            return stream;
+        }
+
+        try
+        {
+            return new LengthReportingStream(stream);
+        }
+        catch (NotSupportedException)
+        {
+            return stream;
+        }
     }
 
     protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext)
