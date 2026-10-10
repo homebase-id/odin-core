@@ -143,8 +143,12 @@ public class PayloadMoveTests
         var complete = await SendAsync(HttpMethod.Post, $"{Root()}/complete", credential);
         Assert.That(complete.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await Source().IsTransferPendingAsync(IdOf(TestIdentities.Frodo)), Is.False);
-        Assert.That((await SendAsync(HttpMethod.Post, $"{Root()}/complete", credential)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
-            "completion revokes the credential");
+        Assert.That(await Source().AuthorizeAsync(IdOf(TestIdentities.Frodo), credential), Is.False, "completion revokes the credential");
+
+        // #1919: a target that never heard the answer asks again, and must not be refused for good
+        Assert.That((await SendAsync(HttpMethod.Post, $"{Root()}/complete", credential)).StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            "a repeated complete");
+        AssertRefused(await SendAsync(HttpMethod.Post, $"{Root()}/complete", "wrong"), "another credential");
         // Not deleting frodo: the fixture shares it
     }
 
@@ -221,8 +225,15 @@ public class PayloadMoveTests
                 Assert.That(acceptBody, Does.Contain("not CompleteWithFailures"));
             }
 
+            // Conflict only while the runner holds it, or saved since the read; between slices it goes through (#1919)
             var retry = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
-            Assert.That(retry.StatusCode, Is.AnyOf(HttpStatusCode.OK, HttpStatusCode.Conflict), "conflict only if the runner holds it right now");
+            for (var attempt = 0; retry.StatusCode == HttpStatusCode.Conflict && attempt < 50; attempt++)
+            {
+                await Task.Delay(100);
+                retry = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
+            }
+
+            Assert.That(retry.StatusCode, Is.EqualTo(HttpStatusCode.OK), await retry.Content.ReadAsStringAsync());
         }
         finally
         {

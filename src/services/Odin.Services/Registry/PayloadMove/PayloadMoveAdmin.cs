@@ -148,10 +148,14 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
                 return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Refused, why);
             }
 
-            // Not over a slice that started since we looked: it would run on with the old checkpoint
-            return await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now)
-                ? new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Rearmed)
-                : new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Running);
+            // Not over a slice that started, or saved, since we looked: one of the two checkpoints would be lost
+            if (await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now, job.Record))
+            {
+                return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Rearmed);
+            }
+
+            using var current = await LoadJobAsync(registration.Id);
+            return new PayloadMoveRearmOutcome(current == null ? PayloadMoveRearmResult.NoMove : PayloadMoveRearmResult.Running);
         }
     }
 

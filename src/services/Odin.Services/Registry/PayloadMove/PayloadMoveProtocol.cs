@@ -82,8 +82,9 @@ public sealed record PayloadObject(
         : $"{PayloadMoveProtocol.IdentityPath(identityId)}/payload/{DriveId}/{FileId}/{Key}/{Uid.uniqueTime}";
 
     /// <summary>
-    /// Where a host keeps it, relative to its payload store: the key on S3, under the payloads folder on disk. The
-    /// same on both sides of a move, so an operator can look for it on the source.
+    /// Where a host keeps it, relative to its payload store's root: on S3 the key after the host's
+    /// <c>S3Payload:RootPath</c> prefix, on disk the path under the payloads folder. The same on both sides of a
+    /// move, so an operator can look for it on the source.
     /// </summary>
     public string StoreKey(TenantPathManager paths, Guid identityId) =>
         $"{identityId}/{Path.GetRelativePath(paths.PayloadsPath, PathIn(paths)).Replace('\\', '/')}";

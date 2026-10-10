@@ -359,20 +359,26 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
     // Replaces a job's data and due time in place (same id, same identityId ownership check as
     // DeleteAsync above), resetting it to a fresh Scheduled state so it runs again regardless of
     // whatever state it was previously in (including a terminal Succeeded/Failed).
-    // Not a job a runner holds: it would run on, and its own save would overwrite this one
-    public async Task<int> UpdateAsync(Guid id, Guid identityId, string jobData, long nextRun)
+    // With `ifUnchanged`, only if the row still has that state and modified time: a caller that changed the data
+    // it read does not write it over a run that started, or saved, since.
+    public async Task<int> UpdateAsync(Guid id, Guid identityId, string jobData, long nextRun,
+        (int state, long modified)? ifUnchanged = null)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
         cmd.CommandText =
-            """
+            $"""
             UPDATE jobs
             SET jobData = @jobData, nextRun = @nextRun, state = @scheduled, runCount = 0, lastError = NULL, expiresAt = NULL, modified = @modified
-            WHERE id = @id AND identityId = @identityId AND state NOT IN (@preflight, @running);
+            WHERE id = @id AND identityId = @identityId{(ifUnchanged == null ? "" : " AND state = @state AND modified = @readModified")};
             """;
+        if (ifUnchanged is var (state, modified))
+        {
+            cmd.AddParameter("@state", DbType.Int32, state);
+            cmd.AddParameter("@readModified", DbType.Int64, modified);
+        }
+
         cmd.AddParameter("@jobData", DbType.String, jobData);
-        cmd.AddParameter("@preflight", DbType.Int32, (int)JobState.Preflight);
-        cmd.AddParameter("@running", DbType.Int32, (int)JobState.Running);
         cmd.AddParameter("@nextRun", DbType.Int64, nextRun);
         cmd.AddParameter("@scheduled", DbType.Int32, (int)JobState.Scheduled);
         cmd.AddParameter("@modified", DbType.Int64, UnixTimeUtc.Now().milliseconds);

@@ -160,7 +160,8 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
         {
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine($"[yellow]{listed.Progress.Missing.Count} object(s) the source does not have[/], " +
-                                   "each as its key in the source's payload store (under the payloads folder on disk):");
+                                   "each as its path in the source's payload store: on S3 after the source's S3Payload:RootPath " +
+                                   "(default payloads/), on disk under its payloads folder:");
             foreach (var (o, key) in listed.Progress.Missing.Zip(listed.MissingStoreKeys))
             {
                 AnsiConsole.WriteLine($"{key}    ({o})");

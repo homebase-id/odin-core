@@ -135,9 +135,9 @@ public class HttpPayloadMoveSourceClient(
                         await onOk(response);
                         return new FetchOutcome(FetchResult.Fetched);
                     case HttpStatusCode.NotFound:
-                        return new FetchOutcome(response.Headers.Contains(PayloadMoveProtocol.AbsentHeader)
-                            ? FetchResult.NotFound
-                            : FetchResult.Refused, Error: "the source refused it");
+                        return response.Headers.Contains(PayloadMoveProtocol.AbsentHeader)
+                            ? new FetchOutcome(FetchResult.NotFound)
+                            : new FetchOutcome(FetchResult.Refused, Error: "the source refused it");
                     case HttpStatusCode.TooManyRequests:
                     case HttpStatusCode.ServiceUnavailable:
                         return new FetchOutcome(FetchResult.Throttled, response.Headers.RetryAfter?.Delta);

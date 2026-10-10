@@ -143,6 +143,7 @@ public sealed class PayloadMoveTransfer(
             }
         }
 
+        state.BackoffSeconds = 0;
         if (state.TooManyMissing)
         {
             // Not holes in a long-used identity: something is wrong with the source. Stop, keeping it.
@@ -152,7 +153,6 @@ public sealed class PayloadMoveTransfer(
             return new SliceResult(SliceEnd.Finished);
         }
 
-        state.BackoffSeconds = 0;
         state.Status = PayloadMoveStatus.Transferring;
         return null;
     }
@@ -166,7 +166,7 @@ public sealed class PayloadMoveTransfer(
                 state.Credential = credential;
                 state.HandoffToken = null;
                 return true;
-            case FetchResult.Refused or FetchResult.NotFound:
+            case FetchResult.Refused:
                 // Loud: another import already holds this identity's payloads, or the file sat too long
                 state.Status = PayloadMoveStatus.Refused;
                 state.AddFailure("The source refused the handoff token: it was already redeemed (a second import of the " +
@@ -183,8 +183,10 @@ public sealed class PayloadMoveTransfer(
     {
         if (state.FailureCount > 0)
         {
-            // The source keeps the identity's payloads, and cannot be deleted, until someone looks at these
+            // The source keeps the identity's payloads, and cannot be deleted, until someone looks at these.
+            // Nothing was given up: #1918 recorded that before the source heard.
             state.Status = PayloadMoveStatus.CompleteWithFailures;
+            state.AcceptedMissingAt = null;
             logger.LogError("Payload move finished with {count} object(s) it could not transfer; the source is not released",
                 state.FailureCount);
             return new SliceResult(SliceEnd.Finished);
@@ -223,13 +225,16 @@ public sealed class PayloadMoveTransfer(
 
             if (checks.FirstOrDefault(c => c.outcome.Result == FetchResult.Fetched).payloadObject is { } found)
             {
-                state.Status = PayloadMoveStatus.CompleteWithFailures;
-                state.AcceptRefusal = $"{found} is at the source now: run --retry to fetch it";
-                logger.LogWarning("Payload move did not give up {object}: the source has it now", found);
-                return new SliceResult(SliceEnd.Finished);
+                return StopAccepting(state, $"{found} is at the source now: run --retry to fetch it");
             }
 
-            // What the source confirmed stays confirmed; a refusal, throttling or a failure waits and goes on from there
+            if (checks.FirstOrDefault(c => c.outcome.Result == FetchResult.Refused).payloadObject is { } refused)
+            {
+                return StopAccepting(state, $"the source refused to check {refused} (the identity runs there again, or a " +
+                                            "re-export revoked the credential): fix that, then run --retry");
+            }
+
+            // What the source confirmed stays confirmed; throttling or a failure waits and goes on from there
             var confirmed = checks.TakeWhile(c => c.outcome.Result == FetchResult.NotFound).Count();
             state.AcceptCheckedCount += confirmed;
             if (confirmed < checks.Count)
@@ -259,6 +264,16 @@ public sealed class PayloadMoveTransfer(
         state.Status = PayloadMoveStatus.Complete;
         state.BackoffSeconds = 0;
         logger.LogInformation("Payload move complete without {count} object(s) the source did not have", state.MissingCount);
+        return new SliceResult(SliceEnd.Finished);
+    }
+
+    // Nothing is given up: the move stays as it ended, and says why
+    private SliceResult StopAccepting(PayloadMoveState state, string why)
+    {
+        state.Status = PayloadMoveStatus.CompleteWithFailures;
+        state.AcceptRefusal = why;
+        state.BackoffSeconds = 0;
+        logger.LogWarning("Payload move did not give up the missing objects: {why}", why);
         return new SliceResult(SliceEnd.Finished);
     }
 
@@ -342,9 +357,9 @@ public sealed class PayloadMoveTransfer(
                     return new ObjectOutcome(Result.Stalled, RetryAfter: fetched.RetryAfter);
 
                 case FetchResult.Refused:
-                    // The identity runs there again, or this transfer's credential was revoked: wait, keeping the object
-                    logger.LogWarning("Payload move: the source refused {object}", payloadObject);
-                    return new ObjectOutcome(Result.Stalled);
+                    // Not that it lacks it: the identity runs there again, a re-export revoked the credential, or the
+                    // source will not serve this key. A failure, so it blocks accepting but not the rest of the move.
+                    return new ObjectOutcome(Result.Failed, Failure: "the source refused it");
 
                 default:
                     if (attempt >= AttemptsPerObject)

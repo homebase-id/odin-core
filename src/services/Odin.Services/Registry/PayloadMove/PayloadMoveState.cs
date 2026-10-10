@@ -89,7 +89,7 @@ public class PayloadMoveState
     /// <summary>How many of <see cref="Missing"/> the source has confirmed it still lacks, while accepting them.</summary>
     public int AcceptCheckedCount { get; set; }
 
-    /// <summary>Why the last acceptance was refused, until a retry: one of the objects is at the source now.</summary>
+    /// <summary>Why the last acceptance stopped, until a retry: an object is at the source now, or the source refused.</summary>
     public string? AcceptRefusal { get; set; }
 
     /// <summary>When the source was told the move completed without <see cref="Missing"/>.</summary>

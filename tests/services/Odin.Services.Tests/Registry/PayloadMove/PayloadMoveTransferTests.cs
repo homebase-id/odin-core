@@ -338,45 +338,61 @@ public class PayloadMoveTransferTests
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), "not asked");
     }
 
-    // #1919: a refusal (the identity runs at the source again, or the credential was revoked) is never absence
+    // #1919: a refusal (the identity runs at the source again, the credential was revoked, or the source will not
+    // serve the key) is never absence. Nor is it a wait: one object refused for good would hold the move forever.
     [Test]
-    public async Task ARefusedObjectWaitsInsteadOfCountingAsMissing()
+    public async Task ARefusedObjectIsAFailureNotAMissingObject()
     {
         var refused = ImportedObjects().First();
         _source.Refused.Add(refused);
+        _queued = [refused];
         var state = NewState();
 
         var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
 
-        Assert.That(result.End, Is.EqualTo(SliceEnd.Wait));
-        Assert.That((state.MissingCount, state.FailureCount), Is.EqualTo((0L, 0L)), string.Join("; ", state.Failures));
-
-        _source.Refused.Clear();
-        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
-        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete), string.Join("; ", state.Failures));
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(state.HoldsResume, Is.False, "the identity can be resumed");
+        Assert.That((state.MissingCount, state.FailureCount), Is.EqualTo((0L, 2L)), string.Join("; ", state.Failures));
+        Assert.That(state.Failures, Has.All.EndsWith("the source refused it"));
+        Assert.That(state.Objects, Is.EqualTo(ImportedObjects().Count() - 1), "the rest moved");
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("2 failure(s) are not objects missing"));
     }
 
     [Test]
-    public async Task ARefusedCheckWaitsAndGoesOnFromTheLastConfirmedObject()
+    public async Task ARefusedCheckStopsTheAcceptance()
     {
         var (state, objects) = await EndWithTwoMissingAsync();
         _source.Refused.Add(objects[1]);
+        _source.ThrottleNext = objects.Count;
 
         RequestAccept(state);
-        var first = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
-        var second = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+        var throttled = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+        Assert.That(throttled.End, Is.EqualTo(SliceEnd.Wait));
 
-        Assert.That((first.End, first.Wait, second.Wait), Is.EqualTo((SliceEnd.Wait, PayloadMoveTransfer.FirstBackoff,
-            PayloadMoveTransfer.FirstBackoff * 2)), "a refusal is not absence, and the wait grows");
-        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.AcceptingMissing));
-        Assert.That(state.AcceptCheckedCount, Is.EqualTo(1));
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Finished), "not a wait that never ends");
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(state.BackoffSeconds, Is.Zero, "the CLI would show a wait on a move that has stopped");
         Assert.That(_source.CompleteCalls, Is.EqualTo(0));
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("refused to check").And.Contains(objects[1].ToString()));
+        Assert.That(state.AcceptedMissingAt, Is.Null);
+    }
 
-        _source.Refused.Clear();
+    // A checkpoint #1918 saved: it recorded the objects given up before the source heard, which then refused
+    [Test]
+    public async Task NothingReadsAsGivenUpUnlessTheSourceHeard()
+    {
+        var (state, _) = await EndWithTwoMissingAsync();
+        state.AcceptedMissingAt = UnixTimeUtc.Now();
+        state.Status = PayloadMoveStatus.Transferring;
+
         await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
 
-        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete));
-        Assert.That(_source.Checked.Count(o => o == objects[0]), Is.EqualTo(1), "a confirmed object is not asked again");
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(state.AcceptedMissingAt, Is.Null);
+        Assert.That(state.WhyMissingCannotBeAccepted, Is.Null, "the operator can accept them now");
     }
 
     [Test]
