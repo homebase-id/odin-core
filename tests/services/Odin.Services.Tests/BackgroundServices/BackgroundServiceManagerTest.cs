@@ -229,6 +229,28 @@ public class BackgroundServiceManagerTest
     }
 
     [Test]
+    public async Task ItShouldNotWaitToNotifyAServiceStoppedByStopAsync()
+    {
+        // A service stopped on its own is gone on purpose, like one stopped by StopAllAsync. The job runner
+        // notifies itself at the end of every job, so stopping it mid-job used to stall 30 s and log an error.
+        var manager = _container.Resolve<IBackgroundServiceManager>();
+        await manager.StartAsync<LoopingBackgroundService>("already-stopped-sibling");
+        await manager.StartAsync<NotifySiblingWhenStoppingBackgroundService>("notifier");
+        await manager.StopAsync("already-stopped-sibling");
+
+        var sw = Stopwatch.StartNew();
+        await manager.StopAsync("notifier");
+        await manager.NotifyWorkAvailableAsync("already-stopped-sibling");
+        Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)));
+
+        // Starting again restores the wait-for-startup behaviour
+        await manager.StartAsync<LoopingBackgroundService>("already-stopped-sibling");
+        await manager.NotifyWorkAvailableAsync("already-stopped-sibling");
+        await manager.StopAllAsync();
+        AssertLogEvents();
+    }
+
+    [Test]
     public async Task ItShouldReportRunningUntilEveryStopHasCompleted()
     {
         // Pausing a tenant relies on this: "not running" must mean no service is doing work anymore

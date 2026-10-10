@@ -47,6 +47,8 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     // Set by StopAllAsync, cleared by the next start: every service was stopped on purpose (e.g. a paused
     // tenant), so a missing service is expected rather than not started yet.
     private volatile bool _allStopped;
+    // Services stopped on purpose one by one, until created again. Their own in-flight work may still notify them.
+    private readonly HashSet<string> _stopped = new();
     // Services removed from _backgroundServices whose stop has not completed yet
     private int _stoppingCount;
     private readonly ILogger<BackgroundServiceManager> _logger = lifetimeScope.Resolve<ILogger<BackgroundServiceManager>>();
@@ -87,6 +89,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
                 throw new InvalidOperationException($"Background service '{serviceIdentifier}' already exists.");
             }
 
+            _stopped.Remove(serviceIdentifier);
             var serviceScope = lifetimeScope.BeginLifetimeScope($"{serviceIdentifier}:{Guid.NewGuid()}");
             var backgroundService = serviceScope.Resolve<T>();
             var scopedService = new ScopedAbstractBackgroundService(serviceScope, backgroundService);
@@ -156,6 +159,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         {
             if (_backgroundServices.Remove(serviceIdentifier, out scopedAbstractBackgroundService))
             {
+                _stopped.Add(serviceIdentifier);
                 // Counted under the same lock, so IsRunning never sees the service as gone before its stop completes
                 Interlocked.Increment(ref _stoppingCount);
             }
@@ -214,6 +218,11 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         ScopedAbstractBackgroundService? backgroundService;
         using (await _lock.ReaderLockAsync())
         {
+            if (_stopped.Contains(serviceIdentifier))
+            {
+                // Stopped on purpose, not yet started: nothing to wake
+                return;
+            }
             _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
         }
 
@@ -240,6 +249,10 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
                 using (await _lock.ReaderLockAsync())
                 {
+                    if (_stopped.Contains(serviceIdentifier))
+                    {
+                        return;
+                    }
                     _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
                 }
 
