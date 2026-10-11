@@ -34,7 +34,11 @@ public interface IJobManager
     Task<IReadOnlyList<JobsRecord>> GetJobsByIdentityIdAsync(Guid identityId);
     Task<bool> DeleteJobByIdAsync(Guid jobId);
     Task<bool> DeleteJobByIdAsync(Guid jobId, Guid identityId);
-    Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt);
+    /// <summary>
+    /// With <paramref name="ifUnchangedFrom"/>, the record the caller read: false if the job has changed since.
+    /// </summary>
+    Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt,
+        JobsRecord? ifUnchangedFrom = null);
     Task<bool> DeleteJobByHashAsync(string jobHash);
     Task<JobsRecord?> GetJobByHashAsync(string jobHash);
     Task<int> DeleteJobsByIdentityIdAsync(Guid identityId);
@@ -617,9 +621,10 @@ public class JobManager(
 
     //
 
-    public async Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt)
+    public async Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt,
+        JobsRecord? ifUnchangedFrom = null)
     {
-        var result = await tableJobs.UpdateAsync(jobId, identityId, jobData, newRunAt.ToUnixTimeMilliseconds());
+        var result = await tableJobs.UpdateAsync(jobId, identityId, jobData, newRunAt.ToUnixTimeMilliseconds(), ifUnchangedFrom);
         return result > 0;
     }
 

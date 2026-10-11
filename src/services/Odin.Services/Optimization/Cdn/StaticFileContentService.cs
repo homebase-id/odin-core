@@ -43,8 +43,13 @@ public enum CrossOriginBehavior
     //Whitelist = 2,
 }
 
-public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDatabase db)
+public class StaticFileContentService(
+    StandardFileSystem fileSystem,
+    IdentityDatabase db,
+    ILogger<StaticFileContentService> logger)
 {
+    private const Int64 MaxEmbeddedPayloadBytes = 5 * 1024 * 1024;
+
     private static readonly SingleKeyValueStorage StaticFileConfigStorage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("3609449a-2f7f-4111-b300-3408a920aa2e"));
 
@@ -126,11 +131,24 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
                         }
 
                         using var ps = await fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
+
+                        // The static file embeds payloads whole; skip big ones (by stored size) rather than hold them
+                        // in memory. Error, not Warning: the published page silently lacks content, and the cap is a
+                        // stopgap (#1917)
+                        var bytes = await ps.TryReadAllBytesAsync(MaxEmbeddedPayloadBytes);
+                        if (bytes == null)
+                        {
+                            logger.LogError(
+                                "Static file {Filename}: payload {Key} of file {FileId} is {Bytes} bytes, over {Max}; not embedded (#1917)",
+                                filename, pd.Key, fileHeader.FileId, ps.ContentLength, MaxEmbeddedPayloadBytes);
+                            continue;
+                        }
+
                         payloads.Add(new PayloadStaticFileResponse()
                         {
                             Key = ps.Key,
                             ContentType = ps.ContentType,
-                            Data = ps.Stream.ToByteArray().ToBase64()
+                            Data = bytes.ToBase64()
                         });
                     }
                 }

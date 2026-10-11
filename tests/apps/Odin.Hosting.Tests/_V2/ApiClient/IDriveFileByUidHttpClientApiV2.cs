@@ -18,11 +18,11 @@ public interface IDriveFileByUidHttpClientApiV2
         [AliasAs("uid:guid")] Guid uid,
         FileSystemType fileSystemType);
 
-    [Get(Endpoint + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(Endpoint + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayloadByUniqueId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
         [AliasAs("payloadKey")] string payloadKey,
-        [AliasAs("start:int")] int start,
-        [AliasAs("length:int")] int length,
+        [AliasAs("start:long")] Int64 start,
+        [AliasAs("length:long")] Int64 length,
         FileSystemType fileSystemType);
 
     [Get(Endpoint + "/payload/{payloadKey}")]

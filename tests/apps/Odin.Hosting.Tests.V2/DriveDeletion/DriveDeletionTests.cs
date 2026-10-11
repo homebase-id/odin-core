@@ -164,7 +164,7 @@ public class DriveDeletionTests : V2Fixture
         Assert.That(tooSoon.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the alias was reusable before the purge");
 
         await RunPurgeAsync(owner);
-        Assert.That(Directory.Exists(Paths(owner).GetDrivePath(drive.Alias)), Is.False, "drive directory left behind");
+        Assert.That(Directory.Exists(TenantPaths(owner).GetDrivePath(drive.Alias)), Is.False, "drive directory left behind");
 
         // the alias is free again, and the new drive starts empty
         await owner.Admin.CreateDrive(drive, "reborn", allowAnonymousReads: false);
@@ -409,14 +409,8 @@ public class DriveDeletionTests : V2Fixture
         return response.Content!;
     }
 
-    private string[] PayloadFiles(OwnerSession owner, TargetDrive drive)
-    {
-        var directory = Paths(owner).GetDrivePayloadPath(drive.Alias);
-        return Directory.Exists(directory) ? Directory.GetFiles(directory, "*", SearchOption.AllDirectories) : [];
-    }
-
-    private TenantPathManager Paths(OwnerSession owner) =>
-        Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
+    private string[] PayloadFiles(OwnerSession owner, TargetDrive drive) =>
+        FilesUnder(TenantPaths(owner).GetDrivePayloadPath(drive.Alias));
 
     private static async Task<TargetDrive> CreateDriveAsync(OwnerSession owner)
     {

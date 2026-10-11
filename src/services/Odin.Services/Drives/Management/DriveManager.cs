@@ -205,6 +205,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = request.AllowAnonymousReads,
             AllowSubscriptions = request.AllowSubscriptions,
             AllowCdn = request.AllowCdn,
+            RequirePayloadHashes = request.RequirePayloadHashes,
             OwnerOnly = request.OwnerOnly,
             Attributes = request.Attributes
         };
@@ -315,6 +316,32 @@ public class DriveManager : IDriveManager
         if (storageDrive.AllowSubscriptions != allowSubscriptions)
         {
             storageDrive.AllowSubscriptions = allowSubscriptions;
+
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext
+            });
+        }
+    }
+
+    public async Task SetDriveRequirePayloadHashesAsync(Guid driveId, bool requirePayloadHashes, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        //only change if needed
+        if (storageDrive.RequirePayloadHashes != requirePayloadHashes)
+        {
+            storageDrive.RequirePayloadHashes = requirePayloadHashes;
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
@@ -898,6 +925,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
             AllowCdn = storageDrive.AllowCdn,
+            RequirePayloadHashes = storageDrive.RequirePayloadHashes,
             Attributes = storageDrive.Attributes,
             IsArchived = storageDrive.IsArchived
         };
@@ -1011,6 +1039,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = driveDetails.AllowAnonymousReads,
             AllowSubscriptions = driveDetails.AllowSubscriptions,
             AllowCdn = driveDetails.AllowCdn,
+            RequirePayloadHashes = driveDetails.RequirePayloadHashes,
             Attributes = driveDetails.Attributes,
             IsArchived = driveDetails.IsArchived,
 

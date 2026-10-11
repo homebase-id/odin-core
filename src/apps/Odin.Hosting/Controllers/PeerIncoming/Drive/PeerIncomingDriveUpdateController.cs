@@ -29,6 +29,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -149,8 +150,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var metadataSection = await reader.ReadNextSectionAsync();
             AssertIsPart(metadataSection, MultipartHostTransferParts.Metadata);
-            var json = await new StreamReader(metadataSection!.Body).ReadToEndAsync();
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+            var metadata = await BoundedRead.DeserializeAsync<FileMetadata>(metadataSection!.Body);
 
             _fileUpdateService = GetPerimeterService(_fileSystem);
             await _fileUpdateService.InitializeIncomingTransfer(updateInstructionSet, metadata, WebOdinContext);
@@ -205,8 +205,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private async Task<EncryptedRecipientFileUpdateInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
-            string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(json);
+            var transferInstructionSet = await BoundedRead.DeserializeAsync<EncryptedRecipientFileUpdateInstructionSet>(section.Body);
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
             // OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
@@ -225,8 +224,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = TenantPathManager.GetBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
-            await _fileUpdateService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext);
+            await _fileUpdateService.AcceptPayload(payloadDescriptor, fileMetadata.IsEncrypted, fileSection.FileStream, WebOdinContext);
             return payloadDescriptor;
         }
 

@@ -73,12 +73,17 @@ public sealed class TransactionalCache
 
     //
 
+    /// <param name="storeIf">
+    /// When given and false for a value, the value is returned but not stored. For an answer that is only right at
+    /// the moment it was read, e.g. one that depends on the clock as well as on the data.
+    /// </param>
     public Task<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
         long entrySize = DefaultEntrySize,
         List<string>? tags = null,
+        Func<TValue, bool>? storeIf = null,
         CancellationToken cancellationToken = default)
     {
         return InternalGetOrSetAsync(
@@ -87,6 +92,7 @@ public sealed class TransactionalCache
             ttl,
             value => value is null ? EntrySize.Small : entrySize,
             tags,
+            storeIf,
             cancellationToken);
     }
 
@@ -106,6 +112,7 @@ public sealed class TransactionalCache
             ttl,
             value => value is null ? EntrySize.Small : entrySize,
             tags,
+            storeIf: null,
             cancellationToken);
     }
 
@@ -125,6 +132,7 @@ public sealed class TransactionalCache
             ttl,
             list => list.Count == 0 ? EntrySize.Small : entrySize * list.Count,
             tags,
+            storeIf: null,
             cancellationToken);
     }
 
@@ -144,6 +152,7 @@ public sealed class TransactionalCache
             ttl,
             list => list.Count == 0 ? EntrySize.Small : entrySize * list.Count,
             tags,
+            storeIf: null,
             cancellationToken);
     }
 
@@ -155,6 +164,7 @@ public sealed class TransactionalCache
         TimeSpan ttl,
         Func<TValue, long> entrySizeFactory,
         List<string>? tags,
+        Func<TValue, bool>? storeIf,
         CancellationToken cancellationToken)
     {
         if (ttl <= TimeSpan.Zero)
@@ -180,6 +190,7 @@ public sealed class TransactionalCache
             ttl,
             entrySizeFactory,
             CombineAllTagsWithRoot(tags),
+            storeIf,
             cancellationToken);
 
         if (hit)

@@ -132,7 +132,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return TemporalGetPayloadInternal(odinId, driveId, fileId, payloadKey, GetChunk(null, null));
         }
 
-        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
+        [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
@@ -141,8 +141,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
             [FromRoute] string payloadKey,
-            [FromRoute] int start,
-            [FromRoute] int length)
+            [FromRoute] Int64 start,
+            [FromRoute] Int64 length)
         {
             return TemporalGetPayloadInternal(odinId, driveId, fileId, payloadKey, GetChunk(start, length));
         }

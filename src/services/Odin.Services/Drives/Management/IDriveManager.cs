@@ -13,6 +13,7 @@ public interface IDriveManager
     Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext);
 
     Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext);
+    Task SetDriveRequirePayloadHashesAsync(Guid driveId, bool requirePayloadHashes, IOdinContext odinContext);
     Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext);
     Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext);
 

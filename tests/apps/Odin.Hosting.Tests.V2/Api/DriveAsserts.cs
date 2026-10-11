@@ -111,6 +111,17 @@ public static class DriveAsserts
     /// Connections assert this same shape; only three of them shared a copy, and only because it
     /// happened to sit in a folder they already imported.
     /// </remarks>
+    /// <summary>
+    /// <paramref name="actual"/> carries exactly the payload hash the client sent (#1895)
+    /// </summary>
+    public static void AssertSameHash(PayloadHash actual, PayloadHash expected)
+    {
+        Assert.That(actual, Is.Not.Null, "the payload descriptor has no hash");
+        Assert.That(actual.Algorithm, Is.EqualTo(expected.Algorithm));
+        Assert.That(actual.StoredHash, Is.EqualTo(expected.StoredHash));
+        Assert.That(actual.ContentHash, Is.EqualTo(expected.ContentHash));
+    }
+
     public static async Task AssertTransferStatus(
         OwnerSession sender,
         ExternalFileIdentifier file,

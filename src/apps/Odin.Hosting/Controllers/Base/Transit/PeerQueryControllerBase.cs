@@ -249,7 +249,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> GetPayloadStreamByGlobalTransitId([FromQuery] string odinId,
             [FromQuery] Guid globalTransitId, [FromQuery] Guid alias, [FromQuery] Guid type,
             [FromQuery] string key,
-            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+            [FromQuery] Int64? chunkStart, [FromQuery] Int64? chunkLength)
         {
             AssertIsValidOdinId(odinId, out var id);
             var fst = GetHttpFileSystemResolver().GetFileSystemType();

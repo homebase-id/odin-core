@@ -67,18 +67,23 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
     }
 
     /// <summary>
-    /// The target has everything: record it and revoke the credential, which lets the source registration be
-    /// deleted. False if the credential is not the live one.
+    /// The target has everything: record it, which lets the source registration be deleted; the credential serves
+    /// nothing from now on. True again for the same credential, so a target that never heard the answer can ask
+    /// again. False if the credential is not the transfer's.
     /// </summary>
     public async Task<bool> CompleteAsync(Guid identityId, string? credential)
     {
-        if (await LoadWithStoredValueAsync(identityId) is not var (state, stored) || !IsLive(state, credential))
+        if (await LoadWithStoredValueAsync(identityId) is not var (state, stored) || !Matches(state.CredentialHash, credential))
         {
             return false;
         }
 
+        if (state.CompletedAt != null)
+        {
+            return true;
+        }
+
         state.CompletedAt = UnixTimeUtc.Now();
-        state.CredentialHash = null;
 
         // A re-export may have minted a new handoff since the read; do not write the old state over it
         return await SaveIfUnchangedAsync(identityId, stored, state);
@@ -97,7 +102,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
         state is { CompletedAt: null } && (state.RedeemedAt != null || state.HandoffExpiresAt >= UnixTimeUtc.Now());
 
     private static bool IsLive(SourceState? state, string? credential) =>
-        state is { CompletedAt: null, CredentialHash: not null } && Matches(state.CredentialHash, credential);
+        state is { CompletedAt: null } && Matches(state.CredentialHash, credential);
 
     /// <summary>Drops the identity's handoff state: it is deleted from this host.</summary>
     public Task ForgetAsync(Guid identityId)

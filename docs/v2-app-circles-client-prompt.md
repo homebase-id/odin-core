@@ -36,10 +36,13 @@ Body (`CreateAppCircleRequest`):
 - The circle is owned by the calling app. Its enrolment tier (`grantOn`) is always `None`: members are added only
   explicitly, never automatically on connect.
 - Rules enforced by the server. A violation returns `403` unless stated otherwise.
-  - Every drive in `driveGrants` must be **owned by the app**, and the app's own registration must **hold at
-    least the permission being granted** on it (Write to grant Write, Read to grant Read). Owning a drive is not
-    enough by itself. The check exists because each member the app adds receives the circle's access out of the
-    app's own, so a circle the app couldn't fill is refused up front.
+  - The app's own registration must **hold at least the permission it grants** on every drive in
+    `driveGrants` (Write to grant Write, Read to grant Read). Each member the app adds receives the circle's
+    access out of the app's own, so a circle the app couldn't fill is refused up front.
+  - **On a drive the app owns:** any permission it holds.
+  - **On a drive the app doesn't own:** **Read only**, and only if the app holds that drive's storage key.
+    Example: Chat making a profile circle that grants Read on the Contacts app's ProfileDrive, the way
+    Family, Friends and Work do. Write or React on another app's drive is refused.
   - `permissions.keys` may include **only keys the app itself holds**.
   - The circle must grant at least one drive or one key. Otherwise `400`,
     `atLeastOneDriveOrPermissionRequiredForCircle`.
@@ -66,8 +69,9 @@ Body (`CreateAppCircleRequest`):
 `circles/add`, `circles/add-many` and `circles/revoke` keep their existing request and response shapes.
 - **Owning the circle is enough.** An app adds and removes members of its own circles without
   `ManageCircleMembership`.
-- Do **not** rely on `ManageCircleMembership` to manage circles the app doesn't own. That route is being removed
-  (odin-core PR #1839), and those calls will return `403`.
+- Circles the app doesn't own need `ManageCircleMembership`. Once PR #1839 ships, new third-party registrations
+  aren't offered it; Chat keeps it by default, because it adds people to Friends and Emergency Location Access.
+- Membership changes apply on the member's very next call, not when their cached permissions expire.
 - `circles/add-many` only offers circles whose tier is `Review` or `Connect`. App-created circles are tier `None`,
   so add members to them one at a time with `circles/add`.
 - An add can be recorded as a full grant or as a pending deposit, depending on what the circle grants. The bulk
@@ -87,12 +91,14 @@ Add handling or friendly messages for at least:
 - `cannotDeleteBuiltInCircle`
 - `atLeastOneDriveOrPermissionRequiredForCircle`
 - `contactNotReviewed` and `cannotGrantAutoConnectedMoreCircles` (adding a member; see section 3)
-- `403`: "this circle or drive doesn't belong to this app, or the app doesn't have that access itself".
+- `403`: "this circle doesn't belong to this app, the app doesn't have that access itself, or it asked for more
+  than Read on a drive it doesn't own".
 
 ## 5. Deliverables
 - API-layer functions: `createCircle(request) -> circleId` and `deleteCircle(circleId, removeMembers)`.
 - Wire both into <SCREEN / FEATURE> if one is in scope. Otherwise stop at the API layer.
-- When building a create request, only offer drives the app both owns and can access at the level being granted.
+- When building a create request, only offer drive access the app holds: anything it holds on its own drives,
+  and Read on drives it doesn't own (when it can read them).
 - Tests that follow this repo's existing patterns for the connections API: request serialization, including the
   `removeMembers` query flag, and parsing the GUID response from `create`.
 - Run the repo's own build, lint and tests, and report exactly what ran and what passed.
@@ -101,6 +107,8 @@ Add handling or friendly messages for at least:
 ## Server status (for context)
 - `circles/create`, `circles/delete` and owning-the-circle-is-enough for membership are on odin-core `main` (via
   PR #1879).
-- Requiring the app to hold the access it grants at create is on branch `app-circle-create-requires-drive-access`.
-- PR #1839 removes the `ManageCircleMembership` route for circles the app doesn't own, and adds
-  `contactNotReviewed`.
+- Requiring the app to hold the access it grants at create: odin-core `main` (via PR #1894).
+- Read on a drive the app doesn't own, and membership changes applying immediately: branch
+  `app-circle-read-on-held-drives`.
+- PR #1839 adds `contactNotReviewed` (3021). It keeps the `ManageCircleMembership` route for circles an app
+  doesn't own, and Chat keeps that key by default.
