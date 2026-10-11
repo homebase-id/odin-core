@@ -22,7 +22,9 @@ namespace Odin.Hosting.Controllers.PayloadMove;
 /// <summary>
 /// The source side of a payload move: serves one moved identity's payloads and thumbnails to the host that
 /// imported it. Objects are addressed by what they are, and the path is built here under that identity's
-/// root, so no client-supplied path is ever used. Every refusal is a 404.
+/// root, so no client-supplied path is ever used. Every refusal is a bare 404; an object the store does not have
+/// is a 404 with <see cref="PayloadMoveProtocol.AbsentHeader"/>, so the target never gives up an object it was
+/// only refused.
 /// See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
 /// </summary>
 [ApiController]
@@ -62,7 +64,8 @@ public class PayloadMoveController(
     [HttpPost("complete")]
     public async Task<IActionResult> Complete(Guid identityId)
     {
-        if (!await source.CompleteAsync(identityId, Credential()))
+        // A resumed identity is live here again: releasing it would let it be deleted with what only it holds
+        if (ServableRegistration(identityId) == null || !await source.CompleteAsync(identityId, Credential()))
         {
             return NotFound();
         }
@@ -106,14 +109,14 @@ public class PayloadMoveController(
             {
                 if (!await store.ExistsAsync(path, HttpContext.RequestAborted))
                 {
-                    return NotFound();
+                    return Absent();
                 }
 
                 Response.ContentLength = await store.LengthAsync(path, HttpContext.RequestAborted);
                 return Ok();
             }
 
-            var stream = await store.OpenReadAsync(path, HttpContext.RequestAborted);
+            var stream = await store.OpenReadAsync(path, ct: HttpContext.RequestAborted);
             Response.ContentLength = stream.Length;
             return File(stream, "application/octet-stream");
         }
@@ -127,11 +130,17 @@ public class PayloadMoveController(
 
             if (!await store.ExistsAsync(path, HttpContext.RequestAborted))
             {
-                return NotFound();
+                return Absent();
             }
 
             throw;
         }
+    }
+
+    private IActionResult Absent()
+    {
+        Response.Headers[PayloadMoveProtocol.AbsentHeader] = "1";
+        return NotFound();
     }
 
     // Only an identity this host holds and has stopped: if someone resumed it, its data is live here again

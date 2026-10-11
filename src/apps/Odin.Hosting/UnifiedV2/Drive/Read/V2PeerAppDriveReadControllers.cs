@@ -150,7 +150,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// <param name="payloadKey">Which payload to read.</param>
         /// <param name="start">First byte to return, zero-based.</param>
         /// <param name="length">How many bytes to return.</param>
-        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
+        [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
@@ -160,8 +160,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             [FromRoute] string driveSlug,
             [FromRoute] Guid fileId,
             [FromRoute] string payloadKey,
-            [FromRoute] int start,
-            [FromRoute] int length)
+            [FromRoute] Int64 start,
+            [FromRoute] Int64 length)
         {
             return GetPayloadInternal(odinId, appSlug, driveSlug, fileId, payloadKey, GetChunk(start, length));
         }
@@ -367,7 +367,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// <param name="payloadKey">Which payload to read.</param>
         /// <param name="start">First byte to return, zero-based.</param>
         /// <param name="length">How many bytes to return.</param>
-        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
+        [HttpGet("payload/{payloadKey}/{start:long}/{length:long}")]
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
@@ -377,8 +377,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             [FromRoute] string driveSlug,
             [FromRoute] Guid gtid,
             [FromRoute] string payloadKey,
-            [FromRoute] int start,
-            [FromRoute] int length)
+            [FromRoute] Int64 start,
+            [FromRoute] Int64 length)
         {
             return GetPayloadInternal(odinId, appSlug, driveSlug, gtid, payloadKey, GetChunk(start, length));
         }

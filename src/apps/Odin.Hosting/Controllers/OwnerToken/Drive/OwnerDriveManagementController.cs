@@ -45,6 +45,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     AllowCdn = drive.IsCdnEnabled(),
+                    RequirePayloadHashes = drive.RequirePayloadHashes,
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
@@ -103,6 +104,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<IActionResult> SetDriveAllowCdn([FromBody] UpdateDriveAllowCdnRequest request)
         {
             await driveManager.SetDriveAllowCdnAsync(request.TargetDrive.Alias, request.AllowCdn, WebOdinContext);
+            return Ok();
+        }
+
+        [HttpPost("set-require-payload-hashes")]
+        public async Task<IActionResult> SetDriveRequirePayloadHashes([FromBody] UpdateDriveRequirePayloadHashesRequest request)
+        {
+            await driveManager.SetDriveRequirePayloadHashesAsync(request.TargetDrive.Alias, request.RequirePayloadHashes, WebOdinContext);
             return Ok();
         }
 
@@ -245,6 +253,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     AllowCdn = drive.IsCdnEnabled(),
+                    RequirePayloadHashes = drive.RequirePayloadHashes,
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
@@ -294,6 +303,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool AllowCdn { get; set; }
+    }
+
+    public class UpdateDriveRequirePayloadHashesRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool RequirePayloadHashes { get; set; }
     }
 
     public class TargetDriveRequest

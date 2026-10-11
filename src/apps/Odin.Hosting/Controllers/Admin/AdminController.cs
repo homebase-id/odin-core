@@ -116,18 +116,35 @@ public class AdminController : ControllerBase
 
     /// <summary>
     /// Runs the tenant's payload transfer again from the newest file (what already arrived is skipped).
-    /// 404 if it has none here, 409 while a slice is running.
+    /// 400 once the move is complete, 404 if it has none here, 409 while a slice is running.
     /// </summary>
     [HttpPost("tenants/{domain}/payload-move/retry")]
     public async Task<IActionResult> RetryPayloadMove(string domain)
     {
-        return await _payloadMoveAdmin.RetryAsync(domain) switch
-        {
-            PayloadMoveRetryResult.Rearmed => Ok(),
-            PayloadMoveRetryResult.Running => Conflict(),
-            _ => NotFound()
-        };
+        return Rearmed(await _payloadMoveAdmin.RetryAsync(domain));
     }
+
+    //
+
+    /// <summary>
+    /// Gives up the objects the source of the tenant's move does not have, so the move can complete; the transfer
+    /// checks each at the source once more first. The GET lists them; <paramref name="count"/> is how many the
+    /// operator listed. 400 with the reason when the move did not end with nothing but such objects or the count
+    /// differs, 404 if it has no transfer here, 409 while a slice is running.
+    /// </summary>
+    [HttpPost("tenants/{domain}/payload-move/accept-missing")]
+    public async Task<IActionResult> AcceptMissingPayloads(string domain, [FromQuery] long count)
+    {
+        return Rearmed(await _payloadMoveAdmin.AcceptMissingAsync(domain, count));
+    }
+
+    private IActionResult Rearmed(PayloadMoveRearmOutcome outcome) => outcome.Result switch
+    {
+        PayloadMoveRearmResult.Rearmed => Ok(),
+        PayloadMoveRearmResult.Running => Conflict(),
+        PayloadMoveRearmResult.Refused => BadRequest(outcome.Reason),
+        _ => NotFound()
+    };
 
     //
 

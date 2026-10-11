@@ -356,8 +356,10 @@ public class CircleMembershipService(
     /// </summary>
     /// <remarks>
     /// No permission key: an app is the owner acting, and the circle is its own.  What it may put on the circle is
-    /// bounded by what it already has, so creating one is never a way to hand out more -- drives only its own,
-    /// permission keys only ones it holds -- and the circle is granted only explicitly
+    /// bounded by what it already has, so creating one is never a way to hand out more -- drive access only as far as
+    /// it holds it itself, and on a drive it does not own only Read with the storage key
+    /// (<see cref="CircleDefinitionService.AssertAppMayGrantDrivesAsync"/>); permission keys only ones it holds -- and
+    /// the circle is granted only explicitly
     /// (<see cref="CircleGrantOn.None"/>), never to every connection on its own.  The id is the server's, so a
     /// deleted circle's id, which leftover deposits and enrollments may still name, is never reused.
     /// </remarks>
@@ -381,7 +383,7 @@ public class CircleMembershipService(
                 $"App {appId} cannot grant permission keys it does not hold: {string.Join(", ", notHeld)}");
         }
 
-        await circleDefinitionService.AssertDrivesOwnedByAsync(request.DriveGrants, appId.Value);
+        await circleDefinitionService.AssertAppMayGrantDrivesAsync(request.DriveGrants, appId.Value, odinContext);
 
         var circleId = Guid.NewGuid();
         await circleDefinitionService.CreateAsync(new CreateCircleRequest

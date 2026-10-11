@@ -238,9 +238,16 @@ public class CertificateStore(
     /// <summary>For identity export: the row with its key decrypted, so another host can encrypt it under its own.</summary>
     public static CertificatesRecord WithKeyInTheClear(CertificatesRecord record, byte[] storageKey)
     {
-        return string.IsNullOrEmpty(record.privateKey)
-            ? record
-            : record with { privateKey = DecryptPrivateKey(record.privateKey, record.certificate, storageKey) };
+        if (string.IsNullOrEmpty(record.privateKey))
+        {
+            return record;
+        }
+
+        // About one wrong storage key in 256 decrypts to valid padding, and the garbage decodes as a string, so
+        // only fitting the certificate proves the key was read
+        var keyPem = DecryptPrivateKey(record.privateKey, record.certificate, storageKey);
+        X509FromPem(record.domain.DomainName, keyPem, record.certificate).Dispose();
+        return record with { privateKey = keyPem };
     }
 
     /// <summary>For identity import: the row with its key checked against its certificate and encrypted under this host's key.</summary>

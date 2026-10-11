@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles;
@@ -17,6 +18,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -469,10 +471,7 @@ public class AppCircleDefinitionTests : V2Fixture
     public async Task AppCreatesACircleOnItsOwnDriveViaV2()
     {
         var owner = await LoginAsOwner();
-        var appId = Guid.NewGuid();
-        var app = await CreateAppAndClient(owner, appId, PermissionKeys.ReadConnections);
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "app's own", allowAnonymousReads: false, appId: appId);
+        var (app, drive) = await AppOwningADriveAsync(owner, DrivePermission.All, PermissionKeys.ReadConnections);
 
         var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
@@ -483,13 +482,66 @@ public class AppCircleDefinitionTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var circle = await owner.Admin.GetCircleDefinition(response.Content);
-        Assert.That(circle.AppId, Is.EqualTo(appId), "the circle belongs to the app that made it");
+        Assert.That(circle.AppId, Is.EqualTo(app.AppId), "the circle belongs to the app that made it");
         Assert.That(circle.GrantOn, Is.EqualTo(CircleGrantOn.None), "an app's circle is granted only explicitly");
         Assert.That(circle.DriveGrants.Single().PermissionedDrive.Drive, Is.EqualTo(drive));
 
         // and, owning it, the app can delete it
         var delete = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().DeleteCircle(response.Content);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    /// <summary>
+    /// Owning a drive is not reaching it: the app's registration decides that.  A circle the app could never add
+    /// anyone to -- each add hands on the circle's access out of the app's own -- is refused when it is created.
+    /// </summary>
+    [Test]
+    public async Task AppFailsToCreateACircleOnItsOwnDriveItCannotReachViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var appId = Guid.NewGuid();
+        var app = await CreateAppAndClient(owner, appId);
+        var unreachable = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(unreachable, "owned, not granted", allowAnonymousReads: false, appId: appId);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "nobody can be added",
+            DriveGrants = [WriteOn(unreachable)]
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task AppFailsToGrantMoreOnItsOwnDriveThanItHoldsViaV2()
+    {
+        var owner = await LoginAsOwner();
+        var (app, drive) = await AppOwningADriveAsync(owner, DrivePermission.Read);
+
+        var response = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
+        {
+            Name = "write it cannot do itself",
+            DriveGrants = [WriteOn(drive)]
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    /// <summary>
+    /// An app that both owns a drive and holds <paramref name="access"/> on it.  Separate facts, set separately: the
+    /// drive is created, the app registered with access to it, then the drive handed to the app.
+    /// </summary>
+    private static async Task<(AppSession App, TargetDrive Drive)> AppOwningADriveAsync(OwnerSession owner,
+        DrivePermission access, params int[] permissionKeys)
+    {
+        var appId = Guid.NewGuid();
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "the app's own", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(owner, drive, access, permissionKeys, knownAppId: appId);
+
+        var handOver = await owner.RefitFor<IRefitDriveManagement>()
+            .SetDriveOwningApp(new SetDriveOwningAppRequest { TargetDrive = drive, AppId = appId });
+        Assert.That(handOver.IsSuccessStatusCode, Is.True, $"arrange: handing the drive to the app failed: {handOver.StatusCode}");
+        return (app, drive);
     }
 
     [Test]
