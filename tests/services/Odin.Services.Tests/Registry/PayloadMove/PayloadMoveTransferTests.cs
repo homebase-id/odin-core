@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -254,7 +253,7 @@ public class PayloadMoveTransferTests
         Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
         Assert.That(state.FailureCount, Is.EqualTo(2), string.Join("; ", state.Failures));
-        Assert.That(state.Failures, Has.Some.Contains("does not have it").And.Some.Contains("the header records"));
+        Assert.That(state.Failures.Single(), Does.Contain("the header records"), "a missing object is listed once, in Missing");
         Assert.That(state.Objects, Is.EqualTo(4), "the rest still moved");
         Assert.That(_source.CompleteCalls, Is.EqualTo(0), "the source is not released");
 
@@ -299,8 +298,12 @@ public class PayloadMoveTransferTests
         Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
         Assert.That(_source.CompleteCalls, Is.EqualTo(0));
-        Assert.That(state.Failures, Has.Some.Contains("accept-missing refused").And.Some.Contains("run --retry"));
-        Assert.That(state.WhyMissingCannotBeAccepted, Is.Not.Null, "not again until a retry");
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain(objects[1].ToString()).And.Contains("run --retry"),
+            "not again until a retry, and the operator is told why");
+        Assert.That(state.FailureCount, Is.EqualTo(2), "a refusal is not a failure, so it cannot crowd the list");
+
+        state.RequestRetry();
+        Assert.That(state.AcceptRefusal, Is.Null, "a retry starts over");
     }
 
     [Test]
@@ -316,6 +319,7 @@ public class PayloadMoveTransferTests
         Assert.That(first.End, Is.EqualTo(SliceEnd.Wait));
         Assert.That(first.Wait, Is.EqualTo(TimeSpan.FromSeconds(42)));
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.AcceptingMissing), "still asked while waiting");
+        Assert.That(state.BackoffSeconds, Is.EqualTo(42), "the CLI shows the wait");
 
         await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete));
@@ -330,8 +334,157 @@ public class PayloadMoveTransferTests
         state.Status = PayloadMoveStatus.CompleteWithFailures;
 
         Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("run --retry first"));
-        Assert.That(state.RequestAcceptMissing(), Does.Contain("run --retry first"));
+        Assert.That(state.RequestAcceptMissing(0), Does.Contain("run --retry first"));
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), "not asked");
+    }
+
+    // #1919: a refusal (the identity runs at the source again, the credential was revoked, or the source will not
+    // serve the key) is never absence. Nor is it a wait: one object refused for good would hold the move forever.
+    [Test]
+    public async Task ARefusedObjectIsAFailureNotAMissingObject()
+    {
+        var refused = ImportedObjects().First();
+        _source.Refused.Add(refused);
+        _queued = [refused];
+        var state = NewState();
+
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Finished));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(state.HoldsResume, Is.False, "the identity can be resumed");
+        Assert.That((state.MissingCount, state.FailureCount), Is.EqualTo((0L, 2L)), string.Join("; ", state.Failures));
+        Assert.That(state.Failures, Has.All.EndsWith("the source refused it"));
+        Assert.That(state.Objects, Is.EqualTo(ImportedObjects().Count() - 1), "the rest moved");
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("2 failure(s) are not objects missing"));
+    }
+
+    [Test]
+    public async Task ARefusedCheckStopsTheAcceptance()
+    {
+        var (state, objects) = await EndWithTwoMissingAsync();
+        _source.Refused.Add(objects[1]);
+        _source.ThrottleNext = objects.Count;
+
+        RequestAccept(state);
+        var throttled = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+        Assert.That(throttled.End, Is.EqualTo(SliceEnd.Wait));
+
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Finished), "not a wait that never ends");
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(state.BackoffSeconds, Is.Zero, "the CLI would show a wait on a move that has stopped");
+        Assert.That(_source.CompleteCalls, Is.EqualTo(0));
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("refused to check").And.Contains(objects[1].ToString()));
+        Assert.That(state.AcceptedMissingAt, Is.Null);
+    }
+
+    // A checkpoint #1918 saved: it recorded the objects given up before the source heard, which then refused
+    [Test]
+    public async Task NothingReadsAsGivenUpUnlessTheSourceHeard()
+    {
+        var (state, _) = await EndWithTwoMissingAsync();
+        state.AcceptedMissingAt = UnixTimeUtc.Now();
+        state.Status = PayloadMoveStatus.Transferring;
+
+        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(state.AcceptedMissingAt, Is.Null);
+        Assert.That(state.WhyMissingCannotBeAccepted, Is.Null, "the operator can accept them now");
+    }
+
+    [Test]
+    public async Task TheAcceptanceKeepsToTheSliceBudget()
+    {
+        var (state, _) = await EndWithTwoMissingAsync();
+
+        RequestAccept(state);
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.Zero, CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Continue));
+        Assert.That(_source.Checked, Is.Empty);
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.AcceptingMissing));
+    }
+
+    [Test]
+    public async Task NothingIsGivenUpUntilTheSourceIsToldTheMoveIsComplete()
+    {
+        var (state, _) = await EndWithTwoMissingAsync();
+        _source.RefuseComplete = true;
+
+        RequestAccept(state);
+        var result = await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That(result.End, Is.EqualTo(SliceEnd.Wait));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.AcceptingMissing));
+        Assert.That(state.AcceptedMissingAt, Is.Null, "the CLI would show them given up");
+
+        _source.RefuseComplete = false;
+        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete));
+        Assert.That(state.AcceptedMissingAt, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task TheOperatorGivesUpOnlyAsManyAsTheyListed()
+    {
+        var (state, _) = await EndWithTwoMissingAsync();
+
+        Assert.That(state.RequestAcceptMissing(1), Does.Contain("not 1").And.Contains("--list-missing"));
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures), "not asked");
+    }
+
+    [Test]
+    public async Task ACompleteMoveIsNotRetried()
+    {
+        var (state, _) = await EndWithTwoMissingAsync();
+        RequestAccept(state);
+        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete));
+
+        Assert.That(state.RequestRetry(), Does.Contain("nothing to retry"));
+        Assert.That((state.Status, state.MissingCount), Is.EqualTo((PayloadMoveStatus.Complete, 2L)), "the record of what was given up stays");
+        Assert.That(state.AcceptedMissingAt, Is.Not.Null);
+    }
+
+    // An Outbox item's file is fetched in the queued phase and again by the walk
+    [Test]
+    public async Task AnObjectMissingTwiceIsRecordedOnce()
+    {
+        var objects = ObjectsOf(File(20)).ToList();
+        _queued = objects;
+        foreach (var o in objects)
+        {
+            _source.Objects.Remove(o.SourcePath(Guid.Empty), out _);
+        }
+
+        var state = NewState();
+        await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.That((state.MissingCount, state.FailureCount, state.Missing.Count), Is.EqualTo((2L, 2L, 2)));
+        Assert.That(state.WhyMissingCannotBeAccepted, Is.Null);
+    }
+
+    // #1919: more missing than the job row can list is not holes but a broken source: stop there
+    [Test]
+    public async Task TooManyMissingObjectsStopTheTransfer()
+    {
+        _index = Enumerable.Range(1, 150).Select(rowId => File(rowId)).ToList();
+        _source.Objects.Clear();
+        var state = NewState(150);
+
+        while ((await Transfer().RunSliceAsync(state, TimeSpan.FromMinutes(1), CancellationToken.None)).End == SliceEnd.Continue)
+        {
+        }
+
+        Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.CompleteWithFailures));
+        Assert.That(state.TooManyMissing, Is.True);
+        Assert.That(state.Missing, Has.Count.EqualTo(PayloadMoveState.MaxRecordedMissing));
+        Assert.That(state.Files, Is.LessThan(150), "it stopped");
+        Assert.That(state.WhyMissingCannotBeAccepted, Does.Contain("look into the source"));
+        Assert.That(_source.CompleteCalls, Is.EqualTo(0));
     }
 
     [Test]
@@ -379,7 +532,6 @@ public class PayloadMoveTransferTests
 
     //
 
-    // What the source has: every object of the files the import brought
     // A move that ends with both objects of File(20) missing at the source, and nothing else wrong
     private async Task<(PayloadMoveState state, List<PayloadObject> objects)> EndWithTwoMissingAsync()
     {
@@ -399,10 +551,11 @@ public class PayloadMoveTransferTests
     // As the admin asks it. The job runs a slice only for a move that is not finished, so the request must undo that.
     private static void RequestAccept(PayloadMoveState state)
     {
-        Assert.That(state.RequestAcceptMissing(), Is.Null);
+        Assert.That(state.RequestAcceptMissing(state.MissingCount), Is.Null);
         Assert.That(state.IsFinished, Is.False, "the job would never run the request");
     }
 
+    // What the source has: every object of the files the import brought
     private IEnumerable<PayloadObject> ImportedObjects() => _index.Where(f => f.RowId <= StartRowId).SelectMany(ObjectsOf);
 
     private void Seed(IEnumerable<PayloadObject> objects)
@@ -478,6 +631,10 @@ public class PayloadMoveTransferTests
         public TimeSpan? RetryAfter { get; set; }
         public bool RefuseRedeem { get; set; }
         public bool UnavailableRedeem { get; set; }
+
+        /// <summary>Refuses these, as a source does once the identity runs there again or the credential was revoked.</summary>
+        public HashSet<PayloadObject> Refused { get; } = [];
+        public bool RefuseComplete { get; set; }
         public Action<int>? AfterFetch { get; set; }
 
         private int _inFlight;
@@ -491,7 +648,7 @@ public class PayloadMoveTransferTests
             }
 
             return Task.FromResult<(FetchOutcome, string?)>(RefuseRedeem || handoffToken != "token"
-                ? (new FetchOutcome(FetchResult.NotFound), null)
+                ? (new FetchOutcome(FetchResult.Refused), null)
                 : (new FetchOutcome(FetchResult.Fetched), "credential"));
         }
 
@@ -513,12 +670,12 @@ public class PayloadMoveTransferTests
             try
             {
                 await Task.Delay(Delay, cancellationToken);
-                if (!Has(payloadObject, credential, out var bytes))
+                if (Answer(payloadObject, credential, out var bytes) is var answer and not FetchResult.Fetched)
                 {
-                    return new FetchOutcome(FetchResult.NotFound);
+                    return new FetchOutcome(answer);
                 }
 
-                await destination.WriteAsync(bytes, cancellationToken);
+                await destination.WriteAsync(bytes!, cancellationToken);
                 int count;
                 lock (_lock)
                 {
@@ -550,7 +707,7 @@ public class PayloadMoveTransferTests
                 Checked.Add(payloadObject);
             }
 
-            return Task.FromResult(new FetchOutcome(Has(payloadObject, credential, out _) ? FetchResult.Fetched : FetchResult.NotFound));
+            return Task.FromResult(new FetchOutcome(Answer(payloadObject, credential, out _)));
         }
 
         // Under _lock
@@ -565,16 +722,25 @@ public class PayloadMoveTransferTests
             return true;
         }
 
-        private bool Has(PayloadObject payloadObject, string credential, [NotNullWhen(true)] out byte[]? bytes)
+        // As the source answers: a refusal before anything else, then whether its store has the object
+        private FetchResult Answer(PayloadObject payloadObject, string credential, out byte[]? bytes)
         {
             bytes = null;
-            return credential == "credential" && Objects.TryGetValue(payloadObject.SourcePath(Guid.Empty), out bytes);
+            bool refused;
+            lock (_lock)
+            {
+                refused = credential != "credential" || Refused.Contains(payloadObject);
+            }
+
+            return refused ? FetchResult.Refused
+                : Objects.TryGetValue(payloadObject.SourcePath(Guid.Empty), out bytes) ? FetchResult.Fetched
+                : FetchResult.NotFound;
         }
 
         public Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken)
         {
             CompleteCalls++;
-            return Task.FromResult(new FetchOutcome(credential == "credential" ? FetchResult.Fetched : FetchResult.NotFound));
+            return Task.FromResult(new FetchOutcome(credential == "credential" && !RefuseComplete ? FetchResult.Fetched : FetchResult.Refused));
         }
     }
 }

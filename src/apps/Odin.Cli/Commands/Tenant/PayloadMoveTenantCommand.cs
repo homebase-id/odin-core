@@ -25,13 +25,18 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
         [CommandOption("--retry")]
         public bool Retry { get; set; }
 
-        [Description("Give up the objects the source does not have, so the move completes and the source copy can be " +
-                     "deleted (on the target). Only when every failure is \"the source does not have it\"; the " +
-                     "transfer asks the source for each once more first. Gives data up: confirm on the source first.")]
-        [CommandOption("--accept-missing")]
-        public bool AcceptMissing { get; set; }
+        [Description("List the objects the source does not have (on the target), each as its key in the source's " +
+                     "payload store, to look for there before --accept-missing")]
+        [CommandOption("--list-missing")]
+        public bool ListMissing { get; set; }
 
-        public override ValidationResult Validate() => Retry && AcceptMissing
+        [Description("Give up the COUNT objects --list-missing shows, so the move completes and the source copy can be " +
+                     "deleted (on the target). Only when every failure is an object the source does not have; the " +
+                     "transfer asks the source for each once more first. Gives data up: check them on the source first.")]
+        [CommandOption("--accept-missing <COUNT>")]
+        public long? AcceptMissing { get; set; }
+
+        public override ValidationResult Validate() => Retry && AcceptMissing != null
             ? ValidationResult.Error("--retry and --accept-missing are separate steps; run one at a time")
             : base.Validate();
     }
@@ -61,9 +66,13 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
             AnsiConsole.MarkupLine("[green]Transfer re-armed from the newest file[/]");
         }
 
-        if (settings.AcceptMissing)
+        if (settings.AcceptMissing is { } count)
         {
-            await PostAsync("accept-missing");
+            await PostAsync($"accept-missing?count={count}");
+            AnsiConsole.MarkupLine($"[yellow]Giving up {count} object(s) the source does not have.[/] The target asks the " +
+                                   "source for each once more, then completes the move without them. Follow it below; " +
+                                   "it reads Complete once done.");
+            AnsiConsole.WriteLine();
         }
 
         var response = await httpClient.GetAsync(path);
@@ -75,19 +84,6 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
 
         var report = OdinSystemSerializer.Deserialize<PayloadMoveReport>(await response.Content.ReadAsStringAsync())
                      ?? new PayloadMoveReport();
-
-        if (settings.AcceptMissing && report.Target is { } accepted)
-        {
-            var objects = accepted.Progress.Missing;
-            AnsiConsole.MarkupLine($"[yellow]Giving up {objects.Count} object(s) the source does not have:[/]");
-            foreach (var o in objects)
-            {
-                AnsiConsole.WriteLine($"  {o}");
-            }
-            AnsiConsole.MarkupLine("The target asks the source for each once more, then completes the move without them. " +
-                                   "Follow it below; it reads Complete once done.");
-            AnsiConsole.WriteLine();
-        }
 
         var grid = new Grid();
         grid.AddColumn();
@@ -128,13 +124,16 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
             }
             else if (p.Status == PayloadMoveStatus.AcceptingMissing)
             {
-                Row("Accepting", new Text($"{p.MissingCount} missing object(s): checking them at the source once more"));
+                Row("Accepting", new Text(p.AcceptCheckedCount < p.Missing.Count
+                    ? $"{p.MissingCount} missing object(s): {p.AcceptCheckedCount} confirmed missing at the source so far"
+                    : $"{p.MissingCount} missing object(s), all confirmed: telling the source the move is complete"));
             }
             else if (p.Status == PayloadMoveStatus.CompleteWithFailures)
             {
                 Row("Missing", new Text(p.WhyMissingCannotBeAccepted is { } why
                     ? $"{p.MissingCount} at the source; cannot be accepted: {why}"
-                    : $"{p.MissingCount} at the source, and nothing else failed: --accept-missing gives them up"));
+                    : $"{p.MissingCount} at the source, and nothing else failed: check them with --list-missing, " +
+                      $"then --accept-missing {p.MissingCount} gives them up"));
             }
             if (p.BackoffSeconds > 0)
             {
@@ -154,6 +153,18 @@ public sealed class PayloadMoveTenantCommand : AsyncCommand<PayloadMoveTenantCom
             foreach (var failure in failures)
             {
                 AnsiConsole.WriteLine(failure);
+            }
+        }
+
+        if (settings.ListMissing && report.Target is { } listed)
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine($"[yellow]{listed.Missing.Count} object(s) the source does not have[/], " +
+                                   "each as its path in the source's payload store: on S3 after the source's S3Payload:RootPath " +
+                                   "(default payloads/), on disk under its payloads folder:");
+            foreach (var missing in listed.Missing)
+            {
+                AnsiConsole.WriteLine($"{missing.StoreKey}    ({missing.Object})");
             }
         }
 
