@@ -21,6 +21,7 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Registry;
 using Odin.Services.Util;
+using Odin.Core.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Update;
 
@@ -141,10 +142,9 @@ public abstract class FileSystemUpdateWriterBase
         }
     }
 
-    public virtual Task AddMetadata(Stream data)
+    public virtual async Task AddMetadata(Stream data)
     {
-        Package.Metadata = data.ToByteArray();
-        return Task.CompletedTask;
+        Package.Metadata = await BoundedRead.ReadAllBytesAsync(data);
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)

@@ -6,7 +6,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -16,7 +15,6 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
-using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -145,42 +143,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
             }
 
-            if (chunk != null)
-            {
-                var payloadSize =
-                    header.FileMetadata.Payloads
-                        .SingleOrDefault(p => p.KeyEquals(key))
-                        ?.BytesWritten
-                    ?? throw new OdinClientException("Invalid payload key");
-
-                var to = chunk.Length == int.MaxValue
-                    ? payloadSize - 1
-                    : chunk.Start + chunk.Length - 1;
-
-                // Sanity
-                if (to < chunk.Start)
-                {
-                    throw new OdinClientException(
-                        $"Invalid byte range: start={chunk.Start}, length={chunk.Length}");
-                }
-
-                if (to >= payloadSize)
-                {
-                    throw new RequestedRangeNotSatisfiableException(
-                        $"{to} >= {payloadSize}");
-                }
-
-                HttpContext.Response.Headers.Append(
-                    "Content-Range",
-                    new ContentRangeHeaderValue(chunk.Start, to, payloadSize).ToString()
-                );
-            }
-
             AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
 
-            var result = new FileStreamResult(payloadStream.Stream, payloadStream.ContentType);
-
-            return result;
+            return PayloadResult(payloadStream, payloadStream.ContentType);
         }
 
         /// <summary>
@@ -237,11 +202,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
             
             AddGuestApiCacheHeaderForFile(header.FileMetadata.Ttl, header.FileMetadata.Created);
 
-            var result = new FileStreamResult(thumbPayload, header.FileMetadata.IsEncrypted
+            return StoredStreamResult(thumbPayload, header.FileMetadata.IsEncrypted
                 ? "application/octet-stream"
                 : thumbHeader.ContentType);
-
-            return result;
         }
 
         protected async Task<SendReadReceiptResult> SendReadReceipt(SendReadReceiptRequest request)

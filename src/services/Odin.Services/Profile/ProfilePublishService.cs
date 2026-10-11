@@ -9,6 +9,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -397,9 +398,16 @@ public class ProfilePublishService(
 
         if (thumbnail != null)
         {
-            using (thumbStream)
+            await using (thumbStream)
             {
-                imageBytes = thumbStream.ToByteArray();
+                imageBytes = await BoundedRead.TryReadAllBytesAsync(thumbStream, thumbStream.Length, ThumbnailDescriptor.MaxThumbnailSize);
+                if (imageBytes == null)
+                {
+                    logger.LogError("Profile thumbnail is {Length} bytes, over {Max}; publishing the fallback image",
+                        thumbStream.Length, ThumbnailDescriptor.MaxThumbnailSize);
+                    await PublishFallbackProfileImageAsync(publishContext);
+                    return;
+                }
             }
 
             contentType = thumbnail.ContentType;
@@ -413,7 +421,15 @@ public class ProfilePublishService(
                 return;
             }
 
-            imageBytes = payloadStream.Stream.ToByteArray();
+            imageBytes = await payloadStream.TryReadAllBytesAsync(ProfileAttributeService.MaxPhotoContentBytes);
+            if (imageBytes == null)
+            {
+                logger.LogError("Profile photo is {Length} bytes, over {Max}, which the profile API refuses; publishing the fallback image",
+                    payloadStream.ContentLength, ProfileAttributeService.MaxPhotoContentBytes);
+                await PublishFallbackProfileImageAsync(publishContext);
+                return;
+            }
+
             contentType = payloadStream.ContentType;
         }
 

@@ -198,9 +198,7 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         public StorageBackendType Backend => StorageBackendType.S3;
         public Task<uint> WriteStreamAsync(string path, Stream stream, CancellationToken ct = default) => throw new NotImplementedException();
         public Task WriteBytesAsync(string path, byte[] bytes, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<byte[]> ReadAllBytesAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<byte[]> ReadBytesAsync(string path, long start, long length, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<Stream> OpenReadAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Stream> OpenReadAsync(string p, Int64 start = 0, Int64? length = null, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ExistsAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<long> LengthAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
