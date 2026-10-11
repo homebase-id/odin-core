@@ -938,8 +938,31 @@ public class PeerDriveQueryService(
         HandleThumbnailResponseAsync(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response,
             IOdinContext odinContext)
     {
+        // The response is ours until its body stream is handed back. On any other way out dispose it, or the
+        // connection stays checked out of the pool until the GC finds it.
+        try
+        {
+            return await ParseThumbnailResponseAsync(odinId, icr, response, odinContext);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
+    }
+
+    private async Task<(
+            EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
+            bool payloadIsEncrypted,
+            string decryptedContentType,
+            UnixTimeUtc? lastModified,
+            Stream thumbnail)>
+        ParseThumbnailResponseAsync(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response,
+            IOdinContext odinContext)
+    {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
+            response.Dispose();
             return (null, default, null, null, Stream.Null);
         }
 
@@ -977,11 +1000,35 @@ public class PeerDriveQueryService(
         HandlePayloadResponseAsync(
             OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
     {
+        // The response is ours until its body stream is handed back. On any other way out dispose it, or the
+        // connection stays checked out of the pool until the GC finds it.
+        try
+        {
+            return await ParsePayloadResponseAsync(odinId, icr, key, response, odinContext);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
+    }
+
+    private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
+        ParsePayloadResponseAsync(
+            OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
+    {
         var permissionContext = odinContext.PermissionsContext;
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
+            response.Dispose();
             return (null, default, null);
+        }
+
+        if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+        {
+            throw new OdinRangeNotSatisfiableException(response.ContentHeaders?.ContentRange?.Length,
+                $"The range is not satisfiable at [{odinId}]");
         }
 
         await HandleInvalidResponseAsync(odinId, response, odinContext);
@@ -1012,8 +1059,12 @@ public class PeerDriveQueryService(
         var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 
         var stream = await response.Content!.ReadAsStreamAsync();
+        var remoteRange = response.Content.Headers.ContentRange;
         var payloadStream = new PayloadStream(key, decryptedContentType, contentLength, lastModified.GetValueOrDefault(UnixTimeUtc.Now()),
-            stream);
+            stream)
+        {
+            ContentRange = remoteRange is { From: not null, To: not null } ? remoteRange : null
+        };
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
 

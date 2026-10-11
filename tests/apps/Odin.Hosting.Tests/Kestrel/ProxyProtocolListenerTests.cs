@@ -132,12 +132,6 @@ public class ProxyProtocolListenerTests
 
     // 3. A header from an untrusted peer is not honoured (the security test)
     [Test]
-    [Explicit("Port 8445 (listen entry 2) does not come up on CI for PR #1781 onwards; see #1783 " +
-              "and docs/flakytests.md. Entry 1 on 8444 DOES come up -- this test's own positive " +
-              "control passes -- and the host logs no bind error, so entry 2 is simply absent " +
-              "rather than losing a port race. Not reproducible locally: 15/15 in isolation and " +
-              "156/156 across the project in the CI Release configuration. Un-explicit once #1783 " +
-              "explains why the second listen entry is dropped in that environment.")]
     public async Task HeaderFromUntrustedPeer_IsRejected()
     {
         var header = V2Header(Forged, 40004, IPAddress.Loopback, UntrustedPort);
@@ -154,7 +148,20 @@ public class ProxyProtocolListenerTests
     // connection during the TLS handshake instead of serving it.
     private static async Task AssertListenerClosesTlsConnection(int port, byte[]? proxyHeader)
     {
-        await using var transport = await ConnectOrFail(port, proxyHeader);
+        Stream connected;
+        try
+        {
+            connected = await ConnectOrFail(port, proxyHeader);
+        }
+        catch (Exception e) when (IsReset(e))
+        {
+            // The listener accepted and dropped the connection before the connect reported back or the
+            // header went out: an untrusted peer is aborted on accept, before anything is read (#1783).
+            // A port nobody listens on refuses instead, so this is the rejection.
+            return;
+        }
+
+        await using var transport = connected;
         await using var ssl = new SslStream(transport, false, (_, _, _, _) => true);
         var ex = Assert.CatchAsync(async () =>
             await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions { TargetHost = "frodo.dotyou.cloud" }));
@@ -162,13 +169,17 @@ public class ProxyProtocolListenerTests
             $"expected the server to close the connection, got {ex?.GetType().Name}: {ex?.Message}");
     }
 
+    private static bool IsReset(Exception e) =>
+        e is SocketException { SocketErrorCode: SocketError.ConnectionReset } ||
+        e.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset };
+
     private static async Task<Stream> ConnectOrFail(int port, byte[]? proxyHeader)
     {
         try
         {
             return await ConnectAsync(port, proxyHeader);
         }
-        catch (SocketException e)
+        catch (SocketException e) when (!IsReset(e))
         {
             Assert.Fail($"listener on port {port} is not accepting connections ({e.SocketErrorCode}); a rejection cannot be asserted");
             throw;
@@ -285,7 +296,6 @@ public class ProxyProtocolListenerTests
     // The other half of the fix: a peer that said SOMETHING that was not a header is still a
     // misconfiguration worth seeing, and keeps its Warning.
     [Test]
-    [Explicit("flaky in CI - likely close-vs-read race; see #1734 and docs/flakytests.md")]
     public async Task ConnectionThatSendsGarbage_IsStillLoggedAtWarning()
     {
         var transport = await ConnectOrFail(TrustedPort, "GET / HTTP/1.1\r\n\r\n"u8.ToArray());
@@ -297,15 +307,28 @@ public class ProxyProtocolListenerTests
         Assert.That(BytesReceived(events[0]), Is.GreaterThan(0));
     }
 
+    // #1734: the read was cancelled when the peer hung up, before it returned the bytes already
+    // buffered, so most such peers were logged at Verbose as if they had said nothing (about 4 in 5
+    // of these, measured on the old middleware).
+    [Test]
+    public async Task ManyPeersThatSendGarbageAndHangUp_AreAllLoggedAtWarning()
+    {
+        const int peers = 50;
+        for (var i = 0; i < peers; i++)
+        {
+            var transport = await ConnectOrFail(TrustedPort, "GET / HTTP/1.1\r\n\r\n"u8.ToArray());
+            await transport.DisposeAsync();
+        }
+
+        var warnings = await WaitForProxyEventsAsync(LogEventLevel.Warning, atLeast: peers);
+        Assert.That(ProxyEvents(LogEventLevel.Verbose), Is.Empty,
+            $"{ProxyEvents(LogEventLevel.Verbose).Count} of {peers} peers that sent bytes were logged as silent");
+        Assert.That(warnings, Has.Count.EqualTo(peers));
+    }
+
     // ...and so does a header from a peer that is not trusted to send one. This is the message
     // that was being drowned out.
     [Test]
-    [Explicit("Port 8445 (listen entry 2) does not come up on CI for PR #1781 onwards; see #1783 " +
-              "and docs/flakytests.md. Entry 1 on 8444 DOES come up -- this test's own positive " +
-              "control passes -- and the host logs no bind error, so entry 2 is simply absent " +
-              "rather than losing a port race. Not reproducible locally: 15/15 in isolation and " +
-              "156/156 across the project in the CI Release configuration. Un-explicit once #1783 " +
-              "explains why the second listen entry is dropped in that environment.")]
     public async Task UntrustedPeer_IsStillLoggedAtWarning()
     {
         await AssertListenerClosesTlsConnection(UntrustedPort, V2Header(Forged, 40009, IPAddress.Loopback, UntrustedPort));
@@ -319,13 +342,13 @@ public class ProxyProtocolListenerTests
         .Where(e => e.MessageTemplate.Text.StartsWith("PROXY protocol:"))
         .ToList();
 
-    private async Task<List<LogEvent>> WaitForProxyEventsAsync(LogEventLevel level, TimeSpan? maxWait = null)
+    private async Task<List<LogEvent>> WaitForProxyEventsAsync(LogEventLevel level, TimeSpan? maxWait = null, int atLeast = 1)
     {
         var deadline = DateTime.UtcNow + (maxWait ?? TimeSpan.FromSeconds(10));
         while (true)
         {
             var events = ProxyEvents(level);
-            if (events.Count > 0 || DateTime.UtcNow > deadline)
+            if (events.Count >= atLeast || DateTime.UtcNow > deadline)
             {
                 return events;
             }

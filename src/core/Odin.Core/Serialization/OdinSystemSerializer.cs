@@ -119,6 +119,11 @@ public static class OdinSystemSerializer
         return await JsonSerializer.DeserializeAsync<T>(utf8Json, JsonSerializerOptions, cancellationToken);
     }
 
+    public static async Task<T> DeserializeOrThrow<T>(Stream utf8Json, CancellationToken cancellationToken = default)
+    {
+        return await Deserialize<T>(utf8Json, cancellationToken) ?? throw new OdinSystemException("Failed to deserialize data");
+    }
+
     public static T SlowDeepCloneObject<T>(T source)
     {
         var json = Serialize(source);

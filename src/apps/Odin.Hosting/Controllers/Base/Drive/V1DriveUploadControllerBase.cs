@@ -17,6 +17,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Drives.Management;
 using Odin.Services.Util;
+using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -106,8 +107,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 var section = await ReadNextMultipartSectionAsync(reader);
                 AssertIsPart(section, MultipartUploadParts.Instructions);
 
-                string json = await new StreamReader(section!.Body).ReadToEndAsync();
-                var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
+                var instructionSet = await BoundedRead.DeserializeAsync<FileUpdateInstructionSet>(section!.Body);
 
                 //v2 reads from the driveId and fileId params, so we overwrite it. this stops callers
                 //from being bound to the TargetDrive type
@@ -211,8 +211,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             try
             {
                 logger.LogDebug("ReceiveFileStream: StartUpload");
-                string json = await new StreamReader(section!.Body).ReadToEndAsync();
-                var instructionSet = OdinSystemSerializer.Deserialize<UploadInstructionSet>(json);
+                var instructionSet = await BoundedRead.DeserializeAsync<UploadInstructionSet>(section!.Body);
 
                 Guid driveId;
                 // v2 reads from driveId.  we will remove .Drive when we remove v1

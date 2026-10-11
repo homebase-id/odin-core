@@ -312,8 +312,9 @@ public class V2ConnectionNetworkController(
     /// Creates a circle owned by the calling app and returns its id.
     /// </summary>
     /// <remarks>
-    /// Apps only -- the owner creates circles through the circle definitions API.  The circle may grant only
-    /// drives the app owns and permission keys it holds, and is only ever granted explicitly
+    /// Apps only -- the owner creates circles through the circle definitions API.  The circle may grant only drive
+    /// access the app holds -- on a drive it does not own, only Read with the storage key -- and permission keys it
+    /// holds, and is only ever granted explicitly
     /// (<see cref="CircleMembershipService.CreateAppCircleAsync"/>).
     /// </remarks>
     [HttpPost("circles/create")]

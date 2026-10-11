@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
+using Odin.Services.Configuration;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.JobManagement;
 
 #nullable enable
@@ -39,12 +42,20 @@ public class PayloadMoveTargetView
 
     /// <summary>The transfer's checkpoint, without its secrets.</summary>
     public PayloadMoveState Progress { get; set; } = new();
+
+    /// <summary><c>Progress.Missing</c>, each with its key in the source's payload store.</summary>
+    public List<MissingPayload> Missing { get; set; } = [];
 }
 
-public enum PayloadMoveRetryResult { Rearmed, NoMove, Running }
+public record MissingPayload(PayloadObject Object, string StoreKey);
+
+public enum PayloadMoveRearmResult { Rearmed, NoMove, Running, Refused }
+
+/// <summary>What a retry or accept-missing request did; <see cref="Reason"/> says why it was refused.</summary>
+public record PayloadMoveRearmOutcome(PayloadMoveRearmResult Result, string? Reason = null);
 
 /// <summary>The operator's view of payload moves: progress on either side, and re-arming the target's transfer.</summary>
-public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager, PayloadMoveSource source)
+public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager, PayloadMoveSource source, OdinConfiguration config)
 {
     public async Task<PayloadMoveReport?> GetAsync(string domain)
     {
@@ -76,7 +87,8 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
                     JobState = job.State,
                     NextRun = job.Record!.nextRun,
                     LastError = job.LastError,
-                    Progress = job.Data.Redacted()
+                    Progress = job.Data.Redacted(),
+                    Missing = WithStoreKeys(job.Data.Missing, registration.Id)
                 };
             }
         }
@@ -88,28 +100,16 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
     /// Runs the target's transfer again from the newest file. Cheap: whatever already arrived is skipped, and a
     /// redeemed credential is kept. For a move that finished with failures, or that stalled.
     /// </summary>
-    public async Task<PayloadMoveRetryResult> RetryAsync(string domain)
-    {
-        var registration = await registry.GetAsync(domain);
-        if (registration == null || await LoadJobAsync(registration.Id) is not { } job)
-        {
-            return PayloadMoveRetryResult.NoMove;
-        }
+    public Task<PayloadMoveRearmOutcome> RetryAsync(string domain) => RearmAsync(domain, state => state.RequestRetry());
 
-        using (job)
-        {
-            if (job.State is JobState.Running or JobState.Preflight)
-            {
-                // Its slice would save its own checkpoint over ours; ask again once it is between slices
-                return PayloadMoveRetryResult.Running;
-            }
-
-            job.Data.StartFrom(job.Data.StartRowId);
-
-            await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now);
-            return PayloadMoveRetryResult.Rearmed;
-        }
-    }
+    /// <summary>
+    /// Asks the target's transfer to give up the objects its source does not have, so the move can complete and
+    /// the source copy can be deleted (#1868). Only for a move that ended with nothing but those; its next run asks
+    /// the source for each once more and completes only if every one is still missing. <paramref name="listedCount"/>
+    /// is how many the operator listed and checked: it must be how many there are.
+    /// </summary>
+    public Task<PayloadMoveRearmOutcome> AcceptMissingAsync(string domain, long listedCount) =>
+        RearmAsync(domain, state => state.RequestAcceptMissing(listedCount));
 
     /// <summary>
     /// Whether this identity, moved here, must stay down until its carried queue items' payloads arrive
@@ -126,6 +126,51 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
         {
             return job.Data.HoldsResume;
         }
+    }
+
+    // Changes the target's transfer between its slices and runs it now; `change` returns why it cannot, or null
+    private async Task<PayloadMoveRearmOutcome> RearmAsync(string domain, Func<PayloadMoveState, string?> change)
+    {
+        var registration = await registry.GetAsync(domain);
+        if (registration == null || await LoadJobAsync(registration.Id) is not { } job)
+        {
+            return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.NoMove);
+        }
+
+        using (job)
+        {
+            if (job.State is JobState.Running or JobState.Preflight)
+            {
+                // Its slice would save its own checkpoint over ours; ask again once it is between slices
+                return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Running);
+            }
+
+            if (change(job.Data) is { } why)
+            {
+                return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Refused, why);
+            }
+
+            // Not over a slice that started, or saved, since we looked: one of the two checkpoints would be lost
+            if (await jobManager.RescheduleJobAsync(job.Id!.Value, registration.Id, job.SerializeJobData()!, DateTimeOffset.Now, job.Record))
+            {
+                return new PayloadMoveRearmOutcome(PayloadMoveRearmResult.Rearmed);
+            }
+
+            using var current = await LoadJobAsync(registration.Id);
+            return new PayloadMoveRearmOutcome(current == null ? PayloadMoveRearmResult.NoMove : PayloadMoveRearmResult.Running);
+        }
+    }
+
+    // Where each missing object would be in the source's store, as an operator looks for it there
+    private List<MissingPayload> WithStoreKeys(List<PayloadObject> missing, Guid identityId)
+    {
+        if (missing.Count == 0)
+        {
+            return [];
+        }
+
+        var paths = new TenantPathManager(config, identityId);
+        return missing.Select(o => new MissingPayload(o, o.StoreKey(paths, identityId))).ToList();
     }
 
     private async Task<PayloadMoveJob?> LoadJobAsync(Guid identityId)

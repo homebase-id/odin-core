@@ -42,7 +42,7 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
 
         }
         
-        return await svc.GetPayload(driveId, fileId, key, chunk.Start, chunk.Length , fileSystemType);
+        return await svc.GetPayload(driveId, fileId, key, chunk.Start, chunk.Length ?? 0, fileSystemType);
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(Guid driveId, Guid fileId, string payloadKey, int width, int height,

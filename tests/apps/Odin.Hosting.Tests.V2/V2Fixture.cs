@@ -305,6 +305,20 @@ public abstract class V2Fixture
     }
 
     /// <summary>
+    /// The tenant's on-disk layout, for tests that check what a request left in storage
+    /// </summary>
+    protected Odin.Services.Drives.FileSystem.Base.TenantPathManager TenantPaths(OwnerSession owner) =>
+        Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
+
+    /// <summary>
+    /// Files under <paramref name="directory"/> and its subdirectories; none when it does not exist
+    /// </summary>
+    protected static string[] FilesUnder(string directory, string pattern = "*") =>
+        System.IO.Directory.Exists(directory)
+            ? System.IO.Directory.GetFiles(directory, pattern, System.IO.SearchOption.AllDirectories)
+            : [];
+
+    /// <summary>
     /// An owner <see cref="IOdinContext"/> and the tenant scope it came from — what a test needs to call
     /// a service (a version-upgrade pass, say) directly rather than over HTTP.
     /// </summary>
