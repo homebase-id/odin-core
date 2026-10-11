@@ -45,8 +45,11 @@ public class QueryBatchCached : AbstractTableCaching
     /// <summary>
     /// A change-date query holds back rows with modified at or after now, and the cache is only cleared by writes, so an
     /// answer that held rows back must not be stored (#1905). Newest first those rows come first, so no answer is safe
-    /// to store. Oldest first QueryBatch reports them as more rows, so a short page with more rows is exactly an answer
-    /// that held rows back; this must follow QueryBatch's hasMoreRows.
+    /// to store. Oldest first QueryBatch reports a row about to become visible as more rows, so a short page with more
+    /// rows is exactly an answer that held such a row back; this must follow QueryBatch's hasMoreRows.
+    /// A row further ahead than QueryBatch.HeldBackComeBackMs is left out without more rows (#1923), so a short page that
+    /// left one out is stored, and keeps leaving it out after the clock passes it until the next write to the drive or
+    /// the TTL.
     /// </summary>
     private static bool IsChangeDate(QueryBatchSortField sortField) =>
         sortField is QueryBatchSortField.AnyChangeDate or QueryBatchSortField.OnlyModifiedDate;

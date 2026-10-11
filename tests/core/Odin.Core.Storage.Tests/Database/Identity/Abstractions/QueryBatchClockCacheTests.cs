@@ -146,6 +146,68 @@ public class QueryBatchClockCacheTests : IocTestBase
         Assert.That(Ids(second.Records), Is.EqualTo(new[] { a }), "an answer that held nothing back must still be cached");
     }
 
+    /// <summary>
+    /// #1923: what a client does with an oldest-first change feed -- feed each answer's cursor back while it says
+    /// there are more rows. A row held back for an instant must come through and end the loop.
+    /// </summary>
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, false)]
+#endif
+#if RUN_REDIS_TESTS
+    [TestCase(DatabaseType.Sqlite, true)]
+#endif
+    public async Task AClientLoopGetsARowHeldBackForAnInstantAndStops(DatabaseType databaseType, bool redisEnabled)
+    {
+        await RegisterServicesAsync(databaseType, redisEnabled: redisEnabled);
+        await using var scope = Services.BeginLifetimeScope();
+        var queryBatchCached = scope.Resolve<QueryBatchCached>();
+        var driveId = Guid.NewGuid();
+
+        var a = await AddAsync(scope, driveId);
+        await Task.Delay(5);
+        var b = await AddAsync(scope, driveId);
+        await MoveModifiedIntoTheFutureAsync(scope, driveId, b);
+
+        var (seen, queries, moreRows) = await SyncUntilCaughtUpAsync(queryBatchCached, driveId, TimeSpan.FromSeconds(5));
+
+        Assert.That(seen, Is.EqualTo(new[] { a, b }), $"rows seen after {queries} queries");
+        Assert.That(moreRows, Is.False, $"the feed must end once b is through; still more rows after {queries} queries");
+    }
+
+    /// <summary>
+    /// #1923: a row whose modified is far ahead of the database's now stays held back until the clock gets there.
+    /// Telling the client to come back for it turns every sync into a tight loop of empty pages for that whole time.
+    /// </summary>
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, false)]
+#endif
+#if RUN_REDIS_TESTS
+    [TestCase(DatabaseType.Sqlite, true)]
+#endif
+    public async Task AClientLoopEndsWhenARowIsFarAheadOfNow(DatabaseType databaseType, bool redisEnabled)
+    {
+        await RegisterServicesAsync(databaseType, redisEnabled: redisEnabled);
+        await using var scope = Services.BeginLifetimeScope();
+        var queryBatchCached = scope.Resolve<QueryBatchCached>();
+        var driveId = Guid.NewGuid();
+
+        var a = await AddAsync(scope, driveId);
+        await Task.Delay(5);
+        var b = await AddAsync(scope, driveId);
+        var updated = await scope.Resolve<TableDriveMainIndex>().TestSetModifiedAsync(driveId, b,
+            new UnixTimeUtc(UnixTimeUtc.Now().milliseconds + (long)TimeSpan.FromHours(1).TotalMilliseconds));
+        Assert.That(updated, Is.EqualTo(1), "rows updated");
+
+        var (seen, queries, moreRows) = await SyncUntilCaughtUpAsync(queryBatchCached, driveId, TimeSpan.FromSeconds(3));
+
+        Assert.That(seen, Is.EqualTo(new[] { a }), $"rows seen after {queries} queries; b is not visible for an hour");
+        Assert.That(moreRows, Is.False, $"the feed must end rather than send the client back for b; still more rows after {queries} queries");
+    }
+
     //
     // Helpers
     //
@@ -176,6 +238,33 @@ public class QueryBatchClockCacheTests : IocTestBase
         {
             await Task.Delay(10);
         }
+    }
+
+    /// <summary>
+    /// Pages oldest first by change date, feeding each answer's cursor back, until the answer says there are no more
+    /// rows or the time runs out. Returns every row seen, the number of queries made and the last more-rows answer.
+    /// </summary>
+    private async Task<(List<Guid> seen, int queries, bool moreRows)> SyncUntilCaughtUpAsync(
+        QueryBatchCached queryBatchCached, Guid driveId, TimeSpan limit)
+    {
+        var seen = new List<Guid>();
+        var queries = 0;
+        QueryBatchCursor cursor = null;
+        var moreRows = true;
+        var stopAt = DateTime.UtcNow + limit;
+        while (moreRows && DateTime.UtcNow < stopAt)
+        {
+            var page = await queryBatchCached.QueryBatchAsync(driveId, 10, cursor, QueryBatchSortOrder.OldestFirst,
+                QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: _allIntRange);
+            queries++;
+            seen.AddRange(Ids(page.Records));
+            moreRows = page.MoreRows;
+            cursor = new QueryBatchCursor(page.Cursor.ToJson()); // as a client would hand it back
+            if (moreRows)
+                await Task.Delay(50);
+        }
+
+        return (seen, queries, moreRows);
     }
 
     private static List<Guid> Ids(List<DriveMainIndexRecord> records) => records.Select(r => r.fileId).ToList();
