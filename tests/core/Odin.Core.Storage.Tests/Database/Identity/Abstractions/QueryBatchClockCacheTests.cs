@@ -23,7 +23,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions;
 /// </summary>
 public class QueryBatchClockCacheTests : IocTestBase
 {
-    private const int FutureMs = 300;
+    // Inside the window in which QueryBatch holds rows back and reports more rows
+    private const long FutureMs = QueryBatch.HoldBackWindowMs * 3 / 10;
     private readonly IntRange _allIntRange = new(start: 0, end: 1000);
 
     [Test]
@@ -199,7 +200,7 @@ public class QueryBatchClockCacheTests : IocTestBase
         await Task.Delay(5);
         var b = await AddAsync(scope, driveId);
         var updated = await scope.Resolve<TableDriveMainIndex>().TestSetModifiedAsync(driveId, b,
-            new UnixTimeUtc(UnixTimeUtc.Now().milliseconds + (long)TimeSpan.FromHours(1).TotalMilliseconds));
+            new UnixTimeUtc(UnixTimeUtc.Now().milliseconds + QueryBatch.HoldBackWindowMs + (long)TimeSpan.FromHours(1).TotalMilliseconds));
         Assert.That(updated, Is.EqualTo(1), "rows updated");
 
         var (seen, queries, moreRows) = await SyncUntilCaughtUpAsync(queryBatchCached, driveId, TimeSpan.FromSeconds(3));
