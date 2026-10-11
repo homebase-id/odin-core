@@ -77,6 +77,12 @@ namespace Odin.Services.DataSubscription
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDriveAsync(notification.File.DriveId);
+            if (drive == null)
+            {
+                // Deleted since the change was made; there is no feed left to route it to.
+                return;
+            }
+
             var isCollaborationChannel = drive.IsCollaborationDrive();
             
             if (await ShouldDistribute(notification, isCollaborationChannel))

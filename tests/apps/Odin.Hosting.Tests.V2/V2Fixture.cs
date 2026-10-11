@@ -59,10 +59,19 @@ public abstract class V2Fixture
     protected virtual IReadOnlyDictionary<string, string?> ConfigOverrides =>
         new Dictionary<string, string?>();
 
+    /// <summary>
+    /// Root-container registrations this fixture needs, applied after production's so they win.
+    /// For standing in for a service that would reach outside the process; see
+    /// <see cref="OdinHost.StartAsync"/>.
+    /// </summary>
+    protected virtual void ConfigureRootContainer(ContainerBuilder cb)
+    {
+    }
+
     [OneTimeSetUp]
     public async Task V2FixtureSetUp()
     {
-        Host = await OdinHost.StartAsync(HostIdentities, ConfigOverrides);
+        Host = await OdinHost.StartAsync(HostIdentities, ConfigOverrides, ConfigureRootContainer);
         if (ResetBetweenTests)
         {
             await Host.EnsureTenantsMaterializedAsync();
@@ -294,6 +303,20 @@ public abstract class V2Fixture
         var caller = await spec.Build(owner);
         return (caller, owner);
     }
+
+    /// <summary>
+    /// The tenant's on-disk layout, for tests that check what a request left in storage
+    /// </summary>
+    protected Odin.Services.Drives.FileSystem.Base.TenantPathManager TenantPaths(OwnerSession owner) =>
+        Host.GetTenantScope(owner.Identity.DomainName).Resolve<TenantContext>().TenantPathManager;
+
+    /// <summary>
+    /// Files under <paramref name="directory"/> and its subdirectories; none when it does not exist
+    /// </summary>
+    protected static string[] FilesUnder(string directory, string pattern = "*") =>
+        System.IO.Directory.Exists(directory)
+            ? System.IO.Directory.GetFiles(directory, pattern, System.IO.SearchOption.AllDirectories)
+            : [];
 
     /// <summary>
     /// An owner <see cref="IOdinContext"/> and the tenant scope it came from — what a test needs to call

@@ -58,6 +58,7 @@ The existing monthly security health email (`SecurityHealthCheckJob` → `OwnerS
   - `DsMismatch` — always: the domain is (or will be, once delegation is live) SERVFAIL for validating resolvers; the email names the stale DS records to remove/replace.
   - `DsMissing` — when the parent is signed: the chain is one user-actionable record away; the email carries the DS tuple and points at the Security-tab panel.
 - **Does not trigger or appear:** `Secure`, `Inherited` (managed domains — our responsibility), `ParentUnsigned` and third-party `ZoneUnsigned` (not actionable through us; nagging monthly about a registrar's missing DNSSEC support helps no one).
+- **Superseded 2026-10-07 (#1880):** `ParentUnsigned` and `ZoneUnsigned` now DO trigger the monthly email and the DNS tab dot, and render orange ("For your security and email deliverability, DNSSEC should be configured"): an unanchored zone weakens mail deliverability too, even when the fix lies with the registrar. `Inherited` stays quiet for the owner, but the enclosing zone is now graded (`EnclosingZoneStatus`) and an unanchored one is logged at Error - ours to fix.
 - Best-effort, same rule as the provisioning email: a DNSSEC lookup failure must never block or delay the health report, and must not by itself count as needs-attention.
 
 ## Changes — odin-js (owner-app)

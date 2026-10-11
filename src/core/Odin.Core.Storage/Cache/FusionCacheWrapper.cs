@@ -206,6 +206,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         TimeSpan duration,
         Func<TValue, long> entrySizeFactory,
         IEnumerable<string>? tags = null,
+        Func<TValue, bool>? storeIf = null,
         CancellationToken cancellationToken = default)
     {
         CacheTypeGuard<TValue>.EnsureValid();
@@ -220,6 +221,13 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
             {
                 var result = await factory(ct);
                 ctx.Options.Size = entrySizeFactory(result);
+                if (storeIf != null && !storeIf(result))
+                {
+                    // Return the value without storing it, and without telling other nodes of a write that did not happen
+                    ctx.Options.SkipMemoryCacheWrite = true;
+                    ctx.Options.SkipDistributedCacheWrite = true;
+                    ctx.Options.SkipBackplaneNotifications = true;
+                }
                 return result;
             },
             options,

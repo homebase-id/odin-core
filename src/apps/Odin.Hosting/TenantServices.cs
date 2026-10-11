@@ -247,6 +247,7 @@ public static class TenantServices
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
+        cb.RegisterType<ShardRotationGate>().SingleInstance();
         cb.RegisterType<ShamirReadinessCheckerService>().InstancePerLifetimeScope();
         
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
@@ -261,6 +262,9 @@ public static class TenantServices
         cb.RegisterType<OwnerSecurityHealthService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
+        cb.RegisterType<DriveDeletionService>().InstancePerLifetimeScope();
+        cb.RegisterType<DrivePurgeRegistry>().InstancePerLifetimeScope();
+        cb.RegisterType<AppUninstallService>().InstancePerLifetimeScope();
 
         // Upload: ALWAYS disk (uploads are never on S3).
         cb.Register(c => new UploadFileStore(new DiskFileStore(c.Resolve<FileReaderWriter>())))

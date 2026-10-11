@@ -407,7 +407,7 @@ namespace Odin.Core.Storage.Tests
             var shard5 = new ShamirSecretSharing.ShamirShard(ddisk5.Player.Index, dShard5);
 
             // Now we have the four (five) shards, we can use Shamir to reconstruct the secret
-            var reconstructed = ShamirSecretSharing.ReconstructShamirSecret([shard1, shard2, shard3, shard4]);
+            var reconstructed = ShamirSecretSharing.ReconstructShamirSecret([shard1, shard2, shard3, shard4], secret.Length);
 
             if (!reconstructed.SequenceEqual(secret))
                 Assert.Fail("Reconstruction with min shards failed.");
@@ -534,14 +534,14 @@ namespace Odin.Core.Storage.Tests
 
                 // Reconstruct with minimum shares (should succeed)
                 var reconShards = shards.Take(minShards).ToList();
-                var reconstructed = ShamirSecretSharing.ReconstructShamirSecret(reconShards);
+                var reconstructed = ShamirSecretSharing.ReconstructShamirSecret(reconShards, secret.Length);
 
                 if (!reconstructed.SequenceEqual(secret))
                     Assert.Fail("Reconstruction with min shards failed.");
 
                 // Optional: Reconstruct with fewer than min (should fail to match original)
                 var insufficientShares = shards.Take(minShards - 1).ToList();
-                var badReconstructed = ShamirSecretSharing.ReconstructShamirSecret(insufficientShares);
+                var badReconstructed = ShamirSecretSharing.ReconstructShamirSecret(insufficientShares, secret.Length);
 
                 if (badReconstructed.SequenceEqual(secret))
                     Assert.Fail("Reconstruction with insufficient shards unexpectedly succeeded.");

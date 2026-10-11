@@ -216,9 +216,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
         /// Gives every circle the tree names its owning app, enrolment and designation.
         /// </summary>
         /// <remarks>
-        /// In practice this is the five that exist before the upgrade: Emergency Location Access, and
-        /// Friends, Family, Work and Acquaintances, which the owner console's setup wizard created
-        /// client-side.  The rest do not exist yet and are created by provisioning, already owned.  The
+        /// In practice this is the circles that exist before the upgrade: Emergency Location Access, and
+        /// Friends, which the owner console's setup wizard created client-side.  The wizard also created
+        /// Family, Work and Acquaintances; they have since left the tree, so this leaves them unowned.  The rest do not exist yet and are created by provisioning, already owned.  The
         /// two system circles are not in the tree and are left alone -- they belong to no app.
         /// </remarks>
         private async Task StampCirclesAsync(CancellationToken cancellationToken)

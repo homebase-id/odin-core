@@ -550,4 +550,25 @@ public class CircleDefinitionTests : V2Fixture
         // The deleted user circle is gone; only built-in circles remain.
         Assert.That(remainingDefinitionList.Any(c => c.Id == circleId), Is.False);
     }
+
+    /// <summary>
+    /// Even the owner console cannot delete a circle something else depends on: a system circle
+    /// carries every connection's base grants, and the app tree assumes its circles exist.
+    /// </summary>
+    [TestCase(true, OdinClientErrorCode.CannotDeleteSystemCircle, TestName = "OwnerFailsToDeleteSystemCircle")]
+    [TestCase(false, OdinClientErrorCode.CannotDeleteBuiltInCircle, TestName = "OwnerFailsToDeleteBuiltInCircle")]
+    public async Task OwnerFailsToDeleteProtectedCircle(bool systemCircle, OdinClientErrorCode expected)
+    {
+        var owner = await LoginAsOwner();
+        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
+        var circleId = systemCircle
+            ? SystemCircleConstants.ConfirmedConnectionsCircleId.Value
+            : BuiltinCircles.ChatCircle.Id.Value;
+
+        var response = await svc.DeleteCircleDefinition(circleId);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(expected));
+
+        Assert.That((await svc.GetCircleDefinition(circleId)).Content, Is.Not.Null);
+    }
 }

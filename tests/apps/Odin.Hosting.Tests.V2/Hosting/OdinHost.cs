@@ -98,9 +98,16 @@ public sealed partial class OdinHost : IAsyncDisposable
     /// parallel, which is the exact isolation this framework exists to provide. Note list
     /// settings bind by index — <c>"Email:TenantMail:MxNodes:0"</c>, not the <c>__0</c> env form.
     /// </param>
+    /// <param name="configureRootContainer">
+    /// Per-fixture root registrations, applied last so they win over production's. For a service
+    /// the test must stand in for (e.g. an outbound relay that would otherwise call a vendor API).
+    /// Tenant scopes see a root registration through parent fallback, so this only works for
+    /// services registered at the root, not per tenant.
+    /// </param>
     public static async Task<OdinHost> StartAsync(
         string[] identities,
-        IReadOnlyDictionary<string, string?>? extraConfig = null)
+        IReadOnlyDictionary<string, string?>? extraConfig = null,
+        Action<ContainerBuilder>? configureRootContainer = null)
     {
         if (identities.Length == 0)
         {
@@ -201,6 +208,8 @@ public sealed partial class OdinHost : IAsyncDisposable
                 cb.RegisterType<TestSync>()
                     .As<ITestSync>()
                     .InstancePerLifetimeScope();
+
+                configureRootContainer?.Invoke(cb);
             });
 
         var host = builder.Build();

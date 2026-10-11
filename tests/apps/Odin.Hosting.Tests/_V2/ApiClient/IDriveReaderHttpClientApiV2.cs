@@ -17,11 +17,11 @@ public interface IDriveReaderHttpClientApiV2
     Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("fileId:guid")] Guid fileId, FileSystemType fileSystemType);
 
-    [Get(Endpoint + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(Endpoint + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayload([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,
         [AliasAs("payloadKey")] string payloadKey,
-        [AliasAs("start:int")] int start,
-        [AliasAs("length:int")] int length,
+        [AliasAs("start:long")] Int64 start,
+        [AliasAs("length:long")] Int64 length,
         FileSystemType fileSystemType);
 
 

@@ -42,6 +42,21 @@ public class QueryBatchCached : AbstractTableCaching
         return _cacheKeys.GetDriveIdInvalidationTags(driveId);
     }
 
+    /// <summary>
+    /// A change-date query holds back rows with modified at or after now, and the cache is only cleared by writes, so an
+    /// answer that held rows back must not be stored (#1905). Newest first those rows come first, so no answer is safe
+    /// to store. Oldest first QueryBatch reports a row about to become visible as more rows, so a short page with more
+    /// rows is exactly an answer that held such a row back; this must follow QueryBatch's hasMoreRows.
+    /// A row further ahead than <see cref="QueryBatch.HoldBackWindowMs"/> is left out without more rows (#1923), so a short page that
+    /// left one out is stored, and keeps leaving it out after the clock passes it until the next write to the drive or
+    /// the TTL.
+    /// </summary>
+    private static bool IsChangeDate(QueryBatchSortField sortField) =>
+        sortField is QueryBatchSortField.AnyChangeDate or QueryBatchSortField.OnlyModifiedDate;
+
+    private static bool HeldNothingBack(int noOfItems, int recordCount, bool moreRows) =>
+        !moreRows || recordCount >= noOfItems;
+
 
     public async Task<QueryBatchCachedResult> QueryBatchAsync(
         Guid driveId,
@@ -120,12 +135,18 @@ public class QueryBatchCached : AbstractTableCaching
             return new QueryBatchCachedResult(records, moreRows, c);
         };
 
+        if (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst)
+        {
+            return await query();
+        }
+
         var result = await Cache.GetOrSetAsync(
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
             EntrySize.Large,
-            GetDriveIdInvalidationTags(driveId));
+            GetDriveIdInvalidationTags(driveId),
+            storeIf: IsChangeDate(sortField) ? r => HeldNothingBack(noOfItems, r.Records.Count, r.MoreRows) : null);
 
         return result;
     }
@@ -206,12 +227,18 @@ public class QueryBatchCached : AbstractTableCaching
             return new QueryBatchCachedResult(records, moreRows, c);
         };
 
+        if (IsChangeDate(sortField) && sortOrder != QueryBatchSortOrder.OldestFirst)
+        {
+            return await query();
+        }
+
         var result = await Cache.GetOrSetAsync(
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
             EntrySize.Large,
-            GetDriveIdInvalidationTags(driveId));
+            GetDriveIdInvalidationTags(driveId),
+            storeIf: IsChangeDate(sortField) ? r => HeldNothingBack(noOfItems, r.Records.Count, r.MoreRows) : null);
 
         return result;
     }
@@ -291,7 +318,8 @@ public class QueryBatchCached : AbstractTableCaching
             _ => query(),
             cacheTtl ?? DefaultTtl,
             EntrySize.Large,
-            GetDriveIdInvalidationTags(driveId));
+            GetDriveIdInvalidationTags(driveId),
+            storeIf: r => HeldNothingBack(noOfItems, r.Records.Count, r.MoreRows));
 
         return result;
     }

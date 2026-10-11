@@ -34,6 +34,7 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -188,8 +189,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var metadataSection = await reader.ReadNextSectionAsync();
             AssertIsPart(metadataSection, MultipartHostTransferParts.Metadata);
-            var json = await new StreamReader(metadataSection!.Body).ReadToEndAsync();
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+            var metadata = await BoundedRead.DeserializeAsync<FileMetadata>(metadataSection!.Body);
 
             _incomingTransferService = GetPerimeterService(_fileSystem);
             await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet,
@@ -286,8 +286,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private async Task<EncryptedRecipientTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
-            string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
+            var transferInstructionSet = await BoundedRead.DeserializeAsync<EncryptedRecipientTransferInstructionSet>(section.Body);
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
             OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(),
@@ -307,8 +306,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = TenantPathManager.GetBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
-            await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext);
+            await _incomingTransferService.AcceptPayload(payloadDescriptor, fileMetadata.IsEncrypted, fileSection.FileStream, WebOdinContext);
             return payloadDescriptor;
         }
 

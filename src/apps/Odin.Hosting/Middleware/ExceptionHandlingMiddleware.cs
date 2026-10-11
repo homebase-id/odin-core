@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
@@ -33,6 +34,12 @@ namespace Odin.Hosting.Middleware
             try
             {
                 await next(context);
+            }
+            catch (OdinRangeNotSatisfiableException e) // => HTTP 416
+            {
+                // Caught ahead of OdinClientException, which it derives from. Content-Range tells the client the size.
+                await HandleExceptionAsync(context, new RequestedRangeNotSatisfiableException(e.Message, inner: e),
+                    contentRange: e.Size == null ? null : new ContentRangeHeaderValue(e.Size.Value).ToString());
             }
             catch (OdinPayloadVersionGoneException e) // => HTTP 404
             {
@@ -73,7 +80,7 @@ namespace Odin.Hosting.Middleware
 
         //
 
-        private Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private Task HandleExceptionAsync(HttpContext context, Exception exception, string contentRange = null)
         {
             // We're not allowed to write anything back on a websocket CONNECT,
             // so for now just log whatever it is as an error.
@@ -155,22 +162,35 @@ namespace Odin.Hosting.Middleware
                 problemDetails.Extensions["stackTrace"] = exception.StackTrace;
             }
 
-            var result = OdinSystemSerializer.Serialize(problemDetails);
-
-            if (!context.Response.HasStarted)
+            if (context.Response.HasStarted)
             {
-                // Avoids error "Headers are read-only, response has already started."
-                context.Response.ContentType = "application/problem+json";
-                context.Response.StatusCode = problemDetails.Status.Value;
-                if (exception is OdinRetryLaterException retryLater)
-                {
-                    context.Response.Headers.RetryAfter =
-                        ((int)Math.Ceiling(retryLater.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
-                    // A temporary answer: a cache (the CDN in front of payloads) must not keep it
-                    context.Response.Headers.CacheControl = "no-store";
-                }
+                // Part of the body is already on the wire, e.g. a payload streaming from storage when the read
+                // fails. Appending problem+json would hand the client a corrupt body that looks complete;
+                // aborting makes the truncation visible to it instead.
+                context.Abort();
+                return Task.CompletedTask;
             }
 
+            var result = OdinSystemSerializer.Serialize(problemDetails);
+
+            // A payload endpoint sets these before streaming; a failure before the first byte must not send the
+            // problem body under the payload's length (Kestrel would reset the connection), range, or cache lifetime:
+            // an error is a temporary answer, so a cache (the CDN in front of payloads) must not keep it
+            context.Response.ContentLength = null;
+            context.Response.Headers.Remove("Content-Range");
+            context.Response.Headers.CacheControl = "no-store";
+            if (contentRange != null)
+            {
+                context.Response.Headers.ContentRange = contentRange;
+            }
+
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = problemDetails.Status.Value;
+            if (exception is OdinRetryLaterException retryLater)
+            {
+                context.Response.Headers.RetryAfter =
+                    ((int)Math.Ceiling(retryLater.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+            }
 
             return context.Response.WriteAsync(result);
         }

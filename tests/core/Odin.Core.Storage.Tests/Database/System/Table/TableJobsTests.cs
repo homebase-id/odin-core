@@ -403,6 +403,18 @@ public class TableJobsTests : IocTestBase
         // Updating a non-existing job returns 0.
         var noneUpdated = await jobs.UpdateAsync(Guid.NewGuid(), identity1, "data", newNextRun);
         Assert.That(noneUpdated, Is.EqualTo(0));
+
+        // Only if unchanged since read: not over a run that claimed the job, or saved, meanwhile (#1919)
+        var read = (await jobs.GetAsync(r1.id))!;
+        var running = (await jobs.GetAsync(r1.id))!;
+        running.state = (int)JobState.Running;
+        await jobs.UpdateAsync(running);
+        Assert.That(await jobs.UpdateAsync(r1.id, identity1, "stale job data", newNextRun, read), Is.EqualTo(0));
+        Assert.That((await jobs.GetAsync(r1.id))!.jobData, Is.EqualTo("new job data"));
+
+        var current = (await jobs.GetAsync(r1.id))!;
+        Assert.That(await jobs.UpdateAsync(r1.id, identity1, "current job data", newNextRun, current), Is.EqualTo(1));
+        Assert.That((await jobs.GetAsync(r1.id))!.jobData, Is.EqualTo("current job data"));
     }
 
     //

@@ -24,6 +24,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         public bool AllowCdn { get; set; }
 
+        /// <summary>
+        /// Every payload written to the drive must carry client-computed hashes
+        /// </summary>
+        public bool RequirePayloadHashes { get; set; }
+
         public bool OwnerOnly { get; set; }
         public bool IsArchived { get; set; }
 

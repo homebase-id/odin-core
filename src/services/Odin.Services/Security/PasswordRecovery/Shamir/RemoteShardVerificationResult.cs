@@ -19,6 +19,12 @@ public class ShardVerificationResult
     public bool IsValid { get; set; }
     public UnixTimeUtc Created { get; init; }
     public ShardTrustLevel TrustLevel { get; set; }
+
+    /// <summary>
+    /// False when the player is a delegate no longer connected to the dealer: it may still hold the
+    /// shard, but cannot deliver it during recovery (#1885). Always true for automated players.
+    /// </summary>
+    public bool IsConnected { get; set; } = true;
 }
 
 public class RemotePlayerReadinessResult

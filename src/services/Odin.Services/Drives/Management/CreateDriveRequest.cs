@@ -19,6 +19,11 @@ public class CreateDriveRequest
     /// </summary>
     public bool AllowCdn { get; set; }
 
+    /// <summary>
+    /// Every payload written to the drive must carry client-computed hashes (#1895)
+    /// </summary>
+    public bool RequirePayloadHashes { get; set; }
+
     public bool OwnerOnly { get; set; }
 
     /// <summary>

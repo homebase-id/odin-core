@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -56,20 +55,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
                 {
-                    var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file,
+                    await using var stream = await fs.Storage.OpenTempFileForReadingAsync(file,
                         MultipartHostTransferParts.Metadata.ToString().ToLower(), sourceArea, odinContext);
 
-                    if (bytes == null)
-                    {
-                        // this is bad error.
-                        logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", file.FileId,
-                            file.DriveId);
-                        throw new OdinFileWriteException("Missing temp file while processing inbox");
-                    }
-
-                    string json = bytes.ToStringFromUtf8Bytes();
-
-                    metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+                    metadata = await OdinSystemSerializer.Deserialize<FileMetadata>(stream);
 
                     if (null == metadata)
                     {

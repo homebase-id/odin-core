@@ -51,6 +51,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     AllowCdn = drive.IsCdnEnabled(),
+                    RequirePayloadHashes = drive.RequirePayloadHashes,
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,

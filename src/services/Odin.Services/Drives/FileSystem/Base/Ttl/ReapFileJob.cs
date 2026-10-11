@@ -58,6 +58,12 @@ public class ReapFileJob(
             scope.Resolve<IStickyHostname>().Hostname = $"{tenant}&";
 
             var drive = await scope.Resolve<IDriveManager>().GetDriveAsync(Data.DriveId);
+            if (drive == null)
+            {
+                // The drive was deleted, and the file with it.
+                return JobExecutionResult.Success();
+            }
+
             var odinContext = FileTtlJobContext.BuildSystemContext(tenant, drive.TargetDriveInfo);
             var fs = scope.Resolve<FileSystemResolver>().ResolveFileSystem(Data.FileSystemType);
             var file = new InternalDriveFileId { DriveId = Data.DriveId, FileId = Data.FileId };

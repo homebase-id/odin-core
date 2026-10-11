@@ -452,7 +452,7 @@ Recovery details:
 - Risk level: {risk.RiskLevel}
 
 {recoverableText}
-
+{RotationPendingText(info)}
 We recommend checking your recovery contacts and ensuring that all listed players are trusted and available.
 
 You can manage your Account Recovery here:
@@ -462,6 +462,45 @@ You can manage your Account Recovery here:
 Team Homebase
 ".Trim();
     }
+
+    /// <summary>
+    /// The shards could not be rotated after a password change, so the ones dealt before it still
+    /// work: automated players release theirs on request, delegates only while still connected
+    /// (#1885). Empty string otherwise.
+    /// </summary>
+    private static string RotationPendingText(RecoveryInfo info)
+    {
+        if (!info.RotationPending)
+        {
+            return "";
+        }
+
+        return $@"
+🔄 Your recovery shards were not refreshed after your password changed.
+{RotationPendingDetail(info)}
+";
+    }
+
+    private static string RotationPendingHtml(RecoveryInfo info)
+    {
+        if (!info.RotationPending)
+        {
+            return "";
+        }
+
+        return $@"
+    <p style='margin-bottom: 15px;'>
+        🔄 <strong>Your recovery shards were not refreshed after your password changed.</strong>
+        {RotationPendingDetail(info)}
+    </p>
+";
+    }
+
+    private static string RotationPendingDetail(RecoveryInfo info) =>
+        (info.UsesAutomaticRecovery
+            ? "The automated recovery shards from before the change can still recover your account."
+            : "Trusted connections you are still connected to can use the shards they held before the change to recover your account.") +
+        " Save your recovery setup again to issue new shards.";
 
     // Rendered only when the DNSSEC state is user-actionable (the caller passes null
     // otherwise): a stale DS that breaks resolution, or a signed parent one DS away
@@ -538,6 +577,19 @@ Validating DNS resolvers will refuse to resolve your domain! Remove or replace t
 record at your registrar (apex domain) or DNS host (subdomain). It should be:
 
 {Ds(dnssec.DsToPublish)}
+
+Review it here: https://{tenant}/owner/security/dns
+";
+        }
+
+        if (dnssec.Status is DnsHealthDnssecStatus.ParentUnsigned or DnsHealthDnssecStatus.ZoneUnsigned)
+        {
+            return @$"
+
+🔒 DNSSEC is not configured for {tenant}
+
+For your security and email deliverability, DNSSEC should be configured.
+{DnssecNotConfiguredReason(tenant, dnssec)}
 
 Review it here: https://{tenant}/owner/security/dns
 ";
@@ -637,7 +689,7 @@ Review it here: https://{tenant}/owner/security/dns
     <p style='margin-bottom: 15px;'>
         {recoverableText}
     </p>
-
+{RotationPendingHtml(info)}
     <p style='margin-top: 25px;'>
         We recommend reviewing your Account Recovery configuration and ensuring that all your trusted connections are active and secure.
     </p>
@@ -651,6 +703,13 @@ Review it here: https://{tenant}/owner/security/dns
     </p>
 ");
     }
+
+    // The two states with no DS to add yet: what is in the way, for the text and HTML mail alike
+    private static string DnssecNotConfiguredReason(OdinId tenant, DnssecHealthResult dnssec) =>
+        dnssec.Status == DnsHealthDnssecStatus.ZoneUnsigned
+            ? $"Your DNS host does not sign the zone of {tenant}. Using Homebase nameservers signs it for you."
+            : $"The zone of {tenant} is signed, but its parent zone is not, so the chain of trust cannot reach it. " +
+              "Turn on DNSSEC for the parent zone where it is hosted; the DS record to add there is on the DNS page.";
 
     // Rendered only when the DNSSEC state is user-actionable (the caller passes null otherwise)
     private static string DnssecAttentionHtml(OdinId tenant, DnssecHealthResult dnssec)
@@ -668,6 +727,20 @@ Review it here: https://{tenant}/owner/security/dns
                 $"<td style='padding: 4px 12px 4px 0;'>{ds.DigestType}</td>" +
                 $"<td style='padding: 4px 0; word-break: break-all;'><code>{ds.Digest}</code></td>" +
                 "</tr>"));
+
+        if (dnssec.Status is DnsHealthDnssecStatus.ParentUnsigned or DnsHealthDnssecStatus.ZoneUnsigned)
+        {
+            return @$"
+    <h3 style='margin-top: 25px; margin-bottom: 10px;'>🔒 DNSSEC is not configured for {tenant}</h3>
+
+    <p style='margin-bottom: 15px;'>For your security and email deliverability, DNSSEC should be configured.
+        {DnssecNotConfiguredReason(tenant, dnssec)}</p>
+
+    <p style='margin-bottom: 15px;'>
+        <a href='https://{tenant}/owner/security/dns' style='color: #0052cc; text-decoration: none; font-weight: 600;'>Review DNS &amp; DNSSEC status →</a>
+    </p>
+";
+        }
 
         var isMismatch = dnssec.Status == DnsHealthDnssecStatus.DsMismatch;
         var headline = isMismatch

@@ -46,6 +46,7 @@ public class DriveManager : IDriveManager
     private readonly TenantContext _tenantContext;
     private readonly TableDrivesCached _tableDrives;
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+    private readonly DrivePurgeRegistry _drivePurges;
 
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
@@ -56,7 +57,8 @@ public class DriveManager : IDriveManager
         IMediator mediator,
         TenantContext tenantContext,
         TableDrivesCached tableDrives,
-        ScopedIdentityConnectionFactory scopedConnectionFactory)
+        ScopedIdentityConnectionFactory scopedConnectionFactory,
+        DrivePurgeRegistry drivePurges)
     {
         _logger = logger;
         _driveCache = driveCache;
@@ -64,6 +66,7 @@ public class DriveManager : IDriveManager
         _tenantContext = tenantContext;
         _tableDrives = tableDrives;
         _scopedConnectionFactory = scopedConnectionFactory;
+        _drivePurges = drivePurges;
     }
 
     // The mediator handlers for DriveDefinitionAddedNotification mutate caches (e.g.
@@ -107,6 +110,14 @@ public class DriveManager : IDriveManager
         if (null != existingDriveByTargetDriveAsync)
         {
             throw new OdinClientException("Drive by alias and type already exists", OdinClientErrorCode.InvalidDrive);
+        }
+
+        // The purge deletes by drive id, so a drive re-created under the alias before it finishes would lose files.
+        // A drive's id is its alias, which is why the alias is the key here.
+        if (await _drivePurges.GetAsync(request.TargetDrive.Alias) is { Kind: DrivePurgeKind.Delete })
+        {
+            throw new OdinClientException("A drive with this alias is still being deleted; try again later",
+                OdinClientErrorCode.InvalidDrive);
         }
 
         // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
@@ -194,6 +205,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = request.AllowAnonymousReads,
             AllowSubscriptions = request.AllowSubscriptions,
             AllowCdn = request.AllowCdn,
+            RequirePayloadHashes = request.RequirePayloadHashes,
             OwnerOnly = request.OwnerOnly,
             Attributes = request.Attributes
         };
@@ -304,6 +316,32 @@ public class DriveManager : IDriveManager
         if (storageDrive.AllowSubscriptions != allowSubscriptions)
         {
             storageDrive.AllowSubscriptions = allowSubscriptions;
+
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext
+            });
+        }
+    }
+
+    public async Task SetDriveRequirePayloadHashesAsync(Guid driveId, bool requirePayloadHashes, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        //only change if needed
+        if (storageDrive.RequirePayloadHashes != requirePayloadHashes)
+        {
+            storageDrive.RequirePayloadHashes = requirePayloadHashes;
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
@@ -887,6 +925,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
             AllowCdn = storageDrive.AllowCdn,
+            RequirePayloadHashes = storageDrive.RequirePayloadHashes,
             Attributes = storageDrive.Attributes,
             IsArchived = storageDrive.IsArchived
         };
@@ -1000,6 +1039,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = driveDetails.AllowAnonymousReads,
             AllowSubscriptions = driveDetails.AllowSubscriptions,
             AllowCdn = driveDetails.AllowCdn,
+            RequirePayloadHashes = driveDetails.RequirePayloadHashes,
             Attributes = driveDetails.Attributes,
             IsArchived = driveDetails.IsArchived,
 

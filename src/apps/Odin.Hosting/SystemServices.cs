@@ -249,6 +249,7 @@ public static class SystemServices
         {
             services.AddSingleton<IMailRelayProvider, NullMailRelayProvider>();
         }
+        services.AddSingleton<IMailRelayFailureStore, MailRelayFailureStore>();
 
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(
             sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),

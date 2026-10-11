@@ -51,7 +51,7 @@ namespace Odin.Services.Membership.Circles
     public enum CircleDesignation
     {
         /// <summary>
-        /// Intimacy plus visibility: Friends, Family, Emergency Location Access.  The default, and what
+        /// Intimacy plus visibility: Friends, Emergency Location Access.  The default, and what
         /// user-created circles are.  Contact states derive from these.
         /// </summary>
         Personal = 1,
