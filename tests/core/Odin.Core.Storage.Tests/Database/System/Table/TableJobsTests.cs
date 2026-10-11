@@ -406,15 +406,14 @@ public class TableJobsTests : IocTestBase
 
         // Only if unchanged since read: not over a run that claimed the job, or saved, meanwhile (#1919)
         var read = (await jobs.GetAsync(r1.id))!;
-        var ifUnchanged = (read.state, read.modified.milliseconds);
-        read.state = (int)JobState.Running;
-        await jobs.UpdateAsync(read);
-        Assert.That(await jobs.UpdateAsync(r1.id, identity1, "stale job data", newNextRun, ifUnchanged), Is.EqualTo(0));
+        var running = (await jobs.GetAsync(r1.id))!;
+        running.state = (int)JobState.Running;
+        await jobs.UpdateAsync(running);
+        Assert.That(await jobs.UpdateAsync(r1.id, identity1, "stale job data", newNextRun, read), Is.EqualTo(0));
         Assert.That((await jobs.GetAsync(r1.id))!.jobData, Is.EqualTo("new job data"));
 
         var current = (await jobs.GetAsync(r1.id))!;
-        Assert.That(await jobs.UpdateAsync(r1.id, identity1, "current job data", newNextRun, (current.state, current.modified.milliseconds)),
-            Is.EqualTo(1));
+        Assert.That(await jobs.UpdateAsync(r1.id, identity1, "current job data", newNextRun, current), Is.EqualTo(1));
         Assert.That((await jobs.GetAsync(r1.id))!.jobData, Is.EqualTo("current job data"));
     }
 

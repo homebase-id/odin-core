@@ -102,7 +102,7 @@ public class PayloadMoveSource(SystemDatabase systemDatabase)
         state is { CompletedAt: null } && (state.RedeemedAt != null || state.HandoffExpiresAt >= UnixTimeUtc.Now());
 
     private static bool IsLive(SourceState? state, string? credential) =>
-        state is { CompletedAt: null, CredentialHash: not null } && Matches(state.CredentialHash, credential);
+        state is { CompletedAt: null } && Matches(state.CredentialHash, credential);
 
     /// <summary>Drops the identity's handoff state: it is deleted from this host.</summary>
     public Task ForgetAsync(Guid identityId)

@@ -624,8 +624,7 @@ public class JobManager(
     public async Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt,
         JobsRecord? ifUnchangedFrom = null)
     {
-        var result = await tableJobs.UpdateAsync(jobId, identityId, jobData, newRunAt.ToUnixTimeMilliseconds(),
-            ifUnchangedFrom == null ? null : (ifUnchangedFrom.state, ifUnchangedFrom.modified.milliseconds));
+        var result = await tableJobs.UpdateAsync(jobId, identityId, jobData, newRunAt.ToUnixTimeMilliseconds(), ifUnchangedFrom);
         return result > 0;
     }
 

@@ -121,14 +121,7 @@ public class AdminController : ControllerBase
     [HttpPost("tenants/{domain}/payload-move/retry")]
     public async Task<IActionResult> RetryPayloadMove(string domain)
     {
-        var outcome = await _payloadMoveAdmin.RetryAsync(domain);
-        return outcome.Result switch
-        {
-            PayloadMoveRearmResult.Rearmed => Ok(),
-            PayloadMoveRearmResult.Running => Conflict(),
-            PayloadMoveRearmResult.Refused => BadRequest(outcome.Reason),
-            _ => NotFound()
-        };
+        return Rearmed(await _payloadMoveAdmin.RetryAsync(domain));
     }
 
     //
@@ -142,15 +135,16 @@ public class AdminController : ControllerBase
     [HttpPost("tenants/{domain}/payload-move/accept-missing")]
     public async Task<IActionResult> AcceptMissingPayloads(string domain, [FromQuery] long count)
     {
-        var outcome = await _payloadMoveAdmin.AcceptMissingAsync(domain, count);
-        return outcome.Result switch
-        {
-            PayloadMoveRearmResult.Rearmed => Ok(),
-            PayloadMoveRearmResult.Running => Conflict(),
-            PayloadMoveRearmResult.Refused => BadRequest(outcome.Reason),
-            _ => NotFound()
-        };
+        return Rearmed(await _payloadMoveAdmin.AcceptMissingAsync(domain, count));
     }
+
+    private IActionResult Rearmed(PayloadMoveRearmOutcome outcome) => outcome.Result switch
+    {
+        PayloadMoveRearmResult.Rearmed => Ok(),
+        PayloadMoveRearmResult.Running => Conflict(),
+        PayloadMoveRearmResult.Refused => BadRequest(outcome.Reason),
+        _ => NotFound()
+    };
 
     //
 

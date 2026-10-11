@@ -445,8 +445,8 @@ public class PayloadMoveTransferTests
         Assert.That(state.Status, Is.EqualTo(PayloadMoveStatus.Complete));
 
         Assert.That(state.RequestRetry(), Does.Contain("nothing to retry"));
-        Assert.That((state.Status, state.MissingCount, state.AcceptedMissingAt), Is.EqualTo((PayloadMoveStatus.Complete, 2L,
-            state.AcceptedMissingAt)), "the record of what was given up stays");
+        Assert.That((state.Status, state.MissingCount), Is.EqualTo((PayloadMoveStatus.Complete, 2L)), "the record of what was given up stays");
+        Assert.That(state.AcceptedMissingAt, Is.Not.Null);
     }
 
     // An Outbox item's file is fetched in the queued phase and again by the walk

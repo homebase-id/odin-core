@@ -43,9 +43,11 @@ public class PayloadMoveTargetView
     /// <summary>The transfer's checkpoint, without its secrets.</summary>
     public PayloadMoveState Progress { get; set; } = new();
 
-    /// <summary>Each of <c>Progress.Missing</c>, in order, as its key in the source's payload store.</summary>
-    public List<string> MissingStoreKeys { get; set; } = [];
+    /// <summary><c>Progress.Missing</c>, each with its key in the source's payload store.</summary>
+    public List<MissingPayload> Missing { get; set; } = [];
 }
+
+public record MissingPayload(PayloadObject Object, string StoreKey);
 
 public enum PayloadMoveRearmResult { Rearmed, NoMove, Running, Refused }
 
@@ -86,7 +88,7 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
                     NextRun = job.Record!.nextRun,
                     LastError = job.LastError,
                     Progress = job.Data.Redacted(),
-                    MissingStoreKeys = MissingStoreKeys(job.Data.Missing, registration.Id)
+                    Missing = WithStoreKeys(job.Data.Missing, registration.Id)
                 };
             }
         }
@@ -160,7 +162,7 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
     }
 
     // Where each missing object would be in the source's store, as an operator looks for it there
-    private List<string> MissingStoreKeys(List<PayloadObject> missing, Guid identityId)
+    private List<MissingPayload> WithStoreKeys(List<PayloadObject> missing, Guid identityId)
     {
         if (missing.Count == 0)
         {
@@ -168,7 +170,7 @@ public class PayloadMoveAdmin(IIdentityRegistry registry, IJobManager jobManager
         }
 
         var paths = new TenantPathManager(config, identityId);
-        return missing.Select(o => o.StoreKey(paths, identityId)).ToList();
+        return missing.Select(o => new MissingPayload(o, o.StoreKey(paths, identityId))).ToList();
     }
 
     private async Task<PayloadMoveJob?> LoadJobAsync(Guid identityId)

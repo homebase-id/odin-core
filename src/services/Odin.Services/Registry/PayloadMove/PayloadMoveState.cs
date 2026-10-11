@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -124,7 +125,7 @@ public class PayloadMoveState
             TooManyMissing ? $"more than {MaxRecordedMissing} objects are missing at the source, and the transfer " +
                              "stopped: look into the source first"
             // Before #1868 a missing object was a failure like any other, with this text
-            : MissingCount == 0 && Failures.Any(f => f.EndsWith(MissingText)) ? "the transfer finished before " +
+            : MissingCount == 0 && Failures.Any(f => f.EndsWith(MissingText, StringComparison.Ordinal)) ? "the transfer finished before " +
                 "accept-missing existed and does not record which failures are missing objects: run --retry first"
             : FailureCount != MissingCount ? $"{FailureCount - MissingCount} failure(s) are not objects missing at the source"
             : null);
@@ -148,7 +149,6 @@ public class PayloadMoveState
         }
 
         Status = PayloadMoveStatus.AcceptingMissing;
-        AcceptCheckedCount = 0;
         BackoffSeconds = 0;
         return null;
     }

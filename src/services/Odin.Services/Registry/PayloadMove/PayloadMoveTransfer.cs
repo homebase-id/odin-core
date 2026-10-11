@@ -192,16 +192,12 @@ public sealed class PayloadMoveTransfer(
             return new SliceResult(SliceEnd.Finished);
         }
 
-        var outcome = await source.CompleteAsync(state.Credential!, cancellationToken);
-        if (outcome.Result != FetchResult.Fetched)
+        // Everything is here; if only the source has not heard, try again later
+        if (await CompleteAtSourceAsync(state, Backoff, cancellationToken) is { } wait)
         {
-            // Everything is here; only the source has not heard. Try again later.
-            logger.LogWarning("Payload move could not tell the source it is complete: {result} {error}", outcome.Result, outcome.Error);
-            return Backoff(state, outcome.RetryAfter);
+            return wait;
         }
 
-        state.Status = PayloadMoveStatus.Complete;
-        state.BackoffSeconds = 0;
         logger.LogInformation("Payload move complete: {objects} object(s), {bytes} bytes, {skipped} already here",
             state.Objects, state.Bytes, state.Skipped);
         return new SliceResult(SliceEnd.Finished);
@@ -248,11 +244,9 @@ public sealed class PayloadMoveTransfer(
             state.BackoffSeconds = 0;
         }
 
-        var completed = await source.CompleteAsync(state.Credential!, cancellationToken);
-        if (completed.Result != FetchResult.Fetched)
+        if (await CompleteAtSourceAsync(state, Wait, cancellationToken) is { } notHeard)
         {
-            logger.LogWarning("Payload move could not tell the source it is complete: {result} {error}", completed.Result, completed.Error);
-            return Wait(state, completed.RetryAfter);
+            return notHeard;
         }
 
         foreach (var payloadObject in state.Missing)
@@ -261,10 +255,24 @@ public sealed class PayloadMoveTransfer(
         }
 
         state.AcceptedMissingAt = UnixTimeUtc.Now();
-        state.Status = PayloadMoveStatus.Complete;
-        state.BackoffSeconds = 0;
         logger.LogInformation("Payload move complete without {count} object(s) the source did not have", state.MissingCount);
         return new SliceResult(SliceEnd.Finished);
+    }
+
+    // Tells the source the move is complete, which releases it, and marks it so; or how long to wait if it did not hear
+    private async Task<SliceResult?> CompleteAtSourceAsync(PayloadMoveState state,
+        Func<PayloadMoveState, TimeSpan?, SliceResult> wait, CancellationToken cancellationToken)
+    {
+        var outcome = await source.CompleteAsync(state.Credential!, cancellationToken);
+        if (outcome.Result != FetchResult.Fetched)
+        {
+            logger.LogWarning("Payload move could not tell the source it is complete: {result} {error}", outcome.Result, outcome.Error);
+            return wait(state, outcome.RetryAfter);
+        }
+
+        state.Status = PayloadMoveStatus.Complete;
+        state.BackoffSeconds = 0;
+        return null;
     }
 
     // Nothing is given up: the move stays as it ended, and says why

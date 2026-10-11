@@ -359,10 +359,10 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
     // Replaces a job's data and due time in place (same id, same identityId ownership check as
     // DeleteAsync above), resetting it to a fresh Scheduled state so it runs again regardless of
     // whatever state it was previously in (including a terminal Succeeded/Failed).
-    // With `ifUnchanged`, only if the row still has that state and modified time: a caller that changed the data
-    // it read does not write it over a run that started, or saved, since.
+    // With `ifUnchangedFrom`, the row as the caller read it: only if it still has that state and modified time,
+    // so a caller that changed the data it read does not write it over a run that started, or saved, since.
     public async Task<int> UpdateAsync(Guid id, Guid identityId, string jobData, long nextRun,
-        (int state, long modified)? ifUnchanged = null)
+        JobsRecord? ifUnchangedFrom = null)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -370,12 +370,12 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
             $"""
             UPDATE jobs
             SET jobData = @jobData, nextRun = @nextRun, state = @scheduled, runCount = 0, lastError = NULL, expiresAt = NULL, modified = @modified
-            WHERE id = @id AND identityId = @identityId{(ifUnchanged == null ? "" : " AND state = @state AND modified = @readModified")};
+            WHERE id = @id AND identityId = @identityId{(ifUnchangedFrom == null ? "" : " AND state = @state AND modified = @readModified")};
             """;
-        if (ifUnchanged is var (state, modified))
+        if (ifUnchangedFrom != null)
         {
-            cmd.AddParameter("@state", DbType.Int32, state);
-            cmd.AddParameter("@readModified", DbType.Int64, modified);
+            cmd.AddParameter("@state", DbType.Int32, ifUnchangedFrom.state);
+            cmd.AddParameter("@readModified", DbType.Int64, ifUnchangedFrom.modified.milliseconds);
         }
 
         cmd.AddParameter("@jobData", DbType.String, jobData);

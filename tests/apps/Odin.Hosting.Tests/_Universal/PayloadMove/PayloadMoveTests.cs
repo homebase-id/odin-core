@@ -103,15 +103,16 @@ public class PayloadMoveTests
         var token = await MintAsync();
         var credential = await RedeemAsync(token);
         var path = PayloadPath(file, payload);
+        var absentPath = path.Replace($"/{payload.Uid.uniqueTime}", "/12345");
 
         AssertRefused(await RedeemRawAsync(token), "a second redemption");
         AssertRefused(await SendAsync(HttpMethod.Get, path, "wrong"), "a wrong credential");
-        AssertRefused(await SendAsync(HttpMethod.Head, path.Replace($"/{payload.Uid.uniqueTime}", "/12345"), "wrong"),
+        AssertRefused(await SendAsync(HttpMethod.Head, absentPath, "wrong"),
             "a wrong credential, for an object that does not exist");
         AssertRefused(await SendAsync(HttpMethod.Get, path, null), "no credential");
         AssertRefused(await SendAsync(HttpMethod.Get, path.Replace(file.identityId.ToString(), IdOf(TestIdentities.Samwise).ToString()), credential),
             "another identity");
-        AssertAbsent(await SendAsync(HttpMethod.Get, path.Replace($"/{payload.Uid.uniqueTime}", "/12345"), credential),
+        AssertAbsent(await SendAsync(HttpMethod.Get, absentPath, credential),
             "an object that does not exist is not a refusal");
         AssertRefused(await SendAsync(HttpMethod.Get, path.Replace($"/{payload.Key}/", "/BAD..KEY/"), credential), "a malformed key");
         // The paused identity's own host answers 503 before any controller runs
@@ -120,7 +121,7 @@ public class PayloadMoveTests
 
         await SetStatusAsync(domain, Status.Active);
         AssertRefused(await SendAsync(HttpMethod.Get, path, credential), "an active identity is never served");
-        AssertRefused(await SendAsync(HttpMethod.Head, path.Replace($"/{payload.Uid.uniqueTime}", "/12345"), credential),
+        AssertRefused(await SendAsync(HttpMethod.Head, absentPath, credential),
             "nor told absent: a target would give it up");
     }
 
