@@ -39,6 +39,9 @@ public class HomebaseChannelContentService(
     private const int ChannelDefinitionFileType = 103;
     private const string PostFullTextPayloadKey = "pst_text";
 
+    // A post's JSON is parsed whole, and clients set no bound on it
+    private const Int64 MaxPostPayloadBytes = 1024 * 1024;
+
     public async Task<ChannelPost> GetPost(
         string channelKey,
         string postKey,
@@ -118,8 +121,14 @@ public class HomebaseChannelContentService(
         foreach (var sr in batch.SearchResults)
         {
             // logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
-            var post = await ParsePostFile(sr, targetDrive, odinContext, cancellationToken, includePayloadBody);
-            channelPosts.Add(post);
+            try
+            {
+                channelPosts.Add(await ParsePostFile(sr, targetDrive, odinContext, cancellationToken, includePayloadBody));
+            }
+            catch (OdinPayloadTooLargeException)
+            {
+                // Logged in ParsePostFile; one post over the cap must not take the whole listing down
+            }
         }
 
         return (channelPosts, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
@@ -304,21 +313,16 @@ public class HomebaseChannelContentService(
         CancellationToken cancellationToken,
         bool includePayloadBody = true)
     {
-        async Task<PostContent> LoadBodyFromPayload(InternalDriveFileId fileId)
+        async Task<PostContent> LoadPayload(InternalDriveFileId fileId, string key)
         {
-            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, PostFullTextPayloadKey, null, odinContext);
-            using var reader = new StreamReader(payloadStream.Stream);
-            var json = await reader.ReadToEndAsync(cancellationToken);
-            return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, key, null, odinContext);
+            payloadStream.AssertAtMost(MaxPostPayloadBytes);
+            return await OdinSystemSerializer.DeserializeOrThrow<PostContent>(payloadStream.Stream, cancellationToken);
         }
 
-        async Task<PostContent> LoadContentFromPayload(InternalDriveFileId fileId)
-        {
-            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-            using var reader = new StreamReader(payloadStream.Stream);
-            var json = await reader.ReadToEndAsync(cancellationToken);
-            return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
-        }
+        // Not a parse failure: a payload over MaxPostPayloadBytes
+        void LogTooLarge(OdinPayloadTooLargeException e) =>
+            logger.LogError("Post {FileId}: payload not loaded, it is over the cap: {Message}", postFile.FileId, e.Message);
 
         var fileId = new InternalDriveFileId()
         {
@@ -340,13 +344,13 @@ public class HomebaseChannelContentService(
                     DefaultPayloadKey,
                     postFile.FileMetadata.AppData.Content);
 
-                content = await LoadContentFromPayload(fileId);
+                content = await LoadPayload(fileId, DefaultPayloadKey);
             }
             else
             {
                 if (includePayloadBody && payloads.Any(p => p.KeyEquals(PostFullTextPayloadKey)))
                 {
-                    var bodyFromPayload = await LoadBodyFromPayload(fileId);
+                    var bodyFromPayload = await LoadPayload(fileId, PostFullTextPayloadKey);
                     content.Body = bodyFromPayload.Body;
                 }
             }
@@ -355,6 +359,15 @@ public class HomebaseChannelContentService(
         {
             // Client disconnected (or the request timed out) mid-read; not a failure, don't try to recover.
             throw;
+        }
+        catch (OdinPayloadTooLargeException e)
+        {
+            // Whatever the header holds is served; with nothing, the caller is told why, so a listing can skip just this post
+            LogTooLarge(e);
+            if (content == null)
+            {
+                throw;
+            }
         }
         catch (Exception e)
         {
@@ -365,7 +378,18 @@ public class HomebaseChannelContentService(
             {
                 // if there is a default payload, then all content is there;
                 // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
-                content = await LoadContentFromPayload(fileId);
+                try
+                {
+                    content = await LoadPayload(fileId, DefaultPayloadKey);
+                }
+                catch (OdinPayloadTooLargeException tooLarge)
+                {
+                    LogTooLarge(tooLarge);
+                    if (content == null)
+                    {
+                        throw;
+                    }
+                }
             }
         }
 

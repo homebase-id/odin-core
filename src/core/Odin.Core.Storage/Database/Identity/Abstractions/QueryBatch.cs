@@ -38,6 +38,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         TableDriveMainIndex driveMainIndex)
     {
         private static readonly string SelectOutputFields;
+
+        // How far ahead of now an oldest-first change-date query still reads a row, to hold it back and report more
+        // rows; anything further ahead is left out as if it did not exist yet. Same-millisecond writes and the +1 of
+        // modified = MAX(modified + 1, now) on rapid updates stay well inside it.
+        internal const long HoldBackWindowMs = 1000;
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
 
         static QueryBatch()
@@ -183,7 +188,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// </param>
         /// <returns>A tuple containing the list of <c>DriveMainIndexRecord</c>, a boolean indicating if more rows are available, and the updated <c>QueryBatchCursor</c>.
         /// For <c>AnyChangeDate</c> / <c>OnlyModifiedDate</c> oldest first, more rows is also true when rows were held back because their modified
-        /// is at or after now, so the page may be short or empty with more rows to come.</returns>
+        /// is at or after now and within <see cref="HoldBackWindowMs"/> of it, so the page may be short or empty with more rows to come.</returns>
         /// <example>
         /// To fetch 10 records sorted by their latest change (newest first) before March 15, 2023, from a drive with a specific security group:
         /// <code>
@@ -294,10 +299,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 //          thread1: QueryBatch(AnyChangeDate) with the cursor above (7,2). Will NOT return the rec1 because it has (7,1).
                 //          Therefore, if QB() doesn't include results from the current ms this is not a problem.
                 //
-                // Oldest first, these rows sort last and are held back after the read instead (see below)
+                // Oldest first, these rows sort last and are held back after the read instead (see below). Rows further
+                // ahead than HoldBackWindowMs are not read at all, as before #1906 (#1923)
                 if (sortOrder == QueryBatchSortOrder.OldestFirst)
                 {
                     trimAtNow = true;
+                    listWhereAnd.Add($"modified < {cmd.SqlNow()} + {HoldBackWindowMs}");
                 }
                 else
                 {
@@ -385,7 +392,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             // Oldest first, rows at or after now come last: hold them back, and report more rows so the client asks
             // again rather than thinking it is caught up (#1905). A full page cannot change with time, since anything
-            // written later sorts after it.
+            // written later sorts after it. Only rows about to become visible get here (see the WHERE above): a row
+            // with modified far ahead, which production has had, would otherwise send every client into a tight loop
+            // of empty pages until the clock got there (#1923).
             var visibleCount = resultList.Count;
             while (trimAtNow && visibleCount > 0 && resultList[visibleCount - 1].modified.milliseconds >= queryNow)
                 visibleCount--;

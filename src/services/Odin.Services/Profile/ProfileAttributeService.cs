@@ -76,7 +76,7 @@ public class ProfileAttributeService(
     /// the main payload has no size check downstream, and Kestrel's request body size limit is unbounded
     /// (<c>Program.cs</c> sets <c>MaxRequestBodySize = null</c>).
     /// </summary>
-    private const int MaxPhotoContentBytes = 2 * 1024 * 1024;
+    internal const int MaxPhotoContentBytes = 2 * 1024 * 1024;
 
     /// <summary>
     /// Max size (UTF-8 bytes) of the attribute JSON carried inline in the file header. Mirrors odin-js
@@ -153,11 +153,7 @@ public class ProfileAttributeService(
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "Photo content is required");
-        if (request.Content.Length > MaxPhotoContentBytes)
-        {
-            throw new OdinClientException($"Photo content exceeds the {MaxPhotoContentBytes} byte limit",
-                OdinClientErrorCode.MaxContentLengthExceeded);
-        }
+        OdinValidationUtils.AssertMaxByteLength(request.Content, MaxPhotoContentBytes, "Photo content");
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "Photo content type is required");
         foreach (var thumbnail in request.Thumbnails ?? [])
         {
