@@ -11,6 +11,7 @@ using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Contacts;
 using Odin.Services.Drives;
@@ -25,8 +26,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Circles;
 /// </summary>
 /// <remarks>
 /// Peer permission contexts are cached by token for up to an hour.  Before the cache was reset on a single add,
-/// a bulk add or a revoke, a member removed from a circle kept reading what it shared for that long, and one
-/// added after a recent call did not see the circle.
+/// a bulk add, a revoke or a completed queued enrollment, a member removed from a circle kept reading what it
+/// shared for that long, and one added after a recent call did not see the circle.
 /// </remarks>
 [TestFixture]
 public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
@@ -64,14 +65,49 @@ public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
             "added to the circle, Sam must see what it shares on his very next call");
     }
 
-    /// <summary>Frodo and a reviewed Sam, a circle granting ProfileDrive Read, and a card shared only with it.</summary>
-    private async Task<(OwnerSession Frodo, OwnerSession Sam, Guid CircleId, int FileType, Guid UniqueId)> ArrangeAsync()
+    [Test]
+    public async Task APendingEnrollment_CompletedLater_TakesEffectOnTheMembersNextCall()
+    {
+        // The circle belongs to an app, as a queued enrollment's circle does: it is another app's circle a
+        // reviewing client could not grant.
+        var (frodo, sam, circleId, fileType, uniqueId) = await ArrangeAsync(appOwned: true);
+
+        // A review from an app that cannot source ProfileDrive's key queues the enrollment instead of making it.
+        var reviewerDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(reviewerDrive, $"reviewerDrive-{Guid.NewGuid():N}", allowAnonymousReads: false);
+        var reviewer = await AppSession.SetupAsync(frodo, reviewerDrive, DrivePermission.Read,
+            permissionKeys: [PermissionKeys.ManageCircleMembership]);
+        var review = await new V2ConnectionNetworkClient(reviewer.Identity, reviewer.Factory)
+            .MarkReviewedAsync(sam.Identity, [circleId]);
+        Assert.That(review.IsSuccessStatusCode, Is.True, $"arrange: review failed: {review.StatusCode}");
+
+        // Sam calls while the enrollment is still queued, so his context is cached without the circle.
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.False, "precondition: only queued so far");
+
+        var process = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).ProcessPendingEnrollmentsAsync();
+        Assert.That(process.IsSuccessStatusCode, Is.True, $"process failed: {process.StatusCode}");
+        Assert.That(process.Content!.EnrollmentsCompleted, Is.EqualTo(1), "precondition: the queued enrollment completes");
+
+        Assert.That(await SamSeesItAsync(sam, frodo, fileType, uniqueId), Is.True,
+            "once his queued enrollment completes, Sam must see what the circle shares on his very next call");
+    }
+
+    /// <summary>
+    /// Frodo and a reviewed Sam, a circle granting ProfileDrive Read (owned by an app when
+    /// <paramref name="appOwned"/>), and a card shared only with it.
+    /// </summary>
+    private async Task<(OwnerSession Frodo, OwnerSession Sam, Guid CircleId, int FileType, Guid UniqueId)> ArrangeAsync(
+        bool appOwned = false)
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
         await PeerFlow.ConnectAsync(frodo, sam);
         var review = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).MarkReviewedAsync(sam.Identity);
         Assert.That(review.IsSuccessStatusCode, Is.True, $"arrange: review failed: {review.StatusCode}");
+
+        Guid? owningAppId = appOwned
+            ? (await AppSession.SetupAsync(frodo, WellKnownAppDrives.ProfileDrive, DrivePermission.Read)).AppId
+            : null;
 
         var circleId = Guid.NewGuid();
         await frodo.Admin.CreateCircle(circleId, "close friends", new PermissionSetGrantRequest
@@ -83,7 +119,7 @@ public class CircleMembershipTakesEffectImmediatelyTests : V2Fixture
                     PermissionedDrive = new PermissionedDrive { Drive = WellKnownAppDrives.ProfileDrive, Permission = DrivePermission.Read }
                 }
             ]
-        });
+        }, appId: owningAppId);
 
         var attribute = await new V2ProfileClient(frodo.Identity, frodo.Factory).SetAttributeAsync(new SetProfileAttributeRequest
         {

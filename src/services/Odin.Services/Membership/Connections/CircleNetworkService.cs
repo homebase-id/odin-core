@@ -2594,6 +2594,13 @@ namespace Odin.Services.Membership.Connections
                 }
             } while (!string.IsNullOrEmpty(cursor));
 
+            // As on any add: a contact whose permission context is cached would otherwise not see the circle --
+            // nor convert a deposit made here at their next call -- until that context expires.  Once per pass.
+            if (enrollmentsCompleted > 0)
+            {
+                await odinContextCache.ResetAsync();
+            }
+
             return (connectionsProcessed, enrollmentsCompleted);
         }
 
