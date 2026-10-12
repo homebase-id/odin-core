@@ -120,7 +120,9 @@ public sealed class YouAuthUnifiedService(
         ClientAccessToken? token;
         if (clientType == ClientType.app)
         {
-            Guid appId = Guid.Parse(clientId);
+            var appReg = await GetAppRegistrationByClientIdAsync(clientId, odinContext)
+                         ?? throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
+            Guid appId = appReg.AppId;
 
             OdinValidationUtils.AssertIsTrue(appId != Guid.Empty, "AppId is invalid");
             OdinValidationUtils.AssertNotNullOrEmpty(clientInfo, nameof(clientInfo));
@@ -204,12 +206,7 @@ public sealed class YouAuthUnifiedService(
 
     public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext)
     {
-        if (!Guid.TryParse(clientIdOrDomain, out var appId))
-        {
-            throw new OdinClientException("App id must be a uuid", OdinClientErrorCode.ArgumentError);
-        }
-
-        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext);
+        var appReg = await GetAppRegistrationByClientIdAsync(clientIdOrDomain, odinContext);
         if (appReg == null)
         {
             return true;
@@ -221,6 +218,19 @@ public sealed class YouAuthUnifiedService(
         }
 
         return false;
+    }
+
+    //
+
+    /// <summary>
+    /// The app an app client_id names on this identity: its app id or, so that a second device can sign in
+    /// without knowing a per-identity id, its slug (#1902). Null when no registered app has it.
+    /// </summary>
+    private async Task<RedactedAppRegistration?> GetAppRegistrationByClientIdAsync(string clientId, IOdinContext odinContext)
+    {
+        return Guid.TryParse(clientId, out var appId)
+            ? await appRegistrationService.GetAppRegistration(appId, odinContext)
+            : await appRegistrationService.GetAppRegistrationBySlugAsync(clientId, odinContext);
     }
 
     //
