@@ -827,15 +827,27 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await longTermStorageManager.HeaderFileExists(drive, file.FileId, GetFileSystemType());
         }
 
+        /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
+        /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
+        /// conditional on the tag read here, which closes the gap between this check and the write.</param>
         public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete)
+            WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
+            AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
             return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+        }
+
+        public static void AssertVersionTagMatches(ServerFileHeader header, Guid? expectedVersionTag)
+        {
+            if (expectedVersionTag.HasValue && header?.FileMetadata.VersionTag != expectedVersionTag)
+            {
+                throw new OdinClientException($"Mismatching version tag {expectedVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+            }
         }
 
         public async Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
