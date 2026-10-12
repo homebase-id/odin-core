@@ -175,11 +175,13 @@ public class ProfileAttributeService(
 
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageProfile);
 
+        var circleIds = await AssertValidCircleIdsAsync(request.CircleIds, request.Visibility);
+
         var writeContext = GetWriteContext(odinContext);
 
         return await ExecuteWriteAsync(request.Id, request.ExpectedVersionTag, BuiltInProfileAttributes.Photo, writeContext,
-            id => WriteNewPhotoAsync(id, request, writeContext),
-            (existing, id) => OverwritePhotoAsync(existing, id, request, writeContext));
+            id => WriteNewPhotoAsync(id, request, circleIds, writeContext),
+            (existing, id) => OverwritePhotoAsync(existing, id, request, circleIds, writeContext));
     }
 
     /// <summary>
@@ -235,7 +237,8 @@ public class ProfileAttributeService(
         };
     }
 
-    private async Task<Guid> WriteNewPhotoAsync(Guid attributeId, SetPhotoAttributeRequest request, IOdinContext writeContext)
+    private async Task<Guid> WriteNewPhotoAsync(Guid attributeId, SetPhotoAttributeRequest request,
+        List<Guid> circleIds, IOdinContext writeContext)
     {
         var file = await fileSystem.Storage.CreateInternalFileId(DriveId, writeContext);
         var encrypt = Encrypts(request.Visibility);
@@ -248,7 +251,7 @@ public class ProfileAttributeService(
                 encrypt, request.PreviewThumbnail, versionTag: null);
             var serverMetadata = new ServerMetadata
             {
-                AccessControlList = AclFor(request.Visibility),
+                AccessControlList = AclFor(request.Visibility, circleIds),
                 AllowDistribution = false
             };
 
@@ -268,7 +271,7 @@ public class ProfileAttributeService(
     }
 
     private async Task<Guid> OverwritePhotoAsync(ServerFileHeader existing, Guid attributeId,
-        SetPhotoAttributeRequest request, IOdinContext writeContext)
+        SetPhotoAttributeRequest request, List<Guid> circleIds, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
         var encrypt = Encrypts(request.Visibility);
@@ -284,7 +287,7 @@ public class ProfileAttributeService(
                 encrypt, request.PreviewThumbnail, versionTag: existing.FileMetadata.VersionTag.GetValueOrDefault());
             var serverMetadata = new ServerMetadata
             {
-                AccessControlList = AclFor(request.Visibility),
+                AccessControlList = AclFor(request.Visibility, circleIds),
                 AllowDistribution = false
             };
 

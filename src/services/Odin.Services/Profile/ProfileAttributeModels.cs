@@ -81,6 +81,13 @@ public sealed class SetPhotoAttributeRequest
     /// </summary>
     public ProfileAttributeVisibility Visibility { get; set; } = ProfileAttributeVisibility.Anonymous;
 
+    /// <summary>
+    /// Circles that may read this photo. Only valid with <see cref="ProfileAttributeVisibility.Connected"/>;
+    /// each id must be an existing circle. Empty or null keeps the plain Connected ACL. An edit replaces the
+    /// previous circle list.
+    /// </summary>
+    public List<Guid> CircleIds { get; set; }
+
     /// <summary>The expected current version tag; required when editing an existing attribute (optimistic concurrency).</summary>
     public Guid? ExpectedVersionTag { get; set; }
 
