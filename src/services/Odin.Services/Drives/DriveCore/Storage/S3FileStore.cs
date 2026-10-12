@@ -26,13 +26,13 @@ public class S3FileStore(
 
     //
 
-    public async Task<uint> WriteStreamAsync(string path, Stream stream, CancellationToken ct = default)
+    public async Task<Int64> WriteStreamAsync(string path, Stream stream, CancellationToken ct = default)
     {
         try
         {
             var written = await TryRetry(async () =>
                 await s3.WriteStreamAsync(path, stream, ct), ct);
-            return (uint)written;
+            return written;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

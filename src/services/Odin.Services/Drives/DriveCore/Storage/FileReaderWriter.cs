@@ -72,9 +72,9 @@ public sealed class FileReaderWriter(
 
     //
 
-    public async Task<uint> WriteStreamAsync(string filePath, Stream stream)
+    public async Task<Int64> WriteStreamAsync(string filePath, Stream stream)
     {
-        uint bytesWritten = 0;
+        Int64 bytesWritten = 0;
 
         try
         {
@@ -301,7 +301,7 @@ public sealed class FileReaderWriter(
 
     //
 
-    private async Task<uint> WriteStreamInternalAsync(string filePath, Stream stream)
+    private async Task<Int64> WriteStreamInternalAsync(string filePath, Stream stream)
     {
         var chunkSize = odinConfiguration.Host.FileWriteChunkSizeInBytes;
         var buffer = new byte[chunkSize];
@@ -314,7 +314,7 @@ public sealed class FileReaderWriter(
             await output.WriteAsync(buffer.AsMemory(0, bytesRead));
         } while (bytesRead > 0);
 
-        var bytesWritten = (uint)output.Length;
+        var bytesWritten = output.Length;
 
         return bytesWritten;
     }

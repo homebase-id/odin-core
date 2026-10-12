@@ -655,7 +655,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                                     logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk too large {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {len} thumb {thumb.BytesWritten}");
                                 }
 
-                                thumb.BytesWritten = (uint) len;
+                                thumb.BytesWritten = len;
                                 if (cleanup)
                                     driveRecordAdjustments = true;
                             }

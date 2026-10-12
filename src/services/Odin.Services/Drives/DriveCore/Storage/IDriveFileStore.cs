@@ -15,7 +15,7 @@ public interface IDriveFileStore
 {
     StorageBackendType Backend { get; }
 
-    Task<uint>   WriteStreamAsync(string path, Stream stream, CancellationToken ct = default);
+    Task<Int64>   WriteStreamAsync(string path, Stream stream, CancellationToken ct = default);
     Task         WriteBytesAsync(string path, byte[] bytes, CancellationToken ct = default);
 
     /// Opens the file, or <paramref name="length"/> bytes of it from <paramref name="start"/>, for reading without

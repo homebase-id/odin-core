@@ -400,7 +400,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream, IOdinContext odinContext)
+        public async Task<Int64> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -410,7 +410,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         // TODO:INBOX No production callers remain: the peer-transfer path streams to long-term and the feed path
         // now carries metadata on the inbox row. Only InboxStorageManagerTests still exercises it. Delete together
         // with the folder-based inbox.
-        public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream, IOdinContext odinContext)
+        public async Task<Int64> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -423,7 +423,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// that inbox processing has nothing to copy at commit time (see <see cref="StagingArea.LongTerm"/>).
         /// <paramref name="extension"/> is the staging-style payload/thumbnail extension.
         /// </summary>
-        public async Task<uint> WritePayloadDirectlyToLongTerm(InternalDriveFileId file, string extension, Stream stream,
+        public async Task<Int64> WritePayloadDirectlyToLongTerm(InternalDriveFileId file, string extension, Stream stream,
             IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
