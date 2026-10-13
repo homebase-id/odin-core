@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -276,6 +277,8 @@ public class SystemInitializeConfigTests : V2Fixture
 
         var newDrive = new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             Name = "test",
             AllowAnonymousReads = true,
             Metadata = "",
