@@ -20,6 +20,8 @@ public abstract class PayloadStreamWriterBase
 {
     private PayloadOnlyPackage _package;
 
+    private readonly DeferredPayloadHashes _payloadHashes = new();
+
     /// <summary />
     protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard)
     {
@@ -83,7 +85,7 @@ public abstract class PayloadStreamWriterBase
 
         try
         {
-            descriptor.Hash?.AssertStoredHashMatches(key, hashing);
+            _payloadHashes.Written(key, descriptor.PayloadUid, descriptor.Hash, hashing);
         }
         catch (OdinClientException) when (bytesWritten == 0)
         {
@@ -92,6 +94,14 @@ public abstract class PayloadStreamWriterBase
                 [new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid }], odinContext);
             throw;
         }
+    }
+
+    /// <summary>
+    /// A payloadHash part: the values of the payload's deferred hash, see <see cref="DeferredPayloadHashes"/>
+    /// </summary>
+    public virtual Task AddPayloadHash(string key, Stream data)
+    {
+        return _payloadHashes.ResolveAsync(key, data);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
@@ -154,6 +164,8 @@ public abstract class PayloadStreamWriterBase
     /// </summary>
     public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext)
     {
+        _payloadHashes.AssertNoneMissing();
+
         var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext);
 
         await this.ValidateUploadCore(serverHeader, odinContext);
@@ -181,7 +193,9 @@ public abstract class PayloadStreamWriterBase
     {
         if (_package?.UploadFile != null)
         {
+            // An empty payload is never added to the package, so a deferred one is cleaned up from the held hashes
             var uploadedPayloads = _package.GetFinalPayloadDescriptors();
+            uploadedPayloads.AddRange(_payloadHashes.Staged.Where(d => !uploadedPayloads.Any(u => u.KeyEquals(d.Key))));
             await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile, uploadedPayloads, odinContext);
         }
     }

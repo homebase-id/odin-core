@@ -110,6 +110,36 @@ public class PayloadHashPeerTests : V2Fixture
         DriveAsserts.AssertSameHash(received?.Hash, hashedPayload.Hash);
     }
 
+    [Test]
+    public async Task ADeferredHashArrivesWithItsRealValues()
+    {
+        var (frodo, sam, drive) = await ConnectAsync();
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = HashTrailer.AfterPayload;
+        var sent = await SendUnencrypted(frodo, sam, drive, payload);
+
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
+
+        await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.Delivered);
+        var received = await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key);
+        DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
+    }
+
+    [Test]
+    public async Task ADeferredEncryptedHashArrivesWithItsRealValues()
+    {
+        var (frodo, sam, drive) = await ConnectAsync();
+
+        var (sent, payload) = await SendEncrypted(frodo, sam, drive, HashTrailer.AfterPayload);
+
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
+
+        await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.Delivered);
+        var received = await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key);
+        DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
+    }
+
     //
     // Helpers
     //
@@ -142,7 +172,7 @@ public class PayloadHashPeerTests : V2Fixture
     /// encrypted with the file key under the derived IV
     /// </summary>
     private static async Task<(CreateFileResult sent, TestPayloadDefinition payload)> SendEncrypted(OwnerSession frodo,
-        OwnerSession sam, TargetDrive drive)
+        OwnerSession sam, TargetDrive drive, HashTrailer hashTrailer = HashTrailer.None)
     {
         var keyHeader = KeyHeader.NewRandom16();
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
@@ -150,6 +180,7 @@ public class PayloadHashPeerTests : V2Fixture
         var ciphertext = new KeyHeader { Iv = payload.Iv, AesKey = new SensitiveByteArray(keyHeader.AesKey.GetKey()) }
             .EncryptDataAes(payload.Content);
         payload.WithEncryptedHash(ciphertext, keyHeader.AesKey.GetKey(), ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = hashTrailer;
 
         var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "encrypted app content", AccessControlList.Connected);
         metadata.AllowDistribution = true;

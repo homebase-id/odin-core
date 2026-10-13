@@ -61,6 +61,8 @@ public abstract class FileSystemStreamWriterBase
     protected TenantQuotaGuard QuotaGuard { get; }
 
     public FileUploadPackage Package { get; private set; }
+
+    private readonly DeferredPayloadHashes _payloadHashes = new();
     
     public virtual async Task StartUpload(Guid driveId, UploadInstructionSet instructionSet, IOdinContext odinContext)
     {
@@ -135,7 +137,15 @@ public abstract class FileSystemStreamWriterBase
 
         // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
-        descriptor.Hash?.AssertStoredHashMatches(key, hashing);
+        _payloadHashes.Written(key, descriptor.PayloadUid, descriptor.Hash, hashing);
+    }
+
+    /// <summary>
+    /// A payloadHash part: the values of the payload's deferred hash, see <see cref="DeferredPayloadHashes"/>
+    /// </summary>
+    public virtual Task AddPayloadHash(string key, Stream data)
+    {
+        return _payloadHashes.ResolveAsync(key, data);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -204,6 +214,8 @@ public abstract class FileSystemStreamWriterBase
     {
         // [UploadTiming] Diagnostic: phase breakdown of the finalize step (metadata -> commit -> transit enqueue).
         var phaseSw = System.Diagnostics.Stopwatch.StartNew();
+
+        _payloadHashes.AssertNoneMissing();
 
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 

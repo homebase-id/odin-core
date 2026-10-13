@@ -1,9 +1,13 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
@@ -263,6 +267,152 @@ public class PayloadHashTests
 
         Assert.That(encrypted.Length, Is.EqualTo(PayloadHash.EncryptedContentHashLength));
         Assert.That(Convert.ToHexStringLower(encrypted), Is.EqualTo(encryptedHex));
+    }
+
+    //
+    // Deferred hash (#1935)
+    //
+
+    private static byte[] Sentinel(int length) => Enumerable.Repeat(PayloadHash.DeferredSentinel, length).ToArray();
+
+    private static PayloadHash DeferredHash(int contentHashLength = IncrementalContentHash.HashLength) => new()
+    {
+        Algorithm = ContentHashAlgorithm.Blake3,
+        StoredHash = Sentinel(IncrementalContentHash.HashLength),
+        ContentHash = Sentinel(contentHashLength)
+    };
+
+    [Test]
+    public void ASentinelInBothValuesIsDeferredAndWellFormed()
+    {
+        Assert.That(DeferredHash().IsDeferred(), Is.True);
+        Assert.That(DeferredHash(PayloadHash.EncryptedContentHashLength).IsDeferred(), Is.True);
+        Assert.DoesNotThrow(() => DeferredHash().AssertIsWellFormed("pk"));
+        Assert.That(UnencryptedHash().IsDeferred(), Is.False);
+    }
+
+    [Test]
+    public void ASentinelInOnlyOneValueIsInvalid()
+    {
+        var storedOnly = UnencryptedHash();
+        storedOnly.StoredHash = Sentinel(IncrementalContentHash.HashLength);
+        var contentOnly = EncryptedHash();
+        contentOnly.ContentHash = Sentinel(PayloadHash.EncryptedContentHashLength);
+
+        Assert.That(CodeOf(() => storedOnly.AssertIsWellFormed("pk")), Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+        Assert.That(CodeOf(() => contentOnly.AssertIsWellFormed("pk")), Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AnUnresolvedDeferredHashIsNeverValidForStorage(bool isEncrypted)
+    {
+        var hash = DeferredHash(isEncrypted ? PayloadHash.EncryptedContentHashLength : IncrementalContentHash.HashLength);
+
+        Assert.That(CodeOf(() => PayloadHash.AssertValid("pk", hash, isEncrypted)), Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+    }
+
+    [Test]
+    public void ResolveRejectsTheSentinelAndMalformedValues()
+    {
+        var real = UnencryptedHash();
+
+        Assert.That(CodeOf(() => DeferredHash().Resolve("pk", Sentinel(32), real.ContentHash)),
+            Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+        Assert.That(CodeOf(() => DeferredHash().Resolve("pk", real.StoredHash, Sentinel(32))),
+            Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+        Assert.That(CodeOf(() => DeferredHash().Resolve("pk", new byte[4], real.ContentHash)),
+            Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+        Assert.That(CodeOf(() => DeferredHash().Resolve("pk", real.StoredHash, null)),
+            Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+    }
+
+    private static HashingReadStream WrittenPayload(PayloadHash hash)
+    {
+        var stream = hash.Verifying("pk", new MemoryStream(Payload));
+        stream.CopyTo(Stream.Null);
+        return stream;
+    }
+
+    private static MemoryStream TrailerBody(PayloadHash values) => new(OdinSystemSerializer.Serialize(
+        new DeferredPayloadHashes.PayloadHashValues { StoredHash = values.StoredHash, ContentHash = values.ContentHash }).ToUtf8ByteArray());
+
+    [Test]
+    public async Task ADeferredHashIsResolvedInPlaceByItsPayloadHashPart()
+    {
+        var hashes = new DeferredPayloadHashes();
+        var hash = DeferredHash();
+        await using var written = WrittenPayload(hash);
+        hashes.Written("pk", UnixTimeUtcUnique.Now(), hash, written);
+
+        Assert.That(CodeOf(() => hashes.AssertNoneMissing()), Is.EqualTo(OdinClientErrorCode.PayloadHashMissing));
+
+        var real = UnencryptedHash();
+        await hashes.ResolveAsync("PK", TrailerBody(real));
+
+        Assert.That(hash.StoredHash, Is.EqualTo(real.StoredHash), "resolved on the instance the manifest and package share");
+        Assert.That(hash.ContentHash, Is.EqualTo(real.ContentHash));
+        Assert.DoesNotThrow(() => hashes.AssertNoneMissing());
+        Assert.DoesNotThrow(() => PayloadHash.AssertValid("pk", hash, isEncrypted: false));
+    }
+
+    [Test]
+    public async Task APayloadHashPartWithTheWrongValuesIsAMismatch()
+    {
+        var hashes = new DeferredPayloadHashes();
+        var hash = DeferredHash();
+        await using var written = WrittenPayload(hash);
+        hashes.Written("pk", UnixTimeUtcUnique.Now(), hash, written);
+
+        var wrong = IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, "other bytes"u8);
+        var ex = Assert.ThrowsAsync<OdinClientException>(() => hashes.ResolveAsync("pk",
+            TrailerBody(new PayloadHash { StoredHash = wrong, ContentHash = wrong })));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(OdinClientErrorCode.PayloadHashMismatch));
+    }
+
+    [Test]
+    public async Task APayloadHashPartMustFollowADeferredPayloadOnce()
+    {
+        var real = UnencryptedHash();
+        var hashes = new DeferredPayloadHashes();
+
+        // Before its payload, or for a payload that was never written
+        var early = Assert.ThrowsAsync<OdinClientException>(() => hashes.ResolveAsync("pk", TrailerBody(real)));
+        Assert.That(early!.ErrorCode, Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+
+        // For a payload whose hash was not deferred: it was verified when written
+        var notDeferred = UnencryptedHash();
+        await using (var written = WrittenPayload(notDeferred))
+        {
+            hashes.Written("plain", UnixTimeUtcUnique.Now(), notDeferred, written);
+        }
+
+        var extra = Assert.ThrowsAsync<OdinClientException>(() => hashes.ResolveAsync("plain", TrailerBody(real)));
+        Assert.That(extra!.ErrorCode, Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+
+        // Twice
+        var deferred = DeferredHash();
+        await using (var written = WrittenPayload(deferred))
+        {
+            hashes.Written("pk", UnixTimeUtcUnique.Now(), deferred, written);
+        }
+
+        await hashes.ResolveAsync("pk", TrailerBody(real));
+        var twice = Assert.ThrowsAsync<OdinClientException>(() => hashes.ResolveAsync("pk", TrailerBody(real)));
+        Assert.That(twice!.ErrorCode, Is.EqualTo(OdinClientErrorCode.InvalidPayloadHash));
+    }
+
+    [Test]
+    public void AHashThatIsNotDeferredIsStillVerifiedWhenWritten()
+    {
+        var hash = UnencryptedHash();
+        hash.StoredHash = IncrementalContentHash.Compute(ContentHashAlgorithm.Blake3, "other bytes"u8);
+        hash.ContentHash = (byte[])hash.StoredHash.Clone();
+        using var written = WrittenPayload(hash);
+
+        Assert.That(CodeOf(() => new DeferredPayloadHashes().Written("pk", UnixTimeUtcUnique.Now(), hash, written)),
+            Is.EqualTo(OdinClientErrorCode.PayloadHashMismatch));
     }
 
     //

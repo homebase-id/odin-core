@@ -152,11 +152,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
                 var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payload.Content);
 
-                parts.Add(new StreamPart(
-                    payloadCipher,
-                    payload.Key,
-                    payload.ContentType,
-                    Enum.GetName(MultipartUploadParts.Payload)));
+                payload.AddPayloadParts(parts, payloadCipher);
 
                 uploadedPayloads.Add(new EncryptedAttachmentUploadResult
                 {
@@ -251,8 +247,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
             foreach (var payloadDefinition in payloads)
             {
-                parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
-                    Enum.GetName(MultipartUploadParts.Payload)));
+                payloadDefinition.AddPayloadParts(parts, new MemoryStream(payloadDefinition.Content));
 
                 foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
                 {
@@ -353,11 +348,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         foreach (var payloadDefinition in payloads)
         {
-            parts.Add(new StreamPart(
-                new MemoryStream(payloadDefinition.Content),
-                payloadDefinition.Key,
-                payloadDefinition.ContentType,
-                Enum.GetName(MultipartUploadParts.Payload)));
+            payloadDefinition.AddPayloadParts(parts, new MemoryStream(payloadDefinition.Content));
 
             foreach (var thumbnail in payloadDefinition.Thumbnails ?? [])
             {

@@ -31,6 +31,13 @@ public class PayloadHash
     /// </summary>
     private const byte ContentHashIvMask = 0xAA;
 
+    /// <summary>
+    /// Every byte of both hashes in a deferred hash (#1935): the client knows the algorithm up front but sends the
+    /// values in a payloadHash part after the payload, see <see cref="DeferredPayloadHashes"/>. A real hash equals
+    /// it with probability 2^-256.
+    /// </summary>
+    public const byte DeferredSentinel = 0x11;
+
     public ContentHashAlgorithm Algorithm { get; set; }
 
     public byte[] StoredHash { get; set; }
@@ -57,6 +64,40 @@ public class PayloadHash
         {
             throw Invalid(payloadKey, "storedHash and contentHash must be set together");
         }
+
+        if (IsSentinel(StoredHash) != IsSentinel(ContentHash))
+        {
+            throw Invalid(payloadKey, "a deferred hash sends the sentinel for both storedHash and contentHash");
+        }
+    }
+
+    /// <summary>
+    /// The values follow the payload in a payloadHash part. A method, not a property, so it never reaches the header JSON.
+    /// </summary>
+    public bool IsDeferred()
+    {
+        return IsSentinel(StoredHash) && IsSentinel(ContentHash);
+    }
+
+    /// <summary>
+    /// Puts the values from a payloadHash part in place of the sentinels. This is the instance the manifest and the
+    /// package share, so neither keeps the sentinel.
+    /// </summary>
+    public void Resolve(string payloadKey, byte[] storedHash, byte[] contentHash)
+    {
+        if (IsSentinel(storedHash) || IsSentinel(contentHash))
+        {
+            throw Invalid(payloadKey, "a payloadHash part must carry the real storedHash and contentHash");
+        }
+
+        StoredHash = storedHash;
+        ContentHash = contentHash;
+        AssertIsWellFormed(payloadKey);
+    }
+
+    private static bool IsSentinel(byte[] value)
+    {
+        return value is { Length: > 0 } && value.All(b => b == DeferredSentinel);
     }
 
     private void AssertMatchesEncryption(string payloadKey, bool isEncrypted)
@@ -89,7 +130,11 @@ public class PayloadHash
 
     public void AssertStoredHashMatches(string payloadKey, HashingReadStream written)
     {
-        var actual = written.GetHash();
+        AssertStoredHashMatches(payloadKey, written.GetHash());
+    }
+
+    public void AssertStoredHashMatches(string payloadKey, byte[] actual)
+    {
         if (!actual.AsSpan().SequenceEqual(StoredHash))
         {
             throw new OdinClientException(
@@ -136,6 +181,13 @@ public class PayloadHash
         }
 
         hash.AssertIsWellFormed(payloadKey);
+        if (hash.IsDeferred())
+        {
+            // The one guard that keeps a sentinel out of a stored header. It also refuses one on a remote payload,
+            // which has no bytes here to follow, and one from a peer, whose sending server always has the values.
+            throw Invalid(payloadKey, "a deferred hash needs its payload in this request, followed by a payloadHash part");
+        }
+
         hash.AssertMatchesEncryption(payloadKey, isEncrypted);
     }
 
@@ -186,7 +238,7 @@ public class PayloadHash
         }
     }
 
-    private static OdinClientException Invalid(string payloadKey, string reason)
+    internal static OdinClientException Invalid(string payloadKey, string reason)
     {
         return new OdinClientException($"Payload {payloadKey}: invalid hash, {reason}", OdinClientErrorCode.InvalidPayloadHash);
     }

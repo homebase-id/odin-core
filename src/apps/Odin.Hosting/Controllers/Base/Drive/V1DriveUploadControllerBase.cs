@@ -180,6 +180,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                             WebOdinContext);
                     }
 
+                    if (IsPayloadHashPart(section, out var hashedPayloadKey))
+                    {
+                        await updateWriter.AddPayloadHash(hashedPayloadKey, section.Body);
+                    }
+
                     section = await ReadNextMultipartSectionAsync(reader);
                 }
 
@@ -265,6 +270,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                         WebOdinContext);
                 }
 
+                if (IsPayloadHashPart(section, out var hashedPayloadKey))
+                {
+                    await driveUploadService.AddPayloadHash(hashedPayloadKey, section.Body);
+                }
+
                 section = await ReadNextMultipartSectionAsync(reader);
             }
 
@@ -319,6 +329,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     {
                         AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
                         await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext);
+                    }
+
+                    if (IsPayloadHashPart(section, out var hashedPayloadKey))
+                    {
+                        await writer.AddPayloadHash(hashedPayloadKey, section.Body);
                     }
 
                     section = await ReadNextMultipartSectionAsync(reader);
@@ -404,6 +419,22 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             return part == MultipartUploadParts.Thumbnail;
+        }
+
+        /// <summary>
+        /// A payloadHash part, named for its payload by its file name like the payload part itself
+        /// </summary>
+        private protected bool IsPayloadHashPart(MultipartSection section, out string payloadKey)
+        {
+            payloadKey = null;
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
+                part != MultipartUploadParts.PayloadHash)
+            {
+                return false;
+            }
+
+            payloadKey = section.AsFileSection()?.FileName;
+            return true;
         }
 
         private protected void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection,

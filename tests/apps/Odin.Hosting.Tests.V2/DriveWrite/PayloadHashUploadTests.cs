@@ -24,7 +24,8 @@ namespace Odin.Hosting.Tests.V2.DriveWrite;
 /// <summary>
 /// Client-computed payload hashes on upload, update and add-payload (#1895, spec in docs/payload-hashes.md):
 /// the server verifies storedHash as the bytes stream in, stores the hash unchanged, rejects a mismatch or a
-/// malformed hash without leaving files behind, and enforces the drive's requirePayloadHashes setting.
+/// malformed hash without leaving files behind, and enforces the drive's requirePayloadHashes setting. A deferred hash
+/// (#1935) sends the sentinel in the manifest and the values in a payloadHash part after the payload.
 /// </summary>
 [TestFixture]
 public class PayloadHashUploadTests : V2Fixture
@@ -346,6 +347,202 @@ public class PayloadHashUploadTests : V2Fixture
 
         await owner.Admin.SetRequirePayloadHashes(spec.TargetDrive, false);
         await CreateUnencrypted(owner, spec.TargetDrive, SamplePayloadDefinitions.GetPayloadDefinition2());
+    }
+
+    //
+    // Deferred hash (#1935): the values follow the payload in a payloadHash part
+    //
+
+    [TestCase(ContentHashAlgorithm.Sha256)]
+    [TestCase(ContentHashAlgorithm.Blake3)]
+    public async Task ADeferredUnencryptedHashIsStoredWithItsRealValues(ContentHashAlgorithm algorithm)
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1().WithHash(algorithm);
+        payload.HashTrailer = HashTrailer.AfterPayload;
+        var result = await CreateUnencrypted(owner, spec.TargetDrive, payload);
+
+        var stored = await StoredDescriptor(owner, result, payload.Key);
+        DriveAsserts.AssertSameHash(stored.Hash, payload.Hash);
+    }
+
+    [Test]
+    public async Task ADeferredEncryptedHashIsStoredWithItsRealValues()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Secured());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var keyHeader = KeyHeader.NewRandom16();
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+        var ciphertext = new KeyHeader { Iv = payload.Iv, AesKey = new SensitiveByteArray(keyHeader.AesKey.GetKey()) }
+            .EncryptDataAes(payload.Content);
+        payload.WithEncryptedHash(ciphertext, keyHeader.AesKey.GetKey(), ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = HashTrailer.AfterPayload;
+
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "encrypted app content", AccessControlList.OwnerOnly);
+        var manifest = new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] };
+        Assert.That(manifest.PayloadDescriptors.Single().Hash.IsDeferred(), Is.True, "the manifest must carry the sentinel");
+        var (response, _, _, _) = await owner.Drives.Writer.CreateEncryptedFile(spec.TargetDrive.Alias, metadata,
+            transitOptions: null, manifest, [payload], keyHeader: keyHeader);
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"actual {response.StatusCode}: {response.Error?.Content}");
+
+        var stored = await StoredDescriptor(owner, response.Content!, payload.Key);
+        DriveAsserts.AssertSameHash(stored.Hash, payload.Hash);
+    }
+
+    [Test]
+    public async Task ADeferredHashThatDoesNotMatchIsRejectedAndLeavesNoFile()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = HashTrailer.AfterPayload;
+        payload.Content = "not the bytes that were hashed".ToUtf8ByteArray();
+
+        await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.PayloadHashMismatch);
+    }
+
+    [Test]
+    public async Task ADeferredHashWithoutItsPayloadHashPartIsRejectedAndLeavesNoFile()
+    {
+        // Also how a client aborts: it finds the source changed while sending, and ends the request without the part
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = HashTrailer.Missing;
+
+        await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.PayloadHashMissing);
+    }
+
+    [TestCase(HashTrailer.BeforePayload)]
+    [TestCase(HashTrailer.Twice)]
+    [TestCase(HashTrailer.NotDeferred)]
+    public async Task AMisplacedPayloadHashPartIsRejectedAndLeavesNoFile(HashTrailer trailer)
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = trailer;
+
+        await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.InvalidPayloadHash);
+    }
+
+    [Test]
+    public async Task AHalfDeferredHashIsRejected()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.Hash.StoredHash = Enumerable.Repeat(PayloadHash.DeferredSentinel, 32).ToArray();
+
+        await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.InvalidPayloadHash);
+    }
+
+    [Test]
+    public async Task UpdateWithADeferredHashStoresTheRealValuesOrIsRejectedWithoutThem()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        var file = (await owner.Drives.Writer.UploadNewMetadata(spec.TargetDrive.Alias, metadata)).Content!;
+
+        var missing = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        missing.HashTrailer = HashTrailer.Missing;
+        metadata.VersionTag = file.NewVersionTag;
+        var rejected = await owner.Drives.Writer.UpdateFileByFileId(file.DriveId, file.FileId,
+            UpdateInstructions(missing.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)), metadata, [missing]);
+        AssertRejected(rejected, OdinClientErrorCode.PayloadHashMissing);
+        AssertNoStagedFiles(owner, spec.TargetDrive);
+
+        var deferred = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Sha256);
+        deferred.HashTrailer = HashTrailer.AfterPayload;
+        var update = await owner.Drives.Writer.UpdateFileByFileId(file.DriveId, file.FileId,
+            UpdateInstructions(deferred.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)), metadata, [deferred]);
+        Assert.That(update.IsSuccessStatusCode, Is.True, $"actual {update.StatusCode}: {update.Error?.Content}");
+
+        var payloads = (await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId)).Content!.FileMetadata.Payloads;
+        DriveAsserts.AssertSameHash(payloads.Single(p => p.Key == deferred.Key).Hash, deferred.Hash);
+    }
+
+    [Test]
+    public async Task AddPayloadWithADeferredHashStoresTheRealValuesOrIsRejectedWithoutThem()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var drive = owner.V1.Drive;
+
+        var file = (await drive.UploadNewMetadata(spec.TargetDrive, SampleMetadataData.Create(fileType: 100))).Content!;
+
+        var missing = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        missing.HashTrailer = HashTrailer.Missing;
+        var rejected = await drive.UploadPayloads(file.File, file.NewVersionTag,
+            new UploadManifest { PayloadDescriptors = [missing.ToPayloadDescriptor()] }, [missing]);
+        AssertRejected(rejected, OdinClientErrorCode.PayloadHashMissing);
+        AssertNoStagedFiles(owner, spec.TargetDrive);
+
+        var deferred = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        deferred.HashTrailer = HashTrailer.AfterPayload;
+        var accepted = await drive.UploadPayloads(file.File, file.NewVersionTag,
+            new UploadManifest { PayloadDescriptors = [deferred.ToPayloadDescriptor()] }, [deferred]);
+        Assert.That(accepted.IsSuccessStatusCode, Is.True, $"actual {accepted.StatusCode}: {accepted.Error?.Content}");
+
+        var header = (await drive.GetFileHeader(file.File)).Content!;
+        DriveAsserts.AssertSameHash(header.FileMetadata.Payloads.Single(p => p.Key == deferred.Key).Hash, deferred.Hash);
+    }
+
+    [TestCase(HashTrailer.AfterPayload, OdinClientErrorCode.PayloadHashMismatch)]
+    [TestCase(HashTrailer.Missing, OdinClientErrorCode.PayloadHashMissing)]
+    public async Task AddPayloadCleansUpAnEmptyPayloadWhoseDeferredHashFails(HashTrailer trailer, OdinClientErrorCode expected)
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        var drive = owner.V1.Drive;
+
+        var file = (await drive.UploadNewMetadata(spec.TargetDrive, SampleMetadataData.Create(fileType: 100))).Content!;
+
+        // An empty payload is never added to the package, so its staged file needs its own cleanup
+        var empty = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Sha256);
+        empty.HashTrailer = trailer;
+        empty.Content = [];
+        var rejected = await drive.UploadPayloads(file.File, file.NewVersionTag,
+            new UploadManifest { PayloadDescriptors = [empty.ToPayloadDescriptor()] }, [empty]);
+
+        AssertRejected(rejected, expected);
+        AssertNoStagedFiles(owner, spec.TargetDrive);
+    }
+
+    [Test]
+    public async Task ARemotePayloadCannotDeferItsHash()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = HashTrailer.Missing;
+
+        AssertRejected(await UploadRemote(owner, spec.TargetDrive, payload), OdinClientErrorCode.InvalidPayloadHash);
+    }
+
+    [Test]
+    public async Task ADriveThatRequiresHashesAcceptsADeferredHash()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (_, owner) = await SetupCallerWithOwner(spec);
+        await owner.Admin.SetRequirePayloadHashes(spec.TargetDrive, true);
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = HashTrailer.AfterPayload;
+        var result = await CreateUnencrypted(owner, spec.TargetDrive, payload);
+
+        DriveAsserts.AssertSameHash((await StoredDescriptor(owner, result, payload.Key)).Hash, payload.Hash);
     }
 
     //
