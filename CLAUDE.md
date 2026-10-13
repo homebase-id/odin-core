@@ -147,6 +147,35 @@ Custom crypto layer in `Odin.Core.Cryptography`. AES-GCM (preferred) and AES-CBC
 ## CI / CD
 Do NOT use slash (/) in Git branch names.
 
+### Releasing to bleeding edge and production
+Release only when asked. Both are `workflow_dispatch` workflows, and both build what `--ref` points at when they are dispatched:
+
+```bash
+# Bleeding edge: builds the branch (here main) with a frontend and a chat-kmp ref
+gh workflow run host-build-and-deploy-branch-to-environment.yml --repo homebase-id/odin-core --ref main \
+  -f env_choice=bleeding_edge -f fe_ref=main -f kotlin_ref=main -f rebuild_wasm=false -f start_choice=true
+
+# Production: tags the next vX.Y.Z on main's tip, builds the release image and deploys it. main only.
+gh workflow run host-create-release-deploy-to-production.yml --repo homebase-id/odin-core --ref main -f start_choice=true
+
+# Follow a run
+gh run list --repo homebase-id/odin-core --workflow <file>.yml --limit 1
+gh run watch <run-id> --repo homebase-id/odin-core --exit-status
+```
+
+- **Bleeding edge** (`host-build-and-deploy-branch-to-environment.yml`):
+  - It deploys any branch: pass it as `--ref`. `env_choice` can also be `sandbox`.
+  - `fe_ref` is the odin-js branch or commit, and `kotlin_ref` the chat-kmp one. Someone may be testing a frontend branch there, so check what the last run used before replacing it: `gh run view <id> --log | grep -A6 "Workflow inputs as JSON"`.
+  - `rebuild_wasm=true` rebuilds the chat WASM app. It is slow; otherwise the cached build for that chat-kmp commit is reused.
+- **Production** (`host-create-release-deploy-to-production.yml`):
+  - It refuses any ref but `main`.
+  - The version tag is the latest `vX.Y.Z` with the patch number plus one (`.github/scripts/increment-version-tag-on-git-tip.sh`).
+  - The deploy runs through the ansible controller (DevOps repo).
+- **Other deploy workflows:**
+  - `host-deploy-latest-release-to-production.yml` (main only) redeploys the newest `vX.Y.Z` image in ghcr, with no build.
+  - `host-deploy-image-to-environment.yml` deploys a given image to bleeding edge, sandbox or production.
+- `start_choice=true` starts the container after the deploy. Every release so far has used `true`.
+
 ## Before you merge: remind me to run a simplify pass
 
 Before a PR is opened or merged, remind me to run `/simplify` on the branch. Ask -- do not run it unprompted, and do not assume it already happened. Only an explicit "no" declines it; if I do not answer, presume I did not see the reminder and say it again rather than deciding for me.
