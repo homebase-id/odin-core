@@ -28,7 +28,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload;
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class FileSystemStreamWriterBase
+public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 {
     private readonly TenantContext _tenantContext;
 
@@ -61,6 +61,8 @@ public abstract class FileSystemStreamWriterBase
     protected TenantQuotaGuard QuotaGuard { get; }
 
     public FileUploadPackage Package { get; private set; }
+
+    public DeferredPayloadHashes PayloadHashes { get; } = new();
     
     public virtual async Task StartUpload(Guid driveId, UploadInstructionSet instructionSet, IOdinContext odinContext)
     {
@@ -135,7 +137,7 @@ public abstract class FileSystemStreamWriterBase
 
         // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
-        descriptor.Hash?.AssertStoredHashMatches(key, hashing);
+        PayloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
