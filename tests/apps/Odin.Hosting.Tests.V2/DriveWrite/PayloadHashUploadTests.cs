@@ -440,7 +440,7 @@ public class PayloadHashUploadTests : V2Fixture
         var (_, owner) = await SetupCallerWithOwner(spec);
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
-        payload.Hash.StoredHash = Enumerable.Repeat(PayloadHash.DeferredSentinel, 32).ToArray();
+        payload.Hash.StoredHash = PayloadHash.Deferred(ContentHashAlgorithm.Blake3, isEncrypted: false).StoredHash;
 
         await AssertCreateRejected(owner, spec.TargetDrive, payload, OdinClientErrorCode.InvalidPayloadHash);
     }

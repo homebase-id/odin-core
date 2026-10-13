@@ -158,35 +158,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 //
                 // Firstly, collect everything and store in the temp drive
                 //
-                section = await ReadNextMultipartSectionAsync(reader);
-                while (null != section)
-                {
-                    if (IsMetadataPart(section))
-                    {
-                        await updateWriter.AddMetadata(section!.Body);
-                    }
-
-                    if (IsPayloadPart(section))
-                    {
-                        AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                        await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
-                    }
-
-                    if (IsThumbnail(section))
-                    {
-                        AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey,
-                            out var contentTypeFromMultipartSection);
-                        await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream,
-                            WebOdinContext);
-                    }
-
-                    if (IsPayloadHashPart(section, out var hashedPayloadKey))
-                    {
-                        await updateWriter.AddPayloadHash(hashedPayloadKey, section.Body);
-                    }
-
-                    section = await ReadNextMultipartSectionAsync(reader);
-                }
+                await ReadUploadPartsAsync(reader, updateWriter, updateWriter.AddMetadata);
 
                 var result = await updateWriter.FinalizeFileUpdate(WebOdinContext);
                 return result;
@@ -249,34 +221,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             logger.LogDebug("ReceiveFileStream: AddMetadata");
             await driveUploadService.AddMetadata(section!.Body);
 
-            //
-            section = await ReadNextMultipartSectionAsync(reader);
-            while (null != section)
-            {
-                if (IsPayloadPart(section))
-                {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultiPartSection);
-                    logger.LogDebug("ReceiveFileStream: AddPayload");
-                    await driveUploadService.AddPayload(payloadKey, contentTypeFromMultiPartSection, fileSection.FileStream,
-                        WebOdinContext);
-                }
-
-                if (IsThumbnail(section))
-                {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey,
-                        out var contentTypeFromMultiPartSection);
-                    logger.LogDebug("ReceiveFileStream: AddThumbnail");
-                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentTypeFromMultiPartSection, fileSection.FileStream,
-                        WebOdinContext);
-                }
-
-                if (IsPayloadHashPart(section, out var hashedPayloadKey))
-                {
-                    await driveUploadService.AddPayloadHash(hashedPayloadKey, section.Body);
-                }
-
-                section = await ReadNextMultipartSectionAsync(reader);
-            }
+            await ReadUploadPartsAsync(reader, driveUploadService);
 
             logger.LogInformation(
                 "[UploadTiming] Multipart receive + local staging complete; receiveMs:{receiveMs}",
@@ -315,29 +260,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 await writer.StartUpload(section!.Body, WebOdinContext);
 
-                //
-                section = await ReadNextMultipartSectionAsync(reader);
-                while (null != section)
-                {
-                    if (IsPayloadPart(section))
-                    {
-                        AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                        await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext);
-                    }
-
-                    if (IsThumbnail(section))
-                    {
-                        AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                        await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext);
-                    }
-
-                    if (IsPayloadHashPart(section, out var hashedPayloadKey))
-                    {
-                        await writer.AddPayloadHash(hashedPayloadKey, section.Body);
-                    }
-
-                    section = await ReadNextMultipartSectionAsync(reader);
-                }
+                await ReadUploadPartsAsync(reader, writer);
 
                 var status = await writer.FinalizeUpload(WebOdinContext);
                 return status;
@@ -391,97 +314,75 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
         }
 
-        private protected bool IsMetadataPart(MultipartSection section)
-        {
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
-            {
-                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
-            }
-
-            return part == MultipartUploadParts.Metadata;
-        }
-
-        private protected bool IsPayloadPart(MultipartSection section)
-        {
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
-            {
-                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
-            }
-
-            return part == MultipartUploadParts.Payload;
-        }
-
-        private protected bool IsThumbnail(MultipartSection section)
-        {
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
-            {
-                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
-            }
-
-            return part == MultipartUploadParts.Thumbnail;
-        }
-
         /// <summary>
-        /// A payloadHash part, named for its payload by its file name like the payload part itself
+        /// Reads the parts that follow an upload's instructions until the request ends: payloads, thumbnails, payloadHash
+        /// parts and, for an update, the metadata. Every upload route reads them here, so a new part type reaches all of them.
+        /// Other known parts are ignored, as before.
         /// </summary>
-        private protected bool IsPayloadHashPart(MultipartSection section, out string payloadKey)
+        private protected async Task ReadUploadPartsAsync(MultipartReader reader, IUploadPartWriter writer,
+            Func<Stream, Task> addMetadata = null)
         {
-            payloadKey = null;
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
-                part != MultipartUploadParts.PayloadHash)
+            var section = await ReadNextMultipartSectionAsync(reader);
+            while (null != section)
             {
-                return false;
-            }
+                switch (GetPart(section))
+                {
+                    case MultipartUploadParts.Metadata when addMetadata != null:
+                        await addMetadata(section.Body);
+                        break;
 
-            payloadKey = section.AsFileSection()?.FileName;
-            return true;
+                    case MultipartUploadParts.Payload:
+                    {
+                        var fileSection = section.AsFileSection();
+                        TenantPathManager.AssertValidPayloadKey(fileSection?.FileName);
+                        await writer.AddPayload(fileSection!.FileName, section.ContentType, fileSection.FileStream, WebOdinContext);
+                        break;
+                    }
+
+                    case MultipartUploadParts.Thumbnail:
+                    {
+                        var fileSection = AssertIsValidThumbnailSection(section);
+                        await writer.AddThumbnail(fileSection.FileName, section.ContentType, fileSection.FileStream, WebOdinContext);
+                        break;
+                    }
+
+                    case MultipartUploadParts.PayloadHash:
+                        // Named for its payload by its file name, like the payload part itself
+                        await writer.AddPayloadHash(section.AsFileSection()?.FileName, section.Body);
+                        break;
+                }
+
+                section = await ReadNextMultipartSectionAsync(reader);
+            }
         }
 
-        private protected void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection,
-            out string payloadKey, out string contentTypeFromMultiPartSection)
+        private MultipartUploadParts GetPart(MultipartSection section)
         {
-            var expectedPart = MultipartUploadParts.Payload;
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
-                part != expectedPart)
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section.ContentDisposition), true, out var part))
             {
-                throw new OdinClientException($"Payloads have name of {Enum.GetName(expectedPart)}",
-                    OdinClientErrorCode.InvalidPayloadNameOrKey);
+                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
             }
 
-            fileSection = section.AsFileSection();
-            contentTypeFromMultiPartSection = section.ContentType;
-
-            TenantPathManager.AssertValidPayloadKey(fileSection?.FileName);
-            payloadKey = fileSection?.FileName;
+            return part;
         }
 
-        private protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
-            out string thumbnailUploadKey, out string contentTypeFromMultiPartSection)
+        private static FileMultipartSection AssertIsValidThumbnailSection(MultipartSection section)
         {
-            var expectedPart = MultipartUploadParts.Thumbnail;
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
-                part != expectedPart)
-            {
-                throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}",
-                    OdinClientErrorCode.InvalidThumnbnailName);
-            }
-
-            fileSection = section.AsFileSection();
+            var fileSection = section.AsFileSection();
             if (null == fileSection)
             {
                 throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
                     OdinClientErrorCode.InvalidThumnbnailName);
             }
 
-            contentTypeFromMultiPartSection = section.ContentType;
-
-            thumbnailUploadKey = fileSection?.FileName;
-            if (string.IsNullOrEmpty(thumbnailUploadKey) || string.IsNullOrWhiteSpace(thumbnailUploadKey))
+            if (string.IsNullOrWhiteSpace(fileSection.FileName))
             {
                 throw new OdinClientException(
                     "Thumbnails must include the thumbnailKey, which matches the key in the InstructionSet.UploadManifest.",
                     OdinClientErrorCode.InvalidThumnbnailName);
             }
+
+            return fileSection;
         }
 
         private protected static bool IsMultipartContentType(string contentType)

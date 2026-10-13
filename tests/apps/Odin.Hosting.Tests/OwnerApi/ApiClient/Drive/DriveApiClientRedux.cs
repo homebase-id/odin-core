@@ -76,7 +76,7 @@ public class TestPayloadDefinition
 
     /// <summary>
     /// Whether and how <see cref="Hash"/> is deferred (#1935): the manifest carries the sentinel and the values follow
-    /// in a payloadHash part
+    /// in a payloadHash part. Only clients that build their payload parts with <see cref="AddPayloadParts"/> send that part.
     /// </summary>
     public HashTrailer HashTrailer { get; set; }
 
@@ -116,14 +116,15 @@ public class TestPayloadDefinition
             Enum.GetName(MultipartUploadParts.PayloadHash));
     }
 
-    private PayloadHash DeferredSentinel() => new()
+    private PayloadHash DeferredSentinel()
     {
-        Algorithm = Hash.Algorithm,
-        StoredHash = Sentinel(Hash.StoredHash.Length),
-        ContentHash = Sentinel(Hash.ContentHash.Length)
-    };
+        if (Hash == null)
+        {
+            throw new InvalidOperationException($"{nameof(HashTrailer)} defers {nameof(Hash)}, so set it first (WithHash)");
+        }
 
-    private static byte[] Sentinel(int length) => Enumerable.Repeat(PayloadHash.DeferredSentinel, length).ToArray();
+        return PayloadHash.Deferred(Hash.Algorithm, Hash.ContentHash?.Length == PayloadHash.EncryptedContentHashLength);
+    }
 
     public UploadManifestPayloadDescriptor ToPayloadDescriptor(
         PayloadUpdateOperationType updateOperationType = PayloadUpdateOperationType.None)

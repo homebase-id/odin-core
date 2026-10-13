@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
-using Odin.Core.Time;
 using Odin.Core.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
@@ -23,7 +23,7 @@ public class DeferredPayloadHashes
     /// <summary>
     /// After a payload is written: verifies its stored hash, or holds it when the hash is deferred
     /// </summary>
-    public void Written(string payloadKey, UnixTimeUtcUnique payloadUid, PayloadHash hash, HashingReadStream written)
+    public void Written(string payloadKey, PayloadHash hash, HashingReadStream written)
     {
         if (hash == null)
         {
@@ -36,7 +36,7 @@ public class DeferredPayloadHashes
             return;
         }
 
-        _deferred[payloadKey] = new Deferred(hash, written.GetHash(), payloadUid);
+        _deferred[payloadKey] = new Deferred(hash, written.GetHash());
     }
 
     /// <summary>
@@ -50,7 +50,16 @@ public class DeferredPayloadHashes
                 "a payloadHash part comes once, after its payload, and only for a payload whose hash is deferred");
         }
 
-        var values = await BoundedRead.DeserializeAsync<PayloadHashValues>(body);
+        PayloadHashValues values;
+        try
+        {
+            values = await BoundedRead.DeserializeAsync<PayloadHashValues>(body);
+        }
+        catch (JsonException e)
+        {
+            throw PayloadHash.Invalid(payloadKey, $"the payloadHash part is not valid JSON: {e.Message}");
+        }
+
         deferred.Hash.Resolve(payloadKey, values?.StoredHash, values?.ContentHash);
         deferred.Resolved = true;
         deferred.Hash.AssertStoredHashMatches(payloadKey, deferred.Received);
@@ -71,17 +80,10 @@ public class DeferredPayloadHashes
         }
     }
 
-    /// <summary>
-    /// Every payload with a deferred hash, for cleanup of staged bytes that are not in the package
-    /// </summary>
-    public IEnumerable<PayloadDescriptor> Staged =>
-        _deferred.Select(d => new PayloadDescriptor { Key = d.Key, Uid = d.Value.PayloadUid });
-
-    private sealed class Deferred(PayloadHash hash, byte[] received, UnixTimeUtcUnique payloadUid)
+    private sealed class Deferred(PayloadHash hash, byte[] received)
     {
         public PayloadHash Hash { get; } = hash;
         public byte[] Received { get; } = received;
-        public UnixTimeUtcUnique PayloadUid { get; } = payloadUid;
         public bool Resolved { get; set; }
     }
 

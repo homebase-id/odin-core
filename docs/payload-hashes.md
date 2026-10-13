@@ -44,7 +44,7 @@ Bytes are standard base64, like `iv`. Clients send the same object on the upload
 The descriptor comes before the payload, so a client would need `storedHash` before it has encrypted anything. Instead it can send the values after the payload. The server hashes the stream as it writes it either way, so it only needs the algorithm up front.
 
 - **In the descriptor:** `hash` with the real `algorithm`, and a sentinel in place of both values: every byte `0x11`. That is 32 bytes for `storedHash` and 32 bytes for `contentHash`, or 48 when encrypted. No new field: a real hash equals the sentinel with probability 2^-256.
-- **All or nothing:** both values are sentinels, or neither is. One sentinel next to a real value → `InvalidPayloadHash`.
+- **All or nothing:** both values are sentinels, or neither is. One sentinel next to a real value → `InvalidPayloadHash`. A sentinel of any other length → `InvalidPayloadHash`. The real `contentHash` in the `payloadHash` part must have its sentinel's length.
 - **After the payload:** a multipart part named `payloadHash`, whose file name is the payload key:
   ```json
   { "storedHash": "<base64>", "contentHash": "<base64>" }
@@ -53,7 +53,7 @@ The descriptor comes before the payload, so a client would need `storedHash` bef
 - **What the server does:** it hashes the payload as it's written and keeps that hash. When the `payloadHash` part arrives, the server puts its values in place of the sentinels. It then checks them like a hash sent up front: rules 2, 4, 5 and 6, and the binding rule. A mismatch → `PayloadHashMismatch`, and the staged bytes are deleted. A stored header never holds the sentinel.
 - **No `payloadHash` part:** if the request ends with a deferred hash still unresolved → `PayloadHashMissing`, and nothing is stored. This is also how a client aborts an upload, for example when it finds the source changed while it was sending it.
 - **Rule 7:** a deferred hash counts as present.
-- **Where:** new upload, update and add-payload. Not on remote payloads (rule 10), which have no bytes here to follow, and not over peer (rule 8): the sending server always has the values. A sentinel in either place → `InvalidPayloadHash`.
+- **Where:** new upload (including `files/send`, the write over peer), update and add-payload. Not on remote payloads (rule 10), which have no bytes here to follow, and not over peer (rule 8): the sending server always has the values. A sentinel in either place → `InvalidPayloadHash`.
 
 ## Content-hash IV and binding rule
 - `contentHashIv = payloadIv XOR 0xAA…AA`, over the full IV length. It is derived, so nothing extra is stored. XOR with a non-zero constant never yields the payload IV itself.

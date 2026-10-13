@@ -29,7 +29,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update;
 /// Enables the update of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class FileSystemUpdateWriterBase
+public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 {
     protected readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
@@ -181,12 +181,9 @@ public abstract class FileSystemUpdateWriterBase
 
         // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
-        _payloadHashes.Written(key, descriptor.PayloadUid, descriptor.Hash, hashing);
+        _payloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
-    /// <summary>
-    /// A payloadHash part: the values of the payload's deferred hash, see <see cref="DeferredPayloadHashes"/>
-    /// </summary>
     public virtual Task AddPayloadHash(string key, Stream data)
     {
         return _payloadHashes.ResolveAsync(key, data);

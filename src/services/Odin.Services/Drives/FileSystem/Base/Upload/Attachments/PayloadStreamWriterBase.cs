@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,11 +17,16 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class PayloadStreamWriterBase
+public abstract class PayloadStreamWriterBase : IUploadPartWriter
 {
     private PayloadOnlyPackage _package;
 
     private readonly DeferredPayloadHashes _payloadHashes = new();
+
+    /// <summary>
+    /// An empty payload is never added to the package, so <see cref="CleanupStagingFiles"/> removes its staged file from here
+    /// </summary>
+    private readonly List<PayloadDescriptor> _emptyPayloads = [];
 
     /// <summary />
     protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard)
@@ -82,23 +88,14 @@ public abstract class PayloadStreamWriterBase
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
+        else
+        {
+            _emptyPayloads.Add(new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid });
+        }
 
-        try
-        {
-            _payloadHashes.Written(key, descriptor.PayloadUid, descriptor.Hash, hashing);
-        }
-        catch (OdinClientException) when (bytesWritten == 0)
-        {
-            // An empty payload is never added to the package, so CleanupStagingFiles would not remove its staged file
-            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile,
-                [new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid }], odinContext);
-            throw;
-        }
+        _payloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
-    /// <summary>
-    /// A payloadHash part: the values of the payload's deferred hash, see <see cref="DeferredPayloadHashes"/>
-    /// </summary>
     public virtual Task AddPayloadHash(string key, Stream data)
     {
         return _payloadHashes.ResolveAsync(key, data);
@@ -193,9 +190,8 @@ public abstract class PayloadStreamWriterBase
     {
         if (_package?.UploadFile != null)
         {
-            // An empty payload is never added to the package, so a deferred one is cleaned up from the held hashes
             var uploadedPayloads = _package.GetFinalPayloadDescriptors();
-            uploadedPayloads.AddRange(_payloadHashes.Staged.Where(d => !uploadedPayloads.Any(u => u.KeyEquals(d.Key))));
+            uploadedPayloads.AddRange(_emptyPayloads);
             await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile, uploadedPayloads, odinContext);
         }
     }

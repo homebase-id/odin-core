@@ -69,7 +69,23 @@ public class PayloadHash
         {
             throw Invalid(payloadKey, "a deferred hash sends the sentinel for both storedHash and contentHash");
         }
+
+        if (IsSentinel(ContentHash) && ContentHash.Length is not (IncrementalContentHash.HashLength or EncryptedContentHashLength))
+        {
+            throw Invalid(payloadKey, $"a deferred contentHash is {IncrementalContentHash.HashLength} bytes, or " +
+                                      $"{EncryptedContentHashLength} when encrypted, was {ContentHash.Length}");
+        }
     }
+
+    /// <summary>
+    /// What a client sends in the descriptor to defer the hash's values to a payloadHash part
+    /// </summary>
+    public static PayloadHash Deferred(ContentHashAlgorithm algorithm, bool isEncrypted) => new()
+    {
+        Algorithm = algorithm,
+        StoredHash = Sentinel(IncrementalContentHash.HashLength),
+        ContentHash = Sentinel(isEncrypted ? EncryptedContentHashLength : IncrementalContentHash.HashLength)
+    };
 
     /// <summary>
     /// The values follow the payload in a payloadHash part. A method, not a property, so it never reaches the header JSON.
@@ -90,6 +106,13 @@ public class PayloadHash
             throw Invalid(payloadKey, "a payloadHash part must carry the real storedHash and contentHash");
         }
 
+        // The sentinel's length said whether the payload is encrypted; the real value must agree
+        if (contentHash?.Length != ContentHash.Length)
+        {
+            throw Invalid(payloadKey, $"the payloadHash part's contentHash must be {ContentHash.Length} bytes like its sentinel, " +
+                                      $"was {contentHash?.Length ?? 0}");
+        }
+
         StoredHash = storedHash;
         ContentHash = contentHash;
         AssertIsWellFormed(payloadKey);
@@ -97,7 +120,14 @@ public class PayloadHash
 
     private static bool IsSentinel(byte[] value)
     {
-        return value is { Length: > 0 } && value.All(b => b == DeferredSentinel);
+        return value is { Length: > 0 } && value.AsSpan().IndexOfAnyExcept(DeferredSentinel) < 0;
+    }
+
+    private static byte[] Sentinel(int length)
+    {
+        var value = new byte[length];
+        Array.Fill(value, DeferredSentinel);
+        return value;
     }
 
     private void AssertMatchesEncryption(string payloadKey, bool isEncrypted)

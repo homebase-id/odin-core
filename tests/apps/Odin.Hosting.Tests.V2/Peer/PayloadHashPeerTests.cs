@@ -140,6 +140,33 @@ public class PayloadHashPeerTests : V2Fixture
         DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
     }
 
+    [TestCase(HashTrailer.AfterPayload)]
+    [TestCase(HashTrailer.Missing)]
+    public async Task ADeferredHashWorksOnAWriteOverPeer(HashTrailer trailer)
+    {
+        // files/send: the sender keeps no copy, so the upload is staged on its transient drive and sent from there
+        var (frodo, sam, drive) = await ConnectAsync();
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = trailer;
+        var send = await frodo.Drives.PeerWriter.SendUnencryptedFileOverPeer(sam.Identity, drive, metadata, [payload],
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] });
+
+        if (trailer == HashTrailer.Missing)
+        {
+            Assert.That(send.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest), $"actual {send.StatusCode}");
+            Assert.That(TestUtils.ParseProblemDetails(send.Error!), Is.EqualTo(Odin.Core.Exceptions.OdinClientErrorCode.PayloadHashMissing));
+            return;
+        }
+
+        Assert.That(send.IsSuccessStatusCode, Is.True, $"actual {send.StatusCode}: {send.Error?.Content}");
+        await PeerFlow.DistributeAsync(frodo, sam, drive);
+
+        var received = await ReceivedDescriptor(sam, drive, send.Content!.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, payload.Key);
+        DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
+    }
+
     //
     // Helpers
     //
