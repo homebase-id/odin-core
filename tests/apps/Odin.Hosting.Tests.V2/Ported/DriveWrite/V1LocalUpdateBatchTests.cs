@@ -146,6 +146,43 @@ public class V1LocalUpdateBatchTests : V2Fixture
         Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(OdinClientErrorCode.FileNotFound));
     }
 
+    /// <summary>
+    /// Updating a soft-deleted file with a payload dereferenced the tombstone's null payload list
+    /// and answered 500 (#1904). It is a client error, like the header-only update of a tombstone.
+    /// </summary>
+    [Test]
+    public async Task PayloadUpdateOfDeletedFileIsBadRequest()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var upload = await owner.V1.Drive.UploadNewFile(spec.TargetDrive, metadata,
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] }, [payload]);
+        Assert.That(upload.IsSuccessStatusCode, Is.True);
+
+        var delete = await caller.Drives.Writer.SoftDeleteFile(spec.TargetDrive.Alias, upload.Content!.File.FileId);
+        Assert.That(delete.IsSuccessStatusCode, Is.True);
+
+        metadata.VersionTag = upload.Content.NewVersionTag;
+        var newPayload = SamplePayloadDefinitions.GetPayloadDefinition2();
+        var update = await owner.V1.Drive.UpdateFile(new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Local,
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = upload.Content.File.ToFileIdentifier(),
+            Recipients = default,
+            Manifest = new UploadManifest
+            {
+                PayloadDescriptors = [newPayload.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite)]
+            }
+        }, metadata, [newPayload]);
+
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(update.Error!), Is.EqualTo(OdinClientErrorCode.CannotUpdateNonActiveFile));
+    }
+
     [Test, TestCaseSource(nameof(UpdateBatchCases))]
     public async Task CanUpdateBatchWith1PayloadsAnd1Thumbnails(CallerSpec spec, HttpStatusCode expected)
     {
