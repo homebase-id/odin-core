@@ -54,7 +54,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
     internal FileUpdatePackage Package { get; private set; }
 
-    private readonly DeferredPayloadHashes _payloadHashes = new();
+    public DeferredPayloadHashes PayloadHashes { get; } = new();
 
     public virtual async Task StartFileUpdateAsync(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType,
         IOdinContext odinContext)
@@ -181,12 +181,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
         // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
-        _payloadHashes.Written(key, descriptor.Hash, hashing);
-    }
-
-    public virtual Task AddPayloadHash(string key, Stream data)
-    {
-        return _payloadHashes.ResolveAsync(key, data);
+        PayloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -251,8 +246,6 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
     public async Task<FileUpdateResult> FinalizeFileUpdate(IOdinContext odinContext)
     {
-        _payloadHashes.AssertNoneMissing();
-
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
         await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata, odinContext);

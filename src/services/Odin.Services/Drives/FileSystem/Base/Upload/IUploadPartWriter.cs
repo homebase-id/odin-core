@@ -1,6 +1,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload;
 
@@ -15,7 +16,8 @@ public interface IUploadPartWriter
     Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext);
 
     /// <summary>
-    /// A payloadHash part: the values of the payload's deferred hash (#1935)
+    /// The payload hashes of this upload, verified as each payload is written or, when deferred (#1935), once its
+    /// payloadHash part arrives
     /// </summary>
-    Task AddPayloadHash(string key, Stream data);
+    DeferredPayloadHashes PayloadHashes { get; }
 }

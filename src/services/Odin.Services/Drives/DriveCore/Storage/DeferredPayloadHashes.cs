@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Odin.Core.Cryptography.Crypto;
@@ -18,7 +17,15 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// </summary>
 public class DeferredPayloadHashes
 {
-    private readonly Dictionary<string, Deferred> _deferred = new(StringComparer.InvariantCultureIgnoreCase);
+    /// <summary>
+    /// A payloadHash part is a few hundred bytes: two base64 hashes
+    /// </summary>
+    private const int MaxPartBytes = 1024;
+
+    /// <summary>
+    /// Deferred hashes still waiting for their payloadHash part, with the hash of the bytes as written
+    /// </summary>
+    private readonly Dictionary<string, (PayloadHash Hash, byte[] Received)> _pending = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// After a payload is written: verifies its stored hash, or holds it when the hash is deferred
@@ -36,7 +43,7 @@ public class DeferredPayloadHashes
             return;
         }
 
-        _deferred[payloadKey] = new Deferred(hash, written.GetHash());
+        _pending[payloadKey] = (hash, written.GetHash());
     }
 
     /// <summary>
@@ -44,7 +51,8 @@ public class DeferredPayloadHashes
     /// </summary>
     public async Task ResolveAsync(string payloadKey, Stream body)
     {
-        if (!_deferred.TryGetValue(payloadKey ?? "", out var deferred) || deferred.Resolved)
+        // Also misses a part before its payload, a second one, and one for a payload whose hash was not deferred
+        if (!_pending.Remove(payloadKey ?? "", out var pending))
         {
             throw PayloadHash.Invalid(payloadKey,
                 "a payloadHash part comes once, after its payload, and only for a payload whose hash is deferred");
@@ -53,16 +61,15 @@ public class DeferredPayloadHashes
         PayloadHashValues values;
         try
         {
-            values = await BoundedRead.DeserializeAsync<PayloadHashValues>(body);
+            values = await BoundedRead.DeserializeAsync<PayloadHashValues>(body, MaxPartBytes);
         }
         catch (JsonException e)
         {
             throw PayloadHash.Invalid(payloadKey, $"the payloadHash part is not valid JSON: {e.Message}");
         }
 
-        deferred.Hash.Resolve(payloadKey, values?.StoredHash, values?.ContentHash);
-        deferred.Resolved = true;
-        deferred.Hash.AssertStoredHashMatches(payloadKey, deferred.Received);
+        pending.Hash.Resolve(payloadKey, values?.StoredHash, values?.ContentHash);
+        pending.Hash.AssertStoredHashMatches(payloadKey, pending.Received);
     }
 
     /// <summary>
@@ -71,20 +78,12 @@ public class DeferredPayloadHashes
     /// </summary>
     public void AssertNoneMissing()
     {
-        var missing = _deferred.Where(d => !d.Value.Resolved).Select(d => d.Key).ToList();
-        if (missing.Count > 0)
+        if (_pending.Count > 0)
         {
             throw new OdinClientException(
-                $"Payload {string.Join(", ", missing)}: the deferred hash was not followed by a payloadHash part",
+                $"Payload {string.Join(", ", _pending.Keys)}: the deferred hash was not followed by a payloadHash part",
                 OdinClientErrorCode.PayloadHashMissing);
         }
-    }
-
-    private sealed class Deferred(PayloadHash hash, byte[] received)
-    {
-        public PayloadHash Hash { get; } = hash;
-        public byte[] Received { get; } = received;
-        public bool Resolved { get; set; }
     }
 
     /// <summary>

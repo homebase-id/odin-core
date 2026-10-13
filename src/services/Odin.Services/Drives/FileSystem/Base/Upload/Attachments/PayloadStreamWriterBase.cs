@@ -21,7 +21,7 @@ public abstract class PayloadStreamWriterBase : IUploadPartWriter
 {
     private PayloadOnlyPackage _package;
 
-    private readonly DeferredPayloadHashes _payloadHashes = new();
+    public DeferredPayloadHashes PayloadHashes { get; } = new();
 
     /// <summary>
     /// An empty payload is never added to the package, so <see cref="CleanupStagingFiles"/> removes its staged file from here
@@ -93,12 +93,7 @@ public abstract class PayloadStreamWriterBase : IUploadPartWriter
             _emptyPayloads.Add(new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid });
         }
 
-        _payloadHashes.Written(key, descriptor.Hash, hashing);
-    }
-
-    public virtual Task AddPayloadHash(string key, Stream data)
-    {
-        return _payloadHashes.ResolveAsync(key, data);
+        PayloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
@@ -161,8 +156,6 @@ public abstract class PayloadStreamWriterBase : IUploadPartWriter
     /// </summary>
     public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext)
     {
-        _payloadHashes.AssertNoneMissing();
-
         var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext);
 
         await this.ValidateUploadCore(serverHeader, odinContext);

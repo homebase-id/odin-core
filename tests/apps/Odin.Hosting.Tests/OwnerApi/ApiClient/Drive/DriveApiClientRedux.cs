@@ -80,26 +80,25 @@ public class TestPayloadDefinition
     /// </summary>
     public HashTrailer HashTrailer { get; set; }
 
-    private bool HashIsDeferred => HashTrailer is not (HashTrailer.None or HashTrailer.NotDeferred);
-
     /// <summary>
     /// The payload part, and the payloadHash part(s) its <see cref="HashTrailer"/> asks for
     /// </summary>
-    public void AddPayloadParts(List<StreamPart> parts, Stream content, string contentType = null)
+    public void AddPayloadParts(List<StreamPart> parts, Stream content)
     {
         if (HashTrailer is HashTrailer.BeforePayload)
         {
             parts.Add(HashTrailerPart());
         }
 
-        parts.Add(new StreamPart(content, Key, contentType ?? ContentType, Enum.GetName(MultipartUploadParts.Payload)));
+        parts.Add(new StreamPart(content, Key, ContentType, Enum.GetName(MultipartUploadParts.Payload)));
 
-        if (HashTrailer is HashTrailer.AfterPayload or HashTrailer.NotDeferred or HashTrailer.Twice)
+        var trailersAfter = HashTrailer switch
         {
-            parts.Add(HashTrailerPart());
-        }
-
-        if (HashTrailer is HashTrailer.Twice)
+            HashTrailer.AfterPayload or HashTrailer.NotDeferred => 1,
+            HashTrailer.Twice => 2,
+            _ => 0
+        };
+        for (var i = 0; i < trailersAfter; i++)
         {
             parts.Add(HashTrailerPart());
         }
@@ -145,7 +144,7 @@ public class TestPayloadDefinition
             Thumbnails = t,
             PayloadUpdateOperationType = updateOperationType,
             ContentType = this.ContentType,
-            Hash = HashIsDeferred ? DeferredSentinel() : this.Hash
+            Hash = HashTrailer is HashTrailer.None or HashTrailer.NotDeferred ? this.Hash : DeferredSentinel()
         };
     }
 }

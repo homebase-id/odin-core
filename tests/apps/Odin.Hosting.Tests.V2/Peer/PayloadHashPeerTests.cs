@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -29,12 +30,14 @@ public class PayloadHashPeerTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    [Test]
-    public async Task AnUnencryptedHashArrivesUnchanged()
+    [TestCase(HashTrailer.None)]
+    [TestCase(HashTrailer.AfterPayload)]
+    public async Task AnUnencryptedHashArrivesUnchanged(HashTrailer trailer)
     {
         var (frodo, sam, drive) = await ConnectAsync();
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = trailer;
         var sent = await SendUnencrypted(frodo, sam, drive, payload);
 
         await PeerFlow.DistributeAsync(frodo, sam, drive);
@@ -43,12 +46,13 @@ public class PayloadHashPeerTests : V2Fixture
         DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
     }
 
-    [Test]
-    public async Task AnEncryptedHashArrivesUnchanged()
+    [TestCase(HashTrailer.None)]
+    [TestCase(HashTrailer.AfterPayload)]
+    public async Task AnEncryptedHashArrivesUnchanged(HashTrailer trailer)
     {
         var (frodo, sam, drive) = await ConnectAsync();
 
-        var (sent, payload) = await SendEncrypted(frodo, sam, drive);
+        var (sent, payload) = await SendEncrypted(frodo, sam, drive, trailer);
 
         await PeerFlow.DistributeAsync(frodo, sam, drive);
 
@@ -111,60 +115,31 @@ public class PayloadHashPeerTests : V2Fixture
     }
 
     [Test]
-    public async Task ADeferredHashArrivesWithItsRealValues()
-    {
-        var (frodo, sam, drive) = await ConnectAsync();
-
-        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
-        payload.HashTrailer = HashTrailer.AfterPayload;
-        var sent = await SendUnencrypted(frodo, sam, drive, payload);
-
-        await PeerFlow.DistributeAsync(frodo, sam, drive);
-
-        await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.Delivered);
-        var received = await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key);
-        DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
-    }
-
-    [Test]
-    public async Task ADeferredEncryptedHashArrivesWithItsRealValues()
-    {
-        var (frodo, sam, drive) = await ConnectAsync();
-
-        var (sent, payload) = await SendEncrypted(frodo, sam, drive, HashTrailer.AfterPayload);
-
-        await PeerFlow.DistributeAsync(frodo, sam, drive);
-
-        await DriveAsserts.AssertTransferStatus(frodo, FileOf(sent, drive), sam.Identity, LatestTransferStatus.Delivered);
-        var received = await ReceivedDescriptor(sam, drive, sent.GlobalTransitId!.Value, payload.Key);
-        DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
-    }
-
-    [TestCase(HashTrailer.AfterPayload)]
-    [TestCase(HashTrailer.Missing)]
-    public async Task ADeferredHashWorksOnAWriteOverPeer(HashTrailer trailer)
+    public async Task ADeferredHashArrivesOverAWriteOverPeer()
     {
         // files/send: the sender keeps no copy, so the upload is staged on its transient drive and sent from there
         var (frodo, sam, drive) = await ConnectAsync();
 
-        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true);
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
-        payload.HashTrailer = trailer;
-        var send = await frodo.Drives.PeerWriter.SendUnencryptedFileOverPeer(sam.Identity, drive, metadata, [payload],
-            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] });
-
-        if (trailer == HashTrailer.Missing)
-        {
-            Assert.That(send.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest), $"actual {send.StatusCode}");
-            Assert.That(TestUtils.ParseProblemDetails(send.Error!), Is.EqualTo(Odin.Core.Exceptions.OdinClientErrorCode.PayloadHashMissing));
-            return;
-        }
-
+        payload.HashTrailer = HashTrailer.AfterPayload;
+        var send = await WriteOverPeer(frodo, sam, drive, payload);
         Assert.That(send.IsSuccessStatusCode, Is.True, $"actual {send.StatusCode}: {send.Error?.Content}");
+
         await PeerFlow.DistributeAsync(frodo, sam, drive);
 
         var received = await ReceivedDescriptor(sam, drive, send.Content!.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, payload.Key);
         DriveAsserts.AssertSameHash(received?.Hash, payload.Hash);
+    }
+
+    [Test]
+    public async Task AWriteOverPeerWithoutThePayloadHashPartIsRejected()
+    {
+        var (frodo, sam, drive) = await ConnectAsync();
+
+        var payload = SamplePayloadDefinitions.GetPayloadDefinition1().WithHash(ContentHashAlgorithm.Blake3);
+        payload.HashTrailer = HashTrailer.Missing;
+
+        DriveAsserts.AssertRejected(await WriteOverPeer(frodo, sam, drive, payload), OdinClientErrorCode.PayloadHashMissing);
     }
 
     //
@@ -218,6 +193,12 @@ public class PayloadHashPeerTests : V2Fixture
         Assert.That(response.IsSuccessStatusCode, Is.True, $"actual {response.StatusCode}");
         return (response.Content!, payload);
     }
+
+    private static Task<Refit.ApiResponse<TransitResult>> WriteOverPeer(OwnerSession frodo, OwnerSession sam, TargetDrive drive,
+        TestPayloadDefinition payload) =>
+        frodo.Drives.PeerWriter.SendUnencryptedFileOverPeer(sam.Identity, drive,
+            SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, allowDistribution: true), [payload],
+            new UploadManifest { PayloadDescriptors = [payload.ToPayloadDescriptor()] });
 
     private static ExternalFileIdentifier FileOf(CreateFileResult result, TargetDrive drive) =>
         new() { FileId = result.FileId, TargetDrive = drive };

@@ -65,12 +65,13 @@ public class PayloadHash
             throw Invalid(payloadKey, "storedHash and contentHash must be set together");
         }
 
-        if (IsSentinel(StoredHash) != IsSentinel(ContentHash))
+        var deferredContentHash = IsSentinel(ContentHash);
+        if (IsSentinel(StoredHash) != deferredContentHash)
         {
             throw Invalid(payloadKey, "a deferred hash sends the sentinel for both storedHash and contentHash");
         }
 
-        if (IsSentinel(ContentHash) && ContentHash.Length is not (IncrementalContentHash.HashLength or EncryptedContentHashLength))
+        if (deferredContentHash && ContentHash.Length is not (IncrementalContentHash.HashLength or EncryptedContentHashLength))
         {
             throw Invalid(payloadKey, $"a deferred contentHash is {IncrementalContentHash.HashLength} bytes, or " +
                                       $"{EncryptedContentHashLength} when encrypted, was {ContentHash.Length}");
@@ -80,7 +81,7 @@ public class PayloadHash
     /// <summary>
     /// What a client sends in the descriptor to defer the hash's values to a payloadHash part
     /// </summary>
-    public static PayloadHash Deferred(ContentHashAlgorithm algorithm, bool isEncrypted) => new()
+    internal static PayloadHash Deferred(ContentHashAlgorithm algorithm, bool isEncrypted) => new()
     {
         Algorithm = algorithm,
         StoredHash = Sentinel(IncrementalContentHash.HashLength),
@@ -101,11 +102,6 @@ public class PayloadHash
     /// </summary>
     public void Resolve(string payloadKey, byte[] storedHash, byte[] contentHash)
     {
-        if (IsSentinel(storedHash) || IsSentinel(contentHash))
-        {
-            throw Invalid(payloadKey, "a payloadHash part must carry the real storedHash and contentHash");
-        }
-
         // The sentinel's length said whether the payload is encrypted; the real value must agree
         if (contentHash?.Length != ContentHash.Length)
         {
@@ -116,6 +112,10 @@ public class PayloadHash
         StoredHash = storedHash;
         ContentHash = contentHash;
         AssertIsWellFormed(payloadKey);
+        if (IsDeferred())
+        {
+            throw Invalid(payloadKey, "a payloadHash part must carry the real storedHash and contentHash");
+        }
     }
 
     private static bool IsSentinel(byte[] value)
@@ -123,7 +123,7 @@ public class PayloadHash
         return value is { Length: > 0 } && value.AsSpan().IndexOfAnyExcept(DeferredSentinel) < 0;
     }
 
-    private static byte[] Sentinel(int length)
+    internal static byte[] Sentinel(int length)
     {
         var value = new byte[length];
         Array.Fill(value, DeferredSentinel);

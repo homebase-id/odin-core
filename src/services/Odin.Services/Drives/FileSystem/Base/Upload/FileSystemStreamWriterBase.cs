@@ -62,7 +62,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
     public FileUploadPackage Package { get; private set; }
 
-    private readonly DeferredPayloadHashes _payloadHashes = new();
+    public DeferredPayloadHashes PayloadHashes { get; } = new();
     
     public virtual async Task StartUpload(Guid driveId, UploadInstructionSet instructionSet, IOdinContext odinContext)
     {
@@ -137,12 +137,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
-        _payloadHashes.Written(key, descriptor.Hash, hashing);
-    }
-
-    public virtual Task AddPayloadHash(string key, Stream data)
-    {
-        return _payloadHashes.ResolveAsync(key, data);
+        PayloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -211,8 +206,6 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
     {
         // [UploadTiming] Diagnostic: phase breakdown of the finalize step (metadata -> commit -> transit enqueue).
         var phaseSw = System.Diagnostics.Stopwatch.StartNew();
-
-        _payloadHashes.AssertNoneMissing();
 
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
