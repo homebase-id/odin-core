@@ -5,15 +5,14 @@ using System.Text.Json.Serialization;
 namespace Odin.Services.Profile;
 
 /// <summary>
-/// The visibility of a profile attribute, mapped to the file's access-control list. Anonymous and
-/// Authenticated attributes are stored plaintext (publicly/authenticated-readable); Connected and Owner
-/// attributes are encrypted (matching odin-js <c>encrypt = !(Anonymous || Authenticated)</c>).
+/// The visibility of a profile attribute, mapped to the file's access-control list. Anonymous attributes
+/// are stored plaintext (publicly readable); Connected and Owner attributes are encrypted. Connected always
+/// names the circles that may read it. There is no Authenticated level.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ProfileAttributeVisibility
 {
     Anonymous,
-    Authenticated,
     Connected,
     Owner
 }
@@ -41,8 +40,8 @@ public sealed class SetProfileAttributeRequest
     public ProfileAttributeVisibility Visibility { get; set; } = ProfileAttributeVisibility.Anonymous;
 
     /// <summary>
-    /// Circles that may read this attribute. Only valid with <see cref="ProfileAttributeVisibility.Connected"/>;
-    /// each id must be an existing circle. Empty or null keeps the plain Connected ACL.
+    /// Circles that may read this attribute. Required (at least one) with <see cref="ProfileAttributeVisibility.Connected"/>
+    /// and not allowed with any other visibility; each id must be an existing circle.
     /// </summary>
     public List<Guid> CircleIds { get; set; }
 
@@ -82,8 +81,8 @@ public sealed class SetPhotoAttributeRequest
     public ProfileAttributeVisibility Visibility { get; set; } = ProfileAttributeVisibility.Anonymous;
 
     /// <summary>
-    /// Circles that may read this photo. Only valid with <see cref="ProfileAttributeVisibility.Connected"/>;
-    /// each id must be an existing circle. Empty or null keeps the plain Connected ACL. An edit replaces the
+    /// Circles that may read this photo. Required (at least one) with <see cref="ProfileAttributeVisibility.Connected"/>
+    /// and not allowed with any other visibility; each id must be an existing circle. An edit replaces the
     /// previous circle list.
     /// </summary>
     public List<Guid> CircleIds { get; set; }

@@ -545,9 +545,8 @@ public class ProfileAttributeService(
 
     /// <summary>
     /// Builds the <see cref="ServerFileHeader"/> for an attribute file from the target visibility: encrypts
-    /// the content (and key header) for Connected/Owner attributes, leaves Anonymous/Authenticated ones
-    /// plaintext (matching odin-js <c>encrypt = !(Anonymous || Authenticated)</c>). Asserts the content fits
-    /// the file header.
+    /// the content (and key header) for Connected/Owner attributes, leaves Anonymous ones plaintext. Asserts
+    /// the content fits the file header.
     /// </summary>
     private async Task<(ServerFileHeader header, bool encrypt)> BuildHeaderAsync(InternalDriveFileId file,
         Guid attributeId, Guid attributeType, Guid sectionId, int priority, Dictionary<string, object> data,
@@ -691,22 +690,30 @@ public class ProfileAttributeService(
         };
     }
 
-    /// <summary>Public (Anonymous/Authenticated) attributes are stored plaintext; everything else encrypts.</summary>
+    /// <summary>Anonymous attributes are stored plaintext; everything else encrypts.</summary>
     private static bool Encrypts(ProfileAttributeVisibility visibility)
     {
-        return visibility is not (ProfileAttributeVisibility.Anonymous or ProfileAttributeVisibility.Authenticated);
+        return visibility != ProfileAttributeVisibility.Anonymous;
     }
 
+    /// <summary>Connected requires at least one existing circle; every other visibility takes none.</summary>
     private async Task<List<Guid>> AssertValidCircleIdsAsync(List<Guid> circleIds, ProfileAttributeVisibility visibility)
     {
-        if (circleIds == null || circleIds.Count == 0)
+        var hasCircles = circleIds is { Count: > 0 };
+        if (visibility != ProfileAttributeVisibility.Connected)
         {
+            if (hasCircles)
+            {
+                throw new OdinClientException("CircleIds can only be set when visibility is Connected",
+                    OdinClientErrorCode.ArgumentError);
+            }
+
             return null;
         }
 
-        if (visibility != ProfileAttributeVisibility.Connected)
+        if (!hasCircles)
         {
-            throw new OdinClientException("CircleIds can only be set when visibility is Connected",
+            throw new OdinClientException("Connected visibility requires at least one circle in CircleIds",
                 OdinClientErrorCode.ArgumentError);
         }
 
@@ -722,22 +729,16 @@ public class ProfileAttributeService(
         return distinct;
     }
 
-    private static AccessControlList AclFor(ProfileAttributeVisibility visibility, List<Guid> circleIds = null)
+    private static AccessControlList AclFor(ProfileAttributeVisibility visibility, List<Guid> circleIds)
     {
-        if (visibility == ProfileAttributeVisibility.Connected && circleIds is { Count: > 0 })
-        {
-            return new AccessControlList
-            {
-                RequiredSecurityGroup = SecurityGroupType.Connected,
-                CircleIdList = circleIds
-            };
-        }
-
         return visibility switch
         {
             ProfileAttributeVisibility.Anonymous => AccessControlList.Anonymous,
-            ProfileAttributeVisibility.Authenticated => AccessControlList.Authenticated,
-            ProfileAttributeVisibility.Connected => AccessControlList.Connected,
+            ProfileAttributeVisibility.Connected => new AccessControlList
+            {
+                RequiredSecurityGroup = SecurityGroupType.Connected,
+                CircleIdList = circleIds
+            },
             ProfileAttributeVisibility.Owner => AccessControlList.OwnerOnly,
             _ => throw new OdinClientException($"Unsupported visibility {visibility}", OdinClientErrorCode.ArgumentError)
         };

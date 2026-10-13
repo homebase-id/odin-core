@@ -71,6 +71,16 @@ public class ProfilePhotoCircleTests : V2Fixture
     }
 
     [Test]
+    public async Task SetPhoto_ConnectedWithoutCircles_Returns400()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        var response = await new V2ProfileClient(frodo.Identity, frodo.Factory).SetPhotoAttributeAsync(PhotoRequest());
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
+    }
+
+    [Test]
     public async Task SetPhoto_UnknownCircleId_Returns400()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
