@@ -56,7 +56,7 @@ public class AppRegistrationV2Service(
     /// </summary>
     public static bool IsReserved(Guid appId)
     {
-        return BuiltinApps.Get(appId) != null || appId == SystemAppConstants.MailAppId;
+        return BuiltinApps.All.Any(a => a.AppId == appId) || appId == SystemAppConstants.MailAppId;
     }
 
     // ============================================================================================
@@ -69,7 +69,7 @@ public class AppRegistrationV2Service(
 
         var apps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
         var drives = (await driveManager.GetDrivesAsync(PageOptions.All, odinContext)).Results.ToLookup(d => d.AppId);
-        var circles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false)).ToLookup(c => c.AppId);
+        var circles = (await circleDefinitionService.GetCirclesAsync()).ToLookup(c => c.AppId);
 
         return apps
             .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
@@ -88,7 +88,7 @@ public class AppRegistrationV2Service(
         }
 
         var drives = await driveManager.GetDrivesByAppIdAsync(appId, odinContext);
-        var circles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false)).Where(c => c.AppId == appId);
+        var circles = (await circleDefinitionService.GetCirclesAsync()).Where(c => c.AppId == appId);
         return Compose(app, drives, circles);
     }
 
@@ -148,7 +148,7 @@ public class AppRegistrationV2Service(
         var snapshot = new Snapshot
         {
             Drives = (await driveManager.GetDrivesAsync(PageOptions.All, odinContext)).Results.ToDictionary(d => d.Id),
-            Circles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: true)).ToDictionary(c => c.Id.Value),
+            Circles = (await circleDefinitionService.GetCirclesAsync()).ToDictionary(c => c.Id.Value),
             Apps = (await appRegistrationService.GetRegisteredAppsAsync(odinContext)).ToDictionary(a => a.AppId.Value),
             IsPreMove = await legacyStore.IsPreMoveAsync(),
             Manifests = manifests
@@ -405,14 +405,11 @@ public class AppRegistrationV2Service(
     // ============================================================================================
 
     /// <summary>
-    /// Creates owned drives with two passes over the system circles in total, however many of them allow
-    /// anonymous reads.
+    /// Creates owned drives private, then opens the ones that allow anonymous reads.
     /// </summary>
     /// <remarks>
-    /// Creating an anonymous-read drive makes <c>CircleNetworkService.HandleDriveAdded</c> re-grant both
-    /// system circles to every connection -- per drive.  Instead every drive is created private, the
-    /// system circles are given all the new read grants in one update each, and only then are the drives
-    /// opened; <c>HandleDriveUpdated</c> finds the grant already there and does nothing.
+    /// The two steps existed so the system circles could be granted every new drive in one update; the
+    /// system circles retired (#1809), so a drive could now be created open directly.
     /// </remarks>
     private async Task CreateOwnedDrivesAsync(List<(Guid appId, OwnedDrive drive)> drives, IOdinContext odinContext)
     {
@@ -438,26 +435,6 @@ public class AppRegistrationV2Service(
         if (anonymous.Count == 0)
         {
             return;
-        }
-
-        foreach (var systemCircleId in SystemCircleConstants.AllSystemCircles)
-        {
-            var def = await circleDefinitionService.GetCircleAsync(systemCircleId);
-            if (def == null)
-            {
-                continue;
-            }
-
-            var grants = def.DriveGrants?.ToList() ?? [];
-            var missing = anonymous.Where(d => grants.All(g => g.PermissionedDrive.Drive != d.TargetDrive)).ToList();
-            if (missing.Count == 0)
-            {
-                continue;
-            }
-
-            grants.AddRange(missing.Select(d => Grant(d.TargetDrive, DrivePermission.Read)));
-            def.DriveGrants = grants;
-            await circleNetworkService.UpdateCircleDefinitionAsync(def, odinContext);
         }
 
         foreach (var d in anonymous)
@@ -495,7 +472,7 @@ public class AppRegistrationV2Service(
     {
         var appId = app.AppId.Value;
         var ownedDrives = await driveManager.GetDrivesByAppIdAsync(appId, odinContext);
-        var ownedCircles = (await circleDefinitionService.GetCirclesAsync(includeSystemCircle: false)).Where(c => c.AppId == appId);
+        var ownedCircles = (await circleDefinitionService.GetCirclesAsync()).Where(c => c.AppId == appId);
 
         await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
         {
@@ -736,9 +713,7 @@ public class AppRegistrationV2Service(
             {
                 if (stored.AppId != appId)
                 {
-                    Problem(Codes.DriveOwnedElsewhere, subject, stored.AppId == null
-                        ? $"The drive '{stored.Name}' already exists and belongs to no app; adopt it from the drive page instead"
-                        : $"The drive '{stored.Name}' already belongs to {snapshot.NameOf(stored.AppId.Value)}");
+                    Problem(Codes.DriveOwnedElsewhere, subject, $"The drive '{stored.Name}' already belongs to {snapshot.NameOf(stored.AppId)}");
                 }
                 else if (!DriveMatches(stored, d))
                 {
@@ -806,7 +781,7 @@ public class AppRegistrationV2Service(
                 continue;
             }
 
-            if (SystemCircleConstants.IsSystemCircle(c.Id) || BuiltinApps.IsTreeDeclaredCircle(c.Id))
+            if (BuiltinApps.IsTreeDeclaredCircle(c.Id))
             {
                 Problem(Codes.ReservedCircle, subject, "This is a built-in circle");
                 continue;

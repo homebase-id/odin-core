@@ -165,7 +165,7 @@ public class BundleTokenService(
         var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(token.ToAuthenticationToken().ToPortableBytes(), exchangeSharedSecret);
 
         await level2Cache.SetAsync(ExchangeCacheKey(digest),
-            new EncryptedTokenExchange(sharedSecretCipher, sharedSecretIv, clientAuthTokenCipher, clientAuthTokenIv),
+            new EncryptedTokenExchange(sharedSecretCipher, sharedSecretIv, clientAuthTokenCipher, clientAuthTokenIv, YouAuthCipher.AesCbc),
             ExchangeWindow);
 
         return new BeginBundleTokenExchangeResponse

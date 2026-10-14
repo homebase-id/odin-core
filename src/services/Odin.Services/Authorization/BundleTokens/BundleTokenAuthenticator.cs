@@ -23,8 +23,9 @@ namespace Odin.Services.Authorization.BundleTokens;
 /// each unlocked by that app's own key-store key, so the token reaches the union of the apps' grants.
 /// </summary>
 /// <remarks>
-/// A context is cached per (token, acting app) and built with that acting app's <c>AppId</c>, so the
-/// request path is a cache lookup and an expiry comparison -- no database read, no per-request copy.
+/// A context is built with the acting app's <c>AppId</c>.  The primary app's context is cached per token,
+/// so its request path is a cache lookup and an expiry comparison -- no database read, no per-request copy.
+/// One acting as another app is built on every request: the context cache is keyed by token alone.
 /// Revoking, deleting or changing a token resets the cache (see <see cref="BundleTokenService"/>).
 /// </remarks>
 public class BundleTokenAuthenticator(
@@ -54,9 +55,9 @@ public class BundleTokenAuthenticator(
             acting = parsed;
         }
 
-        var context = await contextCache.GetOrAddContextAsync(token,
-            () => BuildAsync(token, acting, odinContext),
-            keySuffix: acting?.ToString("N"));
+        var context = acting == null
+            ? await contextCache.GetOrAddContextAsync(token, () => BuildAsync(token, null, odinContext))
+            : await BuildAsync(token, acting, odinContext);
 
         return context is BundleOdinContext bundle && bundle.ExpiresAt.milliseconds > UnixTimeUtc.Now().milliseconds
             ? bundle
