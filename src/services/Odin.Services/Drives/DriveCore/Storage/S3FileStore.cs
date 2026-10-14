@@ -30,9 +30,8 @@ public class S3FileStore(
     {
         try
         {
-            var written = await TryRetry(async () =>
+            return await TryRetry(async () =>
                 await s3.WriteStreamAsync(path, stream, ct), ct);
-            return written;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

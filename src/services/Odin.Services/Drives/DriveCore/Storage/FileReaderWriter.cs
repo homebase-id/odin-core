@@ -314,9 +314,7 @@ public sealed class FileReaderWriter(
             await output.WriteAsync(buffer.AsMemory(0, bytesRead));
         } while (bytesRead > 0);
 
-        var bytesWritten = output.Length;
-
-        return bytesWritten;
+        return output.Length;
     }
 
     //

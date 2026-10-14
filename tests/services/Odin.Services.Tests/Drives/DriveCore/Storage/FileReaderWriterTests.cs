@@ -62,7 +62,7 @@ public class FileReaderWriterTests
         Assert.That(new FileInfo(filePath).Length, Is.EqualTo(size));
     }
 
-    /// <summary>A readable, seekable-length stream of <c>length</c> zero bytes that allocates nothing.</summary>
+    /// <summary>A readable, forward-only stream with a known <c>Length</c> of <c>length</c> zero bytes that allocates nothing.</summary>
     private sealed class ZeroStream(Int64 length) : Stream
     {
         public override bool CanRead => true;
