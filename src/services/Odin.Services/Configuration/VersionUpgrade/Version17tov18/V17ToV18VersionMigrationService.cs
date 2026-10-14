@@ -143,7 +143,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
 
                 try
                 {
-                    if (await circleNetworkService.ApplyReviewedCircleAsync(circleId, icr.OdinId, odinContext))
+                    if (await circleNetworkService.BackfillCircleAsync(circleId, icr.OdinId, odinContext))
                     {
                         enrolled++;
                     }
@@ -162,9 +162,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
         /// Pass B: every connected identity joins the Chat circle, reviewed or not.
         /// </summary>
         /// <remarks>
-        /// Goes through <see cref="CircleNetworkService.ApplyAmbientCircleAsync"/> rather than
-        /// <c>GrantCircleAsync</c>, which refuses anyone still holding the Auto Connections circle --
-        /// most of the very population this pass exists to move.
+        /// Goes through <see cref="CircleNetworkService.BackfillCircleAsync"/>: Chat is a Connect circle, so
+        /// being connected is enough.
         /// </remarks>
         public async Task<int> EnrollConnectedContactsInChatAsync(IOdinContext odinContext,
             CancellationToken cancellationToken)
@@ -189,7 +188,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
 
                 try
                 {
-                    await circleNetworkService.ApplyAmbientCircleAsync(circleId, icr.OdinId, odinContext);
+                    await circleNetworkService.BackfillCircleAsync(circleId, icr.OdinId, odinContext);
                     enrolled++;
                 }
                 catch (Exception e)
@@ -250,7 +249,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version17tov18
 
                 try
                 {
-                    if (await circleNetworkService.ApplyReviewedCircleAsync(circleId, odinId, odinContext))
+                    if (await circleNetworkService.BackfillCircleAsync(circleId, odinId, odinContext))
                     {
                         enrolled++;
                     }

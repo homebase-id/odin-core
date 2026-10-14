@@ -67,21 +67,6 @@ public class CircleNetworkApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, TestIdentity recipient)
-    {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
-        {
-            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
-            var apiResponse = await svc.AddCircle(new AddCircleMembershipRequest()
-            {
-                CircleId = circleId,
-                OdinId = recipient.OdinId
-            });
-
-            return apiResponse;
-        }
-    }
-
     public async Task<ApiResponse<HttpContent>> RevokeCircle(Guid circleId, TestIdentity recipient)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);

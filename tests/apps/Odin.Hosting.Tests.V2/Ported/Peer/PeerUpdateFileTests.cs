@@ -522,7 +522,9 @@ internal static class CollabChannelFlow
         // get everyone connected and in a circle for the collab channel
         //
         var circleId = Guid.NewGuid();
-        var permissions = TestUtils.CreatePermissionGrantRequest(channelDrive, DrivePermission.Write);
+        // Read as well as Write: an encrypted post is only redistributed to followers holding keyed Read on
+        // the channel, which the channel's own circle carries now the system circles are gone (#1809).
+        var permissions = TestUtils.CreatePermissionGrantRequest(channelDrive, DrivePermission.ReadWrite);
         await channelOwner.Admin.CreateCircle(circleId, "circle with some access", permissions);
 
         foreach (var member in members)

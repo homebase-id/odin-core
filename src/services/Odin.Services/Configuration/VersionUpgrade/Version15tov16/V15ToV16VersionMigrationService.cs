@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -73,10 +74,15 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version15tov16
             }
         }
 
+        /// <summary>
+        /// The retired Confirmed Connections circle (#1809).  Kept here, not shared: this migration is the one
+        /// place that still needs to read its membership, and it runs before V19 -&gt; V20 deletes it.
+        /// </summary>
+        private static readonly Guid ConfirmedConnectionsCircleId = Guid.Parse("bb2683fa402aff866e771a6495765a15");
+
         private async Task<List<OdinId>> GetConfirmedConnectionsAsync(IOdinContext odinContext)
         {
-            var members = await circleNetworkService.GetCircleMembersAsync(
-                SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+            var members = await circleNetworkService.GetCircleMembersAsync(ConfirmedConnectionsCircleId, odinContext);
 
             return members.ToList();
         }

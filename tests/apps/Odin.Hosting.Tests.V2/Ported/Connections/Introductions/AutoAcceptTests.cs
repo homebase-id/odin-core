@@ -151,10 +151,7 @@ public class AutoAcceptTests : V2Fixture
         Assert.That(getSamConnectionInfoResponse.Content!.ConnectionRequestOrigin, Is.EqualTo(ConnectionRequestOrigin.Introduction));
         Assert.That(getSamConnectionInfoResponse.Content.Status, Is.EqualTo(ConnectionStatus.Connected));
 
-        Assert.That(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants,
-            Has.Some.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.That(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants,
-            Has.None.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
+        Assert.That(getSamConnectionInfoResponse.Content.ReviewedAt, Is.Null, "an auto-accepted introduction is not reviewed");
 
         var merryIntroductionsResponse = await Requests(merry).GetReceivedIntroductions();
         Assert.That(merryIntroductionsResponse.IsSuccessStatusCode, Is.True);
@@ -171,10 +168,7 @@ public class AutoAcceptTests : V2Fixture
         Assert.That(getMerryConnectionInfoResponse.Content!.ConnectionRequestOrigin, Is.EqualTo(ConnectionRequestOrigin.Introduction));
         Assert.That(getMerryConnectionInfoResponse.Content.Status, Is.EqualTo(ConnectionStatus.Connected));
 
-        Assert.That(getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants,
-            Has.Some.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.That(getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants,
-            Has.None.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
+        Assert.That(getMerryConnectionInfoResponse.Content.ReviewedAt, Is.Null, "an auto-accepted introduction is not reviewed");
 
         var samIntroductionsResponse = await Requests(sam).GetReceivedIntroductions();
         Assert.That(samIntroductionsResponse.IsSuccessStatusCode, Is.True);

@@ -25,7 +25,6 @@ public class TenantSettings
         DisableAutoAcceptIntroductionsForTests = false,
         DisableAutoAcceptConnectionRequests = false,
         SendMonthlySecurityHealthReport = false,
-        UseReviewedSecurityTier = false,
         HideOwnerCirclesFromApps = false,
         DisableAllowIntroductions = false
     };
@@ -76,32 +75,10 @@ public class TenantSettings
 
     public bool ConnectedIdentitiesCanCommentOnAnonymousDrives { get; set; }
 
-    /// <summary>
-    /// When true, a connected caller's security tier is decided by whether the owner has reviewed them:
-    /// reviewed callers stay at <see cref="SecurityGroupType.Connected"/>, unreviewed ones drop to
-    /// <see cref="SecurityGroupType.Authenticated"/>.  Off by default, which is today's behaviour --
-    /// every connected caller is Connected regardless of review.
-    /// </summary>
-    /// <remarks>
-    /// A dark-launch switch, not a feature the owner is meant to reason about, and not meant to last:
-    /// it exists so the recut can be enabled one tenant at a time rather than fleet-wide, and comes out
-    /// along with the flag checks here once every tenant is on v16 and the behaviour has settled.
-    /// Within a tenant it is all-or-nothing -- every connection is re-tiered the moment it flips, there
-    /// is no per-connection staging.  Turning it on tightens
-    /// access: content behind a <c>connected</c> ACL stops being readable by connections the owner never
-    /// reviewed, which is the point of the recut but is a real reduction for anyone relying on today's
-    /// looser behaviour.  Reversible by turning it off; nothing is written or migrated either way.
-    /// <para>
-    /// Ignored on a tenant that has not yet run the v15 -&gt; v16 upgrade, because that is the pass which
-    /// fills in <c>ReviewedAt</c> from prior Confirmed-circle membership.  Honouring it earlier would read
-    /// every connection as unreviewed and demote the lot in one go.
-    /// </para>
-    /// </remarks>
-    public bool UseReviewedSecurityTier { get; set; }
 
     /// <summary>
     /// When true, an app listing circles is shown only circles that belong to an app; circles with no
-    /// owning app (the owner's own, and the system circles) are left out.  Off by default, which is
+    /// owning app (the owner's own) are left out.  Off by default, which is
     /// today's behaviour -- an app sees every circle it has permission to read.
     /// </summary>
     /// <remarks>

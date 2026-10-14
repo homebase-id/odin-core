@@ -42,7 +42,7 @@ public class DriveQuery(
     {
         var callerContext = odinContext.Caller;
 
-        var requiredSecurityGroup = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, callerContext));
+        var requiredSecurityGroup = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext, callerContext));
         var aclList = GetAcl(odinContext);
 
         // TODO TODD - use moreRows
@@ -78,7 +78,7 @@ public class DriveQuery(
         FileQueryParams qp,
         QueryBatchResultOptions options)
     {
-        var securityRange = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, odinContext.Caller));
+        var securityRange = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller));
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 
@@ -122,7 +122,7 @@ public class DriveQuery(
         QueryBatchResultOptions options,
         UnixTimeUtc? modifiedAfter = null)
     {
-        var securityRange = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext.Settings, odinContext.Caller));
+        var securityRange = new IntRange(0, (int)ReviewedSecurityTier.EffectiveLevel(tenantContext, odinContext.Caller));
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 

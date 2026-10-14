@@ -8,6 +8,7 @@ using Odin.Core;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -81,15 +82,45 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
             return (info?.DataVersionNumber ?? 0) < MovedInVersion;
         }
 
+        /// <summary>
+        /// The blob circles, each carrying the slug the move gives it.
+        /// </summary>
+        /// <remarks>
+        /// A blob circle never had a slug, but every row needs one since #1939, and a pre-move tenant
+        /// does write these to the table -- the v0 -&gt; v1 upgrade re-mints its circles through
+        /// <see cref="CircleDefinitionService.UpdateAsync"/>, which keeps the slug it read.  So the slug
+        /// is assigned here, once, and the move takes it from here too: a circle answers to the same
+        /// address whichever of the two wrote it.  One already in the table keeps the slug it has there.
+        /// Nothing here is written.
+        /// </remarks>
         public async Task<List<CircleDefinition>> ReadCircleDefinitionsAsync()
         {
-            var legacy = await LegacyCircleStorage
-                .GetByCategoryAsync<CircleDefinition>(tblKeyThreeValue, LegacyCircleDataType);
+            var legacy = (await LegacyCircleStorage
+                    .GetByCategoryAsync<CircleDefinition>(tblKeyThreeValue, LegacyCircleDataType) ?? [])
+                .Where(c => c?.Id != null)
+                .ToList();
 
-            // The four promoted fields were never in the blob, so they hold their defaults: AppId null
+            if (legacy.Count == 0)
+            {
+                return legacy;
+            }
+
+            // These all arrive ownerless, so they are deduplicated with the owner console's, which
+            // v18 -> v19 stamps them to.  A built-in circle gets its fixed slug, which v13 -> v14 carries
+            // into its app.
+            var taken = await CircleDefinitionService.SlugsHeldByAppAsync(db, SystemAppConstants.OwnerConsoleAppId);
+            foreach (var definition in legacy)
+            {
+                definition.Slug = (await db.CircleCached.GetAsync(definition.Id))?.CircleSlug
+                                  ?? CircleSlugGenerator.FixedSlugFor(definition.Id)
+                                  ?? CircleSlugGenerator.Generate(definition.Name, taken);
+                taken.Add(definition.Slug);
+            }
+
+            // The other promoted fields were never in the blob, so they hold their defaults: AppId null
             // (an owner circle), GrantOn None, Designation Personal, Emoji null.  That is exactly what
             // every pre-existing circle is, and what the move writes.
-            return (legacy ?? []).Where(c => c?.Id != null).ToList();
+            return legacy;
         }
 
         /// <summary>
