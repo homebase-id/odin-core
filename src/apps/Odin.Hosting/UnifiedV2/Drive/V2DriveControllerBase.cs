@@ -8,6 +8,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
@@ -53,6 +54,9 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 return result;
             }
 
+            // Before recipients are told: a delete refused here must not reach them
+            DriveStorageServiceBase.AssertVersionTagMatches(header, options?.VersionTag);
+
             if (recipients.Any())
             {
                 logger.LogDebug("[DeleteFlow] PerformFileDelete -> dispatching peer delete for fileId:{fileId} gtid:{gtid} fileSystemType:{fst} to {count} recipient(s)",
@@ -73,7 +77,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
                     fileId, string.Join(",", responses.Select(kv => $"{kv.Key}={kv.Value}")));
             }
 
-            await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null);
+            await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null, options?.VersionTag);
             result.LocalFileDeleted = true;
 
             logger.LogDebug("[DeleteFlow] PerformFileDelete -> local soft-delete complete for fileId:{fileId} on driveId:{driveId}",
@@ -89,12 +93,25 @@ namespace Odin.Hosting.UnifiedV2.Drive
             logger.LogDebug("[DeleteFlow] DeleteFileIdBatchInternal -> driveId:{driveId} batchCount:{count}",
                 driveId, requests?.Count ?? 0);
 
+            // Check every version tag before deleting anything, so a stale tag fails the batch whole
+            // instead of after the files ahead of it were deleted
+            var fs = this.GetFileSystem();
+            foreach (var r in requests.Where(r => r.VersionTag.HasValue))
+            {
+                var header = await fs.Storage.GetServerFileHeaderForWriting(new InternalDriveFileId(driveId, r.FileId), WebOdinContext);
+                if (header != null)
+                {
+                    DriveStorageServiceBase.AssertVersionTagMatches(header, r.VersionTag);
+                }
+            }
+
             var results = new List<DeleteFileResultV2>();
             foreach (var r in requests)
             {
                 var options = new DeleteFileOptionsV2()
                 {
-                    Recipients = r.Recipients ?? []
+                    Recipients = r.Recipients ?? [],
+                    VersionTag = r.VersionTag
                 };
 
                 logger.LogDebug("[DeleteFlow] DeleteFileIdBatchInternal -> processing fileId:{fileId} recipientCount:{rc}",

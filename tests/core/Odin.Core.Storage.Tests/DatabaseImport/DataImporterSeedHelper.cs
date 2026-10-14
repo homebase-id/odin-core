@@ -211,6 +211,7 @@ internal static class DataImporterSeedHelper
         {
             circleId = Guid.NewGuid(),
             circleName = "Seed Circle",
+            CircleSlug = "seed-circle",
             data = null,
         });
     }

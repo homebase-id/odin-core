@@ -42,7 +42,8 @@ public enum OdinClientErrorCode
     CannotDisableSystemCircle = 3018, // retired with the system circles (#1809); not reused
     CannotDeleteSystemCircle = 3019, // retired with the system circles (#1809); not reused
     CannotDeleteBuiltInCircle = 3020,
-    ContactNotReviewed = 3021,
+    CircleSlugTaken = 3021,
+    ContactNotReviewed = 3022,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

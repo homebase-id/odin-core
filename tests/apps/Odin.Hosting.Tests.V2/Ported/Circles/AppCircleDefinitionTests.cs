@@ -754,8 +754,11 @@ public class AppCircleDefinitionTests : V2Fixture
         var appDrive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(appDrive, $"Drive for {titleId}", allowAnonymousReads: false);
 
+        // The id leads the name: a slug is made from the name's first 14 characters (#1939), and
+        // "Random circle ..." would give every circle here the same one, so the second adopted into one
+        // app would be refused.
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, $"Random circle {titleId}", new PermissionSetGrantRequest()
+        await owner.Admin.CreateCircle(circleId, $"{titleId:N} random circle", new PermissionSetGrantRequest()
         {
             Drives = new DriveGrantRequest[]
             {

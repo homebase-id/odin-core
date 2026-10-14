@@ -19,7 +19,7 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     /// </summary>
     public string ContentType { get; set; }
 
-    public uint BytesWritten { get; set; }
+    public Int64 BytesWritten { get; set; }
 
 
     public bool Equals(ThumbnailDescriptor other)

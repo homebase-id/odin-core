@@ -401,13 +401,15 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         }
     }
 
-    public async Task<ApiResponse<DeleteFileResultV2>> SoftDeleteFile(Guid driveId, Guid fileId, List<string> recipients = null)
+    public async Task<ApiResponse<DeleteFileResultV2>> SoftDeleteFile(Guid driveId, Guid fileId, List<string> recipients = null,
+        Guid? versionTag = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
         var apiResponse = await svc.SoftDeleteFile(driveId, fileId, new DeleteFileOptionsV2()
         {
-            Recipients = recipients
+            Recipients = recipients,
+            VersionTag = versionTag
         });
 
         return apiResponse;

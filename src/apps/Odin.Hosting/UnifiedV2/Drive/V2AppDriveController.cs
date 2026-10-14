@@ -8,6 +8,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -50,9 +51,9 @@ public class V2AppDriveController(
     /// <para>Returns an empty list for an app that owns no drives, and 400 if no app holds
     /// <c>appSlug</c>.  Drives you may not see are omitted rather than reported.</para>
     /// </remarks>
-    /// <param name="appSlug">The app's slug, e.g. <c>feed</c> or <c>chat</c>. Case-sensitive.</param>
+    /// <param name="appSlug">The app's slug, e.g. <c>feed</c> or <c>chat</c>. Case-insensitive.</param>
     /// <param name="type">Optional drive type slug to filter on, e.g. <c>channel</c> or <c>profile</c>.
-    /// Matched exactly against <c>driveTypeSlug</c>; an unknown value simply returns nothing.</param>
+    /// Matched against <c>driveTypeSlug</c>, ignoring case; an unknown value simply returns nothing.</param>
     [HttpGet]
     [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
     public async Task<List<ClientDriveData>> GetAppDrives(
@@ -66,7 +67,7 @@ public class V2AppDriveController(
         // list above is already in hand.
         if (!string.IsNullOrWhiteSpace(type))
         {
-            drives = drives.Where(d => string.Equals(d.DriveTypeSlug, type, StringComparison.Ordinal)).ToList();
+            drives = drives.Where(d => OdinSlug.Matches(d.DriveTypeSlug, type)).ToList();
         }
 
         return drives.Select(ToClientDriveData).ToList();
@@ -82,7 +83,7 @@ public class V2AppDriveController(
     /// <para>400 when nothing answers to the address.  Unknown app, unknown drive, and a drive you may not
     /// see are deliberately indistinguishable.</para>
     /// </remarks>
-    /// <param name="appSlug">The app's slug, e.g. <c>feed</c>. Case-sensitive.</param>
+    /// <param name="appSlug">The app's slug, e.g. <c>feed</c>. Case-insensitive.</param>
     /// <param name="driveSlug">The drive's slug within that app, e.g. <c>news</c>.  Unique per app, so
     /// <c>feed/news</c> and <c>chat/news</c> are different drives.</param>
     [HttpGet("{driveSlug}")]

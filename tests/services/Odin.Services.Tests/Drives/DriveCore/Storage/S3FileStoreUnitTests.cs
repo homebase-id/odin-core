@@ -447,7 +447,7 @@ public class S3FileStoreUnitTests
     private sealed class FakeStore(StorageBackendType backend, (string bucket, string fullKey)? s3Location = null) : IDriveFileStore
     {
         public StorageBackendType Backend => backend;
-        public Task<uint> WriteStreamAsync(string p, Stream s, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Int64> WriteStreamAsync(string p, Stream s, CancellationToken ct = default) => throw new NotImplementedException();
         public Task WriteBytesAsync(string p, byte[] b, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<Stream> OpenReadAsync(string p, Int64 start = 0, Int64? length = null, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ExistsAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();

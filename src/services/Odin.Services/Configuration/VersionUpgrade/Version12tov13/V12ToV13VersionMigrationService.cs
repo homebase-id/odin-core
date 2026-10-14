@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -91,6 +92,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
             var copied = 0;
             var skipped = 0;
 
+            // Every row needs a slug since #1939, and a blob circle never had one.  These all arrive
+            // ownerless, so they are deduplicated with the owner console's, which v18 -> v19 stamps them to.
+            var taken = await CircleDefinitionService.SlugsHeldByAppAsync(db, SystemAppConstants.OwnerConsoleAppId);
+
             foreach (var definition in legacy)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -109,7 +114,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
 
                 // The four promoted fields were never in the blob, so they take their defaults here:
                 // AppId null (an owner circle), GrantOn None (manual membership only), Designation
-                // Personal, Emoji null. That is exactly what every pre-existing circle is.
+                // Personal, Emoji null. That is exactly what every pre-existing circle is.  A built-in circle
+                // gets its fixed slug, which v13 -> v14 carries into its app.
+                definition.Slug = CircleSlugGenerator.FixedSlugFor(definition.Id)
+                                  ?? CircleSlugGenerator.Generate(definition.Name, taken);
+                taken.Add(definition.Slug);
                 await db.CircleCached.UpsertAsync(CircleDefinitionService.ToRecord(definition));
                 copied++;
 

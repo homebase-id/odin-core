@@ -39,11 +39,11 @@ public class TableCircleCachedTests : IocTestBase
         }
 
         await tableCircleCached.InsertAsync(
-            new CircleRecord { circleId = circleId1, circleName = circleName1, data = circleData1 });
+            new CircleRecord { circleId = circleId1, CircleSlug = "circleid1", circleName = circleName1, data = circleData1 });
         await tableCircleCached.InsertAsync(
-            new CircleRecord { circleId = circleId2, circleName = circleName2, data = circleData2 });
+            new CircleRecord { circleId = circleId2, CircleSlug = "circleid2", circleName = circleName2, data = circleData2 });
         await tableCircleCached.InsertAsync(
-            new CircleRecord { circleId = circleId3, circleName = circleName3, data = circleData3 });
+            new CircleRecord { circleId = circleId3, CircleSlug = "circleid3", circleName = circleName3, data = circleData3 });
 
         {
             var record = await tableCircleCached.GetAsync(circleId1, TimeSpan.FromMilliseconds(2000));
