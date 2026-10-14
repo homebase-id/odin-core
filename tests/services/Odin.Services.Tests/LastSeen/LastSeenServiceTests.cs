@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -166,5 +167,71 @@ public class LastSeenServiceTests
         await lastSeenService.UpdateDatabaseAsync();
         record = await lastSeenTable.GetLastSeenAsync(identityId);
         Assert.That(record, Is.Not.Null);
+    }
+    //
+
+    /// <summary>
+    /// A read used to put its value into the flush buffer, so every subject read in a window (all
+    /// identities, for a tenant listing) was written again unchanged (#1874).
+    /// </summary>
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task ReadsAreNotWrittenBack(DatabaseType databaseType, bool enableRedis)
+    {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
+        var lastSeenService = (LastSeenService)services.Resolve<ILastSeenService>();
+        var lastSeenTable = services.Resolve<TableLastSeen>();
+
+        var subject = "frodo.me";
+        var stored = UnixTimeUtc.Now().AddSeconds(-100);
+        await lastSeenTable.UpdateLastSeenAsync(new() { { subject, stored } });
+
+        Assert.That(await lastSeenService.GetLastSeenAsync(subject), Is.EqualTo(stored));
+
+        // Delete the row: if the read had been buffered, the flush would write it back
+        await lastSeenTable.DeleteOldRecordsAsync(TimeSpan.Zero);
+        await lastSeenService.UpdateDatabaseAsync();
+
+        Assert.That(await lastSeenTable.GetLastSeenAsync(subject), Is.Null);
+    }
+
+    //
+
+    /// <summary>
+    /// The buffer was cleared before the write, so a failed flush lost the whole window (#1874).
+    /// </summary>
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task AFailedFlushIsRetriedByTheNextOne(DatabaseType databaseType, bool enableRedis)
+    {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
+        var lastSeenService = (LastSeenService)services.Resolve<ILastSeenService>();
+        var lastSeenTable = services.Resolve<TableLastSeen>();
+
+        var subject = "frodo.me";
+        var seen = UnixTimeUtc.Now();
+        await lastSeenService.PutLastSeenAsync(subject, seen);
+
+        await RenameTableAsync(services, "LastSeen", "LastSeenAway");
+        Assert.ThrowsAsync(Is.InstanceOf<Exception>(), async () => await lastSeenService.UpdateDatabaseAsync());
+
+        await RenameTableAsync(services, "LastSeenAway", "LastSeen");
+        await lastSeenService.UpdateDatabaseAsync();
+
+        Assert.That(await lastSeenTable.GetLastSeenAsync(subject), Is.EqualTo(seen));
+    }
+
+    private static async Task RenameTableAsync(ILifetimeScope services, string from, string to)
+    {
+        await using var cn = await services.Resolve<ScopedSystemConnectionFactory>().CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = $"ALTER TABLE {from} RENAME TO {to};";
+        await cmd.ExecuteNonQueryAsync();
     }
 }

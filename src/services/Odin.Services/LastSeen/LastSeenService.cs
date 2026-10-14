@@ -102,12 +102,8 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             },
             LastSeenEntryTtl);
 
-        if (result == null)
-        {
-            return null;
-        }
-
-        _lastSeenBySubject[subject] = result.Value;
+        // Not written back into _lastSeenBySubject: that map is what the next flush saves, and a value
+        // read from the cache or the database has nothing to save (#1874)
         return result;
     }
 
@@ -120,12 +116,31 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             return;
         }
 
+        // Take only what is in the snapshot: a sighting that lands while we write stays for the next flush
         var updates = _lastSeenBySubject.ToDictionary();
-        _lastSeenBySubject.Clear();
+        foreach (var update in updates)
+        {
+            _lastSeenBySubject.TryRemove(update);
+        }
 
-        await using var scope = rootScope.BeginLifetimeScope();
-        var lastSeen = scope.Resolve<TableLastSeen>();
-        await lastSeen.UpdateLastSeenAsync(updates);
+        try
+        {
+            await using var scope = rootScope.BeginLifetimeScope();
+            var lastSeen = scope.Resolve<TableLastSeen>();
+            await lastSeen.UpdateLastSeenAsync(updates);
+        }
+        catch
+        {
+            // Put the window back so the next flush retries it, keeping any newer sighting. The upsert
+            // never moves a timestamp backwards, so rewriting subjects an earlier chunk saved is harmless.
+            foreach (var update in updates)
+            {
+                _lastSeenBySubject.AddOrUpdate(update.Key, update.Value,
+                    (_, current) => current.milliseconds >= update.Value.milliseconds ? current : update.Value);
+            }
+
+            throw;
+        }
     }
 
     //
