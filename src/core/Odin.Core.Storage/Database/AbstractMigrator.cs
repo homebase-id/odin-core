@@ -86,14 +86,7 @@ public abstract class AbstractMigrator
         }
 
         // Sanity
-        var latestVersion = groupedMigrations.Last().Key;
-        if (currentVersion > latestVersion)
-        {
-            throw new MigrationException(
-                $"Current database version {currentVersion} is higher than the latest known migration version " +
-                $"{latestVersion}. This likely indicates that the database was migrated with a newer version of " +
-                "the software. Please update the software to the latest version.");
-        }
+        ThrowIfNewerThanSoftware(currentVersion, groupedMigrations.Last().Key);
 
         //
         // Adjust requested version
@@ -157,6 +150,38 @@ public abstract class AbstractMigrator
         if (direction == Direction.Down)
         {
             await SetCurrentVersionAsync(cn, requestedVersion);
+        }
+    }
+
+    //
+
+    /// <summary>
+    /// Throws the same <see cref="MigrationException"/> as <see cref="MigrateAsync"/> when the database
+    /// was migrated by newer software than this, without migrating anything.
+    /// </summary>
+    public async Task EnsureNotNewerThanSoftwareAsync()
+    {
+        var groupedMigrations = GroupMigrationsByVersion();
+        if (groupedMigrations.Count == 0)
+        {
+            return;
+        }
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await EnsureVersionInfoTable(cn);
+        ThrowIfNewerThanSoftware(await GetCurrentVersionAsync(cn), groupedMigrations.Last().Key);
+    }
+
+    //
+
+    private static void ThrowIfNewerThanSoftware(long currentVersion, long latestVersion)
+    {
+        if (currentVersion > latestVersion)
+        {
+            throw new MigrationException(
+                $"Current database version {currentVersion} is higher than the latest known migration version " +
+                $"{latestVersion}. This likely indicates that the database was migrated with a newer version of " +
+                "the software. Please update the software to the latest version.");
         }
     }
 
