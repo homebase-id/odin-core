@@ -22,13 +22,19 @@ public class CircleSlugMapTests
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.FieldType == typeof(CircleDefinition))
             .Select(f => (CircleDefinition)f.GetValue(null))
-            .Concat([
-                SystemCircleConstants.ConfirmedConnectionsDefinition,
-                SystemCircleConstants.AutoConnectionsSystemCircleDefinition
-            ])
             .ToDictionary(c => c.Id.Value, c => c.Slug);
 
-        Assert.That(TableCircleMigrationV202610140701.KnownCircleSlugs, Is.EquivalentTo(live));
+        // The migration's frozen map also slugs the two system circles, which v19 -> v20 deletes (#1809)
+        var retiredSystemCircles = new[]
+        {
+            Guid.Parse("bb2683fa402aff866e771a6495765a15"),
+            Guid.Parse("9e22b42952f74d2580e11250b651d343")
+        };
+        var frozen = TableCircleMigrationV202610140701.KnownCircleSlugs
+            .Where(kv => !retiredSystemCircles.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        Assert.That(frozen, Is.EquivalentTo(live));
     }
 
     [Test]

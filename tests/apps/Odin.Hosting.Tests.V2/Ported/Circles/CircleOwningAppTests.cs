@@ -202,18 +202,6 @@ public class CircleOwningAppTests : V2Fixture
     }
 
     [Test]
-    public async Task ReassigningASystemCircleIsRefused()
-    {
-        var owner = await LoginAsOwner();
-
-        var appId = await owner.Admin.RegisterBareApp();
-
-        var response = await ReassignOwningApp(
-            owner, SystemCircleConstants.ConfirmedConnectionsCircleId.Value, appId);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-    }
-
-    [Test]
     public async Task ReassigningToAnUnregisteredAppIsRefused()
     {
         var owner = await LoginAsOwner();

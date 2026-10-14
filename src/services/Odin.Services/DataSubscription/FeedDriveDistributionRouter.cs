@@ -413,72 +413,23 @@ namespace Odin.Services.DataSubscription
                 return [];
             }
 
-            // find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId,
-                odinContext);
-
-            // NOTE!
-            // 
-            // ChatGPT has refactored the original code below to run asynchronously.
-            //
-            // var connectedFollowers = followers.Intersect(connectedIdentities)
-            //     .Where(cf => _driveAcl.IdentityHasPermissionAsync(
-            //             (OdinId)cf.DomainName,
-            //             notification.ServerFileHeader.ServerMetadata.AccessControlList,
-            //             odinContext,
-            //             db)
-            //         .GetAwaiter().GetResult()).ToList();
-            // return connectedFollowers;
-
-            //
-            // ChatGPT from here:
-            //
-            // // Prepare a list of tasks to check permissions asynchronously
-            // var permissionTasks = intersectedFollowers.Select(async follower => new
-            // {
-            //     OdinId = (OdinId)follower.DomainName,
-            //     HasPermission = await _driveAcl.IdentityHasPermissionAsync(
-            //         (OdinId)follower.DomainName,
-            //         notification.ServerFileHeader.ServerMetadata.AccessControlList,
-            //         odinContext)
-            // }).ToList();
-            //
-            // // Await all permission checks concurrently
-            // var permissionResults = await Task.WhenAll(permissionTasks);
-            //
-            // // Filter and select the followers who have the necessary permissions
-            // var connectedFollowers = permissionResults
-            //     .Where(result => result.HasPermission)
-            //     .Select(result => result.OdinId)
-            //     .ToList();
-
-            //
-            // ChatGPT again:
-            // The above ChatGPT solution, while theoretically correct, is parallelizing database queries
-            // on the same connnection, which is not allowed. Below is its solution without parallelization.
-            //
-
-            // Find the intersection of followers and connected identities
-            var intersectedFollowers = followers.Intersect(connectedIdentities).ToList();
-
-            var permissionResults = new List<(OdinId OdinId, bool HasPermission)>();
-
-            foreach (var follower in intersectedFollowers)
+            // An encrypted post's payload is fetched from this identity and needs the drive's storage key, so
+            // only followers holding keyed Read on the post's drive go this way.  This was membership of the
+            // Confirmed Connections circle until it retired (#1809).  Sequential: the checks share the
+            // request's database connection.  The ACL goes first: for a public post it reads nothing.
+            var connectedFollowers = new List<OdinId>();
+            foreach (var follower in followers)
             {
                 var odinId = (OdinId)follower.DomainName;
-                var hasPermission = await _driveAcl.IdentityHasPermissionAsync(
-                    odinId,
-                    notification.ServerFileHeader.ServerMetadata.AccessControlList,
-                    odinContext);
-
-                permissionResults.Add((odinId, hasPermission));
+                if (await _driveAcl.IdentityHasPermissionAsync(
+                        odinId,
+                        notification.ServerFileHeader.ServerMetadata.AccessControlList,
+                        odinContext) &&
+                    await _circleNetworkService.CanDecryptDriveAsync(odinId, notification.File.DriveId))
+                {
+                    connectedFollowers.Add(odinId);
+                }
             }
-
-            // Filter and select the followers who have the necessary permissions
-            var connectedFollowers = permissionResults
-                .Where(result => result.HasPermission)
-                .Select(result => result.OdinId)
-                .ToList();
 
             return connectedFollowers;
         }

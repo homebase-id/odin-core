@@ -30,7 +30,6 @@ namespace Odin.Services.Configuration;
 /// Manages initial setup and system configuration for the identity and owner-app
 /// </summary>
 public class TenantConfigService(
-    CircleNetworkService dbs,
     TenantContext tenantContext,
     IIdentityRegistry registry,
     IDriveManager driveManager,
@@ -53,6 +52,7 @@ public class TenantConfigService(
     {
         var tenantSettings = await GetTenantSettingsAsync();
         tenantContext.UpdateSystemConfig(tenantSettings);
+        tenantContext.UpdateDataVersion((await GetVersionInfoAsync()).DataVersionNumber);
     }
 
     public async Task<TenantVersionInfo> ForceVersionNumberAsync(int version)
@@ -65,6 +65,7 @@ public class TenantConfigService(
 
         await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
         await ConfigStorage.DeleteAsync(identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
+        tenantContext.UpdateDataVersion(newVersion.DataVersionNumber);
 
         return newVersion;
     }
@@ -88,6 +89,7 @@ public class TenantConfigService(
         };
 
         await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
+        tenantContext.UpdateDataVersion(newVersion.DataVersionNumber);
 
         return newVersion;
     }
@@ -211,10 +213,6 @@ public class TenantConfigService(
             await registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
-        //Note: the order here is important.  if the request or system drives include any anonymous
-        //drives, they should be added after the system circle exists
-        await circleMembershipService.CreateSystemCirclesAsync(odinContext);
-
         await builtinProvisioner.EnsureAllAsync(odinContext);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
@@ -274,9 +272,8 @@ public class TenantConfigService(
                 break;
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
+                // Every connection gets the key from this setting (GetAdditionalPermissionKeysForConnectedIdentities).
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow,
-                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -288,31 +285,8 @@ public class TenantConfigService(
                 break;
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
+                // Every connection gets the key from this setting (GetAdditionalPermissionKeysForConnectedIdentities).
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
-                    odinContext);
-                break;
-
-            case TenantConfigFlagNames.UseReviewedSecurityTier:
-                cfg.UseReviewedSecurityTier = bool.Parse(request.Value);
-
-                // Checked when it is switched on, not on every request that reads it. Below v16 the
-                // ReviewedAt column has not been backfilled from prior Confirmed membership, so every
-                // connection would read as unreviewed and the whole address book would drop a tier at
-                // once. Turning it off is always allowed -- that direction can only restore access.
-                if (cfg.UseReviewedSecurityTier)
-                {
-                    var version = (await GetVersionInfoAsync()).DataVersionNumber;
-                    if (version < 16)
-                    {
-                        throw new OdinClientException(
-                            "The reviewed security tier cannot be enabled before the v16 upgrade has run: " +
-                            $"this identity is at v{version}, and until v16 no connection carries a review date, " +
-                            "so enabling it would demote every one of them.",
-                            OdinClientErrorCode.UnhandledScenario);
-                    }
-                }
-
                 break;
 
             case TenantConfigFlagNames.HideOwnerCirclesFromApps:
@@ -441,25 +415,4 @@ public class TenantConfigService(
         return false;
     }
 
-    private async Task UpdateSystemCirclePermissionAsync(int key, bool shouldGrantKey, IOdinContext odinContext)
-    {
-        var systemCircle = await circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-
-        if (shouldGrantKey)
-        {
-            if (!systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Add(key);
-            }
-        }
-        else
-        {
-            if (systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Remove(key);
-            }
-        }
-
-        await dbs.UpdateCircleDefinitionAsync(systemCircle, odinContext);
-    }
 }

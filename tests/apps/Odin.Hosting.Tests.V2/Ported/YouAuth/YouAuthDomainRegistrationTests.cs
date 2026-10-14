@@ -348,13 +348,6 @@ public class YouAuthDomainRegistrationTests : V2Fixture
         Assert.That(someCircleGrant, Is.Not.Null);
         Assert.That(someCircleGrant.DriveGrants.Count, Is.EqualTo(someCircle.DriveGrants.Count()));
         Assert.That(someCircleGrant.PermissionSet.Keys, Is.EquivalentTo(someCircle.Permissions.Keys));
-
-        // ensure the system circle was not granted
-        Assert.That(
-            updatedDomainRegistration.CircleGrants.SingleOrDefault(c =>
-                c.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId),
-            Is.Null,
-            "The connected identities circle should not be granted to youauth domains");
     }
 
     [Test]

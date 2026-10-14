@@ -27,11 +27,11 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         /// <summary>
         /// Returns a list of circle definitions.
         /// </summary>
-        /// <param name="includeSystemCircle">if true, the system circle will be included in the results; default is false</param>
+        /// <param name="includeSystemCircle">Ignored.  Kept so existing callers still bind; the system circles retired (#1809).</param>
         [HttpGet("list")]
         public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle)
         {
-            var result = await _circleMembershipService.GetCircleDefinitions(includeSystemCircle, WebOdinContext);
+            var result = await _circleMembershipService.GetCircleDefinitions(WebOdinContext);
             return result;
         }
 

@@ -178,14 +178,14 @@ public class RecipientPreflightStatus
     public bool IsCallerConnected { get; set; }
 
     /// <summary>
-    /// Whether the recipient has us in its Confirmed Connections circle.
+    /// Whether the recipient's owner has reviewed us.  Meant the recipient's Confirmed Connections circle
+    /// until that circle retired (#1809).
     /// </summary>
     public bool IsCallerConfirmed { get; set; }
 
     /// <summary>
-    /// Whether the recipient has us in its Auto-connected circle. Read with <see cref="IsCallerConfirmed"/>
-    /// this separates "never confirmed" (auto-connected, awaiting the recipient owner) from "confirmed and
-    /// then revoked" (in neither system circle) -- both of which leave AllowIntroductions false.
+    /// Whether the recipient has us as a connection its owner has not reviewed.  Meant the recipient's
+    /// Auto-connected circle until that circle retired (#1809).
     /// </summary>
     public bool IsCallerAutoConnected { get; set; }
 
@@ -271,10 +271,9 @@ public class PeerIntroductionPreflightResponse
     public bool RequiresUpgrade { get; set; }
 
     /// <summary>
-    /// Whether the caller holds AllowIntroductions in this request's permission context. Only meaningful
-    /// together with <see cref="IsCallerConnected"/> and <see cref="IsCallerConfirmed"/>: the permission
-    /// is granted solely by the Confirmed Connections circle, so it is also false for an unconfirmed
-    /// auto-connection and for a caller we do not recognize at all.
+    /// Whether the caller holds AllowIntroductions in this request's permission context. Reported only;
+    /// it decides nothing (introductions are governed by <c>TenantSettings.DisableAllowIntroductions</c>),
+    /// and no built-in circle grants it since the Confirmed Connections circle retired (#1809).
     /// </summary>
     public bool AllowsIntroductions { get; set; }
 
@@ -285,7 +284,8 @@ public class PeerIntroductionPreflightResponse
     public bool IsCallerConnected { get; set; }
 
     /// <summary>
-    /// Whether the caller is in our Confirmed Connections circle.
+    /// Whether we have reviewed the caller.  Meant our Confirmed Connections circle until that circle
+    /// retired (#1809).
     /// </summary>
     public bool IsCallerConfirmed { get; set; }
 

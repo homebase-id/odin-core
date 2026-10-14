@@ -452,20 +452,6 @@ public class CircleDefinitionTests : V2Fixture
         await svc.DeleteCircleDefinition(circleId);
     }
 
-    private static IEnumerable<Guid> SystemCircles() => SystemCircleConstants.AllSystemCircles.Select(c => c.Value);
-
-    [Test, TestCaseSource(nameof(SystemCircles))]
-    public async Task FailToDisableSystemCircle(Guid id)
-    {
-        var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
-
-        var response = await svc.DisableCircleDefinition(id);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-
-        Assert.That((await owner.Admin.GetCircleDefinition(id)).Disabled, Is.False);
-    }
-
     [Test]
     public async Task FailToDisableUnknownCircle()
     {
@@ -552,22 +538,18 @@ public class CircleDefinitionTests : V2Fixture
     }
 
     /// <summary>
-    /// Even the owner console cannot delete a circle something else depends on: a system circle
-    /// carries every connection's base grants, and the app tree assumes its circles exist.
+    /// Even the owner console cannot delete a built-in circle: the app tree assumes its circles exist.
     /// </summary>
-    [TestCase(true, OdinClientErrorCode.CannotDeleteSystemCircle, TestName = "OwnerFailsToDeleteSystemCircle")]
-    [TestCase(false, OdinClientErrorCode.CannotDeleteBuiltInCircle, TestName = "OwnerFailsToDeleteBuiltInCircle")]
-    public async Task OwnerFailsToDeleteProtectedCircle(bool systemCircle, OdinClientErrorCode expected)
+    [Test]
+    public async Task OwnerFailsToDeleteBuiltInCircle()
     {
         var owner = await LoginAsOwner();
         var svc = owner.RefitFor<IRefitOwnerCircleDefinition>();
-        var circleId = systemCircle
-            ? SystemCircleConstants.ConfirmedConnectionsCircleId.Value
-            : BuiltinCircles.ChatCircle.Id.Value;
+        var circleId = BuiltinCircles.ChatCircle.Id.Value;
 
         var response = await svc.DeleteCircleDefinition(circleId);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(expected));
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(OdinClientErrorCode.CannotDeleteBuiltInCircle));
 
         Assert.That((await svc.GetCircleDefinition(circleId)).Content, Is.Not.Null);
     }
