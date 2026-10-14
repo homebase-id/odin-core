@@ -23,10 +23,10 @@ namespace Odin.Services.Authorization.Apps
         /// immutable once written, because other identities may already hold it; the slugs of the apps
         /// that ship with an identity are reserved for them whether or not they are registered here.
         /// <para>
-        /// Omitting it is an error, except for an app the platform ships: that one already has a slug,
-        /// and provisioning does not have to repeat it.  Validated in
-        /// <c>AppRegistrationService.AssignSlugAsync</c> rather than in <see cref="IsValid"/>, which
-        /// cannot see which apps are built in.
+        /// Required for every app, built-ins included (#1901): omitting it is a 400.  A built-in's slug is
+        /// defined in its tree entry (<c>WellknownAppDefinition.AppSlug</c>), which provisioning sends.
+        /// Validated in <c>AppRegistrationService.AssignSlugAsync</c> rather than in <see cref="IsValid"/>,
+        /// which cannot see which slugs the built-ins reserve.
         /// </para>
         /// </remarks>
         public string AppSlug { get; set; }

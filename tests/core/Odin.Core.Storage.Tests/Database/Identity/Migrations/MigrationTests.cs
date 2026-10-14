@@ -215,28 +215,37 @@ public class DatabaseMigrationTests : IocTestBase
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
 #endif
-    public async Task DrivesMigration_CopiesExistingRow_AndDefaultsNewColumnsToNull(DatabaseType databaseType)
+    public async Task DrivesMigration_CopiesAnAddressedRow(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
         await using var scope = Services.BeginLifetimeScope();
         var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
+        var appId = Guid.NewGuid();
         await AssertMigratesRowUpAndDownAsync(cn, new TableDrivesMigrationList(), "Drives",
-            "INSERT INTO Drives (identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName," +
-            "MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
-            "VALUES (@identityId,@driveId,@storageKeyCheckValue,@driveType,'seed drive','{}','iv','value','{}',1,1)",
-            cmd =>
-            {
-                cmd.AddParameter("@identityId", DbType.Binary, IdentityId.ToByteArray());
-                cmd.AddParameter("@driveId", DbType.Binary, Guid.NewGuid().ToByteArray());
-                cmd.AddParameter("@storageKeyCheckValue", DbType.Binary, Guid.NewGuid().ToByteArray());
-                cmd.AddParameter("@driveType", DbType.Binary, Guid.NewGuid().ToByteArray());
-            },
-            // AppId / DriveSlug / DriveTypeSlug / WriteOnlyKeyPair are nullable and must land NULL:
-            // an existing drive is not app-owned, has no slug, and has deposits disabled.
+            DrivesSeedSql,
+            cmd => BindDrivesSeed(cmd, appId, "seed-drive", "drive"),
+            // The address carries across; WriteOnlyKeyPair stays nullable.
             "SELECT COUNT(*) FROM Drives WHERE DriveName = 'seed drive' " +
-            "AND AppId IS NULL AND DriveSlug IS NULL AND DriveTypeSlug IS NULL AND WriteOnlyKeyPair IS NULL");
+            "AND AppId IS NOT NULL AND DriveSlug = 'seed-drive' AND DriveTypeSlug = 'drive' AND WriteOnlyKeyPair IS NULL");
+    }
+
+    private const string DrivesSeedSql =
+        "INSERT INTO Drives (identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName," +
+        "MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,AppId,DriveSlug," +
+        "DriveTypeSlug,created,modified) VALUES (@identityId,@driveId,@storageKeyCheckValue,@driveType," +
+        "'seed drive','{}','iv','value','{}',@appId,@driveSlug,@driveTypeSlug,1,1)";
+
+    private void BindDrivesSeed(ICommandWrapper cmd, Guid? appId, string driveSlug, string driveTypeSlug)
+    {
+        cmd.AddParameter("@identityId", DbType.Binary, IdentityId.ToByteArray());
+        cmd.AddParameter("@driveId", DbType.Binary, Guid.NewGuid().ToByteArray());
+        cmd.AddParameter("@storageKeyCheckValue", DbType.Binary, Guid.NewGuid().ToByteArray());
+        cmd.AddParameter("@driveType", DbType.Binary, Guid.NewGuid().ToByteArray());
+        cmd.AddParameter("@appId", DbType.Binary, appId);
+        cmd.AddParameter("@driveSlug", DbType.String, driveSlug);
+        cmd.AddParameter("@driveTypeSlug", DbType.String, driveTypeSlug);
     }
 
     [Test]

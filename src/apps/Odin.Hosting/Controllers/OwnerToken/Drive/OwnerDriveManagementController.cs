@@ -332,14 +332,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
 
         /// <summary>
         /// The address the drive answers to under that app (<c>/apps/{appSlug}/drives/{driveSlug}</c>).
-        /// Optional -- derived from the drive's name when omitted.  Supplied values are never coerced:
-        /// a malformed one is rejected and one already taken by this app is refused, not suffixed.
+        /// Required (#1901): missing or malformed is a 400, and one already taken by this app is refused,
+        /// not suffixed.
         /// </summary>
         public string DriveSlug { get; set; }
 
         /// <summary>
         /// Readable form of the drive's type, e.g. <c>channel</c>.  A category to filter on, not an
-        /// address.  Optional -- derived from the drive's type when omitted.
+        /// address.  Required (#1901): missing or malformed is a 400.
         /// </summary>
         public string DriveTypeSlug { get; set; }
     }
