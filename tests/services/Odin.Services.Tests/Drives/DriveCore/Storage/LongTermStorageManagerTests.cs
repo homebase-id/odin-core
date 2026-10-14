@@ -93,7 +93,7 @@ public class LongTermStorageManagerTests : PayloadReaderWriterBaseTestFixture
         await using (var ms = new MemoryStream(bytes))
         {
             var written = await _sut.WriteStreamDirectToLongTermAsync(drive, fileId, extension, ms);
-            Assert.That(written, Is.EqualTo((uint)bytes.Length));
+            Assert.That(written, Is.EqualTo(bytes.Length));
         }
 
         var descriptor = new PayloadDescriptor { Key = Key, Uid = uid };
