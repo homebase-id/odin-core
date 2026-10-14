@@ -82,6 +82,9 @@ internal static class DataImporterSeedHelper
             EncryptedIdIv64 = "AAAAAAAAAAAAAAAAAAAAAA==",
             EncryptedIdValue64 = "AAAAAAAAAAAAAAAAAAAAAA==",
             detailsJson = "{}",
+            AppId = Guid.NewGuid(),
+            DriveSlug = "seed-drive",
+            DriveTypeSlug = "drive",
         });
     }
 
@@ -208,6 +211,7 @@ internal static class DataImporterSeedHelper
         {
             circleId = Guid.NewGuid(),
             circleName = "Seed Circle",
+            CircleSlug = "seed-circle",
             data = null,
         });
     }

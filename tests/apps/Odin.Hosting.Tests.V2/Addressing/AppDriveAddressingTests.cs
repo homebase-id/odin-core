@@ -109,6 +109,19 @@ public class AppDriveAddressingTests : V2Fixture
     }
 
     [Test]
+    public async Task SlugsMatchRegardlessOfCase()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+
+        var drive = await ClientFor(owner).GetAppDrive(ChatAppSlug.ToUpperInvariant(), ChatDriveSlug.ToUpperInvariant());
+        Assert.That(drive.IsSuccessStatusCode, Is.True, $"got {drive.StatusCode}");
+        Assert.That(drive.Content!.DriveSlug, Is.EqualTo(ChatDriveSlug));
+
+        var filtered = await ClientFor(owner).GetAppDrives(ChatAppSlug, type: "STICKER");
+        Assert.That(filtered.Content!.Select(d => d.DriveSlug), Does.Contain(StickerDriveSlug));
+    }
+
+    [Test]
     public async Task SingleDriveAgreesWithTheListing()
     {
         // Two routes, one drive: if they disagree, one of them is lying about the address.
@@ -232,22 +245,4 @@ public class AppDriveAddressingTests : V2Fixture
         Assert.That(ex.Message, Does.Contain("shared"));
     }
 
-    [Test]
-    public async Task ADriveWithAnAppButNoSlugGetsOneDerivedFromItsName()
-    {
-        var owner = await LoginAsOwner(Identities.Frodo);
-
-        var appId = Guid.NewGuid();
-        var appSlug = $"d{Guid.NewGuid():N}"[..12];
-        await RegisterAppAsync(owner, appId, appSlug);
-
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Weekly Notes", appId: appId);
-
-        var listed = (await ClientFor(owner).GetAppDrives(appSlug)).Content!
-            .Single(d => d.TargetDrive == drive);
-
-        Assert.That(listed.DriveSlug, Is.Not.Null.And.Not.Empty,
-            "a drive with an owning app must end up addressable, derived or not");
-    }
 }

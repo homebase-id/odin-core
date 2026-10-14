@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
@@ -51,6 +52,8 @@ public class HandleDriveAddedRegressionTests : V2Fixture
         // return 200 — HandleDriveAdded null-guards the missing circles.
         var response = await ownerApiClient.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = drive,
             Name = "regression-test-drive",
             Metadata = "",

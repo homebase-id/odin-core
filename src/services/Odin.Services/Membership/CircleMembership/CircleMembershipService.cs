@@ -362,6 +362,12 @@ public class CircleMembershipService(
     /// the circle is granted only explicitly
     /// (<see cref="CircleGrantOn.None"/>), never to every connection on its own.  The id is the server's, so a
     /// deleted circle's id, which leftover deposits and enrollments may still name, is never reused.
+    /// <para>
+    /// Idempotent on <see cref="CreateAppCircleRequest.Slug"/> (#1939): a circle the app already holds under that
+    /// slug is returned as it is, so every device of the app can run the same setup.  Looked up before the checks
+    /// on what the circle grants -- returning a circle the app already owns hands out nothing new.  Two devices
+    /// racing for one slug both pass the lookup; the unique index stops the second insert, which then re-reads.
+    /// </para>
     /// </remarks>
     public async Task<Guid> CreateAppCircleAsync(CreateAppCircleRequest request, IOdinContext odinContext)
     {
@@ -372,6 +378,16 @@ public class CircleMembershipService(
         if (appId == null || SystemAppConstants.IsOwnerConsole(appId))
         {
             throw new OdinSecurityException("Only an app can create a circle it owns");
+        }
+
+        OdinSlug.AssertValidOrNull(request.Slug, nameof(request.Slug));
+        if (!string.IsNullOrEmpty(request.Slug))
+        {
+            var existing = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);
+            if (existing != null)
+            {
+                return existing.Id;
+            }
         }
 
         var notHeld = (request.Permissions?.Keys ?? [])
@@ -385,28 +401,32 @@ public class CircleMembershipService(
 
         await circleDefinitionService.AssertAppMayGrantDrivesAsync(request.DriveGrants, appId.Value, odinContext);
 
-        var circleId = Guid.NewGuid();
-        await circleDefinitionService.CreateAsync(new CreateCircleRequest
+        var create = CreateCircleRequest.ForApp(appId.Value, request);
+        try
         {
-            Id = circleId,
-            Name = request.Name,
-            Description = request.Description,
-            Emoji = request.Emoji,
-            DriveGrants = request.DriveGrants,
-            Permissions = request.Permissions,
-            AppId = appId,
-            GrantOn = CircleGrantOn.None,
-            Designation = CircleDesignation.Personal
-        });
+            await circleDefinitionService.CreateAsync(create);
+        }
+        catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.CircleSlugTaken &&
+                                            !string.IsNullOrEmpty(request.Slug))
+        {
+            // Another device made it between the lookup and here: it is the circle this call asked for.
+            var winner = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);
+            if (winner == null)
+            {
+                throw;
+            }
+
+            return winner.Id;
+        }
 
         await mediator.Publish(new CircleDefinitionChangedNotification
         {
             OdinContext = odinContext,
-            CircleId = circleId,
+            CircleId = create.Id,
             Change = CircleDefinitionChangeType.Created,
         });
 
-        return circleId;
+        return create.Id;
     }
 
     /// <summary>

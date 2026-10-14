@@ -9,6 +9,12 @@ public class CreateCircleRequest
 {
     public Guid Id { get; set; }
     public string Name { get; set; }
+
+    /// <summary>
+    /// The circle's address within its owning app (#1939).  Optional: made from <see cref="Name"/> when
+    /// absent.  Refused if the app already holds it.  Immutable once written.
+    /// </summary>
+    public string Slug { get; set; }
     
     public string Description { get; set; }
     
@@ -41,4 +47,22 @@ public class CreateCircleRequest
     /// Optional user- or app-chosen emoji.
     /// </summary>
     public string Emoji { get; set; }
+
+    /// <summary>
+    /// What an app's own circle is: a new server-minted id, owned by <paramref name="appId"/>, granted only
+    /// explicitly.  The one definition both <c>circles/create</c> and install-time declarations use.
+    /// </summary>
+    public static CreateCircleRequest ForApp(Guid appId, CreateAppCircleRequest request) => new()
+    {
+        Id = Guid.NewGuid(),
+        Name = request.Name,
+        Slug = request.Slug,
+        Description = request.Description,
+        Emoji = request.Emoji,
+        DriveGrants = request.DriveGrants,
+        Permissions = request.Permissions,
+        AppId = appId,
+        GrantOn = CircleGrantOn.None,
+        Designation = CircleDesignation.Personal
+    };
 }
