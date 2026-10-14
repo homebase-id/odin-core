@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -539,7 +540,10 @@ public class AppCircleDefinitionTests : V2Fixture
         var app = await AppSession.SetupAsync(owner, drive, access, permissionKeys, knownAppId: appId);
 
         var handOver = await owner.RefitFor<IRefitDriveManagement>()
-            .SetDriveOwningApp(new SetDriveOwningAppRequest { TargetDrive = drive, AppId = appId });
+            .SetDriveOwningApp(new SetDriveOwningAppRequest
+            {
+                TargetDrive = drive, AppId = appId, DriveSlug = TestSlug.New(), DriveTypeSlug = TestSlug.DriveType
+            });
         Assert.That(handOver.IsSuccessStatusCode, Is.True, $"arrange: handing the drive to the app failed: {handOver.StatusCode}");
         return (app, drive);
     }
@@ -753,8 +757,11 @@ public class AppCircleDefinitionTests : V2Fixture
         var appDrive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(appDrive, $"Drive for {titleId}", allowAnonymousReads: false);
 
+        // The id leads the name: a slug is made from the name's first 14 characters (#1939), and
+        // "Random circle ..." would give every circle here the same one, so the second adopted into one
+        // app would be refused.
         var circleId = Guid.NewGuid();
-        await owner.Admin.CreateCircle(circleId, $"Random circle {titleId}", new PermissionSetGrantRequest()
+        await owner.Admin.CreateCircle(circleId, $"{titleId:N} random circle", new PermissionSetGrantRequest()
         {
             Drives = new DriveGrantRequest[]
             {

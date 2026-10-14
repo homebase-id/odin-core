@@ -29,7 +29,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream)
+        public async Task<Int64> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream)
         {
             var driveDir = _tenantPathManager.GetDriveInboxPath(file.DriveId);
             await inboxFileStore.EnsureDirectoryAsync(driveDir);

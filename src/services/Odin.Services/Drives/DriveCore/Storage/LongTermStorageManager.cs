@@ -428,7 +428,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <c>GetThumbnailDirectoryAndFileName</c> will later read from, so no copy is needed at commit time.
         /// Works for both disk- and S3-backed long-term storage (the long-term store handles the backend).
         /// </remarks>
-        public async Task<uint> WriteStreamDirectToLongTermAsync(StorageDrive drive, Guid fileId, string extension, Stream stream)
+        public async Task<Int64> WriteStreamDirectToLongTermAsync(StorageDrive drive, Guid fileId, string extension, Stream stream)
         {
             var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
             await longTermPayloadStore.EnsureDirectoryAsync(dir);

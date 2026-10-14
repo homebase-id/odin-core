@@ -14,4 +14,10 @@ public class DeleteFileRequestV2
     /// List of recipients to receive the delete-file notification
     /// </summary>
     public List<string> Recipients { get; set; }
+
+    /// <summary>
+    /// Optional. When set, the file is only deleted if it is still at this version; otherwise 4160
+    /// VersionTagMismatch, and nothing in the batch is deleted.
+    /// </summary>
+    public Guid? VersionTag { get; set; }
 }
