@@ -4,6 +4,7 @@ using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Membership.Circles;
 
 namespace Odin.Services.Authorization.Apps
 {
@@ -55,6 +56,15 @@ namespace Odin.Services.Authorization.Apps
         /// Permissions being granted to all members of the <see cref="AuthorizedCircles"/>
         /// </summary>
         public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
+
+        /// <summary>
+        /// Circles the app declares, created with it and owned by it (#1939).  Optional.
+        /// </summary>
+        /// <remarks>
+        /// Each may grant only what this registration grants the app.  All are checked before the app is saved
+        /// and created after, so a refused circle refuses the install rather than leaving an app without it.
+        /// </remarks>
+        public List<CreateAppCircleRequest> Circles { get; set; }
 
         public bool IsValid()
         {

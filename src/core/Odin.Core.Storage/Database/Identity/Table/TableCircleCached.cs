@@ -14,6 +14,7 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
     private static readonly List<string> PagingByCircleIdTags = ["PagingByCircleId"];
     private const string CacheKeyAll = "GetAll";
     private static readonly List<string> ByGrantOnTags = ["ByGrantOn"];
+    private static readonly List<string> ByAppSlugTags = ["ByAppSlug"];
 
     //
 
@@ -44,6 +45,7 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
             Cache.CreateRemoveByKeyAction(GetCacheKey(circleId)),
             Cache.CreateRemoveByKeyAction(CacheKeyAll),
             Cache.CreateRemoveByTagsAction(ByGrantOnTags),
+            Cache.CreateRemoveByTagsAction(ByAppSlugTags),
             Cache.CreateRemoveByTagsAction(PagingByCircleIdTags)
         ]);
     }
@@ -103,6 +105,23 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             ByGrantOnTags);
+    }
+
+    //
+
+    /// <remarks>
+    /// A miss is not cached: two devices creating the same slug at once each look it up first, and the
+    /// loser must find the winner's row on the re-read rather than a remembered null.
+    /// </remarks>
+    public async Task<CircleRecord?> GetByAppSlugAsync(Guid appId, string circleSlug, TimeSpan? ttl = null)
+    {
+        return await Cache.GetOrSetAsync(
+            "ByAppSlug:" + appId + ":" + circleSlug,
+            _ => table.GetByAppSlugAsync(appId, circleSlug),
+            ttl ?? DefaultTtl,
+            DefaultEntrySize,
+            ByAppSlugTags,
+            storeIf: record => record != null);
     }
 
     //

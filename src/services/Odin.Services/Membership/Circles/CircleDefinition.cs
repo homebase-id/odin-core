@@ -44,6 +44,18 @@ namespace Odin.Services.Membership.Circles
         public Guid? AppId { get; set; }
 
         /// <summary>
+        /// The circle's address within its owning app: unique per app, <c>OdinSlug</c> rules, immutable
+        /// once written (#1939).
+        /// </summary>
+        /// <remarks>
+        /// Stored only in the <c>Circle.CircleSlug</c> column and kept out of the blob, like
+        /// <see cref="AppId"/>, and not <c>[JsonIgnore]</c> for the same reason.  Set when the circle is
+        /// created -- by the caller, or made from the name -- and never taken from an update.  Null only for
+        /// a circle still in the pre-v13 blob store, which has no column.
+        /// </remarks>
+        public string Slug { get; set; }
+
+        /// <summary>
         /// True when the app tree declares this circle, so its owner, grant rule and designation are
         /// re-applied on every version upgrade.
         /// </summary>
@@ -117,7 +129,7 @@ namespace Odin.Services.Membership.Circles
             return Equals(Id, other.Id) && Created == other.Created && LastUpdated == other.LastUpdated && Name == other.Name &&
                    Description == other.Description && Disabled == other.Disabled && MatchDriveGrants(other.DriveGrants.ToList()) &&
                    Equals(Permissions, other.Permissions) &&
-                   Nullable.Equals(AppId, other.AppId) && GrantOn == other.GrantOn &&
+                   Nullable.Equals(AppId, other.AppId) && Slug == other.Slug && GrantOn == other.GrantOn &&
                    Designation == other.Designation && Emoji == other.Emoji;
         }
 
@@ -132,7 +144,7 @@ namespace Odin.Services.Membership.Circles
         public override int GetHashCode()
         {
             return HashCode.Combine(Id, Created, LastUpdated, Name, Description, Disabled, DriveGrants, Permissions) ^
-                   HashCode.Combine(AppId, GrantOn, Designation, Emoji);
+                   HashCode.Combine(AppId, Slug, GrantOn, Designation, Emoji);
         }
         
         private bool MatchDriveGrants(List<DriveGrantRequest> otherDriveGrants)
@@ -153,6 +165,7 @@ namespace Odin.Services.Membership.Circles
                 Description = Description,
                 Disabled = Disabled,
                 AppId = AppId,
+                Slug = Slug,
                 IsTreeDeclared = IsTreeDeclared,
                 GrantOn = GrantOn,
                 Designation = Designation,
@@ -174,6 +187,9 @@ namespace Odin.Services.Membership.Circles
 
         /// <summary>The app that owns this circle; null means an owner circle.</summary>
         public Guid? AppId { get; set; }
+
+        /// <summary>The circle's address within its owning app; unique per app, immutable.</summary>
+        public string Slug { get; set; }
 
         /// <summary>
         /// True when the app tree declares this circle, so the next version upgrade re-applies its owner,

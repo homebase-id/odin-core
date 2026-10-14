@@ -64,6 +64,18 @@ public class YouAuthAppParameters
     [JsonPropertyName(PermissionParamName)]
     public string PermissionParam { get; set; } = "";
 
+    /// <summary>
+    /// Circles the app declares, as a JSON list, for the owner to approve on the install screen (#1939).
+    /// Optional; the owner console parses it into <c>AppRegistrationRequest.Circles</c>.
+    /// </summary>
+    /// <remarks>
+    /// Opaque here, like <see cref="DrivesParam"/>: this class only has to carry it to <c>/owner/appreg</c>.
+    /// Without it in <see cref="ToQueryString"/> and <see cref="FromQueryString"/> the redirect would drop it.
+    /// </remarks>
+    public const string AppCirclesParamName = "ac";
+    [JsonPropertyName(AppCirclesParamName)]
+    public string AppCirclesParam { get; set; } = "";
+
     public const string ReturnName = "return";
     [JsonPropertyName(ReturnName)]
     public string Return { get; set; } = "";
@@ -91,6 +103,7 @@ public class YouAuthAppParameters
         string circleDrivesParam,
         string circleParam,
         string permissionParam,
+        string appCirclesParam,
         string @return,
         string cancel)
     {
@@ -103,6 +116,7 @@ public class YouAuthAppParameters
         CircleDrivesParam = circleDrivesParam;
         CircleParam = circleParam;
         PermissionParam = permissionParam;
+        AppCirclesParam = appCirclesParam;
         Return = @return;
         Cancel = cancel;
     }
@@ -121,6 +135,12 @@ public class YouAuthAppParameters
         qs[CircleDrivesParamName] = CircleDrivesParam;
         qs[CircleParamName] = CircleParam;
         qs[PermissionParamName] = PermissionParam;
+        if (!string.IsNullOrEmpty(AppCirclesParam))
+        {
+            // Only when present, so an app that declares none sends the same URL as before.
+            qs[AppCirclesParamName] = AppCirclesParam;
+        }
+
         qs[ReturnName] = Return;
         qs[CancelName] = Cancel;
 
@@ -143,6 +163,7 @@ public class YouAuthAppParameters
             circleDrivesParam: qs[CircleDrivesParamName] ?? string.Empty,
             circleParam: qs[CircleParamName] ?? string.Empty,
             permissionParam: qs[PermissionParamName] ?? string.Empty,
+            appCirclesParam: qs[AppCirclesParamName] ?? string.Empty,
             @return: qs[ReturnName] ?? string.Empty,
             cancel: qs[CancelName] ?? string.Empty);
     }
