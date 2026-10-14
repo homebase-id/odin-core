@@ -41,6 +41,9 @@ public class TableDrivesCachedTests : IocTestBase
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize("whatever"),
+            AppId = Guid.NewGuid(),
+            DriveSlug = "my-drive-1",
+            DriveTypeSlug = "drive",
         };
 
         {

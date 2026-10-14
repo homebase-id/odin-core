@@ -81,7 +81,7 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
     public bool OwnerOnly => Data.OwnerOnly;
 
-    public Guid? AppId
+    public Guid AppId
     {
         get => Data.AppId;
         set => Data.AppId = value;
@@ -255,23 +255,20 @@ public sealed class StorageDriveData
     public bool RequirePayloadHashes { get; set; }
 
     /// <summary>
-    /// The app that owns this drive; null means an owner drive.
+    /// The app that owns this drive. Every drive has one (#1901); owner drives belong to the owner console.
     /// </summary>
     /// <remarks>
     /// <see cref="AppId"/>, <see cref="DriveSlug"/> and <see cref="DriveTypeSlug"/> are columns on the
     /// Drives table, not part of <see cref="StorageDriveDetails"/>.  They are deliberately kept out of
     /// detailsJson: <c>UNIQUE(identityId, AppId, DriveSlug)</c> constrains the columns, and a second copy
-    /// in the blob could disagree with what the constraint is enforcing.
-    /// <para>
-    /// All three ship dormant.  Nothing derives them yet, so every drive carries null until the
-    /// addressing work assigns them; see <c>docs/drive-addressing.md</c>.
-    /// </para>
+    /// in the blob could disagree with what the constraint is enforcing.  All three are NOT NULL
+    /// (#1901); see <c>docs/drive-addressing.md</c>.
     /// </remarks>
-    public Guid? AppId { get; set; }
+    public Guid AppId { get; set; }
 
     /// <summary>
     /// The drive's portable name -- the segment a remote caller uses to address it
-    /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).  Null when <see cref="AppId"/> is null.
+    /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).
     /// </summary>
     public string DriveSlug { get; set; }
 

@@ -578,14 +578,13 @@ namespace Odin.Services.Authorization.Apps
         }
 
         /// <summary>
-        /// The slug the app will hold: the one it asked for, or the one the tree names for a built-in.
+        /// The slug the app will hold: the one it asked for.
         /// </summary>
         /// <remarks>
         /// Required.  A slug is the app half of <c>/apps/{appSlug}/drives/{driveSlug}</c>, so an app
         /// without one is unaddressable; deriving one from the display name produced addresses nobody
         /// chose ("Homebase - Location" became <c>homebase-locat</c>), which is why a missing slug is now
-        /// refused instead.  The exception is an app the tree names: its slug is already decided, so
-        /// provisioning does not have to repeat it in the request.
+        /// refused instead.  No exceptions: a built-in sends the slug its tree definition names.
         /// <para>
         /// A requested slug is taken verbatim or refused -- never quietly replaced with a derived one.
         /// It is an address other identities resolve against, so handing back a different one would be
@@ -596,28 +595,10 @@ namespace Odin.Services.Authorization.Apps
         /// </remarks>
         private async Task<string> AssignSlugAsync(Guid appId, string requestedSlug)
         {
-            // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
-            // unset field as "" or " " routinely, and without this the three spellings diverge. Not
-            // coercion of a real slug -- there is no address inside "   " to preserve. Anything with
-            // actual content is still validated and rejected on failure, so " chat " is an error, never
-            // trimmed to "chat".
-            if (string.IsNullOrWhiteSpace(requestedSlug))
-            {
-                // A built-in registers with the slug the tree names, so provisioning and the migration
-                // that repairs older registrations agree on one answer.
-                var builtin = BuiltinApps.Get(appId);
-                if (builtin != null)
-                {
-                    return builtin.AppSlug;
-                }
-
-                throw new OdinClientException(
-                    $"An app slug is required to register app {appId}; it is the app half of the address " +
-                    "other identities resolve against.",
-                    OdinClientErrorCode.ArgumentError);
-            }
-
-            OdinSlug.AssertValidOrNull(requestedSlug, nameof(AppRegistrationRequest.AppSlug));
+            // Required for every app, built-ins included (#1901): missing, empty, whitespace-only or
+            // malformed is a client error. A built-in's slug is defined in the tree
+            // (WellknownAppDefinition.AppSlug) and BuiltinProvisioner sends it like any other caller.
+            OdinSlug.AssertRequired(requestedSlug, nameof(AppRegistrationRequest.AppSlug));
 
             // The tree's slugs belong to the apps it names, registered or not: "chat" resolving to
             // whoever asked for it first would put another app at the address every client already

@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -49,6 +50,8 @@ public class DriveManagementTests : V2Fixture
 
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = name,
             Metadata = metadata,
@@ -90,6 +93,8 @@ public class DriveManagementTests : V2Fixture
 
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = name,
             Metadata = metadata,
@@ -109,6 +114,8 @@ public class DriveManagementTests : V2Fixture
 
         var createDuplicateDriveResponse = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = "drive 02",
             Metadata = "some metadata",
@@ -131,6 +138,8 @@ public class DriveManagementTests : V2Fixture
 
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = name,
             Metadata = metadata,
@@ -175,6 +184,8 @@ public class DriveManagementTests : V2Fixture
 
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = name,
             Metadata = metadata,
@@ -230,6 +241,8 @@ public class DriveManagementTests : V2Fixture
 
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = name,
             Metadata = metadata,
@@ -278,6 +291,8 @@ public class DriveManagementTests : V2Fixture
 
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = name,
             Metadata = metadata,
@@ -326,6 +341,8 @@ public class DriveManagementTests : V2Fixture
         // cannot read - the point of retiring the blockcdn attribute.
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = "cdn test drive",
             Metadata = "{some:'json'}"
@@ -377,6 +394,8 @@ public class DriveManagementTests : V2Fixture
 
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = "cdn on at creation",
             Metadata = "{some:'json'}",
@@ -402,6 +421,8 @@ public class DriveManagementTests : V2Fixture
         // must not be CDN-enabled implicitly either. Off unless the owner asks.
         var response = await svc.CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = targetDrive,
             Name = "owner only + cdn",
             Metadata = "{some:'json'}",

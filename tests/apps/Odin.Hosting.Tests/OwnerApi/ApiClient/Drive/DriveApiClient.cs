@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -53,6 +54,8 @@ public class DriveApiClient
 
             var response = await svc.CreateDrive(new CreateDriveRequest()
             {
+                DriveSlug = TestSlug.New(),
+                DriveTypeSlug = TestSlug.DriveType,
                 TargetDrive = targetDrive,
                 Name = name,
                 Metadata = metadata,

@@ -12,75 +12,23 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
-using Odin.Services.Drives;
-using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
 
 namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 
 /// <summary>
-/// Covers the v18 -&gt; v19 pass: the one that leaves no drive and no circle without an owning app.
+/// Covers the v18 -&gt; v19 pass: the one that leaves no circle without an owning app.
 /// </summary>
 /// <remarks>
-/// Rows written before the rule carry a null <c>AppId</c>, which is what made a drive slug
-/// unconstrained -- NULLs do not collide in a unique index, so <c>UNIQUE(identityId, AppId, DriveSlug)</c>
-/// covers nothing for them.  The pass stamps the owner console, which is what "the owner's own" already
-/// meant, and fills any address the row is missing.
-/// <para>
-/// Nothing creates an ownerless row any more, so these tests make one the only way left: writing the
-/// column back to null underneath the service that would refuse to.
-/// </para>
+/// Rows written before the rule carry a null <c>AppId</c>.  The pass stamps the owner console, which is
+/// what "the owner's own" already meant.  Nothing creates an ownerless circle any more, so these tests
+/// make one the only way left: writing the column back to null underneath the service that would refuse
+/// to.  Drives are not covered here: their addresses are filled by the Drives NOT NULL migration, tested
+/// in <c>DrivesNotNullMigrationTests</c>.
 /// </remarks>
 [TestFixture]
 public class OwnershipMigrationTests : V2Fixture
 {
-    [Test]
-    public async Task AnOwnerlessDriveIsGivenToTheOwnerConsoleWithAnAddress()
-    {
-        var owner = await LoginAsOwner(Identities.Frodo);
-
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Field Notes", allowAnonymousReads: false);
-
-        var (scope, ctx) = await MigrationContextAsync(owner);
-        var driveId = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!.Id;
-
-        await StripDriveOwnershipAsync(scope, driveId);
-
-        var stamped = await scope.Resolve<V18ToV19VersionMigrationService>()
-            .FinishDriveAddressesAsync(ctx, CancellationToken.None);
-
-        Assert.That(stamped, Is.GreaterThanOrEqualTo(1));
-
-        var after = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!;
-        Assert.That(after.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId));
-        Assert.That(after.DriveSlug, Is.Not.Null.And.Not.Empty, "an owned drive has to be addressable");
-
-        // A drive of a type nothing recognises still gets a readable category rather than a null half.
-        Assert.That(after.DriveTypeSlug, Is.EqualTo(DriveSlugGenerator.DefaultTypeSlug));
-    }
-
-    [Test]
-    public async Task ADriveAlreadyOwnedByAnAppIsLeftAlone()
-    {
-        var owner = await LoginAsOwner(Identities.Sam);
-
-        var appId = await owner.Admin.RegisterBareApp();
-
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "App Drive", allowAnonymousReads: false, appId: appId,
-            driveSlug: "appdrive");
-
-        var (scope, ctx) = await MigrationContextAsync(owner);
-
-        await scope.Resolve<V18ToV19VersionMigrationService>()
-            .FinishDriveAddressesAsync(ctx, CancellationToken.None);
-
-        var after = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!;
-        Assert.That(after.AppId, Is.EqualTo(appId), "the pass fills owners, it does not move them");
-        Assert.That(after.DriveSlug, Is.EqualTo("appdrive"), "and it does not re-derive an address");
-    }
-
     [Test]
     public async Task AnOwnerlessCircleIsGivenToTheOwnerConsole()
     {
@@ -137,16 +85,11 @@ public class OwnershipMigrationTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.TomBombadil);
 
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Ad Hoc", allowAnonymousReads: false);
-
         var circleId = Guid.NewGuid();
         await owner.Admin.CreateCircle(circleId, "Ad Hoc Circle", OwnerAdmin.ReadCircleMembershipGrant());
 
         var (scope, ctx) = await MigrationContextAsync(owner);
-        var driveId = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!.Id;
 
-        await StripDriveOwnershipAsync(scope, driveId);
         await StripCircleOwnershipAsync(scope, circleId);
 
         var v19 = scope.Resolve<V18ToV19VersionMigrationService>();
@@ -155,72 +98,6 @@ public class OwnershipMigrationTests : V2Fixture
         // Fails the upgrade rather than logging: everything above it now takes "there is always an
         // owner" as a given.
         Assert.DoesNotThrowAsync(async () => await v19.ValidateUpgradeAsync(ctx, CancellationToken.None));
-    }
-
-    [Test]
-    public async Task AnAppOwnedDriveMissingATypeSlugIsFinished()
-    {
-        // The state an app-owned drive of an unrecognised type was left in before v19: AppId and
-        // DriveSlug written by the app, DriveTypeSlug null because TypeSlugFor knew nothing about the
-        // type and the old create path took its answer as final. Validation covers every drive, not
-        // just the ownerless ones, so a drive left like this fails the whole upgrade.
-        var owner = await LoginAsOwner(Identities.Collab);
-
-        var appId = Guid.NewGuid();
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "App Notes", allowAnonymousReads: false, appId: appId,
-            driveSlug: "app-notes", driveTypeSlug: "notes");
-
-        var (scope, ctx) = await MigrationContextAsync(owner);
-        var driveId = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!.Id;
-
-        await StripDriveTypeSlugAsync(scope, driveId);
-
-        await scope.Resolve<V18ToV19VersionMigrationService>()
-            .FinishDriveAddressesAsync(ctx, CancellationToken.None);
-
-        var after = (await scope.Resolve<DriveManager>().GetDriveAsync(drive.Alias))!;
-        Assert.That(after.AppId, Is.EqualTo(appId), "the pass fills, it does not move an owner");
-        Assert.That(after.DriveSlug, Is.EqualTo("app-notes"), "and keeps an address the drive already had");
-        Assert.That(after.DriveTypeSlug, Is.EqualTo(DriveSlugGenerator.DefaultTypeSlug));
-
-        var v19 = scope.Resolve<V18ToV19VersionMigrationService>();
-        Assert.DoesNotThrowAsync(async () => await v19.ValidateUpgradeAsync(ctx, CancellationToken.None));
-    }
-
-    /// <summary>
-    /// Writes a drive's owner and address back to null, the state a row written before v19 is in.
-    /// </summary>
-    /// <remarks>
-    /// Straight at the table: <c>DriveManager</c> has no path that produces this any more, which is the
-    /// point of the migration.
-    /// </remarks>
-    private static async Task StripDriveOwnershipAsync(ILifetimeScope scope, Guid driveId)
-    {
-        // Through the cached table, not the raw one: it invalidates on write under the tag
-        // DriveManager's own read cache is keyed with, so the next read is not the pre-strip drive.
-        var drives = scope.Resolve<TableDrivesCached>();
-        var record = await drives.GetAsync(driveId);
-
-        record!.AppId = null;
-        record.DriveSlug = null;
-        record.DriveTypeSlug = null;
-
-        await drives.UpsertAsync(record);
-    }
-
-    /// <summary>
-    /// Writes a drive's type slug back to null, leaving its owner and slug alone: the state an
-    /// app-owned drive of an unrecognised type was created in before v19.
-    /// </summary>
-    private static async Task StripDriveTypeSlugAsync(ILifetimeScope scope, Guid driveId)
-    {
-        var drives = scope.Resolve<TableDrivesCached>();
-        var record = await drives.GetAsync(driveId);
-
-        record!.DriveTypeSlug = null;
-
-        await drives.UpsertAsync(record);
     }
 
     private static async Task StripCircleOwnershipAsync(ILifetimeScope scope, Guid circleId)
