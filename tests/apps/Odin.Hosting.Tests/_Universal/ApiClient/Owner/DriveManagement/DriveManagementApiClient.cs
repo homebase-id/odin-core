@@ -8,6 +8,7 @@ using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
+using Odin.Test.Helpers;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 
@@ -45,8 +46,8 @@ public class DriveManagementApiClient
                 AllowSubscriptions = allowSubscriptions,
                 OwnerOnly = ownerOnly,
                 Attributes = attributes,
-                DriveSlug = driveSlug,
-                DriveTypeSlug = driveTypeSlug
+                DriveSlug = driveSlug ?? TestSlug.New(),
+                DriveTypeSlug = driveTypeSlug ?? TestSlug.DriveType
             });
 
             return response;

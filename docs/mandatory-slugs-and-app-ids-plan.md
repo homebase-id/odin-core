@@ -9,7 +9,9 @@ than left to mislead; what remains is the rules, and the items still outstanding
 
 1. **Every drive has an `AppId`.** Nothing is created without an owner.
 2. **Every circle has an `AppId`.**
-3. **Every drive has a `DriveSlug` and a `DriveTypeSlug`.** Always.
+3. **Every drive has a `DriveSlug` and a `DriveTypeSlug`.** Always, named by the caller: the server never
+   derives one, and a missing, whitespace-only or malformed slug is a 400 (#1901).  The columns are
+   `NOT NULL`.
 4. **Owner-console drives and circles are owned by the System app** (`SystemAppConstants.SystemAppId`).
    That covers the wallet drive, ad-hoc drives the owner creates, user circles, and the two system circles.
 5. **An app registration must carry an app slug.** No deriving one from the name.
@@ -25,9 +27,9 @@ than left to mislead; what remains is the rules, and the items still outstanding
      lives on `set-owner` / `reassign-owner` instead, where the drive already exists and the ordering
      cannot bite. An owner request without an `AppId` defaults to the System app rather than failing, so
      the console and wizard keep working.
-   - `DriveSlug` required. (Runtime instance drives — channels, communities, profiles — may keep deriving
-     server-side until clients name them; everything else must send one.)
-   - `DriveTypeSlug` required, and `TypeSlugFor` must never return null.
+   - `DriveSlug` and `DriveTypeSlug` required on create, `set-owner` and `reassign-owner`, with no
+     exceptions (#1901). Runtime instance drives — channels, communities, profiles — included: clients
+     name them too. `DriveSlugGenerator` is gone.
 2. **Circle create** — `CircleDefinitionService.CreateCircleInternalAsync`, owner create endpoint, setup
    wizard: `AppId` required, defaulting to the System app for owner callers; the app must be registered.
    Unlike drive create, which cannot check: nothing has to create a circle before its app exists, so the
@@ -38,9 +40,10 @@ than left to mislead; what remains is the rules, and the items still outstanding
    in is unaffected, and the parameter is deliberately not `[Required]`). `AppSlugGenerator` stays for
    migrations.
 4. **Reserve built-in app slugs**: refuse a slug that `BuiltinApps` assigns to a different `AppId`.
-5. **Migration (v18 → v19)**: stamp the System app id on every drive and circle with a null `AppId`,
-   deriving drive slugs and type slugs where missing, including the two system circles. Assert afterwards
-   that nothing is left null.
+5. **Migration (v18 → v19)**: stamp the System app id on every circle with a null `AppId`, including the
+   two system circles, and assert afterwards that none is left null. Drives moved out of v19 (#1901): the
+   `Drives` NOT NULL table migration (`TableDrivesMigrationV202610130807`) fills every drive's owner and
+   address at startup, so identities whose owner has not signed in are covered too.
 6. **Fix what "the owner's own" means.** A null `AppId` is the current test for it, and after the migration
    nothing is null. Each of these must compare against the System app id instead:
    - `CircleNetworkService.cs:786` (an app may not enrol anyone into an owner circle), `:515`, `:1484`,
@@ -111,8 +114,8 @@ Extend the existing fixtures:
 
 ## Still outstanding
 
-1. Clients naming runtime drive slugs (feed channels, communities, profiles). Server-derived today,
-   because only the server knows which slugs the owning app already holds.
+1. ~~Clients naming runtime drive slugs (feed channels, communities, profiles).~~ Required by the server
+   since #1901; odin-js (`useManageChannel.ts`, `useCommunity.ts`) and chat-kmp must send them.
 2. Whether adoption (`set-owner`) and reassignment (`reassign-owner`) should collapse into one
    operation. Nothing is unowned any more, so adoption is "take from the owner console" and the two
    paths differ only in which source state they refuse.
