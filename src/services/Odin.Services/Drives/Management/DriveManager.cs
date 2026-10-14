@@ -793,7 +793,7 @@ public class DriveManager : IDriveManager
         var drive = string.IsNullOrWhiteSpace(driveSlug)
             ? null
             : (await GetDrivesByAppIdAsync(appId, odinContext))
-                .SingleOrDefault(d => string.Equals(d.DriveSlug, driveSlug, StringComparison.Ordinal));
+                .SingleOrDefault(d => OdinSlug.Matches(d.DriveSlug, driveSlug));
 
         if (drive == null && failIfInvalid)
         {

@@ -8,6 +8,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -66,7 +67,7 @@ public class V2AppDriveController(
         // list above is already in hand.
         if (!string.IsNullOrWhiteSpace(type))
         {
-            drives = drives.Where(d => string.Equals(d.DriveTypeSlug, type, StringComparison.Ordinal)).ToList();
+            drives = drives.Where(d => OdinSlug.Matches(d.DriveTypeSlug, type)).ToList();
         }
 
         return drives.Select(ToClientDriveData).ToList();
