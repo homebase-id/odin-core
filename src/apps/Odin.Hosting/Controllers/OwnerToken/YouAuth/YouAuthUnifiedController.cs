@@ -153,6 +153,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
                     if (mustRegister)
                     {
+                        appParams.ValidateForRegistration(authorize.ClientId);
+
                         appParams.Return = Request.GetDisplayUrl();
 
                         var appRegisterPage =
