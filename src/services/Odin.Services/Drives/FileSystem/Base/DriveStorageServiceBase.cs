@@ -1352,6 +1352,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update file that does not exist", OdinClientErrorCode.FileNotFound);
             }
 
+            // Before any payload is copied: a tombstone has no payload list, and OverwriteMetadataInternal's
+            // own state check runs only after the copy (#1904)
+            if (existingHeader.FileMetadata.FileState != FileState.Active)
+            {
+                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+            }
+
             if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
             {
                 throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates",

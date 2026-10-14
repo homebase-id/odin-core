@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,9 +17,16 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class PayloadStreamWriterBase
+public abstract class PayloadStreamWriterBase : IUploadPartWriter
 {
     private PayloadOnlyPackage _package;
+
+    public DeferredPayloadHashes PayloadHashes { get; } = new();
+
+    /// <summary>
+    /// An empty payload is never added to the package, so <see cref="CleanupStagingFiles"/> removes its staged file from here
+    /// </summary>
+    private readonly List<PayloadDescriptor> _emptyPayloads = [];
 
     /// <summary />
     protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard)
@@ -80,18 +88,12 @@ public abstract class PayloadStreamWriterBase
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
+        else
+        {
+            _emptyPayloads.Add(new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid });
+        }
 
-        try
-        {
-            descriptor.Hash?.AssertStoredHashMatches(key, hashing);
-        }
-        catch (OdinClientException) when (bytesWritten == 0)
-        {
-            // An empty payload is never added to the package, so CleanupStagingFiles would not remove its staged file
-            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile,
-                [new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid }], odinContext);
-            throw;
-        }
+        PayloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
@@ -182,6 +184,7 @@ public abstract class PayloadStreamWriterBase
         if (_package?.UploadFile != null)
         {
             var uploadedPayloads = _package.GetFinalPayloadDescriptors();
+            uploadedPayloads.AddRange(_emptyPayloads);
             await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile, uploadedPayloads, odinContext);
         }
     }
