@@ -245,7 +245,7 @@ namespace Odin.Services.Authorization.Apps
                 return null;
             }
 
-            var record = await db.AppRegistrations.GetByAppSlugAsync(appSlug);
+            var record = await db.AppRegistrations.GetByAppSlugAsync(OdinSlug.ToLookupKey(appSlug));
             return record == null ? null : FromRecord(record).Redacted();
         }
 

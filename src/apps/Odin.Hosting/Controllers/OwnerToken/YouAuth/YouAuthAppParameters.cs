@@ -2,14 +2,20 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using System.Web;
 using Odin.Hosting.ApiExceptions.Client;
+using Odin.Services.Authentication.YouAuth;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
 public class YouAuthAppParameters
 {
+    /// <summary>
+    /// The id to register the app under. Required only when the app still has to be registered, like
+    /// <see cref="AppSlug"/>: a registered app signing in by its slug may not know the id this identity
+    /// gave it (#1902). See <see cref="ValidateForRegistration"/>.
+    /// </summary>
     public const string AppIdName = "appId";
     [JsonPropertyName(AppIdName)]
-    [Required(ErrorMessage = $"{AppIdName} is required")]
     public string AppId { get; set; } = "";
 
     public const string AppNameName = "n";
@@ -151,10 +157,6 @@ public class YouAuthAppParameters
 
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(AppId))
-        {
-            throw new BadRequestException($"{AppIdName} is required");
-        }
         if (string.IsNullOrWhiteSpace(AppName))
         {
             throw new BadRequestException($"{AppNameName} is required");
@@ -166,6 +168,24 @@ public class YouAuthAppParameters
         if (string.IsNullOrWhiteSpace(DrivesParam))
         {
             throw new BadRequestException($"{DrivesParamName} is required");
+        }
+    }
+
+    /// <summary>What the registration page needs on top of <see cref="Validate"/>.</summary>
+    public void ValidateForRegistration(string clientId)
+    {
+        if (string.IsNullOrWhiteSpace(AppId))
+        {
+            throw new BadRequestException($"{AppIdName} is required");
+        }
+
+        // A slug client_id is only found again after registration if that is the slug it registers
+        // with; anything else would send the browser round the registration page forever (#1902)
+        if (!YouAuthUnifiedService.IsAppId(clientId, out _) && !OdinSlug.Matches(clientId, AppSlug))
+        {
+            throw new BadRequestException(
+                $"{YouAuthAuthorizeRequest.ClientIdName} '{clientId}' is neither a registered app nor " +
+                $"the slug ({AppSlugName}) this request registers");
         }
     }
 
