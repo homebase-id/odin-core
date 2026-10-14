@@ -56,8 +56,8 @@ public class DriveOwningAppTests : V2Fixture
         // row with no slug would sit outside the constraint entirely.
         Assert.That(after.DriveSlug, Is.Not.Null.And.Not.Empty);
 
-        // A drive of a type nothing recognises still gets a readable category: "drive".
-        Assert.That(after.DriveTypeSlug, Is.EqualTo(DriveSlugGenerator.DefaultTypeSlug));
+        Assert.That(after.DriveSlug, Is.EqualTo(AdoptedSlug), "the address the caller named");
+        Assert.That(after.DriveTypeSlug, Is.EqualTo(AdoptedTypeSlug));
 
         // Adoption is an addressing change; it must not touch what the drive is or holds.
         Assert.That(after.Name, Is.EqualTo(before.Name));
@@ -188,11 +188,14 @@ public class DriveOwningAppTests : V2Fixture
     }
 
     [Test]
-    public async Task AnExistingSlugIsKeptRatherThanRegenerated()
+    [TestCase("", "drive")]
+    [TestCase("   ", "drive")]
+    [TestCase("news", "")]
+    [TestCase("news", "   ")]
+    public async Task AdoptingWithoutBothSlugsIsRefused(string driveSlug, string driveTypeSlug)
     {
-        // Every drive carries a slug -- CreateDriveAsync derives one when the caller names none, and
-        // keeps a supplied one. A caller that names none at adoption keeps the slug the drive has,
-        // rather than having it swapped for a name-derived one on the way past.
+        // Required (#1901): nothing is kept from the drive or derived from its name. Whitespace-only is
+        // missing, not "not set, work it out".
         var owner = await LoginAsOwner();
 
         var appId = await owner.Admin.RegisterBareApp();
@@ -200,18 +203,11 @@ public class DriveOwningAppTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Something Else Entirely", allowAnonymousReads: false, driveSlug: "news");
 
-        var before = await owner.Admin.GetDrive(drive);
-        Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId));
-        Assert.That(before.DriveSlug, Is.EqualTo("news"), "precondition: the drive carries a slug already");
+        var response = await SetOwningApp(owner, drive, appId, driveSlug, driveTypeSlug);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
 
-        // No slug supplied -- the pre-existing one must survive rather than being derived from
-        // "Something Else Entirely".
-        var response = await SetOwningApp(owner, drive, appId);
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
-
-        var after = await owner.Admin.GetDrive(drive);
-        Assert.That(after.AppId, Is.EqualTo(appId));
-        Assert.That(after.DriveSlug, Is.EqualTo("news"), "adoption must not rewrite an existing slug");
+        Assert.That((await owner.Admin.GetDrive(drive)).AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
+            "the refused call must leave the drive with the owner");
     }
 
     [Test]
@@ -248,28 +244,6 @@ public class DriveOwningAppTests : V2Fixture
         var after = await owner.Admin.GetDrive(drive);
         Assert.That(after.AppId, Is.EqualTo(appId));
         Assert.That(after.DriveSlug, Is.EqualTo("headlines"));
-    }
-
-    [Test]
-    public async Task AKeptSlugThatCollidesWithinTheTargetAppIsRefused()
-    {
-        // The slug is unique within the owner console, not within the app taking the drive, so it may
-        // well collide with one that app already holds. Reaching the insert would surface that as a
-        // raw UNIQUE violation rather than a client error.
-        var owner = await LoginAsOwner();
-
-        var appId = await owner.Admin.RegisterBareApp();
-
-        var owned = TargetDrive.NewTargetDrive();
-        var orphan = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(owned, "Owned", allowAnonymousReads: false);
-        await owner.Admin.CreateDrive(orphan, "Orphan", allowAnonymousReads: false, driveSlug: "news");
-
-        Assert.That((await SetOwningApp(owner, owned, appId, "news")).IsSuccessStatusCode, Is.True);
-
-        // The orphan keeps "news", which the target app now holds.
-        var response = await SetOwningApp(owner, orphan, appId);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]
@@ -329,8 +303,10 @@ public class DriveOwningAppTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Movable", allowAnonymousReads: false);
         Assert.That((await SetOwningApp(owner, drive, firstAppId, "news")).IsSuccessStatusCode, Is.True);
 
-        var response = await ReassignOwningApp(owner, drive, secondAppId);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await ReassignOwningApp(owner, drive, secondAppId, "")).StatusCode,
+            Is.EqualTo(HttpStatusCode.BadRequest), "no slug");
+        Assert.That((await ReassignOwningApp(owner, drive, secondAppId, "headlines", "")).StatusCode,
+            Is.EqualTo(HttpStatusCode.BadRequest), "no type slug");
 
         var after = await owner.Admin.GetDrive(drive);
         Assert.That(after.AppId, Is.EqualTo(firstAppId), "the refused call must not have moved it");
@@ -395,8 +371,36 @@ public class DriveOwningAppTests : V2Fixture
     }
 
     //
-    // Creation: an app owns the drives it asks for, and it does not exist yet when they are made.
+    // Creation: both slugs are the caller's to name, an app owns the drives it asks for, and it does not
+    // exist yet when they are made.
     //
+
+    [Test]
+    [TestCase(null, "drive")]
+    [TestCase("", "drive")]
+    [TestCase("   ", "drive")]
+    [TestCase("field-notes", null)]
+    [TestCase("field-notes", "")]
+    [TestCase("Field Notes", "drive")]
+    public async Task CreatingADriveWithoutBothSlugsIsRefused(string driveSlug, string driveTypeSlug)
+    {
+        // The server never names a drive (#1901): missing, whitespace-only or malformed is a 400.
+        var owner = await LoginAsOwner();
+
+        var drive = TargetDrive.NewTargetDrive();
+        var response = await owner.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
+        {
+            TargetDrive = drive,
+            Name = "Field Notes",
+            Metadata = string.Empty,
+            DriveSlug = driveSlug,
+            DriveTypeSlug = driveTypeSlug,
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False,
+            "nothing was created");
+    }
 
     [Test]
     public async Task ADriveMayNameAnAppThatIsNotRegisteredYet()
@@ -461,8 +465,12 @@ public class DriveOwningAppTests : V2Fixture
     /// its helpers throw on non-2xx — so the calls this fixture asserts refusals on go through the
     /// Refit interface directly, via <see cref="OwnerSession.RefitFor{T}"/>.
     /// </summary>
+    private const string AdoptedSlug = "adopted";
+    private const string AdoptedTypeSlug = "drive";
+
     private static Task<ApiResponse<HttpContent>> SetOwningApp(
-        OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug = null, string driveTypeSlug = null) =>
+        OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug = AdoptedSlug,
+        string driveTypeSlug = AdoptedTypeSlug) =>
         owner.RefitFor<IRefitDriveManagement>().SetDriveOwningApp(new SetDriveOwningAppRequest
         {
             TargetDrive = drive, AppId = appId, DriveSlug = driveSlug, DriveTypeSlug = driveTypeSlug,
@@ -470,7 +478,7 @@ public class DriveOwningAppTests : V2Fixture
 
     /// <summary>As <see cref="SetOwningApp"/>, for the reassign endpoint.</summary>
     private static Task<ApiResponse<HttpContent>> ReassignOwningApp(
-        OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug = null, string driveTypeSlug = null) =>
+        OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug, string driveTypeSlug = AdoptedTypeSlug) =>
         owner.RefitFor<IRefitDriveManagement>().ReassignDriveOwningApp(new SetDriveOwningAppRequest
         {
             TargetDrive = drive, AppId = appId, DriveSlug = driveSlug, DriveTypeSlug = driveTypeSlug,

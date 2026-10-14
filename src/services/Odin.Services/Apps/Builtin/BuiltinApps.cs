@@ -219,8 +219,6 @@ public static class BuiltinApps
 
     public static bool IsTreeDeclaredCircle(Guid circleId) => DeclaredCircleIds.Contains(circleId);
 
-    public static WellknownAppDefinition Get(Guid appId) => All.FirstOrDefault(a => a.AppId == appId);
-
     /// <summary>
     /// True when the id names an app the platform ships, whether or not it is registered here.
     /// </summary>
