@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using System.Web;
 using Odin.Hosting.ApiExceptions.Client;
+using Odin.Services.Authentication.YouAuth;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
@@ -170,11 +172,20 @@ public class YouAuthAppParameters
     }
 
     /// <summary>What the registration page needs on top of <see cref="Validate"/>.</summary>
-    public void ValidateForRegistration()
+    public void ValidateForRegistration(string clientId)
     {
         if (string.IsNullOrWhiteSpace(AppId))
         {
             throw new BadRequestException($"{AppIdName} is required");
+        }
+
+        // A slug client_id is only found again after registration if that is the slug it registers
+        // with; anything else would send the browser round the registration page forever (#1902)
+        if (!YouAuthUnifiedService.IsAppId(clientId, out _) && !OdinSlug.Matches(clientId, AppSlug))
+        {
+            throw new BadRequestException(
+                $"{YouAuthAuthorizeRequest.ClientIdName} '{clientId}' is neither a registered app nor " +
+                $"the slug ({AppSlugName}) this request registers");
         }
     }
 

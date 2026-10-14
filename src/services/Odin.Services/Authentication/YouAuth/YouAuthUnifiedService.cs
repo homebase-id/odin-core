@@ -120,9 +120,13 @@ public sealed class YouAuthUnifiedService(
         ClientAccessToken? token;
         if (clientType == ClientType.app)
         {
-            var appReg = await GetAppRegistrationByClientIdAsync(clientId, odinContext)
-                         ?? throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
-            Guid appId = appReg.AppId;
+            // An app id goes straight to RegisterClientAsync, which loads the registration itself
+            if (!IsAppId(clientId, out var appId))
+            {
+                var appReg = await appRegistrationService.GetAppRegistrationBySlugAsync(clientId, odinContext)
+                             ?? throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
+                appId = appReg.AppId;
+            }
 
             OdinValidationUtils.AssertIsTrue(appId != Guid.Empty, "AppId is invalid");
             OdinValidationUtils.AssertNotNullOrEmpty(clientInfo, nameof(clientInfo));
@@ -223,12 +227,15 @@ public sealed class YouAuthUnifiedService(
     //
 
     /// <summary>
-    /// The app an app client_id names on this identity: its app id or, so that a second device can sign in
-    /// without knowing a per-identity id, its slug (#1902). Null when no registered app has it.
+    /// An app client_id is its app id or, so that a second device can sign in without knowing a
+    /// per-identity id, its slug (#1902): one that parses as a GUID is an app id, anything else a slug.
     /// </summary>
+    public static bool IsAppId(string clientId, out Guid appId) => Guid.TryParse(clientId, out appId);
+
+    /// <summary>The app an app client_id names on this identity; null when no registered app has it.</summary>
     private async Task<RedactedAppRegistration?> GetAppRegistrationByClientIdAsync(string clientId, IOdinContext odinContext)
     {
-        return Guid.TryParse(clientId, out var appId)
+        return IsAppId(clientId, out var appId)
             ? await appRegistrationService.GetAppRegistration(appId, odinContext)
             : await appRegistrationService.GetAppRegistrationBySlugAsync(clientId, odinContext);
     }

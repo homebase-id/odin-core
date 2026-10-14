@@ -1,5 +1,4 @@
 #nullable enable
-using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
@@ -54,8 +53,9 @@ public static class OdinSlug
     /// <summary>The form a caller's slug is looked up by: stored slugs are lowercase.</summary>
     public static string ToLookupKey(string slug) => slug.ToLowerInvariant();
 
-    /// <summary>Whether two slugs name the same thing, ignoring case.</summary>
-    public static bool Matches(string? a, string? b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    /// <summary>Whether two slugs name the same thing: equal as <see cref="ToLookupKey"/> keys.</summary>
+    public static bool Matches(string? a, string? b) =>
+        a == null || b == null ? a == b : ToLookupKey(a) == ToLookupKey(b);
 
     /// <summary>
     /// Throws a client error unless the slug is present and well formed.  Null, empty and whitespace-only

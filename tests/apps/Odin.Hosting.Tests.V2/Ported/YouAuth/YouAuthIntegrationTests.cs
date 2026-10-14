@@ -1656,11 +1656,11 @@ public class YouAuthIntegrationTests : V2Fixture
     }
 
     //
-
-    //
     // An app signs in by its slug (#1902): a second device of an app does not know the app id this
     // identity registered it under, only the slug every installation shares.
     //
+
+    private static string NewSlug() => $"slug-{Guid.NewGuid():N}"[..20];
 
     private async Task<HttpResponseMessage> AuthorizeAppAsync(string hobbit, string clientId, YouAuthAppParameters appParams)
     {
@@ -1690,20 +1690,22 @@ public class YouAuthIntegrationTests : V2Fixture
         return await Host.CreateClient().SendAsync(request);
     }
 
-    [Test]
-    public async Task c5_app_slug_ARegisteredAppSignsInWithItsSlugAlone()
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task c5_app_slug_ARegisteredAppSignsInWithItsSlugAlone(bool uppercase)
     {
         const string hobbit = "sam.dotyou.cloud";
         var driveAlias = Guid.NewGuid();
         var driveType = Guid.NewGuid();
         var registration = await RegisterApp(hobbit, Guid.NewGuid(), driveAlias, driveType);
 
-        // The second device knows the slug, not the id
+        // The second device knows the slug, not the id -- in whatever case it was typed
         var appParams = GetAppParams(Guid.Empty, driveAlias, driveType);
         appParams.AppId = "";
         appParams.AppSlug = registration.AppSlug;
+        var clientId = uppercase ? registration.AppSlug.ToUpperInvariant() : registration.AppSlug;
 
-        var response = await AuthorizeAppAsync(hobbit, registration.AppSlug, appParams);
+        var response = await AuthorizeAppAsync(hobbit, clientId, appParams);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         var location = new Uri(response.GetHeaderValue("Location") ?? throw new Exception("missing location"));
@@ -1721,7 +1723,7 @@ public class YouAuthIntegrationTests : V2Fixture
     {
         const string hobbit = "sam.dotyou.cloud";
         var appParams = GetAppParams(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        appParams.AppSlug = $"slug-{Guid.NewGuid():N}"[..20];
+        appParams.AppSlug = NewSlug();
 
         var response = await AuthorizeAppAsync(hobbit, appParams.AppSlug, appParams);
 
@@ -1736,7 +1738,7 @@ public class YouAuthIntegrationTests : V2Fixture
     {
         const string hobbit = "sam.dotyou.cloud";
         var appParams = GetAppParams(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        appParams.AppSlug = $"slug-{Guid.NewGuid():N}"[..20];
+        appParams.AppSlug = NewSlug();
 
         // Registering would not make this client_id findable, so the browser would come back here forever
         var response = await AuthorizeAppAsync(hobbit, "some-other-slug", appParams);
@@ -1750,34 +1752,12 @@ public class YouAuthIntegrationTests : V2Fixture
         const string hobbit = "sam.dotyou.cloud";
         var appParams = GetAppParams(Guid.Empty, Guid.NewGuid(), Guid.NewGuid());
         appParams.AppId = "";
-        appParams.AppSlug = $"slug-{Guid.NewGuid():N}"[..20];
+        appParams.AppSlug = NewSlug();
 
         // appId is optional only for an app that is already registered
         var response = await AuthorizeAppAsync(hobbit, appParams.AppSlug, appParams);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-    }
-
-    [Test]
-    public async Task c9_app_slug_SlugMatchingIgnoresCase()
-    {
-        const string hobbit = "sam.dotyou.cloud";
-        var driveAlias = Guid.NewGuid();
-        var driveType = Guid.NewGuid();
-        var registration = await RegisterApp(hobbit, Guid.NewGuid(), driveAlias, driveType);
-
-        var appParams = GetAppParams(Guid.Empty, driveAlias, driveType);
-        appParams.AppId = "";
-        appParams.AppSlug = registration.AppSlug;
-
-        var response = await AuthorizeAppAsync(hobbit, registration.AppSlug.ToUpperInvariant(), appParams);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-        var location = new Uri(response.GetHeaderValue("Location") ?? throw new Exception("missing location"));
-        Assert.That(location.AbsoluteUri, Does.StartWith($"https://{hobbit}:{HttpsPort}/app/authorization/code/callback"));
-        var qs = HttpUtility.ParseQueryString(location.Query);
-        Assert.That(qs[YouAuthDefaults.Error], Is.Null, $"error: {qs[YouAuthDefaults.ErrorDescription]}");
-        Assert.That(qs[YouAuthDefaults.PublicKey], Is.Not.Null.And.Not.Empty);
     }
 
     //
