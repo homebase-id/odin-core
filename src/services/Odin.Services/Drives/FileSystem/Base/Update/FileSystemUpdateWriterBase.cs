@@ -29,7 +29,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update;
 /// Enables the update of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class FileSystemUpdateWriterBase
+public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 {
     protected readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
@@ -53,6 +53,8 @@ public abstract class FileSystemUpdateWriterBase
     protected TenantQuotaGuard QuotaGuard { get; }
 
     internal FileUpdatePackage Package { get; private set; }
+
+    public DeferredPayloadHashes PayloadHashes { get; } = new();
 
     public virtual async Task StartFileUpdateAsync(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType,
         IOdinContext odinContext)
@@ -179,7 +181,7 @@ public abstract class FileSystemUpdateWriterBase
 
         // Added before the hash check so CleanupStagingFiles removes the staged bytes on a mismatch
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
-        descriptor.Hash?.AssertStoredHashMatches(key, hashing);
+        PayloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
