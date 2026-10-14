@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
@@ -144,6 +145,34 @@ public class AbstractMigratorTests : IocTestBase
             var tableExists = await TableExistsAsync<ScopedIdentityConnectionFactory>(table.TableName);
             Assert.That(tableExists, Is.True, $"Table {table.TableName} does not exist after migration.");
         }
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task ItShouldRefuseADatabaseMigratedByNewerSoftwareWithoutMigrating(DatabaseType databaseType, bool redisEnabled)
+    {
+        await RegisterServicesAsync(databaseType, createDatabases: false, redisEnabled: redisEnabled);
+        await using var scope = Services.BeginLifetimeScope();
+
+        var identityMigrator = scope.Resolve<IdentityMigrator>();
+        await identityMigrator.MigrateAsync();
+        var latestVersion = identityMigrator.GroupMigrationsByVersion().Last().Key;
+
+        // At the latest known version: nothing to refuse
+        await identityMigrator.EnsureNotNewerThanSoftwareAsync();
+
+        // Ahead of the software (#1701): refused with the message MigrateAsync gives, and left as it was
+        var newerVersion = latestVersion + 1;
+        await identityMigrator.SetCurrentVersionAsync(newerVersion);
+        var exception = Assert.ThrowsAsync<MigrationException>(identityMigrator.EnsureNotNewerThanSoftwareAsync);
+        Assert.That(exception!.Message, Does.Contain($"Current database version {newerVersion} is higher than " +
+            $"the latest known migration version {latestVersion}"));
+        Assert.That(await identityMigrator.GetCurrentVersionAsync(), Is.EqualTo(newerVersion));
     }
 
     //

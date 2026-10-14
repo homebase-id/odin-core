@@ -1,3 +1,4 @@
+using System;
 namespace Odin.Services.Drives.FileSystem.Base.Upload;
 
 /// <summary>
@@ -12,5 +13,5 @@ public class PackageThumbnailDescriptor
     public string ContentType { get; set; }
 
     public string PayloadKey { get; set; }
-    public uint BytesWritten { get; set; }
+    public Int64 BytesWritten { get; set; }
 }

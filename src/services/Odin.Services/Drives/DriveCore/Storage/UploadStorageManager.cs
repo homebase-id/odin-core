@@ -29,7 +29,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)
+        public async Task<Int64> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)
         {
             // [UploadTiming] Diagnostic: time the LOCAL staging write to prove local disk is fast vs S3 commit.
             var sw = System.Diagnostics.Stopwatch.StartNew();

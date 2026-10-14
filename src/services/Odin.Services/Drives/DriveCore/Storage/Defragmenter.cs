@@ -640,12 +640,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
                         {
                             var len = await longTermStorageManager.ThumbnailLengthAsync(drive, fileId, payload, thumb);
 
-                            // Because len is a long and thumbs have a uint BytesWritten
-                            if (len < 0)
-                                len = 0;
-                            if (len > int.MaxValue-1)
-                               len = int.MaxValue-1;
-
                             if (len != thumb.BytesWritten)
                             {
                                 logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {len} thumb {thumb.BytesWritten}");
@@ -655,7 +649,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                                     logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk too large {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {len} thumb {thumb.BytesWritten}");
                                 }
 
-                                thumb.BytesWritten = (uint) len;
+                                thumb.BytesWritten = len;
                                 if (cleanup)
                                     driveRecordAdjustments = true;
                             }
