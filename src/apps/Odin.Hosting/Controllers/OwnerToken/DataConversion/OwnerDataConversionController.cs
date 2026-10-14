@@ -8,7 +8,6 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
-using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 
 namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
 {
@@ -17,17 +16,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
     [AuthorizeValidOwnerToken]
     [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDataConversionController(
-        V0ToV1VersionMigrationService fixer,
         TenantConfigService configService,
         VersionUpgradeScheduler versionUpgradeScheduler) : OdinControllerBase
     {
-        [HttpPost("autofix-connections")]
-        public async Task<IActionResult> RunAutofix()
-        {
-            await fixer.AutoFixCircleGrantsAsync(WebOdinContext, HttpContext.RequestAborted);
-            return Ok();
-        }
-
         [HttpPost("force-version-number")]
         public async Task<IActionResult> ForceVersionReset([FromQuery] int version)
         {
