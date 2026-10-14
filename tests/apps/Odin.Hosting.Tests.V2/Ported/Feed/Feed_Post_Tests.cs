@@ -61,9 +61,8 @@ public class Feed_Post_Tests : V2Fixture
     public async Task CanDistributeFeedFileToConnectedIdentity_OnPublicChannel_WhenFileAclTargetsCircle_And_RecipientCanDecrypt()
     {
         // Using feed as an app
-        // System Circle has READ access to public drive
         // Sam and frodo are connected
-        // Sam creates Friends circle
+        // Sam creates Friends circle, with keyed READ on the public channel
         // Sam puts frodo in Friends circle
         // Sam posts to public channel with encrypted file having ACL of Friends circle
         // Frodo follows Sam
@@ -79,8 +78,19 @@ public class Feed_Post_Tests : V2Fixture
         var circleId = Guid.NewGuid();
         await ownerSam.Admin.CreateCircle(circleId, "Friends Only", new PermissionSetGrantRequest
         {
-            // No additional drive access is intentional as Frodo is in the SystemCircleConstants.ConnectedIdentitiesSystemCircleId
-            Drives = default,
+            // Keyed Read on the channel: an encrypted post is only routed to followers who can decrypt it,
+            // and the circle a channel's audience sits in is what carries the key (#1809).
+            Drives =
+            [
+                new DriveGrantRequest
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = WellKnownAppDrives.PublicPostsChannelDrive,
+                        Permission = DrivePermission.Read
+                    }
+                }
+            ],
             PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
         });
 

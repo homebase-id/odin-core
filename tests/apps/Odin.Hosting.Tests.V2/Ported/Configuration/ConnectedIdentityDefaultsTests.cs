@@ -65,40 +65,6 @@ public class ConnectedIdentityDefaultsTests : V2Fixture
         Assert.Inconclusive("TODO");
     }
 
-    [Test]
-    public async Task SystemCircleUpdatedWhenConnectedFlagChanges()
-    {
-        var owner = await LoginAsOwner();
-        var config = owner.RefitFor<IRefitOwnerConfiguration>();
-
-        var initResponse = await config.InitializeIdentity(new InitialSetupRequest
-        {
-            Drives = null,
-            Circles = null
-        });
-
-        Assert.That(initResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(initResponse.Content, Is.True);
-
-        await owner.Admin.UpdateTenantSettingsFlag(
-            TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.TrueString);
-
-        var systemCircle1 = await owner.Admin.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId.Value);
-        Assert.That(systemCircle1.Permissions.Keys, Does.Contain(PermissionKeys.ReadConnections));
-
-        //
-        // Disable ability to read connections
-        //
-        await owner.Admin.UpdateTenantSettingsFlag(
-            TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.FalseString);
-
-        //
-        // system circle should not have permissions
-        //
-        var systemCircle = await owner.Admin.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId.Value);
-        Assert.That(systemCircle.Permissions.Keys, Does.Not.Contain(PermissionKeys.ReadConnections));
-    }
-
     /// <summary>
     /// The three system-default rows. <c>AutoAcceptIntroductions</c> stays its own row even though it
     /// reads the same flag as the row above it: that is the carried defect described on the fixture,

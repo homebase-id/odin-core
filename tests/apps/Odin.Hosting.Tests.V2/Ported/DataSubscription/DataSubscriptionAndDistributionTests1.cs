@@ -576,7 +576,12 @@ public class DataSubscriptionAndDistributionTests1 : V2Fixture
         //create a channel drive
         var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient);
 
-        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient);
+        // The channel's circle carries keyed Read: an encrypted post only goes to followers who can
+        // decrypt it, which plain connection no longer gives (#1809).
+        var channelCircleId = Guid.NewGuid();
+        await frodoOwnerClient.Admin.CreateCircle(channelCircleId, "Channel readers",
+            TestUtils.CreatePermissionGrantRequest(frodoChannelDrive, DrivePermission.Read));
+        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient, channelCircleId);
 
         // Sam to follow everything from frodo
         await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
@@ -752,7 +757,12 @@ public class DataSubscriptionAndDistributionTests1 : V2Fixture
         //create a channel drive
         var frodoChannelDrive = await DataSubscriptionScenario.CreateChannelDriveAsync(frodoOwnerClient);
 
-        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient);
+        // The channel's circle carries keyed Read: an encrypted post only goes to followers who can
+        // decrypt it, which plain connection no longer gives (#1809).
+        var channelCircleId = Guid.NewGuid();
+        await frodoOwnerClient.Admin.CreateCircle(channelCircleId, "Channel readers",
+            TestUtils.CreatePermissionGrantRequest(frodoChannelDrive, DrivePermission.Read));
+        await DataSubscriptionScenario.ConnectAsync(frodoOwnerClient, samOwnerClient, channelCircleId);
 
         // Sam to follow everything from frodo
         await DataSubscriptionScenario.FollowAsync(samOwnerClient, frodoOwnerClient);
