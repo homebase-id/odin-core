@@ -46,8 +46,21 @@ public static class OdinSlug
     }
 
     /// <summary>
-    /// Throws if the slug is present and malformed.  Null or empty passes: a slug is not required yet,
-    /// and a drive with none is addressed by Guid exactly as every drive is today.
+    /// Throws a client error unless the slug is present and well formed.  Null, empty and whitespace-only
+    /// are all "missing": the server never names anything on the caller's behalf (#1901).
+    /// </summary>
+    public static void AssertRequired(string? slug, string name)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            throw new OdinClientException($"{name} is required", OdinClientErrorCode.ArgumentError);
+        }
+
+        AssertValidOrNull(slug, name);
+    }
+
+    /// <summary>
+    /// Throws if the slug is present and malformed.  Null or empty passes.
     /// </summary>
     public static void AssertValidOrNull(string? slug, string name)
     {

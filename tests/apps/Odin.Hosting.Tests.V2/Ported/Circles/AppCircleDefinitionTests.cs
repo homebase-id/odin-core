@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -539,7 +540,10 @@ public class AppCircleDefinitionTests : V2Fixture
         var app = await AppSession.SetupAsync(owner, drive, access, permissionKeys, knownAppId: appId);
 
         var handOver = await owner.RefitFor<IRefitDriveManagement>()
-            .SetDriveOwningApp(new SetDriveOwningAppRequest { TargetDrive = drive, AppId = appId });
+            .SetDriveOwningApp(new SetDriveOwningAppRequest
+            {
+                TargetDrive = drive, AppId = appId, DriveSlug = TestSlug.New(), DriveTypeSlug = TestSlug.DriveType
+            });
         Assert.That(handOver.IsSuccessStatusCode, Is.True, $"arrange: handing the drive to the app failed: {handOver.StatusCode}");
         return (app, drive);
     }

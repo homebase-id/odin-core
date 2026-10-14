@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 #nullable enable
 using System;
 using System.Collections.Generic;
@@ -144,6 +145,8 @@ public class WebSocketFanOutProbeTests
         var created = await LoadBalancerProbeTests.DriveManagerForProbes(Frodo, port, _token, _sharedSecret)
             .CreateDrive(new CreateDriveRequest
             {
+                DriveSlug = TestSlug.New(),
+                DriveTypeSlug = TestSlug.DriveType,
                 TargetDrive = drive,
                 Name = "ws probe " + drive.Alias,
                 Metadata = "",
