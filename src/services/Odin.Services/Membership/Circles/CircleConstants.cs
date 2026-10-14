@@ -27,6 +27,7 @@ public static class SystemCircleConstants
     {
         Id = ConfirmedConnectionsCircleId.Value,
         Name = "Confirmed Connected Identities",
+        Slug = "confirmed",
         Description =
             "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection",
         DriveGrants =
@@ -93,6 +94,7 @@ public static class SystemCircleConstants
     {
         Id = SystemCircleConstants.AutoConnectionsCircleId.Value,
         Name = "Auto-connected Identities",
+        Slug = "auto-connected",
         Description = "Contains all identities which were automatically connected (due to an introduction from another-connected identity)",
         DriveGrants =
         [
