@@ -170,8 +170,8 @@ public abstract class ShamirFixture : V2Fixture
     /// <summary>Connection request + accept, dealer to each player. Note: no circles.</summary>
     protected static async Task PrepareConnectionsAsync(OwnerSession dealer, IEnumerable<OwnerSession> players)
     {
-        // Note: no circles. The ShardRecoveryDrive write grant rides the builtin
-        // ConfirmedConnections circle, which the handshake grants on its own.
+        // Note: no circles. An owner-to-owner handshake is reviewed on both sides, and a reviewed
+        // connection holds Write on the ShardRecoveryDrive ambiently (#1809).
         foreach (var player in players)
         {
             await PeerFlow.ConnectAsync(dealer, player);

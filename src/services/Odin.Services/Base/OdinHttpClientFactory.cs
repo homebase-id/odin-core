@@ -21,8 +21,7 @@ namespace Odin.Services.Base
         ICorrelationContext correlationContext,
         OdinConfiguration config,
         ICapiCallbackSession capiCallbackSession,
-        OdinIdentity odinIdentity,
-        TenantContext tenantContext)
+        OdinIdentity odinIdentity)
         : IOdinHttpClientFactory
     {
         //
@@ -71,12 +70,6 @@ namespace Odin.Services.Base
             }.Uri;
 
             httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.CorrelationId, correlationContext.Id);
-
-            // Tells the remote identity this one has the reviewed security tier on; it applies the tier to us only then.
-            if (tenantContext.Settings?.UseReviewedSecurityTier ?? false)
-            {
-                httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.UsesReviewedSecurityTier, bool.TrueString);
-            }
 
             if (fileSystemType.HasValue)
             {

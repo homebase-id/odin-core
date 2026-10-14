@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Apps.Builtin;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers;
@@ -312,13 +313,14 @@ public class CircleNetworkServiceTests : V2Fixture
         // Add Frodo to newCircleDefinitionOnSamsIdentity
         //
         var circleMemberSvc = sam.Owner.RefitFor<IRefitOwnerCircleNetworkConnections>();
-        var addMemberResponse = await circleMemberSvc.AddCircle(new AddCircleMembershipRequest()
+        var addMemberResponse = await circleMemberSvc.AddManyToCircle(new AddManyCircleMembershipRequest()
         {
             CircleId = newCircleDefinitionOnSamsIdentity.Id,
-            OdinId = frodo.Identity
+            OdinIds = [frodo.Identity.DomainName]
         });
 
         Assert.That(addMemberResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(addMemberResponse.Content!.Enrolled, Is.EqualTo(1), "frodo should have been enrolled");
 
         //
         // Frodo should be in 3 circles
@@ -571,8 +573,8 @@ public class CircleNetworkServiceTests : V2Fixture
     }
 
 
-    [Test(Description = "All connected identities go into the system circle")]
-    public async Task ConnectedIdentitiesAreInSystemCircleUponApproval()
+    [Test(Description = "All connected identities go into the Chat circle (GrantOn Connect)")]
+    public async Task ConnectedIdentitiesAreInChatCircleUponApproval()
     {
         var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
@@ -580,7 +582,7 @@ public class CircleNetworkServiceTests : V2Fixture
 
         {
             var circleDefSvc = sam.Owner.RefitFor<IRefitOwnerCircleDefinition>();
-            var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
+            var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(BuiltinCircles.ChatCircle.Id);
             Assert.That(getSystemCircleDefinitionResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(getSystemCircleDefinitionResponse.Content, Is.Not.Null);
             var systemCircleDef = getSystemCircleDefinitionResponse.Content;
@@ -590,14 +592,14 @@ public class CircleNetworkServiceTests : V2Fixture
 
             var frodoAccess = frodoInfo.AccessGrant;
             var frodoAccessFromSystemCircle =
-                frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId);
+                frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == BuiltinCircles.ChatCircle.Id);
             Assert.That(frodoAccessFromSystemCircle, Is.Not.Null);
 
             AssertAllDrivesGrantedFromCircle(systemCircleDef, frodoAccessFromSystemCircle);
 
             // Frodo should show up in the member list for each circle
             //
-            await AssertIdentityIsInCircle(sam.Owner, SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
+            await AssertIdentityIsInCircle(sam.Owner, BuiltinCircles.ChatCircle.Id, frodo.Identity);
         }
 
 
@@ -606,7 +608,7 @@ public class CircleNetworkServiceTests : V2Fixture
         //
         {
             var circleDefSvc = frodo.Owner.RefitFor<IRefitOwnerCircleDefinition>();
-            var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
+            var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(BuiltinCircles.ChatCircle.Id);
             Assert.That(getSystemCircleDefinitionResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(getSystemCircleDefinitionResponse.Content, Is.Not.Null);
             var systemCircleDef = getSystemCircleDefinitionResponse.Content;
@@ -616,14 +618,14 @@ public class CircleNetworkServiceTests : V2Fixture
 
             var samAccess = samInfo.AccessGrant;
             var samAccessFromSystemCircle =
-                samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId);
+                samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == BuiltinCircles.ChatCircle.Id);
             Assert.That(samAccessFromSystemCircle, Is.Not.Null);
 
             AssertAllDrivesGrantedFromCircle(systemCircleDef, samAccessFromSystemCircle);
 
             // Frodo should show up in the member list for each circle
             //
-            await AssertIdentityIsInCircle(frodo.Owner, SystemCircleConstants.ConfirmedConnectionsCircleId, sam.Identity);
+            await AssertIdentityIsInCircle(frodo.Owner, BuiltinCircles.ChatCircle.Id, sam.Identity);
         }
 
         await DisconnectIdentities(frodo, sam);

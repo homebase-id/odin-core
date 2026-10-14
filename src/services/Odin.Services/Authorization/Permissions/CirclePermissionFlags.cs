@@ -13,7 +13,10 @@ namespace Odin.Services.Authorization.Permissions
         public const int ReadCircleMembership = 50;
 
         /// <summary>
-        /// Add/remove an OdinId to/from a circle without the master key (e.g. from an app).
+        /// Not offered to new third-party apps (#1809): owning a circle is what lets an app change its
+        /// members.  Still honoured as the way into circles an app does not own
+        /// (<c>CircleNetworkService.GetCircleCallerMayChangeMembersOfAsync</c>), and still in Chat's defaults,
+        /// because Chat adds people to Friends and Emergency Location Access.  51 is never reused.
         /// </summary>
         public const int ManageCircleMembership = 51;
 
@@ -49,7 +52,6 @@ namespace Odin.Services.Authorization.Permissions
             ReadConnections,
             ReadConnectionRequests,
             ReadCircleMembership,
-            ManageCircleMembership,
             ReadWhoIFollow,
             ReadMyFollowers,
             UseTransitWrite,
@@ -82,8 +84,9 @@ namespace Odin.Services.Authorization.Permissions
                 PermissionKeys.ReadCircleMembership
             ],
 
-            // Managing circle membership requires seeing the connections being added
-            // and the membership being changed.
+            // ManageCircleMembership still implies what it used to, so registrations holding it (Chat, and
+            // Webdrop before #1809) keep reading connections and circle members.
+            // New registrations are granted ReadCircleMembership directly instead.
             [PermissionKeys.ManageCircleMembership] =
             [
                 PermissionKeys.ReadConnections,
@@ -117,7 +120,6 @@ namespace Odin.Services.Authorization.Permissions
             {
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
-                PermissionKeys.ManageCircleMembership,
                 PermissionKeys.ReadConnectionRequests,
                 PermissionKeys.ReadWhoIFollow,
                 PermissionKeys.UseTransitWrite,

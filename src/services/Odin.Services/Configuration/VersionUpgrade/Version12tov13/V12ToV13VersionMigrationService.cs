@@ -114,8 +114,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
 
                 // The four promoted fields were never in the blob, so they take their defaults here:
                 // AppId null (an owner circle), GrantOn None (manual membership only), Designation
-                // Personal, Emoji null. That is exactly what every pre-existing circle is.  A built-in or
-                // system circle gets its fixed slug, which v13 -> v14 carries into its app.
+                // Personal, Emoji null. That is exactly what every pre-existing circle is.  A built-in circle
+                // gets its fixed slug, which v13 -> v14 carries into its app.
                 definition.Slug = CircleSlugGenerator.FixedSlugFor(definition.Id)
                                   ?? CircleSlugGenerator.Generate(definition.Name, taken);
                 taken.Add(definition.Slug);
