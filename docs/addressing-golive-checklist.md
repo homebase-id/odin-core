@@ -99,7 +99,7 @@ to tighten, because each one can reject a call that works today.
 | # | Item |
 |---|---|
 | 7.1 | Does any client filter circles by `appId`? Stamping the relationship circles could make them vanish from a circle manager that shows only owner circles |
-| 7.2 | What does the setup wizard actually post for Friends/Family/Work/Acquaintances? The server now wins the create race, so anything extra the wizard sends is silently dropped for new identities |
+| 7.2 | What does the setup wizard actually post for Friends/Family/Work/Acquaintances? The server now wins the create race, so anything extra the wizard sends is silently dropped for new identities. Family, Work and Acquaintances are no longer seeded at all (existing identities keep theirs as ordinary circles), so if the wizard still posts them it recreates them as undeclared circles -- it should stop |
 | 7.3 | Clients must round-trip the full circle definition on update, or `grantOn` / `designation` / `emoji` are cleared |
 | 7.4 | Owner console: surface `appId` / `driveSlug` / `driveTypeSlug` where useful |
 | 7.5 | Apps may now send `appSlug` at registration. Clients that want a specific address should send one and handle a refusal -- registration is first-come, and a taken slug is an error, not a silent rename |

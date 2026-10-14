@@ -302,14 +302,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             try
             {
-                if (chunk == null)
-                {
-                    logger.LogDebug("GetPayloadStreamAsync: {path}", path);
-                    return new MemoryStream(await longTermPayloadStore.ReadAllBytesAsync(path));
-                }
-
-                logger.LogDebug("GetPayloadStreamAsync: {path}, start={start}, length={length}", path, chunk.Start, chunk.Length);
-                return new MemoryStream(await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length));
+                logger.LogDebug("GetPayloadStreamAsync: {path}, start={start}, length={length}", path, chunk?.Start, chunk?.Length);
+                return await longTermPayloadStore.OpenReadAsync(path, chunk?.Start ?? 0, chunk?.Length);
             }
             catch (Exception e)
             {
@@ -334,8 +328,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             try
             {
-                var bytes = await longTermPayloadStore.ReadAllBytesAsync(path);
-                return new MemoryStream(bytes);
+                return await longTermPayloadStore.OpenReadAsync(path);
             }
             catch (Exception e)
             {

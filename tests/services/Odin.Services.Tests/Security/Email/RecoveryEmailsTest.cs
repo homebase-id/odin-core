@@ -97,4 +97,48 @@ public class RecoveryEmailsTest
         Assert.That(text, Does.Contain("DNSSEC problem"));
         Assert.That(html, Does.Contain("DNSSEC problem"));
     }
+
+    [Test]
+    public void ItShouldOmitTheRotationSectionWhenShardsAreCurrent()
+    {
+        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, ConfiguredInfo());
+        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, ConfiguredInfo());
+
+        Assert.That(text, Does.Not.Contain("not refreshed"));
+        Assert.That(html, Does.Not.Contain("not refreshed"));
+    }
+
+    [Test]
+    public void ItShouldRenderTheRotationSectionWhenRotationIsPending()
+    {
+        var info = ConfiguredInfo();
+        info.RotationPending = true;
+
+        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, info);
+        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, info);
+
+        foreach (var body in new[] { text, html })
+        {
+            Assert.That(body, Does.Contain("not refreshed after your password changed"));
+            Assert.That(body, Does.Contain("still connected to"), "a disconnected delegate cannot deliver its shard (#1885)");
+            Assert.That(body, Does.Contain("/owner/security/password-recovery"));
+        }
+    }
+
+    [Test]
+    public void ItShouldNotTalkAboutConnectionsForAutomatedRecovery()
+    {
+        var info = ConfiguredInfo();
+        info.RotationPending = true;
+        info.UsesAutomaticRecovery = true;
+
+        var text = RecoveryEmails.FormatRecoveryRiskStatusText(Tenant, info);
+        var html = RecoveryEmails.FormatRecoveryRiskStatusHtml(Tenant, info);
+
+        foreach (var body in new[] { text, html })
+        {
+            Assert.That(body, Does.Contain("automated recovery shards"));
+            Assert.That(body, Does.Not.Contain("still connected to"));
+        }
+    }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -34,8 +35,23 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement
         [Post(RootEndpoint + "/set-archive-drive")]
         Task<ApiResponse<HttpContent>> SetArchiveDriveFlag([Body] UpdateDriveArchiveFlag request);
 
+        [Post(RootEndpoint + "/empty")]
+        Task<ApiResponse<HttpContent>> EmptyDrive([Body] TargetDriveRequest request);
+
+        [Post(RootEndpoint + "/delete")]
+        Task<ApiResponse<HttpContent>> DeleteDrive([Body] TargetDriveRequest request);
+
+        [Get(RootEndpoint + "/purges")]
+        Task<ApiResponse<List<DrivePurgeStatus>>> GetPurges();
+
+        [Post(RootEndpoint + "/purges/retry")]
+        Task<ApiResponse<HttpContent>> RetryPurge([Body] TargetDriveRequest request);
+
         [Post(RootEndpoint + "/set-allow-cdn")]
         Task<ApiResponse<HttpContent>> SetAllowCdn([Body] UpdateDriveAllowCdnRequest request);
+
+        [Post(RootEndpoint + "/set-require-payload-hashes")]
+        Task<ApiResponse<HttpContent>> SetRequirePayloadHashes([Body] UpdateDriveRequirePayloadHashesRequest request);
 
         [Post(RootEndpoint + "/set-owner")]
         Task<ApiResponse<HttpContent>> SetDriveOwningApp([Body] SetDriveOwningAppRequest request);

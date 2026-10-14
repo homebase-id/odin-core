@@ -7,16 +7,19 @@ namespace Odin.Test.Helpers.WebServers;
 public class SimpleWebServer
 {
     private readonly WebApplication _app;
-    public string PingUrl => $"{_app.Urls.First()}/ping";
+    public string BaseUrl => _app.Urls.First();
+    public string PingUrl => $"{BaseUrl}/ping";
 
     //
 
-    public SimpleWebServer()
+    /// <param name="map">Further endpoints, mapped before it starts.</param>
+    public SimpleWebServer(Action<WebApplication>? map = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0"); // :0 = random port
         _app = builder.Build();
         _app.MapGet("/ping", () => "pong");
+        map?.Invoke(_app);
         _app.StartAsync().BlockingWait();
     }
 

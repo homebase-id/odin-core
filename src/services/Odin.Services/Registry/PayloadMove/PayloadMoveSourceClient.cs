@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Http;
 using Odin.Core.Serialization;
 
 #nullable enable
@@ -16,8 +17,14 @@ public enum FetchResult
 {
     Fetched,
 
-    /// <summary>The source does not have it (or will not serve it): a failure, not something to retry.</summary>
+    /// <summary>The source served the request and does not have the object: a failure, not something to retry.</summary>
     NotFound,
+
+    /// <summary>
+    /// The source would not serve the request: the credential or token is not live (a re-export revokes it), the
+    /// identity runs there again, or moving is off. Never taken for absence (#1919).
+    /// </summary>
+    Refused,
 
     /// <summary>The source asked us to slow down (429, 503).</summary>
     Throttled,
@@ -31,11 +38,14 @@ public readonly record struct FetchOutcome(FetchResult Result, TimeSpan? RetryAf
 /// <summary>The target's view of the source's payload move endpoint.</summary>
 public interface IPayloadMoveSourceClient
 {
-    /// <summary>The credential, or <see cref="FetchResult.NotFound"/> if the source refused the token.</summary>
+    /// <summary>The credential, or <see cref="FetchResult.Refused"/> if the source refused the token.</summary>
     Task<(FetchOutcome outcome, string? credential)> RedeemAsync(string handoffToken, CancellationToken cancellationToken);
 
     /// <summary>Copies the object's bytes to <paramref name="destination"/> when the result is Fetched.</summary>
     Task<FetchOutcome> FetchAsync(PayloadObject payloadObject, string credential, Stream destination, CancellationToken cancellationToken);
+
+    /// <summary>Whether the source has the object now: Fetched if it does, NotFound if it says it does not.</summary>
+    Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken);
 
     Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken);
 }
@@ -45,7 +55,11 @@ public interface IPayloadMoveSourceClient
 /// <see cref="FetchResult.Unavailable"/> rather than an exception, so it is retried instead of surfacing to
 /// the job runner as a cancellation.
 /// </summary>
-public class HttpPayloadMoveSourceClient(HttpClient client, string baseUrl, Guid identityId) : IPayloadMoveSourceClient
+public class HttpPayloadMoveSourceClient(
+    IDynamicHttpClientFactory httpClientFactory,
+    string baseUrl,
+    Guid identityId,
+    bool allowUntrustedServerCertificate = false) : IPayloadMoveSourceClient
 {
     public static readonly TimeSpan ObjectTimeout = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(1);
@@ -72,22 +86,38 @@ public class HttpPayloadMoveSourceClient(HttpClient client, string baseUrl, Guid
 
     public Task<FetchOutcome> FetchAsync(PayloadObject payloadObject, string credential, Stream destination, CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, Url(payloadObject.SourcePath(identityId)));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        return SendAsync(request, ObjectTimeout,
+        return SendAsync(Authorized(HttpMethod.Get, payloadObject.SourcePath(identityId), credential), ObjectTimeout,
             async response => await response.Content.CopyToAsync(destination, cancellationToken), cancellationToken);
+    }
+
+    public Task<FetchOutcome> ExistsAsync(PayloadObject payloadObject, string credential, CancellationToken cancellationToken)
+    {
+        return SendAsync(Authorized(HttpMethod.Head, payloadObject.SourcePath(identityId), credential), CallTimeout,
+            _ => Task.CompletedTask, cancellationToken);
     }
 
     public Task<FetchOutcome> CompleteAsync(string credential, CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, Url($"{PayloadMoveProtocol.IdentityPath(identityId)}/complete"));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        return SendAsync(request, CallTimeout, _ => Task.CompletedTask, cancellationToken);
+        return SendAsync(Authorized(HttpMethod.Post, $"{PayloadMoveProtocol.IdentityPath(identityId)}/complete", credential),
+            CallTimeout, _ => Task.CompletedTask, cancellationToken);
     }
 
     //
 
     private Uri Url(string path) => new(new Uri(baseUrl), path);
+
+    private HttpRequestMessage Authorized(HttpMethod method, string path, string credential) =>
+        new(method, Url(path)) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", credential) } };
+
+    // A client per call: a slice runs for minutes, longer than the factory keeps a handler, and a client held
+    // across it fails every call once the factory disposes the handler it was made with (#1867)
+    private HttpClient NewClient()
+    {
+        var client = httpClientFactory.CreateClient($"PayloadMove:{new Uri(baseUrl).Authority}",
+            c => c.AllowUntrustedServerCertificate = allowUntrustedServerCertificate);
+        client.Timeout = Timeout.InfiniteTimeSpan; // each call has its own
+        return client;
+    }
 
     private async Task<FetchOutcome> SendAsync(HttpRequestMessage request, TimeSpan timeout, Func<HttpResponseMessage, Task> onOk,
         CancellationToken cancellationToken)
@@ -97,7 +127,7 @@ public class HttpPayloadMoveSourceClient(HttpClient client, string baseUrl, Guid
         try
         {
             using (request)
-            using (var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutSource.Token))
+            using (var response = await NewClient().SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutSource.Token))
             {
                 switch (response.StatusCode)
                 {
@@ -105,7 +135,9 @@ public class HttpPayloadMoveSourceClient(HttpClient client, string baseUrl, Guid
                         await onOk(response);
                         return new FetchOutcome(FetchResult.Fetched);
                     case HttpStatusCode.NotFound:
-                        return new FetchOutcome(FetchResult.NotFound);
+                        return response.Headers.Contains(PayloadMoveProtocol.AbsentHeader)
+                            ? new FetchOutcome(FetchResult.NotFound)
+                            : new FetchOutcome(FetchResult.Refused, Error: "the source refused it");
                     case HttpStatusCode.TooManyRequests:
                     case HttpStatusCode.ServiceUnavailable:
                         return new FetchOutcome(FetchResult.Throttled, response.Headers.RetryAfter?.Delta);

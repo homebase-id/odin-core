@@ -94,12 +94,14 @@ older endpoint carries has an equivalent here:
 | `domain`, `id`, `enabled`, `enablePublicWebPresence` | same names |
 | `registrationPath`, `registrationSize`, `payloadPath` | same names |
 | `payloadSize` | `totalBytes` (identical figure — both sum `byteCount` over every file state) |
+| `created`, `lastActivity` | `createdAt`, `lastActivity` |
 
 `AdminControllerTest.ItShouldSupersedeTheTenantEndpoint` asserts this field by field, so the two
 cannot drift apart silently.
 
-The older endpoint is unchanged and still serves `Odin.Cli` (`odin-cli tenants list`), which
-deserializes `TenantModel`.
+The older endpoint still serves `Odin.Cli` (`odin-cli tenants list`), which deserializes `TenantModel`;
+`tenants list` and `tenant show` print its `created` and `lastActivity`, and `tenants list --inactive-days N`
+keeps only identities with no activity on this host in the last N days.
 
 ## For the collector
 

@@ -22,4 +22,15 @@ public class TenantModel
     public bool EnablePublicWebPresence { get; set; }
     public string? PayloadPath { get; set; } = null;
     public long? PayloadSize { get; set; } = null;
+
+    /// <summary>As <see cref="TenantMetricsModel.CreatedAt"/>. A move keeps it.</summary>
+    public UnixTimeUtc? Created { get; set; }
+
+    /// <summary>
+    /// As <see cref="TenantMetricsModel.LastActivity"/>: kept for 365 days, per host, and not carried by a move.
+    /// </summary>
+    public UnixTimeUtc? LastActivity { get; set; }
+
+    /// <summary>No activity on this host in the last <paramref name="days"/> days, or none at all.</summary>
+    public bool InactiveFor(int days, UnixTimeUtc now) => LastActivity == null || LastActivity.Value < now.AddDays(-days);
 }

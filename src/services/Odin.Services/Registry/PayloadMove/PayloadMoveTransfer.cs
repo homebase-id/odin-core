@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -28,14 +29,16 @@ public enum SliceEnd
 public readonly record struct SliceResult(SliceEnd End, TimeSpan Wait = default);
 
 /// <summary>
-/// The target side of a payload move, one slice at a time: newest files first, from the cursor down to the
-/// oldest file the import brought, fetching each file's payloads and thumbnails from the source, at most
-/// <c>parallelism</c> at once, into the target store. Everything it needs to resume is in the
-/// <see cref="PayloadMoveState"/> it is given. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
+/// The target side of a payload move, one slice at a time. First the objects the carried Inbox and Outbox items
+/// need (<see cref="PayloadMoveQueues"/>), then newest files first, from the cursor down to the oldest file the
+/// import brought, fetching each file's payloads and thumbnails from the source, at most <c>parallelism</c> at
+/// once, into the target store. Everything it needs to resume is in the <see cref="PayloadMoveState"/> it is
+/// given. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
 /// </summary>
 public sealed class PayloadMoveTransfer(
     IPayloadMoveSourceClient source,
     IDriveFileStore target,
+    Func<Task<List<PayloadObject>>> queuedObjects,
     Func<long, int, Task<List<FilePayloadRow>>> filesBelow,
     Func<PayloadObject, string> targetPathOf,
     int parallelism,
@@ -46,7 +49,7 @@ public sealed class PayloadMoveTransfer(
     public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
     private const int AttemptsPerObject = 3;
 
-    private enum Result { Transferred, Skipped, Failed, Stalled }
+    private enum Result { Transferred, Skipped, Missing, Failed, Stalled }
 
     private readonly record struct ObjectOutcome(Result Result, long Bytes = 0, string? Failure = null, TimeSpan? RetryAfter = null);
 
@@ -57,9 +60,25 @@ public sealed class PayloadMoveTransfer(
             return new SliceResult(SliceEnd.Finished);
         }
 
+        if (state.Status == PayloadMoveStatus.AcceptingMissing)
+        {
+            return await AcceptMissingAsync(state, budget, cancellationToken);
+        }
+
         if (state.Credential == null && !await RedeemAsync(state, cancellationToken))
         {
             return state.IsFinished ? new SliceResult(SliceEnd.Finished) : Backoff(state, null);
+        }
+
+        // The queued items' objects in one go, not against the budget: queues are a few dozen items
+        if (!state.QueuedItemsDone)
+        {
+            if (await TransferObjectsAsync(state, await queuedObjects(), cancellationToken) is { } wait)
+            {
+                return wait;
+            }
+
+            state.QueuedItemsDone = true;
         }
 
         var until = DateTimeOffset.UtcNow + budget;
@@ -73,45 +92,70 @@ public sealed class PayloadMoveTransfer(
 
             var unreadable = new List<string>();
             var objects = files.SelectMany(file => ObjectsOf(file, unreadable)).ToList();
-            var outcomes = await TransferAsync(objects, state.Credential!, cancellationToken);
-
-            // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
-            // wait. What did land is skipped next time, so nothing is fetched twice.
-            var stalled = outcomes.Where(o => o.outcome.Result == Result.Stalled).ToList();
-            if (stalled.Count > 0)
+            if (await TransferObjectsAsync(state, objects, cancellationToken) is { } wait)
             {
-                return Backoff(state, stalled.Max(o => o.outcome.RetryAfter));
+                return wait;
             }
 
             unreadable.ForEach(state.AddFailure);
-            foreach (var (payloadObject, outcome) in outcomes)
-            {
-                switch (outcome.Result)
-                {
-                    case Result.Transferred:
-                        state.Objects++;
-                        state.Bytes += outcome.Bytes;
-                        break;
-                    case Result.Skipped:
-                        state.Skipped++;
-                        break;
-                    case Result.Failed:
-                        state.AddFailure($"{payloadObject}: {outcome.Failure}");
-                        logger.LogWarning("Payload move could not transfer {object}: {failure}", payloadObject, outcome.Failure);
-                        break;
-                }
-            }
-
             state.Files += files.Count;
             state.CursorRowId = files.Min(file => file.RowId);
-            state.BackoffSeconds = 0;
-            state.Status = PayloadMoveStatus.Transferring;
         }
 
         return new SliceResult(SliceEnd.Continue);
     }
 
     //
+
+    // Fetches the objects and counts how it went, or returns the wait if the source stalled
+    private async Task<SliceResult?> TransferObjectsAsync(PayloadMoveState state, List<PayloadObject> objects,
+        CancellationToken cancellationToken)
+    {
+        var outcomes = await EachAsync(objects, o => TransferOneAsync(o, state.Credential!, cancellationToken), cancellationToken);
+
+        // A stalled object means the source is throttling or unreachable: leave the cursor where it is and
+        // wait. What did land is skipped next time, so nothing is fetched twice.
+        var stalled = outcomes.Where(o => o.outcome.Result == Result.Stalled).ToList();
+        if (stalled.Count > 0)
+        {
+            return Backoff(state, stalled.Max(o => o.outcome.RetryAfter));
+        }
+
+        foreach (var (payloadObject, outcome) in outcomes)
+        {
+            switch (outcome.Result)
+            {
+                case Result.Transferred:
+                    state.Objects++;
+                    state.Bytes += outcome.Bytes;
+                    break;
+                case Result.Skipped:
+                    state.Skipped++;
+                    break;
+                case Result.Missing:
+                    state.AddMissing(payloadObject);
+                    logger.LogWarning("Payload move could not transfer {object}: the source does not have it", payloadObject);
+                    break;
+                case Result.Failed:
+                    state.AddFailure($"{payloadObject}: {outcome.Failure}");
+                    logger.LogWarning("Payload move could not transfer {object}: {failure}", payloadObject, outcome.Failure);
+                    break;
+            }
+        }
+
+        state.BackoffSeconds = 0;
+        if (state.TooManyMissing)
+        {
+            // Not holes in a long-used identity: something is wrong with the source. Stop, keeping it.
+            state.Status = PayloadMoveStatus.CompleteWithFailures;
+            logger.LogError("Payload move stopped: more than {max} objects are missing at the source {baseUrl}; look into it",
+                PayloadMoveState.MaxRecordedMissing, state.BaseUrl);
+            return new SliceResult(SliceEnd.Finished);
+        }
+
+        state.Status = PayloadMoveStatus.Transferring;
+        return null;
+    }
 
     private async Task<bool> RedeemAsync(PayloadMoveState state, CancellationToken cancellationToken)
     {
@@ -122,7 +166,7 @@ public sealed class PayloadMoveTransfer(
                 state.Credential = credential;
                 state.HandoffToken = null;
                 return true;
-            case FetchResult.NotFound:
+            case FetchResult.Refused:
                 // Loud: another import already holds this identity's payloads, or the file sat too long
                 state.Status = PayloadMoveStatus.Refused;
                 state.AddFailure("The source refused the handoff token: it was already redeemed (a second import of the " +
@@ -139,29 +183,117 @@ public sealed class PayloadMoveTransfer(
     {
         if (state.FailureCount > 0)
         {
-            // The source keeps the identity's payloads, and cannot be deleted, until someone looks at these
+            // The source keeps the identity's payloads, and cannot be deleted, until someone looks at these.
+            // Nothing was given up: #1918 recorded that before the source heard.
             state.Status = PayloadMoveStatus.CompleteWithFailures;
+            state.AcceptedMissingAt = null;
             logger.LogError("Payload move finished with {count} object(s) it could not transfer; the source is not released",
                 state.FailureCount);
             return new SliceResult(SliceEnd.Finished);
         }
 
-        var outcome = await source.CompleteAsync(state.Credential!, cancellationToken);
-        if (outcome.Result != FetchResult.Fetched)
+        // Everything is here; if only the source has not heard, try again later
+        if (await CompleteAtSourceAsync(state, Backoff, cancellationToken) is { } wait)
         {
-            // Everything is here; only the source has not heard. Try again later.
-            logger.LogWarning("Payload move could not tell the source it is complete: {result} {error}", outcome.Result, outcome.Error);
-            return Backoff(state, outcome.RetryAfter);
+            return wait;
         }
 
-        state.Status = PayloadMoveStatus.Complete;
-        state.BackoffSeconds = 0;
         logger.LogInformation("Payload move complete: {objects} object(s), {bytes} bytes, {skipped} already here",
             state.Objects, state.Bytes, state.Skipped);
         return new SliceResult(SliceEnd.Finished);
     }
 
+    // The operator gives up the objects the source did not have (#1868). Each is asked for once more, in slices like
+    // the walk, and only once the source has confirmed it still lacks every one is it told the move is complete.
+    // Until then the status stays AcceptingMissing, waits included.
+    private async Task<SliceResult> AcceptMissingAsync(PayloadMoveState state, TimeSpan budget, CancellationToken cancellationToken)
+    {
+        var until = DateTimeOffset.UtcNow + budget;
+        while (state.AcceptCheckedCount < state.Missing.Count)
+        {
+            if (DateTimeOffset.UtcNow >= until)
+            {
+                return new SliceResult(SliceEnd.Continue);
+            }
+
+            var batch = state.Missing.Skip(state.AcceptCheckedCount).Take(FilesPerBatch).ToList();
+            var checks = await EachAsync(batch, o => source.ExistsAsync(o, state.Credential!, cancellationToken), cancellationToken);
+
+            if (checks.FirstOrDefault(c => c.outcome.Result == FetchResult.Fetched).payloadObject is { } found)
+            {
+                return StopAccepting(state, $"{found} is at the source now: run --retry to fetch it");
+            }
+
+            if (checks.FirstOrDefault(c => c.outcome.Result == FetchResult.Refused).payloadObject is { } refused)
+            {
+                return StopAccepting(state, $"the source refused to check {refused} (the identity runs there again, or a " +
+                                            "re-export revoked the credential): fix that, then run --retry");
+            }
+
+            // What the source confirmed stays confirmed; throttling or a failure waits and goes on from there
+            var confirmed = checks.TakeWhile(c => c.outcome.Result == FetchResult.NotFound).Count();
+            state.AcceptCheckedCount += confirmed;
+            if (confirmed < checks.Count)
+            {
+                var (unconfirmed, outcome) = checks[confirmed];
+                logger.LogWarning("Payload move could not check {object} at the source: {result} {error}",
+                    unconfirmed, outcome.Result, outcome.Error);
+                return Wait(state, outcome.RetryAfter);
+            }
+
+            state.BackoffSeconds = 0;
+        }
+
+        if (await CompleteAtSourceAsync(state, Wait, cancellationToken) is { } notHeard)
+        {
+            return notHeard;
+        }
+
+        foreach (var payloadObject in state.Missing)
+        {
+            logger.LogWarning("Payload move gave up {object}: the source does not have it (accepted by the operator)", payloadObject);
+        }
+
+        state.AcceptedMissingAt = UnixTimeUtc.Now();
+        logger.LogInformation("Payload move complete without {count} object(s) the source did not have", state.MissingCount);
+        return new SliceResult(SliceEnd.Finished);
+    }
+
+    // Tells the source the move is complete, which releases it, and marks it so; or how long to wait if it did not hear
+    private async Task<SliceResult?> CompleteAtSourceAsync(PayloadMoveState state,
+        Func<PayloadMoveState, TimeSpan?, SliceResult> wait, CancellationToken cancellationToken)
+    {
+        var outcome = await source.CompleteAsync(state.Credential!, cancellationToken);
+        if (outcome.Result != FetchResult.Fetched)
+        {
+            logger.LogWarning("Payload move could not tell the source it is complete: {result} {error}", outcome.Result, outcome.Error);
+            return wait(state, outcome.RetryAfter);
+        }
+
+        state.Status = PayloadMoveStatus.Complete;
+        state.BackoffSeconds = 0;
+        return null;
+    }
+
+    // Nothing is given up: the move stays as it ended, and says why
+    private SliceResult StopAccepting(PayloadMoveState state, string why)
+    {
+        state.Status = PayloadMoveStatus.CompleteWithFailures;
+        state.AcceptRefusal = why;
+        state.BackoffSeconds = 0;
+        logger.LogWarning("Payload move did not give up the missing objects: {why}", why);
+        return new SliceResult(SliceEnd.Finished);
+    }
+
     private static SliceResult Backoff(PayloadMoveState state, TimeSpan? retryAfter)
+    {
+        var wait = Wait(state, retryAfter);
+        state.Status = wait.Wait >= MaxBackoff ? PayloadMoveStatus.Throttled : PayloadMoveStatus.Transferring;
+        return wait;
+    }
+
+    // The source's Retry-After, or twice the last wait
+    private static SliceResult Wait(PayloadMoveState state, TimeSpan? retryAfter)
     {
         var wait = retryAfter ?? (state.BackoffSeconds == 0 ? FirstBackoff : TimeSpan.FromSeconds(state.BackoffSeconds * 2));
         if (wait > MaxBackoff)
@@ -170,12 +302,12 @@ public sealed class PayloadMoveTransfer(
         }
 
         state.BackoffSeconds = (int)wait.TotalSeconds;
-        state.Status = wait >= MaxBackoff ? PayloadMoveStatus.Throttled : PayloadMoveStatus.Transferring;
         return new SliceResult(SliceEnd.Wait, wait);
     }
 
-    private async Task<List<(PayloadObject payloadObject, ObjectOutcome outcome)>> TransferAsync(
-        List<PayloadObject> objects, string credential, CancellationToken cancellationToken)
+    // Each object, at most `parallelism` at a time
+    private async Task<List<(PayloadObject payloadObject, T outcome)>> EachAsync<T>(
+        List<PayloadObject> objects, Func<PayloadObject, Task<T>> each, CancellationToken cancellationToken)
     {
         using var gate = new SemaphoreSlim(Math.Max(1, parallelism));
         var transfers = objects.Select(async payloadObject =>
@@ -183,7 +315,7 @@ public sealed class PayloadMoveTransfer(
             await gate.WaitAsync(cancellationToken);
             try
             {
-                return (payloadObject, await TransferOneAsync(payloadObject, credential, cancellationToken));
+                return (payloadObject, await each(payloadObject));
             }
             finally
             {
@@ -227,10 +359,15 @@ public sealed class PayloadMoveTransfer(
                     return new ObjectOutcome(Result.Transferred, file.Length);
 
                 case FetchResult.NotFound:
-                    return new ObjectOutcome(Result.Failed, Failure: "the source does not have it");
+                    return new ObjectOutcome(Result.Missing);
 
                 case FetchResult.Throttled:
                     return new ObjectOutcome(Result.Stalled, RetryAfter: fetched.RetryAfter);
+
+                case FetchResult.Refused:
+                    // Not that it lacks it: the identity runs there again, a re-export revoked the credential, or the
+                    // source will not serve this key. A failure, so it blocks accepting but not the rest of the move.
+                    return new ObjectOutcome(Result.Failed, Failure: "the source refused it");
 
                 default:
                     if (attempt >= AttemptsPerObject)
@@ -246,8 +383,8 @@ public sealed class PayloadMoveTransfer(
         }
     }
 
-    // A file's stored objects: each payload and its thumbnails. Files whose payloads live elsewhere, and
-    // deleted files, have none.
+    // A file's stored objects (PayloadObject.AllOf). A deleted file has none; a header that cannot be read has
+    // none and is reported.
     private static IEnumerable<PayloadObject> ObjectsOf(FilePayloadRow file, List<string> unreadable)
     {
         FileMetadata? metadata = null;
@@ -260,19 +397,6 @@ public sealed class PayloadMoveTransfer(
             unreadable.Add($"file {file.FileId}: its header could not be read ({e.Message})");
         }
 
-        if (metadata == null || metadata.PayloadsAreRemote || metadata.Payloads == null)
-        {
-            yield break;
-        }
-
-        foreach (var payload in metadata.Payloads)
-        {
-            yield return new PayloadObject(file.DriveId, file.FileId, payload.Key, payload.Uid, payload.BytesWritten);
-            foreach (var thumbnail in payload.Thumbnails ?? [])
-            {
-                yield return new PayloadObject(file.DriveId, file.FileId, payload.Key, payload.Uid, thumbnail.BytesWritten,
-                    thumbnail.PixelWidth, thumbnail.PixelHeight);
-            }
-        }
+        return PayloadObject.AllOf(file.DriveId, file.FileId, metadata);
     }
 }

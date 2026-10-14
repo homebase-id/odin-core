@@ -60,6 +60,11 @@ You need:
 
 Throughout, `<domain>` is the identity's domain, for example `frodo.id.pub`.
 
+**Is the identity in use?** `odin-admin tenant show <domain>` against the source shows when it was created
+and its last activity: the last request made as the identity on that host, kept for 365 days. It does not
+move with the identity, so on the target it reads "never" until the owner uses it there.
+`odin-admin tenants list --inactive-days 90` lists the identities nobody has used for 90 days.
+
 ## Steps
 
 ### 1. Check that we control the identity's DNS
@@ -79,21 +84,20 @@ The registration API reports the per-record status as the source host sees it:
 If the domain has any `AAAA` record on the apex, `capi` or `file`, stop and fix that first: the
 records must be exactly what the host expects (`DnsLookupService.VerifyDnsValue`).
 
-### 2. Check the queues (optional, recommended)
+### 2. The queues come along
 
-Messages still waiting in the identity's inbox or outbox **do not move** (import skips them and
-warns). Losing a few is tolerable, but check how many there are:
+Messages still waiting in the identity's Inbox (received, not yet processed by the owner's app) and Outbox
+(not yet sent) **move with it**. The import carries them, and the payload transfer fetches their payloads
+first, before anything else; step 8 waits for that. There is no need to drain them first.
 
-- **SQLite:** each identity has its own database file,
-  `<Host:TenantDataRootPath>/registrations/<identityId>/headers/identity.db`:
-  `sqlite3 <that file> "select 'inbox', count(*) from inbox union all select 'outbox', count(*) from outbox"`.
-- **Postgres:** the tables are shared; filter by `identityId`. It is stored as .NET
-  `Guid.ToByteArray()`, which byte-swaps the first three groups of the UUID, so a plain hex decode
-  of the id does **not** match. Read the bytes off one of the identity's rows instead.
-- **Or, after step 5:** the dry-run import on the target prints
-  `skipped Inbox: N queued item(s), which do not move with the identity` (and the same for Outbox).
+Two exceptions, both reported by the dry run in step 6:
 
-If there is a backlog, let it drain (resume, wait, pause again) before exporting.
+- **Inbox items queued before #1568 (June 2026)** keep their files in the source's inbox folder, which does
+  not move. The import leaves them behind with a warning:
+  `left "Inbox": N row(s) behind: queued before #1568, ...`. They are lost on the target. If that
+  matters for this identity, have the owner open the app on the source first, which processes them.
+- **An Outbox send that completed exactly as the source paused** may go out once more from the target. We
+  believe receivers ignore a repeated transfer, but that is not verified.
 
 ### 3. Lower the DNS TTL, well ahead of the move
 
@@ -154,9 +158,12 @@ Odin.Hosting identity-import /identity-host/tmp/<domain>.json commit
   or DKIM rows for the domain, a table version differs, or the file is not a complete export.
 - A failed import can simply be run again: it clears what the failed one left.
 - Check it arrived: `odin-admin tenant show <domain>` against the target shows `Paused`.
+- It reports what it carried: `carried "Inbox": N queued item(s)` and the same for Outbox, and anything
+  left behind (step 2).
 - The payload transfer starts at once, while the identity is still paused. Follow it against the target:
-  `odin-admin tenant payload-move <domain>`. It runs newest files first, 5 at a time
-  (`PayloadMove:Parallelism`), survives restarts of either host, and waits out a throttling source.
+  `odin-admin tenant payload-move <domain>`. It fetches the queued items' payloads first ("Queued items"),
+  then runs newest files first, 5 at a time (`PayloadMove:Parallelism`), survives restarts of either host,
+  and waits out a throttling source.
 
 ### 7. Repoint DNS to the target
 
@@ -204,11 +211,40 @@ odin-admin tenant resume <domain>            # against the target's admin API
 
 Peers that queued messages retry within their `Retry-After` and now reach the target.
 
+**Resume waits for the queued items' payloads.** Until `odin-admin tenant payload-move <domain>` shows
+"Queued items: payloads fetched", resume refuses with "...still arriving from the source": otherwise the
+owner's app could process an Inbox item before its payloads are here, which loses it. That normally takes
+seconds; wait and run it again. Objects the source does not have count as fetched (they are listed as
+failures), so a hole at the source does not keep the identity down. A source that cannot be reached does:
+then roll back (below) or fix the source.
+
 You do not have to wait for the payload transfer to finish: until a payload arrives, reading it answers
 404 with `Cache-Control: no-store` and a `Retry-After`, so nothing caches its absence. Keep following
 `odin-admin tenant payload-move <domain>` until it reads `Complete`. If it ends `CompleteWithFailures`,
 read the failures it lists; `--retry` runs it again from the newest file, skipping everything that already
-arrived.
+arrived. A failure "the source refused it" means the source would not serve that object to this transfer: the
+identity runs there again, a re-export revoked the credential, or the source rejects the object's key. Fix the
+first two and `--retry`; the third needs a developer.
+
+**Objects the source never had.** Long-used identities often have holes: payloads their headers name that
+are not in the source's store (failed or abandoned uploads). The source says so explicitly for each (a refusal
+never counts), and the move cannot complete, so the source copy can never be deleted (step 10). When
+`payload-move` shows "Missing: N at the source, and nothing else failed":
+
+1. List them: `odin-admin tenant payload-move <domain> --list-missing` against the target. Each line is the
+   object's path in the source's payload store, relative to its root: on S3, prefix it with the source's
+   `S3Payload:RootPath` (default `payloads`), so `payloads/<line>` is the key; on disk it is under the payloads
+   folder.
+2. Confirm on the source's store that a few of them really are absent, and that the source copy is still paused.
+3. With the operator's go-ahead for that domain and that count: `odin-admin tenant payload-move <domain>
+   --accept-missing N`, N being the count listed. Any other count is refused. The transfer asks the source for
+   each once more and, if every one is still missing, completes without them; the source then reads complete and
+   "Deletable: yes". If one has turned up, or the source refuses to answer for one (the identity runs there
+   again, or a re-export revoked the credential), it stops and says why: fix that, then run `--retry`.
+
+A transfer that finished before accept-missing existed does not record which failures were missing objects:
+run `--retry` first. More than 200 objects missing at the source stops the transfer: that is not holes, look
+into the source. Once a move reads Complete, `--retry` is refused: the source has released it.
 
 **Leave the source copy paused for a day or two** before step 9: rolling back is cheapest then.
 
@@ -272,5 +308,5 @@ object by object, into its own store. Design: `docs/superpowers/specs/2026-08-31
   **Email does not move (yet)** above.
 - On Postgres, deleting an identity leaves its rows in the shared identity tables. That is true of every delete,
   not just a move (`IdentityImportPreconditions.cs`), and import clears them if the identity comes back.
-- Carrying the inbox/outbox queues (`--carry-queues`), and scheduled jobs (file expiry,
-  scheduled notifications): they stay behind on the source.
+- Scheduled jobs (file expiry, scheduled notifications): they stay behind on the source.
+- Inbox items queued before #1568 (step 2).

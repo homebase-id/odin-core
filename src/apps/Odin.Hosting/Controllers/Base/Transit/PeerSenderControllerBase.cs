@@ -16,6 +16,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
+using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.Base.Transit
 {
@@ -115,26 +116,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             AssertIsPart(section, MultipartUploadParts.Metadata);
             await fileSystemWriter.AddMetadata(section!.Body);
 
-            //
-            section = await reader.ReadNextSectionAsync();
-            while (null != section)
-            {
-                if (IsPayloadPart(section))
-                {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
-                }
-
-                if (IsThumbnail(section))
-                {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey,
-                        out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream,
-                        WebOdinContext);
-                }
-
-                section = await reader.ReadNextSectionAsync();
-            }
+            await ReadUploadPartsAsync(reader, fileSystemWriter);
 
             var uploadResult = await fileSystemWriter.FinalizeUploadAsync(WebOdinContext);
 
@@ -167,8 +149,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// </remarks>
         protected virtual async Task<UploadInstructionSet> RemapTransitInstructionSet(Stream transitInstructionStream)
         {
-            string json = await new StreamReader(transitInstructionStream).ReadToEndAsync();
-            var transitInstructionSet = OdinSystemSerializer.Deserialize<TransitInstructionSet>(json);
+            var transitInstructionSet = await BoundedRead.DeserializeAsync<TransitInstructionSet>(transitInstructionStream);
 
             var uploadInstructionSet = new UploadInstructionSet()
             {

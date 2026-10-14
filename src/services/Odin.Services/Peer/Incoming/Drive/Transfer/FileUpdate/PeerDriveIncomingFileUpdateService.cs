@@ -56,17 +56,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             await WriteInstructionsAndMetadataToDisk(fileMetadata, odinContext);
         }
 
-        public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
+        public async Task AcceptPayload(PayloadDescriptor descriptor, bool isEncrypted, Stream data, IOdinContext odinContext)
         {
             // Refused before any bytes are read, so the sender defers the update instead of losing it
             quotaGuard.AssertCanAddPayloadBytes();
 
-            _uploadedKeys.TryAdd(key, new List<string>());
-            if (_isDirectWrite)
-                await fileSystem.Storage.WriteUploadStream(_file, fileExtension, data, odinContext);
-            else
-                // Inbox-routed: stream straight to long-term under the incoming fileId (no inbox folder).
-                await fileSystem.Storage.WritePayloadDirectlyToLongTerm(_file, fileExtension, data, odinContext);
+            _uploadedKeys.TryAdd(descriptor.Key, new List<string>());
+
+            // Inbox-routed (not direct write) streams straight to long-term under the incoming fileId (no inbox folder).
+            await fileSystem.Storage.WriteIncomingPeerPayload(_file, descriptor, isEncrypted, _isDirectWrite, data, odinContext);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,

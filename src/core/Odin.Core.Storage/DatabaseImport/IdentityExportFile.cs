@@ -36,6 +36,12 @@ public static class IdentityExportFile
 /// </summary>
 public delegate object RowRewriter(string db, string table, object record);
 
+/// <summary>
+/// Lets the caller leave a row out of an import for a reason only it can see, such as one inside a serialized
+/// value. Returns that reason, or null to import the row.
+/// </summary>
+public delegate string? RowFilter(string db, string table, object record);
+
 public class ExportHeader
 {
     [JsonPropertyName("kind")] public string Kind { get; set; } = IdentityExportFile.KindHeader;

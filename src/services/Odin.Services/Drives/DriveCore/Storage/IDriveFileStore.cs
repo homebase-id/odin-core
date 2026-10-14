@@ -17,17 +17,22 @@ public interface IDriveFileStore
 
     Task<uint>   WriteStreamAsync(string path, Stream stream, CancellationToken ct = default);
     Task         WriteBytesAsync(string path, byte[] bytes, CancellationToken ct = default);
-    Task<byte[]> ReadAllBytesAsync(string path, CancellationToken ct = default);
-    Task<byte[]> ReadBytesAsync(string path, long start, long length, CancellationToken ct = default);
 
-    /// Opens the file for reading without loading it into memory; the caller disposes the stream. A missing
-    /// file throws as <see cref="ReadAllBytesAsync"/> does.
-    Task<Stream> OpenReadAsync(string path, CancellationToken ct = default);
+    /// Opens the file, or <paramref name="length"/> bytes of it from <paramref name="start"/>, for reading without
+    /// loading it into memory. There is deliberately no read into a byte[]: a payload is unbounded (#1892).
+    /// A null length reads to the end and a range running past the end is clamped to it; a missing file throws.
+    /// Payload readers resolve the range against the payload first (<c>FileChunk.ResolveAgainst</c>), so a start at
+    /// or past the end never reaches a store, where disk and S3 answer it differently. The caller disposes the
+    /// stream. Its Length is the number of bytes it yields, which callers send as Content-Length.
+    Task<Stream> OpenReadAsync(string path, Int64 start = 0, Int64? length = null, CancellationToken ct = default);
     Task<bool>   ExistsAsync(string path, CancellationToken ct = default);
     Task<long>   LengthAsync(string path, CancellationToken ct = default);
     Task         DeleteAsync(string path, CancellationToken ct = default);
-    Task         DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default); // {fileId:N}.*
+    // Every file in dir named for fileId: staging "{fileId:N}.ext" and long-term "{fileId:N}-key-uid..." alike. A
+    // fileId in N format is a fixed 32 hex chars, so the bare id is an exact prefix and cannot match another file.
+    Task         DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default);
     Task         EnsureDirectoryAsync(string dir, CancellationToken ct = default);          // no-op on S3
+    Task         DeleteDirectoryAsync(string dir, CancellationToken ct = default);          // dir and all below; missing is fine
 
     /// <summary>
     /// Promotes a staged file from <paramref name="source"/> into THIS store (the destination): it moves a

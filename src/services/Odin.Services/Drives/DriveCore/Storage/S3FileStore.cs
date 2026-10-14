@@ -57,43 +57,13 @@ public class S3FileStore(
 
     //
 
-    public async Task<byte[]> ReadAllBytesAsync(string path, CancellationToken ct = default)
-    {
-        try
-        {
-            return await TryRetry(async () =>
-                await s3.ReadBytesAsync(path, ct), ct);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new DriveFileStoreException(e.Message, e);
-        }
-    }
-
-    //
-
-    public async Task<byte[]> ReadBytesAsync(string path, long start, long length, CancellationToken ct = default)
-    {
-        try
-        {
-            return await TryRetry(async () =>
-                await s3.ReadBytesAsync(path, start, length, ct), ct);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new DriveFileStoreException(e.Message, e);
-        }
-    }
-
-    //
-
-    public async Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
+    public async Task<Stream> OpenReadAsync(string path, Int64 start = 0, Int64? length = null, CancellationToken ct = default)
     {
         try
         {
             // Retries cover opening only; a failure part way through the body surfaces to the reader
             return await TryRetry(async () =>
-                await s3.OpenReadAsync(path, ct), ct);
+                await s3.OpenReadAsync(path, start, length, ct), ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -148,9 +118,27 @@ public class S3FileStore(
 
     //
 
-    public async Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default)
+    public Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default) =>
+        DeleteByPrefixAsync(S3Path.Combine(dir, $"{fileId:N}"), ct);
+
+    //
+
+    // S3 has no directories: delete every object under the folder prefix. The trailing slash keeps a sibling
+    // whose name merely starts with the same characters out of it.
+    public Task DeleteDirectoryAsync(string dir, CancellationToken ct = default)
     {
-        var prefix = S3Path.Combine(dir, $"{fileId:N}.");
+        // An empty folder would be the prefix "/": the whole store.
+        var folder = dir?.Trim().Trim('/', '\\');
+        if (string.IsNullOrEmpty(folder))
+        {
+            throw new DriveFileStoreException($"Refusing to delete directory '{dir}'");
+        }
+
+        return DeleteByPrefixAsync(dir!.TrimEnd('/', '\\') + "/", ct);
+    }
+
+    private async Task DeleteByPrefixAsync(string prefix, CancellationToken ct)
+    {
         try
         {
             await TryRetry(async () =>

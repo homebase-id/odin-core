@@ -81,6 +81,13 @@ public interface IDnssecLookup
     Task<List<DnsKeyRecord>> GetZoneDnsKeysAsync(string zone, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// As <see cref="GetZoneDnsKeysAsync"/>, but null when the zone could not be asked at all
+    /// (no authority found, or no nameserver answered) - so "unsigned" and "we could not tell"
+    /// stay different answers.
+    /// </summary>
+    Task<List<DnsKeyRecord>?> TryGetZoneDnsKeysAsync(string zone, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// The CDS records (RFC 7344) the zone publishes - the DS set the zone ASKS its
     /// parent to install. Best-effort: empty when absent or unparseable.
     /// </summary>
@@ -193,18 +200,23 @@ public class DnssecLookup(ILogger<DnssecLookup> logger, ILookupClient dnsClient,
 
     public async Task<List<DnsKeyRecord>> GetZoneDnsKeysAsync(string zone, CancellationToken cancellationToken = default)
     {
+        return await TryGetZoneDnsKeysAsync(zone, cancellationToken) ?? [];
+    }
+
+    public async Task<List<DnsKeyRecord>?> TryGetZoneDnsKeysAsync(string zone, CancellationToken cancellationToken = default)
+    {
         zone = zone.Trim().Trim('.').ToLowerInvariant();
 
         var authority = await authoritativeDnsLookup.LookupDomainAuthorityAsync(zone, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
         {
-            return [];
+            return null;
         }
 
         var response = await dnsClient.Query(
             authority.NameServers, zone, QueryType.DNSKEY, AuthoritativeQueryOptions, logger, cancellationToken: cancellationToken);
 
-        return (response?.Answers.OfType<DnsKeyRecord>() ?? []).ToList();
+        return response?.Answers.OfType<DnsKeyRecord>().ToList();
     }
 
     //

@@ -382,11 +382,20 @@ public class ShamirRecoveryService
         }
 
         var client = await CreateClientAsyncWithToken(sender.GetValueOrDefault(), null, odinContext);
-        await client.SendPlayerShard(new RetrieveShardResult
+        var response = await client.SendPlayerShard(new RetrieveShardResult
         {
             ResultType = RetrieveShardResultType.Complete,
             Shard = shard
         });
+
+        // the dealer refuses a shard from a delegate it is no longer connected to (#1885); say so,
+        // and keep the request so the approval can be retried
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Dealer {dealer} did not accept shard {shardId}: {status}", odinId, shardId, response.StatusCode);
+            throw new OdinClientException(
+                $"{odinId} did not accept the shard ({(int)response.StatusCode}). You may no longer be connected to them.");
+        }
 
         await _approvalCollector.DeleteRequest(shardId, odinContext);
         // tx.Commit();
@@ -435,7 +444,8 @@ public class ShamirRecoveryService
         }
 
         // decrypt all the shards
-        var distributionKey = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards.OrderBy(s => s.Index).ToList());
+        var distributionKey = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards.OrderBy(s => s.Index).ToList(),
+            ShamirConfigurationService.DistributionKeyLength);
 
         // put the recovery text in the nonce
         var recoveryText = await _configurationService.DecryptRecoveryKey(distributionKey.ToSensitiveByteArray(), odinContext);

@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.DatabaseImport;
 using Odin.Core.Storage.Factory;
@@ -215,7 +216,8 @@ public static class IdentityJsonTransfer
                             await targetIdentityDatabase.DriveMainIndex.GetMaxRowIdAsync());
                     }
                 },
-                rewriteRow: IdentityKeyMaterial.ForImport(config.CertificateRenewal.StorageKey));
+                rewriteRow: IdentityKeyMaterial.ForImport(config.CertificateRenewal.StorageKey),
+                leaveOutRow: (_, _, record) => record is InboxRecord inbox ? PayloadMoveQueues.WhyInboxItemStaysBehind(inbox) : null);
         }
         catch (IdentityImportRefusedException e)
         {

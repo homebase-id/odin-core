@@ -492,6 +492,25 @@ public class TableDriveMainIndex(
         return (0, 0);
     }
 
+    /// <summary>
+    /// For testing only. Sets modified for the supplied item, e.g. ahead of now.
+    /// </summary>
+    internal async Task<int> TestSetModifiedAsync(Guid driveId, Guid fileId, UnixTimeUtc modified)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText =
+            "UPDATE drivemainindex SET modified = @modified WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileId;";
+
+        cmd.AddParameter("@modified", DbType.Int64, modified.milliseconds);
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     // For defragmenter only (that's why it's internal)
     // Copy of UpdateAsync with Validation() and modified time removed
     // It does NOT update reactionSummary and transferHistory and localAppData! 
@@ -577,15 +596,33 @@ public class TableDriveMainIndex(
         await using var rdr = await cmd.ExecuteReaderAsync();
         while (await rdr.ReadAsync())
         {
-            result.Add(new FilePayloadRow(
-                (long)rdr[0],
-                new Guid((byte[])rdr[1]),
-                new Guid((byte[])rdr[2]),
-                rdr[3] == DBNull.Value ? null : (string)rdr[3]));
+            result.Add(ReadFilePayloadRow(rdr));
         }
 
         return result;
     }
+
+    /// <summary>One file's header, as <see cref="GetFilePayloadRowsBelowAsync"/> reads it; null if there is no such file.</summary>
+    public async Task<FilePayloadRow> GetFilePayloadRowAsync(Guid driveId, Guid fileId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "SELECT rowId,driveId,fileId,hdrFileMetaData FROM DriveMainIndex " +
+            "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        return await rdr.ReadAsync() ? ReadFilePayloadRow(rdr) : null;
+    }
+
+    private static FilePayloadRow ReadFilePayloadRow(DbDataReader rdr) => new(
+        (long)rdr[0],
+        new Guid((byte[])rdr[1]),
+        new Guid((byte[])rdr[2]),
+        rdr[3] == DBNull.Value ? null : (string)rdr[3]);
 
     /// <summary>This identity's highest file rowId, or 0 if it has no files.</summary>
     public async Task<long> GetMaxRowIdAsync()

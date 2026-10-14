@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Ported.Shamir;
 using Odin.Services.Configuration;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -46,13 +47,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Configuration;
 [TestFixture]
 public class SystemInitializeConfigTestsAutomatedPasswordRecovery : V2Fixture
 {
-    /// <summary>
-    /// The four identities named by <c>AccountRecovery:AutomatedPasswordRecoveryIdentities</c> in
-    /// <c>appsettings.development.json</c>. They have to be real tenants on this host for the shards
-    /// to be delivered and then verified.
-    /// </summary>
-    private static readonly string[] AutoPlayers =
-        [Identities.TomBombadil, Identities.Collab, Identities.Merry, Identities.Pippin];
+    private static readonly string[] AutoPlayers = ShamirFixture.AutomatedPlayerIdentities;
 
     protected override string[] HostIdentities => [Identities.Frodo, .. AutoPlayers];
 

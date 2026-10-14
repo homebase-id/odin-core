@@ -92,7 +92,9 @@ namespace Odin.Core.Cryptography.Data
 
                 return publicKey;
             }
-            catch (FormatException)
+            // Malformed base64 throws FormatException; BouncyCastle rejects a coordinate outside the field or a
+            // point off the curve with ArgumentException. Either way the JWK is invalid input (#1812).
+            catch (Exception e) when (e is FormatException or ArgumentException)
             {
                 throw new OdinClientException("Invalid Jwk public key format");
             }
@@ -121,16 +123,6 @@ namespace Odin.Core.Cryptography.Data
             }
         }
 
-
-        // Method to ensure byte array length
-        protected static byte[] EnsureLength(byte[] bytes, int length)
-        {
-            if (bytes.Length >= length) return bytes;
-
-            byte[] paddedBytes = new byte[length];
-            Array.Copy(bytes, 0, paddedBytes, length - bytes.Length, bytes.Length);
-            return paddedBytes;
-        }
 
 
         protected static int CoordinateBytes(EccKeySize size) => size == EccKeySize.P384 ? 384 / 8 : 256 / 8;
@@ -372,7 +364,7 @@ namespace Odin.Core.Cryptography.Data
 
                 return new EccFullKeyData(key, keys, hours, 0, 0);
             }
-            catch (FormatException)
+            catch (Exception e) when (e is FormatException or ArgumentException) // see FromJwkPublicKey
             {
                 throw new OdinClientException("Invalid Jwk private key format");
             }
@@ -441,7 +433,9 @@ namespace Odin.Core.Cryptography.Data
             // with ToByteArrayUnsigned() instead dropped a leading zero byte, so about 1 exchange in 256 derived a
             // different key here than on the client (#1728).
             var sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
-            var sharedSecretBytes = EnsureLength(sharedSecret.ToByteArrayUnsigned(), ecdhUagree.GetFieldSize());
+            // AsUnsignedByteArray also throws if the value is longer than the field: that would be a wrong key, not
+            // a short encoding, and must not reach HKDF as a silently different key (#1812).
+            var sharedSecretBytes = BigIntegers.AsUnsignedByteArray(ecdhUagree.GetFieldSize(), sharedSecret);
 
             // Apply HKDF to derive a symmetric key from the shared secret
             return HashUtil.Hkdf(sharedSecretBytes, randomSalt, 16).ToSensitiveByteArray();

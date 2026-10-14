@@ -31,6 +31,7 @@ public class TenantAdmin(
     ILastSeenService lastSeenService,
     IdentityStorageCensus identityStorageCensus,
     PayloadMoveSource payloadMoveSource,
+    PayloadMoveAdmin payloadMoveAdmin,
     SystemDatabase systemDatabase)
     : ITenantAdmin
 {
@@ -367,9 +368,18 @@ public class TenantAdmin(
 
     //
 
-    public Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
+    public async Task<TenantStatusState?> SetTenantStatusAsync(string domain, TenantStatus status, DisabledReason? reason)
     {
-        return identityRegistry.SetStatusAsync(domain, status, reason);
+        // A moved identity's owner app would process its carried Inbox items, and its Outbox would send, before
+        // their payloads are here (#1871)
+        if (TenantStatusRules.RunsBackgroundServices(status) && await payloadMoveAdmin.HoldsResumeAsync(domain))
+        {
+            throw new OdinClientException(
+                $"The payloads of {domain}'s queued Inbox and Outbox items are still arriving from the source. " +
+                $"Resume once 'payload-move {domain}' shows them here; that usually takes seconds.");
+        }
+
+        return await identityRegistry.SetStatusAsync(domain, status, reason);
     }
 
     public Task<TenantStatusState?> UnlockMovedAsync(string domain)
@@ -402,7 +412,9 @@ public class TenantAdmin(
             Status = identityRegistration.Status,
             DisabledReason = identityRegistration.DisabledReason,
             StatusChangedAt = identityRegistration.StatusChangedAt,
-            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence
+            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence,
+            Created = identityRegistration.Created,
+            LastActivity = await lastSeenService.GetLastSeenAsync(identityRegistration.PrimaryDomainName)
         };
 
         if (identityRegistry is FileSystemIdentityRegistry fsir)

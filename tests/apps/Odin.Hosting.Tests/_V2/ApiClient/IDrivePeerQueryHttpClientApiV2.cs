@@ -36,14 +36,14 @@ public interface IDrivePeerQueryHttpClientApiV2
         [AliasAs("gtid:guid")] Guid gtid,
         [AliasAs("payloadKey")] string payloadKey);
 
-    [Get(UnifiedApiRouteConstants.PeerByGtid + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(UnifiedApiRouteConstants.PeerByGtid + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayloadByGtid(
         [AliasAs("odinId")] string odinId,
         [AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("gtid:guid")] Guid gtid,
         [AliasAs("payloadKey")] string payloadKey,
-        [AliasAs("start:int")] int start,
-        [AliasAs("length:int")] int length);
+        [AliasAs("start:long")] Int64 start,
+        [AliasAs("length:long")] Int64 length);
 
     [Get(UnifiedApiRouteConstants.PeerByGtid + "/payload/{payloadKey}/thumb/{width}/{height}")]
     Task<ApiResponse<HttpContent>> GetThumbnailByGtid(
@@ -86,14 +86,14 @@ public interface IDrivePeerQueryHttpClientApiV2
         [AliasAs("fileId:guid")] Guid fileId,
         [AliasAs("payloadKey")] string payloadKey);
 
-    [Get(UnifiedApiRouteConstants.PeerByFileId + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    [Get(UnifiedApiRouteConstants.PeerByFileId + "/payload/{payloadKey}/{start:long}/{length:long}")]
     Task<ApiResponse<HttpContent>> GetPayload(
         [AliasAs("odinId")] string odinId,
         [AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("fileId:guid")] Guid fileId,
         [AliasAs("payloadKey")] string payloadKey,
-        [AliasAs("start:int")] int start,
-        [AliasAs("length:int")] int length);
+        [AliasAs("start:long")] Int64 start,
+        [AliasAs("length:long")] Int64 length);
 
     [Get(UnifiedApiRouteConstants.PeerByFileId + "/payload/{payloadKey}/thumb/{width}/{height}")]
     Task<ApiResponse<HttpContent>> GetThumbnail(

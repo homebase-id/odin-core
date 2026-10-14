@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities;
 
 public class ShamirSecretSharing
 {
@@ -29,7 +30,9 @@ public class ShamirSecretSharing
         return internalShares.Select(s => new ShamirShard(s.Number, s.Share.ToByteArrayUnsigned())).ToList();
     }
 
-    public static byte[] ReconstructShamirSecret(List<ShamirShard> shares)
+    /// <param name="secretLength">The length of the secret that was split. The shards carry only its numeric
+    /// value, so this is what restores any leading zero bytes.</param>
+    public static byte[] ReconstructShamirSecret(List<ShamirShard> shares, int secretLength)
     {
         ArgumentNullException.ThrowIfNull(shares);
         if (shares.Count < 2) throw new ArgumentException("At least 2 shares are required for reconstruction.");
@@ -39,7 +42,11 @@ public class ShamirSecretSharing
 
         BigInteger reconstructed = Combine(internalShares, PRIME);
 
-        return reconstructed.ToByteArrayUnsigned();
+        // The split kept only the secret's value, so a secret starting with 0x00 comes back short: pad it to its
+        // length (#1736). A longer value means these shards did not reconstruct the secret (e.g. too few); it is
+        // returned as is and fails where the key is used, as before.
+        var bytes = reconstructed.ToByteArrayUnsigned();
+        return bytes.Length >= secretLength ? bytes : BigIntegers.AsUnsignedByteArray(secretLength, reconstructed);
     }
 
     private class SecretShare

@@ -18,6 +18,17 @@ public class TableOutbox(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
+    /// <summary>Every queued send of one drive's files; for when the drive is emptied or deleted.</summary>
+    public async Task<int> DeleteByDriveAsync(Guid driveId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM Outbox WHERE identityId = @identityId AND driveId = @driveId;";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     public async Task<List<OutboxRecord>> GetAsync(Guid driveId, Guid fileId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId);

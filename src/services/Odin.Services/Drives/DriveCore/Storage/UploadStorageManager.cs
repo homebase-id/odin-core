@@ -27,15 +27,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Gets all bytes for the specified file
-        /// </summary>
-        public async Task<byte[]> GetAllUploadFileBytes(InternalDriveFileId file, string extension)
-        {
-            string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            return await uploadFileStore.ReadAllBytesAsync(path);
-        }
-
-        /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
         public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)

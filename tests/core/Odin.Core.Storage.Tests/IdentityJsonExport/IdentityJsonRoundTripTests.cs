@@ -60,7 +60,8 @@ public class IdentityJsonRoundTripTests
         GC.Collect();
     }
 
-    private async Task<MemoryStream> SeedSourceAndExportAsync(DatabaseType sourceType)
+    private async Task<MemoryStream> SeedSourceAndExportAsync(DatabaseType sourceType,
+        Func<IdentityDatabase, Task> beforeExport = null)
     {
         _sourceScope = await _sourceServices.RegisterServicesAsync(sourceType, _sourceTempFolder, _identityId);
         var sys = _sourceScope.Resolve<SystemDatabase>();
@@ -68,6 +69,10 @@ public class IdentityJsonRoundTripTests
 
         await DataImporterSeedHelper.SeedAllSystemTablesAsync(sys, IdentityDomain, _identityId);
         await DataImporterSeedHelper.SeedAllIdentityTablesAsync(id);
+        if (beforeExport != null)
+        {
+            await beforeExport(id);
+        }
 
         var logger = _sourceScope.Resolve<ILogger<IdentityJsonRoundTripTests>>();
         var stream = new MemoryStream();
@@ -170,10 +175,24 @@ public class IdentityJsonRoundTripTests
         }
     }
 
+    // #1871: queued messages move with the identity, free to be processed or sent on the target
     [Test]
-    public async Task Import_SkipsInboxOutboxAndNonceByDefault()
+    public async Task Import_CarriesTheQueuesAndReleasesTheSourcesClaimsOnThem()
     {
-        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
+        InboxRecord claimedInbox = null!;
+        OutboxRecord claimedOutbox = null!;
+        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite, async source =>
+        {
+            // As the source left them when it paused: one item being processed, one being sent
+            var (inbox, _) = await source.Inbox.PagingByRowIdAsync(int.MaxValue, null);
+            claimedInbox = (await source.Inbox.PopSpecificBoxAsync(inbox.Single().boxId, 1)).Single();
+            await source.Outbox.CheckOutItemAsync();
+            var (outbox, _) = await source.Outbox.PagingByRowIdAsync(int.MaxValue, null);
+            claimedOutbox = outbox.Single();
+        });
+        Assert.That(claimedInbox.popStamp, Is.Not.Null);
+        Assert.That(claimedOutbox.checkOutStamp, Is.Not.Null);
+
         _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
         var tgtSys = _targetScope.Resolve<SystemDatabase>();
         var tgtId = _targetScope.Resolve<IdentityDatabase>();
@@ -182,19 +201,44 @@ public class IdentityJsonRoundTripTests
 
         var result = await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, tgtId, commit: true);
 
-        Assert.That(result.SkippedRowsByTable.Keys, Does.Contain("Inbox"));
-        Assert.That(result.SkippedRowsByTable.Keys, Does.Contain("Outbox"));
-        Assert.That(result.SkippedRowsByTable.Keys, Does.Contain("Nonce"));
-        Assert.That(result.SkippedRowsByTable["Outbox"], Is.GreaterThan(0),
-            "Skipped tables must report a row count so the operator sees what was dropped");
+        Assert.That(result.CarriedQueueItemsByTable, Is.EquivalentTo(new Dictionary<string, long> { ["Inbox"] = 1, ["Outbox"] = 1 }));
+        Assert.That(result.SkippedRowsByTable.Keys, Is.EquivalentTo(new[] { "Nonce" }));
 
-        // Queued messages that do not move are worth a warning; stale nonces are not
+        var (targetInbox, _) = await tgtId.Inbox.PagingByRowIdAsync(int.MaxValue, null);
+        Assert.That(targetInbox.Single(), Is.EqualTo(claimedInbox with { popStamp = null }));
+
+        var (targetOutbox, _) = await tgtId.Outbox.PagingByRowIdAsync(int.MaxValue, null);
+        Assert.That(targetOutbox.Single(), Is.EqualTo(claimedOutbox with { checkOutStamp = null }),
+            "the retry state (checkOutCount, nextRunTime) comes along unchanged");
+
         var events = logStore.GetLogEvents();
-        var warnings = events[LogEventLevel.Warning].Select(e => e.RenderMessage()).ToList();
         var all = string.Join(Environment.NewLine, events.SelectMany(kv => kv.Value.Select(e => $"{kv.Key}: {e.RenderMessage()}")));
-        Assert.That(warnings.Count(w => w.Contains("Inbox") && w.Contains("queued")), Is.EqualTo(1), all);
-        Assert.That(warnings.Count(w => w.Contains("Outbox") && w.Contains("queued")), Is.EqualTo(1), all);
-        Assert.That(warnings.Any(w => w.Contains("Nonce")), Is.False, all);
+        Assert.That(all, Does.Contain("carried \"Inbox\": 1 queued item(s)"), all);
+        Assert.That(events.TryGetValue(LogEventLevel.Warning, out var warnings) ? warnings : [], Is.Empty, all);
+    }
+
+    [Test]
+    public async Task Import_LeavesOutTheRowsTheFilterNamesAndSaysWhy()
+    {
+        var stream = await SeedSourceAndExportAsync(DatabaseType.Sqlite);
+        _targetScope = await _targetServices.RegisterServicesAsync(DatabaseType.Sqlite, _targetTempFolder, _identityId);
+        var tgtSys = _targetScope.Resolve<SystemDatabase>();
+        var tgtId = _targetScope.Resolve<IdentityDatabase>();
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<IdentityJsonRoundTripTests>(logStore);
+
+        var result = await IdentityJsonImporter.ImportAsync(logger, stream, tgtSys, tgtId, commit: true,
+            leaveOutRow: (_, _, record) => record is InboxRecord ? "its files stay at the source" : null);
+
+        Assert.That(result.LeftOutRows, Is.EquivalentTo(
+            new Dictionary<(string, string), long> { [("Inbox", "its files stay at the source")] = 1 }));
+        Assert.That(result.CarriedQueueItemsByTable, Is.EquivalentTo(new Dictionary<string, long> { ["Outbox"] = 1 }));
+        var (targetInbox, _) = await tgtId.Inbox.PagingByRowIdAsync(int.MaxValue, null);
+        Assert.That(targetInbox, Is.Empty);
+
+        var warnings = logStore.GetLogEvents()[LogEventLevel.Warning].Select(e => e.RenderMessage()).ToList();
+        Assert.That(warnings, Has.One.Contains("Inbox").And.Contains("its files stay at the source"),
+            string.Join(Environment.NewLine, warnings));
     }
 
     [Test]

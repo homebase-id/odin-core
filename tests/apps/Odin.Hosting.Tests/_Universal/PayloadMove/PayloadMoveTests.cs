@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -8,10 +9,12 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -22,6 +25,8 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.JobManagement;
+using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Registry;
 using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Tenant.Container;
@@ -76,12 +81,19 @@ public class PayloadMoveTests
         Assert.That(head.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(head.Content.Headers.ContentLength, Is.EqualTo(payload.BytesWritten));
 
+        // What accept-missing asks before giving an object up (#1868): an object the source lacks is a 404 that
+        // says so (#1919)
+        var absent = new PayloadObject(file.driveId, file.fileId, payload.Key, new UnixTimeUtcUnique(payload.Uid.uniqueTime + 1), 0);
+        AssertAbsent(await SendAsync(HttpMethod.Head, absent.SourcePath(file.identityId), credential), "HEAD");
+        AssertAbsent(await SendAsync(HttpMethod.Get, absent.SourcePath(file.identityId), credential), "GET");
+
         var thumbnail = payload.Thumbnails.Single();
         var thumb = await SendAsync(HttpMethod.Get, ThumbnailPath(file, payload, thumbnail), credential);
         Assert.That(thumb.StatusCode, Is.EqualTo(HttpStatusCode.OK), await thumb.Content.ReadAsStringAsync());
         Assert.That(await thumb.Content.ReadAsByteArrayAsync(), Is.EqualTo(TestMedia.ThumbnailBytes200));
     }
 
+    // Every refusal is a bare 404, never one that says the object is absent (#1919)
     [Test]
     public async Task RefusesEverythingElseWithA404()
     {
@@ -91,23 +103,26 @@ public class PayloadMoveTests
         var token = await MintAsync();
         var credential = await RedeemAsync(token);
         var path = PayloadPath(file, payload);
+        var absentPath = path.Replace($"/{payload.Uid.uniqueTime}", "/12345");
 
-        Assert.That((await RedeemRawAsync(token)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "a second redemption");
-        Assert.That((await SendAsync(HttpMethod.Get, path, "wrong")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "a wrong credential");
-        Assert.That((await SendAsync(HttpMethod.Get, path, null)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "no credential");
-        Assert.That((await SendAsync(HttpMethod.Get, path.Replace(file.identityId.ToString(), IdOf(TestIdentities.Samwise).ToString()), credential)).StatusCode,
-            Is.EqualTo(HttpStatusCode.NotFound), "another identity");
-        Assert.That((await SendAsync(HttpMethod.Get, path.Replace($"/{payload.Uid.uniqueTime}", "/12345"), credential)).StatusCode,
-            Is.EqualTo(HttpStatusCode.NotFound), "an object that does not exist");
-        Assert.That((await SendAsync(HttpMethod.Get, path.Replace($"/{payload.Key}/", "/BAD..KEY/"), credential)).StatusCode,
-            Is.EqualTo(HttpStatusCode.NotFound), "a malformed key");
+        AssertRefused(await RedeemRawAsync(token), "a second redemption");
+        AssertRefused(await SendAsync(HttpMethod.Get, path, "wrong"), "a wrong credential");
+        AssertRefused(await SendAsync(HttpMethod.Head, absentPath, "wrong"),
+            "a wrong credential, for an object that does not exist");
+        AssertRefused(await SendAsync(HttpMethod.Get, path, null), "no credential");
+        AssertRefused(await SendAsync(HttpMethod.Get, path.Replace(file.identityId.ToString(), IdOf(TestIdentities.Samwise).ToString()), credential),
+            "another identity");
+        AssertAbsent(await SendAsync(HttpMethod.Get, absentPath, credential),
+            "an object that does not exist is not a refusal");
+        AssertRefused(await SendAsync(HttpMethod.Get, path.Replace($"/{payload.Key}/", "/BAD..KEY/"), credential), "a malformed key");
         // The paused identity's own host answers 503 before any controller runs
         Assert.That((await SendAsync(HttpMethod.Get, path, credential, host: domain)).StatusCode,
             Is.Not.EqualTo(HttpStatusCode.OK), "on the identity's own host rather than the provisioning domain");
 
         await SetStatusAsync(domain, Status.Active);
-        Assert.That((await SendAsync(HttpMethod.Get, path, credential)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
-            "an active identity is never served");
+        AssertRefused(await SendAsync(HttpMethod.Get, path, credential), "an active identity is never served");
+        AssertRefused(await SendAsync(HttpMethod.Head, absentPath, credential),
+            "nor told absent: a target would give it up");
     }
 
     [Test]
@@ -120,11 +135,21 @@ public class PayloadMoveTests
         var refused = Assert.ThrowsAsync<OdinClientException>(() => registry.DeleteRegistration(TestIdentities.Frodo.OdinId.DomainName));
         Assert.That(refused!.Message, Does.Contain("payloads have not all reached the target"));
 
+        // #1919: an identity resumed at the source is live there again, and is not released
+        await SetStatusAsync(TestIdentities.Frodo.OdinId.DomainName, Status.Active);
+        AssertRefused(await SendAsync(HttpMethod.Post, $"{Root()}/complete", credential), "completing a resumed identity");
+        Assert.That(await Source().IsTransferPendingAsync(IdOf(TestIdentities.Frodo)), Is.True);
+        await SetStatusAsync(TestIdentities.Frodo.OdinId.DomainName, Status.Paused);
+
         var complete = await SendAsync(HttpMethod.Post, $"{Root()}/complete", credential);
         Assert.That(complete.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await Source().IsTransferPendingAsync(IdOf(TestIdentities.Frodo)), Is.False);
-        Assert.That((await SendAsync(HttpMethod.Post, $"{Root()}/complete", credential)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
-            "completion revokes the credential");
+        Assert.That(await Source().AuthorizeAsync(IdOf(TestIdentities.Frodo), credential), Is.False, "completion revokes the credential");
+
+        // #1919: a target that never heard the answer asks again, and must not be refused for good
+        Assert.That((await SendAsync(HttpMethod.Post, $"{Root()}/complete", credential)).StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            "a repeated complete");
+        AssertRefused(await SendAsync(HttpMethod.Post, $"{Root()}/complete", "wrong"), "another credential");
         // Not deleting frodo: the fixture shares it
     }
 
@@ -135,8 +160,7 @@ public class PayloadMoveTests
         var identityId = IdOf(TestIdentities.Frodo);
         var config = _scaffold.Services.GetRequiredService<OdinConfiguration>();
         // Through the identity's own store: on disk here, on S3 under RUN_S3_TESTS
-        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
-        await using (var scope = container.GetTenantScope(TestIdentities.Frodo.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests:delete"))
+        await using (var scope = TenantScope(TestIdentities.Frodo))
         {
             await scope.Resolve<LongTermPayloadStore>().DeleteAsync(new TenantPathManager(config, identityId)
                 .GetPayloadDirectoryAndFileName(file.driveId, file.fileId, payload.Key, payload.Uid));
@@ -192,8 +216,25 @@ public class PayloadMoveTests
             Assert.That(report.Target!.Progress.StartRowId, Is.EqualTo(7));
             Assert.That(report.Target.Progress.BaseUrl, Is.EqualTo("https://127.0.0.1:1"));
 
+            // #1868: only a move that ended with nothing but objects the source lacks can give them up
+            var accept = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing?count=0");
+            var acceptBody = await accept.Content.ReadAsStringAsync();
+            Assert.That(accept.StatusCode, Is.AnyOf(HttpStatusCode.BadRequest, HttpStatusCode.Conflict),
+                $"conflict only if the runner holds it right now: {acceptBody}");
+            if (accept.StatusCode == HttpStatusCode.BadRequest)
+            {
+                Assert.That(acceptBody, Does.Contain("not CompleteWithFailures"));
+            }
+
+            // Conflict only while the runner holds it, or saved since the read; between slices it goes through (#1919)
             var retry = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
-            Assert.That(retry.StatusCode, Is.AnyOf(HttpStatusCode.OK, HttpStatusCode.Conflict), "conflict only if the runner holds it right now");
+            for (var attempt = 0; retry.StatusCode == HttpStatusCode.Conflict && attempt < 50; attempt++)
+            {
+                await Task.Delay(100);
+                retry = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
+            }
+
+            Assert.That(retry.StatusCode, Is.EqualTo(HttpStatusCode.OK), await retry.Content.ReadAsStringAsync());
         }
         finally
         {
@@ -202,9 +243,129 @@ public class PayloadMoveTests
 
         var noJob = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/retry");
         Assert.That(noJob.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        var noJobAccept = await SendAdminAsync(HttpMethod.Post, $"tenants/{domain}/payload-move/accept-missing?count=0");
+        Assert.That(noJobAccept.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    // #1871: an Inbox item a peer sent with payloads is not in the drive index until it is processed. What the
+    // move fetches for it must be exactly what the receive path stored, where it stored it.
+    [Test]
+    public async Task AQueuedInboxItemsFilesAreWhereThePeerStreamedThem()
+    {
+        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await PrepareScenarioAsync(sender, recipient, targetDrive);
+        try
+        {
+            // Encrypted, so the recipient cannot write it straight to the drive and queues it in its Inbox
+            var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+            payload.Iv = ByteArrayUtil.GetRndByteArray(16);
+            var metadata = new UploadFileMetadata
+            {
+                AllowDistribution = true,
+                AppData = new UploadAppFileMetaData { Content = "queued for sam" },
+                AccessControlList = AccessControlList.Connected
+            };
+            var (response, _, _, _) = await sender.DriveRedux.UploadNewEncryptedFile(targetDrive, KeyHeader.NewRandom16(), metadata,
+                ManifestFor(payload), [payload], recipients: [recipient.OdinId]);
+            Assert.That(response.IsSuccessStatusCode, Is.True, response.StatusCode.ToString());
+            await sender.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+            // Sam does not process his Inbox, as an owner who has not opened the app since
+            await using var scope = TenantScope(TestIdentities.Samwise);
+            var objects = (await PayloadMoveQueues.QueuedObjectsAsync(scope.Resolve<IdentityDatabase>()))
+                .Where(o => o.DriveId == targetDrive.Alias).ToList();
+            Assert.That(objects.Select(o => o.FileId).Distinct().Count(), Is.EqualTo(1), "the one queued item");
+            Assert.That(objects, Has.Count.EqualTo(1 + payload.Thumbnails.Count), "the payload and each thumbnail");
+            await AssertStoredAsync(scope, TestIdentities.Samwise, objects);
+        }
+        finally
+        {
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
+        }
+    }
+
+    [Test]
+    public async Task AnUnsentOutboxItemsFileIsAmongTheQueuedFiles()
+    {
+        var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var recipient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await PrepareScenarioAsync(sender, recipient, targetDrive);
+        try
+        {
+            // A paused recipient answers 503, so the item stays in Frodo's Outbox
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Paused);
+            var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+            var metadata = new UploadFileMetadata
+            {
+                AllowDistribution = true,
+                AppData = new UploadAppFileMetaData { Content = "waiting to be sent" },
+                AccessControlList = AccessControlList.Connected
+            };
+            var response = await sender.DriveRedux.UploadNewFile(targetDrive, metadata, ManifestFor(payload), [payload],
+                new TransitOptions { Recipients = [recipient.OdinId] });
+            Assert.That(response.IsSuccessStatusCode, Is.True, response.StatusCode.ToString());
+
+            await using var scope = TenantScope(TestIdentities.Frodo);
+            var queued = await PayloadMoveQueues.QueuedObjectsAsync(scope.Resolve<IdentityDatabase>());
+            var objects = queued.Where(o => o.FileId == response.Content.File.FileId).ToList();
+            Assert.That(objects, Has.Count.EqualTo(1 + payload.Thumbnails.Count), $"queued: {string.Join(", ", queued)}");
+            await AssertStoredAsync(scope, TestIdentities.Frodo, objects);
+        }
+        finally
+        {
+            await SetStatusAsync(recipient.OdinId.DomainName, Status.Active);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
+        }
+    }
+
+    [Test]
+    public async Task ResumeWaitsForTheQueuedItemsPayloads()
+    {
+        var domain = TestIdentities.Frodo.OdinId.DomainName;
+        var identityId = IdOf(TestIdentities.Frodo);
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+
+        // A transfer whose source cannot be reached, so its queued phase never finishes
+        await PayloadMoveJob.ScheduleAsync(jobManager, identityId, "https://127.0.0.1:1", "token", 7);
+        try
+        {
+            await SetStatusAsync(domain, Status.Paused);
+
+            var refused = await SetStatusViaAdminAsync(domain, Status.Active, null);
+            var body = await refused.Content.ReadAsStringAsync();
+            Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), body);
+            Assert.That(body, Does.Contain("still arriving"));
+
+            // Out of quota runs the identity too: its Outbox would send
+            var outOfQuota = await SetStatusViaAdminAsync(domain, Status.OutOfQuota, null);
+            Assert.That(outOfQuota.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), await outOfQuota.Content.ReadAsStringAsync());
+            Assert.That(_scaffold.Services.GetRequiredService<IIdentityRegistry>().GetStatus(identityId), Is.EqualTo(Status.Paused));
+        }
+        finally
+        {
+            await jobManager.DeleteJobByHashAsync(PayloadMoveJob.JobHashFor(identityId));
+        }
+
+        await SetStatusAsync(domain, Status.Active);
     }
 
     //
+
+    private ILifetimeScope TenantScope(TestIdentity identity) => _scaffold.Services.GetRequiredService<IMultiTenantContainer>()
+        .GetTenantScope(identity.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests");
+
+    private async Task AssertStoredAsync(ILifetimeScope scope, TestIdentity identity, List<PayloadObject> objects)
+    {
+        var store = scope.Resolve<LongTermPayloadStore>();
+        var paths = new TenantPathManager(_scaffold.Services.GetRequiredService<OdinConfiguration>(), IdOf(identity));
+        foreach (var o in objects)
+        {
+            Assert.That(await store.ExistsAsync(o.PathIn(paths)), Is.True, $"{o} at {o.PathIn(paths)}");
+        }
+    }
 
     private async Task<(DriveMainIndexRecord file, PayloadDescriptor payload, TargetDrive targetDrive)> UploadWithDriveAsync()
     {
@@ -224,12 +385,23 @@ public class PayloadMoveTests
         var fileId = response.Content.File.FileId;
 
         // What the target will see: the file's row, and the payload descriptors inside it
-        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
-        await using var scope = container.GetTenantScope(TestIdentities.Frodo.OdinId.DomainName).BeginLifetimeScope("PayloadMoveTests");
+        await using var scope = TenantScope(TestIdentities.Frodo);
         var (rows, _) = await scope.Resolve<IdentityDatabase>().DriveMainIndex.PagingByRowIdAsync(1000, null);
         var row = rows.Single(r => r.fileId == fileId);
         var fileMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(row.hdrFileMetaData)!;
         return (row, fileMetadata.Payloads.Single(), targetDrive);
+    }
+
+    private static void AssertRefused(HttpResponseMessage response, string because)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), because);
+        Assert.That(response.Headers.Contains(PayloadMoveProtocol.AbsentHeader), Is.False, because);
+    }
+
+    private static void AssertAbsent(HttpResponseMessage response, string because)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), because);
+        Assert.That(response.Headers.Contains(PayloadMoveProtocol.AbsentHeader), Is.True, because);
     }
 
     private PayloadMoveSource Source() => _scaffold.Services.GetRequiredService<PayloadMoveSource>();

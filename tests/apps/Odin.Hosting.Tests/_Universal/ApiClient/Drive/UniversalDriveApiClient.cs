@@ -298,7 +298,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
         AppNotificationOptions notificationOptions = null,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard,
+        List<string> recipients = null)
     {
         var uploadedThumbnails = new List<EncryptedAttachmentUploadResult>();
         var uploadedPayloads = new List<EncryptedAttachmentUploadResult>();
@@ -315,7 +316,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             TransitOptions = new TransitOptions
             {
                 UseAppNotification = notificationOptions != null,
-                AppNotificationOptions = notificationOptions
+                AppNotificationOptions = notificationOptions,
+                Recipients = recipients
             },
             Manifest = uploadManifest,
         };
@@ -495,8 +497,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         foreach (var payloadDefinition in payloads)
         {
-            parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
-                Enum.GetName(MultipartUploadParts.Payload)));
+            payloadDefinition.AddPayloadParts(parts, new MemoryStream(payloadDefinition.Content));
 
             foreach (var thumbnail in payloadDefinition.Thumbnails)
             {
