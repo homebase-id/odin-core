@@ -32,8 +32,9 @@ namespace Odin.Services.Drives.Management;
 /// </summary>
 public class DriveManager : IDriveManager
 {
-    private const string CacheKeyDrive = "drive:";
-    private const string CacheKeyAllDrives = "alldrives";
+    // v2: entries cached before the NOT NULL migration (#1901) may carry a null AppId; a new key never reads them.
+    private const string CacheKeyDrive = "drive:v2:";
+    private const string CacheKeyAllDrives = "alldrives:v2";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(2);
     private static readonly List<string> RootInvalidationTag = [TableDrivesCached.RootInvalidationTag];
 
@@ -120,26 +121,15 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.InvalidDrive);
         }
 
-        // A whitespace-only value means "not set", the same as null or empty. Clients serialize an
-        // unset field as "" or " " routinely, and without this the three spellings diverge: null and
-        // "" derive a slug while "   " fails validation and throws. Note this is not coercion of a
-        // real slug -- there is no address inside "   " to preserve. Anything with actual content is
-        // still validated and rejected on failure, so " chat " is an error, never trimmed to "chat".
-        var requestedSlug = string.IsNullOrWhiteSpace(request.DriveSlug) ? null : request.DriveSlug;
-        var requestedTypeSlug = string.IsNullOrWhiteSpace(request.DriveTypeSlug) ? null : request.DriveTypeSlug;
-
-        // Format only, and only when supplied. A slug is a URL segment and a wire address other
-        // identities resolve against, so a malformed one is rejected rather than coerced -- silently
-        // lowercasing or stripping produces an address the caller did not ask for.
-        OdinSlug.AssertValidOrNull(requestedSlug, nameof(request.DriveSlug));
-        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(request.DriveTypeSlug));
+        // Both slugs are the caller's to name (#1901): missing, empty, whitespace-only or malformed is a
+        // client error. A slug is a URL segment and a wire address other identities resolve against, so
+        // the server never makes one up and never coerces one.
+        OdinSlug.AssertRequired(request.DriveSlug, nameof(request.DriveSlug));
+        OdinSlug.AssertRequired(request.DriveTypeSlug, nameof(request.DriveTypeSlug));
 
         // Every drive has an owner. A request that names no app is the owner acting as themselves -- the
         // wallet drive, an ad-hoc drive from the console -- and those belong to the owner-console app.
         // Nothing is stored ownerless; see SystemAppConstants.OwnerConsoleAppId for why that matters.
-        //
-        // The caller's values win; only a missing one is derived. A supplied slug is never replaced --
-        // it is an address, so handing back a different one would be worse than refusing.
         var appId = request.AppId ?? SystemAppConstants.OwnerConsoleAppId;
 
         // The app is taken on trust here: stored, never resolved, and NOT required to be registered.
@@ -154,19 +144,13 @@ public class DriveManager : IDriveManager
         // console naming an app by hand, so a mistyped id is a real risk and the ordering cannot bite.
         // A drive created against an id nobody ever registers is addressed at nothing until one does,
         // and reassign-owner can move it.
-        var driveSlug = requestedSlug;
+        var driveSlug = request.DriveSlug;
 
-        // Read unconditionally, not only when deriving. The set answers both questions -- what a
-        // derived slug must avoid, and whether a supplied one is already claimed -- and without
-        // the second, a caller-supplied duplicate would reach the insert and surface as a raw
+        // Without this a duplicate would reach the insert and surface as a raw
         // UNIQUE(identityId, AppId, DriveSlug) violation instead of a client error.
         var taken = await SlugsHeldByAppAsync(appId);
 
-        if (driveSlug == null)
-        {
-            driveSlug = DriveSlugGenerator.Generate(request.TargetDrive.Alias.Value, request.Name, taken);
-        }
-        else if (taken.Contains(driveSlug))
+        if (taken.Contains(driveSlug))
         {
             // Refuse rather than suffix. A supplied slug is an address the caller intends to
             // resolve against; handing back "news-2" would look like success and silently give
@@ -178,10 +162,7 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.IdAlreadyExists);
         }
 
-        // Never null: a drive whose type we do not recognise still gets a type slug, so every drive can be
-        // filtered by type the same way.
-        var driveTypeSlug = requestedTypeSlug ??
-                            DriveSlugGenerator.TypeSlugOrDefault(request.TargetDrive.Alias.Value, request.TargetDrive.Type.Value);
+        var driveTypeSlug = request.DriveTypeSlug;
 
         var mk = odinContext.Caller.GetMasterKey();
 
@@ -442,19 +423,14 @@ public class DriveManager : IDriveManager
     /// Note it does <b>not</b> refuse protected drives, unlike every other setter here.  All fourteen are
     /// protected, so guarding on that would make it useless for the one job it has.
     /// </para>
-    /// <para>
-    /// <paramref name="appId"/> and <paramref name="driveTypeSlug"/> are nullable because a drive nobody
-    /// declares still gets a slug: it keeps whatever owner it had, and an unknown drive type has no
-    /// readable form to derive.
-    /// </para>
     /// </remarks>
-    internal async Task<bool> ApplyAddressAsync(Guid driveId, Guid? appId, string driveSlug,
-        string? driveTypeSlug, IOdinContext odinContext)
+    internal async Task<bool> ApplyAddressAsync(Guid driveId, Guid appId, string driveSlug,
+        string driveTypeSlug, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        OdinSlug.AssertValidOrNull(driveSlug, nameof(driveSlug));
-        OdinSlug.AssertValidOrNull(driveTypeSlug, nameof(driveTypeSlug));
+        OdinSlug.AssertRequired(driveSlug, nameof(driveSlug));
+        OdinSlug.AssertRequired(driveTypeSlug, nameof(driveTypeSlug));
 
         var storageDrive = await GetDriveInternal(driveId);
         if (storageDrive == null)
@@ -574,12 +550,8 @@ public class DriveManager : IDriveManager
     /// alone.
     /// </para>
     /// <para>
-    /// Slug and type slug are set here rather than left for later because of the invariant in
-    /// docs/drive-addressing.md: AppId and DriveSlug are set together or both NULL.  NULLs are
-    /// distinct in a unique index in both dialects, so an app-owned row with no slug would sit
-    /// outside UNIQUE(identityId, AppId, DriveSlug) entirely.  The derivation is deliberately the
-    /// same as <see cref="CreateDriveAsync"/>: caller's value wins, a missing one is derived, a
-    /// collision inside the same app is refused rather than suffixed.
+    /// Slug and type slug are required, as on <see cref="CreateDriveAsync"/> (#1901): the caller names
+    /// the new address, and a collision inside the same app is refused rather than suffixed.
     /// </para>
     /// </remarks>
     public async Task SetDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
@@ -599,59 +571,30 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.CannotSetOwningAppOnSystemDrive);
         }
 
-        if (!SystemAppConstants.IsOwnerConsole(storageDrive.AppId))
+        if (storageDrive.AppId != SystemAppConstants.OwnerConsoleAppId)
         {
             throw new OdinClientException(
                 $"Drive {driveId} already belongs to app {storageDrive.AppId}; ownership cannot be reassigned",
                 OdinClientErrorCode.DriveAlreadyHasOwningApp);
         }
 
-        // Whitespace-only means "not set", as it does on create: clients serialize an unset field as
-        // "" or " " routinely, and without this the spellings diverge.
-        var requestedSlug = string.IsNullOrWhiteSpace(driveSlug) ? null : driveSlug;
-        var requestedTypeSlug = string.IsNullOrWhiteSpace(driveTypeSlug) ? null : driveTypeSlug;
+        // Both slugs are the caller's to name (#1901): nothing is kept or derived.  Adoption changes the
+        // app half of the address regardless, so the caller states the whole new address.
+        OdinSlug.AssertRequired(driveSlug, nameof(driveSlug));
+        OdinSlug.AssertRequired(driveTypeSlug, nameof(driveTypeSlug));
 
-        OdinSlug.AssertValidOrNull(requestedSlug, nameof(driveSlug));
-        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(driveTypeSlug));
-
-        // Read unconditionally -- the set answers both what a derived slug must avoid and whether a
-        // supplied one is already claimed, and without the second a duplicate would reach the insert
-        // as a raw UNIQUE violation instead of a client error.
         var taken = await SlugsHeldByAppAsync(appId);
-
-        // Every drive carries a slug, including one the owner made for themselves -- CreateDriveAsync
-        // derives one when the caller names none. The slug it carries is an owner-console address,
-        // though, and adoption changes the app half of the address regardless, so the old one stops
-        // resolving either way. The caller's value therefore wins here rather than being refused as a
-        // rename; a caller that names none keeps the slug the drive has.
-        var existingSlug = string.IsNullOrWhiteSpace(storageDrive.DriveSlug) ? null : storageDrive.DriveSlug;
-        var existingTypeSlug =
-            string.IsNullOrWhiteSpace(storageDrive.DriveTypeSlug) ? null : storageDrive.DriveTypeSlug;
-
-        var resolvedSlug = requestedSlug ?? existingSlug;
-        if (resolvedSlug == null)
+        if (taken.Contains(driveSlug))
         {
-            resolvedSlug = DriveSlugGenerator.Generate(storageDrive.Id, storageDrive.Name, taken);
-        }
-        else if (taken.Contains(resolvedSlug))
-        {
-            // Checked for a kept slug as well as a supplied one: the slug is unique within the owner
-            // console, not within the app taking the drive, so it may well collide with one that app
-            // already holds, and reaching the insert would surface that as a raw UNIQUE violation.
+            // Without this a duplicate would reach the insert as a raw UNIQUE violation.
             throw new OdinClientException(
-                $"Drive slug '{resolvedSlug}' is already used by another drive on this app",
+                $"Drive slug '{driveSlug}' is already used by another drive on this app",
                 OdinClientErrorCode.IdAlreadyExists);
         }
 
         storageDrive.AppId = appId;
-        storageDrive.DriveSlug = resolvedSlug;
-
-        // Same order of preference, for the same reason -- though a type slug is a category rather
-        // than an address, so nothing resolves against it. Never left null: every drive carries one.
-        storageDrive.DriveTypeSlug = requestedTypeSlug
-                                     ?? existingTypeSlug
-                                     ?? DriveSlugGenerator.TypeSlugOrDefault(storageDrive.TargetDriveInfo.Alias.Value,
-                                         storageDrive.TargetDriveInfo.Type.Value);
+        storageDrive.DriveSlug = driveSlug;
+        storageDrive.DriveTypeSlug = driveTypeSlug;
 
         var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
         if (affected != 1)
@@ -661,7 +604,7 @@ public class DriveManager : IDriveManager
         }
 
         _logger.LogInformation("Drive {driveId} adopted by app {appId} as slug '{slug}'",
-            driveId, appId, resolvedSlug);
+            driveId, appId, driveSlug);
 
         // Same notification the archive path publishes: the definition changed, and the caches keyed
         // on it have to be told regardless of which field moved.
@@ -687,8 +630,7 @@ public class DriveManager : IDriveManager
     /// forwarding and no alias.
     /// </para>
     /// <para>
-    /// The slug is therefore required rather than derived or kept. Adoption may keep a slug, because
-    /// nothing resolved against it before; here something did, and the caller has to say what the new
+    /// The slug is therefore required rather than derived or kept: the caller has to say what the new
     /// address is instead of discovering it afterwards.
     /// </para>
     /// <para>
@@ -715,16 +657,8 @@ public class DriveManager : IDriveManager
 
         // Required, not optional. Deriving one here would pick the new address on the caller's
         // behalf at the one moment the old one stops working.
-        if (string.IsNullOrWhiteSpace(driveSlug))
-        {
-            throw new OdinClientException(
-                "A drive slug is required when reassigning a drive: the address changes, so it has to be stated",
-                OdinClientErrorCode.ArgumentError);
-        }
-
-        OdinSlug.AssertValidOrNull(driveSlug, nameof(driveSlug));
-        var requestedTypeSlug = string.IsNullOrWhiteSpace(driveTypeSlug) ? null : driveTypeSlug;
-        OdinSlug.AssertValidOrNull(requestedTypeSlug, nameof(driveTypeSlug));
+        OdinSlug.AssertRequired(driveSlug, nameof(driveSlug));
+        OdinSlug.AssertRequired(driveTypeSlug, nameof(driveTypeSlug));
 
         // Scoped to the *new* app: the drive is arriving somewhere it has not been, and the slug that
         // was free under the old owner says nothing about this one.
@@ -742,10 +676,7 @@ public class DriveManager : IDriveManager
 
         storageDrive.AppId = appId;
         storageDrive.DriveSlug = driveSlug;
-        storageDrive.DriveTypeSlug = requestedTypeSlug
-                                     ?? storageDrive.DriveTypeSlug
-                                     ?? DriveSlugGenerator.TypeSlugOrDefault(storageDrive.TargetDriveInfo.Alias.Value,
-                                         storageDrive.TargetDriveInfo.Type.Value);
+        storageDrive.DriveTypeSlug = driveTypeSlug;
 
         var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
         if (affected != 1)

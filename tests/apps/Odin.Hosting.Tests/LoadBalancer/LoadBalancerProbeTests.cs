@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 #nullable enable
 using System;
 using System.Collections.Generic;
@@ -88,6 +89,8 @@ public class LoadBalancerProbeTests
         var drive = TargetDrive.NewTargetDrive();
         var created = await DriveManagerFor(NodeA).CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = drive,
             Name = "lb probe " + drive.Alias,
             Metadata = "",
@@ -108,6 +111,8 @@ public class LoadBalancerProbeTests
         var drive = TargetDrive.NewTargetDrive();
         var created = await DriveManagerFor(NodeA).CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = drive,
             Name = "lb file probe",
             Metadata = "",
@@ -144,6 +149,8 @@ public class LoadBalancerProbeTests
         var drive = TargetDrive.NewTargetDrive();
         var created = await DriveManagerFor(NodeA).CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = drive,
             Name = "lb payload probe",
             Metadata = "",

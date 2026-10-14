@@ -188,11 +188,13 @@ public class ProfileAttributeTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+        var circleId = await CreateCircleAsync(owner);
 
         var created = await profile.SetAttributeAsync(new SetProfileAttributeRequest
         {
             Type = StatusType,
             Visibility = ProfileAttributeVisibility.Connected,
+            CircleIds = [circleId],
             Data = new Dictionary<string, object> { ["status"] = "secret status" }
         });
         Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -333,6 +335,22 @@ public class ProfileAttributeTests : V2Fixture
             Type = CardType,
             Visibility = ProfileAttributeVisibility.Connected,
             CircleIds = [Guid.NewGuid()],
+            Data = new Dictionary<string, object> { ["design"] = "board" }
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
+    }
+
+    [Test]
+    public async Task SetAttribute_ConnectedWithoutCircles_Returns400()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = CardType,
+            Visibility = ProfileAttributeVisibility.Connected,
             Data = new Dictionary<string, object> { ["design"] = "board" }
         });
 

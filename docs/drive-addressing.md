@@ -192,7 +192,7 @@ Split the one overloaded `Type` into things with distinct jobs:
 | Categorize it, app-privately | — | **`DriveTypeGuid`** — a **Guid the app invents**; the feed app decides its channel drives are `ff42…` |
 | …readably | — | **`DriveTypeSlug`** — e.g. `channel`; the same category, spelled for humans and query strings |
 | Address an app (URL, and remotely) | — | **`AppSlug`** — e.g. `chat`, unique **per identity** |
-| Own / cascade-delete | — | **`AppId`** — nullable; `null` = not app-owned |
+| Own / cascade-delete | — | **`AppId`** — `NOT NULL`; the owner's own drives belong to the owner console |
 
 **Everything comes in pairs — an exact Guid for the system, a slug for humans and URLs:**
 
@@ -234,14 +234,17 @@ transaction — which does not justify a table.
 
 ## Schema
 
-Four nullable fields on `Drives`, a new `AppRegistrations` table — plus the constraints that
-make slug addressing safe.
+Four fields on `Drives`, a new `AppRegistrations` table — plus the constraints that make slug
+addressing safe.  `AppId`, `DriveSlug` and `DriveTypeSlug` are `NOT NULL` since #1901: the caller
+names both slugs on every create, set-owner and reassign (a missing or malformed one is a 400), and the
+server never derives one.  `TableDrivesMigrationV202610130807` filled the rows that predate that before
+adding the constraint.
 
 ```sql
--- Drives (existing table; four new nullable fields)
-AppId            BYTEA,   -- owning app; NULL = not app-owned
-DriveSlug        TEXT,    -- URL/wire segment; NULL when AppId is NULL
-DriveTypeSlug    TEXT,    -- readable form of DriveType, e.g. "channel"; NULL when AppId is NULL
+-- Drives (existing table; four new fields)
+AppId            BYTEA NOT NULL,   -- owning app; the owner console for the owner's own drives
+DriveSlug        TEXT  NOT NULL,   -- URL/wire segment, named by the caller
+DriveTypeSlug    TEXT  NOT NULL,   -- readable form of DriveType, e.g. "channel", named by the caller
 WriteOnlyKeyPair BYTEA,   -- serialized EccFullKeyData: Drive PK, private half escrowed under the
                           -- drive's storage key. NULL only on a drive that predates the field and
                           -- escaped v14 -> v15; every drive is minted one at creation
@@ -343,13 +346,14 @@ Why these shapes:
 
 One trap:
 
-- **NULLs are distinct in a unique index** (SQLite *and* Postgres). So
+- **NULLs are distinct in a unique index** (SQLite *and* Postgres). (Historical: the columns are
+  `NOT NULL` now, #1901, so every row is covered.) So
   `UNIQUE(identityId, AppId, DriveSlug)` constrains **nothing** for system drives, where
   `AppId IS NULL` — two of them could both claim `profile`. Enforce the invariant **`AppId` and
   `DriveSlug` are set together, or both `NULL`** — then every slug-bearing row is covered, and
   system drives are simply not slug-addressable.
 
-Mechanics: nullable columns (`Guid? AppId`, `string DriveSlug`, `string DriveTypeSlug`), `TEXT` with a C#-side length check
+Mechanics: `NOT NULL` columns (`Guid AppId`, `string DriveSlug`, `string DriveTypeSlug`), `TEXT` with a C#-side length check
 per convention (never `char(n)` — Postgres blank-pads it, SQLite ignores it). The CRUD is generated
 with a version header, so this is regenerate + an `AbstractMigrator` migration, exercised on **both**
 SQLite and Postgres.

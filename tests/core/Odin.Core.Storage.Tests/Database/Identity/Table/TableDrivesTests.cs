@@ -9,6 +9,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
@@ -33,6 +34,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 EncryptedIdIv64 = encryptedIdIv.ToBase64(),
                 EncryptedIdValue64 = encryptedIdValue.ToBase64(),
                 detailsJson = OdinSystemSerializer.Serialize("details"),
+                AppId = Guid.NewGuid(),
+                DriveSlug = "drive-" + Guid.NewGuid().ToString("N"),
+                DriveTypeSlug = "drive",
             };
         }
 
@@ -74,10 +78,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 """
                 INSERT INTO drives (identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,
                                     MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,
-                                    detailsJson,created,modified)
+                                    detailsJson,AppId,DriveSlug,DriveTypeSlug,created,modified)
                 VALUES (@identityId,@DriveId,@StorageKeyCheckValue,@DriveType,@DriveName,
                         @MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,
-                        @detailsJson,0,0);
+                        @detailsJson,@AppId,@DriveSlug,@DriveTypeSlug,0,0);
                 """;
 
             cmd.AddParameter("@identityId", DbType.Binary, foreignIdentityId);
@@ -89,6 +93,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             cmd.AddParameter("@EncryptedIdIv64", DbType.String, record.EncryptedIdIv64);
             cmd.AddParameter("@EncryptedIdValue64", DbType.String, record.EncryptedIdValue64);
             cmd.AddParameter("@detailsJson", DbType.String, record.detailsJson);
+            cmd.AddParameter("@AppId", DbType.Binary, record.AppId);
+            cmd.AddParameter("@DriveSlug", DbType.String, record.DriveSlug);
+            cmd.AddParameter("@DriveTypeSlug", DbType.String, record.DriveTypeSlug);
 
             await cmd.ExecuteNonQueryAsync();
         }
@@ -151,16 +158,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Assert.That(loaded.DriveSlug, Is.EqualTo("messages"));
             Assert.That(loaded.DriveTypeSlug, Is.EqualTo("channel"));
 
-            // Unset is the state every drive is in today, and null must survive as null rather than
-            // arriving as an empty string.
+            // NOT NULL since #1901: a drive without its address is refused before it reaches the table.
             var unslugged = CreateDrivesRecord();
-            await tbl.InsertAsync(unslugged);
-
-            var loadedUnslugged = await tbl.GetAsync(unslugged.DriveId);
-
-            Assert.That(loadedUnslugged.AppId, Is.Null);
-            Assert.That(loadedUnslugged.DriveSlug, Is.Null);
-            Assert.That(loadedUnslugged.DriveTypeSlug, Is.Null);
+            unslugged.DriveSlug = null;
+            Assert.ThrowsAsync<OdinDatabaseValidationException>(async () => await tbl.InsertAsync(unslugged));
         }
     }
 }

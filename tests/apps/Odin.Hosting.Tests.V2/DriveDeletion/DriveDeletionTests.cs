@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -159,6 +160,8 @@ public class DriveDeletionTests : V2Fixture
         Assert.That((await owner.Admin.GetDrives()).Any(d => d.TargetDriveInfo == drive), Is.False);
         var tooSoon = await owner.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
         {
+            DriveSlug = TestSlug.New(),
+            DriveTypeSlug = TestSlug.DriveType,
             TargetDrive = drive, Name = "too soon", Metadata = "", AllowAnonymousReads = false
         });
         Assert.That(tooSoon.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the alias was reusable before the purge");

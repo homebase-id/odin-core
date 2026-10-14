@@ -103,6 +103,7 @@ public enum OdinClientErrorCode
     PayloadHashMismatch = 4175,
     InvalidPayloadHash = 4176,
     PayloadHashRequired = 4177,
+    PayloadHashMissing = 4178,
 
 
     // Connection errors 50xx
