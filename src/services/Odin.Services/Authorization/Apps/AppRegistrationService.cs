@@ -19,6 +19,8 @@ using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version12tov13;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
+using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Util;
 
@@ -34,7 +36,8 @@ namespace Odin.Services.Authorization.Apps
         IdentityDatabase db,
         ClientRegistrationStorage clientRegistrationStorage,
         LegacyDefinitionStore legacyStore,
-        OdinContextCache cache)
+        OdinContextCache cache,
+        CircleDefinitionService circleDefinitionService)
         : IAppRegistrationService
     {
 
@@ -71,6 +74,12 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
+            // Before anything is written: the install screen is shown once, so a declared circle refused after
+            // the save would never be offered again (#1939).
+            var declaredCircles = request.Circles ?? [];
+            await circleDefinitionService.AssertDeclaredCirclesAsync(declaredCircles, request.AppId, drives,
+                request.PermissionSet!);
+
             var appGrant = await exchangeGrantService.CreateExchangeGrantAsync(
                 keyStoreKey, request.PermissionSet!, drives, new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
 
@@ -89,7 +98,25 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            await SaveAsync(appReg);
+            List<Guid> createdCircles;
+            await using (var tx = await db.BeginStackedTransactionAsync())
+            {
+                await SaveAsync(appReg);
+
+                // After the save: a circle's owning app must exist.
+                createdCircles = await circleDefinitionService.CreateDeclaredCirclesAsync(declaredCircles, request.AppId);
+                tx.Commit();
+            }
+
+            foreach (var circleId in createdCircles)
+            {
+                await mediator.Publish(new CircleDefinitionChangedNotification
+                {
+                    OdinContext = odinContext,
+                    CircleId = circleId,
+                    Change = CircleDefinitionChangeType.Created,
+                });
+            }
 
             await NotifyAppChanged(null, appReg, odinContext);
             return appReg.Redacted();
