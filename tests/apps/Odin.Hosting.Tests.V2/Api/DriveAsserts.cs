@@ -3,6 +3,7 @@ using System.Net;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Core.Storage;
@@ -111,6 +112,26 @@ public static class DriveAsserts
     /// Connections assert this same shape; only three of them shared a copy, and only because it
     /// happened to sit in a folder they already imported.
     /// </remarks>
+    /// <summary>
+    /// <paramref name="actual"/> carries exactly the payload hash the client sent (#1895)
+    /// </summary>
+    public static void AssertSameHash(PayloadHash actual, PayloadHash expected)
+    {
+        Assert.That(actual, Is.Not.Null, "the payload descriptor has no hash");
+        Assert.That(actual.Algorithm, Is.EqualTo(expected.Algorithm));
+        Assert.That(actual.StoredHash, Is.EqualTo(expected.StoredHash));
+        Assert.That(actual.ContentHash, Is.EqualTo(expected.ContentHash));
+    }
+
+    /// <summary>
+    /// A 400 with <paramref name="expected"/> as its error code
+    /// </summary>
+    public static void AssertRejected(IApiResponse response, OdinClientErrorCode expected)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(expected), response.Error?.Content);
+    }
+
     public static async Task AssertTransferStatus(
         OwnerSession sender,
         ExternalFileIdentifier file,

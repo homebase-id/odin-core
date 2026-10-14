@@ -69,6 +69,11 @@ public class PayloadMoveSourceTests
 
         Assert.That(await _source.IsTransferPendingAsync(_identityId), Is.False, "complete releases the source");
         Assert.That(await _source.AuthorizeAsync(_identityId, credential), Is.False, "completion revokes the credential");
+
+        // #1919: the target may not have heard the answer; asking again must not be refused for good
+        Assert.That(await _source.CompleteAsync(_identityId, credential), Is.True, "a repeated complete");
+        Assert.That(await _source.CompleteAsync(_identityId, "wrong"), Is.False, "but only for the transfer's credential");
+        Assert.That(await _source.AuthorizeAsync(_identityId, credential), Is.False);
     }
 
     [Test]

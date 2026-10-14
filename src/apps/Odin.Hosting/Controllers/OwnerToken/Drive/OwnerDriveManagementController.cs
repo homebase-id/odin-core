@@ -23,6 +23,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDriveManagementController(
         DriveManager driveManager,
+        DriveDeletionService driveDeletionService,
         Defragmenter defragmenter,
         IAppRegistrationService appRegistrationService
         ) : OdinControllerBase
@@ -44,6 +45,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     AllowCdn = drive.IsCdnEnabled(),
+                    RequirePayloadHashes = drive.RequirePayloadHashes,
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
@@ -105,11 +107,69 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return Ok();
         }
 
+        [HttpPost("set-require-payload-hashes")]
+        public async Task<IActionResult> SetDriveRequirePayloadHashes([FromBody] UpdateDriveRequirePayloadHashesRequest request)
+        {
+            await driveManager.SetDriveRequirePayloadHashesAsync(request.TargetDrive.Alias, request.RequirePayloadHashes, WebOdinContext);
+            return Ok();
+        }
+
         [HttpPost("set-archive-drive")]
         public async Task<IActionResult> SetArchiveDriveFlag([FromBody] UpdateDriveArchiveFlag request)
         {
             await driveManager.SetArchiveDriveFlagAsync(request.TargetDrive.Alias, request.Archived, WebOdinContext);
             return Ok();
+        }
+
+        /// <summary>
+        /// Hard-deletes every file on an archived, non-system drive and keeps the drive. Local only: peers keep
+        /// any copies they received. Accepted, not done: the files go in the background.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("empty")]
+        public async Task<IActionResult> EmptyDrive([FromBody] TargetDriveRequest request)
+        {
+            await driveDeletionService.EmptyDriveAsync(ValidDriveId(request), WebOdinContext);
+            return Accepted();
+        }
+
+        /// <summary>
+        /// Deletes an archived, non-system drive with all its files, its followers and every grant naming it.
+        /// Local only: peers keep any copies they received. Accepted, not done: the drive is gone at once, its files
+        /// go in the background, and its alias cannot be reused until they have.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("delete")]
+        public async Task<IActionResult> DeleteDrive([FromBody] TargetDriveRequest request)
+        {
+            await driveDeletionService.DeleteDriveAsync(ValidDriveId(request), WebOdinContext);
+            return Accepted();
+        }
+
+        private static Guid ValidDriveId(TargetDriveRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
+            return request.TargetDrive.Alias;
+        }
+
+        /// <summary>
+        /// Drives still being emptied or deleted: files left, and the last failure. Empty when nothing is pending.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpGet("purges")]
+        public async Task<List<DrivePurgeStatus>> GetPurges()
+        {
+            return await driveDeletionService.GetPurgesAsync(WebOdinContext);
+        }
+
+        /// <summary>Restarts an empty or delete whose background job stopped.</summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("purges/retry")]
+        public async Task<IActionResult> RetryPurge([FromBody] TargetDriveRequest request)
+        {
+            await driveDeletionService.RetryPurgeAsync(ValidDriveId(request), WebOdinContext);
+            return Accepted();
         }
 
         /// <summary>
@@ -193,6 +253,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     AllowCdn = drive.IsCdnEnabled(),
+                    RequirePayloadHashes = drive.RequirePayloadHashes,
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
@@ -242,6 +303,17 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool AllowCdn { get; set; }
+    }
+
+    public class UpdateDriveRequirePayloadHashesRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool RequirePayloadHashes { get; set; }
+    }
+
+    public class TargetDriveRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
     }
 
     public class UpdateDriveArchiveFlag

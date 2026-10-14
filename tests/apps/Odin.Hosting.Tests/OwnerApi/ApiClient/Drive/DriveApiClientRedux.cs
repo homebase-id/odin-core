@@ -30,6 +30,30 @@ using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
+/// <summary>
+/// How a test client sends a payload's hash (#1935)
+/// </summary>
+public enum HashTrailer
+{
+    /// <summary>In the manifest, as before</summary>
+    None,
+
+    /// <summary>Deferred: the sentinel in the manifest, the values in a payloadHash part after the payload</summary>
+    AfterPayload,
+
+    /// <summary>Deferred, but no payloadHash part follows</summary>
+    Missing,
+
+    /// <summary>Deferred, with the payloadHash part before its payload</summary>
+    BeforePayload,
+
+    /// <summary>Deferred, with two payloadHash parts after the payload</summary>
+    Twice,
+
+    /// <summary>The real hash in the manifest, and a payloadHash part anyway</summary>
+    NotDeferred
+}
+
 public class TestPayloadDefinition
 {
     public byte[] Iv { get; set; } = Guid.Empty.ToByteArray();
@@ -44,6 +68,62 @@ public class TestPayloadDefinition
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     public List<ThumbnailContent> Thumbnails { get; set; }
+
+    /// <summary>
+    /// Optional client-computed hashes sent on the manifest descriptor (#1895)
+    /// </summary>
+    public PayloadHash Hash { get; set; }
+
+    /// <summary>
+    /// Whether and how <see cref="Hash"/> is deferred (#1935): the manifest carries the sentinel and the values follow
+    /// in a payloadHash part. Only clients that build their payload parts with <see cref="AddPayloadParts"/> send that part.
+    /// </summary>
+    public HashTrailer HashTrailer { get; set; }
+
+    /// <summary>
+    /// The payload part, and the payloadHash part(s) its <see cref="HashTrailer"/> asks for
+    /// </summary>
+    public void AddPayloadParts(List<StreamPart> parts, Stream content)
+    {
+        if (HashTrailer is HashTrailer.BeforePayload)
+        {
+            parts.Add(HashTrailerPart());
+        }
+
+        parts.Add(new StreamPart(content, Key, ContentType, Enum.GetName(MultipartUploadParts.Payload)));
+
+        var trailersAfter = HashTrailer switch
+        {
+            HashTrailer.AfterPayload or HashTrailer.NotDeferred => 1,
+            HashTrailer.Twice => 2,
+            _ => 0
+        };
+        for (var i = 0; i < trailersAfter; i++)
+        {
+            parts.Add(HashTrailerPart());
+        }
+    }
+
+    private StreamPart HashTrailerPart()
+    {
+        var body = OdinSystemSerializer.Serialize(new DeferredPayloadHashes.PayloadHashValues
+        {
+            StoredHash = Hash.StoredHash,
+            ContentHash = Hash.ContentHash
+        });
+        return new StreamPart(new MemoryStream(body.ToUtf8ByteArray()), Key, "application/json",
+            Enum.GetName(MultipartUploadParts.PayloadHash));
+    }
+
+    private PayloadHash DeferredSentinel()
+    {
+        if (Hash == null)
+        {
+            throw new InvalidOperationException($"{nameof(HashTrailer)} defers {nameof(Hash)}, so set it first (WithHash)");
+        }
+
+        return PayloadHash.Deferred(Hash.Algorithm, Hash.ContentHash?.Length == PayloadHash.EncryptedContentHashLength);
+    }
 
     public UploadManifestPayloadDescriptor ToPayloadDescriptor(
         PayloadUpdateOperationType updateOperationType = PayloadUpdateOperationType.None)
@@ -63,7 +143,8 @@ public class TestPayloadDefinition
             PreviewThumbnail = this.PreviewThumbnail,
             Thumbnails = t,
             PayloadUpdateOperationType = updateOperationType,
-            ContentType = this.ContentType
+            ContentType = this.ContentType,
+            Hash = HashTrailer is HashTrailer.None or HashTrailer.NotDeferred ? this.Hash : DeferredSentinel()
         };
     }
 }

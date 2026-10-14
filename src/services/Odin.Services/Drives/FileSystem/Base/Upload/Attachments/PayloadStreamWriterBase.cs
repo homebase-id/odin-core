@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Odin.Services.Base;
 using Odin.Services.Registry;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Util;
+using Odin.Core.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
@@ -15,9 +17,16 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class PayloadStreamWriterBase
+public abstract class PayloadStreamWriterBase : IUploadPartWriter
 {
     private PayloadOnlyPackage _package;
+
+    public DeferredPayloadHashes PayloadHashes { get; } = new();
+
+    /// <summary>
+    /// An empty payload is never added to the package, so <see cref="CleanupStagingFiles"/> removes its staged file from here
+    /// </summary>
+    private readonly List<PayloadDescriptor> _emptyPayloads = [];
 
     /// <summary />
     protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, TenantQuotaGuard quotaGuard)
@@ -32,8 +41,7 @@ public abstract class PayloadStreamWriterBase
 
     public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
-        string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = OdinSystemSerializer.Deserialize<UploadPayloadInstructionSet>(json);
+        var instructionSet = await BoundedRead.DeserializeAsync<UploadPayloadInstructionSet>(data);
         await this.StartUpload(instructionSet, odinContext);
     }
 
@@ -71,12 +79,21 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
+        await FileSystem.Storage.AssertPayloadHashPresentIfRequiredAsync(_package.InternalFile.DriveId, key, descriptor.Hash);
+
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, data, odinContext);
+        await using var hashing = descriptor.Hash?.Verifying(key, data);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, hashing ?? data, odinContext);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
+        else
+        {
+            _emptyPayloads.Add(new PayloadDescriptor { Key = key, Uid = descriptor.PayloadUid });
+        }
+
+        PayloadHashes.Written(key, descriptor.Hash, hashing);
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
@@ -167,6 +184,7 @@ public abstract class PayloadStreamWriterBase
         if (_package?.UploadFile != null)
         {
             var uploadedPayloads = _package.GetFinalPayloadDescriptors();
+            uploadedPayloads.AddRange(_emptyPayloads);
             await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile, uploadedPayloads, odinContext);
         }
     }
@@ -210,6 +228,14 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes",
                 OdinClientErrorCode.InvalidUpload);
         }
+
+        var isEncrypted = existingServerFileHeader.FileMetadata.IsEncrypted;
+        foreach (var payload in _package.Payloads)
+        {
+            PayloadHash.AssertValid(payload.PayloadKey, payload.Hash, isEncrypted);
+        }
+
+        await PayloadHash.AssertIvsRotatedAsync(_package.Payloads, isEncrypted, () => Task.FromResult(existingServerFileHeader));
     }
 
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)

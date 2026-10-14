@@ -25,7 +25,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles
         Task<ApiResponse<bool>> UpdateCircleDefinition([Body] CircleDefinition circleDefinition);
 
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<bool>> DeleteCircleDefinition([Body] Guid id);
+        Task<ApiResponse<bool>> DeleteCircleDefinition([Body] Guid id, [Query] bool removeMembers = false);
 
         [Post(RootPath + "/disable")]
         Task<ApiResponse<bool>> DisableCircleDefinition([Body] Guid id);

@@ -83,6 +83,15 @@ public class TableFollowsMeCached(TableFollowsMe table, IIdentityTransactionalCa
 
     //
 
+    public async Task<int> DeleteByDriveAsync(Guid driveId)
+    {
+        var result = await table.DeleteByDriveAsync(driveId);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
     public async Task<int> DeleteByIdentityAsync(OdinId identity)
     {
         var result = await table.DeleteByIdentityAsync(identity);

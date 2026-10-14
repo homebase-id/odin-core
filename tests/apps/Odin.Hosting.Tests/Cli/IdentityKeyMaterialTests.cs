@@ -1,4 +1,8 @@
 using System;
+using System.Linq;
+using System.Security.Cryptography;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Table;
@@ -49,6 +53,36 @@ public class IdentityKeyMaterialTests
 
         var e = Assert.Throws<IdentityExportRefusedException>(() => Export(storedUnderAnotherKey, SourceKey));
         Assert.That(e!.Message, Does.Contain("CertificateRenewal:StorageKey"));
+    }
+
+    // A wrong key passed the padding check in 2 of the CI runs before the export checked the key against its
+    // certificate. The padding sits in the last block, which the IV does not reach, so any IV finds such a key.
+    [Test]
+    public void TheExportRefusesAWrongKeyWhoseDecryptionHappensToLookValid()
+    {
+        var (keyPem, certificatePem) = NewCertificate();
+        var storedUnderAnotherKey = Import(CertificateRow(keyPem, certificatePem), TargetKey);
+        var cipher = Convert.FromHexString(storedUnderAnotherKey.privateKey);
+
+        var wrongKey = Enumerable.Range(0, 100_000)
+            .Select(_ => ByteArrayUtil.GetRndByteArray(32))
+            .First(key => DecryptsWithoutError(cipher, key));
+
+        var e = Assert.Throws<IdentityExportRefusedException>(() => Export(storedUnderAnotherKey, wrongKey));
+        Assert.That(e!.Message, Does.Contain("CertificateRenewal:StorageKey"));
+    }
+
+    private static bool DecryptsWithoutError(byte[] cipher, byte[] key)
+    {
+        try
+        {
+            AesCbc.Decrypt(cipher, key, new byte[16]);
+            return true;
+        }
+        catch (CryptographicException)
+        {
+            return false;
+        }
     }
 
     [Test]

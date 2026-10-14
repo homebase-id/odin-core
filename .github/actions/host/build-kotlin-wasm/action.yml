@@ -45,10 +45,10 @@ runs:
         REPO: homebase-id/chat-kmp
         # Bump this when anything about HOW the bundle is produced changes --
         # the gradle invocation, publicPath, the JDK version, the destination
-        # path. The commit sha in the key only covers changes to chat-kmp
-        # itself, so without a bump those runs would restore a bundle built the
-        # old way.
-        CACHE_VERSION: v1
+        # path, what is cached alongside it. The commit sha in the key only
+        # covers changes to chat-kmp itself, so without a bump those runs would
+        # restore a bundle built the old way.
+        CACHE_VERSION: v2
       run: |
         set -euo pipefail
 
@@ -171,7 +171,9 @@ runs:
       if: inputs.force_rebuild != 'true'
       uses: actions/cache/restore@v4
       with:
-        path: odin-core/src/apps/Odin.Hosting/client/apps/chat
+        path: |
+          odin-core/src/apps/Odin.Hosting/client/apps/chat
+          chat-wasm-symbols
         key: ${{ steps.ref.outputs.cache_key }}
 
     # A truncated or half-written entry would otherwise be deployed as a broken
@@ -229,10 +231,51 @@ runs:
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
         mkdir -p ../../odin-core/src/apps/Odin.Hosting/client/apps
         mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
+        # Function names and source map for the shipped .wasm, kept outside the
+        # ./odin-core Docker context so they are never deployed. chat-kmp refs
+        # from before WASM_CRASH_SYMBOLS.md don't produce them.
+        rm -rf ../../chat-wasm-symbols
+        if [ -d webApp/build/dist/wasmJs/symbols ]; then
+          mv webApp/build/dist/wasmJs/symbols ../../chat-wasm-symbols
+        else
+          echo "::warning::This chat-kmp ref produced no wasm crash symbols; traps from this build can't be symbolicated."
+        fi
 
     - name: Cache the chat-wasm bundle
       if: steps.cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
-        path: odin-core/src/apps/Odin.Hosting/client/apps/chat
+        path: |
+          odin-core/src/apps/Odin.Hosting/client/apps/chat
+          chat-wasm-symbols
         key: ${{ steps.ref.outputs.cache_key }}
+
+    # chat-kmp's scripts/wasm-symbolicate.py finds these by the .wasm content
+    # hash that a production stack trace shows. Uploaded on cache hits too, so
+    # every deploy has them for the full retention.
+    - name: Name the wasm crash symbols
+      id: symbols
+      shell: bash
+      env:
+        SHA: ${{ steps.ref.outputs.sha }}
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        maps=(chat-wasm-symbols/*.wasm.map)
+        if [ "${#maps[@]}" -ne 1 ]; then
+          echo "No wasm crash symbols for this build; nothing to upload."
+          exit 0
+        fi
+        hash="$(basename "${maps[0]}" .wasm.map)"
+        echo "$SHA" >chat-wasm-symbols/chat-kmp-commit.txt
+        echo "Wasm crash symbols for ${hash}.wasm (chat-kmp ${SHA})."
+        echo "name=chat-wasm-symbols-${hash}" >>"$GITHUB_OUTPUT"
+
+    - name: Upload the wasm crash symbols
+      if: steps.symbols.outputs.name != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.symbols.outputs.name }}
+        path: chat-wasm-symbols
+        retention-days: 90
+        if-no-files-found: error

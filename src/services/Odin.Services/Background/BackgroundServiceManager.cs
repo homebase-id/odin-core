@@ -47,6 +47,8 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     // Set by StopAllAsync, cleared by the next start: every service was stopped on purpose (e.g. a paused
     // tenant), so a missing service is expected rather than not started yet.
     private volatile bool _allStopped;
+    // Services stopped on purpose one by one, until created again. Their own in-flight work may still notify them.
+    private readonly HashSet<string> _stopped = new();
     // Services removed from _backgroundServices whose stop has not completed yet
     private int _stoppingCount;
     private readonly ILogger<BackgroundServiceManager> _logger = lifetimeScope.Resolve<ILogger<BackgroundServiceManager>>();
@@ -87,6 +89,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
                 throw new InvalidOperationException($"Background service '{serviceIdentifier}' already exists.");
             }
 
+            _stopped.Remove(serviceIdentifier);
             var serviceScope = lifetimeScope.BeginLifetimeScope($"{serviceIdentifier}:{Guid.NewGuid()}");
             var backgroundService = serviceScope.Resolve<T>();
             var scopedService = new ScopedAbstractBackgroundService(serviceScope, backgroundService);
@@ -156,6 +159,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         {
             if (_backgroundServices.Remove(serviceIdentifier, out scopedAbstractBackgroundService))
             {
+                _stopped.Add(serviceIdentifier);
                 // Counted under the same lock, so IsRunning never sees the service as gone before its stop completes
                 Interlocked.Increment(ref _stoppingCount);
             }
@@ -212,50 +216,53 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
 
         ScopedAbstractBackgroundService? backgroundService;
-        using (await _lock.ReaderLockAsync())
+        const int attempts = 30;
+        for (var attempt = 0; ; attempt++)
         {
-            _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
-        }
-
-        if (backgroundService == null)
-        {
-            const int attempts = 30;
-            var attempt = 0;
-            while (backgroundService == null && attempt < attempts)
+            using (await _lock.ReaderLockAsync())
             {
-                if (_allStopped)
+                if (_stopped.Contains(serviceIdentifier))
                 {
-                    // Nothing to wake: the services were stopped on purpose and will catch up when started again
+                    // Stopped on purpose, not yet started: nothing to wake
                     return;
                 }
-
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-
-                using (await _lock.ReaderLockAsync())
-                {
-                    _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
-                }
-
-                attempt++;
+                _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
             }
 
-            if (backgroundService == null && !_stoppingCts.IsCancellationRequested)
+            if (backgroundService != null)
             {
+                break;
+            }
+
+            if (_allStopped)
+            {
+                // Nothing to wake: the services were stopped on purpose and will catch up when started again
+                return;
+            }
+
+            if (attempt == attempts)
+            {
+                if (_stoppingCts.IsCancellationRequested)
+                {
+                    return;
+                }
                 throw new InvalidOperationException(
                     $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
         }
 
         if (!_stoppingCts.IsCancellationRequested)
         {
-            backgroundService?.BackgroundService.InternalNotifyWorkAvailable();
+            backgroundService.BackgroundService.InternalNotifyWorkAvailable();
         }
     }
 

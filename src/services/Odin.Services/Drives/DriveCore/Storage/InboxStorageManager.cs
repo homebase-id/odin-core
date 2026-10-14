@@ -27,15 +27,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Gets all bytes for the specified file
-        /// </summary>
-        public Task<byte[]> GetAllInboxFileBytes(InternalDriveFileId file, string extension)
-        {
-            var path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
-            return inboxFileStore.ReadAllBytesAsync(path);
-        }
-
-        /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
         public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream)

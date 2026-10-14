@@ -42,6 +42,12 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.AllowSubscriptions = value;
     }
 
+    public bool RequirePayloadHashes
+    {
+        get => Data.RequirePayloadHashes;
+        set => Data.RequirePayloadHashes = value;
+    }
+
     public bool IsArchived
     {
         get => Data.IsArchived;
@@ -242,6 +248,11 @@ public sealed class StorageDriveData
     /// Specifies if the CDN may read this drive's payloads. Opt-in; see <see cref="StorageDriveDetails"/>.
     /// </summary>
     public bool AllowCdn { get; set; }
+
+    /// <summary>
+    /// Every payload written to this drive must carry client-computed hashes. See <see cref="StorageDriveDetails"/>.
+    /// </summary>
+    public bool RequirePayloadHashes { get; set; }
 
     /// <summary>
     /// The app that owns this drive; null means an owner drive.

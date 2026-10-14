@@ -458,7 +458,33 @@ namespace Odin.Services.Membership.Circles
             return circles;
         }
 
+        /// <summary>
+        /// Deletes a circle, if nothing depends on it.
+        /// </summary>
+        /// <remarks>
+        /// Refused for any circle <see cref="AssertDeletableAsync"/> refuses, and for a circle with any
+        /// member, identity or YouAuth domain -- deleting it would strand their grants.
+        /// </remarks>
         public async Task DeleteAsync(GuidId id)
+        {
+            await AssertDeletableAsync(id);
+
+            var members = await db.CircleMemberCached.GetCircleMembersAsync(id);
+            if (members.Count > 0)
+            {
+                throw new OdinClientException("Cannot delete a circle with members",
+                    OdinClientErrorCode.CannotDeleteCircleWithMembers);
+            }
+
+            await db.CircleCached.DeleteAsync(id);
+        }
+
+        /// <summary>
+        /// Throws unless the circle exists and is one that may be deleted at all, members aside: not a
+        /// system circle (every connection's base grants hang off one), and not a built-in circle
+        /// (provisioning and every upgrade assume it exists).
+        /// </summary>
+        public async Task AssertDeletableAsync(GuidId id)
         {
             var circle = await GetCircleAsync(id);
 
@@ -467,8 +493,67 @@ namespace Odin.Services.Membership.Circles
                 throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
             }
 
-            //TODO: update the circle.Permissions and circle.Drives for all members of the circle
-            await db.CircleCached.DeleteAsync(id);
+            if (SystemCircleConstants.IsSystemCircle(id))
+            {
+                throw new OdinClientException($"System circle {id} cannot be deleted",
+                    OdinClientErrorCode.CannotDeleteSystemCircle);
+            }
+
+            if (BuiltinApps.IsTreeDeclaredCircle(id))
+            {
+                throw new OdinClientException($"Circle {id} is a built-in circle and cannot be deleted",
+                    OdinClientErrorCode.CannotDeleteBuiltInCircle);
+            }
+        }
+
+        /// <summary>
+        /// Throws unless <paramref name="appId"/> may put these drive grants on a circle it creates: on a drive it
+        /// owns, any access it holds itself; on any other drive, Read alone, and only with that drive's storage key.
+        /// </summary>
+        /// <remarks>
+        /// Every member the app adds is handed the circle's access out of the app's own -- write needs write, and
+        /// read is sealed with a key only a reader has -- so holding what it grants is required either way, and a
+        /// circle the app could never fill is refused here rather than at its first member.  Owning a drive does not
+        /// give an app access to it; its registration does.
+        /// <para>
+        /// Read on another app's drive passes on only what the app can already see: a profile circle Chat makes,
+        /// granting the Contacts app's ProfileDrive, as Family, Friends and Work do.  Write or React there would let
+        /// the app's contacts change another app's data, so that stays the owner's to grant.
+        /// </para>
+        /// <para>
+        /// A grant naming no drive is left to <see cref="AssertValidDriveGrantsAsync"/>, which refuses it.
+        /// </para>
+        /// </remarks>
+        public async Task AssertAppMayGrantDrivesAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId,
+            IOdinContext odinContext)
+        {
+            var permissions = odinContext.PermissionsContext;
+            foreach (var dgr in driveGrantRequests ?? [])
+            {
+                var granted = dgr?.PermissionedDrive;
+                if (granted?.Drive?.Alias == null)
+                {
+                    continue;
+                }
+
+                Guid driveId = granted.Drive.Alias;
+                if (!permissions.HasDrivePermission(driveId, granted.Permission))
+                {
+                    throw new OdinSecurityException(
+                        $"App {appId} cannot grant {granted.Permission} on drive {granted.Drive}; it does not hold that access");
+                }
+
+                if ((await driveManager.GetDriveAsync(driveId))?.AppId == appId)
+                {
+                    continue;
+                }
+
+                if (granted.Permission != DrivePermission.Read || !permissions.TryGetDriveStorageKey(driveId, out _))
+                {
+                    throw new OdinSecurityException(
+                        $"App {appId} can grant only Read, with the storage key, on drive {granted.Drive}, which it does not own");
+                }
+            }
         }
 
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)

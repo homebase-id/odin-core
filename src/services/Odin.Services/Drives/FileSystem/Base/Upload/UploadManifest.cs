@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -99,6 +100,12 @@ public class UploadManifestPayloadDescriptor
 
     public UnixTimeUtcUnique PayloadUid { get; set; }
 
+    /// <summary>
+    /// Optional client-computed hashes, see <see cref="PayloadHash"/>
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PayloadHash Hash { get; set; }
+
     public void AssertIsValid(bool encrypted)
     {
         if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.None)
@@ -143,7 +150,8 @@ public class UploadManifestPayloadDescriptor
             BytesWritten = bytesWritten,
             DescriptorContent = this.DescriptorContent,
             PreviewThumbnail = this.PreviewThumbnail,
-            UpdateOperationType = PayloadUpdateOperationType
+            UpdateOperationType = PayloadUpdateOperationType,
+            Hash = this.Hash
         };
 
         return p;
