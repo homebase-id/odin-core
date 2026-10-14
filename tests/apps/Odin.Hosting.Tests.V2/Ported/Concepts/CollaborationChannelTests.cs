@@ -101,7 +101,9 @@ public class CollaborationChannelTests : V2Fixture
             collabChannel,
             [member1, member2],
             CollabChannelDrive,
-            DrivePermission.Write,
+            // Read as well as Write: an encrypted post is only redistributed to followers holding keyed
+            // Read on the channel, which the channel's own circle carries now (#1809).
+            DrivePermission.ReadWrite,
             "Test channel drive 001",
             allowAnonymousReads: true);
 

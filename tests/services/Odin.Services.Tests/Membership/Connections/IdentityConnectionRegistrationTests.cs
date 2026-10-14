@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using NUnit.Framework;
-using Odin.Services.Membership.Circles;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Membership.Connections;
@@ -51,29 +48,22 @@ public class IdentityConnectionRegistrationTests
     }
 
     [Test]
-    public void Redacted_ConfirmedConnection_IsVetted()
+    public void Redacted_ReviewedConnection_IsVetted()
     {
-        var icr = CreateIcr(reviewedAt: null, memberCircleId: SystemCircleConstants.ConfirmedConnectionsCircleId);
-
-        // Vetted still means what it always meant -- Confirmed-circle membership -- so existing clients
-        // see exactly what they saw before the review existed. It can disagree with ReviewedAt, which is
-        // asking a different question.
-        Assert.That(icr.Redacted().Vetted, Is.True);
-        Assert.That(icr.Redacted().ReviewedAt, Is.Null);
+        // Vetted meant Confirmed-circle membership until that circle retired (#1809); it is now the review.
+        Assert.That(CreateIcr(reviewedAt: UnixTimeUtc.Now()).Redacted().Vetted, Is.True);
     }
 
     [Test]
-    public void Redacted_AutoConnectedOnly_IsNotVetted()
+    public void Redacted_UnreviewedConnection_IsNotVetted()
     {
-        var icr = CreateIcr(reviewedAt: null, memberCircleId: SystemCircleConstants.AutoConnectionsCircleId);
-
-        Assert.That(icr.Redacted().Vetted, Is.False);
+        Assert.That(CreateIcr(reviewedAt: null).Redacted().Vetted, Is.False);
     }
 
     [Test]
-    public void Redacted_ConfirmedButNotConnected_IsNotVetted()
+    public void Redacted_ReviewedButNotConnected_IsNotVetted()
     {
-        var icr = CreateIcr(reviewedAt: null, memberCircleId: SystemCircleConstants.ConfirmedConnectionsCircleId);
+        var icr = CreateIcr(reviewedAt: UnixTimeUtc.Now());
         icr.Status = ConnectionStatus.Blocked;
 
         Assert.That(icr.Redacted().Vetted, Is.False);
@@ -86,29 +76,6 @@ public class IdentityConnectionRegistrationTests
             OdinId = new OdinId("frodo.dotyou.cloud"),
             PeerKeyStore = new PeerKeyStore(),
             ReviewedAt = reviewedAt
-        };
-
-        icr.Status = ConnectionStatus.Connected;
-        return icr;
-    }
-
-    private static IdentityConnectionRegistration CreateIcr(UnixTimeUtc? reviewedAt, Guid memberCircleId)
-    {
-        var icr = new IdentityConnectionRegistration
-        {
-            OdinId = new OdinId("frodo.dotyou.cloud"),
-            ReviewedAt = reviewedAt,
-            PeerKeyStore = new PeerKeyStore
-            {
-                CircleGrants = new Dictionary<Guid, CircleGrant>
-                {
-                    [memberCircleId] = new CircleGrant
-                    {
-                        CircleId = memberCircleId,
-                        KeyStoreKeyEncryptedDriveGrants = new()
-                    }
-                }
-            }
         };
 
         icr.Status = ConnectionStatus.Connected;

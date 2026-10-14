@@ -27,23 +27,18 @@ public static class CircleSlugGenerator
     private const string FallbackSlug = "circle";
     private const int MaxSuffix = 9999;
 
-    /// <summary>The circles whose slug is fixed in code: the built-in apps' and the two system circles.</summary>
-    private static readonly List<CircleDefinition> FixedCircles = BuiltinApps.AllCircles
-        .Concat([
-            SystemCircleConstants.ConfirmedConnectionsDefinition,
-            SystemCircleConstants.AutoConnectionsSystemCircleDefinition
-        ])
-        .ToList();
+    /// <summary>The circles whose slug is fixed in code: the built-in apps'.</summary>
+    private static readonly List<CircleDefinition> FixedCircles = BuiltinApps.AllCircles.ToList();
 
     private static readonly HashSet<string> BuiltinSlugs = BuiltinCircleSlugs().ToHashSet();
 
     /// <summary>
-    /// The slugs the platform's own circles carry: the built-in apps' and the two system circles'.
+    /// The slugs the platform's own circles carry: the built-in apps'.
     /// </summary>
     public static IEnumerable<string> BuiltinCircleSlugs() => FixedCircles.Select(c => c.Slug);
 
     /// <summary>
-    /// The fixed slug of a built-in or system circle, or null for any other circle.
+    /// The fixed slug of a built-in circle, or null for any other circle.
     /// </summary>
     public static string? FixedSlugFor(System.Guid circleId) =>
         FixedCircles.FirstOrDefault(c => c.Id.Value == circleId)?.Slug;

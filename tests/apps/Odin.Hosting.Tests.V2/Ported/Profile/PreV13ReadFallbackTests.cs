@@ -119,8 +119,41 @@ public class PreV13ReadFallbackTests : V2Fixture
         // which is how a missing circle silently revokes what it grants.
         Assert.That(await circles.IsEnabledAsync(circleId), Is.True);
 
-        var all = await circles.GetCirclesAsync(includeSystemCircle: true);
+        var all = await circles.GetCirclesAsync();
         Assert.That(all.Any(c => (Guid)c.Id == circleId), Is.True, "the list must include blob circles");
+    }
+
+    /// <remarks>
+    /// The v0 -&gt; v1 upgrade re-mints a pre-v13 tenant's circles through <c>UpdateAsync</c>, which writes the
+    /// definition it read to the table.  A blob circle read without a slug failed that write on the NOT NULL
+    /// slug, rolling the whole upgrade back on every login.
+    /// </remarks>
+    [Test]
+    public async Task PreV13_ACircleLivingOnlyInTheBlob_CanBeUpdated_AndKeepsTheSlugTheMoveGivesIt()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var db = scope.Resolve<IdentityDatabase>();
+
+        var circleId = Guid.NewGuid();
+        await SeedLegacyCircleAsync(scope, circleId, "Book Club");
+        await SetVersionAsync(scope, 12);
+
+        var circles = scope.Resolve<CircleDefinitionService>();
+        var circle = await circles.GetCircleAsync(circleId);
+        Assert.That(circle.Slug, Is.EqualTo("book-club"), "the slug must be the one the move will coin");
+
+        circle.Description = "updated before the move";
+        await circles.UpdateAsync(circle, skipValidation: true);
+
+        var record = await db.CircleCached.GetAsync(circleId);
+        Assert.That(record, Is.Not.Null, "the update writes the circle to the table");
+        Assert.That(record.CircleSlug, Is.EqualTo("book-club"));
+
+        // The move then finds it already there and leaves it be, slug and all.
+        await scope.Resolve<V12ToV13VersionMigrationService>()
+            .UpgradeAsync(await BuildOwnerContextAsync(scope, owner), System.Threading.CancellationToken.None);
+        Assert.That((await db.CircleCached.GetAsync(circleId)).CircleSlug, Is.EqualTo("book-club"));
     }
 
     [Test]
@@ -147,7 +180,7 @@ public class PreV13ReadFallbackTests : V2Fixture
         Assert.That((await apps.GetRegisteredAppsAsync(ctx)).Any(a => (Guid)a.AppId == appId), Is.False);
 
         Assert.That(await circles.GetCircleAsync(circleId), Is.Null);
-        Assert.That((await circles.GetCirclesAsync(includeSystemCircle: true)).Any(c => (Guid)c.Id == circleId),
+        Assert.That((await circles.GetCirclesAsync()).Any(c => (Guid)c.Id == circleId),
             Is.False);
     }
 
