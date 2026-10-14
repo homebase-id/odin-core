@@ -29,6 +29,7 @@ Bytes are standard base64, like `iv`. Clients send the same object on the upload
 2. **Complete or absent.** `algorithm`, `storedHash` and `contentHash` are all present, or `hash` is omitted.
 3. **Streaming, single pass.** Hashes are computed while the bytes flow, never by re-reading them.
    - Clients hash the plaintext going in and the ciphertext coming out of the same encryption pass.
+   - A client that encrypts while it sends only knows `storedHash` once the payload is sent. It defers the hash (see "Deferred hash" below) rather than reading and encrypting the source twice.
    - The server hashes the request stream as it writes it to storage.
    - Future features (resumable upload, payload move) must keep this property.
 4. **The server verifies `storedHash`** against the bytes it receives (the length check, not the hash, guards against a storage write that stores fewer bytes than were received). Mismatch → 400 `PayloadHashMismatch`, and the written bytes are deleted. Match → stored unchanged. Nothing is returned, because the client already has both values.
@@ -38,6 +39,21 @@ Bytes are standard base64, like `iv`. Clients send the same object on the upload
 8. **Peer transfer:** the stored bytes are identical over peer, so `hash` travels unchanged. The receiving server verifies `storedHash` (rule 4) and applies its own drive's rule 7.
 9. **Scope:** payloads only. Thumbnails are not hashed. Server-generated payloads (profile, contacts) carry no hash.
 10. **Remote payloads** (`dataSource.payloadsAreRemote`): no bytes pass through this server, so a `hash` stays optional even on a drive with rule 7, and when present only rules 2, 5 and 6 are checked.
+
+## Deferred hash (#1935)
+The descriptor comes before the payload, so a client would need `storedHash` before it has encrypted anything. Instead it can send the values after the payload. The server hashes the stream as it writes it either way, so it only needs the algorithm up front.
+
+- **In the descriptor:** `hash` with the real `algorithm`, and a sentinel in place of both values: every byte `0x11`. That is 32 bytes for `storedHash` and 32 bytes for `contentHash`, or 48 when encrypted. No new field: a real hash equals the sentinel with probability 2^-256.
+- **All or nothing:** both values are sentinels, or neither is. One sentinel next to a real value → `InvalidPayloadHash`. A sentinel of any other length → `InvalidPayloadHash`. The real `contentHash` in the `payloadHash` part must have its sentinel's length.
+- **After the payload:** a multipart part named `payloadHash`, whose file name is the payload key:
+  ```json
+  { "storedHash": "<base64>", "contentHash": "<base64>" }
+  ```
+  It comes after its payload part, once, before the request ends. Thumbnails may come before or after it. A `payloadHash` part before its payload, a second one, or one for a payload whose hash wasn't deferred → `InvalidPayloadHash`.
+- **What the server does:** it hashes the payload as it's written and keeps that hash. When the `payloadHash` part arrives, the server puts its values in place of the sentinels. It then checks them like a hash sent up front: rules 2, 4, 5 and 6, and the binding rule. A mismatch → `PayloadHashMismatch`, and the staged bytes are deleted. A stored header never holds the sentinel.
+- **No `payloadHash` part:** if the request ends with a deferred hash still unresolved → `PayloadHashMissing`, and nothing is stored. This is also how a client aborts an upload, for example when it finds the source changed while it was sending it.
+- **Rule 7:** a deferred hash counts as present.
+- **Where:** new upload (including `files/send`, the write over peer), update and add-payload. Not on remote payloads (rule 10), which have no bytes here to follow, and not over peer (rule 8): the sending server always has the values. A sentinel in either place → `InvalidPayloadHash`.
 
 ## Content-hash IV and binding rule
 - `contentHashIv = payloadIv XOR 0xAA…AA`, over the full IV length. It is derived, so nothing extra is stored. XOR with a non-zero constant never yields the payload IV itself.
@@ -51,8 +67,9 @@ Bytes are standard base64, like `iv`. Clients send the same object on the upload
 | Code | Value | When |
 |---|---|---|
 | `PayloadHashMismatch` | 4175 | received bytes ≠ `storedHash` |
-| `InvalidPayloadHash` | 4176 | incomplete, unknown algorithm, wrong length, unencrypted `contentHash ≠ storedHash`, hashed encrypted overwrite reusing the payload IV |
+| `InvalidPayloadHash` | 4176 | incomplete, unknown algorithm, wrong length, unencrypted `contentHash ≠ storedHash`, hashed encrypted overwrite reusing the payload IV, a deferred hash that is half sentinel, on a remote payload, or whose `payloadHash` part is misplaced |
 | `PayloadHashRequired` | 4177 | drive requires hashes and none was sent |
+| `PayloadHashMissing` | 4178 | a deferred hash was not followed by its `payloadHash` part |
 
 ## Golden vectors
 Pinned in `tests/services/Odin.Services.Tests/Drives/DriveCore/Storage/PayloadHashTests.cs` and
