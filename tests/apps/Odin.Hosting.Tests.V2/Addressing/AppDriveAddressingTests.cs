@@ -109,6 +109,19 @@ public class AppDriveAddressingTests : V2Fixture
     }
 
     [Test]
+    public async Task SlugsMatchRegardlessOfCase()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+
+        var drive = await ClientFor(owner).GetAppDrive(ChatAppSlug.ToUpperInvariant(), ChatDriveSlug.ToUpperInvariant());
+        Assert.That(drive.IsSuccessStatusCode, Is.True, $"got {drive.StatusCode}");
+        Assert.That(drive.Content!.DriveSlug, Is.EqualTo(ChatDriveSlug));
+
+        var filtered = await ClientFor(owner).GetAppDrives(ChatAppSlug, type: "STICKER");
+        Assert.That(filtered.Content!.Select(d => d.DriveSlug), Does.Contain(StickerDriveSlug));
+    }
+
+    [Test]
     public async Task SingleDriveAgreesWithTheListing()
     {
         // Two routes, one drive: if they disagree, one of them is lying about the address.
