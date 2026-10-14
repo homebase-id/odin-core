@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -254,5 +255,72 @@ public class DeleteFileTests : V2Fixture
         var response = await owner.Drives.Writer.UploadNewMetadata(drive.Alias, metadata);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"owner upload failed: {response.StatusCode}");
         return response.Content!;
+    }
+    //
+    // Guarded delete (#1903): an optional version tag stops a delete from wiping an edit the caller
+    // has not seen. Without one, a delete behaves as before.
+    //
+
+    private async Task<CreateFileResult> UploadAsync(OwnerSession owner, CallerSpec spec)
+    {
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
+        var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(spec.TargetDrive.Alias, metadata,
+            new UploadManifest { PayloadDescriptors = [] }, []);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
+        return upload.Content!;
+    }
+
+    private static async Task AssertActiveAsync(OwnerSession owner, CreateFileResult file)
+    {
+        var header = await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId);
+        Assert.That(header.IsSuccessStatusCode, Is.True);
+        Assert.That(header.Content!.FileState, Is.EqualTo(FileState.Active));
+    }
+
+    [Test]
+    public async Task DeleteWithStaleVersionTagIsRejectedAndTheFileStays()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var file = await UploadAsync(owner, spec);
+
+        var delete = await caller.Drives.Writer.SoftDeleteFile(file.DriveId, file.FileId, versionTag: Guid.NewGuid());
+
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(delete.Error!), Is.EqualTo(OdinClientErrorCode.VersionTagMismatch));
+        await AssertActiveAsync(owner, file);
+    }
+
+    [Test]
+    public async Task DeleteWithCurrentVersionTagDeletes()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var file = await UploadAsync(owner, spec);
+
+        var delete = await caller.Drives.Writer.SoftDeleteFile(file.DriveId, file.FileId, versionTag: file.NewVersionTag);
+
+        Assert.That(delete.IsSuccessStatusCode, Is.True, $"actual {delete.StatusCode}");
+        Assert.That(delete.Content!.LocalFileDeleted, Is.True);
+    }
+
+    [Test]
+    public async Task BatchDeleteWithOneStaleVersionTagDeletesNothing()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var current = await UploadAsync(owner, spec);
+        var stale = await UploadAsync(owner, spec);
+
+        var delete = await caller.Drives.Writer.DeleteFileList(spec.TargetDrive.Alias,
+        [
+            new DeleteFileRequestV2 { FileId = current.FileId, VersionTag = current.NewVersionTag },
+            new DeleteFileRequestV2 { FileId = stale.FileId, VersionTag = Guid.NewGuid() }
+        ]);
+
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(TestUtils.ParseProblemDetails(delete.Error!), Is.EqualTo(OdinClientErrorCode.VersionTagMismatch));
+        await AssertActiveAsync(owner, current);
+        await AssertActiveAsync(owner, stale);
     }
 }
