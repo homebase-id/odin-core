@@ -3233,7 +3233,22 @@ namespace Odin.Services.Membership.Connections
 
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 
-                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
+                byte[] keyStoreKey;
+                try
+                {
+                    keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
+                }
+                catch (OdinClientException e)
+                {
+                    // EccDecryptPayload refuses a payload sealed to an ECC key this identity no longer
+                    // holds. Unrecoverable, but nothing is wrong: the key rotated -- the same state the
+                    // KSK upgrade tolerates.  Throwing here failed whatever was in flight for every other
+                    // connection too, the v0 -> v1 upgrade included.
+                    logger.LogWarning(e,
+                        "Not upgrading ICR Token Encryption for {id}: its temporary token was sealed to a key " +
+                        "this identity no longer holds. Left as-is", identity.OdinId);
+                    return;
+                }
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
