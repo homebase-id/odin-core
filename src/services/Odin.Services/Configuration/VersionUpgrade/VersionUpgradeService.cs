@@ -266,21 +266,12 @@ public class VersionUpgradeService(
                 runState.SetRunning(true);
                 logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
-                // Two phases, a transaction each. The passes are independent -- one stamps drives, the
-                // other circles -- and each only fills what is missing, never moving an owner that is
-                // already set, so a phase that landed does not have to be undone to retry the other.
-                // The phase name in the log then says which of the two stalled.
+                // Circles only: drive owners and addresses are filled by the Drives NOT NULL table
+                // migration (#1901) at startup, before any sign-in.
                 //
-                // Placed last, after the built-in provisioning earlier versions run: a drive or circle
-                // created by provisioning already names its app, and stamping before it ran would leave
-                // the ones it creates afterwards ownerless.
-                await RunPhaseAsync("v18->v19 finish-drive-addresses", async ct =>
-                {
-                    await using var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
-                    await v19.FinishDriveAddressesAsync(odinContext, ct);
-                    drivesTx.Commit();
-                }, cancellationToken);
-
+                // Placed last, after the built-in provisioning earlier versions run: a circle created by
+                // provisioning already names its app, and stamping before it ran would leave the ones it
+                // creates afterwards ownerless.
                 await RunPhaseAsync("v18->v19 stamp-owner-console-circles", async ct =>
                 {
                     await using var circlesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);

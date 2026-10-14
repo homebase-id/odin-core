@@ -1,3 +1,4 @@
+using Odin.Test.Helpers;
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -410,6 +411,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     var createDriveResponse = await driveSvc.CreateDrive(
                         new CreateDriveRequest()
                         {
+                            DriveSlug = TestSlug.New(),
+                            DriveTypeSlug = TestSlug.DriveType,
                             TargetDrive = targetDrive,
                             Name = $"Test Drive name with type {targetDrive.Type}",
                             Metadata = "{data:'test metadata'}",
@@ -733,6 +736,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
                 var response = await svc.CreateDrive(new CreateDriveRequest()
                 {
+                    DriveSlug = TestSlug.New(),
+                    DriveTypeSlug = TestSlug.DriveType,
                     TargetDrive = targetDrive,
                     Name = name,
                     Metadata = metadata,
