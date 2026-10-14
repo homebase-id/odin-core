@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
@@ -17,6 +18,11 @@ namespace Odin.Services.Base;
 /// <b>Validate and reject; never coerce.</b>  The value is immutable once written and ends up in other
 /// identities' URLs, so silently lowercasing or stripping a character produces an address the caller did
 /// not ask for.
+/// </para>
+/// <para>
+/// <b>Matching is case-insensitive.</b>  Every stored slug is lowercase, so a caller's value is lowercased
+/// to look it up (<see cref="ToLookupKey"/>) and compared with <see cref="Matches"/>.  That only finds what
+/// is already there; it never names anything.
 /// </para>
 /// </remarks>
 public static class OdinSlug
@@ -44,6 +50,12 @@ public static class OdinSlug
                && Pattern.IsMatch(slug)
                && !Reserved.Contains(slug);
     }
+
+    /// <summary>The form a caller's slug is looked up by: stored slugs are lowercase.</summary>
+    public static string ToLookupKey(string slug) => slug.ToLowerInvariant();
+
+    /// <summary>Whether two slugs name the same thing, ignoring case.</summary>
+    public static bool Matches(string? a, string? b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Throws a client error unless the slug is present and well formed.  Null, empty and whitespace-only

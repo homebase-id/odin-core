@@ -1758,6 +1758,28 @@ public class YouAuthIntegrationTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
+    [Test]
+    public async Task c9_app_slug_SlugMatchingIgnoresCase()
+    {
+        const string hobbit = "sam.dotyou.cloud";
+        var driveAlias = Guid.NewGuid();
+        var driveType = Guid.NewGuid();
+        var registration = await RegisterApp(hobbit, Guid.NewGuid(), driveAlias, driveType);
+
+        var appParams = GetAppParams(Guid.Empty, driveAlias, driveType);
+        appParams.AppId = "";
+        appParams.AppSlug = registration.AppSlug;
+
+        var response = await AuthorizeAppAsync(hobbit, registration.AppSlug.ToUpperInvariant(), appParams);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        var location = new Uri(response.GetHeaderValue("Location") ?? throw new Exception("missing location"));
+        Assert.That(location.AbsoluteUri, Does.StartWith($"https://{hobbit}:{HttpsPort}/app/authorization/code/callback"));
+        var qs = HttpUtility.ParseQueryString(location.Query);
+        Assert.That(qs[YouAuthDefaults.Error], Is.Null, $"error: {qs[YouAuthDefaults.ErrorDescription]}");
+        Assert.That(qs[YouAuthDefaults.PublicKey], Is.Not.Null.And.Not.Empty);
+    }
+
     //
 
     private async Task<RedactedAppRegistration> RegisterApp(

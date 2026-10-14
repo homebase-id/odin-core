@@ -158,7 +158,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                         // A slug client_id is only found again after registration if that is the slug it
                         // registers with; anything else would send the browser round the registration page
                         // forever (#1902)
-                        if (!Guid.TryParse(authorize.ClientId, out _) && authorize.ClientId != appParams.AppSlug)
+                        if (!Guid.TryParse(authorize.ClientId, out _) && !OdinSlug.Matches(authorize.ClientId, appParams.AppSlug))
                         {
                             throw new BadRequestException(
                                 $"{YouAuthAuthorizeRequest.ClientIdName} '{authorize.ClientId}' is neither a registered app nor " +
