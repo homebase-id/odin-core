@@ -27,6 +27,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public string circleName { get; set; }
         public byte[] data { get; set; }
         public Guid? AppId { get; set; }
+        public string CircleSlug { get; set; }
         public Int32 GrantOn { get; set; }
         public Int32 Designation { get; set; }
         public string Emoji { get; set; }
@@ -40,6 +41,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (data?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {data.Length} (min 0)");
             if (data?.Length > 65000) throw new OdinDatabaseValidationException($"Too long data, was {data.Length} (max 65000)");
             AppId.AssertGuidNotEmpty("Guid parameter AppId cannot be set to Empty GUID.");
+            if (CircleSlug == null) throw new OdinDatabaseValidationException("Cannot be null CircleSlug");
+            if (CircleSlug?.Length < 0) throw new OdinDatabaseValidationException($"Too short CircleSlug, was {CircleSlug.Length} (min 0)");
+            if (CircleSlug?.Length > 64) throw new OdinDatabaseValidationException($"Too long CircleSlug, was {CircleSlug.Length} (max 64)");
             if (Emoji?.Length < 0) throw new OdinDatabaseValidationException($"Too short Emoji, was {Emoji.Length} (min 0)");
             if (Emoji?.Length > 64) throw new OdinDatabaseValidationException($"Too long Emoji, was {Emoji.Length} (max 64)");
         }
@@ -70,23 +74,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Circle IS '{ \"Version\": 202608261644 }';";
+               commentSql = "COMMENT ON TABLE Circle IS '{ \"Version\": 202610140701 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Circle( -- { \"Version\": 202608261644 }\n"
+                "CREATE TABLE IF NOT EXISTS Circle( -- { \"Version\": 202610140701 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL, "
                    +"circleName TEXT NOT NULL, "
                    +"data BYTEA , "
                    +"AppId BYTEA , "
+                   +"CircleSlug TEXT NOT NULL, "
                    +"GrantOn BIGINT NOT NULL DEFAULT 0, "
                    +"Designation BIGINT NOT NULL DEFAULT 1, "
                    +"Emoji TEXT  "
                    +", UNIQUE(identityId,circleId)"
+                   +", UNIQUE(identityId,AppId,CircleSlug)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0Circle ON Circle(identityId,AppId);"
                    +"CREATE INDEX IF NOT EXISTS Idx1Circle ON Circle(identityId,GrantOn);"
@@ -101,14 +107,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji) " +
-                                           $"VALUES (@identityId,@circleId,@circleName,@data,@AppId,@GrantOn,@Designation,@Emoji)"+
+                insertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji) " +
+                                           $"VALUES (@identityId,@circleId,@circleName,@data,@AppId,@CircleSlug,@GrantOn,@Designation,@Emoji)"+
                                             "RETURNING -1,-1,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@circleId", DbType.Binary, item.circleId);
                 insertCommand.AddParameter("@circleName", DbType.String, item.circleName);
                 insertCommand.AddParameter("@data", DbType.Binary, item.data);
                 insertCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                insertCommand.AddParameter("@CircleSlug", DbType.String, item.CircleSlug);
                 insertCommand.AddParameter("@GrantOn", DbType.Int32, item.GrantOn);
                 insertCommand.AddParameter("@Designation", DbType.Int32, item.Designation);
                 insertCommand.AddParameter("@Emoji", DbType.String, item.Emoji);
@@ -128,8 +135,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji) " +
-                                            $"VALUES (@identityId,@circleId,@circleName,@data,@AppId,@GrantOn,@Designation,@Emoji) " +
+                insertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji) " +
+                                            $"VALUES (@identityId,@circleId,@circleName,@data,@AppId,@CircleSlug,@GrantOn,@Designation,@Emoji) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -137,6 +144,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@circleName", DbType.String, item.circleName);
                 insertCommand.AddParameter("@data", DbType.Binary, item.data);
                 insertCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                insertCommand.AddParameter("@CircleSlug", DbType.String, item.CircleSlug);
                 insertCommand.AddParameter("@GrantOn", DbType.Int32, item.GrantOn);
                 insertCommand.AddParameter("@Designation", DbType.Int32, item.Designation);
                 insertCommand.AddParameter("@Emoji", DbType.String, item.Emoji);
@@ -156,16 +164,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji) " +
-                                            $"VALUES (@identityId,@circleId,@circleName,@data,@AppId,@GrantOn,@Designation,@Emoji)"+
+                upsertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji) " +
+                                            $"VALUES (@identityId,@circleId,@circleName,@data,@AppId,@CircleSlug,@GrantOn,@Designation,@Emoji)"+
                                             "ON CONFLICT (identityId,circleId) DO UPDATE "+
-                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji "+
+                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,CircleSlug = @CircleSlug,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji "+
                                             "RETURNING -1,-1,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@circleId", DbType.Binary, item.circleId);
                 upsertCommand.AddParameter("@circleName", DbType.String, item.circleName);
                 upsertCommand.AddParameter("@data", DbType.Binary, item.data);
                 upsertCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                upsertCommand.AddParameter("@CircleSlug", DbType.String, item.CircleSlug);
                 upsertCommand.AddParameter("@GrantOn", DbType.Int32, item.GrantOn);
                 upsertCommand.AddParameter("@Designation", DbType.Int32, item.Designation);
                 upsertCommand.AddParameter("@Emoji", DbType.String, item.Emoji);
@@ -186,7 +195,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE Circle " +
-                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji "+
+                                            $"SET circleName = @circleName,data = @data,AppId = @AppId,CircleSlug = @CircleSlug,GrantOn = @GrantOn,Designation = @Designation,Emoji = @Emoji "+
                                             "WHERE (identityId = @identityId AND circleId = @circleId) "+
                                             "RETURNING -1,-1,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -194,6 +203,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.AddParameter("@circleName", DbType.String, item.circleName);
                 updateCommand.AddParameter("@data", DbType.Binary, item.data);
                 updateCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                updateCommand.AddParameter("@CircleSlug", DbType.String, item.CircleSlug);
                 updateCommand.AddParameter("@GrantOn", DbType.Int32, item.GrantOn);
                 updateCommand.AddParameter("@Designation", DbType.Int32, item.Designation);
                 updateCommand.AddParameter("@Emoji", DbType.String, item.Emoji);
@@ -231,13 +241,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("circleName");
             sl.Add("data");
             sl.Add("AppId");
+            sl.Add("CircleSlug");
             sl.Add("GrantOn");
             sl.Add("Designation");
             sl.Add("Emoji");
             return sl;
         }
 
-        // SELECT rowId,identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji
+        // SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji
         protected CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleRecord>();
@@ -254,9 +265,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.AppId = (rdr[5] == DBNull.Value) ? null : new Guid((byte[])rdr[5]);
-            item.GrantOn = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.Designation = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-            item.Emoji = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
+            item.CircleSlug = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.GrantOn = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.Designation = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.Emoji = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
             return item;
        }
 
@@ -265,7 +277,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var exportCommand = cn.CreateCommand();
             {
-                exportCommand.CommandText = "SELECT rowId,identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji FROM Circle " +
+                exportCommand.CommandText = "SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji FROM Circle " +
                                             "WHERE identityId = @identityId ORDER BY rowId ASC;";
                 exportCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 await using var rdr = await exportCommand.ExecuteReaderAsync(CommandBehavior.Default);
@@ -281,13 +293,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var importCommand = cn.CreateCommand();
             {
-                importCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji) " +
-                                            "VALUES (@identityId,@circleId,@circleName,@data,@AppId,@GrantOn,@Designation,@Emoji);";
+                importCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji) " +
+                                            "VALUES (@identityId,@circleId,@circleName,@data,@AppId,@CircleSlug,@GrantOn,@Designation,@Emoji);";
                 importCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 importCommand.AddParameter("@circleId", DbType.Binary, item.circleId);
                 importCommand.AddParameter("@circleName", DbType.String, item.circleName);
                 importCommand.AddParameter("@data", DbType.Binary, item.data);
                 importCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
+                importCommand.AddParameter("@CircleSlug", DbType.String, item.CircleSlug);
                 importCommand.AddParameter("@GrantOn", DbType.Int32, item.GrantOn);
                 importCommand.AddParameter("@Designation", DbType.Int32, item.Designation);
                 importCommand.AddParameter("@Emoji", DbType.String, item.Emoji);
@@ -317,7 +330,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 deleteCommand.CommandText = "DELETE FROM Circle " +
                                              "WHERE identityId = @identityId AND circleId = @circleId " + 
-                                             "RETURNING rowId,circleName,data,AppId,GrantOn,Designation,Emoji";
+                                             "RETURNING rowId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji";
 
                 deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 deleteCommand.AddParameter("@circleId", DbType.Binary, circleId);
@@ -351,9 +364,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.AppId = (rdr[3] == DBNull.Value) ? null : new Guid((byte[])rdr[3]);
-            item.GrantOn = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.Designation = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.Emoji = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            item.CircleSlug = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.GrantOn = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.Designation = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.Emoji = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
             return item;
        }
 
@@ -362,7 +376,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,circleName,data,AppId,GrantOn,Designation,Emoji FROM Circle " +
+                get0Command.CommandText = "SELECT rowId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji FROM Circle " +
                                              "WHERE identityId = @identityId AND circleId = @circleId LIMIT 1 "+
                                              ";";
 
@@ -382,6 +396,61 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
+        protected CircleRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid? AppId,string CircleSlug)
+        {
+            if (CircleSlug == null) throw new OdinDatabaseValidationException("Cannot be null CircleSlug");
+            if (CircleSlug?.Length < 0) throw new OdinDatabaseValidationException($"Too short CircleSlug, was {CircleSlug.Length} (min 0)");
+            if (CircleSlug?.Length > 64) throw new OdinDatabaseValidationException($"Too long CircleSlug, was {CircleSlug.Length} (max 64)");
+            var result = new List<CircleRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new CircleRecord();
+            item.identityId = identityId;
+            item.AppId = AppId;
+            item.CircleSlug = CircleSlug;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.circleId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.circleName = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.data = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            item.GrantOn = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.Designation = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.Emoji = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            return item;
+       }
+
+        protected virtual async Task<CircleRecord> GetByAppSlugAsync(Guid identityId,Guid AppId,string CircleSlug)
+        {
+            if (CircleSlug == null) throw new OdinDatabaseValidationException("Cannot be null CircleSlug");
+            if (CircleSlug?.Length < 0) throw new OdinDatabaseValidationException($"Too short CircleSlug, was {CircleSlug.Length} (min 0)");
+            if (CircleSlug?.Length > 64) throw new OdinDatabaseValidationException($"Too long CircleSlug, was {CircleSlug.Length} (max 64)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT rowId,circleId,circleName,data,GrantOn,Designation,Emoji FROM Circle " +
+                                             "WHERE identityId = @identityId AND AppId = @AppId AND CircleSlug = @CircleSlug LIMIT 1 "+
+                                             ";";
+
+                get1Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get1Command.AddParameter("@AppId", DbType.Binary, AppId);
+                get1Command.AddParameter("@CircleSlug", DbType.String, CircleSlug);
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader1(rdr,identityId,AppId,CircleSlug);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
         protected virtual async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
@@ -394,7 +463,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging2Command = cn.CreateCommand();
             {
-                getPaging2Command.CommandText = "SELECT rowId,identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji FROM Circle " +
+                getPaging2Command.CommandText = "SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji FROM Circle " +
                                             "WHERE (identityId = @identityId) AND circleId > @circleId  ORDER BY circleId ASC  LIMIT @count;";
 
                 getPaging2Command.AddParameter("@circleId", DbType.Binary, inCursor?.ToByteArray());
@@ -438,7 +507,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji FROM Circle " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,circleId,circleName,data,AppId,CircleSlug,GrantOn,Designation,Emoji FROM Circle " +
                                             "WHERE (identityId = @identityId) AND rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);

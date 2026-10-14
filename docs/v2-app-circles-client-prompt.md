@@ -110,5 +110,5 @@ Add handling or friendly messages for at least:
 - Requiring the app to hold the access it grants at create: odin-core `main` (via PR #1894).
 - Read on a drive the app doesn't own, and membership changes applying immediately: branch
   `app-circle-read-on-held-drives`.
-- PR #1839 adds `contactNotReviewed` (3021). It keeps the `ManageCircleMembership` route for circles an app
+- PR #1839 adds `contactNotReviewed` (3022). It keeps the `ManageCircleMembership` route for circles an app
   doesn't own, and Chat keeps that key by default.

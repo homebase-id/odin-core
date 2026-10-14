@@ -1,5 +1,4 @@
 ﻿using System.Data;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -9,7 +8,6 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
-using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
@@ -22,7 +20,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
         TenantConfigService tenantConfigService,
         CircleNetworkService circleNetworkService,
         AppRegistrationService appRegistrationService,
-        CircleDefinitionService circleDefinitionService,
         IdentityDatabase db,
         IDriveManager driveManager)
     {
@@ -31,15 +28,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             logger.LogDebug("Preparing Shamira release 1 on identity: [{identity}]", odinContext.Tenant);
             await tenantConfigService.EnsureSystemDrivesExist(odinContext);
 
-            //
-            // Create new circles, rename existing ones
-            //
-            logger.LogDebug("Creating new circles; update existing ones");
-            await circleDefinitionService.EnsureSystemCirclesExistAsync();
-
             cancellationToken.ThrowIfCancellationRequested();
 
-            await EnsureShardRecoveryDriveIsConfiguredForConnectedIdentitiesCircle(odinContext, cancellationToken);
+            await ReconcileAppCircleGrantsAsync(odinContext, cancellationToken);
         }
 
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -50,52 +41,18 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             {
                 throw new OdinSystemException("Shard recovery drive not created");
             }
-
-            // Get all ICRs and ensure they have write access to my Shard Recovery Drive
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
-
-            foreach (var identity in allIdentities.Results)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                // Only validate the identities who are confirmed connected
-                if (identity.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out var circleGrant))
-                {
-                    var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                        .SingleOrDefault(g => g.PermissionedDrive.Drive == WellKnownAppDrives.ShardRecoveryDrive);
-
-                    if (driveGrant == null)
-                    {
-                        throw new OdinSystemException("Drive grant for ShardRecoveryDrive not found");
-                    }
-
-                    var hasWrite = driveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Write);
-                    if (!hasWrite)
-                    {
-                        throw new OdinSystemException("ShardRecoveryDrive not granted write permission");
-                    }
-                }
-            }
         }
 
-        private async Task EnsureShardRecoveryDriveIsConfiguredForConnectedIdentitiesCircle(IOdinContext odinContext,
-            CancellationToken cancellationToken)
+        /// <remarks>
+        /// This release also re-granted the Confirmed Connections circle so its members picked up Write on the
+        /// Shard Recovery drive.  That circle is retired (#1809) and V19 -&gt; V20 deletes it, so only the app
+        /// grant reconcile is left.
+        /// </remarks>
+        private async Task ReconcileAppCircleGrantsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
             await using var tx = await db.BeginStackedTransactionAsync(IsolationLevel.Unspecified, cancellationToken);
-
-            var circleId = SystemCircleConstants.ConfirmedConnectionsCircleId;
-            foreach (var identity in allIdentities.Results.Where(ident => ident.IsConfirmedConnection()))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                logger.LogDebug("Reconciling confirmed connections circle on Identity {odinId}", identity.OdinId);
-
-                await circleNetworkService.RevokeCircleAccessAsync(circleId, identity.OdinId, odinContext);
-                await circleNetworkService.GrantCircleAsync(circleId, identity.OdinId, odinContext);
-            }
 
             var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
             foreach (var app in allApps)

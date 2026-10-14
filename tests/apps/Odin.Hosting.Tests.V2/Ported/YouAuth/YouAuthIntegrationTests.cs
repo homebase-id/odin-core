@@ -1656,6 +1656,111 @@ public class YouAuthIntegrationTests : V2Fixture
     }
 
     //
+    // An app signs in by its slug (#1902): a second device of an app does not know the app id this
+    // identity registered it under, only the slug every installation shares.
+    //
+
+    private static string NewSlug() => $"slug-{Guid.NewGuid():N}"[..20];
+
+    private async Task<HttpResponseMessage> AuthorizeAppAsync(string hobbit, string clientId, YouAuthAppParameters appParams)
+    {
+        var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
+        var keyPair = new EccFullKeyData(new SensitiveByteArray(Guid.NewGuid().ToByteArray()), EccKeySize.P384, 1);
+        var payload = new YouAuthAuthorizeRequest
+        {
+            ClientId = clientId,
+            ClientType = ClientType.app,
+            ClientInfo = "",
+            PermissionRequest = OdinSystemSerializer.Serialize(appParams),
+            PublicKey = keyPair.PublicKeyJwkBase64Url(),
+            State = "somestate",
+            RedirectUri = $"https://{hobbit}:{HttpsPort}/app/authorization/code/callback"
+        };
+
+        var uri = new UriBuilder($"https://{hobbit}:{HttpsPort}{OwnerApiPathConstants.YouAuthV1Authorize}")
+        {
+            Query = payload.ToQueryString()
+        }.Uri;
+
+        var request = new HttpRequestMessage(HttpMethod.Get, uri.ToString())
+        {
+            Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+        };
+
+        return await Host.CreateClient().SendAsync(request);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task c5_app_slug_ARegisteredAppSignsInWithItsSlugAlone(bool uppercase)
+    {
+        const string hobbit = "sam.dotyou.cloud";
+        var driveAlias = Guid.NewGuid();
+        var driveType = Guid.NewGuid();
+        var registration = await RegisterApp(hobbit, Guid.NewGuid(), driveAlias, driveType);
+
+        // The second device knows the slug, not the id -- in whatever case it was typed
+        var appParams = GetAppParams(Guid.Empty, driveAlias, driveType);
+        appParams.AppId = "";
+        appParams.AppSlug = registration.AppSlug;
+        var clientId = uppercase ? registration.AppSlug.ToUpperInvariant() : registration.AppSlug;
+
+        var response = await AuthorizeAppAsync(hobbit, clientId, appParams);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        var location = new Uri(response.GetHeaderValue("Location") ?? throw new Exception("missing location"));
+        Assert.That(location.AbsoluteUri, Does.StartWith($"https://{hobbit}:{HttpsPort}/app/authorization/code/callback"));
+
+        var qs = HttpUtility.ParseQueryString(location.Query);
+        Assert.That(qs[YouAuthDefaults.Error], Is.Null, $"error: {qs[YouAuthDefaults.ErrorDescription]}");
+        Assert.That(qs[YouAuthDefaults.Identity], Is.EqualTo(hobbit));
+        Assert.That(qs[YouAuthDefaults.PublicKey], Is.Not.Null.And.Not.Empty);
+        Assert.That(qs[YouAuthDefaults.Salt], Is.Not.Null.And.Not.Empty);
+    }
+
+    [Test]
+    public async Task c6_app_slug_AnUnregisteredSlugGoesToRegistrationWithThatSlug()
+    {
+        const string hobbit = "sam.dotyou.cloud";
+        var appParams = GetAppParams(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        appParams.AppSlug = NewSlug();
+
+        var response = await AuthorizeAppAsync(hobbit, appParams.AppSlug, appParams);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        var location = new Uri(response.GetHeaderValue("Location") ?? throw new Exception("missing location"));
+        Assert.That(location.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.AppReg));
+        Assert.That(YouAuthAppParameters.FromQueryString(location.Query).AppSlug, Is.EqualTo(appParams.AppSlug));
+    }
+
+    [Test]
+    public async Task c7_app_slug_AnUnregisteredClientIdThatIsNotTheRequestedSlugIsRefused()
+    {
+        const string hobbit = "sam.dotyou.cloud";
+        var appParams = GetAppParams(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        appParams.AppSlug = NewSlug();
+
+        // Registering would not make this client_id findable, so the browser would come back here forever
+        var response = await AuthorizeAppAsync(hobbit, "some-other-slug", appParams);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task c8_app_slug_AnAppThatMustRegisterStillNeedsAnAppId()
+    {
+        const string hobbit = "sam.dotyou.cloud";
+        var appParams = GetAppParams(Guid.Empty, Guid.NewGuid(), Guid.NewGuid());
+        appParams.AppId = "";
+        appParams.AppSlug = NewSlug();
+
+        // appId is optional only for an app that is already registered
+        var response = await AuthorizeAppAsync(hobbit, appParams.AppSlug, appParams);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    //
 
     private async Task<RedactedAppRegistration> RegisterApp(
         string identity,

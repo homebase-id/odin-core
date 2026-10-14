@@ -7,6 +7,7 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Apps.Builtin;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -249,7 +250,7 @@ public class ConnectionReviewTests : V2Fixture
         var afterReview = await merry.Connections.GetConnectionInfo(sam.Identity);
         Assert.That(afterReview.Content!.ReviewedAt, Is.Not.Null);
         Assert.That(afterReview.Content.AccessGrant.CircleGrants,
-            Has.Some.Matches<RedactedCircleGrant>(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId),
+            Has.Some.Matches<RedactedCircleGrant>(cg => cg.CircleId == BuiltinCircles.ChatCircle.Id),
             "the review removes nothing the connection already held");
     }
 

@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -107,9 +108,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version12tov13
                     continue;
                 }
 
-                // The four promoted fields were never in the blob, so they take their defaults here:
-                // AppId null (an owner circle), GrantOn None (manual membership only), Designation
-                // Personal, Emoji null. That is exactly what every pre-existing circle is.
+                // The promoted fields were never in the blob, so they take their defaults here: AppId null
+                // (an owner circle), GrantOn None (manual membership only), Designation Personal, Emoji
+                // null. That is exactly what every pre-existing circle is.  The slug is the one the legacy
+                // store assigned, so the circle keeps the address it answered to before the move.
                 await db.CircleCached.UpsertAsync(CircleDefinitionService.ToRecord(definition));
                 copied++;
 

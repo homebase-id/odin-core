@@ -23,9 +23,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version11tov12
     /// <see cref="PermissionKeys.ManageCircleMembership"/> in the Chat app's default
     /// <see cref="AppRegistrationRequest.PermissionSet"/>. This migration backfills the same key onto
     /// <b>existing</b> installs whose stored Chat app grant predates it, preserving every other drive
-    /// grant and permission key verbatim. Without it, the Chat app can't call
-    /// <c>CircleNetworkService.GrantCircleAsync</c> to deposit a circle grant for a connected peer (the
-    /// write-only deposit path — see <c>CircleNetworkService.CreateDepositedGrantAsync</c>).
+    /// grant and permission key verbatim. Without it, the Chat app can't add a connected peer to a circle
+    /// it does not own, such as Friends or Emergency Location Access
+    /// (<c>CircleNetworkService.GetCircleCallerMayChangeMembersOfAsync</c>).
     /// </para>
     ///
     /// <para>

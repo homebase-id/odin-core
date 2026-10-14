@@ -322,11 +322,7 @@ public class V8ToV9ContactMigrationTests : V2Fixture
                 },
                 PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
             },
-            authorizedCircles: new List<Guid>
-            {
-                SystemCircleConstants.ConfirmedConnectionsCircleId,
-                SystemCircleConstants.AutoConnectionsCircleId
-            },
+            authorizedCircles: new List<Guid>(),
             circleMemberGrantRequest: new PermissionSetGrantRequest
             {
                 Drives = new List<DriveGrantRequest>

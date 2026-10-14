@@ -442,7 +442,7 @@ public class EnrollmentCandidateTests : V2Fixture
     [Test]
     public async Task AReviewedButStillAutoConnectedContactIsEnrolledRatherThanSkipped()
     {
-        // MarkReviewedAsync removes nothing and only ConfirmConnectionAsync drops the Auto circle,
+        // MarkReviewedAsync removes nothing and nothing else drops the Auto circle,
         // so "reviewed and still auto-connected" is reachable. GrantCircleAsync refuses exactly
         // those, which would mean the offer lists someone, the owner agrees, and the system reports
         // it declined. Pinned because the routing that avoids it is easy to lose.
