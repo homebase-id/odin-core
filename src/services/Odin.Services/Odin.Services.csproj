@@ -19,6 +19,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.5" />
     <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
+    <!-- Pinned above what MailKit/MimeKit 4.17 pull in (8.0.1): GHSA-846f-f764-76mx / CVE-2026-84008,
+         .NET DoS, patched in 8.0.2. Drop this once MailKit's own dependency is past the advisory. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
     <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
 
