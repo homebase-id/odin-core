@@ -320,11 +320,13 @@ public class ProfileAttributePublishingTests : V2Fixture
         var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
             DrivePermission.Read, [PermissionKeys.ManageProfile]);
         var profile = new V2ProfileClient(app.Identity, app.Factory);
+        var circleId = await CreateCircleAsync(owner);
 
         var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
         {
             Type = NameType,
             Visibility = ProfileAttributeVisibility.Connected,
+            CircleIds = [circleId],
             Data = new Dictionary<string, object> { ["givenName"] = "Secret" }
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
@@ -391,11 +393,13 @@ public class ProfileAttributePublishingTests : V2Fixture
         var app = await AppSession.SetupAsync(owner, WellKnownAppDrives.ProfileDrive,
             DrivePermission.Read, [PermissionKeys.ManageProfile]);
         var profile = new V2ProfileClient(app.Identity, app.Factory);
+        var circleId = await CreateCircleAsync(owner);
 
         var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
         {
             Type = NameType,
             Visibility = ProfileAttributeVisibility.Connected,
+            CircleIds = [circleId],
             Data = new Dictionary<string, object> { ["givenName"] = "Secret" }
         });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
@@ -464,6 +468,14 @@ public class ProfileAttributePublishingTests : V2Fixture
         },
         AccessControlList = AccessControlList.Anonymous
     };
+
+    private static async Task<Guid> CreateCircleAsync(OwnerSession owner)
+    {
+        var circleId = Guid.NewGuid();
+        await owner.Admin.CreateCircle(circleId, "Friends",
+            TestUtils.CreatePermissionGrantRequest(WellKnownAppDrives.ProfileDrive, DrivePermission.None));
+        return circleId;
+    }
 
     private static async Task<SectionOutput> GetSiteDataSectionAsync(HttpClient client, string name)
     {
