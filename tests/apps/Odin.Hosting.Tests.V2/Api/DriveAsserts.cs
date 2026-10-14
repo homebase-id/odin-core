@@ -3,6 +3,7 @@ using System.Net;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Core.Storage;
@@ -120,6 +121,15 @@ public static class DriveAsserts
         Assert.That(actual.Algorithm, Is.EqualTo(expected.Algorithm));
         Assert.That(actual.StoredHash, Is.EqualTo(expected.StoredHash));
         Assert.That(actual.ContentHash, Is.EqualTo(expected.ContentHash));
+    }
+
+    /// <summary>
+    /// A 400 with <paramref name="expected"/> as its error code
+    /// </summary>
+    public static void AssertRejected(IApiResponse response, OdinClientErrorCode expected)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(expected), response.Error?.Content);
     }
 
     public static async Task AssertTransferStatus(

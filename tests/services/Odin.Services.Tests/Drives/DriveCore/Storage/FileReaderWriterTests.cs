@@ -44,6 +44,47 @@ public class FileReaderWriterTests
 
     //
 
+    /// <summary>
+    /// The byte count was a <c>uint</c>: past 4 GiB it wrapped, failed the "wrote everything" check, and the upload
+    /// was rejected (#1893). Explicit because it writes 4 GiB to the temp directory.
+    /// </summary>
+    [Test, Explicit("Writes 4 GiB + 1 byte to disk")]
+    public async Task WriteStreamAsync_ReportsTheTrueLengthPast4GiB()
+    {
+        _config.Host.FileWriteChunkSizeInBytes = 4 * 1024 * 1024;
+        var rw = new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object);
+        var filePath = Path.Combine(_testRootPath, "big.bin");
+        const Int64 size = 4L * 1024 * 1024 * 1024 + 1;
+
+        var written = await rw.WriteStreamAsync(filePath, new ZeroStream(size));
+
+        Assert.That(written, Is.EqualTo(size));
+        Assert.That(new FileInfo(filePath).Length, Is.EqualTo(size));
+    }
+
+    /// <summary>A readable, forward-only stream with a known <c>Length</c> of <c>length</c> zero bytes that allocates nothing.</summary>
+    private sealed class ZeroStream(Int64 length) : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override Int64 Length => length;
+        public override Int64 Position { get; set; }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var n = (int)Math.Min(count, length - Position);
+            Array.Clear(buffer, offset, n);
+            Position += n;
+            return n;
+        }
+
+        public override void Flush() { }
+        public override Int64 Seek(Int64 offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(Int64 value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     [Test]
     public async Task OpenStreamForReading_ReadsTheRequestedWindow()
     {

@@ -11,7 +11,7 @@ public sealed class DiskFileStore(FileReaderWriter frw) : IDriveFileStore
 {
     public StorageBackendType Backend => StorageBackendType.Disk;
 
-    public Task<uint> WriteStreamAsync(string path, Stream stream, CancellationToken ct = default)
+    public Task<Int64> WriteStreamAsync(string path, Stream stream, CancellationToken ct = default)
         => frw.WriteStreamAsync(path, stream);
 
     public async Task WriteBytesAsync(string path, byte[] bytes, CancellationToken ct = default)

@@ -42,6 +42,7 @@ public enum OdinClientErrorCode
     CannotDisableSystemCircle = 3018,
     CannotDeleteSystemCircle = 3019,
     CannotDeleteBuiltInCircle = 3020,
+    CircleSlugTaken = 3021,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -103,6 +104,7 @@ public enum OdinClientErrorCode
     PayloadHashMismatch = 4175,
     InvalidPayloadHash = 4176,
     PayloadHashRequired = 4177,
+    PayloadHashMissing = 4178,
 
 
     // Connection errors 50xx

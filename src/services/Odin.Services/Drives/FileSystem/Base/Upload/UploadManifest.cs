@@ -137,7 +137,7 @@ public class UploadManifestPayloadDescriptor
     }
     
 
-    public PackagePayloadDescriptor PackagePayloadDescriptor(uint bytesWritten, string fallbackContentType)
+    public PackagePayloadDescriptor PackagePayloadDescriptor(Int64 bytesWritten, string fallbackContentType)
     {
         //TODO: remove the fallback in apiv2
         var p = new PackagePayloadDescriptor()

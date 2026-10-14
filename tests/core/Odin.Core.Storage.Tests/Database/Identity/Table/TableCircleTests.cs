@@ -27,8 +27,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var c2 = SequentialGuid.CreateGuid();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai1", circleId = c1, CircleSlug = "c1", data = d1 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai2", circleId = c2, CircleSlug = "c2", data = d2 });
 
             var (r, nextCursor) = await tblCircle.PagingByCircleIdAsync(100, null);
             ClassicAssert.IsTrue(r.Count == 2);
@@ -58,8 +58,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d2 = Guid.NewGuid().ToByteArray();
             var d1 = Guid.NewGuid().ToByteArray();
 
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai1", circleId = c1, CircleSlug = "c1", data = d1 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai2", circleId = c2, CircleSlug = "c2", data = d2 });
 
             await tblCircle.DeleteAsync(c2);
 
@@ -89,8 +89,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d1 = Guid.NewGuid().ToByteArray();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c1, CircleSlug = "c1", data = d1 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c2, CircleSlug = "c2", data = d2 });
 
             var r = await tblCircle.GetAsync(c1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.circleId, c1) == 0);
@@ -135,8 +135,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d1 = Guid.NewGuid().ToByteArray();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
-            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c1, CircleSlug = "c1", data = d1 });
+            await tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c2, CircleSlug = "c2", data = d2 });
 
             var (r, nextCursor) = await tblCircle.PagingByCircleIdAsync(100, null);
             ClassicAssert.IsTrue(r.Count == 2);
@@ -163,9 +163,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var c2 = SequentialGuid.CreateGuid();
             var c3 = SequentialGuid.CreateGuid();
 
-            await tbl.InsertAsync(new CircleRecord() { circleId = c1, circleName = "Circle One", data = null });
-            await tbl.InsertAsync(new CircleRecord() { circleId = c2, circleName = "Circle Two", data = null });
-            await tbl.InsertAsync(new CircleRecord() { circleId = c3, circleName = "Circle Three", data = null });
+            await tbl.InsertAsync(new CircleRecord() { circleId = c1, CircleSlug = "c1", circleName = "Circle One", data = null });
+            await tbl.InsertAsync(new CircleRecord() { circleId = c2, CircleSlug = "c2", circleName = "Circle Two", data = null });
+            await tbl.InsertAsync(new CircleRecord() { circleId = c3, CircleSlug = "c3", circleName = "Circle Three", data = null });
 
             var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
             Assert.That(page1.Count, Is.EqualTo(2));

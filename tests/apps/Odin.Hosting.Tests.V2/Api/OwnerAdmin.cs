@@ -18,6 +18,7 @@ using Odin.Services.Drives.Management;
 using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Services.Membership.Connections;
+using Odin.Test.Helpers;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.Api;
@@ -104,12 +105,11 @@ public sealed partial class OwnerAdmin
             OwnerOnly = ownerOnly,
             Attributes = attributes,
 
-            // Addressing: set together or both null. A drive with an AppId gets a slug either way --
-            // the server derives one from Name when none is given -- so passing appId alone is a
-            // legitimate case worth being able to express here.
+            // The server requires both slugs (#1901); a test that does not care what the drive is
+            // called gets a unique one.
             AppId = appId,
-            DriveSlug = driveSlug,
-            DriveTypeSlug = driveTypeSlug,
+            DriveSlug = driveSlug ?? TestSlug.New(),
+            DriveTypeSlug = driveTypeSlug ?? TestSlug.DriveType,
         });
         EnsureSuccess(response, nameof(CreateDrive));
         return response;

@@ -18,6 +18,11 @@ namespace Odin.Services.Base;
 /// identities' URLs, so silently lowercasing or stripping a character produces an address the caller did
 /// not ask for.
 /// </para>
+/// <para>
+/// <b>Matching is case-insensitive.</b>  Every stored slug is lowercase, so a caller's value is lowercased
+/// to look it up (<see cref="ToLookupKey"/>) and compared with <see cref="Matches"/>.  That only finds what
+/// is already there; it never names anything.
+/// </para>
 /// </remarks>
 public static class OdinSlug
 {
@@ -45,9 +50,29 @@ public static class OdinSlug
                && !Reserved.Contains(slug);
     }
 
+    /// <summary>The form a caller's slug is looked up by: stored slugs are lowercase.</summary>
+    public static string ToLookupKey(string slug) => slug.ToLowerInvariant();
+
+    /// <summary>Whether two slugs name the same thing: equal as <see cref="ToLookupKey"/> keys.</summary>
+    public static bool Matches(string? a, string? b) =>
+        a == null || b == null ? a == b : ToLookupKey(a) == ToLookupKey(b);
+
     /// <summary>
-    /// Throws if the slug is present and malformed.  Null or empty passes: a slug is not required yet,
-    /// and a drive with none is addressed by Guid exactly as every drive is today.
+    /// Throws a client error unless the slug is present and well formed.  Null, empty and whitespace-only
+    /// are all "missing": the server never names anything on the caller's behalf (#1901).
+    /// </summary>
+    public static void AssertRequired(string? slug, string name)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            throw new OdinClientException($"{name} is required", OdinClientErrorCode.ArgumentError);
+        }
+
+        AssertValidOrNull(slug, name);
+    }
+
+    /// <summary>
+    /// Throws if the slug is present and malformed.  Null or empty passes.
     /// </summary>
     public static void AssertValidOrNull(string? slug, string name)
     {

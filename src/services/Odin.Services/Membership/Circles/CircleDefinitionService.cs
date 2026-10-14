@@ -8,6 +8,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -55,6 +56,7 @@ namespace Odin.Services.Membership.Circles
                 {
                     Id = def.Id,
                     Name = def.Name,
+                    Slug = def.Slug,
                     Description = def.Description,
                     DriveGrants = def.DriveGrants,
                     Permissions = def.Permissions
@@ -79,6 +81,7 @@ namespace Odin.Services.Membership.Circles
                 {
                     Id = def.Id,
                     Name = def.Name,
+                    Slug = def.Slug,
                     Description = def.Description,
                     DriveGrants = def.DriveGrants,
                     Permissions = def.Permissions
@@ -145,6 +148,11 @@ namespace Odin.Services.Membership.Circles
                 return false;
             }
 
+            if (circle.AppId != appId)
+            {
+                await AssertSlugFreeInAppAsync(circle, appId);
+            }
+
             circle.AppId = appId;
             circle.GrantOn = grantOn;
             circle.Designation = designation;
@@ -196,6 +204,8 @@ namespace Odin.Services.Membership.Circles
                     OdinClientErrorCode.CircleAlreadyHasOwningApp);
             }
 
+            await AssertSlugFreeInAppAsync(circle, appId);
+
             circle.AppId = appId;
             circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
 
@@ -241,6 +251,8 @@ namespace Odin.Services.Membership.Circles
                     OdinClientErrorCode.CannotReassignSystemCircle);
             }
 
+            await AssertSlugFreeInAppAsync(circle, appId);
+
             circle.AppId = appId;
             circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
 
@@ -274,6 +286,10 @@ namespace Odin.Services.Membership.Circles
             {
                 return false;
             }
+
+            // Cannot fail for a circle the Circle table migration slugged: it deduplicated ownerless
+            // circles together with the owner console's for this move.  Checked anyway, since it is a move.
+            await AssertSlugFreeInAppAsync(circle, SystemAppConstants.OwnerConsoleAppId);
 
             circle.AppId = SystemAppConstants.OwnerConsoleAppId;
             circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -324,6 +340,7 @@ namespace Odin.Services.Membership.Circles
             {
                 Id = def.Id,
                 Name = def.Name,
+                Slug = def.Slug,
                 Description = def.Description,
                 DriveGrants = def.DriveGrants,
                 Permissions = def.Permissions,
@@ -355,7 +372,8 @@ namespace Odin.Services.Membership.Circles
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
             // AppId deliberately not taken from the request: ownership is set when the circle is
-            // created and must not be reassignable by anyone who can PUT a definition.
+            // created and must not be reassignable by anyone who can PUT a definition.  Nor is Slug: it
+            // is the circle's address within its app, and immutable once written (#1939).
             existingCircle.GrantOn = newCircleDefinition.GrantOn;
             existingCircle.Designation = newCircleDefinition.Designation;
             existingCircle.Emoji = newCircleDefinition.Emoji;
@@ -524,10 +542,36 @@ namespace Odin.Services.Membership.Circles
         /// A grant naming no drive is left to <see cref="AssertValidDriveGrantsAsync"/>, which refuses it.
         /// </para>
         /// </remarks>
-        public async Task AssertAppMayGrantDrivesAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId,
+        public Task AssertAppMayGrantDrivesAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId,
             IOdinContext odinContext)
         {
             var permissions = odinContext.PermissionsContext;
+            return AssertMayGrantDrivesAsync(driveGrantRequests, appId,
+                (driveId, permission) => permissions.HasDrivePermission(driveId, permission),
+                driveId => permissions.TryGetDriveStorageKey(driveId, out _));
+        }
+
+        /// <summary>
+        /// As <see cref="AssertAppMayGrantDrivesAsync"/>, measured against the drive grants an app is being
+        /// registered with rather than against the caller -- who, at install, is the owner and holds everything.
+        /// </summary>
+        /// <remarks>
+        /// Read in a registration is the storage key: the app's grant is minted from the master key, so every drive
+        /// it may read comes with its key.
+        /// </remarks>
+        public Task AssertRegistrationMayGrantDrivesAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId,
+            IReadOnlyCollection<DriveGrantRequest> registeredDrives)
+        {
+            bool Holds(Guid driveId, DrivePermission permission) => registeredDrives.Any(d =>
+                d.PermissionedDrive.Drive.Alias == driveId && d.PermissionedDrive.Permission.HasFlag(permission));
+
+            return AssertMayGrantDrivesAsync(driveGrantRequests, appId, Holds,
+                driveId => Holds(driveId, DrivePermission.Read));
+        }
+
+        private async Task AssertMayGrantDrivesAsync(IEnumerable<DriveGrantRequest> driveGrantRequests, Guid appId,
+            Func<Guid, DrivePermission, bool> holds, Func<Guid, bool> holdsStorageKey)
+        {
             foreach (var dgr in driveGrantRequests ?? [])
             {
                 var granted = dgr?.PermissionedDrive;
@@ -537,7 +581,7 @@ namespace Odin.Services.Membership.Circles
                 }
 
                 Guid driveId = granted.Drive.Alias;
-                if (!permissions.HasDrivePermission(driveId, granted.Permission))
+                if (!holds(driveId, granted.Permission))
                 {
                     throw new OdinSecurityException(
                         $"App {appId} cannot grant {granted.Permission} on drive {granted.Drive}; it does not hold that access");
@@ -548,12 +592,80 @@ namespace Odin.Services.Membership.Circles
                     continue;
                 }
 
-                if (granted.Permission != DrivePermission.Read || !permissions.TryGetDriveStorageKey(driveId, out _))
+                if (granted.Permission != DrivePermission.Read || !holdsStorageKey(driveId))
                 {
                     throw new OdinSecurityException(
                         $"App {appId} can grant only Read, with the storage key, on drive {granted.Drive}, which it does not own");
                 }
             }
+        }
+
+        /// <summary>
+        /// Throws unless every circle an app declares in its install request may be created with it.  Run before
+        /// the registration is saved (#1939).
+        /// </summary>
+        /// <remarks>
+        /// Before, because the install screen is shown once: a circle refused after the app was saved would never
+        /// be offered again.  Bounded by the registration -- the drives and keys it grants the app -- since the
+        /// caller is the owner.  The checks <see cref="CreateCircleInternalAsync"/> runs are run here too, so the
+        /// create after the save cannot fail on anything checkable now.
+        /// </remarks>
+        public async Task AssertDeclaredCirclesAsync(IReadOnlyCollection<CreateAppCircleRequest> circles, Guid appId,
+            IReadOnlyCollection<DriveGrantRequest> registeredDrives, PermissionSet registeredPermissions)
+        {
+            var heldKeys = registeredPermissions?.Keys ?? [];
+            var slugs = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var circle in circles)
+            {
+                if (circle == null || string.IsNullOrWhiteSpace(circle.Name))
+                {
+                    throw new OdinClientException("A declared circle needs a name", OdinClientErrorCode.ArgumentError);
+                }
+
+                // Required here, unlike on circles/create: a declared circle is one the app means to find again.
+                OdinSlug.AssertRequired(circle.Slug, nameof(CreateAppCircleRequest.Slug));
+                if (!slugs.Add(circle.Slug))
+                {
+                    throw new OdinClientException($"Circle slug '{circle.Slug}' is declared twice",
+                        OdinClientErrorCode.ArgumentError);
+                }
+
+                var notHeld = (circle.Permissions?.Keys ?? []).Where(k => !heldKeys.Contains(k)).ToList();
+                if (notHeld.Count > 0)
+                {
+                    throw new OdinSecurityException(
+                        $"Circle '{circle.Slug}' grants permission keys the app is not registered with: {string.Join(", ", notHeld)}");
+                }
+
+                await AssertValidAsync(circle.Permissions, circle.DriveGrants?.ToList());
+                await AssertRegistrationMayGrantDrivesAsync(circle.DriveGrants, appId, registeredDrives);
+            }
+        }
+
+        /// <summary>
+        /// Creates the circles an app declared in its install request, skipping any slug the app already holds.
+        /// Returns the ids of the ones it created.
+        /// </summary>
+        /// <remarks>
+        /// After the registration is saved, since a circle's owning app must exist.  Checked first by
+        /// <see cref="AssertDeclaredCirclesAsync"/>; the remaining validation here is the same.
+        /// </remarks>
+        public async Task<List<Guid>> CreateDeclaredCirclesAsync(IEnumerable<CreateAppCircleRequest> circles, Guid appId)
+        {
+            var created = new List<Guid>();
+            foreach (var circle in circles)
+            {
+                if (await GetCircleByAppSlugAsync(appId, circle.Slug) != null)
+                {
+                    continue;
+                }
+
+                var request = CreateCircleRequest.ForApp(appId, circle);
+                await CreateCircleInternalAsync(request);
+                created.Add(request.Id);
+            }
+
+            return created;
         }
 
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)
@@ -725,6 +837,8 @@ namespace Odin.Services.Membership.Circles
                 throw new OdinClientException("Circle with Id already exists", OdinClientErrorCode.IdAlreadyExists);
             }
 
+            var slug = await ResolveSlugAsync(request.Slug, request.Name, appId);
+
             var now = UnixTimeUtc.Now().milliseconds;
             var circle = new CircleDefinition()
             {
@@ -732,6 +846,7 @@ namespace Odin.Services.Membership.Circles
                 Created = now,
                 LastUpdated = now,
                 Name = request.Name,
+                Slug = slug,
                 Description = request.Description,
                 DriveGrants = request.DriveGrants,
                 Permissions = request.Permissions,
@@ -743,9 +858,90 @@ namespace Odin.Services.Membership.Circles
 
             await AssertDepositOnlyIfAmbientAsync(circle);
 
-            await db.CircleCached.UpsertAsync(ToRecord(circle));
+            try
+            {
+                await db.CircleCached.UpsertAsync(ToRecord(circle));
+            }
+            catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
+            {
+                // The id was checked above, so it is the slug: another create took it since ResolveSlugAsync.
+                throw SlugTaken(slug, appId);
+            }
 
             return circle;
+        }
+
+        /// <summary>
+        /// The circle <paramref name="appId"/> holds under <paramref name="slug"/>, or null.  A miss is never
+        /// cached, so the loser of a race for a slug finds the winner on the re-read.
+        /// </summary>
+        public async Task<CircleDefinition> GetCircleByAppSlugAsync(Guid appId, string slug)
+        {
+            var record = await db.CircleCached.GetByAppSlugAsync(appId, slug);
+            return record == null ? null : FromRecord(record);
+        }
+
+        /// <summary>
+        /// The slugs <paramref name="appId"/> already holds.  Ownerless circles count as the owner
+        /// console's: the v18 -&gt; v19 upgrade stamps them to it.
+        /// </summary>
+        /// <remarks>Static so the v12 -&gt; v13 upgrade shares it, as it shares <see cref="ToRecord"/>.</remarks>
+        internal static async Task<HashSet<string>> SlugsHeldByAppAsync(IdentityDatabase db, Guid appId)
+        {
+            return (await db.CircleCached.GetAllAsync())
+                .Where(r => (r.AppId ?? SystemAppConstants.OwnerConsoleAppId) == appId)
+                .Select(r => r.CircleSlug)
+                .ToHashSet(StringComparer.Ordinal);
+        }
+
+        /// <summary>
+        /// The slug a new circle gets: the caller's, if it named one and the app does not hold it yet;
+        /// otherwise one made from the name.
+        /// </summary>
+        private async Task<string> ResolveSlugAsync(string requested, string name, Guid appId)
+        {
+            OdinSlug.AssertValidOrNull(requested, nameof(CreateCircleRequest.Slug));
+
+            if (string.IsNullOrEmpty(requested))
+            {
+                return CircleSlugGenerator.Generate(name, await SlugsHeldByAppAsync(db, appId));
+            }
+
+            // One indexed lookup -- except for the owner console, whose ownerless circles the index cannot see
+            // (a NULL never collides) but which v18 -> v19 stamps to it.
+            var taken = SystemAppConstants.IsOwnerConsole(appId)
+                ? (await SlugsHeldByAppAsync(db, appId)).Contains(requested)
+                : await GetCircleByAppSlugAsync(appId, requested) != null;
+            if (taken)
+            {
+                throw SlugTaken(requested, appId);
+            }
+
+            return requested;
+        }
+
+        private static OdinClientException SlugTaken(string slug, Guid appId) =>
+            new($"Circle slug '{slug}' is already used by another circle of app {appId}",
+                OdinClientErrorCode.CircleSlugTaken);
+
+        /// <summary>
+        /// Refuses moving <paramref name="circle"/> into <paramref name="appId"/> when that app already
+        /// holds its slug.  The slug moves with the circle, unchanged: it is immutable once written.
+        /// </summary>
+        private async Task AssertSlugFreeInAppAsync(CircleDefinition circle, Guid appId)
+        {
+            if (string.IsNullOrEmpty(circle.Slug))
+            {
+                return;
+            }
+
+            var holder = await GetCircleByAppSlugAsync(appId, circle.Slug);
+            if (holder != null && holder.Id != circle.Id)
+            {
+                throw new OdinClientException(
+                    $"Circle {circle.Id} cannot move to app {appId}: circle {holder.Id} already holds its slug '{circle.Slug}'",
+                    OdinClientErrorCode.CircleSlugTaken);
+            }
         }
 
         //
@@ -753,6 +949,7 @@ namespace Odin.Services.Membership.Circles
         internal static CircleRecord ToRecord(CircleDefinition definition)
         {
             var appId = definition.AppId;
+            var slug = definition.Slug;
             var grantOn = definition.GrantOn;
             var designation = definition.Designation;
             var emoji = definition.Emoji;
@@ -762,6 +959,7 @@ namespace Odin.Services.Membership.Circles
             // same trick ToConnectionsRecord uses for the grant collections. Restored immediately: the
             // caller's object is still live.
             definition.AppId = null;
+            definition.Slug = null;
             definition.GrantOn = CircleGrantOn.None;
             definition.Designation = CircleDesignation.Personal;
             definition.Emoji = null;
@@ -775,6 +973,7 @@ namespace Odin.Services.Membership.Circles
             finally
             {
                 definition.AppId = appId;
+                definition.Slug = slug;
                 definition.GrantOn = grantOn;
                 definition.Designation = designation;
                 definition.Emoji = emoji;
@@ -787,6 +986,7 @@ namespace Odin.Services.Membership.Circles
                 circleName = definition.Name,
                 data = data,
                 AppId = appId,
+                CircleSlug = slug,
                 GrantOn = (int)grantOn,
                 Designation = (int)designation,
                 Emoji = emoji
@@ -798,6 +998,7 @@ namespace Odin.Services.Membership.Circles
             var definition = OdinSystemSerializer.Deserialize<CircleDefinition>(record.data.ToStringFromUtf8Bytes());
 
             definition.AppId = record.AppId;
+            definition.Slug = record.CircleSlug;
             definition.GrantOn = (CircleGrantOn)record.GrantOn;
             definition.Designation = (CircleDesignation)record.Designation;
             definition.Emoji = record.Emoji;

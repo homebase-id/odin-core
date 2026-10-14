@@ -152,11 +152,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
                 var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payload.Content);
 
-                parts.Add(new StreamPart(
-                    payloadCipher,
-                    payload.Key,
-                    payload.ContentType,
-                    Enum.GetName(MultipartUploadParts.Payload)));
+                payload.AddPayloadParts(parts, payloadCipher);
 
                 uploadedPayloads.Add(new EncryptedAttachmentUploadResult
                 {
@@ -251,8 +247,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
             foreach (var payloadDefinition in payloads)
             {
-                parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
-                    Enum.GetName(MultipartUploadParts.Payload)));
+                payloadDefinition.AddPayloadParts(parts, new MemoryStream(payloadDefinition.Content));
 
                 foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
                 {
@@ -353,11 +348,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         foreach (var payloadDefinition in payloads)
         {
-            parts.Add(new StreamPart(
-                new MemoryStream(payloadDefinition.Content),
-                payloadDefinition.Key,
-                payloadDefinition.ContentType,
-                Enum.GetName(MultipartUploadParts.Payload)));
+            payloadDefinition.AddPayloadParts(parts, new MemoryStream(payloadDefinition.Content));
 
             foreach (var thumbnail in payloadDefinition.Thumbnails ?? [])
             {
@@ -410,13 +401,15 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         }
     }
 
-    public async Task<ApiResponse<DeleteFileResultV2>> SoftDeleteFile(Guid driveId, Guid fileId, List<string> recipients = null)
+    public async Task<ApiResponse<DeleteFileResultV2>> SoftDeleteFile(Guid driveId, Guid fileId, List<string> recipients = null,
+        Guid? versionTag = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
         var apiResponse = await svc.SoftDeleteFile(driveId, fileId, new DeleteFileOptionsV2()
         {
-            Recipients = recipients
+            Recipients = recipients,
+            VersionTag = versionTag
         });
 
         return apiResponse;

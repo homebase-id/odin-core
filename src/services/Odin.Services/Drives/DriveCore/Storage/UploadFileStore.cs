@@ -10,7 +10,7 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 public sealed class UploadFileStore(IDriveFileStore inner) : IDriveFileStore
 {
     public StorageBackendType Backend => inner.Backend;
-    public Task<uint> WriteStreamAsync(string p, Stream s, CancellationToken ct = default) => inner.WriteStreamAsync(p, s, ct);
+    public Task<Int64> WriteStreamAsync(string p, Stream s, CancellationToken ct = default) => inner.WriteStreamAsync(p, s, ct);
     public Task WriteBytesAsync(string p, byte[] b, CancellationToken ct = default) => inner.WriteBytesAsync(p, b, ct);
     public Task<Stream> OpenReadAsync(string p, Int64 start = 0, Int64? length = null, CancellationToken ct = default)
         => inner.OpenReadAsync(p, start, length, ct);

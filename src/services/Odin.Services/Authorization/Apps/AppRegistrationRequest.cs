@@ -4,6 +4,7 @@ using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Membership.Circles;
 
 namespace Odin.Services.Authorization.Apps
 {
@@ -23,10 +24,10 @@ namespace Odin.Services.Authorization.Apps
         /// immutable once written, because other identities may already hold it; the slugs of the apps
         /// that ship with an identity are reserved for them whether or not they are registered here.
         /// <para>
-        /// Omitting it is an error, except for an app the platform ships: that one already has a slug,
-        /// and provisioning does not have to repeat it.  Validated in
-        /// <c>AppRegistrationService.AssignSlugAsync</c> rather than in <see cref="IsValid"/>, which
-        /// cannot see which apps are built in.
+        /// Required for every app, built-ins included (#1901): omitting it is a 400.  A built-in's slug is
+        /// defined in its tree entry (<c>WellknownAppDefinition.AppSlug</c>), which provisioning sends.
+        /// Validated in <c>AppRegistrationService.AssignSlugAsync</c> rather than in <see cref="IsValid"/>,
+        /// which cannot see which slugs the built-ins reserve.
         /// </para>
         /// </remarks>
         public string AppSlug { get; set; }
@@ -55,6 +56,15 @@ namespace Odin.Services.Authorization.Apps
         /// Permissions being granted to all members of the <see cref="AuthorizedCircles"/>
         /// </summary>
         public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
+
+        /// <summary>
+        /// Circles the app declares, created with it and owned by it (#1939).  Optional.
+        /// </summary>
+        /// <remarks>
+        /// Each may grant only what this registration grants the app.  All are checked before the app is saved
+        /// and created after, so a refused circle refuses the install rather than leaving an app without it.
+        /// </remarks>
+        public List<CreateAppCircleRequest> Circles { get; set; }
 
         public bool IsValid()
         {
