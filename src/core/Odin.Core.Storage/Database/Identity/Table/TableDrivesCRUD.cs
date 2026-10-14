@@ -31,7 +31,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public string EncryptedIdIv64 { get; set; }
         public string EncryptedIdValue64 { get; set; }
         public string detailsJson { get; set; }
-        public Guid? AppId { get; set; }
+        public Guid AppId { get; set; }
         public string DriveSlug { get; set; }
         public string DriveTypeSlug { get; set; }
         public byte[] WriteOnlyKeyPair { get; set; }
@@ -59,8 +59,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (detailsJson?.Length < 0) throw new OdinDatabaseValidationException($"Too short detailsJson, was {detailsJson.Length} (min 0)");
             if (detailsJson?.Length > 21504) throw new OdinDatabaseValidationException($"Too long detailsJson, was {detailsJson.Length} (max 21504)");
             AppId.AssertGuidNotEmpty("Guid parameter AppId cannot be set to Empty GUID.");
+            if (DriveSlug == null) throw new OdinDatabaseValidationException("Cannot be null DriveSlug");
             if (DriveSlug?.Length < 0) throw new OdinDatabaseValidationException($"Too short DriveSlug, was {DriveSlug.Length} (min 0)");
             if (DriveSlug?.Length > 64) throw new OdinDatabaseValidationException($"Too long DriveSlug, was {DriveSlug.Length} (max 64)");
+            if (DriveTypeSlug == null) throw new OdinDatabaseValidationException("Cannot be null DriveTypeSlug");
             if (DriveTypeSlug?.Length < 0) throw new OdinDatabaseValidationException($"Too short DriveTypeSlug, was {DriveTypeSlug.Length} (min 0)");
             if (DriveTypeSlug?.Length > 64) throw new OdinDatabaseValidationException($"Too long DriveTypeSlug, was {DriveTypeSlug.Length} (max 64)");
             if (WriteOnlyKeyPair?.Length < 0) throw new OdinDatabaseValidationException($"Too short WriteOnlyKeyPair, was {WriteOnlyKeyPair.Length} (min 0)");
@@ -93,13 +95,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Drives IS '{ \"Version\": 202608040942 }';";
+               commentSql = "COMMENT ON TABLE Drives IS '{ \"Version\": 202610130807 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Drives( -- { \"Version\": 202608040942 }\n"
+                "CREATE TABLE IF NOT EXISTS Drives( -- { \"Version\": 202610130807 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"DriveId BYTEA NOT NULL, "
@@ -110,9 +112,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"EncryptedIdIv64 TEXT NOT NULL, "
                    +"EncryptedIdValue64 TEXT NOT NULL, "
                    +"detailsJson TEXT NOT NULL, "
-                   +"AppId BYTEA , "
-                   +"DriveSlug TEXT , "
-                   +"DriveTypeSlug TEXT , "
+                   +"AppId BYTEA NOT NULL, "
+                   +"DriveSlug TEXT NOT NULL, "
+                   +"DriveTypeSlug TEXT NOT NULL, "
                    +"WriteOnlyKeyPair BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
@@ -333,9 +335,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.EncryptedIdIv64 = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
             item.EncryptedIdValue64 = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
             item.detailsJson = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[9];
-            item.AppId = (rdr[10] == DBNull.Value) ? null : new Guid((byte[])rdr[10]);
-            item.DriveSlug = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
-            item.DriveTypeSlug = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
+            item.AppId = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[10]);
+            item.DriveSlug = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[11];
+            item.DriveTypeSlug = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
             item.WriteOnlyKeyPair = (rdr[13] == DBNull.Value) ? null : (byte[])(rdr[13]);
             if (item.WriteOnlyKeyPair?.Length < 0)
                 throw new Exception("Too little data in WriteOnlyKeyPair...");
@@ -444,9 +446,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.EncryptedIdIv64 = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.EncryptedIdValue64 = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
             item.detailsJson = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.AppId = (rdr[8] == DBNull.Value) ? null : new Guid((byte[])rdr[8]);
-            item.DriveSlug = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
-            item.DriveTypeSlug = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
+            item.AppId = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[8]);
+            item.DriveSlug = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[9];
+            item.DriveTypeSlug = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[10];
             item.WriteOnlyKeyPair = (rdr[11] == DBNull.Value) ? null : (byte[])(rdr[11]);
             if (item.WriteOnlyKeyPair?.Length < 0)
                 throw new Exception("Too little data in WriteOnlyKeyPair...");
@@ -498,9 +500,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.EncryptedIdIv64 = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.EncryptedIdValue64 = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
             item.detailsJson = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.AppId = (rdr[8] == DBNull.Value) ? null : new Guid((byte[])rdr[8]);
-            item.DriveSlug = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
-            item.DriveTypeSlug = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
+            item.AppId = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[8]);
+            item.DriveSlug = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[9];
+            item.DriveTypeSlug = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[10];
             item.WriteOnlyKeyPair = (rdr[11] == DBNull.Value) ? null : (byte[])(rdr[11]);
             if (item.WriteOnlyKeyPair?.Length < 0)
                 throw new Exception("Too little data in WriteOnlyKeyPair...");
@@ -552,9 +554,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.EncryptedIdIv64 = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.EncryptedIdValue64 = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
             item.detailsJson = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.AppId = (rdr[8] == DBNull.Value) ? null : new Guid((byte[])rdr[8]);
-            item.DriveSlug = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
-            item.DriveTypeSlug = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
+            item.AppId = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[8]);
+            item.DriveSlug = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[9];
+            item.DriveTypeSlug = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[10];
             item.WriteOnlyKeyPair = (rdr[11] == DBNull.Value) ? null : (byte[])(rdr[11]);
             if (item.WriteOnlyKeyPair?.Length < 0)
                 throw new Exception("Too little data in WriteOnlyKeyPair...");
@@ -612,9 +614,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.EncryptedIdIv64 = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             item.EncryptedIdValue64 = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.detailsJson = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.AppId = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
-            item.DriveSlug = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
-            item.DriveTypeSlug = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
+            item.AppId = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[7]);
+            item.DriveSlug = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
+            item.DriveTypeSlug = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[9];
             item.WriteOnlyKeyPair = (rdr[10] == DBNull.Value) ? null : (byte[])(rdr[10]);
             if (item.WriteOnlyKeyPair?.Length < 0)
                 throw new Exception("Too little data in WriteOnlyKeyPair...");

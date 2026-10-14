@@ -232,22 +232,4 @@ public class AppDriveAddressingTests : V2Fixture
         Assert.That(ex.Message, Does.Contain("shared"));
     }
 
-    [Test]
-    public async Task ADriveWithAnAppButNoSlugGetsOneDerivedFromItsName()
-    {
-        var owner = await LoginAsOwner(Identities.Frodo);
-
-        var appId = Guid.NewGuid();
-        var appSlug = $"d{Guid.NewGuid():N}"[..12];
-        await RegisterAppAsync(owner, appId, appSlug);
-
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Weekly Notes", appId: appId);
-
-        var listed = (await ClientFor(owner).GetAppDrives(appSlug)).Content!
-            .Single(d => d.TargetDrive == drive);
-
-        Assert.That(listed.DriveSlug, Is.Not.Null.And.Not.Empty,
-            "a drive with an owning app must end up addressable, derived or not");
-    }
 }

@@ -44,14 +44,14 @@ public class CreateDriveRequest
     public Guid? AppId { get; set; }
 
     /// <summary>
-    /// The drive's portable name, unique per owning app.  Validated for format when supplied, and
-    /// derived from <see cref="Name"/> when it is not -- every drive ends up with one.
+    /// The drive's portable name, unique per owning app.  Required (#1901): the server never derives
+    /// one, and a missing or malformed slug is a 400.
     /// </summary>
     public string DriveSlug { get; set; }
 
     /// <summary>
-    /// Readable form of the drive's type, e.g. <c>channel</c>.  Derived from the drive's type when
-    /// omitted, falling back to <c>drive</c> for a type nothing recognises.
+    /// Readable form of the drive's type, e.g. <c>channel</c>.  Required (#1901); a missing or
+    /// malformed one is a 400.
     /// </summary>
     public string DriveTypeSlug { get; set; }
 

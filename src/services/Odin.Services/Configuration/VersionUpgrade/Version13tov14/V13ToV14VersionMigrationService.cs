@@ -22,9 +22,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
     /// built-in but were not before are registered.
     /// </summary>
     /// <remarks>
-    /// The columns landed earlier and nothing ever filled them, so on a tenant that predates this every
-    /// drive carries <c>AppId</c>, <c>DriveSlug</c> and <c>DriveTypeSlug</c> as NULL, and the circles the
-    /// setup wizard created carry no <c>AppId</c>.  <see cref="BuiltinApps"/> says what those values are.
+    /// Every drive already has an owner and an address when this runs: the Drives NOT NULL table
+    /// migration (<c>TableDrivesMigrationV202610130807</c>, #1901) fills them at startup -- user channel
+    /// drives to the feed app, everything else it cannot place to the owner console.  It does not know the
+    /// tree, so this still moves each drive the tree names to the app and address the tree gives it.  The
+    /// circles the setup wizard created carry no <c>AppId</c>.  <see cref="BuiltinApps"/> says what those
+    /// values are.
     ///
     /// <para>
     /// Two halves, and they are different jobs.  <b>Stamping</b> fills in rows that already exist and is
@@ -40,9 +43,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
     /// reassigned, so a partial run can be repeated and a value someone set by hand is never overwritten.
     /// Nothing is deleted: <c>WalletDrive</c> stops being seeded for new identities, and the ones that
     /// already have it keep it.  It is no longer stamped like the rest, though -- no app owns it now
-    /// that Vault seeds only <c>VaultDrive</c>, so it falls to <see cref="StampRemainingDrivesAsync"/>
-    /// and comes out with a derived slug and no owning app.  It stays reachable by guid, not by an
-    /// <c>/apps/{appSlug}/drives/{driveSlug}</c> address.
+    /// that Vault seeds only <c>VaultDrive</c>, so it keeps the owner-console address the table
+    /// migration gave it.
     /// </para>
     /// </remarks>
     public class V13ToV14VersionMigrationService(
@@ -57,8 +59,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
             odinContext.Caller.AssertHasMasterKey();
 
             await StampDrivesAsync(odinContext, cancellationToken);
-            await StampChannelDrivesAsync(odinContext, cancellationToken);
-            await StampRemainingDrivesAsync(odinContext, cancellationToken);
             await StampCirclesAsync(cancellationToken);
             await StampAppSlugsAsync(odinContext, cancellationToken);
 
@@ -76,8 +76,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
         /// Walks the whole tree, not just the built-in apps: ListsDrive belongs to an app that is not
         /// built-in, yet exists on every identity because it was seeded before ownership existed.  That
         /// is the reason this cannot use <see cref="BuiltinApps.Builtin"/> alone.  WalletDrive was in
-        /// the same position until Vault stopped owning it; it is now stamped by
-        /// <see cref="StampRemainingDrivesAsync"/> instead, with a slug but no owning app.
+        /// the same position until Vault stopped owning it; it now keeps the owner-console address the
+        /// table migration gave it.
         /// </remarks>
         private async Task StampDrivesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -107,108 +107,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                     logger.LogDebug("v13->v14: {drive} is now {slug}, owned by {appId}",
                         request.Name, request.DriveSlug, request.AppId);
                 }
-            }
-        }
-
-        /// <summary>
-        /// Gives every user-created channel drive to the feed app, with a slug derived from its name.
-        /// </summary>
-        /// <remarks>
-        /// These are the one kind of drive the tree cannot list: a user creates channel drives at will,
-        /// so there are arbitrarily many and none has a fixed alias.  What they share is a type, which is
-        /// why <c>DriveSlugGenerator</c> keeps its derivation for exactly this case.
-        /// <para>
-        /// <b>Fills rather than corrects</b>, unlike the tree-declared drives.  The tree is authoritative
-        /// for what it declares, and it does not declare these -- their slug is derived from a name the
-        /// owner chose and may have since changed, so re-deriving on every upgrade would move an address
-        /// that other identities resolve against.  A channel drive that already has one is left alone.
-        /// </para>
-        /// <para>
-        /// Runs after <see cref="StampDrivesAsync"/> so the feed app's own drives already hold their
-        /// slugs, and the taken set read back from storage is complete.  Uniqueness is per owning app --
-        /// <c>UNIQUE(identityId, AppId, DriveSlug)</c> -- so only feed's slugs can collide.
-        /// </para>
-        /// </remarks>
-        private async Task StampChannelDrivesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
-        {
-            var channels = await driveManager.GetDrivesAsync(
-                SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
-
-            var everyDrive = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
-
-            var taken = new HashSet<string>(
-                everyDrive.Results
-                    .Where(d => d.AppId == SystemAppConstants.FeedAppId && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                    .Select(d => d.DriveSlug),
-                StringComparer.Ordinal);
-
-            foreach (var drive in channels.Results)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (drive.AppId != null && !string.IsNullOrWhiteSpace(drive.DriveSlug))
-                {
-                    continue;
-                }
-
-                var slug = DriveSlugGenerator.Generate(drive.Id, drive.Name, taken);
-                taken.Add(slug);
-
-                // "channel" stated, not looked up: these came from a query on ChannelDriveType, so the
-                // type is already known, and TypeSlugFor can return null -- which AssertValidOrNull
-                // permits, so a miss would be stored silently.
-                await driveManager.ApplyAddressAsync(drive.Id, SystemAppConstants.FeedAppId, slug,
-                    BuiltinDrives.ChannelDriveTypeSlug, odinContext);
-
-                logger.LogDebug("v13->v14: channel drive {name} is now feed/{slug}", drive.Name, slug);
-            }
-        }
-
-        /// <summary>
-        /// Gives a slug to every drive the earlier passes did not reach.
-        /// </summary>
-        /// <remarks>
-        /// Drives nobody declares: created through the owner console, or by the setup wizard's own
-        /// <c>request.Drives</c>, neither of which sets an owning app.  They are not in the tree and are
-        /// not channel-typed, so nothing above touches them, and they would come out of the upgrade with
-        /// no address at all.
-        /// <para>
-        /// <b>Slug only.</b>  The owning app is left as it was -- usually null -- and the type slug too,
-        /// since an unknown drive type has no readable form and the drive name describes the drive rather
-        /// than its category.  That departs from the set-together rule in
-        /// <c>docs/drive-addressing.md</c>, which means <c>UNIQUE(identityId, AppId, DriveSlug)</c> does
-        /// not constrain these rows: NULL app ids do not collide in either dialect.  So uniqueness among
-        /// them is enforced here instead, by deduping against every other slug held with no owning app.
-        /// </para>
-        /// </remarks>
-        private async Task StampRemainingDrivesAsync(IOdinContext odinContext, CancellationToken cancellationToken)
-        {
-            var everyDrive = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
-
-            // The database cannot police these, so the taken set has to: every slug already held by a
-            // drive with no owning app is one this pass must avoid.
-            var taken = new HashSet<string>(
-                everyDrive.Results
-                    .Where(d => d.AppId == null && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                    .Select(d => d.DriveSlug),
-                StringComparer.Ordinal);
-
-            foreach (var drive in everyDrive.Results)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (!string.IsNullOrWhiteSpace(drive.DriveSlug))
-                {
-                    continue;
-                }
-
-                var slug = DriveSlugGenerator.Generate(drive.Id, drive.Name, taken);
-                taken.Add(slug);
-
-                await driveManager.ApplyAddressAsync(drive.Id, drive.AppId, slug, drive.DriveTypeSlug,
-                    odinContext);
-
-                logger.LogDebug("v13->v14: undeclared drive {name} is now {slug}", drive.Name, slug);
             }
         }
 
@@ -310,41 +208,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                         $"v13->v14 left circle {def.Name} disagreeing with the tree: " +
                         $"app {circle.AppId} grantOn {circle.GrantOn}");
                 }
-            }
-
-            var channels = await driveManager.GetDrivesAsync(
-                SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
-
-            foreach (var drive in channels.Results)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (drive.AppId == null || string.IsNullOrWhiteSpace(drive.DriveSlug) ||
-                    drive.DriveTypeSlug != BuiltinDrives.ChannelDriveTypeSlug)
-                {
-                    throw new OdinSystemException(
-                        $"v13->v14 left channel drive {drive.Name} without an owning app, or with slug " +
-                        $"'{drive.DriveSlug}' / type '{drive.DriveTypeSlug}'");
-                }
-            }
-
-            var everyDrive = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
-            var noSlug = everyDrive.Results.Where(d => string.IsNullOrWhiteSpace(d.DriveSlug)).ToList();
-            if (noSlug.Count != 0)
-            {
-                throw new OdinSystemException(
-                    $"v13->v14 left {noSlug.Count} drive(s) with no slug: " +
-                    string.Join(", ", noSlug.Select(d => d.Name)));
-            }
-
-            var unownedDupes = everyDrive.Results
-                .Where(d => d.AppId == null && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                .GroupBy(d => d.DriveSlug).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-            if (unownedDupes.Count != 0)
-            {
-                throw new OdinSystemException(
-                    "v13->v14 produced duplicate slugs among drives with no owning app, which the unique " +
-                    "index cannot catch: " + string.Join(", ", unownedDupes));
             }
 
             foreach (var app in BuiltinApps.All)

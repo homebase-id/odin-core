@@ -11,6 +11,7 @@ using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -307,6 +308,29 @@ public class AppRegistrationTests : V2Fixture
         var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg =>
             dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
         Assert.That(transientDriveGrant, Is.Null);
+    }
+
+    [Test]
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public async Task ABuiltinAppRegisteredWithoutASlugIsRefused(string appSlug)
+    {
+        // No exceptions (#1901): a built-in's slug comes from its tree definition, and the caller sends
+        // it like any other app.  The server does not fill it in.
+        var owner = await LoginAsOwner();
+        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
+
+        var response = await svc.RegisterApp(new AppRegistrationRequest
+        {
+            AppId = SystemAppConstants.ChatAppId,
+            AppSlug = appSlug,
+            Name = "Chat without a slug",
+            PermissionSet = null,
+            Drives = null,
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest));
     }
 
     [Test]

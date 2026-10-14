@@ -12,6 +12,7 @@ public class TableDrivesMigrationList : MigrationListBase
             new TableDrivesMigrationV202509220609(0),
             new TableDrivesMigrationV202510311515(202509220609),
             new TableDrivesMigrationV202608040942(202510311515),
+            new TableDrivesMigrationV202610130807(202608040942),
             // AUTO-INSERT-MARKER
         };
     }
