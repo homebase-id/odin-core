@@ -1798,11 +1798,11 @@ public class ContactTests : V2Fixture
     private static async Task DeleteProfilePhotoAsync(OwnerSession identity)
     {
         var reader = new DriveReaderV2Client(identity.Identity, identity.Factory);
-        var batch = await reader.GetBatchAsync(SystemDriveConstants.ProfileDrive.Alias, new QueryBatchRequest
+        var batch = await reader.GetBatchAsync(WellKnownAppDrives.ProfileDrive.Alias, new QueryBatchRequest
         {
             QueryParams = new FileQueryParamsV1
             {
-                TargetDrive = SystemDriveConstants.ProfileDrive,
+                TargetDrive = WellKnownAppDrives.ProfileDrive,
                 FileType = [ContactProfileAttributes.AttributeFileType],
                 TagsMatchAtLeastOne = [BuiltInProfileAttributes.Photo]
             },
@@ -1814,7 +1814,7 @@ public class ContactTests : V2Fixture
         var writer = new DriveWriterV2Client(identity.Identity, identity.Factory);
         foreach (var result in batch.Content!.SearchResults)
         {
-            var deleted = await writer.SoftDeleteFile(SystemDriveConstants.ProfileDrive.Alias, result.FileId);
+            var deleted = await writer.SoftDeleteFile(WellKnownAppDrives.ProfileDrive.Alias, result.FileId);
             Assert.That(deleted.IsSuccessStatusCode, Is.True, "deleting the photo attribute should succeed");
         }
     }

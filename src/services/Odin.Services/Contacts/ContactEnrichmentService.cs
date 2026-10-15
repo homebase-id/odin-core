@@ -360,7 +360,7 @@ public class ContactEnrichmentService(
 
         var file = new ExternalFileIdentifier
         {
-            TargetDrive = SystemDriveConstants.ProfileDrive,
+            TargetDrive = WellKnownAppDrives.ProfileDrive,
             FileId = photo.Header.FileId
         };
 
