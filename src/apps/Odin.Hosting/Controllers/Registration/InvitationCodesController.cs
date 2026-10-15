@@ -1,29 +1,32 @@
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Util;
 using Odin.Services.Registry.Registration;
 
-namespace Odin.Hosting.Controllers.Admin;
+namespace Odin.Hosting.Controllers.Registration;
 #nullable enable
 
 public record CreateInvitationCodeRequest(string? Owner, int MaxUses);
 
 /// <summary>
-/// Invitation codes owned by identities (#1908), for odin-admin. 400 when this host has them off.
+/// Creates and lists invitation codes (#1908), on the provisioning domain, for odin-admin and chat-kmp.
+/// PROTOTYPE: guarded by the hard-coded key in <see cref="InvitationCodePrototype"/>.
 /// </summary>
 [ApiController]
-[Route(AdminApiPathConstants.BasePathV1 + "/invitation-codes")]
-[ServiceFilter(typeof(AdminApiRestrictedAttribute))]
-[ApiExplorerSettings(GroupName = "admin-v1")]
-public class AdminInvitationCodesController(InvitationCodeStore invitationCodes) : ControllerBase
+[Route("/api/registration/v1/invitation-codes")]
+[ServiceFilter(typeof(RegistrationRestrictedAttribute))]
+public class InvitationCodesController(InvitationCodeStore invitationCodes) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<InvitationCodeInfo>> Create([FromBody] CreateInvitationCodeRequest request)
     {
-        if (!invitationCodes.IsEnabled)
+        var refused = Refuse();
+        if (refused != null)
         {
-            return BadRequest("Invitation codes are not enabled on this host");
+            return refused;
         }
         if (!IsValidOwner(request.Owner))
         {
@@ -42,9 +45,10 @@ public class AdminInvitationCodesController(InvitationCodeStore invitationCodes)
     [HttpGet]
     public async Task<ActionResult<List<InvitationCodeInfo>>> List([FromQuery] string? owner)
     {
-        if (!invitationCodes.IsEnabled)
+        var refused = Refuse();
+        if (refused != null)
         {
-            return BadRequest("Invitation codes are not enabled on this host");
+            return refused;
         }
         if (!IsValidOwner(owner))
         {
@@ -55,6 +59,18 @@ public class AdminInvitationCodesController(InvitationCodeStore invitationCodes)
     }
 
     //
+
+    private ActionResult? Refuse()
+    {
+        if (!invitationCodes.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        var presented = Encoding.UTF8.GetBytes(Request.Headers[InvitationCodePrototype.ApiKeyHeader].ToString());
+        var expected = Encoding.UTF8.GetBytes(InvitationCodePrototype.ApiKey);
+        return CryptographicOperations.FixedTimeEquals(presented, expected) ? null : Unauthorized();
+    }
 
     private static bool IsValidOwner(string? owner)
     {

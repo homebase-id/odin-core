@@ -8,6 +8,9 @@ json column), not with the codes.
 
 **Prototype:** each host has its own codes, so a code created on one cluster does not work on another. Good
 for bleeding edge; production with more than one provisioning cluster needs the codes in one shared place.
+Invitation codes are on by default only on bleeding edge (`provisioning.demo.dominion.id`), and creating
+and listing codes uses a key hard-coded in `InvitationCodePrototype`, which odin-admin and chat-kmp carry
+too. Replace both before this goes anywhere else.
 
 The host-wide codes in `Registry:InvitationCodes` keep working as before; the two never overlap.
 
@@ -20,15 +23,16 @@ The host-wide codes in `Registry:InvitationCodes` keep working as before; the tw
 - **Owner** (`GET /api/v2/invitation-codes`, owner console or any of the owner's apps): the tenant's own
   codes, with uses left and the signup link to share. An identity with none gets one on first ask; an empty
   list when the host has invitation codes off.
-- **Admin** (admin API, `Odin-Admin-Api-Key`):
-  - `POST /api/admin/v1/invitation-codes {owner, maxUses}` — `odin-admin invitation-code create <owner> --uses N`
-  - `GET /api/admin/v1/invitation-codes?owner=<odinId>` — `odin-admin invitation-code list <owner>`
+- **Create and list** (provisioning domain, `Odin-Invitation-Code-Key` header; odin-admin defaults to
+  bleeding edge and the prototype key, `-P` and `-K` override them):
+  - `POST /api/registration/v1/invitation-codes {owner, maxUses}` — `odin-admin invitation-code create <owner> --uses N`
+  - `GET /api/registration/v1/invitation-codes?owner=<odinId>` — `odin-admin invitation-code list <owner>`
 
 ## Identity host configuration
 
 | Key | Value |
 |---|---|
-| `Registry__InvitationCodeStore__Enabled` | `true` to turn invitation codes on; off by default. When on, signup needs a code |
+| `Registry__InvitationCodeStore__Enabled` | `true` or `false`; by default on for bleeding edge's provisioning domain only. When on, signup needs a code |
 | `Registry__InvitationCodeStore__DefaultUses` | uses for each new identity's code (default 5) |
 
 The database file is created on first use in `Host:SystemDataRootPath`, so it needs no volume of its own; back it up with the rest of that directory.

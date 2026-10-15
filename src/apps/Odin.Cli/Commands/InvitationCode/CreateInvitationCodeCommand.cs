@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 using Odin.Cli.Commands.Base;
-using Odin.Cli.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -11,7 +10,7 @@ namespace Odin.Cli.Commands.InvitationCode;
 [Description("Create an invitation code owned by an identity, usable a given number of times")]
 public sealed class CreateInvitationCodeCommand : AsyncCommand<CreateInvitationCodeCommand.Settings>
 {
-    public sealed class Settings : ApiSettings
+    public sealed class Settings : InvitationCodeSettings
     {
         [Description("Identity that owns the code")]
         [CommandArgument(0, "<owner>")]
@@ -33,12 +32,12 @@ public sealed class CreateInvitationCodeCommand : AsyncCommand<CreateInvitationC
 
     public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
     {
-        var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
+        using var httpClient = settings.CreateHttpClient();
         var response = await httpClient.PostAsJsonAsync("invitation-codes", new CreateRequest(settings.Owner, settings.Uses));
         await ApiResponse.EnsureAsync(response);
 
         var created = await response.Content.ReadFromJsonAsync<InvitationCodeResponse>()
-                      ?? throw new Exception("The identity host sent an empty answer");
+                      ?? throw new Exception("The provisioning host sent an empty answer");
         InvitationCodeResponse.Write(created);
         return 0;
     }

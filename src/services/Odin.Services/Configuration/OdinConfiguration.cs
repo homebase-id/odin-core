@@ -182,7 +182,7 @@ public class OdinConfiguration
 
         /// <summary>
         /// Invitation codes owned by identities (#1908), kept in this host's own invitation-code database.
-        /// When on, signup needs a code. Off by default.
+        /// When on, signup needs a code. Off by default, except on bleeding edge's provisioning domain.
         /// </summary>
         public bool InvitationCodeStoreEnabled { get; init; }
 
@@ -247,7 +247,9 @@ public class OdinConfiguration
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
-            InvitationCodeStoreEnabled = config.GetOrDefault("Registry:InvitationCodeStore:Enabled", false);
+            // PROTOTYPE (#1908): on by default for bleeding edge only
+            InvitationCodeStoreEnabled = config.GetOrDefault("Registry:InvitationCodeStore:Enabled",
+                ProvisioningDomain == InvitationCodePrototype.BleedingEdgeProvisioningDomain);
             DefaultInvitationCodeUses = config.GetOrDefault("Registry:InvitationCodeStore:DefaultUses", DefaultInvitationCodeUses);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);

@@ -29,11 +29,9 @@ app.Configure(config =>
     config.AddBranch("invitation-code", c =>
     {
         c.AddCommand<CreateInvitationCodeCommand>("create")
-            .WithExample("invitation-code", "create", "frodo.dotyou.cloud", "--uses", "5", "-I", "admin.dotyou.cloud:4444",
-                "-K", "your-secret-api-key-here");
+            .WithExample("invitation-code", "create", "frodo.demo.rocks", "--uses", "5");
         c.AddCommand<ListInvitationCodesCommand>("list")
-            .WithExample("invitation-code", "list", "frodo.dotyou.cloud", "-I", "admin.dotyou.cloud:4444", "-K",
-                "your-secret-api-key-here");
+            .WithExample("invitation-code", "list", "frodo.demo.rocks");
     });
     config.AddBranch("tenants", c =>
     {
