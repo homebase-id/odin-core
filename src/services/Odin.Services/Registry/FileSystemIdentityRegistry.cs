@@ -258,6 +258,23 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
             }
 
+            // PostgreSQL keeps every identity's rows in one shared database, so deleting the tenant folder below does
+            // not remove them (#1792). Purged first, while the registration exists: if it fails, the delete fails
+            // and can be retried, instead of leaving rows behind that nothing knows the id of.
+            if (_config.Database.Type == DatabaseType.Postgres)
+            {
+                await using var tenantScope = GetOrCreateMultiTenantScope(registration)
+                    .BeginLifetimeScope($"PurgeIdentity:{registration.PrimaryDomainName}");
+                var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
+                await identityDatabase.DeleteRowsForIdentityAsync(registration.Id);
+                var remaining = await identityDatabase.CountRowsForIdentityAsync(registration.Id);
+                if (remaining > 0)
+                {
+                    throw new OdinSystemException(
+                        $"Deleting identity {registration.Id} left {remaining} rows in the identity database");
+                }
+            }
+
             long version;
             await _registryLock.WaitAsync();
             try
