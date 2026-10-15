@@ -808,9 +808,15 @@ namespace Odin.Services.Membership.Connections
         /// The connection review relies on that: it enrolls the circles the owner checked in one act, over a
         /// contact who may already hold some of them (docs/connection-defaults.md, "On verify").  This method
         /// performs no permission check; the caller owns that.
+        /// <para>
+        /// <paramref name="ownerReview"/> marks the enrollment as the owner's own choice (a review, or a
+        /// pending enrollment one recorded): a circle out of this caller's reach is queued rather than
+        /// refused, and a keyless circle is minted without asking whether this caller holds what it grants
+        /// (<see cref="IsOutOfReachAsync"/>).
+        /// </para>
         /// </remarks>
         private async Task EnrollInCircleInternalAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext,
-            bool enqueueWhenOutOfReach = false)
+            bool ownerReview = false)
         {
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
@@ -831,7 +837,7 @@ namespace Odin.Services.Membership.Connections
 
             AssertAppMayEnroll(circleDefinition, odinId, odinContext);
 
-            if (enqueueWhenOutOfReach && await IsOutOfReachAsync(circleDefinition, odinContext))
+            if (ownerReview && await IsOutOfReachAsync(circleDefinition, odinContext))
             {
                 EnqueuePendingEnrollment(icr, circleDefinition, odinContext);
                 await this.SaveIcrAsync(icr, odinContext);
@@ -888,7 +894,14 @@ namespace Odin.Services.Membership.Connections
                 // The deposit path's write-side scope check has to come along, though. CreateDriveGrant
                 // makes no such check -- for the owner it is redundant -- so without this an app could
                 // grant write on a drive it cannot write to itself.
-                AssertCallerHoldsGrantedDrivePermissions(circleDefinition, odinContext);
+                //
+                // Except in the owner's review: there the app is carrying out the owner's choice, not
+                // making one, and the circle definition is already the authority on what it grants (see
+                // IsOutOfReachAsync).
+                if (!ownerReview)
+                {
+                    AssertCallerHoldsGrantedDrivePermissions(circleDefinition, odinContext);
+                }
 
                 var circleGrant = await circleMembershipService.CreateCircleGrantAsync(
                     keyStoreKey: null,
@@ -918,6 +931,10 @@ namespace Odin.Services.Membership.Connections
                 var deposit = await CreateDepositedGrantAsync(icr.PeerKeyStore, circleDefinition, odinContext);
                 icr.PeerKeyStore.DepositedGrants.Add(deposit);
             }
+
+            // A review that parked this circle earlier left an entry behind; it is done now, so it must not
+            // go on showing the contact as "Waiting on" an app.
+            icr.PeerKeyStore.PendingEnrollments?.RemoveAll(p => p.CircleId == circleId);
 
             await this.SaveIcrAsync(icr, odinContext);
 
@@ -2233,7 +2250,7 @@ namespace Odin.Services.Membership.Connections
                 // this client cannot serve. Those are recorded rather than refused -- rejecting the whole
                 // review because one app's toggle was out of reach would lose the rest of their choices
                 // along with it.
-                await EnrollInCircleInternalAsync(circleId, odinId, odinContext, enqueueWhenOutOfReach: true);
+                await EnrollInCircleInternalAsync(circleId, odinId, odinContext, ownerReview: true);
             }
 
             // Stamped last: enrollment rewrites the whole row, so a stamp written before it would be
@@ -2555,7 +2572,14 @@ namespace Odin.Services.Membership.Connections
                             // silently, which is the opposite of what adopting a circle is for. Nothing
                             // is saved by the copy here either -- the definition is loaded either way,
                             // one line above.
-                            if (callerAppId != null && circleDefinition.AppId != callerAppId)
+                            //
+                            // A keyless circle is the exception: any caller can mint it, so it does not
+                            // wait for its owning app (IsOutOfReachAsync). Entries parked before #1946
+                            // drain this way the next time any app calls in. An owner-console circle still
+                            // waits for the owner; AssertAppMayEnroll would refuse the app anyway.
+                            var anyAppMayFinish = !circleDefinition.RequiresPeerKey() &&
+                                                  !SystemAppConstants.IsOwnerConsole(circleDefinition.AppId);
+                            if (callerAppId != null && circleDefinition.AppId != callerAppId && !anyAppMayFinish)
                             {
                                 logger.LogDebug(
                                     "Skipping pending enrollment for {odinId} in circle {circleId}: it belongs to " +
@@ -2564,7 +2588,7 @@ namespace Odin.Services.Membership.Connections
                                 continue;
                             }
 
-                            if (!await CallerCanGrantCircleAsync(circleDefinition, odinContext))
+                            if (await IsOutOfReachAsync(circleDefinition, odinContext))
                             {
                                 // The reason an app that owns the circle still cannot finish the job:
                                 // completing it needs the storage keys for the circle's drives, and this
@@ -2576,7 +2600,8 @@ namespace Odin.Services.Membership.Connections
                                 continue;
                             }
 
-                            await EnrollInCircleInternalAsync(entry.CircleId, icr.OdinId, odinContext);
+                            // The entry is a choice the owner made in a review, so it is carried out as one.
+                            await EnrollInCircleInternalAsync(entry.CircleId, icr.OdinId, odinContext, ownerReview: true);
                             completed.Add(entry.CircleId);
                             enrollmentsCompleted++;
                         }
@@ -2727,9 +2752,19 @@ namespace Odin.Services.Membership.Connections
         /// finish later, rather than failing an act the owner was entitled to perform.  Recording confers
         /// nothing: whoever processes the entry re-checks scope then.
         /// </summary>
+        /// <remarks>
+        /// A keyless circle (<see cref="CircleDefinition.RequiresPeerKey"/> false, e.g. Recovery's write-only
+        /// grant) is never out of reach.  Its grant is a plaintext <c>{drive, permission}</c> record any
+        /// caller can mint, and the circle definition is already the authority on what it hands out:
+        /// built-in circles come from the catalogue, app circles were checked against their app when
+        /// created, and the owner chose the member.  Asking whether the calling app also holds those
+        /// permissions only parked the entry for an app that may never come to finish it (#1946).
+        /// </remarks>
         private async Task<bool> IsOutOfReachAsync(CircleDefinition circleDefinition, IOdinContext odinContext)
         {
-            return !odinContext.Caller.HasMasterKey && !await CallerCanGrantCircleAsync(circleDefinition, odinContext);
+            return !odinContext.Caller.HasMasterKey &&
+                   circleDefinition.RequiresPeerKey() &&
+                   !await CallerCanGrantCircleAsync(circleDefinition, odinContext);
         }
 
         /// <summary>
