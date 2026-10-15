@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.UnifiedV2.Authentication.Handlers;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -187,6 +188,11 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                 case ClientTokenType.App:
                     ctx = await _appRegistrationService.GetAppPermissionContextAsync(clientAuthToken, WebOdinContext);
                     authContextName = "websocket-app-token";
+                    break;
+
+                case ClientTokenType.AppBundle:
+                    ctx = await BundleAuthPathHandler.AuthenticateAsync(HttpContext, clientAuthToken, WebOdinContext);
+                    authContextName = "websocket-app-bundle-token";
                     break;
 
                 default:
