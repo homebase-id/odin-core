@@ -1590,6 +1590,47 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
+        /// <summary>
+        /// Sets only <see cref="AppFileMetaData.ArchivalStatus"/> and leaves the rest of the header as it is, so the
+        /// caller needs neither the key header nor the content. The write is conditional on
+        /// <paramref name="expectedVersionTag"/> (4160 when stale) and, like any header write, gives the file a new
+        /// version tag and moves its modified time. Returns the new version tag.
+        /// </summary>
+        public async Task<Guid> UpdateArchivalStatus(InternalDriveFileId file, Guid expectedVersionTag, int archivalStatus,
+            IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                throw new OdinClientException("File not found", OdinClientErrorCode.FileNotFound);
+            }
+
+            if (header.FileMetadata.FileState != FileState.Active)
+            {
+                throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+            }
+
+            // Checked here for a clear answer; the header write repeats the check atomically against the row.
+            AssertVersionTagMatches(header, expectedVersionTag);
+
+            header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
+            await WriteFileHeaderInternal(header, odinContext); // sets the new VersionTag and Updated on the header
+
+            if (await TryShouldRaiseDriveEventAsync(file))
+            {
+                await TryPublishAsync(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = header,
+                    OdinContext = odinContext,
+                });
+            }
+
+            return header.FileMetadata.VersionTag.GetValueOrDefault();
+        }
+
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
             List<Guid> newTags,

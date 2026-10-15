@@ -4,11 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Write
@@ -54,6 +56,53 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                     Status = v1Item.Status
                 }).ToList()
             };
+        }
+
+        /// <summary>
+        /// Sets only the archival status of up to <see cref="UpdateArchivalStatusBatchRequestV2.MaxFiles"/> files.
+        /// </summary>
+        [HttpPost("update-archival-status-batch")]
+        [SwaggerOperation(
+            Summary = "Set the archival status of many files",
+            Description = "Sets appData.archivalStatus on each file and leaves the rest of its header as it is, so " +
+                          "the caller needs neither the key header nor the content. Each file is updated only if its " +
+                          "version tag still matches, and gets a new version tag and modified time. Results are per " +
+                          "file: a stale, missing or deleted file reports its error code and does not stop the others.",
+            Tags = [SwaggerInfo.FileWrite]
+        )]
+        public async Task<UpdateArchivalStatusBatchResultV2> UpdateArchivalStatusBatch(Guid driveId,
+            [FromBody] UpdateArchivalStatusBatchRequestV2 request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotNull(request.Files, nameof(request.Files));
+            OdinValidationUtils.AssertIsTrue(request.Files.Count is > 0 and <= UpdateArchivalStatusBatchRequestV2.MaxFiles,
+                $"files must hold 1 to {UpdateArchivalStatusBatchRequestV2.MaxFiles} entries");
+            OdinValidationUtils.AssertIsTrue(request.Files.All(f => f.FileId != Guid.Empty && f.VersionTag != Guid.Empty),
+                "every file needs a fileId and a versionTag");
+            OdinValidationUtils.AssertIsTrue(request.Files.Select(f => f.FileId).Distinct().Count() == request.Files.Count,
+                "a file may appear only once");
+
+            WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+
+            var storage = GetFileSystem().Storage;
+            var results = new List<UpdateArchivalStatusResultV2>(request.Files.Count);
+            foreach (var f in request.Files)
+            {
+                try
+                {
+                    var newVersionTag = await storage.UpdateArchivalStatus(new InternalDriveFileId(driveId, f.FileId), f.VersionTag,
+                        request.ArchivalStatus, WebOdinContext);
+                    results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, NewVersionTag = newVersionTag });
+                }
+                catch (OdinClientException e) when (e.ErrorCode is OdinClientErrorCode.VersionTagMismatch
+                                                        or OdinClientErrorCode.FileNotFound
+                                                        or OdinClientErrorCode.CannotUpdateNonActiveFile)
+                {
+                    results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, ErrorCode = e.ErrorCode });
+                }
+            }
+
+            return new UpdateArchivalStatusBatchResultV2 { Results = results };
         }
 
         [HttpPost("delete-batch/by-group-id")]
