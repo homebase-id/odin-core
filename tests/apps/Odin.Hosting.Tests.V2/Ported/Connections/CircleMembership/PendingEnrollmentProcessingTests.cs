@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
@@ -204,15 +205,18 @@ public class PendingEnrollmentProcessingTests : V2Fixture
         await CreateCircleAsync(frodo, writeCircle, "mail-write", drive,
             DrivePermission.Write | DrivePermission.React, app.AppId);
 
-        await EnqueueViaReviewAsync(frodo, sam.Identity, readCircle, writeCircle);
+        await EnqueueViaReviewAsync(frodo, sam.Identity, readCircle);
 
         // Break exactly one of the two: with no write-only key pair on the store there is nothing to
-        // seal a deposit to, so the read circle throws while the write circle is unaffected.
+        // seal a deposit to, so the read circle throws while the write circle is unaffected.  A review
+        // now grants a keyless circle outright (#1946), so the write circle's entry is put back the way
+        // a review before that fix left it.
         var scope = Host.GetTenantScope(frodo.Identity.DomainName);
         var storage = scope.Resolve<CircleNetworkStorage>();
         var ownerContext = await BuildOwnerContextAsync(scope, frodo);
         var broken = await storage.GetAsync(sam.Identity);
         broken!.PeerKeyStore.WriteOnlyKeyPair = null;
+        broken.PeerKeyStore.PendingEnrollments.Add(ParkedEntry(writeCircle, app.AppId));
         await storage.UpsertAsync(broken, ownerContext);
 
         var result = await new V2ConnectionNetworkClient(app.Identity, app.Factory).ProcessPendingEnrollmentsAsync();
@@ -226,6 +230,70 @@ public class PendingEnrollmentProcessingTests : V2Fixture
         Assert.That(icr.PeerKeyStore.PendingEnrollments.Select(p => p.CircleId.Value),
             Is.EquivalentTo(new[] { readCircle }),
             "the failed entry stays queued so the next pass tries it again");
+    }
+
+    [Test]
+    public async Task AReview_GrantsAKeylessCircle_TheReviewingAppHoldsNothingOn()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        // Recovery's shape (#1946): another app's circle granting only Write.  The grant is a plaintext
+        // {drive, permission} record, so there is nothing for the owning app to come back and supply.
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "recoveryDrive", allowAnonymousReads: false);
+        var owningApp = await AppSession.SetupAsync(frodo, drive, DrivePermission.ReadWrite,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var writeCircle = Guid.NewGuid();
+        await CreateCircleAsync(frodo, writeCircle, "recovery", drive, DrivePermission.Write, owningApp.AppId);
+
+        await EnqueueViaReviewAsync(frodo, sam.Identity, writeCircle);
+
+        var icr = await GetIcrAsync(frodo, sam.Identity);
+        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(writeCircle), Is.True,
+            "a keyless circle the owner chose is granted at review, whoever the reviewing app is");
+        Assert.That(icr.PeerKeyStore.PendingEnrollments, Is.Empty,
+            "and nothing is left waiting on an app that may never come");
+    }
+
+    [Test]
+    public async Task AKeylessEntryParkedBeforeTheFix_IsCompletedByAnyApp()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var drive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(drive, "recoveryDrive", allowAnonymousReads: false);
+        var owningApp = await AppSession.SetupAsync(frodo, drive, DrivePermission.ReadWrite,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var writeCircle = Guid.NewGuid();
+        await CreateCircleAsync(frodo, writeCircle, "recovery", drive, DrivePermission.Write, owningApp.AppId);
+
+        // A review before #1946 parked it for the owning app, which nothing ever signs in as.
+        var scope = Host.GetTenantScope(frodo.Identity.DomainName);
+        var storage = scope.Resolve<CircleNetworkStorage>();
+        var parked = await storage.GetAsync(sam.Identity);
+        parked!.PeerKeyStore.PendingEnrollments.Add(ParkedEntry(writeCircle, owningApp.AppId));
+        await storage.UpsertAsync(parked, await BuildOwnerContextAsync(scope, frodo));
+
+        // An unrelated app, holding nothing on the drive, calls in (chat does on every socket connect).
+        var otherDrive = TargetDrive.NewTargetDrive();
+        await frodo.Admin.CreateDrive(otherDrive, "chatDrive", allowAnonymousReads: false);
+        var otherApp = await AppSession.SetupAsync(frodo, otherDrive, DrivePermission.Read,
+            permissionKeys: new[] { PermissionKeys.ManageCircleMembership });
+
+        var result = await new V2ConnectionNetworkClient(otherApp.Identity, otherApp.Factory)
+            .ProcessPendingEnrollmentsAsync();
+        Assert.That(result.IsSuccessStatusCode, Is.True, $"process failed: {result.StatusCode}");
+        Assert.That(result.Content!.EnrollmentsCompleted, Is.EqualTo(1));
+
+        var icr = await GetIcrAsync(frodo, sam.Identity);
+        Assert.That(icr.PeerKeyStore.CircleGrants.ContainsKey(writeCircle), Is.True);
+        Assert.That(icr.PeerKeyStore.PendingEnrollments, Is.Empty);
     }
 
     [Test]
@@ -502,6 +570,13 @@ public class PendingEnrollmentProcessingTests : V2Fixture
             .MarkReviewedAsync(target, circleIds.Select(c => (Odin.Core.GuidId)c).ToList());
         Assert.That(review.IsSuccessStatusCode, Is.True, $"review failed: {review.StatusCode}");
     }
+
+    private static PendingEnrollment ParkedEntry(Guid circleId, Guid owningAppId) => new()
+    {
+        CircleId = (Odin.Core.GuidId)circleId,
+        OwningAppId = owningAppId,
+        Requested = UnixTimeUtc.Now()
+    };
 
     private async Task<IdentityConnectionRegistration> GetIcrAsync(OwnerSession owner, OdinId target)
     {
