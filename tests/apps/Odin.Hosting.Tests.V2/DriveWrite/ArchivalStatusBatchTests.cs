@@ -28,6 +28,7 @@ public class ArchivalStatusBatchTests : V2Fixture
     {
         yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Forbidden];
         yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
         yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
         yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
     }
@@ -97,6 +98,48 @@ public class ArchivalStatusBatchTests : V2Fixture
     }
 
     [Test]
+    public async Task AFileHiddenByItsAclIsNotFoundAndDoesNotStopTheRest()
+    {
+        var spec = CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var visible = await UploadAsync(owner, spec.TargetDrive, "visible");
+        var hidden = await UploadAsync(owner, spec.TargetDrive, "owner only", AccessControlList.OwnerOnly);
+        var after = await UploadAsync(owner, spec.TargetDrive, "after");
+
+        var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(2,
+            (visible.FileId, visible.NewVersionTag),
+            (hidden.FileId, hidden.NewVersionTag),
+            (after.FileId, after.NewVersionTag)));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        Assert.That(response.Content!.Results.Select(r => (r.FileId, r.ErrorCode)), Is.EqualTo(new[]
+        {
+            (visible.FileId, (OdinClientErrorCode?)null),
+            (hidden.FileId, OdinClientErrorCode.FileNotFound),
+            (after.FileId, null)
+        }));
+        Assert.That((await GetHeaderAsync(owner, hidden)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(0));
+        Assert.That((await GetHeaderAsync(owner, after)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task AFileAlreadyAtTheStatusIsLeftAlone()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var file = await UploadAsync(owner, spec.TargetDrive, "already restored");
+        var before = await GetHeaderAsync(owner, file);
+
+        var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(0, (file.FileId, file.NewVersionTag)));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        Assert.That(response.Content!.Results.Single().NewVersionTag, Is.EqualTo(file.NewVersionTag));
+        var after = await GetHeaderAsync(owner, file);
+        Assert.That((after.FileMetadata.VersionTag, after.FileMetadata.Updated.milliseconds),
+            Is.EqualTo((before.FileMetadata.VersionTag, before.FileMetadata.Updated.milliseconds)));
+    }
+
+    [Test]
     public async Task RestoresWithTheReturnedTagAndQueriesSeeTheColumn()
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
@@ -129,6 +172,8 @@ public class ArchivalStatusBatchTests : V2Fixture
                 .Select(_ => (Guid.NewGuid(), Guid.NewGuid())).ToArray()),
             ["duplicate"] = Batch(2, (duplicate, Guid.NewGuid()), (duplicate, Guid.NewGuid())),
             ["no version tag"] = Batch(2, (Guid.NewGuid(), Guid.Empty)),
+            ["no status"] = Batch(null, (Guid.NewGuid(), Guid.NewGuid())),
+            ["null entry"] = new UpdateArchivalStatusBatchRequestV2 { ArchivalStatus = 2, Files = [null] },
         };
 
         var statuses = new Dictionary<string, HttpStatusCode>();
@@ -140,15 +185,16 @@ public class ArchivalStatusBatchTests : V2Fixture
         Assert.That(statuses, Is.EqualTo(batches.Keys.ToDictionary(k => k, _ => HttpStatusCode.BadRequest)));
     }
 
-    private static UpdateArchivalStatusBatchRequestV2 Batch(int status, params (Guid FileId, Guid VersionTag)[] files) => new()
+    private static UpdateArchivalStatusBatchRequestV2 Batch(int? status, params (Guid FileId, Guid VersionTag)[] files) => new()
     {
         ArchivalStatus = status,
         Files = files.Select(f => new UpdateArchivalStatusFileV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
     };
 
-    private static async Task<CreateFileResult> UploadAsync(OwnerSession owner, TargetDrive drive, string content)
+    private static async Task<CreateFileResult> UploadAsync(OwnerSession owner, TargetDrive drive, string content,
+        AccessControlList acl = null)
     {
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: AccessControlList.Anonymous);
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: acl ?? AccessControlList.Anonymous);
         var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
             new UploadManifest { PayloadDescriptors = [] }, []);
         Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");

@@ -843,8 +843,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// The one answer every update gives for a file it cannot change: 4106 when it does not exist, 4002 when it
-        /// is not active (a tombstone). Batch callers report these codes per file, so keep them stable.
+        /// The header-update paths' answer for an existing header they cannot change: 4106 when it does not exist,
+        /// 4002 when it is not active (a tombstone). The archival-status batch reports these codes per file, so keep
+        /// them stable. (The local-metadata updates answer differently and are not covered.)
         /// </summary>
         private static void AssertActiveForUpdate(ServerFileHeader header)
         {
@@ -1587,18 +1588,38 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Sets only <see cref="AppFileMetaData.ArchivalStatus"/> and leaves the rest of the header as it is, so the
         /// caller needs neither the key header nor the content. The write is conditional on
         /// <paramref name="expectedVersionTag"/> (4160 when stale) and, like any header write, gives the file a new
-        /// version tag and moves its modified time. Returns the new version tag.
+        /// version tag and moves its modified time. A file already at that status is left alone. Returns the file's
+        /// version tag afterwards. A file whose ACL hides it from the caller answers 4106, like a missing one.
         /// </summary>
         public async Task<Guid> UpdateArchivalStatus(InternalDriveFileId file, Guid expectedVersionTag, int archivalStatus,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            // A drive-level denial stays a denial; only this file's own ACL is answered as "not found" below.
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+
+            ServerFileHeader header;
+            try
+            {
+                header = await GetServerFileHeaderForWriting(file, odinContext);
+            }
+            catch (OdinSecurityException)
+            {
+                // The file's ACL hides it from this caller: answer as for a missing file, without saying it exists
+                header = null;
+            }
+
             AssertActiveForUpdate(header);
 
             // Checked here for a clear answer; the header write repeats the check atomically against the row.
             AssertVersionTagMatches(header, expectedVersionTag);
+
+            if (header.FileMetadata.AppData.ArchivalStatus == archivalStatus)
+            {
+                // Nothing to change: no new version tag, and modified (a client's "removed at") stays put
+                return header.FileMetadata.VersionTag.GetValueOrDefault();
+            }
 
             header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
             await WriteFileHeaderInternal(header, odinContext); // sets the new VersionTag and Updated on the header

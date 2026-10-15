@@ -17,13 +17,15 @@ public class UpdateArchivalStatusResultV2
     public Guid FileId { get; init; }
 
     /// <summary>
-    /// The file's version tag after the update; null when <see cref="ErrorCode"/> is set.
+    /// The file's version tag after the update (unchanged when it was already at the requested status); null when
+    /// <see cref="ErrorCode"/> is set.
     /// </summary>
     public Guid? NewVersionTag { get; init; }
 
     /// <summary>
-    /// Null on success. Otherwise why this file was not updated: 4160 VersionTagMismatch (stale tag),
-    /// 4106 FileNotFound, or 4002 CannotUpdateNonActiveFile (deleted).
+    /// Null on success. Otherwise why this file was not updated, serialized as a camelCase string like every
+    /// OdinClientErrorCode: "versionTagMismatch" (stale tag), "fileNotFound" (missing, or hidden from the caller by
+    /// its ACL), "cannotUpdateNonActiveFile" (deleted), or any other client error the header write raised.
     /// </summary>
     public OdinClientErrorCode? ErrorCode { get; init; }
 }

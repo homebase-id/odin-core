@@ -67,7 +67,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             Description = "Sets appData.archivalStatus on each file and leaves the rest of its header as it is, so " +
                           "the caller needs neither the key header nor the content. Each file is updated only if its " +
                           "version tag still matches, and gets a new version tag and modified time. Results are per " +
-                          "file: a stale, missing or deleted file reports its error code and does not stop the others.",
+                          "file: a stale, missing or deleted file reports its error code and does not stop the others. " +
+                          "A file already at the requested status is left alone and keeps its version tag.",
             Tags = [SwaggerInfo.FileWrite]
         )]
         public async Task<UpdateArchivalStatusBatchResultV2> UpdateArchivalStatusBatch(Guid driveId,
@@ -75,9 +76,10 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         {
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNull(request.Files, nameof(request.Files));
+            OdinValidationUtils.AssertIsTrue(request.ArchivalStatus.HasValue, "archivalStatus is required");
             OdinValidationUtils.AssertIsTrue(request.Files.Count is > 0 and <= UpdateArchivalStatusBatchRequestV2.MaxFiles,
                 $"files must hold 1 to {UpdateArchivalStatusBatchRequestV2.MaxFiles} entries");
-            OdinValidationUtils.AssertIsTrue(request.Files.All(f => f.FileId != Guid.Empty && f.VersionTag != Guid.Empty),
+            OdinValidationUtils.AssertIsTrue(request.Files.All(f => f != null && f.FileId != Guid.Empty && f.VersionTag != Guid.Empty),
                 "every file needs a fileId and a versionTag");
             OdinValidationUtils.AssertIsTrue(request.Files.Select(f => f.FileId).Distinct().Count() == request.Files.Count,
                 "a file may appear only once");
@@ -91,13 +93,12 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 try
                 {
                     var newVersionTag = await storage.UpdateArchivalStatus(new InternalDriveFileId(driveId, f.FileId), f.VersionTag,
-                        request.ArchivalStatus, WebOdinContext);
+                        request.ArchivalStatus!.Value, WebOdinContext);
                     results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, NewVersionTag = newVersionTag });
                 }
-                catch (OdinClientException e) when (e.ErrorCode is OdinClientErrorCode.VersionTagMismatch
-                                                        or OdinClientErrorCode.FileNotFound
-                                                        or OdinClientErrorCode.CannotUpdateNonActiveFile)
+                catch (OdinClientException e)
                 {
+                    // Per file, so one bad file never strands the ones already written before it
                     results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, ErrorCode = e.ErrorCode });
                 }
             }
