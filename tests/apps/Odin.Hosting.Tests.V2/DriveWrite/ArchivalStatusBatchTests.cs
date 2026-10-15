@@ -40,15 +40,8 @@ public class ArchivalStatusBatchTests : V2Fixture
         var b = await UploadAsync(owner, spec.TargetDrive, "content b");
         var before = await GetHeaderAsync(owner, a);
 
-        var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, new UpdateArchivalStatusBatchRequestV2
-        {
-            ArchivalStatus = 2,
-            Files =
-            [
-                new UpdateArchivalStatusFileV2 { FileId = a.FileId, VersionTag = a.NewVersionTag },
-                new UpdateArchivalStatusFileV2 { FileId = b.FileId, VersionTag = b.NewVersionTag }
-            ]
-        });
+        var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias,
+            Batch(2, (a.FileId, a.NewVersionTag), (b.FileId, b.NewVersionTag)));
 
         Assert.That(response.StatusCode, Is.EqualTo(expected), response.Error?.Content);
         if (expected != HttpStatusCode.OK)
@@ -82,27 +75,20 @@ public class ArchivalStatusBatchTests : V2Fixture
         Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
         var missing = Guid.NewGuid();
 
-        var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, new UpdateArchivalStatusBatchRequestV2
-        {
-            ArchivalStatus = 2,
-            Files =
-            [
-                new UpdateArchivalStatusFileV2 { FileId = stale.FileId, VersionTag = Guid.NewGuid() },
-                new UpdateArchivalStatusFileV2 { FileId = missing, VersionTag = Guid.NewGuid() },
-                new UpdateArchivalStatusFileV2 { FileId = deleted.FileId, VersionTag = deleted.NewVersionTag },
-                new UpdateArchivalStatusFileV2 { FileId = current.FileId, VersionTag = current.NewVersionTag }
-            ]
-        });
+        var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(2,
+            (stale.FileId, Guid.NewGuid()),
+            (missing, Guid.NewGuid()),
+            (deleted.FileId, deleted.NewVersionTag),
+            (current.FileId, current.NewVersionTag)));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
-        Assert.That(response.Content!.Results.Select(r => (r.FileId, r.ErrorCode)), Is.EqualTo(new[]
+        Assert.That(response.Content!.Results.Select(r => (r.FileId, r.ErrorCode, r.NewVersionTag.HasValue)), Is.EqualTo(new[]
         {
-            (stale.FileId, (OdinClientErrorCode?)OdinClientErrorCode.VersionTagMismatch),
-            (missing, OdinClientErrorCode.FileNotFound),
-            (deleted.FileId, OdinClientErrorCode.CannotUpdateNonActiveFile),
-            (current.FileId, null)
+            (stale.FileId, (OdinClientErrorCode?)OdinClientErrorCode.VersionTagMismatch, false),
+            (missing, OdinClientErrorCode.FileNotFound, false),
+            (deleted.FileId, OdinClientErrorCode.CannotUpdateNonActiveFile, false),
+            (current.FileId, null, true)
         }));
-        Assert.That(response.Content.Results.Select(r => r.NewVersionTag.HasValue), Is.EqualTo(new[] { false, false, false, true }));
 
         Assert.That((await GetHeaderAsync(owner, current)).FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
         var staleHeader = await GetHeaderAsync(owner, stale);
@@ -117,12 +103,12 @@ public class ArchivalStatusBatchTests : V2Fixture
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var file = await UploadAsync(owner, spec.TargetDrive, "restore me");
 
-        var remove = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Single(file.FileId, file.NewVersionTag, 2));
+        var remove = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(2, (file.FileId, file.NewVersionTag)));
         Assert.That(remove.StatusCode, Is.EqualTo(HttpStatusCode.OK), remove.Error?.Content);
         Assert.That(await QueryByArchivalStatusAsync(owner, spec.TargetDrive, 2), Is.EqualTo(new[] { file.FileId }));
 
         var removedTag = remove.Content!.Results.Single().NewVersionTag!.Value;
-        var restore = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Single(file.FileId, removedTag, 0));
+        var restore = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(0, (file.FileId, removedTag)));
         Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.OK), restore.Error?.Content);
         Assert.That(restore.Content!.Results.Single().ErrorCode, Is.Null);
 
@@ -136,34 +122,28 @@ public class ArchivalStatusBatchTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, _) = await SetupCallerWithOwner(spec);
         var duplicate = Guid.NewGuid();
-        var batches = new Dictionary<string, List<UpdateArchivalStatusFileV2>>
+        var batches = new Dictionary<string, UpdateArchivalStatusBatchRequestV2>
         {
-            ["empty"] = [],
-            ["too many"] = Enumerable.Range(0, UpdateArchivalStatusBatchRequestV2.MaxFiles + 1)
-                .Select(_ => new UpdateArchivalStatusFileV2 { FileId = Guid.NewGuid(), VersionTag = Guid.NewGuid() }).ToList(),
-            ["duplicate"] =
-            [
-                new UpdateArchivalStatusFileV2 { FileId = duplicate, VersionTag = Guid.NewGuid() },
-                new UpdateArchivalStatusFileV2 { FileId = duplicate, VersionTag = Guid.NewGuid() }
-            ],
-            ["no version tag"] = [new UpdateArchivalStatusFileV2 { FileId = Guid.NewGuid() }],
+            ["empty"] = Batch(2),
+            ["too many"] = Batch(2, Enumerable.Range(0, UpdateArchivalStatusBatchRequestV2.MaxFiles + 1)
+                .Select(_ => (Guid.NewGuid(), Guid.NewGuid())).ToArray()),
+            ["duplicate"] = Batch(2, (duplicate, Guid.NewGuid()), (duplicate, Guid.NewGuid())),
+            ["no version tag"] = Batch(2, (Guid.NewGuid(), Guid.Empty)),
         };
 
         var statuses = new Dictionary<string, HttpStatusCode>();
-        foreach (var (name, files) in batches)
+        foreach (var (name, batch) in batches)
         {
-            var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias,
-                new UpdateArchivalStatusBatchRequestV2 { ArchivalStatus = 2, Files = files });
-            statuses[name] = response.StatusCode;
+            statuses[name] = (await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, batch)).StatusCode;
         }
 
         Assert.That(statuses, Is.EqualTo(batches.Keys.ToDictionary(k => k, _ => HttpStatusCode.BadRequest)));
     }
 
-    private static UpdateArchivalStatusBatchRequestV2 Single(Guid fileId, Guid versionTag, int status) => new()
+    private static UpdateArchivalStatusBatchRequestV2 Batch(int status, params (Guid FileId, Guid VersionTag)[] files) => new()
     {
         ArchivalStatus = status,
-        Files = [new UpdateArchivalStatusFileV2 { FileId = fileId, VersionTag = versionTag }]
+        Files = files.Select(f => new UpdateArchivalStatusFileV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
     };
 
     private static async Task<CreateFileResult> UploadAsync(OwnerSession owner, TargetDrive drive, string content)

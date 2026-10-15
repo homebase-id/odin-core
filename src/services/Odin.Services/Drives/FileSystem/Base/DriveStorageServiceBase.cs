@@ -842,6 +842,23 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
         }
 
+        /// <summary>
+        /// The one answer every update gives for a file it cannot change: 4106 when it does not exist, 4002 when it
+        /// is not active (a tombstone). Batch callers report these codes per file, so keep them stable.
+        /// </summary>
+        private static void AssertActiveForUpdate(ServerFileHeader header)
+        {
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update a file that does not exist", OdinClientErrorCode.FileNotFound);
+            }
+
+            if (header.FileMetadata.FileState != FileState.Active)
+            {
+                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+            }
+        }
+
         public static void AssertVersionTagMatches(ServerFileHeader header, Guid? expectedVersionTag)
         {
             if (expectedVersionTag.HasValue && header?.FileMetadata.VersionTag != expectedVersionTag)
@@ -967,15 +984,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             List<PayloadDescriptor> payloads = [];
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
-
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            AssertActiveForUpdate(existingServerHeader);
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
@@ -1098,15 +1107,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
 
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Invalid target file", OdinClientErrorCode.FileNotFound);
-            }
-
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            AssertActiveForUpdate(existingServerHeader);
 
             // Snapshot the committed payload set: existingServerHeader is mutated in place further down, and both
             // cleanup paths below have to reason about what the DB header referenced before that.
@@ -1359,17 +1360,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-            if (null == existingHeader)
-            {
-                throw new OdinClientException("Cannot update file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
-
             // Before any payload is copied: a tombstone has no payload list, and OverwriteMetadataInternal's
             // own state check runs only after the copy (#1904)
-            if (existingHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            AssertActiveForUpdate(existingHeader);
 
             if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
             {
@@ -1602,15 +1595,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
             var header = await GetServerFileHeaderForWriting(file, odinContext);
-            if (null == header)
-            {
-                throw new OdinClientException("File not found", OdinClientErrorCode.FileNotFound);
-            }
-
-            if (header.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            AssertActiveForUpdate(header);
 
             // Checked here for a clear answer; the header write repeats the check atomically against the row.
             AssertVersionTagMatches(header, expectedVersionTag);
@@ -2333,15 +2318,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
             }
 
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
-
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
+            AssertActiveForUpdate(existingServerHeader);
 
             if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
             {
