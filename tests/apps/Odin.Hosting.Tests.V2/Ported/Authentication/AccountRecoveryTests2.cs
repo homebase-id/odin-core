@@ -28,12 +28,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Authentication;
 /// rewrite of code no build compiles.
 /// </para>
 /// <para>
-/// Latent defect carried, not fixed: the config key has no effect on the product today.
-/// <c>PasswordKeyRecoveryService.GetWaitingPeriod</c> hard-codes
-/// <c>TimeSpan.FromSeconds(RecoveryKeyWaitingPeriodSecondsForTesting)</c> under <c>DEBUG</c> and
-/// fourteen days otherwise, and reads no configuration at all — so
-/// <c>Development:RecoveryKeyWaitingPeriodSeconds</c> is dead. Verified by reading
-/// <c>PasswordKeyRecoveryService</c>; the override is kept so the port stays a move.
+/// The config key was dead when this was ported; since #1866
+/// <c>PasswordKeyRecoveryService.GetWaitingPeriod</c> reads it, so the override now takes effect.
 /// </para>
 /// </remarks>
 public class AccountRecoveryTests2 : V2Fixture

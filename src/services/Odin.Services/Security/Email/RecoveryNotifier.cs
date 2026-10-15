@@ -28,18 +28,9 @@ public class RecoveryNotifier(
     TenantContext tenantContext,
     TableNonce nonceTable,
     IJobManager jobManager,
-    PushNotificationService pushNotificationService)
+    PushNotificationService pushNotificationService,
+    IRecoveryNotificationSink notificationSink)
 {
-    /// <summary>
-    /// Uses for integration testing so I can get the nonceId from the log during ShamirPasswordRecoveryTests
-    /// </summary>
-    public const string EnterNoncePropertyName = "enterNonceId";
-
-    public const string ExitNoncePropertyName = "exitNonceId";
-
-    public const string FinalRecoveryNonceIdPropertyName = "finalRecoveryEmailNonceId";
-    public const string FinalRecoveryKeyPropertyName = "finalRecoveryKey";
-
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
         var record = await nonceTable.PopAsync(nonceId);
@@ -60,6 +51,7 @@ public class RecoveryNotifier(
 
         var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email-fwd", nonceId, "");
 
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.VerifyRecoveryEmail, link, nonceId));
 #if DEBUG
         logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
 #endif
@@ -107,8 +99,13 @@ public class RecoveryNotifier(
             Path = emailType == RecoveryEmailType.EnterRecoveryMode ? "verify-enter" : "verify-exit"
         };
 
-#if DEBUG
         var link = job.CreateLink();
+        notificationSink.Notify(new RecoveryNotification(tenantContext.HostOdinId,
+            emailType == RecoveryEmailType.EnterRecoveryMode
+                ? RecoveryNotificationKind.EnterRecoveryMode
+                : RecoveryNotificationKind.ExitRecoveryMode,
+            link, job.Data.NonceId));
+#if DEBUG
         if (emailType == RecoveryEmailType.EnterRecoveryMode)
         {
             logger.LogInformation("\n\n\n{link}\n\n\n{enterNonceId}", link, job.Data.NonceId);
@@ -139,6 +136,8 @@ public class RecoveryNotifier(
         var link = BuildResetUrl($"https://{tenant}/owner/shamir-account-recovery", nonceId,
             finalRecoveryKey.ToString());
 
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.FinalizeRecovery, link, nonceId,
+            finalRecoveryKey));
 #if DEBUG
         logger.LogInformation("\n\n\n{link}\n\n\n{finalRecoveryEmailNonceId} with token {finalRecoveryKey}", link, nonceId,
             finalRecoveryKey);
@@ -233,13 +232,16 @@ public class RecoveryNotifier(
         return nonceId;
     }
 
+    /// <summary>
+    /// Recovery links only reach the owner by email, so without Mailgun recovery is refused --
+    /// except on a development host, where the links are read from the log or the
+    /// <see cref="IRecoveryNotificationSink"/> instead.
+    /// </summary>
     private void AssertEmailEnabled()
     {
-        if (!configuration.Mailgun.Enabled)
+        if (!configuration.Mailgun.Enabled && !configuration.Development.Enabled)
         {
-#if !DEBUG
             throw new OdinSystemException("Cannot enter into recovery mode when email is disabled");
-#endif
         }
     }
 
