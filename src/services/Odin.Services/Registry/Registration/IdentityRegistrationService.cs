@@ -31,7 +31,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly IDnsLookupService _dnsLookupService;
     private readonly IJobManager _jobManager;
-    private readonly InvitationCodeServiceClient _invitationCodes;
+    private readonly InvitationCodeStore _invitationCodes;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -41,7 +41,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         IDynamicHttpClientFactory httpClientFactory,
         IDnsLookupService dnsLookupService,
         IJobManager jobManager,
-        InvitationCodeServiceClient invitationCodes)
+        InvitationCodeStore invitationCodes)
     {
         _logger = logger;
         _configuration = configuration;
@@ -726,7 +726,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             InvitationCode = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim(),
         };
 
-        // A code from the invitation-code service is used up here, not when it was checked: two signups
+        // A code from the invitation-code store is used up here, not when it was checked: two signups
         // racing for its last use must not both get it. Codes from config are not counted.
         var usedServiceCode = false;
         if (_invitationCodes.IsEnabled && request.InvitationCode != null && !IsConfiguredInvitationCode(request.InvitationCode))
@@ -823,7 +823,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return true;
         }
 
-        return _invitationCodes.IsEnabled && await _invitationCodes.IsValidAsync(code.Trim());
+        return _invitationCodes.IsEnabled && await _invitationCodes.IsValidAsync(code);
     }
 
     //

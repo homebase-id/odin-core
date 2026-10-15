@@ -1,6 +1,11 @@
-using Odin.SetupHelper.InvitationCodes;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Odin.Services.Registry.Registration;
 
-namespace Odin.SetupHelper.Tests.InvitationCodes;
+namespace Odin.Services.Tests.Registry.Registration;
 
 public class InvitationCodeStoreTests
 {
@@ -8,11 +13,10 @@ public class InvitationCodeStoreTests
     private InvitationCodeStore _store = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
         _databasePath = Path.Combine(Path.GetTempPath(), $"invitation-codes-{Guid.NewGuid()}.db");
         _store = new InvitationCodeStore(_databasePath);
-        await _store.InitializeAsync();
     }
 
     [TearDown]
@@ -91,5 +95,26 @@ public class InvitationCodeStoreTests
 
         Assert.That(results.Count(used => used), Is.EqualTo(5));
         Assert.That((await _store.GetAsync(created.Code))!.UsesLeft, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task ACodeIsFoundHoweverItIsTyped()
+    {
+        var created = await _store.CreateAsync("Frodo.DotYou.Cloud", 1);
+        var typed = created.Code.Replace("-", " ").ToLowerInvariant();
+
+        Assert.That(created.Owner, Is.EqualTo("frodo.dotyou.cloud"));
+        Assert.That(await _store.IsValidAsync(typed), Is.True);
+        Assert.That(await _store.TryUseAsync(typed), Is.True);
+        Assert.That(await _store.IsValidAsync(created.Code), Is.False);
+    }
+
+    [Test]
+    public void AStoreWithNoPathIsOff()
+    {
+        var store = new InvitationCodeStore("");
+
+        Assert.That(store.IsEnabled, Is.False);
+        Assert.ThrowsAsync<InvalidOperationException>(() => store.CreateAsync("frodo.dotyou.cloud", 1));
     }
 }

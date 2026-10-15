@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Odin.SetupHelper.InvitationCodes;
+namespace Odin.Services.Registry.Registration;
+
+#nullable enable
 
 /// <summary>
 /// Invitation codes are 12 Crockford base32 characters, shown in groups of four (K7QX-M2PD-9FHW).

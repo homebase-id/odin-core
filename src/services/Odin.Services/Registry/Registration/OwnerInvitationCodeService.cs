@@ -14,14 +14,13 @@ public record OwnerInvitationCode(string Code, int MaxUses, int UsesLeft, string
 /// <summary>
 /// The owner's own invitation codes, for the owner console and the owner's apps (#1908).
 /// </summary>
-public class OwnerInvitationCodeService(OdinConfiguration configuration, InvitationCodeServiceClient invitationCodes)
+public class OwnerInvitationCodeService(OdinConfiguration configuration, InvitationCodeStore invitationCodes)
 {
     /// <summary>
     /// The calling owner's codes, each with the signup link to share. Always the tenant's own: the owner
     /// is never taken from the caller, so no one can list another identity's codes. An identity that has
     /// none yet (it signed up before codes existed, or its code was not created at signup) gets one now.
     /// </summary>
-    /// <exception cref="InvitationCodeServiceException">The invitation-code service could not be reached</exception>
     public async Task<List<OwnerInvitationCode>> GetCodesAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsOwner();
@@ -32,7 +31,7 @@ public class OwnerInvitationCodeService(OdinConfiguration configuration, Invitat
         }
 
         var owner = odinContext.Tenant.DomainName;
-        var codes = await invitationCodes.ListAsync(owner);
+        var codes = await invitationCodes.ListByOwnerAsync(owner);
         if (codes.Count == 0)
         {
             codes = [await invitationCodes.CreateAsync(owner, configuration.Registry.DefaultInvitationCodeUses)];

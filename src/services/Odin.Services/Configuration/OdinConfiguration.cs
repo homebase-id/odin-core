@@ -181,26 +181,15 @@ public class OdinConfiguration
         public List<string> InvitationCodesWithoutPublicWebPresence { get; init; } = [];
 
         /// <summary>
-        /// The invitation-code service on SetupHelper (#1908), shared by every cluster. Off when empty.
+        /// Invitation codes owned by identities (#1908), kept in this host's own invitation-code database.
+        /// When on, signup needs a code. Off by default.
         /// </summary>
-        public string InvitationCodeServiceUrl { get; init; } = "";
-
-        /// <summary>
-        /// Key for validate, use, undo-use and list. Homebase-run hosts only, never self-hosted ones.
-        /// </summary>
-        public string InvitationCodeSignupApiKey { get; init; } = "";
-
-        /// <summary>
-        /// Key for creating codes; a host creates one for every identity it registers.
-        /// </summary>
-        public string InvitationCodeCreateApiKey { get; init; } = "";
+        public bool InvitationCodeStoreEnabled { get; init; }
 
         /// <summary>
         /// How many uses the code created for a new identity gets.
         /// </summary>
         public int DefaultInvitationCodeUses { get; init; } = 5;
-
-        public bool InvitationCodeServiceEnabled => InvitationCodeServiceUrl != "";
 
         public string PowerDnsHostAddress { get; init; } = "";
         public string PowerDnsApiKey { get; set; } = "";
@@ -258,14 +247,8 @@ public class OdinConfiguration
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
-            InvitationCodeServiceUrl = config.GetOrDefault("Registry:InvitationCodeService:Url", "").Trim().TrimEnd('/');
-            if (InvitationCodeServiceUrl != "")
-            {
-                InvitationCodeSignupApiKey = config.Required<string>("Registry:InvitationCodeService:SignupApiKey");
-                InvitationCodeCreateApiKey = config.Required<string>("Registry:InvitationCodeService:CreateApiKey");
-                DefaultInvitationCodeUses =
-                    config.GetOrDefault("Registry:InvitationCodeService:DefaultUses", DefaultInvitationCodeUses);
-            }
+            InvitationCodeStoreEnabled = config.GetOrDefault("Registry:InvitationCodeStore:Enabled", false);
+            DefaultInvitationCodeUses = config.GetOrDefault("Registry:InvitationCodeStore:DefaultUses", DefaultInvitationCodeUses);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
 

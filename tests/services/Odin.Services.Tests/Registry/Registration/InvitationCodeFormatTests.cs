@@ -1,6 +1,8 @@
-using Odin.SetupHelper.InvitationCodes;
+using System.Linq;
+using NUnit.Framework;
+using Odin.Services.Registry.Registration;
 
-namespace Odin.SetupHelper.Tests.InvitationCodes;
+namespace Odin.Services.Tests.Registry.Registration;
 
 public class InvitationCodeFormatTests
 {

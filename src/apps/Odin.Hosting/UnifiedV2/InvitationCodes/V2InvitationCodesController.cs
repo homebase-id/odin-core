@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Hosting.ApiExceptions.Server;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Registry.Registration;
@@ -24,20 +23,12 @@ public class InvitationCodesResponse
 public class V2InvitationCodesController(OwnerInvitationCodeService invitationCodeService) : OdinControllerBase
 {
     // GET /api/v2/invitation-codes — the caller's own codes with uses left and the signup link to share;
-    // an empty list when this host has no invitation-code service, 503 when it cannot reach it.
+    // an empty list when this host has invitation codes off.
     [SwaggerOperation(Tags = [SwaggerInfo.InvitationCodes])]
     [HttpGet]
     [ProducesResponseType(typeof(InvitationCodesResponse), 200)]
-    [ProducesResponseType(503)]
     public async Task<InvitationCodesResponse> GetCodes()
     {
-        try
-        {
-            return new InvitationCodesResponse { Codes = await invitationCodeService.GetCodesAsync(WebOdinContext) };
-        }
-        catch (InvitationCodeServiceException e)
-        {
-            throw new ServiceUnavailableException("The invitation-code service is unavailable", e);
-        }
+        return new InvitationCodesResponse { Codes = await invitationCodeService.GetCodesAsync(WebOdinContext) };
     }
 }

@@ -199,7 +199,10 @@ public static class SystemServices
         services.AddSingleton<ILookupClient>(new LookupClient());
 
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
-        services.AddSingleton<InvitationCodeServiceClient>();
+        // Invitation codes (#1908) in a database of their own; an empty path turns them off
+        services.AddSingleton(new InvitationCodeStore(config.Registry.InvitationCodeStoreEnabled
+            ? Path.Combine(config.Host.SystemDataRootPath, "invitation-codes.db")
+            : ""));
         services.AddSingleton<OwnerInvitationCodeService>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();

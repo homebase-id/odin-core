@@ -6,7 +6,6 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.Core.Util;
 using Odin.SetupHelper;
-using Odin.SetupHelper.InvitationCodes;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
 
@@ -96,20 +95,6 @@ app.MapGet("/api/v1/probe-https/{domainName}/{hostPort}",
             ? Results.Ok(message)
             : Results.BadRequest(message);
     });
-
-//
-// Invitation codes (#1908): off unless the database path and both keys are configured
-//
-
-var invitationCodeDatabasePath = app.Configuration["InvitationCodes:DatabasePath"] ?? "";
-var invitationCodeSignupApiKey = app.Configuration["InvitationCodes:SignupApiKey"] ?? "";
-var invitationCodeCreateApiKey = app.Configuration["InvitationCodes:CreateApiKey"] ?? "";
-if (invitationCodeDatabasePath != "" && invitationCodeSignupApiKey != "" && invitationCodeCreateApiKey != "")
-{
-    var invitationCodeStore = new InvitationCodeStore(invitationCodeDatabasePath);
-    await invitationCodeStore.InitializeAsync();
-    app.MapInvitationCodes(invitationCodeStore, invitationCodeSignupApiKey, invitationCodeCreateApiKey);
-}
 
 app.MapGet("/api/v1/resolve-ip/{domainName}",
     async (string domainName, DnsProbe dnsProbe) =>
