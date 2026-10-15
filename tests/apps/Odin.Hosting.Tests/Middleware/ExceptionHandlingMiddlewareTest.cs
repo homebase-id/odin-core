@@ -37,13 +37,9 @@ public class ExceptionHandlingMiddlewareTest
         var mockCorrelationId = new Mock<ICorrelationContext>();
         mockCorrelationId.Setup(correlationId => correlationId.Id).Returns(MockCorrelationId);
 
-        return new TestServer(new WebHostBuilder()
-            .ConfigureServices(services =>
-            {
-                // Add services here.
-                // We have to hardcode the logger instead, otherwise the mock isn't picked up.
-            })
-            .Configure(app =>
+        // We have to hardcode the logger instead, otherwise the mock isn't picked up.
+        return new HostBuilder()
+            .ConfigureWebHost(webHost => webHost.UseTestServer().Configure(app =>
             {
                 app.Use(async (context, next) =>
                 {
@@ -57,7 +53,9 @@ public class ExceptionHandlingMiddlewareTest
                 });
 
                 app.Run(requestDelegate);
-            }));
+            }))
+            .Start()
+            .GetTestServer();
     }
 
     [Test]
