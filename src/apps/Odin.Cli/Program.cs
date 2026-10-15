@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Odin.Cli.Commands;
+using Odin.Cli.Commands.InvitationCode;
 using Odin.Cli.Commands.Tenant;
 using Odin.Cli.Commands.Tenants;
 using Spectre.Console;
@@ -25,6 +26,12 @@ app.Configure(config =>
 
     config.SetApplicationName("odin-admin");
     config.PropagateExceptions();
+    config.AddBranch("invitation-code", c =>
+    {
+        c.AddCommand<CreateInvitationCodeCommand>("create")
+            .WithExample("invitation-code", "create", "frodo.dotyou.cloud", "--uses", "5", "-S",
+                "https://setup.homebase.id", "-K", "your-create-api-key-here");
+    });
     config.AddBranch("tenants", c =>
     {
         c.AddCommand<ListTenantsCommand>("list")

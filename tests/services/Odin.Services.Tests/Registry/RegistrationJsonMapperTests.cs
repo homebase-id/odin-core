@@ -135,4 +135,42 @@ public class RegistrationJsonMapperTests
         Assert.That(valid, Is.True);
         Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
     }
+
+    [Test]
+    public void RoundTripsTheInvitationCode()
+    {
+        var source = Registration(TenantStatus.Active, null, null);
+        source.InvitationCode = "K7QX-M2PD-9FHW";
+
+        var target = new IdentityRegistration();
+        RegistrationJsonMapper.Apply(target, disabledColumn: false, RegistrationJsonMapper.ToJson(source));
+
+        Assert.That(target.InvitationCode, Is.EqualTo("K7QX-M2PD-9FHW"));
+    }
+
+    [Test]
+    public void ReadsJsonWrittenBeforeInvitationCodes()
+    {
+        var target = new IdentityRegistration();
+        var valid = RegistrationJsonMapper.Apply(target, disabledColumn: false, "{\"status\":\"paused\"}");
+
+        Assert.That(valid, Is.True);
+        Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
+        Assert.That(target.InvitationCode, Is.Null);
+    }
+
+    [Test]
+    public void WithStatusKeepsTheInvitationCode()
+    {
+        var source = Registration(TenantStatus.Active, null, null);
+        source.InvitationCode = "K7QX-M2PD-9FHW";
+
+        var json = RegistrationJsonMapper.WithStatus(RegistrationJsonMapper.ToJson(source),
+            new TenantStatusState(TenantStatus.Paused, null, new UnixTimeUtc(1)));
+
+        var target = new IdentityRegistration();
+        RegistrationJsonMapper.Apply(target, disabledColumn: false, json);
+        Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
+        Assert.That(target.InvitationCode, Is.EqualTo("K7QX-M2PD-9FHW"));
+    }
 }

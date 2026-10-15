@@ -26,6 +26,11 @@ namespace Odin.Services.Registry
         public bool EnablePublicWebPresence { get; set; } = true;
 
         /// <summary>
+        /// The invitation code the identity signed up with, if any
+        /// </summary>
+        public string InvitationCode { get; set; }
+
+        /// <summary>
         /// Optional certificates to match the <see cref="OdinId"/>
         /// </summary>
         public CertificatePemContent OptionalCertificatePemContent { get; set; }
@@ -85,6 +90,11 @@ namespace Odin.Services.Registry
         /// Whether the identity is allowed a public home page (link previews, SEO/SSR content, etc.)
         /// </summary>
         public bool EnablePublicWebPresence { get; set; } = true;
+
+        /// <summary>
+        /// The invitation code the identity signed up with, if any. Kept in the json column.
+        /// </summary>
+        public string InvitationCode { get; set; }
 
         /// <summary>
         /// The date this account was marked for deletion.

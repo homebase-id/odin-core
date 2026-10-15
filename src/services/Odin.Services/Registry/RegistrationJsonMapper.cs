@@ -1,24 +1,40 @@
 using System;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 
 #nullable enable
 
 namespace Odin.Services.Registry;
 
 /// <summary>
-/// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/>.
-/// Kept out of dedicated columns so it can grow without a schema change.
+/// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/> and the
+/// invitation code the identity signed up with. Kept out of dedicated columns so it can grow without a
+/// schema change.
 /// </summary>
 public static class RegistrationJsonMapper
 {
+    // The status fields stay at the top level, where nodes that only know TenantStatusState read them
+    private sealed record RegistrationJson(
+        TenantStatus Status,
+        DisabledReason? DisabledReason,
+        UnixTimeUtc? StatusChangedAt,
+        string? InvitationCode);
+
     public static string ToJson(IdentityRegistration registration)
     {
-        return ToJson(registration.StatusState);
+        var state = registration.StatusState;
+        return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
+            state.StatusChangedAt, registration.InvitationCode));
     }
 
-    public static string ToJson(TenantStatusState state)
+    /// <summary>
+    /// <paramref name="existingJson"/> with its status replaced by <paramref name="state"/>, keeping everything else.
+    /// </summary>
+    public static string WithStatus(string? existingJson, TenantStatusState state)
     {
-        return OdinSystemSerializer.Serialize(state);
+        var existing = TryParse(existingJson, out _);
+        return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
+            state.StatusChangedAt, existing?.InvitationCode));
     }
 
     /// <summary>
@@ -33,6 +49,7 @@ public static class RegistrationJsonMapper
     public static bool Apply(IdentityRegistration target, bool disabledColumn, string? json)
     {
         var parsed = TryParse(json, out var valid);
+        target.InvitationCode = parsed?.InvitationCode;
 
         if (disabledColumn)
         {
@@ -64,7 +81,7 @@ public static class RegistrationJsonMapper
         return valid;
     }
 
-    private static TenantStatusState? TryParse(string? json, out bool valid)
+    private static RegistrationJson? TryParse(string? json, out bool valid)
     {
         valid = true;
         if (string.IsNullOrWhiteSpace(json))
@@ -74,7 +91,7 @@ public static class RegistrationJsonMapper
 
         try
         {
-            var parsed = OdinSystemSerializer.Deserialize<TenantStatusState>(json);
+            var parsed = OdinSystemSerializer.Deserialize<RegistrationJson>(json);
             if (parsed != null &&
                 Enum.IsDefined(parsed.Status) &&
                 (!parsed.DisabledReason.HasValue || Enum.IsDefined(parsed.DisabledReason.Value)))

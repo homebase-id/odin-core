@@ -31,6 +31,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly IDnsLookupService _dnsLookupService;
     private readonly IJobManager _jobManager;
+    private readonly InvitationCodeServiceClient _invitationCodes;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -39,7 +40,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         IDnsRestClient dnsRestClient,
         IDynamicHttpClientFactory httpClientFactory,
         IDnsLookupService dnsLookupService,
-        IJobManager jobManager)
+        IJobManager jobManager,
+        InvitationCodeServiceClient invitationCodes)
     {
         _logger = logger;
         _configuration = configuration;
@@ -48,6 +50,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _httpClientFactory = httpClientFactory;
         _dnsLookupService = dnsLookupService;
         _jobManager = jobManager;
+        _invitationCodes = invitationCodes;
     }
 
     //
@@ -720,7 +723,20 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             PlanId = planId,
             IsCertificateManaged = false, //TODO
             EnablePublicWebPresence = await CodeGrantsPublicWebPresence(invitationCode),
+            InvitationCode = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim(),
         };
+
+        // A code from the invitation-code service is used up here, not when it was checked: two signups
+        // racing for its last use must not both get it. Codes from config are not counted.
+        var usedServiceCode = false;
+        if (_invitationCodes.IsEnabled && request.InvitationCode != null && !IsConfiguredInvitationCode(request.InvitationCode))
+        {
+            if (!await _invitationCodes.TryUseAsync(request.InvitationCode))
+            {
+                throw new OdinClientException("Invalid or expired Invitation Code");
+            }
+            usedServiceCode = true;
+        }
 
         try
         {
@@ -763,10 +779,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 });
             }
 
+            await CreateOwnInvitationCodeAsync(domain);
+
             return firstRunToken;
         }
         catch (Exception)
         {
+            if (usedServiceCode)
+            {
+                await UndoInvitationCodeUseAsync(request.InvitationCode!);
+            }
             await _registry.DeleteRegistration(domain.DomainName);
             // The zone may have been created above (or earlier during DNS validation);
             // without a registration nothing else reclaims it (there is no prune sweep)
@@ -779,26 +801,29 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsInvitationCodeNeeded()
     {
-        return Task.FromResult(ConfiguredInvitationCodeCount > 0);
+        return Task.FromResult(ConfiguredInvitationCodeCount > 0 || _invitationCodes.IsEnabled);
     }
 
     //
 
-    public Task<bool> IsValidInvitationCode(string code)
+    public async Task<bool> IsValidInvitationCode(string code)
     {
-        if (ConfiguredInvitationCodeCount == 0)
+        if (ConfiguredInvitationCodeCount == 0 && !_invitationCodes.IsEnabled)
         {
-            return Task.FromResult(true);
+            return true;
         }
 
         if (string.IsNullOrEmpty(code))
         {
-            return Task.FromResult(false);
+            return false;
         }
 
-        var match = MatchesAny(_configuration.Registry.InvitationCodes, code) ||
-                    MatchesAny(_configuration.Registry.InvitationCodesWithoutPublicWebPresence, code);
-        return Task.FromResult(match);
+        if (IsConfiguredInvitationCode(code))
+        {
+            return true;
+        }
+
+        return _invitationCodes.IsEnabled && await _invitationCodes.IsValidAsync(code.Trim());
     }
 
     //
@@ -811,6 +836,43 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
 
     //
+
+    // Every identity gets its own code to hand out. Best-effort: a missed one is created the first time
+    // the owner asks for their codes.
+    private async Task CreateOwnInvitationCodeAsync(AsciiDomainName domain)
+    {
+        if (!_invitationCodes.IsEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            await _invitationCodes.CreateAsync(domain.DomainName, _configuration.Registry.DefaultInvitationCodeUses);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to create the invitation code for {domain}", domain);
+        }
+    }
+
+    private async Task UndoInvitationCodeUseAsync(string code)
+    {
+        try
+        {
+            await _invitationCodes.UndoUseAsync(code);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to give back a use of invitation code {code} after a failed signup", code);
+        }
+    }
+
+    private bool IsConfiguredInvitationCode(string code)
+    {
+        return MatchesAny(_configuration.Registry.InvitationCodes, code) ||
+               MatchesAny(_configuration.Registry.InvitationCodesWithoutPublicWebPresence, code);
+    }
 
     private int ConfiguredInvitationCodeCount =>
         _configuration.Registry.InvitationCodes.Count +

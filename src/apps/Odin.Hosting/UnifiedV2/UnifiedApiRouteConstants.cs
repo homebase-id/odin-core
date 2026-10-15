@@ -8,6 +8,7 @@ public static class UnifiedApiRouteConstants
     public const string Contacts = BasePath + "/contacts";
     public const string Profile = BasePath + "/profile";
     public const string Health = BasePath + "/health";
+    public const string InvitationCodes = BasePath + "/invitation-codes";
     public const string DrivesRoot = BasePath + "/drives";
     public const string ByDriveId = DrivesRoot + "/{driveId:guid}";
     public const string FilesRoot = ByDriveId + "/files";
