@@ -31,6 +31,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version16tov17;
 using Odin.Services.Configuration.VersionUpgrade.Version17tov18;
 using Odin.Services.Configuration.VersionUpgrade.Version18tov19;
 using Odin.Services.Configuration.VersionUpgrade.Version19tov20;
+using Odin.Services.Configuration.VersionUpgrade.Version20tov21;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -58,6 +59,7 @@ public class VersionUpgradeService(
     V17ToV18VersionMigrationService v18,
     V18ToV19VersionMigrationService v19,
     V19ToV20VersionMigrationService v20,
+    V20ToV21VersionMigrationService v21,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -743,6 +745,41 @@ public class VersionUpgradeService(
                 await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 await v20.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                versionTx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 20)
+            {
+                runState.SetRunning(true);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await RunPhaseAsync("v20->v21 reset-friends-drive-grants", async ct =>
+                {
+                    await using var friendsTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v21.ResetFriendsDriveGrantsAsync(odinContext, ct);
+                    friendsTx.Commit();
+                }, cancellationToken);
+
+                await RunPhaseAsync("v20->v21 delete-empty-retired-circles", async ct =>
+                {
+                    await using var circlesTx = await db.BeginStackedTransactionAsync(cancellationToken: ct);
+                    await v21.DeleteEmptyRetiredCirclesAsync(odinContext, ct);
+                    circlesTx.Commit();
+                }, cancellationToken);
+
+                await using var versionTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                await v21.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
