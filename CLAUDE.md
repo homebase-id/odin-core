@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ODIN-CORE (Homebase.ID) is a decentralized identity platform providing self-sovereign identity, encrypted storage, and peer-to-peer communication. Each identity owns a domain and runs its own server. Built on .NET 9.0 targeting both SQLite and PostgreSQL.
+ODIN-CORE (Homebase.ID) is a decentralized identity platform providing self-sovereign identity, encrypted storage, and peer-to-peer communication. Each identity owns a domain and runs its own server. Built on .NET 10.0 targeting both SQLite and PostgreSQL.
 
 ## Build & Test Commands
 

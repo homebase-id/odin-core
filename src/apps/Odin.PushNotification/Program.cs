@@ -178,8 +178,7 @@ app.MapPost("/message/v1", async (
                 request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, e.Message);
             return Results.Problem("An internal error occurred.", statusCode: 500);
         }
-    })
-    .WithOpenApi();
+    });
 
 app.Run();
 
