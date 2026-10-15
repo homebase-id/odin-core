@@ -25,7 +25,8 @@ public class UpdateArchivalStatusResultV2
     /// <summary>
     /// Null on success. Otherwise why this file was not updated, serialized as a camelCase string like every
     /// OdinClientErrorCode: "versionTagMismatch" (stale tag), "fileNotFound" (missing, or hidden from the caller by
-    /// its ACL), "cannotUpdateNonActiveFile" (deleted), or any other client error the header write raised.
+    /// its ACL, as a query would leave it out), "cannotUpdateNonActiveFile" (deleted), or any other client error the
+    /// header write raised. One file's error never stops the others.
     /// </summary>
     public OdinClientErrorCode? ErrorCode { get; init; }
 }

@@ -66,9 +66,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             Summary = "Set the archival status of many files",
             Description = "Sets appData.archivalStatus on each file and leaves the rest of its header as it is, so " +
                           "the caller needs neither the key header nor the content. Each file is updated only if its " +
-                          "version tag still matches, and gets a new version tag and modified time. Results are per " +
-                          "file: a stale, missing or deleted file reports its error code and does not stop the others. " +
-                          "A file already at the requested status is left alone and keeps its version tag.",
+                          "version tag still matches. Results are per file; see UpdateArchivalStatusResultV2.",
             Tags = [SwaggerInfo.FileWrite]
         )]
         public async Task<UpdateArchivalStatusBatchResultV2> UpdateArchivalStatusBatch(Guid driveId,
@@ -86,6 +84,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
 
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
+            var status = request.ArchivalStatus!.Value;
             var storage = GetFileSystem().Storage;
             var results = new List<UpdateArchivalStatusResultV2>(request.Files.Count);
             foreach (var f in request.Files)
@@ -93,7 +92,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 try
                 {
                     var newVersionTag = await storage.UpdateArchivalStatus(new InternalDriveFileId(driveId, f.FileId), f.VersionTag,
-                        request.ArchivalStatus!.Value, WebOdinContext);
+                        status, WebOdinContext);
                     results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, NewVersionTag = newVersionTag });
                 }
                 catch (OdinClientException e)

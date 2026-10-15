@@ -718,11 +718,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
-        public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext)
+        /// <param name="aclDeniedAsMissing">Answer null, as for a missing file, when the file's ACL denies the caller,
+        /// instead of throwing; the drive-level checks still throw.</param>
+        public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext,
+            bool aclDeniedAsMissing = false)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file, odinContext);
+            var header = await GetServerFileHeaderInternal(file, odinContext, aclDeniedAsMissing: aclDeniedAsMissing);
 
             if (header == null)
             {
@@ -845,7 +848,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// The header-update paths' answer for an existing header they cannot change: 4106 when it does not exist,
         /// 4002 when it is not active (a tombstone). The archival-status batch reports these codes per file, so keep
-        /// them stable. (The local-metadata updates answer differently and are not covered.)
+        /// them stable.
         /// </summary>
         private static void AssertActiveForUpdate(ServerFileHeader header)
         {
@@ -1589,27 +1592,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// caller needs neither the key header nor the content. The write is conditional on
         /// <paramref name="expectedVersionTag"/> (4160 when stale) and, like any header write, gives the file a new
         /// version tag and moves its modified time. A file already at that status is left alone. Returns the file's
-        /// version tag afterwards. A file whose ACL hides it from the caller answers 4106, like a missing one.
+        /// version tag afterwards. A file the caller may not see answers 4106, as a query would leave it out.
         /// </summary>
         public async Task<Guid> UpdateArchivalStatus(InternalDriveFileId file, Guid expectedVersionTag, int archivalStatus,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
-            // A drive-level denial stays a denial; only this file's own ACL is answered as "not found" below.
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-
-            ServerFileHeader header;
-            try
-            {
-                header = await GetServerFileHeaderForWriting(file, odinContext);
-            }
-            catch (OdinSecurityException)
-            {
-                // The file's ACL hides it from this caller: answer as for a missing file, without saying it exists
-                header = null;
-            }
-
+            var header = await GetServerFileHeaderForWriting(file, odinContext, aclDeniedAsMissing: true);
             AssertActiveForUpdate(header);
 
             // Checked here for a clear answer; the header write repeats the check atomically against the row.
@@ -2126,7 +2116,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext,
-            bool includeExpired = false)
+            bool includeExpired = false, bool aclDeniedAsMissing = false)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
@@ -2142,6 +2132,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (!includeExpired && IsExpired(header))
             {
                 return null;
+            }
+
+            // Like a query, which leaves out what the caller may not see, when the caller asks for that
+            if (aclDeniedAsMissing)
+            {
+                return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext)
+                    ? header
+                    : null;
             }
 
             await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
