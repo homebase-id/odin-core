@@ -7,11 +7,15 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
+using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Drives;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -78,5 +82,72 @@ public class V0ToV1CircleRegrantTests : V2Fixture
 
         Assert.That(profileGrant, Is.Not.Null, "the auto-connected contact's Chat grant should have been re-minted");
         Assert.That(profileGrant!.KeyStoreKeyEncryptedStorageKey, Is.Not.Null, "re-minted with the master key, key included");
+    }
+
+    /// <remarks>
+    /// A connection whose temporary token was sealed to an ECC key this identity has since rotated away
+    /// cannot have its token upgraded.  That used to throw out of the re-mint and roll the whole v0 -&gt; v1
+    /// upgrade back on every login (seen on bleeding edge); it is left as-is instead, as the KSK upgrade
+    /// already does for the same state.
+    /// </remarks>
+    [Test]
+    public async Task ATokenSealedToARotatedKey_DoesNotFailTheReMint()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+
+        var (scope, ctx) = await MigrationContextAsync(sam);
+        var storage = scope.Resolve<CircleNetworkStorage>();
+
+        var icr = (await storage.GetAsync(frodo.Identity))!;
+        Assert.That(icr.PeerKeyStore.CircleGrants, Is.Not.Empty, "precondition: the re-mint has a circle to visit");
+
+        // A token still awaiting its upgrade, sealed to a key whose CRC this identity does not hold.
+        var stale = await scope.Resolve<PublicPrivateKeyService>()
+            .EccEncryptPayload(PublicPrivateKeyType.OnlineKey, ByteArrayUtil.GetRndByteArray(32));
+        stale.EncryptionPublicKeyCrc32 ^= 0xFFFFFFFF;
+        icr.TemporaryWeakClientAccessToken = stale;
+        icr.EncryptedClientAccessToken = null!;
+        await storage.UpsertAsync(icr, ctx);
+
+        Assert.DoesNotThrowAsync(() => scope.Resolve<V0ToV1VersionMigrationService>()
+            .AutoFixCircleGrantsAsync(ctx, CancellationToken.None));
+
+        var after = (await storage.GetAsync(frodo.Identity))!;
+        Assert.That(after.TemporaryWeakClientAccessToken, Is.Not.Null, "the unrecoverable token is left as-is");
+    }
+
+    /// <remarks>
+    /// A connection with no recoverable Peer Key (its temp weak copy sealed to a key this identity has since
+    /// rotated away) cannot be given an app's circle grant.  ReconcileAuthorizedCircles dereferenced the
+    /// missing key and threw, rolling the whole v0 -&gt; v1 upgrade back (seen on bleeding edge); it skips the
+    /// connection instead, as the circle re-mint already does.
+    /// </remarks>
+    [Test]
+    public async Task AConnectionWithNoRecoverablePeerKey_DoesNotFailTheAppReconcile()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.ConnectAsync(frodo, sam);
+
+        var (scope, ctx) = await MigrationContextAsync(sam);
+        var storage = scope.Resolve<CircleNetworkStorage>();
+
+        var icr = (await storage.GetAsync(frodo.Identity))!;
+        Assert.That(icr.PeerKeyStore.CircleGrants, Is.Not.Empty, "precondition: frodo is in a circle to reconcile");
+        var circleId = icr.PeerKeyStore.CircleGrants.Keys.First();
+
+        icr.PeerKeyStore.MasterKeyEncryptedPeerKey = null!;
+        icr.TempWeakKeyStoreKey = null;
+        await storage.UpsertAsync(icr, ctx);
+
+        // An app authorized for that circle -- Mail, on the identity where this was seen -- so the reconcile
+        // has to visit frodo.
+        var chat = (await scope.Resolve<IAppRegistrationService>().GetAppRegistration(SystemAppConstants.ChatAppId, ctx))!;
+        chat.AuthorizedCircles = [circleId];
+
+        Assert.DoesNotThrowAsync(() => scope.Resolve<CircleNetworkService>()
+            .ReconcileAuthorizedCircles(oldAppRegistration: null, chat, ctx));
     }
 }

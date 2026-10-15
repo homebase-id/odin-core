@@ -2124,6 +2124,16 @@ namespace Odin.Services.Membership.Connections
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                     }
 
+                    // No Peer Key to mint under -- e.g. its temp weak copy was sealed to a key this identity
+                    // has since rotated away.  Skipped, as UpdateCircleDefinitionAsync skips it, rather than
+                    // failing every other member and app with it (the v0 -> v1 upgrade included).
+                    if (icr.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
+                    {
+                        logger.LogWarning("ReconcileAuthorizedCircles: ICR for {identity} still requires the master key " +
+                                          "encryption upgrade; skipping its app grant for circle {circleId}", icr.OdinId, circleId);
+                        continue;
+                    }
+
                     if (!icr.PeerKeyStore.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {
                         appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
@@ -3233,7 +3243,22 @@ namespace Odin.Services.Membership.Connections
 
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 
-                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
+                byte[] keyStoreKey;
+                try
+                {
+                    keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
+                }
+                catch (OdinClientException e)
+                {
+                    // EccDecryptPayload refuses a payload sealed to an ECC key this identity no longer
+                    // holds. Unrecoverable, but nothing is wrong: the key rotated -- the same state the
+                    // KSK upgrade tolerates.  Throwing here failed whatever was in flight for every other
+                    // connection too, the v0 -> v1 upgrade included.
+                    logger.LogWarning(e,
+                        "Not upgrading ICR Token Encryption for {id}: its temporary token was sealed to a key " +
+                        "this identity no longer holds. Left as-is", identity.OdinId);
+                    return;
+                }
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
