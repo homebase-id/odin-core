@@ -42,10 +42,16 @@ public static class FileResultShapes
     /// <paramref name="includeMetadataHeader"/> flag, so a caller that sends neither keeps getting what it got
     /// before <c>resultShape</c> existed
     /// </summary>
-    public static FileResultShape Resolve(FileResultShape? resultShape, bool includeMetadataHeader)
+    public static FileResultShape Resolve(FileResultShape? resultShape, bool includeMetadataHeader) =>
+        Resolve(resultShape, includeMetadataHeader ? FileResultShape.Full : FileResultShape.NoContent);
+
+    /// <summary>
+    /// The shape a caller asks for, or <paramref name="whenAbsent"/> when it asks for none
+    /// </summary>
+    public static FileResultShape Resolve(FileResultShape? resultShape, FileResultShape whenAbsent)
     {
         AssertKnown(resultShape);
-        return resultShape ?? (includeMetadataHeader ? FileResultShape.Full : FileResultShape.NoContent);
+        return resultShape ?? whenAbsent;
     }
 
     /// <summary>

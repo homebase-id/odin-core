@@ -21,6 +21,25 @@ public class EstablishConnectionOptions
     /// header, as before this option existed.
     /// </summary>
     public FileResultShape? ResultShape { get; set; }
+
+    /// <summary>
+    /// What both socket handshakes take from these options: the drives, each of which the caller must be able to read
+    /// (OdinSecurityException otherwise), and the shape (OdinClientException when unknown). Nothing is set on the
+    /// socket unless all of it is valid.
+    /// </summary>
+    public void ApplyTo(DeviceSocket socket, PermissionContext permissions)
+    {
+        var drives = new List<Guid>();
+        foreach (var td in Drives)
+        {
+            permissions.AssertCanReadDrive(td.Alias);
+            drives.Add(td.Alias);
+        }
+
+        var shape = FileResultShapes.Resolve(ResultShape, whenAbsent: FileResultShape.Full);
+        socket.Drives = drives;
+        socket.ResultShape = shape;
+    }
 }
 
 public class DeviceSocket

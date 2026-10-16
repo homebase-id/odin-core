@@ -375,7 +375,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     if (!options.IncludeHeaderContent)
                     {
-                        header.FileMetadata.AppData.Content = string.Empty;
+                        header.FileMetadata.AppData = header.FileMetadata.AppData.WithoutContent();
                     }
 
                     if (options.ExcludePreviewThumbnail)

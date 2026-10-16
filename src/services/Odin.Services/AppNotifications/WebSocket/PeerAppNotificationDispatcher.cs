@@ -170,16 +170,11 @@ namespace Odin.Services.AppNotifications.WebSocket
             var driveManager =  scope.Resolve<IDriveManager>();
             var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
 
+            var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader, notification.IsDeleteNotification);
             foreach (var deviceSocket in sockets)
             {
-                var o = ClientDriveNotification.For(deviceSocket, drive?.TargetDriveInfo, notification.ServerFileHeader,
-                    notification.IsDeleteNotification ? notification.PreviousServerFileHeader : null);
-
-                var json = OdinSystemSerializer.Serialize(new
-                {
-                    notification.NotificationType,
-                    Data = OdinSystemSerializer.Serialize(o)
-                });
+                var json = driveEvent.JsonFor(deviceSocket);
 
                 await SendMessageAsync(
                     deviceSocket,

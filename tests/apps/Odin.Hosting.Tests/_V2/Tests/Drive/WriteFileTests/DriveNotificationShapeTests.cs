@@ -19,7 +19,7 @@ namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests;
 /// <summary>
 /// A notification socket chooses at its handshake what drive events describe their file with
 /// (<see cref="EstablishConnectionOptions.ResultShape"/>): the full header (the default), the header without
-/// appData.content, or only a <see cref="FileRef"/>.
+/// appData.content, or only a <see cref="FileRef"/>. Whatever the shape, a delete names the file it removed.
 ///
 /// In the WebScaffold framework (not the fast <c>Odin.Hosting.Tests.V2</c>) because it receives over a real
 /// WebSocket, which the fast framework does not host.
@@ -112,6 +112,33 @@ public class DriveNotificationShapeTests
         {
             await full.DisconnectAsync();
             await noContent.DisconnectAsync();
+        }
+    }
+
+    [Test]
+    public async Task AFullSocketIsToldWhichFileAHardDeleteRemoved()
+    {
+        var (owner, drive) = await SetupDriveAsync();
+        var socket = await ShapedSocket.ConnectAsync(owner, drive, null);
+
+        try
+        {
+            var upload = await owner.DriveRedux.UploadNewMetadata(drive, SampleMetadataData.Create(fileType: 100));
+            Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
+            await socket.NextAsync(ClientNotificationType.FileAdded);
+
+            await HardDeleteAsync(owner, drive, upload.Content!.File.FileId, upload.Content.NewVersionTag);
+            var deleted = await socket.NextAsync(ClientNotificationType.FileDeleted);
+
+            // As a soft delete does: nothing is left (header null), and the header the file had names it
+            var previous = deleted.GetProperty("previousServerFileHeader");
+            Assert.That((deleted.GetProperty("header").ValueKind, previous.GetProperty("fileId").GetGuid(),
+                    previous.GetProperty("fileMetadata").GetProperty("globalTransitId").GetGuid()),
+                Is.EqualTo((JsonValueKind.Null, upload.Content.File.FileId, upload.Content.GlobalTransitId!.Value)), deleted.ToString());
+        }
+        finally
+        {
+            await socket.DisconnectAsync();
         }
     }
 

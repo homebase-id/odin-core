@@ -1,5 +1,7 @@
 #nullable enable
 using System.Text.Json.Serialization;
+using Odin.Core.Serialization;
+using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Drives;
@@ -36,7 +38,7 @@ public class ClientDriveNotification
 
         // A socket without a shared secret gets neither headers nor refs
         var deviceOdinContext = socket.DeviceOdinContext;
-        if (deviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
+        if (!HasSharedSecret(socket))
         {
             return notification;
         }
@@ -60,6 +62,8 @@ public class ClientDriveNotification
         return notification;
     }
 
+    public static bool HasSharedSecret(DeviceSocket socket) => socket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null;
+
     // The client header's AppData is the event's own instance, so it is replaced by a copy, not emptied
     private static void WithoutContent(SharedSecretEncryptedFileHeader? clientHeader)
     {
@@ -67,5 +71,45 @@ public class ClientDriveNotification
         {
             clientHeader.FileMetadata.AppData = clientHeader.FileMetadata.AppData.WithoutContent();
         }
+    }
+}
+
+/// <summary>
+/// One drive event, as the message each socket gets in the shape it asked for. A minimal socket's message does not
+/// depend on the socket (no key header in it), so it is built once per event; full and noContent carry a key header
+/// encrypted for each socket.
+/// </summary>
+public sealed class DriveEventMessage(
+    ClientNotificationType notificationType,
+    TargetDrive? targetDrive,
+    ServerFileHeader? header,
+    ServerFileHeader? previousHeader,
+    bool isDelete)
+{
+    // Only a delete sends the header the file had before
+    private readonly ServerFileHeader? _previousHeader = isDelete ? previousHeader : null;
+    private string? _minimalJson;
+
+    public string JsonFor(DeviceSocket socket)
+    {
+        var shared = socket.ResultShape == FileResultShape.Minimal && ClientDriveNotification.HasSharedSecret(socket);
+        if (shared && _minimalJson != null)
+        {
+            return _minimalJson;
+        }
+
+        var notification = ClientDriveNotification.For(socket, targetDrive, header, _previousHeader);
+        var json = OdinSystemSerializer.Serialize(new
+        {
+            NotificationType = notificationType,
+            Data = OdinSystemSerializer.Serialize(notification)
+        });
+
+        if (shared)
+        {
+            _minimalJson = json;
+        }
+
+        return json;
     }
 }

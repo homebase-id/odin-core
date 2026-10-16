@@ -262,23 +262,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case SocketCommandType.EstablishConnectionRequest:
                     try
                     {
-                        var drives = new List<Guid>();
                         var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
-                                      new EstablishConnectionOptions()
-                                      {
-                                          Drives = []
-                                      };
-
-                        foreach (var td in options.Drives)
-                        {
-                            var driveId = td.Alias;
-                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-                            drives.Add(driveId);
-                        }
-
-                        FileResultShapes.AssertKnown(options.ResultShape);
-                        deviceSocket.Drives = drives;
-                        deviceSocket.ResultShape = options.ResultShape ?? FileResultShape.Full;
+                                      new EstablishConnectionOptions();
+                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
                     }
                     catch (Exception e) when (e is OdinSecurityException or OdinClientException)
                     {
