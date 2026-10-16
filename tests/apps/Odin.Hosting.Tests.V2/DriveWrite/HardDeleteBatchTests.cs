@@ -152,12 +152,12 @@ public class HardDeleteBatchTests : V2Fixture
     /// <summary>
     /// Every row of the drive's change feed, tombstones included
     /// </summary>
-    private static async Task<Dictionary<Guid, QueryBatchFileRef>> FeedAsync(OwnerSession owner, TargetDrive drive)
+    private static async Task<Dictionary<Guid, FileRef>> FeedAsync(OwnerSession owner, TargetDrive drive)
     {
         var response = await owner.Drives.Reader.GetBatchAsync(drive.Alias, new QueryBatchRequest
         {
             QueryParams = new FileQueryParamsV1 { TargetDrive = drive, FileState = [FileState.Active, FileState.Deleted] },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, ResultShape = QueryBatchResultShape.Minimal }
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, ResultShape = FileResultShape.Minimal }
         });
         Assert.That(response.IsSuccessStatusCode, Is.True, $"feed query failed: {response.StatusCode}");
         return response.Content!.FileRefs.ToDictionary(r => r.FileId);

@@ -147,7 +147,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                                 NotificationType = ClientNotificationType.AuthenticationError,
                                 Data = "Invalid Token",
                             }),
-                            deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                            deviceSocket.HasSharedSecret,
                             sendEvenIfNoDeviceOdinContext: true,
                             cancellationToken);
                         continue;
@@ -262,23 +262,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case SocketCommandType.EstablishConnectionRequest:
                     try
                     {
-                        var drives = new List<Guid>();
-                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
-                                      new EstablishConnectionOptions()
-                                      {
-                                          Drives = []
-                                      };
-
-                        foreach (var td in options.Drives)
-                        {
-                            var driveId = td.Alias;
-                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-                            drives.Add(driveId);
-                        }
-
-                        deviceSocket.Drives = drives;
+                        var options = EstablishConnectionOptions.Parse(command.Data);
+                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
                     }
-                    catch (OdinSecurityException e)
+                    catch (Exception e) when (e is OdinSecurityException or OdinClientException)
                     {
                         var error = $"[Command:{command.Command}] {e.Message}";
                         await SendErrorMessageAsync(deviceSocket, error, cancellationToken);

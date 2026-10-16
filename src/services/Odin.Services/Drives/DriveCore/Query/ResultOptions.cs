@@ -14,15 +14,15 @@ public class ResultOptions
     /// request), whose wire format knows only <see cref="IncludeHeaderContent"/>.
     /// </summary>
     [JsonIgnore]
-    public QueryBatchResultShape ResultShape { get; set; } = QueryBatchResultShape.NoContent;
+    public FileResultShape ResultShape { get; set; } = FileResultShape.NoContent;
 
     /// <summary>
     /// <see cref="ResultShape"/> as the legacy flag, so the two can never disagree
     /// </summary>
     public bool IncludeHeaderContent
     {
-        get => ResultShape == QueryBatchResultShape.Full;
-        set => ResultShape = value ? QueryBatchResultShape.Full : QueryBatchResultShape.NoContent;
+        get => ResultShape == FileResultShape.Full;
+        set => ResultShape = value ? FileResultShape.Full : FileResultShape.NoContent;
     }
 
     /// <summary>

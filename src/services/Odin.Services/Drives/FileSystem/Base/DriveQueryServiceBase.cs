@@ -273,7 +273,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 else
                 {
                     collection.Results.Add(QueryBatchResponse.FromInvalidDrive(query.Name,
-                        query.ResultOptionsRequest?.ResultShape == QueryBatchResultShape.Minimal));
+                        query.ResultOptionsRequest?.ResultShape == FileResultShape.Minimal));
                 }
             }
 
@@ -375,7 +375,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     if (!options.IncludeHeaderContent)
                     {
-                        header.FileMetadata.AppData.Content = string.Empty;
+                        header.FileMetadata.AppData = header.FileMetadata.AppData.WithoutContent();
                     }
 
                     if (options.ExcludePreviewThumbnail)
@@ -544,10 +544,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 HasMoreRows = hasMoreRows
             };
 
-            if (options.ResultShape == QueryBatchResultShape.Minimal)
+            if (options.ResultShape == FileResultShape.Minimal)
             {
                 var (visible, _) = await FilterVisibleAsync(driveId, records, odinContext);
-                result.FileRefs = visible.Select(QueryBatchFileRef.FromHeader).ToList();
+                result.FileRefs = visible.Select(FileRef.FromHeader).ToList();
             }
             else
             {

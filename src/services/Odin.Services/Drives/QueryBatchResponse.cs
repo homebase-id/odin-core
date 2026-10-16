@@ -28,17 +28,17 @@ public class QueryBatchResponse
     public bool HasMoreRows { get; set; }
 
     /// <summary>
-    /// The rows; left out of a <see cref="QueryBatchResultShape.Minimal"/> result, which has <see cref="FileRefs"/>
+    /// The rows; left out of a <see cref="FileResultShape.Minimal"/> result, which has <see cref="FileRefs"/>
     /// instead
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
     /// <summary>
-    /// The rows of a <see cref="QueryBatchResultShape.Minimal"/> result; left out of every other
+    /// The rows of a <see cref="FileResultShape.Minimal"/> result; left out of every other
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IEnumerable<QueryBatchFileRef> FileRefs { get; set; }
+    public IEnumerable<FileRef> FileRefs { get; set; }
 
     public static QueryBatchResponse FromResult(QueryBatchResult batch)
     {
@@ -64,7 +64,7 @@ public class QueryBatchResponse
             InvalidDrive = true,
             // No rows, in the shape the section asked for
             SearchResults = minimal ? null : new List<SharedSecretEncryptedFileHeader>(),
-            FileRefs = minimal ? new List<QueryBatchFileRef>() : null
+            FileRefs = minimal ? new List<FileRef>() : null
         };
     }
 }

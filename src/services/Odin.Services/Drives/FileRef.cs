@@ -8,12 +8,12 @@ namespace Odin.Services.Drives;
 #nullable enable
 
 /// <summary>
-/// One row of a <see cref="QueryBatchResultShape.Minimal"/> query-batch result: what identifies a file and its
-/// version, without the header.  The names and JSON types match the client file header (fileState is a camelCase
+/// What identifies a file and its version, without the header: a row of a <see cref="FileResultShape.Minimal"/>
+/// query-batch result, and the file of a drive event on a socket that asked for that shape.  The names and JSON types match the client file header (fileState is a camelCase
 /// string, as there).  Optional values that are absent are left out of the JSON, not sent as null; fileState and
 /// archivalStatus are always sent, as their default values mean something.
 /// </summary>
-public class QueryBatchFileRef
+public class FileRef
 {
     public Guid FileId { get; init; }
 
@@ -58,11 +58,11 @@ public class QueryBatchFileRef
 
     public long FileByteCount { get; init; }
 
-    public static QueryBatchFileRef FromHeader(ServerFileHeader header)
+    public static FileRef FromHeader(ServerFileHeader header)
     {
         var metadata = header.FileMetadata;
         var localVersionTag = metadata.LocalAppData?.VersionTag;
-        return new QueryBatchFileRef
+        return new FileRef
         {
             FileId = metadata.File.FileId,
             GlobalTransitId = metadata.GlobalTransitId,

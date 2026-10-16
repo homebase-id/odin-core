@@ -34,8 +34,8 @@ public class MinimalPeerQueryBatchTests : V2Fixture
             await AppFileUploads.SeedTextFileAsync(sam, drive, "three"),
         };
 
-        var full = await QueryAsync(frodo, sam, drive, QueryBatchResultShape.Full);
-        var minimal = await QueryAsync(frodo, sam, drive, QueryBatchResultShape.Minimal);
+        var full = await QueryAsync(frodo, sam, drive, FileResultShape.Full);
+        var minimal = await QueryAsync(frodo, sam, drive, FileResultShape.Minimal);
 
         var expected = files.Take(2).Select(f => f.FileId);
         Assert.That(full.SearchResults.Select(h => h.FileId), Is.EqualTo(expected));
@@ -48,7 +48,7 @@ public class MinimalPeerQueryBatchTests : V2Fixture
     }
 
     private static async Task<QueryBatchResponse> QueryAsync(OwnerSession frodo, OwnerSession sam, TargetDrive drive,
-        QueryBatchResultShape shape)
+        FileResultShape shape)
     {
         var response = await frodo.Drives.Peer.QueryBatchAsync(sam.Identity, drive.Alias, new QueryBatchRequest
         {
