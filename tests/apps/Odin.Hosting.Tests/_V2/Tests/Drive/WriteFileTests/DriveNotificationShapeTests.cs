@@ -72,7 +72,7 @@ public class DriveNotificationShapeTests
 
             // The tombstone's tag, as a minimal client learns it: from the event
             var tombstoneTag = softDeleted.GetProperty("fileRef").GetProperty("versionTag").GetGuid();
-            await HardDeleteAsync(owner, drive, file.FileId, tombstoneTag);
+            await owner.HardDeleteOneV2Async(drive, file.FileId, tombstoneTag);
             var hardDeleted = await socket.NextAsync(ClientNotificationType.FileDeleted);
 
             // Only what the event carries: no header keys, and no null for an absent ref
@@ -134,7 +134,7 @@ public class DriveNotificationShapeTests
             Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
             await socket.NextAsync(ClientNotificationType.FileAdded);
 
-            await HardDeleteAsync(owner, drive, upload.Content!.File.FileId, upload.Content.NewVersionTag);
+            await owner.HardDeleteOneV2Async(drive, upload.Content!.File.FileId, upload.Content.NewVersionTag);
             var deleted = await socket.NextAsync(ClientNotificationType.FileDeleted);
 
             // As a soft delete does: nothing is left (header null), and the header the file had names it
@@ -172,19 +172,6 @@ public class DriveNotificationShapeTests
         var drive = TargetDrive.NewTargetDrive();
         await owner.DriveManager.CreateDrive(drive, "Notification shape test drive", "", allowAnonymousReads: true);
         return (owner, drive);
-    }
-
-    private static async Task HardDeleteAsync(OwnerApiClientRedux owner, TargetDrive drive, Guid fileId, Guid versionTag)
-    {
-        var callerContext = new OwnerTestCase(drive);
-        await callerContext.Initialize(owner);
-        var writer = new DriveWriterV2Client(owner.Identity.OdinId, callerContext.GetFactory());
-        var response = await writer.HardDeleteBatch(drive.Alias, new HardDeleteBatchRequestV2
-        {
-            Files = [new FileVersionTagV2 { FileId = fileId, VersionTag = versionTag }]
-        });
-        Assert.That((response.IsSuccessStatusCode, response.Content?.Results.Single().ErrorCode),
-            Is.EqualTo((true, (Odin.Core.Exceptions.OdinClientErrorCode?)null)), response.Error?.Content);
     }
 
     /// <summary>

@@ -26,10 +26,11 @@ public class EstablishConnectionOptions
     public FileResultShape? ResultShape { get; set; }
 
     /// <summary>
-    /// When true, the socket gets no drive events for writes made with its own token: a client that applies its
-    /// writes locally need not hear them back. Writes by any other token, files arriving from peers and the
-    /// server's own follow-up writes (e.g. transfer history) still arrive. Sockets sharing one token (e.g. two
-    /// tabs of an app) also miss each other's writes.
+    /// When true, the socket gets no drive events for writes made by a request with its own token: a client that
+    /// applies its writes locally need not hear them back. That includes what the same request changed on the side
+    /// (e.g. the transfer history an upload starts). Writes by any other token, files and receipts arriving from
+    /// peers, and the server's later work (e.g. the outbox's delivery updates, reaction previews) still arrive.
+    /// Sockets sharing one token (e.g. two tabs of an app) also miss each other's writes.
     /// </summary>
     public bool ExcludeOwnWrites { get; set; }
 
@@ -54,10 +55,8 @@ public class EstablishConnectionOptions
             throw new OdinClientException("excludeOwnWrites is not available on this connection", OdinClientErrorCode.InvalidQuery);
         }
 
-        var shape = FileResultShapes.Resolve(ResultShape, whenAbsent: FileResultShape.Full);
-
         // All but the drives first: drives are what route events to the socket, so the rest is in place by then
-        socket.ResultShape = shape;
+        socket.ResultShape = FileResultShapes.Resolve(ResultShape, whenAbsent: FileResultShape.Full);
         socket.ExcludedWriterTokenId = ExcludeOwnWrites ? ownTokenId : null;
         socket.Drives = drives;
     }

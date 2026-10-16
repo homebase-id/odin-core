@@ -163,10 +163,35 @@ internal static class LiveRelayTestHelpers
         List<TargetDrive> subscribedDrives,
         CancellationToken cancellationToken)
     {
+        var frame = await SendHandshakeAsync(socket, sharedSecret, new EstablishConnectionOptions { Drives = subscribedDrives },
+            cancellationToken);
+        return DecryptClientNotification<EstablishConnectionResponse>(frame, sharedSecret);
+    }
+
+    /// <summary>
+    /// The handshake's reply as a notification, so a refusal (an Error notification) reads as one rather than
+    /// as an <see cref="EstablishConnectionResponse"/>
+    /// </summary>
+    public static async Task<TestClientNotification> DoHandshakeAsync(
+        ClientWebSocket socket,
+        byte[] sharedSecret,
+        EstablishConnectionOptions options,
+        CancellationToken cancellationToken)
+    {
+        var frame = await SendHandshakeAsync(socket, sharedSecret, options, cancellationToken);
+        return DecryptClientNotification<TestClientNotification>(frame, sharedSecret);
+    }
+
+    private static async Task<byte[]> SendHandshakeAsync(
+        ClientWebSocket socket,
+        byte[] sharedSecret,
+        EstablishConnectionOptions options,
+        CancellationToken cancellationToken)
+    {
         var command = new SocketCommand
         {
             Command = SocketCommandType.EstablishConnectionRequest,
-            Data = OdinSystemSerializer.Serialize(new EstablishConnectionOptions { Drives = subscribedDrives })
+            Data = OdinSystemSerializer.Serialize(options)
         };
 
         var encrypted = SharedSecretEncryptedPayload.Encrypt(
@@ -176,8 +201,7 @@ internal static class LiveRelayTestHelpers
         var sendBuffer = OdinSystemSerializer.Serialize(encrypted).ToUtf8ByteArray();
         await socket.SendAsync(new ArraySegment<byte>(sendBuffer), WebSocketMessageType.Text, true, cancellationToken);
 
-        var frame = await ReadFrameAsync(socket, cancellationToken);
-        return DecryptClientNotification<EstablishConnectionResponse>(frame, sharedSecret);
+        return await ReadFrameAsync(socket, cancellationToken);
     }
 
     /// <summary>
@@ -243,7 +267,10 @@ internal static class LiveRelayTestHelpers
         }
     }
 
-    private static async Task<byte[]> ReadFrameAsync(ClientWebSocket socket, CancellationToken cancellationToken)
+    /// <summary>
+    /// The next whole message; null when the server closes
+    /// </summary>
+    public static async Task<byte[]> ReadFrameAsync(ClientWebSocket socket, CancellationToken cancellationToken)
     {
         var buffer = new ArraySegment<byte>(new byte[1024 * 8]);
         using var ms = new MemoryStream();
@@ -262,7 +289,7 @@ internal static class LiveRelayTestHelpers
         return ms.ToArray();
     }
 
-    private static T DecryptClientNotification<T>(byte[] frameBytes, byte[] sharedSecret)
+    public static T DecryptClientNotification<T>(byte[] frameBytes, byte[] sharedSecret)
     {
         var json = frameBytes.ToStringFromUtf8Bytes();
         var payload = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);

@@ -4,7 +4,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
+using Odin.Hosting.Tests.OwnerApi.Utils;
+using Odin.Test.Helpers;
 using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -12,10 +13,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
-using Odin.Hosting.Tests._V2.ApiClient.TestCases;
-using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.AppNotifications.WebSocket;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -79,19 +77,16 @@ public class ExcludeOwnWritesTests
             var softDelete = await owner.DriveRedux.SoftDeleteFile(f1.File);
             Assert.That(softDelete.IsSuccessStatusCode, Is.True, $"soft delete failed: {softDelete.StatusCode}");
             var tombstone = await owner.DriveRedux.GetFileHeader(f1.File);
-            await HardDeleteAsync(owner, drive, f1.File.FileId, tombstone.Content!.FileMetadata.VersionTag);
+            await owner.HardDeleteOneV2Async(drive, f1.File.FileId, tombstone.Content!.FileMetadata.VersionTag);
             var f2 = await UploadAsync(driveB, drive);
             var f3 = await UploadAsync(owner.DriveRedux, drive);
 
             var fromA = $"fileAdded {f1.File.FileId}, fileModified {f1.File.FileId}, fileDeleted {f1.File.FileId}, fileDeleted {f1.File.FileId}";
-            Assert.That(await NextEventsAsync(aExcluding, ClientNotificationType.FileAdded),
+            Assert.That(await NextEventsAsync(aExcluding, 1),
                 Is.EqualTo($"fileAdded {f2.File.FileId}"), "A excludes its own writes: B's is the first it gets");
-            Assert.That(await NextEventsAsync(bExcluding, ClientNotificationType.FileAdded, ClientNotificationType.FileModified,
-                    ClientNotificationType.FileDeleted, ClientNotificationType.FileDeleted, ClientNotificationType.FileAdded),
+            Assert.That(await NextEventsAsync(bExcluding, 5),
                 Is.EqualTo($"{fromA}, fileAdded {f3.File.FileId}"), "B gets all of A's writes and none of its own");
-            Assert.That(await NextEventsAsync(aAll, ClientNotificationType.FileAdded, ClientNotificationType.FileModified,
-                    ClientNotificationType.FileDeleted, ClientNotificationType.FileDeleted, ClientNotificationType.FileAdded,
-                    ClientNotificationType.FileAdded),
+            Assert.That(await NextEventsAsync(aAll, 6),
                 Is.EqualTo($"{fromA}, fileAdded {f2.File.FileId}, fileAdded {f3.File.FileId}"), "without the option nothing is left out");
         }
         finally
@@ -124,9 +119,9 @@ public class ExcludeOwnWritesTests
             var f3 = await UploadAsync(clientA.DriveRedux, drive);
             var f4 = await UploadAsync(clientB.DriveRedux, drive);
 
-            Assert.That(await NextEventsAsync(socketA, ClientNotificationType.FileAdded, ClientNotificationType.FileAdded),
+            Assert.That(await NextEventsAsync(socketA, 2),
                 Is.EqualTo($"fileAdded {f2.File.FileId}, fileAdded {f4.File.FileId}"), "A gets B's writes only");
-            Assert.That(await NextEventsAsync(socketB, ClientNotificationType.FileAdded, ClientNotificationType.FileAdded),
+            Assert.That(await NextEventsAsync(socketB, 2),
                 Is.EqualTo($"fileAdded {f1.File.FileId}, fileAdded {f3.File.FileId}"), "B gets A's writes only");
         }
         finally
@@ -158,7 +153,7 @@ public class ExcludeOwnWritesTests
                 var drain = await sender.DriveRedux.ProcessInbox(drive);
                 Assert.That(drain.IsSuccessStatusCode, Is.True, $"process inbox failed: {drain.StatusCode}");
 
-                Assert.That(await NextEventsAsync(socket, ClientNotificationType.FileModified), Is.EqualTo($"fileModified {file.FileId}"));
+                Assert.That(await NextEventsAsync(socket, 1), Is.EqualTo($"fileModified {file.FileId}"));
             }
             finally
             {
@@ -187,7 +182,7 @@ public class ExcludeOwnWritesTests
             // No ProcessInbox: when the receipt arrives the server drains the inbox with a connected socket's context
             await SendReadReceiptAsync(recipient, copy);
 
-            Assert.That(await NextEventsAsync(socket, ClientNotificationType.FileModified), Is.EqualTo($"fileModified {file.FileId}"));
+            Assert.That(await NextEventsAsync(socket, 1), Is.EqualTo($"fileModified {file.FileId}"));
         }
         finally
         {
@@ -213,14 +208,15 @@ public class ExcludeOwnWritesTests
         });
 
     /// <summary>
-    /// The socket's next events, each as "type fileId" (the fileRef's, or for a hard delete the previousFileRef's)
+    /// The socket's next <paramref name="count"/> events, each as "type fileId" (the fileRef's, or for a hard delete
+    /// the previousFileRef's)
     /// </summary>
-    private static async Task<string> NextEventsAsync(DriveEventSocket socket, params ClientNotificationType[] expected)
+    private static async Task<string> NextEventsAsync(DriveEventSocket socket, int count)
     {
         var events = new List<string>();
-        foreach (var type in expected)
+        for (var i = 0; i < count; i++)
         {
-            var data = await socket.NextAsync(type);
+            var (type, data) = await socket.NextAsync();
             var fileRef = data.TryGetProperty("fileRef", out var r) ? r : data.GetProperty("previousFileRef");
             events.Add($"{JsonNamingPolicy.CamelCase.ConvertName(type.ToString())} {fileRef.GetProperty("fileId").GetGuid()}");
         }
@@ -233,19 +229,6 @@ public class ExcludeOwnWritesTests
         var response = await client.UploadNewMetadata(drive, SampleMetadataData.Create(fileType: 100));
         Assert.That(response.IsSuccessStatusCode, Is.True, $"upload failed: {response.StatusCode}");
         return response.Content!;
-    }
-
-    private static async Task HardDeleteAsync(OwnerApiClientRedux owner, TargetDrive drive, Guid fileId, Guid versionTag)
-    {
-        var callerContext = new OwnerTestCase(drive);
-        await callerContext.Initialize(owner);
-        var writer = new DriveWriterV2Client(owner.Identity.OdinId, callerContext.GetFactory());
-        var response = await writer.HardDeleteBatch(drive.Alias, new HardDeleteBatchRequestV2
-        {
-            Files = [new FileVersionTagV2 { FileId = fileId, VersionTag = versionTag }]
-        });
-        Assert.That((response.IsSuccessStatusCode, response.Content?.Results.Single().ErrorCode),
-            Is.EqualTo((true, (Odin.Core.Exceptions.OdinClientErrorCode?)null)), response.Error?.Content);
     }
 
     /// <summary>
@@ -278,27 +261,15 @@ public class ExcludeOwnWritesTests
         Assert.That(receipt.IsSuccessStatusCode, Is.True, $"read receipt failed: {receipt.StatusCode}");
     }
 
-    private static async Task WaitForInboxItemAsync(OwnerApiClientRedux owner, TargetDrive drive)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(15);
-        while (true)
-        {
-            var status = await owner.DriveRedux.GetDriveStatus(drive);
-            if (status.Content?.Inbox.TotalItems > 0)
-            {
-                return;
-            }
-
-            Assert.That(DateTime.UtcNow, Is.LessThan(deadline), $"nothing arrived in {owner.Identity.OdinId}'s inbox: {status.StatusCode}");
-            await Task.Delay(100);
-        }
-    }
+    private static Task WaitForInboxItemAsync(OwnerApiClientRedux owner, TargetDrive drive) =>
+        Poll.UntilAsync(async () => (await owner.DriveRedux.GetDriveStatus(drive)).Content?.Inbox.TotalItems > 0,
+            TimeSpan.FromSeconds(15), () => $"nothing arrived in {owner.Identity.OdinId}'s inbox");
 
     /// <summary>
     /// The drive on both, and the two connected, each in a circle that may write to it on the other (the sender sends
     /// files, the recipient read receipts)
     /// </summary>
-    private static async Task PrepareScenario(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TargetDrive drive)
+    private async Task PrepareScenario(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TargetDrive drive)
     {
         var circles = new Dictionary<OwnerApiClientRedux, Guid>();
         foreach (var owner in new[] { recipient, sender })
@@ -314,7 +285,10 @@ public class ExcludeOwnWritesTests
             Assert.That(circle.IsSuccessStatusCode, Is.True, $"create circle failed: {circle.StatusCode}");
         }
 
-        await sender.Connections.SendConnectionRequest(recipient.Identity.OdinId, [circles[sender]]);
-        await recipient.Connections.AcceptConnectionRequest(sender.Identity.OdinId, [circles[recipient]]);
+        await _scaffold.OldOwnerApi.CreateConnection(sender.Identity.OdinId, recipient.Identity.OdinId, new CreateConnectionOptions
+        {
+            CircleIdsGrantedToRecipient = [circles[sender]],
+            CircleIdsGrantedToSender = [circles[recipient]]
+        });
     }
 }
