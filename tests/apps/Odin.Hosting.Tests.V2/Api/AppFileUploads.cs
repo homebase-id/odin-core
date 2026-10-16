@@ -9,6 +9,9 @@ using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Hosting.UnifiedV2.Drive.Write;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -231,4 +234,17 @@ public static class AppFileUploads
         400 => TestMedia.ThumbnailBytes400,
         _ => throw new ArgumentException($"No test thumbnail source for {pixelSize}x{pixelSize}", nameof(pixelSize))
     };
+
+    /// <summary>
+    /// An unencrypted metadata-only file (fileType 100) holding <paramref name="content"/>, uploaded by the owner
+    /// </summary>
+    public static async Task<CreateFileResult> SeedTextFileAsync(OwnerSession owner, TargetDrive drive, string content,
+        AccessControlList? acl = null)
+    {
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: acl ?? AccessControlList.Anonymous);
+        var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
+            new UploadManifest { PayloadDescriptors = [] }, []);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
+        return upload.Content!;
+    }
 }

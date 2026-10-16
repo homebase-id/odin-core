@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 
@@ -26,7 +27,18 @@ public class QueryBatchResponse
     public string CursorState { get; set; }
     public bool HasMoreRows { get; set; }
 
+    /// <summary>
+    /// The rows; left out of a <see cref="QueryBatchResultShape.Minimal"/> result, which has <see cref="FileRefs"/>
+    /// instead
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
+
+    /// <summary>
+    /// The rows of a <see cref="QueryBatchResultShape.Minimal"/> result; left out of every other
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IEnumerable<QueryBatchFileRef> FileRefs { get; set; }
 
     public static QueryBatchResponse FromResult(QueryBatchResult batch)
     {
@@ -35,7 +47,8 @@ public class QueryBatchResponse
             QueryTime = batch.QueryTime,
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
             CursorState = batch.Cursor.ToJson(),
-            SearchResults = batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>(),
+            SearchResults = batch.FileRefs != null ? null : batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>(),
+            FileRefs = batch.FileRefs,
             HasMoreRows = batch.HasMoreRows
         };
 
@@ -43,13 +56,15 @@ public class QueryBatchResponse
     }
 
 
-    public static QueryBatchResponse FromInvalidDrive(string name)
+    public static QueryBatchResponse FromInvalidDrive(string name, bool minimal = false)
     {
         return new QueryBatchResponse()
         {
             Name = name,
             InvalidDrive = true,
-            SearchResults = new List<SharedSecretEncryptedFileHeader>()
+            // No rows, in the shape the section asked for
+            SearchResults = minimal ? null : new List<SharedSecretEncryptedFileHeader>(),
+            FileRefs = minimal ? new List<QueryBatchFileRef>() : null
         };
     }
 }

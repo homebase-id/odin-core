@@ -278,14 +278,7 @@ public class PeerDriveQueryService(
             await Benchmark.MillisecondsAsync(logger, "HandleInvalidResponseAsync",
                 async () => { await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext); });
 
-            var batch = queryBatchResponse.Content;
-            return new QueryBatchResult
-            {
-                QueryTime = batch.QueryTime,
-                SearchResults = TransformSharedSecret(batch.SearchResults, icr, odinContext),
-                Cursor = new QueryBatchCursor(batch.CursorState),
-                IncludeMetadataHeader = batch.IncludeMetadataHeader
-            };
+            return ToCallerResult(queryBatchResponse.Content, icr, odinContext);
         }
         catch (TryRetryException t)
         {
@@ -443,14 +436,7 @@ public class PeerDriveQueryService(
 
             await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
 
-            var batch = queryBatchResponse.Content;
-            return new QueryBatchResult
-            {
-                QueryTime = batch.QueryTime,
-                SearchResults = TransformSharedSecret(batch.SearchResults, icr, odinContext),
-                Cursor = new QueryBatchCursor(batch.CursorState),
-                IncludeMetadataHeader = batch.IncludeMetadataHeader
-            };
+            return ToCallerResult(queryBatchResponse.Content, icr, odinContext);
         }
         catch (TryRetryException t)
         {
@@ -831,6 +817,23 @@ public class PeerDriveQueryService(
         var httpClient =
             await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
         return (icr, httpClient);
+    }
+
+    /// <summary>
+    /// The remote's query-batch answer as this caller's result: headers get their key headers re-encrypted for the
+    /// caller; file refs carry no key material and pass through as they are
+    /// </summary>
+    private QueryBatchResult ToCallerResult(QueryBatchResponse batch, IdentityConnectionRegistration icr, IOdinContext odinContext)
+    {
+        return new QueryBatchResult
+        {
+            QueryTime = batch.QueryTime,
+            SearchResults = batch.SearchResults == null ? null : TransformSharedSecret(batch.SearchResults, icr, odinContext),
+            FileRefs = batch.FileRefs,
+            Cursor = new QueryBatchCursor(batch.CursorState),
+            IncludeMetadataHeader = batch.IncludeMetadataHeader,
+            HasMoreRows = batch.HasMoreRows
+        };
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,
