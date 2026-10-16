@@ -9,9 +9,9 @@ namespace Odin.Services.Drives;
 
 /// <summary>
 /// One row of a <see cref="QueryBatchResultShape.Minimal"/> query-batch result: what identifies a file and its
-/// version, without the header.  The names match the client file header.  Optional values that are absent are
-/// left out of the JSON, not sent as null; numbers that mean something at 0 (fileState, archivalStatus) are
-/// always sent.
+/// version, without the header.  The names and JSON types match the client file header (fileState is a camelCase
+/// string, as there).  Optional values that are absent are left out of the JSON, not sent as null; fileState and
+/// archivalStatus are always sent, as their default values mean something.
 /// </summary>
 public class QueryBatchFileRef
 {
@@ -32,7 +32,8 @@ public class QueryBatchFileRef
     public int ArchivalStatus { get; init; }
 
     /// <summary>
-    /// The header's version tag; it changes on every write to the file
+    /// The header's version tag: it changes when the header is written, not on reaction or transfer-history
+    /// updates, which move only <see cref="Updated"/>
     /// </summary>
     public Guid VersionTag { get; init; }
 
@@ -46,6 +47,10 @@ public class QueryBatchFileRef
     public UnixTimeUtc? UserDate { get; init; }
 
     public UnixTimeUtc Created { get; init; }
+
+    /// <summary>
+    /// Moves on every change that moves the file along the change feed
+    /// </summary>
     public UnixTimeUtc Updated { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

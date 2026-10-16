@@ -93,7 +93,8 @@ public class V2BatchCollectionQueryService(
 
             if (remaining < 1)
             {
-                collection.Results.Add(QueryBatchCollectionSectionV2.BudgetExhausted(section.Name, options.CursorState));
+                collection.Results.Add(QueryBatchCollectionSectionV2.BudgetExhausted(section.Name, options.CursorState,
+                    IsMinimal(section)));
                 continue;
             }
 
@@ -167,7 +168,7 @@ public class V2BatchCollectionQueryService(
                 section.Name, section.DriveId);
 
             return QueryBatchCollectionSectionV2.Failed(
-                section.Name, QueryBatchSectionStatus.Error, "The query failed");
+                section.Name, QueryBatchSectionStatus.Error, "The query failed", minimal: IsMinimal(section));
         }
     }
 
@@ -185,6 +186,9 @@ public class V2BatchCollectionQueryService(
             "query-batch-collection section failed. Section: {section}, DriveId: {driveId}, Status: {status}, Message: {message}",
             section.Name, section.DriveId, status, message);
 
-        return QueryBatchCollectionSectionV2.Failed(section.Name, status, message, errorCode);
+        return QueryBatchCollectionSectionV2.Failed(section.Name, status, message, errorCode, IsMinimal(section));
     }
+
+    private static bool IsMinimal(CollectionQueryParamSectionV2 section) =>
+        section.ResultOptionsRequest?.ResultShape == QueryBatchResultShape.Minimal;
 }

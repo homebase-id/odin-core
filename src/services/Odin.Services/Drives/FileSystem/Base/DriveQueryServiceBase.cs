@@ -272,7 +272,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 else
                 {
-                    collection.Results.Add(QueryBatchResponse.FromInvalidDrive(query.Name));
+                    collection.Results.Add(QueryBatchResponse.FromInvalidDrive(query.Name,
+                        query.ResultOptionsRequest?.ResultShape == QueryBatchResultShape.Minimal));
                 }
             }
 

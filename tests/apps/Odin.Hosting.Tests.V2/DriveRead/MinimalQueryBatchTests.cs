@@ -155,13 +155,36 @@ public class MinimalQueryBatchTests : V2Fixture
     }
 
     [Test]
-    public async Task APeerQueryRefusesMinimal()
+    public async Task AMinimalSectionThatRanOutOfBudgetIsStillMinimal()
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
-        var (_, owner) = await SetupCallerWithOwner(spec);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "a");
 
-        var response = await owner.Drives.Peer.QueryBatchAsync(new OdinId(Identities.Sam), spec.TargetDrive.Alias,
-            Request(spec.TargetDrive, Options(QueryBatchResultShape.Minimal)));
+        var response = await caller.Drives.Reader.GetBatchCollectionAsync(new QueryBatchCollectionRequestV2
+        {
+            MaxRecords = 1,
+            Queries =
+            [
+                Section("full", spec.TargetDrive, QueryBatchResultShape.Full),
+                Section("minimal", spec.TargetDrive, QueryBatchResultShape.Minimal)
+            ]
+        });
+
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"collection failed: {response.StatusCode}");
+        var section = response.Content!.Results.Single(r => r.Name == "minimal");
+        Assert.That((section.Status, section.SearchResults, section.FileRefs?.Count()),
+            Is.EqualTo((QueryBatchSectionStatus.BudgetExhausted, (IEnumerable<SharedSecretEncryptedFileHeader>)null, (int?)0)));
+    }
+
+    [Test]
+    public async Task AnUnknownResultShapeIsRejected()
+    {
+        var spec = CallerSpec.Owner(DriveSpec.Anon());
+        var (caller, _) = await SetupCallerWithOwner(spec);
+
+        var response = await caller.Drives.Reader.GetBatchAsync(spec.TargetDrive.Alias,
+            Request(spec.TargetDrive, Options((QueryBatchResultShape)7)));
 
         DriveAsserts.AssertRejected(response, OdinClientErrorCode.InvalidQuery);
     }

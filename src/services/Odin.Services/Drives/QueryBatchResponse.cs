@@ -56,13 +56,15 @@ public class QueryBatchResponse
     }
 
 
-    public static QueryBatchResponse FromInvalidDrive(string name)
+    public static QueryBatchResponse FromInvalidDrive(string name, bool minimal = false)
     {
         return new QueryBatchResponse()
         {
             Name = name,
             InvalidDrive = true,
-            SearchResults = new List<SharedSecretEncryptedFileHeader>()
+            // No rows, in the shape the section asked for
+            SearchResults = minimal ? null : new List<SharedSecretEncryptedFileHeader>(),
+            FileRefs = minimal ? new List<QueryBatchFileRef>() : null
         };
     }
 }

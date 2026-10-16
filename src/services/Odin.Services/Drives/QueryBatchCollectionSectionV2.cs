@@ -89,7 +89,8 @@ public class QueryBatchCollectionSectionV2
         string name,
         QueryBatchSectionStatus status,
         string errorMessage,
-        OdinClientErrorCode? errorCode = null)
+        OdinClientErrorCode? errorCode = null,
+        bool minimal = false)
     {
         return new QueryBatchCollectionSectionV2
         {
@@ -101,7 +102,9 @@ public class QueryBatchCollectionSectionV2
             ErrorMessage = errorMessage,
             ErrorCode = errorCode,
             QueryTime = UnixTimeUtc.Now(),
-            SearchResults = new List<SharedSecretEncryptedFileHeader>(),
+            // No rows, in the shape the section asked for
+            SearchResults = minimal ? null : new List<SharedSecretEncryptedFileHeader>(),
+            FileRefs = minimal ? new List<QueryBatchFileRef>() : null,
             HasMoreRows = false
         };
     }
@@ -110,7 +113,7 @@ public class QueryBatchCollectionSectionV2
     /// A section the record budget never reached.  The submitted cursor is echoed back <b>verbatim</b> — the
     /// caller re-sends it on the next round, so any change here silently loses or replays records.
     /// </summary>
-    public static QueryBatchCollectionSectionV2 BudgetExhausted(string name, string submittedCursorState)
+    public static QueryBatchCollectionSectionV2 BudgetExhausted(string name, string submittedCursorState, bool minimal = false)
     {
         return new QueryBatchCollectionSectionV2
         {
@@ -119,7 +122,9 @@ public class QueryBatchCollectionSectionV2
             InvalidDrive = false,
             CursorState = submittedCursorState,
             QueryTime = UnixTimeUtc.Now(),
-            SearchResults = new List<SharedSecretEncryptedFileHeader>(),
+            // No rows, in the shape the section asked for
+            SearchResults = minimal ? null : new List<SharedSecretEncryptedFileHeader>(),
+            FileRefs = minimal ? new List<QueryBatchFileRef>() : null,
             HasMoreRows = true
         };
     }
