@@ -718,20 +718,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
-        /// <summary>
-        /// The file's modified time as the database holds it now, for a write's response: the time the change feed
-        /// shows for that write, so a client that leaves out its own socket events need not read the feed to learn it.
-        /// Read after the whole write, since a write can move it more than once (an upload with recipients moves it
-        /// again when it records the transfer history). Null when the file is gone.
-        /// </summary>
-        public async Task<UnixTimeUtc?> GetUpdatedAfterWrite(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-            return header?.FileMetadata.Updated;
-        }
-
         /// <param name="aclDeniedAsMissing">Answer null, as for a missing file, when the file's ACL denies the caller,
         /// instead of throwing; the drive-level checks still throw.</param>
         public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext,
@@ -857,7 +843,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
-            return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            return tombstone == null ? null : UpdatedAfterOwnWrites(file, tombstone.FileMetadata.Updated, odinContext);
         }
 
         /// <summary>
@@ -1486,6 +1473,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
             where TNotification : INotification
         {
+            if (notification is IDriveNotification { ServerFileHeader: not null } driveNotification)
+            {
+                // The write's response answers the time of the request's last own change to the file
+                driveNotification.OdinContext?.OwnWrites?.Record(driveNotification.File,
+                    driveNotification.ServerFileHeader.FileMetadata.Updated);
+            }
+
             try
             {
                 await mediator.Publish(notification, cancellationToken);
@@ -1667,8 +1661,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
 
-            return (header.FileMetadata.VersionTag.GetValueOrDefault(), header.FileMetadata.Updated);
+            return (header.FileMetadata.VersionTag.GetValueOrDefault(), UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
         }
+
+        /// <summary>
+        /// The modified time a write's response answers: the later of the time its header write returned and the
+        /// request's own changes since (see <see cref="RequestOwnWrites"/>)
+        /// </summary>
+        public static UnixTimeUtc UpdatedAfterOwnWrites(InternalDriveFileId file, UnixTimeUtc written, IOdinContext odinContext) =>
+            odinContext.OwnWrites?.UpdatedAfter(file, written) ?? written;
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
@@ -2032,7 +2033,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<UnixTimeUtc?> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
+        /// <returns>The tombstone written; null when the delete failed</returns>
+        private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
             var file = existingHeader.FileMetadata.File;
@@ -2144,7 +2146,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return success ? deletedServerFileHeader.FileMetadata.Updated : null;
+            return success ? deletedServerFileHeader : null;
         }
 
         private async Task<ServerFileHeader> CreateServerHeaderInternal(InternalDriveFileId targetFile, KeyHeader keyHeader,

@@ -31,8 +31,8 @@ public class FileUpdateResult
     public Guid NewVersionTag { get; init; }
 
     /// <summary>
-    /// The file's modified time after this update, as the change feed shows it; null for a peer-only update, which
-    /// has no local file
+    /// The file's modified time after this request's last change to it, as the change feed shows it
+    /// (see <see cref="Odin.Services.Base.RequestOwnWrites"/>); null for a peer-only update, which has no local file
     /// </summary>
     public UnixTimeUtc? Updated { get; init; }
 

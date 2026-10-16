@@ -26,9 +26,15 @@ namespace Odin.Services.Base
         Guid? RequestTokenId { get; }
 
         /// <summary>
-        /// Marks this as the context of the HTTP request being handled (see <see cref="RequestTokenId"/>)
+        /// The request's own writes while this is marked as that request's context; null otherwise
         /// </summary>
-        void MarkAsRequestContext();
+        RequestOwnWrites OwnWrites { get; }
+
+        /// <summary>
+        /// Marks this as the context of the HTTP request being handled (see <see cref="RequestTokenId"/>). A copy that
+        /// is the same request passes the original's <paramref name="ownWrites"/>, so both record into one.
+        /// </summary>
+        void MarkAsRequestContext(RequestOwnWrites ownWrites = null);
 
         /// <summary>
         /// The age of the <see cref="ClientAuthenticationToken"/>
@@ -55,11 +61,11 @@ namespace Odin.Services.Base
         public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
 
-        private bool _isRequestContext;
+        public RequestOwnWrites OwnWrites { get; private set; }
 
-        public Guid? RequestTokenId => _isRequestContext ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
+        public Guid? RequestTokenId => OwnWrites != null ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
 
-        public void MarkAsRequestContext() => _isRequestContext = true;
+        public void MarkAsRequestContext(RequestOwnWrites ownWrites = null) => OwnWrites = ownWrites ?? new RequestOwnWrites();
 
         public IOdinContext Clone()
         {

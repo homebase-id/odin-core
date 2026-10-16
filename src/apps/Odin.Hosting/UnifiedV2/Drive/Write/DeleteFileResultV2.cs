@@ -22,7 +22,8 @@ public class DeleteFileResultV2
     public Guid FileId { get; set; }
 
     /// <summary>
-    /// The tombstone's modified time, as the change feed shows it; null when the local file was not deleted
+    /// The tombstone's modified time after this request's last change to it, as the change feed shows it; null when
+    /// the local file was not deleted
     /// </summary>
     public UnixTimeUtc? Updated { get; set; }
 }

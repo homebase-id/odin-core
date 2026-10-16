@@ -5,11 +5,15 @@ using Odin.Core;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests.V2.DriveWrite;
 
@@ -20,6 +24,8 @@ namespace Odin.Hosting.Tests.V2.DriveWrite;
 [TestFixture]
 public class WriteResponseUpdatedTests : V2Fixture
 {
+    protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
+
     [Test]
     public async Task EachWriteAnswersTheModifiedTimeItsHeaderShows()
     {
@@ -43,6 +49,25 @@ public class WriteResponseUpdatedTests : V2Fixture
         var delete = await owner.Drives.Writer.SoftDeleteFile(file.DriveId, file.FileId);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK), delete.Error?.Content);
         await AssertHeaderShows(owner, file, delete.Content!.Updated, "delete");
+    }
+
+    [Test]
+    public async Task AnUploadWithRecipientsAnswersTheTimeAfterRecordingTheirTransferHistory()
+    {
+        // Recording the transfer history moves modified again after the header write, within the same request; the
+        // response must answer that later time, which the header write alone does not have
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
+        var drive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, DrivePermission.Write, "updated-with-recipients");
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        metadata.AllowDistribution = true;
+        var upload = await sender.Drives.Writer.UploadNewMetadata(drive.Alias, metadata,
+            transitOptions: new TransitOptions { Recipients = [recipient.Identity] });
+        Assert.That(upload.StatusCode, Is.EqualTo(HttpStatusCode.OK), upload.Error?.Content);
+
+        // The outbox is not drained, so nothing but this request has changed the file
+        await AssertHeaderShows(sender, upload.Content!, upload.Content!.Updated, "upload with recipients");
     }
 
     private static async Task AssertHeaderShows(OwnerSession owner, CreateFileResult file, UnixTimeUtc? answered, string write)

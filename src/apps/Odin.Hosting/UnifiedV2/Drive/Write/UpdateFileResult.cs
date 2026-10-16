@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Odin.Core.Time;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Write;
@@ -21,7 +22,9 @@ public class UpdateFileResult
     public Guid NewVersionTag { get; init; }
 
     /// <summary>
-    /// The file's modified time after this update, as the change feed shows it
+    /// The file's modified time after this request's last change to it, as the change feed shows it; null for a
+    /// peer-only update
+    /// (<see cref="UpdateLocale.Peer"/>), which has no local file
     /// </summary>
     public UnixTimeUtc? Updated { get; init; }
 

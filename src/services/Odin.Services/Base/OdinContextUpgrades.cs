@@ -23,9 +23,9 @@ public static class OdinContextUpgrades
     private static IOdinContext SameRequestWithMorePermissions(IOdinContext odinContext)
     {
         var copy = odinContext.Clone();
-        if (odinContext.RequestTokenId != null)
+        if (odinContext.OwnWrites != null)
         {
-            copy.MarkAsRequestContext();
+            copy.MarkAsRequestContext(odinContext.OwnWrites);
         }
 
         return copy;

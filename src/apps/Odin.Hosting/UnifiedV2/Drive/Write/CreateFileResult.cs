@@ -21,7 +21,7 @@ public class CreateFileResult
     public Guid NewVersionTag { get; init; }
 
     /// <summary>
-    /// The file's modified time after this upload, as the change feed shows it
+    /// The file's modified time after this request's last change to it, as the change feed shows it
     /// </summary>
     public UnixTimeUtc? Updated { get; init; }
 

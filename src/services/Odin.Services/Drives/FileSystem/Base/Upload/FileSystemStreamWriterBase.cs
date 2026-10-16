@@ -305,7 +305,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         var uploadResult = new UploadResult
         {
             NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
-            Updated = await FileSystem.Storage.GetUpdatedAfterWrite(Package.InternalFile, odinContext),
+            Updated = DriveStorageServiceBase.UpdatedAfterOwnWrites(Package.InternalFile, metadata.Updated, odinContext),
             File = new ExternalFileIdentifier
             {
                 TargetDrive = drive.TargetDriveInfo,

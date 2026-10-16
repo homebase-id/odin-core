@@ -39,8 +39,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         public Guid NewVersionTag { get; set; }
 
         /// <summary>
-        /// The file's modified time after this upload, as the change feed shows it; null only when the file was
-        /// gone by the time the response was built
+        /// The file's modified time after this request's last change to it, as the change feed shows it
+        /// (see <see cref="Odin.Services.Base.RequestOwnWrites"/>)
         /// </summary>
         public UnixTimeUtc? Updated { get; set; }
 

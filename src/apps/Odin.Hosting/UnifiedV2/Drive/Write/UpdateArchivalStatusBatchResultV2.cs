@@ -24,7 +24,8 @@ public class UpdateArchivalStatusResultV2
     public Guid? NewVersionTag { get; init; }
 
     /// <summary>
-    /// The file's modified time after the update, as the change feed shows it; null when <see cref="ErrorCode"/> is set.
+    /// The file's modified time after this request's last change to it (its current time when it was already at the
+    /// status), as the change feed shows it; null when <see cref="ErrorCode"/> is set.
     /// </summary>
     public UnixTimeUtc? Updated { get; init; }
 
