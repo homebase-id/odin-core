@@ -103,7 +103,7 @@ public class V2BatchCollectionQueryService(
             // A failed section consumes no budget and does not stop the fill.
             if (result.Status == QueryBatchSectionStatus.Ok)
             {
-                remaining -= result.SearchResults.Count();
+                remaining -= result.FileRefs?.Count() ?? result.SearchResults.Count();
             }
         }
 

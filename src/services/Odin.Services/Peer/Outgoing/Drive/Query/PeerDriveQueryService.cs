@@ -229,6 +229,10 @@ public class PeerDriveQueryService(
         IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        foreach (var query in request.Queries ?? [])
+        {
+            QueryBatchResultShapes.AssertSupportedOverPeer(query.ResultOptionsRequest?.ResultShape);
+        }
 
         var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -260,6 +264,7 @@ public class PeerDriveQueryService(
         IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        QueryBatchResultShapes.AssertSupportedOverPeer(request.ResultOptionsRequest?.ResultShape);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -430,6 +435,7 @@ public class PeerDriveQueryService(
         IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        QueryBatchResultShapes.AssertSupportedOverPeer(request.ResultOptionsRequest?.ResultShape);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try

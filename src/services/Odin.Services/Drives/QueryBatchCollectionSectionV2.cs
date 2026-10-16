@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -52,7 +53,18 @@ public class QueryBatchCollectionSectionV2
 
     public bool HasMoreRows { get; set; }
 
+    /// <summary>
+    /// The rows; left out of a <see cref="QueryBatchResultShape.Minimal"/> result, which has <see cref="FileRefs"/>
+    /// instead
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
+
+    /// <summary>
+    /// The rows of a <see cref="QueryBatchResultShape.Minimal"/> result; left out of every other
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IEnumerable<QueryBatchFileRef> FileRefs { get; set; }
 
     public static QueryBatchCollectionSectionV2 FromResult(string name, QueryBatchResult batch)
     {
@@ -64,7 +76,8 @@ public class QueryBatchCollectionSectionV2
             QueryTime = batch.QueryTime,
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
             CursorState = batch.Cursor.ToJson(),
-            SearchResults = batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>(),
+            SearchResults = batch.FileRefs != null ? null : batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>(),
+            FileRefs = batch.FileRefs,
             HasMoreRows = batch.HasMoreRows
         };
     }
