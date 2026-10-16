@@ -93,25 +93,33 @@ public class DriveNotificationShapeTests
     public async Task EachSocketGetsTheShapeItAskedFor()
     {
         var (owner, drive) = await SetupDriveAsync();
-        var full = await ShapedSocket.ConnectAsync(owner, drive, null);
-        var noContent = await ShapedSocket.ConnectAsync(owner, drive, FileResultShape.NoContent);
+        ShapedSocket full = null, noContent = null;
 
         try
         {
+            full = await ShapedSocket.ConnectAsync(owner, drive, null);
+            noContent = await ShapedSocket.ConnectAsync(owner, drive, FileResultShape.NoContent);
+
             var upload = await owner.DriveRedux.UploadNewMetadata(drive, SampleMetadataData.CreateWithContent(100, "the content"));
             Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
+            var fullAdded = await full.NextAsync(ClientNotificationType.FileAdded);
+            var noContentAdded = await noContent.NextAsync(ClientNotificationType.FileAdded);
 
-            var fullEvent = await full.NextAsync(ClientNotificationType.FileAdded);
-            var noContentEvent = await noContent.NextAsync(ClientNotificationType.FileAdded);
+            var softDelete = await owner.DriveRedux.SoftDeleteFile(upload.Content!.File);
+            Assert.That(softDelete.IsSuccessStatusCode, Is.True, $"soft delete failed: {softDelete.StatusCode}");
+            var fullDeleted = await full.NextAsync(ClientNotificationType.FileDeleted);
+            var noContentDeleted = await noContent.NextAsync(ClientNotificationType.FileDeleted);
 
             // Both sockets share one event: emptying the content for one must not empty it for the other
-            Assert.That((Content(fullEvent), Content(noContentEvent)), Is.EqualTo(("the content", "")));
-            Assert.That(Keys(fullEvent), Has.None.AnyOf("fileRef", "previousFileRef"), fullEvent.ToString());
+            Assert.That((Content(fullAdded), Content(noContentAdded)), Is.EqualTo(("the content", "")));
+            Assert.That((Content(fullDeleted, "previousServerFileHeader"), Content(noContentDeleted, "previousServerFileHeader")),
+                Is.EqualTo(("the content", "")));
+            Assert.That(Keys(fullAdded), Has.None.AnyOf("fileRef", "previousFileRef"), fullAdded.ToString());
         }
         finally
         {
-            await full.DisconnectAsync();
-            await noContent.DisconnectAsync();
+            await (full?.DisconnectAsync() ?? Task.CompletedTask);
+            await (noContent?.DisconnectAsync() ?? Task.CompletedTask);
         }
     }
 
@@ -132,6 +140,7 @@ public class DriveNotificationShapeTests
 
             // As a soft delete does: nothing is left (header null), and the header the file had names it
             var previous = deleted.GetProperty("previousServerFileHeader");
+            Assert.That(deleted.GetProperty("targetDrive").GetProperty("alias").GetGuid(), Is.EqualTo(drive.Alias.Value));
             Assert.That((deleted.GetProperty("header").ValueKind, previous.GetProperty("fileId").GetGuid(),
                     previous.GetProperty("fileMetadata").GetProperty("globalTransitId").GetGuid()),
                 Is.EqualTo((JsonValueKind.Null, upload.Content.File.FileId, upload.Content.GlobalTransitId!.Value)), deleted.ToString());
@@ -150,6 +159,7 @@ public class DriveNotificationShapeTests
 
         var refused = Assert.ThrowsAsync<Exception>(() => listener.ConnectAsync(owner.Identity.OdinId, owner.GetTokenContext(),
             new EstablishConnectionOptions { Drives = [drive], ResultShape = (FileResultShape)7 }));
+        await listener.DisconnectAsync();
 
         Assert.That(refused!.Message, Does.StartWith("Did not receive a valid handshake: Error").And.Contain("Unknown resultShape 7"));
     }
@@ -194,8 +204,8 @@ public class DriveNotificationShapeTests
         return string.Join(" ", parts);
     }
 
-    private static string Content(JsonElement data) =>
-        data.GetProperty("header").GetProperty("fileMetadata").GetProperty("appData").GetProperty("content").GetString();
+    private static string Content(JsonElement data, string header = "header") =>
+        data.GetProperty(header).GetProperty("fileMetadata").GetProperty("appData").GetProperty("content").GetString();
 
     private static List<string> Keys(JsonElement data) => data.EnumerateObject().Select(p => p.Name).ToList();
 

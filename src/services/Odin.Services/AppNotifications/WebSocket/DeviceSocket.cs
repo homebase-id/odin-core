@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json;
 using Nito.AsyncEx;
 using Odin.Core;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
@@ -30,15 +33,31 @@ public class EstablishConnectionOptions
     public void ApplyTo(DeviceSocket socket, PermissionContext permissions)
     {
         var drives = new List<Guid>();
-        foreach (var td in Drives)
+        foreach (var td in Drives ?? [])
         {
             permissions.AssertCanReadDrive(td.Alias);
             drives.Add(td.Alias);
         }
 
-        var shape = FileResultShapes.Resolve(ResultShape, whenAbsent: FileResultShape.Full);
+        // The shape before the drives: drives are what route events to the socket, so it is in shape by then
+        socket.ResultShape = FileResultShapes.Resolve(ResultShape, whenAbsent: FileResultShape.Full);
         socket.Drives = drives;
-        socket.ResultShape = shape;
+    }
+
+    /// <summary>
+    /// The handshake's options; malformed JSON (e.g. an unknown resultShape name) is the client's error
+    /// (InvalidQuery), not the server's
+    /// </summary>
+    public static EstablishConnectionOptions Parse(string data)
+    {
+        try
+        {
+            return OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(data) ?? new EstablishConnectionOptions();
+        }
+        catch (JsonException e)
+        {
+            throw new OdinClientException($"Invalid connection options: {e.Message}", OdinClientErrorCode.InvalidQuery);
+        }
     }
 }
 
@@ -58,6 +77,11 @@ public class DeviceSocket
     public Guid? AppId { get; set; }
 
     public List<Guid> Drives { get; set; } = [];
+
+    /// <summary>
+    /// True once the socket's handshake gave it a context with a shared secret, which encrypted messages need
+    /// </summary>
+    public bool HasSharedSecret => DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null;
 
     /// <summary>
     /// What drive events sent to this socket describe their file with, as the socket asked at its handshake

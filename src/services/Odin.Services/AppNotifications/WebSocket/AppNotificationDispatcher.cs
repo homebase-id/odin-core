@@ -230,7 +230,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
 
             var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
-                notification.ServerFileHeader, notification.PreviousServerFileHeader, notification.IsDeleteNotification);
+                notification.ServerFileHeader, notification.PreviousServerFileHeader);
             foreach (var deviceSocket in sockets)
             {
                 var json = driveEvent.JsonFor(deviceSocket);
@@ -381,7 +381,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             await SendMessageAsync(
                 deviceSocket,
                 json,
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                deviceSocket.HasSharedSecret,
                 cancellationToken);
         }
 

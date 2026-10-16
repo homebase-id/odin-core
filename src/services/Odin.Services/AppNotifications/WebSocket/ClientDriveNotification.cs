@@ -3,10 +3,12 @@ using System.Text.Json.Serialization;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
-using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+
+namespace Odin.Services.AppNotifications.WebSocket;
 
 public class ClientDriveNotification
 {
@@ -28,22 +30,20 @@ public class ClientDriveNotification
     public FileRef? PreviousFileRef { get; set; }
 
     /// <summary>
-    /// A drive event as <paramref name="socket"/> asked to see it at its handshake (<see cref="DeviceSocket.ResultShape"/>).
-    /// The headers are the event's, shared by every socket, so they are never changed here.
+    /// A drive event in <paramref name="shape"/>, its key headers encrypted for <paramref name="deviceOdinContext"/>.
+    /// A context without a shared secret gets neither headers nor refs. The headers are the event's, shared by
+    /// every socket, so they are never changed here.
     /// </summary>
-    public static ClientDriveNotification For(DeviceSocket socket, TargetDrive? targetDrive, ServerFileHeader? header,
-        ServerFileHeader? previousHeader)
+    public static ClientDriveNotification For(FileResultShape shape, IOdinContext? deviceOdinContext, TargetDrive? targetDrive,
+        ServerFileHeader? header, ServerFileHeader? previousHeader)
     {
         var notification = new ClientDriveNotification { TargetDrive = targetDrive };
-
-        // A socket without a shared secret gets neither headers nor refs
-        var deviceOdinContext = socket.DeviceOdinContext;
-        if (!HasSharedSecret(socket))
+        if (deviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
         {
             return notification;
         }
 
-        if (socket.ResultShape == FileResultShape.Minimal)
+        if (shape == FileResultShape.Minimal)
         {
             notification.FileRef = header == null ? null : FileRef.FromHeader(header);
             notification.PreviousFileRef = previousHeader == null ? null : FileRef.FromHeader(previousHeader);
@@ -53,7 +53,7 @@ public class ClientDriveNotification
         notification.Header = DriveFileUtility.CreateClientFileHeader(header, deviceOdinContext);
         notification.PreviousServerFileHeader = DriveFileUtility.CreateClientFileHeader(previousHeader, deviceOdinContext);
 
-        if (socket.ResultShape == FileResultShape.NoContent)
+        if (shape == FileResultShape.NoContent)
         {
             WithoutContent(notification.Header);
             WithoutContent(notification.PreviousServerFileHeader);
@@ -61,8 +61,6 @@ public class ClientDriveNotification
 
         return notification;
     }
-
-    public static bool HasSharedSecret(DeviceSocket socket) => socket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null;
 
     // The client header's AppData is the event's own instance, so it is replaced by a copy, not emptied
     private static void WithoutContent(SharedSecretEncryptedFileHeader? clientHeader)
@@ -77,28 +75,29 @@ public class ClientDriveNotification
 /// <summary>
 /// One drive event, as the message each socket gets in the shape it asked for. A minimal socket's message does not
 /// depend on the socket (no key header in it), so it is built once per event; full and noContent carry a key header
-/// encrypted for each socket.
+/// encrypted for each socket. <paramref name="previousHeader"/> is set only for a delete (the publisher sees to that).
 /// </summary>
 public sealed class DriveEventMessage(
     ClientNotificationType notificationType,
     TargetDrive? targetDrive,
     ServerFileHeader? header,
-    ServerFileHeader? previousHeader,
-    bool isDelete)
+    ServerFileHeader? previousHeader)
 {
-    // Only a delete sends the header the file had before
-    private readonly ServerFileHeader? _previousHeader = isDelete ? previousHeader : null;
     private string? _minimalJson;
 
     public string JsonFor(DeviceSocket socket)
     {
-        var shared = socket.ResultShape == FileResultShape.Minimal && ClientDriveNotification.HasSharedSecret(socket);
+        // Read once: a handshake may change them while this runs, and the cached message must be what was built
+        var shape = socket.ResultShape;
+        var deviceOdinContext = socket.DeviceOdinContext;
+
+        var shared = shape == FileResultShape.Minimal && deviceOdinContext?.PermissionsContext?.SharedSecretKey != null;
         if (shared && _minimalJson != null)
         {
             return _minimalJson;
         }
 
-        var notification = ClientDriveNotification.For(socket, targetDrive, header, _previousHeader);
+        var notification = ClientDriveNotification.For(shape, deviceOdinContext, targetDrive, header, previousHeader);
         var json = OdinSystemSerializer.Serialize(new
         {
             NotificationType = notificationType,

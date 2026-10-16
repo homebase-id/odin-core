@@ -255,14 +255,15 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case SocketCommandType.EstablishConnectionRequest:
                     try
                     {
-                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
-                                      new EstablishConnectionOptions();
-                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
+                        var options = EstablishConnectionOptions.Parse(command.Data);
 
+                        // The context before ApplyTo sets the drives: from then on events reach the socket, and the
+                        // dispatcher closes a subscribed socket that has no context as stale
                         deviceSocket.DeviceOdinContext = odinContext.Clone();
                         // Capture the app this socket is authenticated as, so app-scoped
                         // notifications (e.g. live relay) are delivered only to its sockets.
                         deviceSocket.AppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
                     }
                     catch (OdinSecurityException e)
                     {

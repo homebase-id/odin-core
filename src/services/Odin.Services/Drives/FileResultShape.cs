@@ -57,7 +57,7 @@ public static class FileResultShapes
     /// <summary>
     /// The enum converter also takes numbers, and an unknown one must not quietly become some other shape
     /// </summary>
-    public static void AssertKnown(FileResultShape? resultShape)
+    private static void AssertKnown(FileResultShape? resultShape)
     {
         if (resultShape.HasValue && !Enum.IsDefined(resultShape.Value))
         {

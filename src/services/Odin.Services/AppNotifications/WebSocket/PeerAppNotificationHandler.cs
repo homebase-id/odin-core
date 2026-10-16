@@ -147,7 +147,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                                 NotificationType = ClientNotificationType.AuthenticationError,
                                 Data = "Invalid Token",
                             }),
-                            deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                            deviceSocket.HasSharedSecret,
                             sendEvenIfNoDeviceOdinContext: true,
                             cancellationToken);
                         continue;
@@ -262,8 +262,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case SocketCommandType.EstablishConnectionRequest:
                     try
                     {
-                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
-                                      new EstablishConnectionOptions();
+                        var options = EstablishConnectionOptions.Parse(command.Data);
                         options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
                     }
                     catch (Exception e) when (e is OdinSecurityException or OdinClientException)
