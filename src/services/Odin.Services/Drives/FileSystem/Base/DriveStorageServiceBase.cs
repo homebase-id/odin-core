@@ -876,15 +876,38 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
             var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
-
-            if (fileHeader == null)
+            if (fileHeader != null)
             {
-                return;
+                await HardDeleteHeaderAsync(file, fileHeader, expectedVersionTag: null, odinContext);
             }
+        }
 
-            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads);
+        /// <summary>
+        /// Hard-deletes the file, active or a tombstone, only while it is still at <paramref name="expectedVersionTag"/>
+        /// (4160 otherwise, checked here and again atomically by the delete itself).  Unlike the unversioned delete, which treats a
+        /// missing file as done, a file that is missing or hidden from the caller by its ACL is FileNotFound: the caller
+        /// named a version of it.
+        /// </summary>
+        public async Task HardDeleteLongTermFile(InternalDriveFileId file, Guid expectedVersionTag, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true, aclDeniedAsMissing: true)
+                             ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+
+            // Not redundant with the DELETE's own check: the payloads removed and the header published are this read's,
+            // so it must be the version the DELETE removes (a stale cached read would otherwise strand the newer payloads)
+            AssertVersionTagMatches(fileHeader, expectedVersionTag);
+            await HardDeleteHeaderAsync(file, fileHeader, expectedVersionTag, odinContext);
+        }
+
+        private async Task HardDeleteHeaderAsync(InternalDriveFileId file, ServerFileHeader fileHeader, Guid? expectedVersionTag,
+            IOdinContext odinContext)
+        {
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads, expectedVersionTag);
 
             if (await TryShouldRaiseDriveEventAsync(file))
             {
@@ -892,6 +915,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     IsHardDelete = true,
                     File = file,
+                    // As a soft delete does: the header the file had, so clients learn which file went (nothing is left
+                    // of it, hence no ServerFileHeader, which is how handlers tell a hard delete from a soft one)
+                    PreviousServerFileHeader = fileHeader,
                     ServerFileHeader = null,
                     SharedSecretEncryptedFileHeader = null,
                     OdinContext = odinContext,

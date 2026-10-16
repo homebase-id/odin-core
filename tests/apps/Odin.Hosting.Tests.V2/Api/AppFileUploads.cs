@@ -247,4 +247,13 @@ public static class AppFileUploads
         Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
         return upload.Content!;
     }
+
+    /// <summary>
+    /// Soft-deletes a seeded file, leaving its tombstone
+    /// </summary>
+    public static async Task SoftDeleteAsync(OwnerSession owner, CreateFileResult file)
+    {
+        var delete = await owner.Drives.Writer.SoftDeleteFile(file.DriveId, file.FileId);
+        Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
+    }
 }

@@ -38,12 +38,11 @@ public class MinimalQueryBatchTests : V2Fixture
             files.Add(await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, $"file {i}"));
         }
 
-        var delete = await owner.Drives.Writer.SoftDeleteFile(files[1].DriveId, files[1].FileId);
-        Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
+        await AppFileUploads.SoftDeleteAsync(owner, files[1]);
         var archive = await owner.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, new UpdateArchivalStatusBatchRequestV2
         {
             ArchivalStatus = 2,
-            Files = [new UpdateArchivalStatusFileV2 { FileId = files[3].FileId, VersionTag = files[3].NewVersionTag }]
+            Files = [new FileVersionTagV2 { FileId = files[3].FileId, VersionTag = files[3].NewVersionTag }]
         });
         Assert.That(archive.IsSuccessStatusCode, Is.True, $"seed archive failed: {archive.StatusCode}");
 

@@ -59,6 +59,10 @@ public interface IDriveWriterHttpClientApiV2
     Task<ApiResponse<UpdateArchivalStatusBatchResultV2>> UpdateArchivalStatusBatch([AliasAs("driveId:guid")] Guid driveId,
         [Body] UpdateArchivalStatusBatchRequestV2 request);
 
+    [Post(UnifiedApiRouteConstants.FilesRoot + "/hard-delete-batch")]
+    Task<ApiResponse<HardDeleteBatchResultV2>> HardDeleteBatch([AliasAs("driveId:guid")] Guid driveId,
+        [Body] HardDeleteBatchRequestV2 request);
+
     [Post(UnifiedApiRouteConstants.FilesRoot + "/delete-batch/by-file-id")]
     Task<ApiResponse<DeleteFileIdBatchResultV2>> DeleteFileIdBatch([AliasAs("driveId:guid")] Guid driveId,
         [Body] DeleteFileIdBatchRequestV2 request);

@@ -59,7 +59,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         }
 
         /// <summary>
-        /// Sets only the archival status of up to <see cref="UpdateArchivalStatusBatchRequestV2.MaxFiles"/> files.
+        /// Sets only the archival status of up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files.
         /// </summary>
         [HttpPost("update-archival-status-batch")]
         [SwaggerOperation(
@@ -73,36 +73,81 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             [FromBody] UpdateArchivalStatusBatchRequestV2 request)
         {
             OdinValidationUtils.AssertNotNull(request, nameof(request));
-            OdinValidationUtils.AssertNotNull(request.Files, nameof(request.Files));
+            FileVersionTagBatchV2.AssertValid(request.Files);
             OdinValidationUtils.AssertIsTrue(request.ArchivalStatus.HasValue, "archivalStatus is required");
-            OdinValidationUtils.AssertIsTrue(request.Files.Count is > 0 and <= UpdateArchivalStatusBatchRequestV2.MaxFiles,
-                $"files must hold 1 to {UpdateArchivalStatusBatchRequestV2.MaxFiles} entries");
-            OdinValidationUtils.AssertIsTrue(request.Files.All(f => f != null && f.FileId != Guid.Empty && f.VersionTag != Guid.Empty),
-                "every file needs a fileId and a versionTag");
-            OdinValidationUtils.AssertIsTrue(request.Files.Select(f => f.FileId).Distinct().Count() == request.Files.Count,
-                "a file may appear only once");
 
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
             var status = request.ArchivalStatus!.Value;
             var storage = GetFileSystem().Storage;
-            var results = new List<UpdateArchivalStatusResultV2>(request.Files.Count);
-            foreach (var f in request.Files)
+            var results = await PerFileAsync(driveId, request.Files,
+                async (file, f) => new UpdateArchivalStatusResultV2
+                {
+                    FileId = f.FileId,
+                    NewVersionTag = await storage.UpdateArchivalStatus(file, f.VersionTag, status, WebOdinContext)
+                },
+                (fileId, errorCode) => new UpdateArchivalStatusResultV2 { FileId = fileId, ErrorCode = errorCode });
+
+            return new UpdateArchivalStatusBatchResultV2 { Results = results };
+        }
+
+        /// <summary>
+        /// Hard-deletes up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files, each only at its version tag.
+        /// </summary>
+        [HttpPost("hard-delete-batch")]
+        [SwaggerOperation(
+            Summary = "Hard delete many files, each at a known version",
+            Description = "Permanently removes each file (active or a tombstone) with its payloads and thumbnails, only if its " +
+                          "version tag still matches. Nothing is left in the change feed, and nothing is sent to peers. " +
+                          "Results are per file; see HardDeleteResultV2.",
+            Tags = [SwaggerInfo.FileWrite]
+        )]
+        public async Task<HardDeleteBatchResultV2> HardDeleteBatch(Guid driveId, [FromBody] HardDeleteBatchRequestV2 request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            FileVersionTagBatchV2.AssertValid(request.Files);
+
+            WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+
+            var storage = GetFileSystem().Storage;
+            var results = await PerFileAsync(driveId, request.Files,
+                async (file, f) =>
+                {
+                    await storage.HardDeleteLongTermFile(file, f.VersionTag, WebOdinContext);
+                    return new HardDeleteResultV2 { FileId = f.FileId };
+                },
+                (fileId, errorCode) => new HardDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
+
+            // Nothing else records an irreversible delete: no feed row, nothing to peers
+            Logger.LogInformation(
+                "[DeleteFlow] HardDeleteBatch tenant:{tenant} caller:{caller} driveId:{driveId} requested:{requested} deleted:{deleted} files:{files}",
+                WebOdinContext.Tenant, WebOdinContext.Caller?.OdinId, driveId, results.Count, results.Count(r => r.ErrorCode == null),
+                string.Join(",", results.Where(r => r.ErrorCode == null).Select(r => r.FileId)));
+
+            return new HardDeleteBatchResultV2 { Results = results };
+        }
+
+        /// <summary>
+        /// Runs <paramref name="write"/> on each file in request order. A client error becomes that file's result, so one
+        /// bad file never stops the others nor strands the ones already written before it; anything else fails the request.
+        /// </summary>
+        private static async Task<List<TResult>> PerFileAsync<TResult>(Guid driveId, List<FileVersionTagV2> files,
+            Func<InternalDriveFileId, FileVersionTagV2, Task<TResult>> write, Func<Guid, OdinClientErrorCode, TResult> failed)
+        {
+            var results = new List<TResult>(files.Count);
+            foreach (var f in files)
             {
                 try
                 {
-                    var newVersionTag = await storage.UpdateArchivalStatus(new InternalDriveFileId(driveId, f.FileId), f.VersionTag,
-                        status, WebOdinContext);
-                    results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, NewVersionTag = newVersionTag });
+                    results.Add(await write(new InternalDriveFileId(driveId, f.FileId), f));
                 }
                 catch (OdinClientException e)
                 {
-                    // Per file, so one bad file never strands the ones already written before it
-                    results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, ErrorCode = e.ErrorCode });
+                    results.Add(failed(f.FileId, e.ErrorCode));
                 }
             }
 
-            return new UpdateArchivalStatusBatchResultV2 { Results = results };
+            return results;
         }
 
         [HttpPost("delete-batch/by-group-id")]
