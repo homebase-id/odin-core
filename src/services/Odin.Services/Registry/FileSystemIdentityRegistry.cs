@@ -184,7 +184,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             EnablePublicWebPresence = request.EnablePublicWebPresence,
-            Onboarding = request.Onboarding,
+            Invitation = request.Invitation,
             FirstRunToken = Guid.NewGuid()
         };
 

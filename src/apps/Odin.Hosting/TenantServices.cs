@@ -33,7 +33,6 @@ using Odin.Services.Email;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
-using Odin.Services.Onboarding;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
@@ -212,7 +211,6 @@ public static class TenantServices
         cb.RegisterType<IdentityReadyStateService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<BuiltinProvisioner>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
-        cb.RegisterType<OnboardingService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
         cb.RegisterType<TenantQuotaGuard>().AsSelf().SingleInstance();
 

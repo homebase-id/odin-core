@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using Odin.Cli.Commands;
-using Odin.Cli.Commands.InvitationCode;
 using Odin.Cli.Commands.Tenant;
 using Odin.Cli.Commands.Tenants;
 using Spectre.Console;
@@ -26,13 +25,6 @@ app.Configure(config =>
 
     config.SetApplicationName("odin-admin");
     config.PropagateExceptions();
-    config.AddBranch("invitation-code", c =>
-    {
-        c.AddCommand<CreateInvitationCodeCommand>("create")
-            .WithExample("invitation-code", "create", "frodo.demo.rocks", "--uses", "5");
-        c.AddCommand<ListInvitationCodesCommand>("list")
-            .WithExample("invitation-code", "list", "frodo.demo.rocks");
-    });
     config.AddBranch("tenants", c =>
     {
         c.AddCommand<ListTenantsCommand>("list")

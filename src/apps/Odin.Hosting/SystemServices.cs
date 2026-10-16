@@ -199,11 +199,7 @@ public static class SystemServices
         services.AddSingleton<ILookupClient>(new LookupClient());
 
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
-        // Invitation codes (#1908) in a database of their own; an empty path turns them off
-        services.AddSingleton(new InvitationCodeStore(config.Registry.InvitationCodeStoreEnabled
-            ? Path.Combine(config.Host.SystemDataRootPath, "invitation-codes.db")
-            : ""));
-        services.AddSingleton<OwnerInvitationCodeService>();
+        services.AddSingleton<InvitationCodeServiceClient>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
         services.AddSingleton<IDnssecLookup, DnssecLookup>();
@@ -266,7 +262,6 @@ public static class SystemServices
 
         services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
         services.AddSingleton(new PayloadMoveRestrictedAttribute(config.PayloadMove.SourceEnabled, config.Registry.ProvisioningDomain));
-        services.AddSingleton<InvitationCodeKeyRestrictedAttribute>();
 
         services.AddTransient<ITenantAdmin, TenantAdmin>();
         services.AddTransient<PayloadMoveSource>();

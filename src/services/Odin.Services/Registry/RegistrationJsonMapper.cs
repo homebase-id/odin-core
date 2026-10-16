@@ -1,7 +1,6 @@
 using System;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
-using Odin.Services.Onboarding;
 
 #nullable enable
 
@@ -9,7 +8,7 @@ namespace Odin.Services.Registry;
 
 /// <summary>
 /// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/> and the
-/// identity's <see cref="OnboardingInfo"/>. Kept out of dedicated columns so it can grow without a
+/// <see cref="RegistrationInvitation"/> the identity signed up with. Kept out of dedicated columns so it can grow without a
 /// schema change.
 /// </summary>
 public static class RegistrationJsonMapper
@@ -19,11 +18,11 @@ public static class RegistrationJsonMapper
         TenantStatus Status,
         DisabledReason? DisabledReason,
         UnixTimeUtc? StatusChangedAt,
-        OnboardingInfo? Onboarding);
+        RegistrationInvitation? Invitation);
 
     public static string ToJson(IdentityRegistration registration)
     {
-        return Serialize(registration.StatusState, registration.Onboarding);
+        return Serialize(registration.StatusState, registration.Invitation);
     }
 
     /// <summary>
@@ -31,13 +30,13 @@ public static class RegistrationJsonMapper
     /// </summary>
     public static string WithStatus(string? existingJson, TenantStatusState state)
     {
-        return Serialize(state, TryParse(existingJson, out _)?.Onboarding);
+        return Serialize(state, TryParse(existingJson, out _)?.Invitation);
     }
 
-    private static string Serialize(TenantStatusState state, OnboardingInfo? onboarding)
+    private static string Serialize(TenantStatusState state, RegistrationInvitation? invitation)
     {
         return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, onboarding));
+            state.StatusChangedAt, invitation));
     }
 
     /// <summary>
@@ -52,7 +51,7 @@ public static class RegistrationJsonMapper
     public static bool Apply(IdentityRegistration target, bool disabledColumn, string? json)
     {
         var parsed = TryParse(json, out var valid);
-        target.Onboarding = parsed?.Onboarding;
+        target.Invitation = parsed?.Invitation;
 
         if (disabledColumn)
         {

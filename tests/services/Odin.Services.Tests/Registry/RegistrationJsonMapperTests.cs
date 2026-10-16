@@ -1,6 +1,5 @@
 using NUnit.Framework;
 using Odin.Core.Time;
-using Odin.Services.Onboarding;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Tests.Registry;
@@ -138,33 +137,33 @@ public class RegistrationJsonMapperTests
     }
 
     [Test]
-    public void RoundTripsTheOnboardingInfo()
+    public void RoundTripsTheInvitation()
     {
         var source = Registration(TenantStatus.Active, null, null);
-        source.Onboarding = Onboarding;
+        source.Invitation = Invitation;
 
         var target = new IdentityRegistration();
         RegistrationJsonMapper.Apply(target, disabledColumn: false, RegistrationJsonMapper.ToJson(source));
 
-        Assert.That(target.Onboarding, Is.EqualTo(Onboarding));
+        Assert.That(target.Invitation, Is.EqualTo(Invitation));
     }
 
     [Test]
-    public void ReadsJsonWrittenBeforeOnboardingInfo()
+    public void ReadsJsonWrittenBeforeInvitations()
     {
         var target = new IdentityRegistration();
         var valid = RegistrationJsonMapper.Apply(target, disabledColumn: false, "{\"status\":\"paused\"}");
 
         Assert.That(valid, Is.True);
         Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
-        Assert.That(target.Onboarding, Is.Null);
+        Assert.That(target.Invitation, Is.Null);
     }
 
     [Test]
-    public void WithStatusKeepsTheOnboardingInfo()
+    public void WithStatusKeepsTheInvitation()
     {
         var source = Registration(TenantStatus.Active, null, null);
-        source.Onboarding = Onboarding;
+        source.Invitation = Invitation;
 
         var json = RegistrationJsonMapper.WithStatus(RegistrationJsonMapper.ToJson(source),
             new TenantStatusState(TenantStatus.Paused, null, new UnixTimeUtc(1)));
@@ -172,13 +171,8 @@ public class RegistrationJsonMapperTests
         var target = new IdentityRegistration();
         RegistrationJsonMapper.Apply(target, disabledColumn: false, json);
         Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
-        Assert.That(target.Onboarding, Is.EqualTo(Onboarding));
+        Assert.That(target.Invitation, Is.EqualTo(Invitation));
     }
 
-    private static readonly OnboardingInfo Onboarding = new()
-    {
-        InvitedBy = "frodo.dotyou.cloud",
-        InvitationCode = "K7QX-M2PD-9FHW",
-        SignedUpAt = new UnixTimeUtc(1234),
-    };
+    private static readonly RegistrationInvitation Invitation = new("K7QX-M2PD-9FHW", "frodo.dotyou.cloud", "spring");
 }

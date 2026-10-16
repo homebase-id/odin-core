@@ -3,11 +3,17 @@ using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Certificate;
-using Odin.Services.Onboarding;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Registry
 {
+    /// <summary>
+    /// The invitation code an identity signed up with (#1908)
+    /// </summary>
+    /// <param name="InvitedBy">The code's owner, if it has one; null for a configured code</param>
+    /// <param name="Source">Where the code came from, as the invitation-code service has it</param>
+    public record RegistrationInvitation(string Code, string InvitedBy, string Source);
+
     public class IdentityRegistrationRequest
     {
         public Guid? Id { get; init; }
@@ -27,9 +33,9 @@ namespace Odin.Services.Registry
         public bool EnablePublicWebPresence { get; set; } = true;
 
         /// <summary>
-        /// What signup knew about the identity, handed to it at first run
+        /// The invitation code the identity signed up with, if any
         /// </summary>
-        public OnboardingInfo Onboarding { get; set; }
+        public RegistrationInvitation Invitation { get; set; }
 
         /// <summary>
         /// Optional certificates to match the <see cref="OdinId"/>
@@ -93,10 +99,9 @@ namespace Odin.Services.Registry
         public bool EnablePublicWebPresence { get; set; } = true;
 
         /// <summary>
-        /// What signup knew about the identity, kept in the json column until first run copies it into the
-        /// identity's own database. Not read after that.
+        /// The invitation code the identity signed up with, if any. Kept in the json column.
         /// </summary>
-        public OnboardingInfo Onboarding { get; set; }
+        public RegistrationInvitation Invitation { get; set; }
 
         /// <summary>
         /// The date this account was marked for deletion.

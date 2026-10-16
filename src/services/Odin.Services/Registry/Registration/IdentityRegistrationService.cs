@@ -8,14 +8,12 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Core.Identity;
-using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Dns.PowerDns;
 using Odin.Services.JobManagement;
-using Odin.Services.Onboarding;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -33,7 +31,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly IDnsLookupService _dnsLookupService;
     private readonly IJobManager _jobManager;
-    private readonly InvitationCodeStore _invitationCodes;
+    private readonly InvitationCodeServiceClient _invitationCodes;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -43,7 +41,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         IDynamicHttpClientFactory httpClientFactory,
         IDnsLookupService dnsLookupService,
         IJobManager jobManager,
-        InvitationCodeStore invitationCodes)
+        InvitationCodeServiceClient invitationCodes)
     {
         _logger = logger;
         _configuration = configuration;
@@ -728,23 +726,21 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         };
 
         var code = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim();
-
-        // A code from the invitation-code store is used up here, not when it was checked: two signups
-        // racing for its last use must not both get it. Codes from config are not counted, and have no owner.
-        string? invitedBy = null;
-        if (_invitationCodes.IsEnabled && code != null && !IsConfiguredInvitationCode(code))
+        if (code != null)
         {
-            invitedBy = await _invitationCodes.TryUseAsync(code)
-                        ?? throw new OdinClientException("Invalid or expired Invitation Code");
-            code = InvitationCodeFormat.Display(InvitationCodeFormat.Normalize(code)!);
+            request.Invitation = new RegistrationInvitation(code, null, null);
         }
 
-        request.Onboarding = new OnboardingInfo
+        // A code from the invitation-code service is used up here, not when it was checked: two signups
+        // racing for its last use must not both get it. Codes from config are not counted.
+        InvitationCodeUse? used = null;
+        if (_invitationCodes.IsEnabled && code != null && !IsConfiguredInvitationCode(code))
         {
-            InvitedBy = invitedBy,
-            InvitationCode = code,
-            SignedUpAt = UnixTimeUtc.Now(),
-        };
+            used = await _invitationCodes.TryUseAsync(code)
+                   ?? throw new OdinClientException("Invalid or expired Invitation Code");
+            request.Invitation = new RegistrationInvitation(used.Code, used.Owner, used.Source);
+            request.EnablePublicWebPresence = used.EnablePublicWebPresence;
+        }
 
         try
         {
@@ -787,13 +783,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 });
             }
 
-            await CreateOwnInvitationCodeAsync(domain);
-
             return firstRunToken;
         }
         catch (Exception)
         {
-            if (invitedBy != null)
+            if (used != null)
             {
                 await UndoInvitationCodeUseAsync(code!);
             }
@@ -844,25 +838,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
 
     //
-
-    // Every identity gets its own code to hand out. Best-effort: a missed one is created the first time
-    // the owner asks for their codes.
-    private async Task CreateOwnInvitationCodeAsync(AsciiDomainName domain)
-    {
-        if (!_invitationCodes.IsEnabled)
-        {
-            return;
-        }
-
-        try
-        {
-            await _invitationCodes.CreateAsync(domain.DomainName, _configuration.Registry.DefaultInvitationCodeUses);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Failed to create the invitation code for {domain}", domain);
-        }
-    }
 
     private async Task UndoInvitationCodeUseAsync(string code)
     {

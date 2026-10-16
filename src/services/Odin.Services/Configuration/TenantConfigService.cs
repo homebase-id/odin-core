@@ -18,7 +18,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
-using Odin.Services.Onboarding;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -42,8 +41,7 @@ public class TenantConfigService(
     IdentityDatabase identityDatabase,
     ShamirConfigurationService shamirConfigurationService,
     IdentityReadyStateService identityReadyState,
-    BuiltinProvisioner builtinProvisioner,
-    OnboardingService onboardingService)
+    BuiltinProvisioner builtinProvisioner)
 {
     internal const string ConfigContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
 
@@ -214,8 +212,6 @@ public class TenantConfigService(
         {
             await registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
-
-        await onboardingService.CopyFromRegistrationAsync();
 
         await builtinProvisioner.EnsureAllAsync(odinContext);
 

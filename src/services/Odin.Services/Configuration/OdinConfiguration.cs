@@ -181,15 +181,14 @@ public class OdinConfiguration
         public List<string> InvitationCodesWithoutPublicWebPresence { get; init; } = [];
 
         /// <summary>
-        /// Invitation codes owned by identities (#1908), kept in this host's own invitation-code database.
-        /// When on, signup needs a code. Off by default, except on bleeding edge's provisioning domain.
+        /// The invitation-code service (#1908), homebase-id/homebase-invites. Off when empty.
         /// </summary>
-        public bool InvitationCodeStoreEnabled { get; init; }
+        public string InvitationCodeServiceUrl { get; init; } = "";
 
         /// <summary>
-        /// How many uses the code created for a new identity gets.
+        /// The service's signup key. Homebase-run hosts only, never self-hosted ones.
         /// </summary>
-        public int DefaultInvitationCodeUses { get; init; } = 5;
+        public string InvitationCodeServiceApiKey { get; init; } = "";
 
         public string PowerDnsHostAddress { get; init; } = "";
         public string PowerDnsApiKey { get; set; } = "";
@@ -247,10 +246,11 @@ public class OdinConfiguration
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
-            // PROTOTYPE (#1908): on by default for bleeding edge only
-            InvitationCodeStoreEnabled = config.GetOrDefault("Registry:InvitationCodeStore:Enabled",
-                ProvisioningDomain == InvitationCodePrototype.BleedingEdgeProvisioningDomain);
-            DefaultInvitationCodeUses = config.GetOrDefault("Registry:InvitationCodeStore:DefaultUses", DefaultInvitationCodeUses);
+            InvitationCodeServiceUrl = config.GetOrDefault("Registry:InvitationCodeService:Url", "").Trim().TrimEnd('/');
+            if (InvitationCodeServiceUrl != "")
+            {
+                InvitationCodeServiceApiKey = config.Required<string>("Registry:InvitationCodeService:ApiKey");
+            }
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
 
