@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Write;
 
@@ -21,6 +22,11 @@ public class UpdateArchivalStatusResultV2
     /// <see cref="ErrorCode"/> is set.
     /// </summary>
     public Guid? NewVersionTag { get; init; }
+
+    /// <summary>
+    /// The file's modified time after the update, as the change feed shows it; null when <see cref="ErrorCode"/> is set.
+    /// </summary>
+    public UnixTimeUtc? Updated { get; init; }
 
     /// <summary>
     /// Null on success. Otherwise why this file was not updated, serialized as a camelCase string like every

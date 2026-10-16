@@ -79,6 +79,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
 
             await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null, options?.VersionTag);
             result.LocalFileDeleted = true;
+            result.Updated = await fs.Storage.GetUpdatedAfterWrite(file, WebOdinContext);
 
             logger.LogDebug("[DeleteFlow] PerformFileDelete -> local soft-delete complete for fileId:{fileId} on driveId:{driveId}",
                 fileId, driveId);

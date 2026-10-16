@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Time;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer;
 
@@ -18,6 +19,11 @@ public class UpdateFileResult
     /// The version tag to be set on all recipients when they receive and store the file
     /// </summary>
     public Guid NewVersionTag { get; init; }
+
+    /// <summary>
+    /// The file's modified time after this update, as the change feed shows it
+    /// </summary>
+    public UnixTimeUtc? Updated { get; init; }
 
     /// <summary>
     /// One entry per payload uploaded in this request (append/overwrite operations); values match the stored file header

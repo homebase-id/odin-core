@@ -279,6 +279,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
                 },
                 GlobalTransitId = metadata.GlobalTransitId,
                 NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
+                Updated = await FileSystem.Storage.GetUpdatedAfterWrite(Package.InternalFile, odinContext),
                 RecipientStatus = recipientStatus,
                 Payloads = (uploadedPayloads ?? []).Select(PayloadUploadReceipt.From).ToList()
             };

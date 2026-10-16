@@ -81,10 +81,10 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             var status = request.ArchivalStatus!.Value;
             var storage = GetFileSystem().Storage;
             var results = await PerFileAsync(driveId, request.Files,
-                async (file, f) => new UpdateArchivalStatusResultV2
+                async (file, f) =>
                 {
-                    FileId = f.FileId,
-                    NewVersionTag = await storage.UpdateArchivalStatus(file, f.VersionTag, status, WebOdinContext)
+                    var (versionTag, updated) = await storage.UpdateArchivalStatus(file, f.VersionTag, status, WebOdinContext);
+                    return new UpdateArchivalStatusResultV2 { FileId = f.FileId, NewVersionTag = versionTag, Updated = updated };
                 },
                 (fileId, errorCode) => new UpdateArchivalStatusResultV2 { FileId = fileId, ErrorCode = errorCode });
 

@@ -718,6 +718,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
+        /// <summary>
+        /// The file's modified time as the database holds it now, for a write's response: the time the change feed
+        /// shows for that write, so a client that leaves out its own socket events need not read the feed to learn it.
+        /// Read after the whole write, since a write can move it more than once (an upload with recipients moves it
+        /// again when it records the transfer history). Null when the file is gone.
+        /// </summary>
+        public async Task<UnixTimeUtc?> GetUpdatedAfterWrite(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            return header?.FileMetadata.Updated;
+        }
+
         /// <param name="aclDeniedAsMissing">Answer null, as for a missing file, when the file's ACL denies the caller,
         /// instead of throwing; the drive-level checks still throw.</param>
         public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext,
@@ -1619,10 +1633,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// caller needs neither the key header nor the content. The write is conditional on
         /// <paramref name="expectedVersionTag"/> (4160 when stale) and, like any header write, gives the file a new
         /// version tag and moves its modified time. A file already at that status is left alone. Returns the file's
-        /// version tag afterwards. A file the caller may not see answers 4106, as a query would leave it out.
+        /// version tag and modified time afterwards. A file the caller may not see answers 4106, as a query would
+        /// leave it out.
         /// </summary>
-        public async Task<Guid> UpdateArchivalStatus(InternalDriveFileId file, Guid expectedVersionTag, int archivalStatus,
-            IOdinContext odinContext)
+        public async Task<(Guid VersionTag, UnixTimeUtc Updated)> UpdateArchivalStatus(InternalDriveFileId file,
+            Guid expectedVersionTag, int archivalStatus, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
@@ -1635,7 +1650,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (header.FileMetadata.AppData.ArchivalStatus == archivalStatus)
             {
                 // Nothing to change: no new version tag, and modified (a client's "removed at") stays put
-                return header.FileMetadata.VersionTag.GetValueOrDefault();
+                return (header.FileMetadata.VersionTag.GetValueOrDefault(), header.FileMetadata.Updated);
             }
 
             header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
@@ -1651,7 +1666,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
 
-            return header.FileMetadata.VersionTag.GetValueOrDefault();
+            return (header.FileMetadata.VersionTag.GetValueOrDefault(), header.FileMetadata.Updated);
         }
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,

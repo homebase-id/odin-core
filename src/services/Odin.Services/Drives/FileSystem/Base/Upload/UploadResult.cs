@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Odin.Core.Time;
 using Odin.Services.Peer;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload
@@ -36,6 +37,12 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// The version tag that resulted as of this upload
         /// </summary>
         public Guid NewVersionTag { get; set; }
+
+        /// <summary>
+        /// The file's modified time after this upload, as the change feed shows it; null only when the file was
+        /// gone by the time the response was built
+        /// </summary>
+        public UnixTimeUtc? Updated { get; set; }
 
         /// <summary>
         /// One entry per payload uploaded in this request; values match the stored file header

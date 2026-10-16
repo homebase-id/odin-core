@@ -57,6 +57,7 @@ public class ArchivalStatusBatchTests : V2Fixture
         var after = await GetHeaderAsync(owner, a);
         Assert.That(after.FileMetadata.AppData.ArchivalStatus, Is.EqualTo(2));
         Assert.That(after.FileMetadata.VersionTag, Is.EqualTo(results[0].NewVersionTag));
+        Assert.That(results[0].Updated?.milliseconds, Is.EqualTo(after.FileMetadata.Updated.milliseconds));
         Assert.That(after.FileMetadata.VersionTag, Is.Not.EqualTo(before.FileMetadata.VersionTag));
         Assert.That(after.FileMetadata.Updated.milliseconds, Is.GreaterThan(before.FileMetadata.Updated.milliseconds));
         Assert.That(after.FileMetadata.AppData.Content, Is.EqualTo(before.FileMetadata.AppData.Content));
@@ -136,6 +137,7 @@ public class ArchivalStatusBatchTests : V2Fixture
         var after = await GetHeaderAsync(owner, file);
         Assert.That((after.FileMetadata.VersionTag, after.FileMetadata.Updated.milliseconds),
             Is.EqualTo((before.FileMetadata.VersionTag, before.FileMetadata.Updated.milliseconds)));
+        Assert.That(response.Content.Results.Single().Updated?.milliseconds, Is.EqualTo(before.FileMetadata.Updated.milliseconds));
     }
 
     [Test]
