@@ -37,8 +37,8 @@ public class ArchivalStatusBatchTests : V2Fixture
     public async Task SetsOnlyTheArchivalStatus(CallerSpec spec, HttpStatusCode expected)
     {
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var a = await UploadAsync(owner, spec.TargetDrive, "content a");
-        var b = await UploadAsync(owner, spec.TargetDrive, "content b");
+        var a = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "content a");
+        var b = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "content b");
         var before = await GetHeaderAsync(owner, a);
 
         var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias,
@@ -69,9 +69,9 @@ public class ArchivalStatusBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var current = await UploadAsync(owner, spec.TargetDrive, "current");
-        var stale = await UploadAsync(owner, spec.TargetDrive, "stale");
-        var deleted = await UploadAsync(owner, spec.TargetDrive, "deleted");
+        var current = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "current");
+        var stale = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "stale");
+        var deleted = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "deleted");
         var delete = await owner.Drives.Writer.SoftDeleteFile(deleted.DriveId, deleted.FileId);
         Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
         var missing = Guid.NewGuid();
@@ -102,9 +102,9 @@ public class ArchivalStatusBatchTests : V2Fixture
     {
         var spec = CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write);
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var visible = await UploadAsync(owner, spec.TargetDrive, "visible");
-        var hidden = await UploadAsync(owner, spec.TargetDrive, "owner only", AccessControlList.OwnerOnly);
-        var after = await UploadAsync(owner, spec.TargetDrive, "after");
+        var visible = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "visible");
+        var hidden = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "owner only", AccessControlList.OwnerOnly);
+        var after = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "after");
 
         var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(2,
             (visible.FileId, visible.NewVersionTag),
@@ -127,7 +127,7 @@ public class ArchivalStatusBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var file = await UploadAsync(owner, spec.TargetDrive, "already restored");
+        var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "already restored");
         var before = await GetHeaderAsync(owner, file);
 
         var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(0, (file.FileId, file.NewVersionTag)));
@@ -144,7 +144,7 @@ public class ArchivalStatusBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var file = await UploadAsync(owner, spec.TargetDrive, "restore me");
+        var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "restore me");
 
         var remove = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(2, (file.FileId, file.NewVersionTag)));
         Assert.That(remove.StatusCode, Is.EqualTo(HttpStatusCode.OK), remove.Error?.Content);
@@ -191,15 +191,6 @@ public class ArchivalStatusBatchTests : V2Fixture
         Files = files.Select(f => new UpdateArchivalStatusFileV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
     };
 
-    private static async Task<CreateFileResult> UploadAsync(OwnerSession owner, TargetDrive drive, string content,
-        AccessControlList acl = null)
-    {
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: acl ?? AccessControlList.Anonymous);
-        var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
-            new UploadManifest { PayloadDescriptors = [] }, []);
-        Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
-        return upload.Content!;
-    }
 
     private static async Task<SharedSecretEncryptedFileHeader> GetHeaderAsync(OwnerSession owner, CreateFileResult file)
     {

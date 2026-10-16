@@ -40,8 +40,9 @@ public static class QueryBatchResultShapes
     }
 
     /// <summary>
-    /// A peer query's rows are re-encrypted by the calling server for its own caller, which it does for headers
-    /// only; a minimal result would come back empty, so it is refused rather than silently lost
+    /// Checked by the calling server before it sends a peer query: it rebuilds the remote's result for its own
+    /// caller from the headers only, so minimal rows would be lost.  The answering server needs no check; it
+    /// serves minimal like any other query.
     /// </summary>
     public static void AssertSupportedOverPeer(QueryBatchResultShape? resultShape)
     {

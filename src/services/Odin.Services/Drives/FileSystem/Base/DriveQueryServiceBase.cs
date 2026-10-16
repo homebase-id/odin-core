@@ -377,7 +377,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                         header.FileMetadata.AppData.Content = string.Empty;
                     }
 
-
                     if (options.ExcludePreviewThumbnail)
                     {
                         header.FileMetadata.AppData.PreviewThumbnail = null;
@@ -400,13 +399,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     header.ServerMetadata = null;
                 }
-                else
+                else if (!options.IncludeTransferHistory && header.ServerMetadata != null)
                 {
-                    if (!options.IncludeTransferHistory && header.ServerMetadata != null)
-                    {
-                        // _logger.LogDebug("CreateClientFileHeaders -> setting transfer history to null");
-                        header.ServerMetadata.TransferHistory = null;
-                    }
+                    header.ServerMetadata.TransferHistory = null;
                 }
 
                 results.Add(header);

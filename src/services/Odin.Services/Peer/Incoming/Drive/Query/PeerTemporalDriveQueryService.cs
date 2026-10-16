@@ -69,7 +69,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
         public async Task<QueryBatchResult> QueryBatch(FileQueryParamsV1 qp, QueryBatchResultOptions options, IOdinContext odinContext)
         {
-            QueryBatchResultShapes.AssertSupportedOverPeer(options.ResultShape);
             var results = await fileSystem.Query.GetTemporalBatch(qp.DriveId, qp, options, odinContext);
             await MaybeNotifyAsync(qp.DriveId, odinContext);
             return results;

@@ -32,18 +32,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext)
         {
-            foreach (var query in request.Queries ?? [])
-            {
-                QueryBatchResultShapes.AssertSupportedOverPeer(query.ResultOptionsRequest?.ResultShape);
-            }
-
             var results = await fileSystem.Query.GetBatchCollection(request.Queries, odinContext);
             return results;
         }
 
         public async Task<QueryBatchResult> QueryBatch(FileQueryParamsV1 qp, QueryBatchResultOptions options, IOdinContext odinContext)
         {
-            QueryBatchResultShapes.AssertSupportedOverPeer(options.ResultShape);
             var results = await fileSystem.Query.GetBatch(qp.DriveId, qp, options, odinContext);
             return results;
         }

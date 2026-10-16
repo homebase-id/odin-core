@@ -5,6 +5,7 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -34,7 +35,7 @@ public class MinimalQueryBatchTests : V2Fixture
         var files = new List<CreateFileResult>();
         for (var i = 0; i < 5; i++)
         {
-            files.Add(await UploadAsync(owner, spec.TargetDrive, $"file {i}"));
+            files.Add(await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, $"file {i}"));
         }
 
         var delete = await owner.Drives.Writer.SoftDeleteFile(files[1].DriveId, files[1].FileId);
@@ -63,9 +64,9 @@ public class MinimalQueryBatchTests : V2Fixture
     {
         var spec = CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read);
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var visible = await UploadAsync(owner, spec.TargetDrive, "visible");
-        await UploadAsync(owner, spec.TargetDrive, "owner only", AccessControlList.OwnerOnly);
-        var after = await UploadAsync(owner, spec.TargetDrive, "after");
+        var visible = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "visible");
+        await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "owner only", AccessControlList.OwnerOnly);
+        var after = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "after");
 
         var full = await QueryAsync(caller, spec.TargetDrive, QueryBatchResultShape.Full, maxRecords: 10);
         var minimal = await QueryAsync(caller, spec.TargetDrive, QueryBatchResultShape.Minimal, maxRecords: 10);
@@ -81,7 +82,7 @@ public class MinimalQueryBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        await UploadAsync(owner, spec.TargetDrive, "plain");
+        await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "plain");
 
         var minimal = await QueryJsonAsync(caller, spec.TargetDrive, Options(QueryBatchResultShape.Minimal));
         Assert.That(Keys(minimal), Does.Contain("fileRefs").And.Not.Contain("searchResults"), minimal.ToString());
@@ -99,7 +100,7 @@ public class MinimalQueryBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        await UploadAsync(owner, spec.TargetDrive, "the content");
+        await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "the content");
 
         var cases = new Dictionary<string, QueryBatchResultOptionsRequest>
         {
@@ -131,8 +132,8 @@ public class MinimalQueryBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var a = await UploadAsync(owner, spec.TargetDrive, "a");
-        var b = await UploadAsync(owner, spec.TargetDrive, "b");
+        var a = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "a");
+        var b = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "b");
 
         var response = await caller.Drives.Reader.GetBatchCollectionAsync(new QueryBatchCollectionRequestV2
         {
@@ -162,7 +163,7 @@ public class MinimalQueryBatchTests : V2Fixture
         var response = await owner.Drives.Peer.QueryBatchAsync(new OdinId(Identities.Sam), spec.TargetDrive.Alias,
             Request(spec.TargetDrive, Options(QueryBatchResultShape.Minimal)));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+        DriveAsserts.AssertRejected(response, OdinClientErrorCode.InvalidQuery);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -240,14 +241,4 @@ public class MinimalQueryBatchTests : V2Fixture
         $"{h.FileMetadata.Created.milliseconds} {h.FileMetadata.Updated.milliseconds} {h.FileByteCount}";
 
     private static List<string> Keys(JsonElement element) => element.EnumerateObject().Select(p => p.Name).ToList();
-
-    private static async Task<CreateFileResult> UploadAsync(OwnerSession owner, TargetDrive drive, string content,
-        AccessControlList acl = null)
-    {
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: acl ?? AccessControlList.Anonymous);
-        var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
-            new UploadManifest { PayloadDescriptors = [] }, []);
-        Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
-        return upload.Content!;
-    }
 }
