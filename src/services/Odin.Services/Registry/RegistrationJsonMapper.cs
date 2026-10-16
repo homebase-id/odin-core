@@ -1,6 +1,7 @@
 using System;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
+using Odin.Services.Onboarding;
 
 #nullable enable
 
@@ -8,7 +9,7 @@ namespace Odin.Services.Registry;
 
 /// <summary>
 /// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/> and the
-/// invitation code the identity signed up with. Kept out of dedicated columns so it can grow without a
+/// identity's <see cref="OnboardingInfo"/>. Kept out of dedicated columns so it can grow without a
 /// schema change.
 /// </summary>
 public static class RegistrationJsonMapper
@@ -18,13 +19,13 @@ public static class RegistrationJsonMapper
         TenantStatus Status,
         DisabledReason? DisabledReason,
         UnixTimeUtc? StatusChangedAt,
-        string? InvitationCode);
+        OnboardingInfo? Onboarding);
 
     public static string ToJson(IdentityRegistration registration)
     {
         var state = registration.StatusState;
         return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, registration.InvitationCode));
+            state.StatusChangedAt, registration.Onboarding));
     }
 
     /// <summary>
@@ -34,7 +35,7 @@ public static class RegistrationJsonMapper
     {
         var existing = TryParse(existingJson, out _);
         return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, existing?.InvitationCode));
+            state.StatusChangedAt, existing?.Onboarding));
     }
 
     /// <summary>
@@ -49,7 +50,7 @@ public static class RegistrationJsonMapper
     public static bool Apply(IdentityRegistration target, bool disabledColumn, string? json)
     {
         var parsed = TryParse(json, out var valid);
-        target.InvitationCode = parsed?.InvitationCode;
+        target.Onboarding = parsed?.Onboarding;
 
         if (disabledColumn)
         {

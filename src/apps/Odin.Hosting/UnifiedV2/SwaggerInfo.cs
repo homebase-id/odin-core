@@ -8,6 +8,7 @@ public static class SwaggerInfo
     public const string Health = "Health";
 
     public const string InvitationCodes = "Invitation Codes";
+    public const string Onboarding = "Onboarding";
 
     // Drive-level status
     public const string DriveMetadata = "Drive Metadata";

@@ -8,12 +8,14 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.Email.Dkim;
 using Odin.Services.Dns.PowerDns;
 using Odin.Services.JobManagement;
+using Odin.Services.Onboarding;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -723,20 +725,30 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             PlanId = planId,
             IsCertificateManaged = false, //TODO
             EnablePublicWebPresence = await CodeGrantsPublicWebPresence(invitationCode),
-            InvitationCode = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim(),
         };
 
+        var code = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim();
+
         // A code from the invitation-code store is used up here, not when it was checked: two signups
-        // racing for its last use must not both get it. Codes from config are not counted.
+        // racing for its last use must not both get it. Codes from config are not counted, and have no owner.
         var usedServiceCode = false;
-        if (_invitationCodes.IsEnabled && request.InvitationCode != null && !IsConfiguredInvitationCode(request.InvitationCode))
+        string? invitedBy = null;
+        if (_invitationCodes.IsEnabled && code != null && !IsConfiguredInvitationCode(code))
         {
-            if (!await _invitationCodes.TryUseAsync(request.InvitationCode))
+            if (!await _invitationCodes.TryUseAsync(code))
             {
                 throw new OdinClientException("Invalid or expired Invitation Code");
             }
             usedServiceCode = true;
+            invitedBy = (await _invitationCodes.GetAsync(code))?.Owner;
         }
+
+        request.Onboarding = new OnboardingInfo
+        {
+            InvitedBy = invitedBy,
+            InvitationCode = code,
+            SignedUpAt = UnixTimeUtc.Now(),
+        };
 
         try
         {
@@ -787,7 +799,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             if (usedServiceCode)
             {
-                await UndoInvitationCodeUseAsync(request.InvitationCode!);
+                await UndoInvitationCodeUseAsync(code!);
             }
             await _registry.DeleteRegistration(domain.DomainName);
             // The zone may have been created above (or earlier during DNS validation);

@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Odin.Core.Time;
+using Odin.Services.Onboarding;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Tests.Registry;
@@ -137,33 +138,33 @@ public class RegistrationJsonMapperTests
     }
 
     [Test]
-    public void RoundTripsTheInvitationCode()
+    public void RoundTripsTheOnboardingInfo()
     {
         var source = Registration(TenantStatus.Active, null, null);
-        source.InvitationCode = "K7QX-M2PD-9FHW";
+        source.Onboarding = Onboarding;
 
         var target = new IdentityRegistration();
         RegistrationJsonMapper.Apply(target, disabledColumn: false, RegistrationJsonMapper.ToJson(source));
 
-        Assert.That(target.InvitationCode, Is.EqualTo("K7QX-M2PD-9FHW"));
+        Assert.That(target.Onboarding, Is.EqualTo(Onboarding));
     }
 
     [Test]
-    public void ReadsJsonWrittenBeforeInvitationCodes()
+    public void ReadsJsonWrittenBeforeOnboardingInfo()
     {
         var target = new IdentityRegistration();
         var valid = RegistrationJsonMapper.Apply(target, disabledColumn: false, "{\"status\":\"paused\"}");
 
         Assert.That(valid, Is.True);
         Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
-        Assert.That(target.InvitationCode, Is.Null);
+        Assert.That(target.Onboarding, Is.Null);
     }
 
     [Test]
-    public void WithStatusKeepsTheInvitationCode()
+    public void WithStatusKeepsTheOnboardingInfo()
     {
         var source = Registration(TenantStatus.Active, null, null);
-        source.InvitationCode = "K7QX-M2PD-9FHW";
+        source.Onboarding = Onboarding;
 
         var json = RegistrationJsonMapper.WithStatus(RegistrationJsonMapper.ToJson(source),
             new TenantStatusState(TenantStatus.Paused, null, new UnixTimeUtc(1)));
@@ -171,6 +172,13 @@ public class RegistrationJsonMapperTests
         var target = new IdentityRegistration();
         RegistrationJsonMapper.Apply(target, disabledColumn: false, json);
         Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
-        Assert.That(target.InvitationCode, Is.EqualTo("K7QX-M2PD-9FHW"));
+        Assert.That(target.Onboarding, Is.EqualTo(Onboarding));
     }
+
+    private static readonly OnboardingInfo Onboarding = new()
+    {
+        InvitedBy = "frodo.dotyou.cloud",
+        InvitationCode = "K7QX-M2PD-9FHW",
+        SignedUpAt = new UnixTimeUtc(1234),
+    };
 }

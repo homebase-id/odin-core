@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Certificate;
+using Odin.Services.Onboarding;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Registry
@@ -26,9 +27,9 @@ namespace Odin.Services.Registry
         public bool EnablePublicWebPresence { get; set; } = true;
 
         /// <summary>
-        /// The invitation code the identity signed up with, if any
+        /// What signup knew about the identity, handed to it at first run
         /// </summary>
-        public string InvitationCode { get; set; }
+        public OnboardingInfo Onboarding { get; set; }
 
         /// <summary>
         /// Optional certificates to match the <see cref="OdinId"/>
@@ -92,9 +93,10 @@ namespace Odin.Services.Registry
         public bool EnablePublicWebPresence { get; set; } = true;
 
         /// <summary>
-        /// The invitation code the identity signed up with, if any. Kept in the json column.
+        /// What signup knew about the identity, kept in the json column until first run copies it into the
+        /// identity's own database. Not read after that.
         /// </summary>
-        public string InvitationCode { get; set; }
+        public OnboardingInfo Onboarding { get; set; }
 
         /// <summary>
         /// The date this account was marked for deletion.

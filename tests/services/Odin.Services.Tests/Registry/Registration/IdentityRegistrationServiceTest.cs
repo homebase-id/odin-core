@@ -226,7 +226,9 @@ public class IdentityRegistrationServiceTest
 
         await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "free", code.Code);
 
-        Assert.That(capturedRequest!.InvitationCode, Is.EqualTo(code.Code));
+        Assert.That(capturedRequest!.Onboarding.InvitationCode, Is.EqualTo(code.Code));
+        Assert.That(capturedRequest.Onboarding.InvitedBy, Is.EqualTo("sam.example.com"));
+        Assert.That(capturedRequest.Onboarding.SignedUpAt, Is.Not.Null);
         Assert.That((await store.GetAsync(code.Code))!.UsesLeft, Is.EqualTo(1));
         var own = await store.ListByOwnerAsync("frodo.example.com");
         Assert.That(own, Has.Count.EqualTo(1));
