@@ -124,7 +124,7 @@ public class DriveNotificationShapeTests
         var refused = Assert.ThrowsAsync<Exception>(() => listener.ConnectAsync(owner.Identity.OdinId, owner.GetTokenContext(),
             new EstablishConnectionOptions { Drives = [drive], ResultShape = (FileResultShape)7 }));
 
-        Assert.That(refused!.Message, Is.EqualTo("Did not receive a valid handshake"));
+        Assert.That(refused!.Message, Does.StartWith("Did not receive a valid handshake: Error").And.Contain("Unknown resultShape 7"));
     }
 
     // ---------------------------------------------------------------------------------------------
