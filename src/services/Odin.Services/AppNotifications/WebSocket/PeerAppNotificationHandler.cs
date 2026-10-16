@@ -263,7 +263,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                     try
                     {
                         var options = EstablishConnectionOptions.Parse(command.Data);
-                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
+                        // A peer writes to our drives through its own channels, never with this token: nothing to exclude
+                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext, ownTokenId: null);
                     }
                     catch (Exception e) when (e is OdinSecurityException or OdinClientException)
                     {

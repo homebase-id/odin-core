@@ -45,6 +45,7 @@ namespace Odin.Hosting.Middleware
             string authType = httpContext.User.Identity?.AuthenticationType;
 
             odinContext.Tenant = (OdinId)tenant?.Name;
+            odinContext.MarkAsRequestContext();
 
             if (string.IsNullOrEmpty(authType))
             {

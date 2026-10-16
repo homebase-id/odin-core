@@ -62,8 +62,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
-        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
+        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext callerContext, int batchSize = 1)
         {
+            // The items are the senders' writes, not the caller's: a copy is never a request's own context, so a
+            // socket excluding its own writes still gets them, whichever device's query or socket drained the inbox
+            var odinContext = callerContext.Clone();
+
             int actualBatchSize = batchSize < 1 ? 1 : batchSize;
             var driveId = targetDrive.Alias;
             logger.LogDebug("Processing Inbox -> Getting Pending Items (chatty) for drive {driveId} with requested " +
