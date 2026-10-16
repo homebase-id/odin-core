@@ -16,25 +16,24 @@ public static class CliHttpClientFactory
 
     //
 
-    public static HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey)
+    public static HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey, string basePath = "api/admin/v1")
     {
-
         var httpClient = HttpClientFactory.CreateClient(hostAndPort);
-        httpClient.BaseAddress = CreateUriFromHostname(hostAndPort);
+        httpClient.BaseAddress = CreateUriFromHostname(hostAndPort, basePath);
         httpClient.DefaultRequestHeaders.Add(apiKeyHeader, apiKey);
         return httpClient;
     }
 
     //
 
-    private static Uri CreateUriFromHostname(string hostAndPort, string scheme = "https")
+    private static Uri CreateUriFromHostname(string hostAndPort, string basePath, string scheme = "https")
     {
         if (string.IsNullOrWhiteSpace(hostAndPort))
         {
             throw new ArgumentException("Hostname cannot be null or whitespace.", nameof(hostAndPort));
         }
 
-        hostAndPort = $"{scheme}://{hostAndPort}/api/admin/v1/";
+        hostAndPort = $"{scheme}://{hostAndPort}/{basePath}/";
 
         return new Uri(hostAndPort);
     }

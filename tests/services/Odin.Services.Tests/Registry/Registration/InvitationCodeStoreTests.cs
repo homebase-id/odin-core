@@ -1,42 +1,35 @@
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Tests.Registry.Registration;
 
 public class InvitationCodeStoreTests
 {
-    private string _databasePath = "";
+    private TempInvitationCodeStore _temp = null!;
     private InvitationCodeStore _store = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _databasePath = Path.Combine(Path.GetTempPath(), $"invitation-codes-{Guid.NewGuid()}.db");
-        _store = new InvitationCodeStore(_databasePath);
+        _temp = new TempInvitationCodeStore();
+        _store = _temp.Store;
     }
 
     [TearDown]
-    public void TearDown()
-    {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        foreach (var file in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
-        {
-            File.Delete(file);
-        }
-    }
+    public void TearDown() => _temp.Dispose();
 
     [Test]
     public async Task ACodeCanBeUsedExactlyMaxUsesTimes()
     {
         var created = await _store.CreateAsync("frodo.dotyou.cloud", 2);
 
-        Assert.That(await _store.TryUseAsync(created.Code), Is.True);
-        Assert.That(await _store.TryUseAsync(created.Code), Is.True);
-        Assert.That(await _store.TryUseAsync(created.Code), Is.False);
+        Assert.That(await _store.TryUseAsync(created.Code), Is.EqualTo("frodo.dotyou.cloud"));
+        Assert.That(await _store.TryUseAsync(created.Code), Is.EqualTo("frodo.dotyou.cloud"));
+        Assert.That(await _store.TryUseAsync(created.Code), Is.Null);
 
         var code = await _store.GetAsync(created.Code);
         Assert.That(code!.UsesLeft, Is.EqualTo(0));
@@ -45,7 +38,7 @@ public class InvitationCodeStoreTests
     [Test]
     public async Task AnUnknownCodeCannotBeUsed()
     {
-        Assert.That(await _store.TryUseAsync("K7QXM2PD9FHW"), Is.False);
+        Assert.That(await _store.TryUseAsync("K7QXM2PD9FHW"), Is.Null);
         Assert.That(await _store.GetAsync("K7QXM2PD9FHW"), Is.Null);
     }
 
@@ -53,12 +46,12 @@ public class InvitationCodeStoreTests
     public async Task UndoGivesAUseBack()
     {
         var created = await _store.CreateAsync("frodo.dotyou.cloud", 1);
-        Assert.That(await _store.TryUseAsync(created.Code), Is.True);
+        Assert.That(await _store.TryUseAsync(created.Code), Is.Not.Null);
 
         await _store.UndoUseAsync(created.Code);
 
         Assert.That((await _store.GetAsync(created.Code))!.UsesLeft, Is.EqualTo(1));
-        Assert.That(await _store.TryUseAsync(created.Code), Is.True);
+        Assert.That(await _store.TryUseAsync(created.Code), Is.Not.Null);
     }
 
     [Test]
@@ -93,7 +86,7 @@ public class InvitationCodeStoreTests
 
         var results = await Task.WhenAll(Enumerable.Range(0, 40).Select(_ => Task.Run(() => _store.TryUseAsync(created.Code))));
 
-        Assert.That(results.Count(used => used), Is.EqualTo(5));
+        Assert.That(results.Count(owner => owner != null), Is.EqualTo(5));
         Assert.That((await _store.GetAsync(created.Code))!.UsesLeft, Is.EqualTo(0));
     }
 
@@ -105,7 +98,7 @@ public class InvitationCodeStoreTests
 
         Assert.That(created.Owner, Is.EqualTo("frodo.dotyou.cloud"));
         Assert.That(await _store.IsValidAsync(typed), Is.True);
-        Assert.That(await _store.TryUseAsync(typed), Is.True);
+        Assert.That(await _store.TryUseAsync(typed), Is.Not.Null);
         Assert.That(await _store.IsValidAsync(created.Code), Is.False);
     }
 
@@ -116,5 +109,14 @@ public class InvitationCodeStoreTests
 
         Assert.That(store.IsEnabled, Is.False);
         Assert.ThrowsAsync<InvalidOperationException>(() => store.CreateAsync("frodo.dotyou.cloud", 1));
+    }
+
+    [Test]
+    public void AnInvalidOwnerOrUseCountIsAClientError()
+    {
+        Assert.ThrowsAsync<OdinClientException>(() => _store.CreateAsync("not a domain", 1));
+        Assert.ThrowsAsync<OdinClientException>(() => _store.CreateAsync(null, 1));
+        Assert.ThrowsAsync<OdinClientException>(() => _store.CreateAsync("frodo.dotyou.cloud", 0));
+        Assert.ThrowsAsync<OdinClientException>(() => _store.ListByOwnerAsync("not a domain"));
     }
 }

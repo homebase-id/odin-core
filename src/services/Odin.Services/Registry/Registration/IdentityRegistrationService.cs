@@ -731,16 +731,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         // A code from the invitation-code store is used up here, not when it was checked: two signups
         // racing for its last use must not both get it. Codes from config are not counted, and have no owner.
-        var usedServiceCode = false;
         string? invitedBy = null;
         if (_invitationCodes.IsEnabled && code != null && !IsConfiguredInvitationCode(code))
         {
-            if (!await _invitationCodes.TryUseAsync(code))
-            {
-                throw new OdinClientException("Invalid or expired Invitation Code");
-            }
-            usedServiceCode = true;
-            invitedBy = (await _invitationCodes.GetAsync(code))?.Owner;
+            invitedBy = await _invitationCodes.TryUseAsync(code)
+                        ?? throw new OdinClientException("Invalid or expired Invitation Code");
+            code = InvitationCodeFormat.Display(InvitationCodeFormat.Normalize(code)!);
         }
 
         request.Onboarding = new OnboardingInfo
@@ -797,7 +793,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
         catch (Exception)
         {
-            if (usedServiceCode)
+            if (invitedBy != null)
             {
                 await UndoInvitationCodeUseAsync(code!);
             }

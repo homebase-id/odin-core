@@ -3,8 +3,10 @@
 An invitation code is owned by an identity and can be used a set number of times to sign up. The codes and
 their use counts live on the identity host, in a SQLite database of their own
 (`{Host:SystemDataRootPath}/invitation-codes.db`), apart from the system database. Who signed up with a code
-is kept on the new identity's own registration (`IdentityRegistration.InvitationCode`, in the registrations
-json column), not with the codes.
+is kept with the new identity, not with the codes: signup puts it on the registration
+(`IdentityRegistration.Onboarding`, in the registrations json column) and first run copies it into the
+identity's own database. The owner console and the Chat app read it at `GET /api/v2/onboarding`; Chat marks
+it handled once (`POST /api/v2/onboarding/handled`) after offering to connect with the inviter.
 
 **Prototype:** each host has its own codes, so a code created on one cluster does not work on another. Good
 for bleeding edge; production with more than one provisioning cluster needs the codes in one shared place.

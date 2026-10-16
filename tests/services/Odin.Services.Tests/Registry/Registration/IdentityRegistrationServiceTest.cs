@@ -54,22 +54,14 @@ public class IdentityRegistrationServiceTest
 
     // Off unless a test turns it on with UseInvitationCodeStore
     private InvitationCodeStore _invitationCodes = new("");
-    private string? _invitationCodeDatabasePath;
+    private TempInvitationCodeStore? _tempInvitationCodes;
 
     [TearDown]
     public void DeleteInvitationCodeDatabase()
     {
         _invitationCodes = new InvitationCodeStore("");
-        if (_invitationCodeDatabasePath == null)
-        {
-            return;
-        }
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        foreach (var file in new[] { _invitationCodeDatabasePath, _invitationCodeDatabasePath + "-wal", _invitationCodeDatabasePath + "-shm" })
-        {
-            System.IO.File.Delete(file);
-        }
-        _invitationCodeDatabasePath = null;
+        _tempInvitationCodes?.Dispose();
+        _tempInvitationCodes = null;
     }
 
     //
@@ -165,8 +157,8 @@ public class IdentityRegistrationServiceTest
 
     private InvitationCodeStore UseInvitationCodeStore()
     {
-        _invitationCodeDatabasePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"invitation-codes-{Guid.NewGuid()}.db");
-        _invitationCodes = new InvitationCodeStore(_invitationCodeDatabasePath);
+        _tempInvitationCodes = new TempInvitationCodeStore();
+        _invitationCodes = _tempInvitationCodes.Store;
         return _invitationCodes;
     }
 

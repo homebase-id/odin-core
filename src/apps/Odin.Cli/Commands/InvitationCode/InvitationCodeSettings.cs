@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using Odin.Cli.Commands.Base;
+using Odin.Cli.Factories;
 using Odin.Services.Registry.Registration;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.InvitationCode;
@@ -18,8 +20,12 @@ public class InvitationCodeSettings : BaseSettings
 
     public HttpClient CreateHttpClient()
     {
-        var httpClient = new HttpClient { BaseAddress = new Uri($"https://{ProvisioningHost}/api/registration/v1/") };
-        httpClient.DefaultRequestHeaders.Add(InvitationCodePrototype.ApiKeyHeader, ApiKey);
-        return httpClient;
+        return CliHttpClientFactory.Create(ProvisioningHost, InvitationCodePrototype.ApiKeyHeader, ApiKey,
+            "api/registration/v1");
+    }
+
+    public static void Write(InvitationCodeInfo code)
+    {
+        AnsiConsole.MarkupLineInterpolated($"{code.Code} owner={code.Owner} uses-left={code.UsesLeft}/{code.MaxUses}");
     }
 }

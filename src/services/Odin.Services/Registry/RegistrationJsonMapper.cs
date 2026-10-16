@@ -23,9 +23,7 @@ public static class RegistrationJsonMapper
 
     public static string ToJson(IdentityRegistration registration)
     {
-        var state = registration.StatusState;
-        return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, registration.Onboarding));
+        return Serialize(registration.StatusState, registration.Onboarding);
     }
 
     /// <summary>
@@ -33,9 +31,13 @@ public static class RegistrationJsonMapper
     /// </summary>
     public static string WithStatus(string? existingJson, TenantStatusState state)
     {
-        var existing = TryParse(existingJson, out _);
+        return Serialize(state, TryParse(existingJson, out _)?.Onboarding);
+    }
+
+    private static string Serialize(TenantStatusState state, OnboardingInfo? onboarding)
+    {
         return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, existing?.Onboarding));
+            state.StatusChangedAt, onboarding));
     }
 
     /// <summary>

@@ -4,6 +4,9 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using Odin.Core.Exceptions;
+using Odin.Core.Time;
+using Odin.Core.Util;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -52,11 +55,11 @@ public class InvitationCodeStore
 
     //
 
-    public async Task<InvitationCodeInfo> CreateAsync(string owner, int maxUses)
+    public async Task<InvitationCodeInfo> CreateAsync(string? owner, int maxUses)
     {
         if (maxUses is < 1 or > MaxUsesLimit)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxUses), $"MaxUses must be between 1 and {MaxUsesLimit}");
+            throw new OdinClientException($"MaxUses must be between 1 and {MaxUsesLimit}");
         }
 
         owner = NormalizeOwner(owner);
@@ -70,7 +73,7 @@ public class InvitationCodeStore
             command.Parameters.AddWithValue("@code", code);
             command.Parameters.AddWithValue("@owner", owner);
             command.Parameters.AddWithValue("@maxUses", maxUses);
-            command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            command.Parameters.AddWithValue("@now", UnixTimeUtc.Now().milliseconds);
             try
             {
                 await command.ExecuteNonQueryAsync();
@@ -113,7 +116,7 @@ public class InvitationCodeStore
 
     //
 
-    public async Task<List<InvitationCodeInfo>> ListByOwnerAsync(string owner)
+    public async Task<List<InvitationCodeInfo>> ListByOwnerAsync(string? owner)
     {
         await using var connection = await OpenAsync();
         await using var command = connection.CreateCommand();
@@ -131,15 +134,15 @@ public class InvitationCodeStore
     //
 
     /// <summary>
-    /// Records a use if the code exists and has one left. One statement, so two signups racing
-    /// for the last use cannot both get it.
+    /// Records a use if the code exists and has one left, and returns the code's owner; null if refused.
+    /// One statement takes the use, so two signups racing for the last use cannot both get it.
     /// </summary>
-    public async Task<bool> TryUseAsync(string? input)
+    public async Task<string?> TryUseAsync(string? input)
     {
         var code = InvitationCodeFormat.Normalize(input);
         if (code == null)
         {
-            return false;
+            return null;
         }
 
         await using var connection = await OpenAsync();
@@ -153,10 +156,11 @@ public class InvitationCodeStore
                 WHERE c.code = @code
                   AND c.max_uses > (SELECT COUNT(*) FROM invitation_code_uses u WHERE u.code = @code)
             );
+            SELECT owner FROM invitation_codes WHERE code = @code AND changes() = 1;
             """;
         command.Parameters.AddWithValue("@code", code);
-        command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        return await command.ExecuteNonQueryAsync() == 1;
+        command.Parameters.AddWithValue("@now", UnixTimeUtc.Now().milliseconds);
+        return await command.ExecuteScalarAsync() as string;
     }
 
     //
@@ -197,7 +201,15 @@ public class InvitationCodeStore
             Math.Max(0, reader.GetInt32(3)));
     }
 
-    private static string NormalizeOwner(string owner) => owner.Trim().ToLowerInvariant();
+    private static string NormalizeOwner(string? owner)
+    {
+        var normalized = owner?.Trim().ToLowerInvariant();
+        if (normalized == null || !AsciiDomainNameValidator.TryValidateDomain(normalized))
+        {
+            throw new OdinClientException("Invalid owner");
+        }
+        return normalized;
+    }
 
     private async Task<SqliteConnection> OpenAsync()
     {

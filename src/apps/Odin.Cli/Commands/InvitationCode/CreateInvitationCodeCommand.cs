@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 using Odin.Cli.Commands.Base;
+using Odin.Services.Registry.Registration;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -32,13 +33,13 @@ public sealed class CreateInvitationCodeCommand : AsyncCommand<CreateInvitationC
 
     public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
     {
-        using var httpClient = settings.CreateHttpClient();
+        var httpClient = settings.CreateHttpClient();
         var response = await httpClient.PostAsJsonAsync("invitation-codes", new CreateRequest(settings.Owner, settings.Uses));
         await ApiResponse.EnsureAsync(response);
 
-        var created = await response.Content.ReadFromJsonAsync<InvitationCodeResponse>()
+        var created = await response.Content.ReadFromJsonAsync<InvitationCodeInfo>()
                       ?? throw new Exception("The provisioning host sent an empty answer");
-        InvitationCodeResponse.Write(created);
+        InvitationCodeSettings.Write(created);
         return 0;
     }
 }

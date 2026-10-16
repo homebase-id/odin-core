@@ -266,6 +266,7 @@ public static class SystemServices
 
         services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
         services.AddSingleton(new PayloadMoveRestrictedAttribute(config.PayloadMove.SourceEnabled, config.Registry.ProvisioningDomain));
+        services.AddSingleton<InvitationCodeKeyRestrictedAttribute>();
 
         services.AddTransient<ITenantAdmin, TenantAdmin>();
         services.AddTransient<PayloadMoveSource>();
