@@ -263,7 +263,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                         // Capture the app this socket is authenticated as, so app-scoped
                         // notifications (e.g. live relay) are delivered only to its sockets.
                         deviceSocket.AppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
-                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
+                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext,
+                            odinContext.Caller.OdinClientContext?.AccessRegistrationId?.Value);
                     }
                     catch (OdinSecurityException e)
                     {

@@ -327,10 +327,11 @@ public class DriveQuery(
         tx.Commit();
     }
 
-    public async Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
+    public async Task<UnixTimeUtc> SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
     {
         var json = summary == null ? "" : OdinSystemSerializer.Serialize(summary);
-        await tblDriveMainIndex.UpdateReactionSummaryAsync(drive.Id, fileId, json);
+        var (_, modified) = await tblDriveMainIndex.UpdateReactionSummaryAsync(drive.Id, fileId, json);
+        return new UnixTimeUtc(modified);
     }
 
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)

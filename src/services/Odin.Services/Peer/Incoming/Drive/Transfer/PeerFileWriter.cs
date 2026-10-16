@@ -154,7 +154,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             logger.LogDebug("[DeleteFlow] PeerFileWriter.DeleteFile -> resolved fileId:{fileId} for gtid:{gtid}; soft-deleting",
                 file.FileId, item.GlobalTransitId);
 
-            var result = await fs.Storage.SoftDeleteLongTermFile(file, odinContext, markComplete);
+            var result = await fs.Storage.SoftDeleteLongTermFile(file, odinContext, markComplete) != null;
 
             logger.LogDebug("[DeleteFlow] PeerFileWriter.DeleteFile -> soft-delete returned {result} for fileId:{fileId} gtid:{gtid}",
                 result, file.FileId, item.GlobalTransitId);

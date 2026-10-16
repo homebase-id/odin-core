@@ -110,6 +110,36 @@ public class V2PeerAppNotificationWebSocketTests
         ClassicAssert.AreEqual(sentGtid, receivedGtid.Task.Result, "received notification was for a different file");
     }
 
+    [Test]
+    public async Task APeerSocketCannotExcludeOwnWrites()
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var memberAppApi = await PrepareScenario(host, member, targetDrive);
+        var listener = new PeerTestAppWebSocketListener();
+        try
+        {
+            var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
+
+            // Not offered to peers: a peer's socket watches another identity's drives, where it writes nothing as a device
+            var refused = Assert.ThrowsAsync<Exception>(() => listener.ConnectAsync(host.Identity.OdinId, tokenResponse.Content!.ToCat(),
+                new EstablishConnectionOptions { Drives = [targetDrive], ExcludeOwnWrites = true },
+                UnifiedApiRouteConstants.PeerNotifySocket));
+
+            Assert.That(refused!.Message, Does.StartWith("Did not receive a valid handshake: Error")
+                .And.Contain("excludeOwnWrites is not available"));
+        }
+        finally
+        {
+            await listener.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
     private async Task<AppApiClientRedux> PrepareScenario(OwnerApiClientRedux host, OwnerApiClientRedux member,
         TargetDrive groupChannelDrive)
     {

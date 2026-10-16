@@ -419,11 +419,9 @@ namespace Odin.Services.DataSubscription.Follower
             var collection = await peerDriveQueryService.GetBatchCollectionAsync(identityIFollow, request, FileSystemType.Standard,
                 odinContext);
 
-            var patchedContext = sharedSecret == null
+            var patchedContext = OdinContextUpgrades.ForOthersWrites(sharedSecret == null
                 ? odinContext
-                : OdinContextUpgrades.PatchInSharedSecret(
-                    odinContext,
-                    sharedSecret: sharedSecret);
+                : OdinContextUpgrades.PatchInSharedSecret(odinContext, sharedSecret: sharedSecret));
 
             // Sealing a file into the feed drive needs that drive's storage key, so a caller without one
             // can write the unencrypted posts and none of the encrypted ones. Asked once: it is a fact
