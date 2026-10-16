@@ -21,7 +21,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 namespace Odin.Hosting.Tests.V2.DriveRead;
 
 /// <summary>
-/// query-batch with <c>resultShape: minimal</c>: one <see cref="QueryBatchFileRef"/> per row instead of a header, over
+/// query-batch with <c>resultShape: minimal</c>: one <see cref="FileRef"/> per row instead of a header, over
 /// exactly the rows, cursor and hasMoreRows the same query returns with full headers.
 /// </summary>
 [TestFixture]
@@ -46,8 +46,8 @@ public class MinimalQueryBatchTests : V2Fixture
         });
         Assert.That(archive.IsSuccessStatusCode, Is.True, $"seed archive failed: {archive.StatusCode}");
 
-        var fullPages = await ReadFeedAsync(caller, spec.TargetDrive, QueryBatchResultShape.Full);
-        var minimalPages = await ReadFeedAsync(caller, spec.TargetDrive, QueryBatchResultShape.Minimal);
+        var fullPages = await ReadFeedAsync(caller, spec.TargetDrive, FileResultShape.Full);
+        var minimalPages = await ReadFeedAsync(caller, spec.TargetDrive, FileResultShape.Minimal);
 
         Assert.That(minimalPages.Select(Describe), Is.EqualTo(fullPages.Select(Describe)));
         Assert.That(fullPages.SelectMany(p => p.SearchResults).Select(h => h.FileId),
@@ -67,8 +67,8 @@ public class MinimalQueryBatchTests : V2Fixture
         await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "owner only", AccessControlList.OwnerOnly);
         var after = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "after");
 
-        var full = await QueryAsync(caller, spec.TargetDrive, QueryBatchResultShape.Full, maxRecords: 10);
-        var minimal = await QueryAsync(caller, spec.TargetDrive, QueryBatchResultShape.Minimal, maxRecords: 10);
+        var full = await QueryAsync(caller, spec.TargetDrive, FileResultShape.Full, maxRecords: 10);
+        var minimal = await QueryAsync(caller, spec.TargetDrive, FileResultShape.Minimal, maxRecords: 10);
 
         var expected = new[] { visible.FileId, after.FileId };
         Assert.That(full.SearchResults.Select(h => h.FileId), Is.EqualTo(expected));
@@ -83,7 +83,7 @@ public class MinimalQueryBatchTests : V2Fixture
         var (caller, owner) = await SetupCallerWithOwner(spec);
         await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "plain");
 
-        var minimal = await QueryJsonAsync(caller, spec.TargetDrive, Options(QueryBatchResultShape.Minimal));
+        var minimal = await QueryJsonAsync(caller, spec.TargetDrive, Options(FileResultShape.Minimal));
         Assert.That(Keys(minimal), Does.Contain("fileRefs").And.Not.Contain("searchResults"), minimal.ToString());
         var row = minimal.GetProperty("fileRefs").EnumerateArray().Single();
         Assert.That(Keys(row), Is.SupersetOf(new[] { "fileId", "versionTag", "fileState", "archivalStatus", "updated" }), row.ToString());
@@ -105,8 +105,8 @@ public class MinimalQueryBatchTests : V2Fixture
         {
             ["flag true"] = new() { MaxRecords = 10, IncludeMetadataHeader = true },
             ["flag false"] = new() { MaxRecords = 10, IncludeMetadataHeader = false },
-            ["full"] = Options(QueryBatchResultShape.Full),
-            ["noContent wins over the flag"] = new() { MaxRecords = 10, IncludeMetadataHeader = true, ResultShape = QueryBatchResultShape.NoContent },
+            ["full"] = Options(FileResultShape.Full),
+            ["noContent wins over the flag"] = new() { MaxRecords = 10, IncludeMetadataHeader = true, ResultShape = FileResultShape.NoContent },
         };
 
         var contents = new Dictionary<string, (string Content, bool IncludeMetadataHeader)>();
@@ -139,8 +139,8 @@ public class MinimalQueryBatchTests : V2Fixture
             MaxRecords = 3,
             Queries =
             [
-                Section("minimal", spec.TargetDrive, QueryBatchResultShape.Minimal),
-                Section("full", spec.TargetDrive, QueryBatchResultShape.Full)
+                Section("minimal", spec.TargetDrive, FileResultShape.Minimal),
+                Section("full", spec.TargetDrive, FileResultShape.Full)
             ]
         });
 
@@ -165,8 +165,8 @@ public class MinimalQueryBatchTests : V2Fixture
             MaxRecords = 1,
             Queries =
             [
-                Section("full", spec.TargetDrive, QueryBatchResultShape.Full),
-                Section("minimal", spec.TargetDrive, QueryBatchResultShape.Minimal)
+                Section("full", spec.TargetDrive, FileResultShape.Full),
+                Section("minimal", spec.TargetDrive, FileResultShape.Minimal)
             ]
         });
 
@@ -183,14 +183,14 @@ public class MinimalQueryBatchTests : V2Fixture
         var (caller, _) = await SetupCallerWithOwner(spec);
 
         var response = await caller.Drives.Reader.GetBatchAsync(spec.TargetDrive.Alias,
-            Request(spec.TargetDrive, Options((QueryBatchResultShape)7)));
+            Request(spec.TargetDrive, Options((FileResultShape)7)));
 
         DriveAsserts.AssertRejected(response, OdinClientErrorCode.InvalidQuery);
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    private static async Task<List<QueryBatchResponse>> ReadFeedAsync(IV2Caller caller, TargetDrive drive, QueryBatchResultShape shape)
+    private static async Task<List<QueryBatchResponse>> ReadFeedAsync(IV2Caller caller, TargetDrive drive, FileResultShape shape)
     {
         var pages = new List<QueryBatchResponse>();
         string cursor = null;
@@ -204,7 +204,7 @@ public class MinimalQueryBatchTests : V2Fixture
         return pages;
     }
 
-    private static async Task<QueryBatchResponse> QueryAsync(IV2Caller caller, TargetDrive drive, QueryBatchResultShape shape,
+    private static async Task<QueryBatchResponse> QueryAsync(IV2Caller caller, TargetDrive drive, FileResultShape shape,
         int maxRecords, string cursor = null)
     {
         var options = Options(shape);
@@ -222,7 +222,7 @@ public class MinimalQueryBatchTests : V2Fixture
         return response.Content;
     }
 
-    private static QueryBatchResultOptionsRequest Options(QueryBatchResultShape shape) => new()
+    private static QueryBatchResultOptionsRequest Options(FileResultShape shape) => new()
     {
         MaxRecords = 10,
         ResultShape = shape,
@@ -236,7 +236,7 @@ public class MinimalQueryBatchTests : V2Fixture
         ResultOptionsRequest = options
     };
 
-    private static CollectionQueryParamSectionV2 Section(string name, TargetDrive drive, QueryBatchResultShape shape) => new()
+    private static CollectionQueryParamSectionV2 Section(string name, TargetDrive drive, FileResultShape shape) => new()
     {
         Name = name,
         DriveId = drive.Alias,
@@ -255,7 +255,7 @@ public class MinimalQueryBatchTests : V2Fixture
         return $"[{string.Join(",", ids)}] more:{page.HasMoreRows} cursor:{page.CursorState}";
     }
 
-    private static string Fields(QueryBatchFileRef r) =>
+    private static string Fields(FileRef r) =>
         $"{r.FileId} {r.VersionTag} {r.FileState} {r.ArchivalStatus} {r.FileType} {r.Created.milliseconds} {r.Updated.milliseconds} {r.FileByteCount}";
 
     private static string Fields(SharedSecretEncryptedFileHeader h) =>

@@ -15,6 +15,12 @@ namespace Odin.Services.AppNotifications.WebSocket;
 public class EstablishConnectionOptions
 {
     public List<TargetDrive> Drives { get; set; } = new();
+
+    /// <summary>
+    /// What each drive event describes its file with. When null, <see cref="FileResultShape.Full"/>: the full
+    /// header, as before this option existed.
+    /// </summary>
+    public FileResultShape? ResultShape { get; set; }
 }
 
 public class DeviceSocket
@@ -33,6 +39,11 @@ public class DeviceSocket
     public Guid? AppId { get; set; }
 
     public List<Guid> Drives { get; set; } = [];
+
+    /// <summary>
+    /// What drive events sent to this socket describe their file with, as the socket asked at its handshake
+    /// </summary>
+    public FileResultShape ResultShape { get; set; } = FileResultShape.Full;
     public TimeSpan Timeout { get; init; } = DefaultTimeout;
 
     //

@@ -54,17 +54,17 @@ public class QueryBatchCollectionSectionV2
     public bool HasMoreRows { get; set; }
 
     /// <summary>
-    /// The rows; left out of a <see cref="QueryBatchResultShape.Minimal"/> result, which has <see cref="FileRefs"/>
+    /// The rows; left out of a <see cref="FileResultShape.Minimal"/> result, which has <see cref="FileRefs"/>
     /// instead
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
     /// <summary>
-    /// The rows of a <see cref="QueryBatchResultShape.Minimal"/> result; left out of every other
+    /// The rows of a <see cref="FileResultShape.Minimal"/> result; left out of every other
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IEnumerable<QueryBatchFileRef> FileRefs { get; set; }
+    public IEnumerable<FileRef> FileRefs { get; set; }
 
     public static QueryBatchCollectionSectionV2 FromResult(string name, QueryBatchResult batch)
     {
@@ -104,7 +104,7 @@ public class QueryBatchCollectionSectionV2
             QueryTime = UnixTimeUtc.Now(),
             // No rows, in the shape the section asked for
             SearchResults = minimal ? null : new List<SharedSecretEncryptedFileHeader>(),
-            FileRefs = minimal ? new List<QueryBatchFileRef>() : null,
+            FileRefs = minimal ? new List<FileRef>() : null,
             HasMoreRows = false
         };
     }
@@ -124,7 +124,7 @@ public class QueryBatchCollectionSectionV2
             QueryTime = UnixTimeUtc.Now(),
             // No rows, in the shape the section asked for
             SearchResults = minimal ? null : new List<SharedSecretEncryptedFileHeader>(),
-            FileRefs = minimal ? new List<QueryBatchFileRef>() : null,
+            FileRefs = minimal ? new List<FileRef>() : null,
             HasMoreRows = true
         };
     }

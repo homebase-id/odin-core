@@ -190,5 +190,5 @@ public class V2BatchCollectionQueryService(
     }
 
     private static bool IsMinimal(CollectionQueryParamSectionV2 section) =>
-        section.ResultOptionsRequest?.ResultShape == QueryBatchResultShape.Minimal;
+        section.ResultOptionsRequest?.ResultShape == FileResultShape.Minimal;
 }

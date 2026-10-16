@@ -172,21 +172,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             foreach (var deviceSocket in sockets)
             {
-                var deviceOdinContext = deviceSocket.DeviceOdinContext;
-                var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
-
-                var o = new ClientDriveNotification
-                {
-                    TargetDrive = drive?.TargetDriveInfo,
-                    Header = hasSharedSecret
-                        ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
-                        : null,
-                    PreviousServerFileHeader = hasSharedSecret
-                        ? notification.IsDeleteNotification
-                            ? DriveFileUtility.CreateClientFileHeader(notification.PreviousServerFileHeader, deviceOdinContext!)
-                            : null
-                        : null
-                };
+                var o = ClientDriveNotification.For(deviceSocket, drive?.TargetDriveInfo, notification.ServerFileHeader,
+                    notification.IsDeleteNotification ? notification.PreviousServerFileHeader : null);
 
                 var json = OdinSystemSerializer.Serialize(new
                 {

@@ -24,9 +24,9 @@ public class QueryBatchResultOptionsRequest
 
     /// <summary>
     /// What each result row carries.  When null, <see cref="IncludeMetadataHeader"/> decides between
-    /// <see cref="QueryBatchResultShape.Full"/> and <see cref="QueryBatchResultShape.NoContent"/>.
+    /// <see cref="FileResultShape.Full"/> and <see cref="FileResultShape.NoContent"/>.
     /// </summary>
-    public QueryBatchResultShape? ResultShape { get; set; }
+    public FileResultShape? ResultShape { get; set; }
 
     /// <summary>
     /// If true, the transfer history with-in the server metadata will be including (assuming you have set ExcludeServerMetaData = false)
@@ -43,7 +43,7 @@ public class QueryBatchResultOptionsRequest
         {
             Cursor = string.IsNullOrEmpty(this.CursorState) ? new QueryBatchCursor() : new QueryBatchCursor(this.CursorState),
             MaxRecords = this.MaxRecords,
-            ResultShape = QueryBatchResultShapes.Resolve(this.ResultShape, this.IncludeMetadataHeader),
+            ResultShape = FileResultShapes.Resolve(this.ResultShape, this.IncludeMetadataHeader),
             IncludeTransferHistory = this.IncludeTransferHistory,
             Ordering = this.Ordering,
             Sorting = this.Sorting

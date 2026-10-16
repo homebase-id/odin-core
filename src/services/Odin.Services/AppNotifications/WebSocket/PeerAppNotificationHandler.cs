@@ -276,9 +276,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                             drives.Add(driveId);
                         }
 
+                        FileResultShapes.AssertKnown(options.ResultShape);
                         deviceSocket.Drives = drives;
+                        deviceSocket.ResultShape = options.ResultShape ?? FileResultShape.Full;
                     }
-                    catch (OdinSecurityException e)
+                    catch (Exception e) when (e is OdinSecurityException or OdinClientException)
                     {
                         var error = $"[Command:{command.Command}] {e.Message}";
                         await SendErrorMessageAsync(deviceSocket, error, cancellationToken);

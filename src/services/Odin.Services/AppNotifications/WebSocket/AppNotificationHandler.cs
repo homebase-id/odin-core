@@ -269,8 +269,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                             drives.Add(driveId);
                         }
 
+                        FileResultShapes.AssertKnown(options.ResultShape);
+
                         deviceSocket.DeviceOdinContext = odinContext.Clone();
                         deviceSocket.Drives = drives;
+                        deviceSocket.ResultShape = options.ResultShape ?? FileResultShape.Full;
                         // Capture the app this socket is authenticated as, so app-scoped
                         // notifications (e.g. live relay) are delivered only to its sockets.
                         deviceSocket.AppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
@@ -284,6 +287,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                             encrypt: false,
                             cancellationToken);
 
+                        throw new CloseWebSocketException();
+                    }
+                    catch (OdinClientException e)
+                    {
+                        await SendErrorMessageAsync(deviceSocket, $"[Command:{command.Command}] {e.Message}", cancellationToken);
                         throw new CloseWebSocketException();
                     }
 
