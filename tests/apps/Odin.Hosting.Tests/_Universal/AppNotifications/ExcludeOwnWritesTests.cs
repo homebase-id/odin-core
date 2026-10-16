@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient;
+using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -102,6 +103,40 @@ public class ExcludeOwnWritesTests
     }
 
     [Test]
+    public async Task TwoClientsOfOneAppEachGetTheOthersWritesButNotTheirOwn()
+    {
+        // Two clients of one app, each registered on its own (as each filesync computer is): each has a token of its own
+        var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var drive = TargetDrive.NewTargetDrive();
+        var appId = Guid.NewGuid();
+        var app = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, targetDrive: drive);
+        var (tokenB, secretB) = await owner.AppManager.RegisterAppClient(appId);
+
+        var clientA = new AppApiClientRedux(owner.Identity.OdinId, app.ClientAuthenticationToken, app.SharedSecret);
+        var clientB = new AppApiClientRedux(owner.Identity.OdinId, tokenB, secretB);
+        var socketA = await ConnectAppAsync(owner, app.ClientAuthenticationToken, app.SharedSecret, drive);
+        var socketB = await ConnectAppAsync(owner, tokenB, secretB, drive);
+
+        try
+        {
+            var f1 = await UploadAsync(clientA.DriveRedux, drive);
+            var f2 = await UploadAsync(clientB.DriveRedux, drive);
+            var f3 = await UploadAsync(clientA.DriveRedux, drive);
+            var f4 = await UploadAsync(clientB.DriveRedux, drive);
+
+            Assert.That(await NextEventsAsync(socketA, ClientNotificationType.FileAdded, ClientNotificationType.FileAdded),
+                Is.EqualTo($"fileAdded {f2.File.FileId}, fileAdded {f4.File.FileId}"), "A gets B's writes only");
+            Assert.That(await NextEventsAsync(socketB, ClientNotificationType.FileAdded, ClientNotificationType.FileAdded),
+                Is.EqualTo($"fileAdded {f1.File.FileId}, fileAdded {f3.File.FileId}"), "B gets A's writes only");
+        }
+        finally
+        {
+            await socketA.DisconnectAsync();
+            await socketB.DisconnectAsync();
+        }
+    }
+
+    [Test]
     public async Task APeersReadReceiptArrivesWhenTheDevicesOwnRequestDrainsTheInbox()
     {
         var sender = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -163,9 +198,16 @@ public class ExcludeOwnWritesTests
 
     // ---------------------------------------------------------------------------------------------
 
-    private static Task<OwnerDriveEventSocket> ConnectAsync(OwnerApiClientRedux owner, OwnerAuthTokenContext token,
+    private static Task<DriveEventSocket> ConnectAppAsync(OwnerApiClientRedux owner, ClientAuthenticationToken token,
+        byte[] sharedSecret, TargetDrive drive) =>
+        DriveEventSocket.ConnectAppAsync(owner.Identity.OdinId, token, sharedSecret, new EstablishConnectionOptions
+        {
+            Drives = [drive], ResultShape = FileResultShape.Minimal, ExcludeOwnWrites = true
+        });
+
+    private static Task<DriveEventSocket> ConnectAsync(OwnerApiClientRedux owner, OwnerAuthTokenContext token,
         TargetDrive drive, bool excludeOwnWrites) =>
-        OwnerDriveEventSocket.ConnectAsync(owner.Identity.OdinId, token, new EstablishConnectionOptions
+        DriveEventSocket.ConnectOwnerAsync(owner.Identity.OdinId, token, new EstablishConnectionOptions
         {
             Drives = [drive], ResultShape = FileResultShape.Minimal, ExcludeOwnWrites = excludeOwnWrites
         });
@@ -173,7 +215,7 @@ public class ExcludeOwnWritesTests
     /// <summary>
     /// The socket's next events, each as "type fileId" (the fileRef's, or for a hard delete the previousFileRef's)
     /// </summary>
-    private static async Task<string> NextEventsAsync(OwnerDriveEventSocket socket, params ClientNotificationType[] expected)
+    private static async Task<string> NextEventsAsync(DriveEventSocket socket, params ClientNotificationType[] expected)
     {
         var events = new List<string>();
         foreach (var type in expected)

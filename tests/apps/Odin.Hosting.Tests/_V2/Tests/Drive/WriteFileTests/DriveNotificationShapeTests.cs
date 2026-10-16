@@ -92,7 +92,7 @@ public class DriveNotificationShapeTests
     public async Task EachSocketGetsTheShapeItAskedFor()
     {
         var (owner, drive) = await SetupDriveAsync();
-        OwnerDriveEventSocket full = null, noContent = null;
+        DriveEventSocket full = null, noContent = null;
 
         try
         {
@@ -200,7 +200,7 @@ public class DriveNotificationShapeTests
 
     private static List<string> Keys(JsonElement data) => data.EnumerateObject().Select(p => p.Name).ToList();
 
-    private static Task<OwnerDriveEventSocket> ConnectAsync(OwnerApiClientRedux owner, TargetDrive drive, FileResultShape? shape) =>
-        OwnerDriveEventSocket.ConnectAsync(owner.Identity.OdinId, owner.GetTokenContext(),
+    private static Task<DriveEventSocket> ConnectAsync(OwnerApiClientRedux owner, TargetDrive drive, FileResultShape? shape) =>
+        DriveEventSocket.ConnectOwnerAsync(owner.Identity.OdinId, owner.GetTokenContext(),
             new EstablishConnectionOptions { Drives = [drive], ResultShape = shape });
 }
