@@ -118,21 +118,26 @@ public class V2PeerAppNotificationWebSocketTests
         var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
         var memberAppApi = await PrepareScenario(host, member, targetDrive);
-        var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
-            new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
-        ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
-
-        // A peer never writes to the host's drives with this token, so there is nothing of its own to leave out
         var listener = new PeerTestAppWebSocketListener();
-        var refused = Assert.ThrowsAsync<Exception>(() => listener.ConnectAsync(host.Identity.OdinId, tokenResponse.Content!.ToCat(),
-            new EstablishConnectionOptions { Drives = [targetDrive], ExcludeOwnWrites = true },
-            UnifiedApiRouteConstants.PeerNotifySocket));
+        try
+        {
+            var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
 
-        await listener.DisconnectAsync();
-        await Shutdown(host, member);
+            // Not offered to peers: a peer's socket watches another identity's drives, where it writes nothing as a device
+            var refused = Assert.ThrowsAsync<Exception>(() => listener.ConnectAsync(host.Identity.OdinId, tokenResponse.Content!.ToCat(),
+                new EstablishConnectionOptions { Drives = [targetDrive], ExcludeOwnWrites = true },
+                UnifiedApiRouteConstants.PeerNotifySocket));
 
-        Assert.That(refused!.Message, Does.StartWith("Did not receive a valid handshake: Error")
-            .And.Contain("excludeOwnWrites is not available"));
+            Assert.That(refused!.Message, Does.StartWith("Did not receive a valid handshake: Error")
+                .And.Contain("excludeOwnWrites is not available"));
+        }
+        finally
+        {
+            await listener.DisconnectAsync();
+            await Shutdown(host, member);
+        }
     }
 
     private async Task<AppApiClientRedux> PrepareScenario(OwnerApiClientRedux host, OwnerApiClientRedux member,

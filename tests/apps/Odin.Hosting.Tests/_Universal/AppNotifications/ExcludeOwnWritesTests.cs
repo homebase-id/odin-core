@@ -16,6 +16,7 @@ using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Contacts;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -70,7 +71,8 @@ public class ExcludeOwnWritesTests
 
         try
         {
-            // A: add, modify, soft delete (V1), hard delete (V2); then B adds one; then A adds one
+            // A: add, modify, soft delete (V1), hard delete (V2); then B, A, B, A add one each, so each socket's own
+            // writes come before one of the other's, which proves they were left out rather than not yet read
             var f1 = await UploadAsync(owner.DriveRedux, drive);
             var update = await owner.DriveRedux.UpdateExistingMetadata(f1.File, f1.NewVersionTag, SampleMetadataData.Create(fileType: 100));
             Assert.That(update.IsSuccessStatusCode, Is.True, $"update failed: {update.StatusCode}");
@@ -80,20 +82,50 @@ public class ExcludeOwnWritesTests
             await owner.HardDeleteOneV2Async(drive, f1.File.FileId, tombstone.Content!.FileMetadata.VersionTag);
             var f2 = await UploadAsync(driveB, drive);
             var f3 = await UploadAsync(owner.DriveRedux, drive);
+            var f4 = await UploadAsync(driveB, drive);
+            var f5 = await UploadAsync(owner.DriveRedux, drive);
 
             var fromA = $"fileAdded {f1.File.FileId}, fileModified {f1.File.FileId}, fileDeleted {f1.File.FileId}, fileDeleted {f1.File.FileId}";
-            Assert.That(await NextEventsAsync(aExcluding, 1),
-                Is.EqualTo($"fileAdded {f2.File.FileId}"), "A excludes its own writes: B's is the first it gets");
-            Assert.That(await NextEventsAsync(bExcluding, 5),
-                Is.EqualTo($"{fromA}, fileAdded {f3.File.FileId}"), "B gets all of A's writes and none of its own");
-            Assert.That(await NextEventsAsync(aAll, 6),
-                Is.EqualTo($"{fromA}, fileAdded {f2.File.FileId}, fileAdded {f3.File.FileId}"), "without the option nothing is left out");
+            Assert.That(await NextEventsAsync(aExcluding, 2),
+                Is.EqualTo($"fileAdded {f2.File.FileId}, fileAdded {f4.File.FileId}"), "A gets B's writes and none of its own");
+            Assert.That(await NextEventsAsync(bExcluding, 6),
+                Is.EqualTo($"{fromA}, fileAdded {f3.File.FileId}, fileAdded {f5.File.FileId}"), "B gets A's writes and none of its own");
+            Assert.That(await NextEventsAsync(aAll, 8),
+                Is.EqualTo($"{fromA}, fileAdded {f2.File.FileId}, fileAdded {f3.File.FileId}, fileAdded {f4.File.FileId}, fileAdded {f5.File.FileId}"),
+                "without the option nothing is left out");
         }
         finally
         {
             await aExcluding.DisconnectAsync();
             await bExcluding.DisconnectAsync();
             await aAll.DisconnectAsync();
+        }
+    }
+
+    [Test]
+    public async Task AnOwnWriteMadeWithRaisedPermissionsIsStillLeftOut()
+    {
+        // A contact is written with a copy of the request's context that bypasses the drive ACL
+        // (OdinContextUpgrades.UpgradeToByPassAclCheck): the same request with more permissions, so still its own write
+        var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var tokenA = owner.GetTokenContext();
+        var tokenB = await _scaffold.OldOwnerApi.LoginAnotherOwnerSessionAsync(owner.Identity.OdinId);
+        var contactsA = new V1ContactsClient(owner.Identity.OdinId, new OwnerApiClientFactory(tokenA.AuthenticationResult, tokenA.SharedSecret.GetKey()));
+        var contactsB = new V1ContactsClient(owner.Identity.OdinId, new OwnerApiClientFactory(tokenB.AuthenticationResult, tokenB.SharedSecret.GetKey()));
+
+        var aExcluding = await ConnectAsync(owner, tokenA, WellKnownAppDrives.ContactDrive, excludeOwnWrites: true);
+        try
+        {
+            await CreateContactAsync(contactsA, TestIdentities.Pippin.OdinId);
+            var theirs = await CreateContactAsync(contactsB, TestIdentities.Merry.OdinId);
+
+            var added = await aExcluding.NextAsync(ClientNotificationType.FileAdded);
+            Assert.That(added.GetProperty("fileRef").GetProperty("uniqueId").GetGuid(), Is.EqualTo(theirs),
+                $"A's own contact should have been left out; got {added}");
+        }
+        finally
+        {
+            await aExcluding.DisconnectAsync();
         }
     }
 
@@ -118,11 +150,13 @@ public class ExcludeOwnWritesTests
             var f2 = await UploadAsync(clientB.DriveRedux, drive);
             var f3 = await UploadAsync(clientA.DriveRedux, drive);
             var f4 = await UploadAsync(clientB.DriveRedux, drive);
+            var f5 = await UploadAsync(clientA.DriveRedux, drive);
 
+            // Each client's own writes come before one of the other's, so they were left out, not just not yet read
             Assert.That(await NextEventsAsync(socketA, 2),
                 Is.EqualTo($"fileAdded {f2.File.FileId}, fileAdded {f4.File.FileId}"), "A gets B's writes only");
-            Assert.That(await NextEventsAsync(socketB, 2),
-                Is.EqualTo($"fileAdded {f1.File.FileId}, fileAdded {f3.File.FileId}"), "B gets A's writes only");
+            Assert.That(await NextEventsAsync(socketB, 3),
+                Is.EqualTo($"fileAdded {f1.File.FileId}, fileAdded {f3.File.FileId}, fileAdded {f5.File.FileId}"), "B gets A's writes only");
         }
         finally
         {
@@ -174,11 +208,13 @@ public class ExcludeOwnWritesTests
         var drive = TargetDrive.NewTargetDrive();
         await PrepareScenario(sender, recipient, drive);
 
-        // Connected once the upload's outbox is done, so the receipt is the only write left to arrive
-        var (file, copy) = await SendFileAsync(sender, recipient, drive);
-        var socket = await ConnectAsync(sender, sender.GetTokenContext(), drive, excludeOwnWrites: true);
+        DriveEventSocket socket = null;
         try
         {
+            // Connected once the upload's outbox is done, so the receipt is the only write left to arrive
+            var (file, copy) = await SendFileAsync(sender, recipient, drive);
+            socket = await ConnectAsync(sender, sender.GetTokenContext(), drive, excludeOwnWrites: true);
+
             // No ProcessInbox: when the receipt arrives the server drains the inbox with a connected socket's context
             await SendReadReceiptAsync(recipient, copy);
 
@@ -186,7 +222,7 @@ public class ExcludeOwnWritesTests
         }
         finally
         {
-            await socket.DisconnectAsync();
+            await (socket?.DisconnectAsync() ?? Task.CompletedTask);
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.Identity.OdinId, recipient.Identity.OdinId);
         }
     }
@@ -222,6 +258,19 @@ public class ExcludeOwnWritesTests
         }
 
         return string.Join(", ", events);
+    }
+
+    /// <summary>
+    /// Creates a contact for <paramref name="odinId"/>; its unique id
+    /// </summary>
+    private static async Task<Guid> CreateContactAsync(V1ContactsClient contacts, Odin.Core.Identity.OdinId odinId)
+    {
+        var create = await contacts.OwnerCreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = odinId, Name = new ContactName { DisplayName = odinId.DomainName } }
+        });
+        Assert.That(create.IsSuccessStatusCode, Is.True, $"create contact failed: {create.StatusCode} {create.Error?.Content}");
+        return create.Content!.UniqueId;
     }
 
     private static async Task<UploadResult> UploadAsync(UniversalDriveApiClient client, TargetDrive drive)

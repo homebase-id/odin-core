@@ -200,8 +200,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 IsDeleteNotification = notification is DriveFileDeletedNotification,
                 ServerFileHeader = notification.ServerFileHeader,
                 PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader,
-                // A reaction preview is the server's summary of others' reactions, not the writer's own change
-                OriginTokenId = notification is ReactionPreviewUpdatedNotification ? null : notification.OdinContext?.RequestTokenId
+                OriginTokenId = notification.OdinContext?.RequestTokenId
             };
 
             await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));

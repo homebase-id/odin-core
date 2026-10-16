@@ -1251,7 +1251,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     File = targetFile,
                     ServerFileHeader = refreshedHeader,
                     SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext),
-                    OdinContext = odinContext,
+                    // The summary of everyone's reactions, not the writer's own change
+                    OdinContext = OdinContextUpgrades.ForOthersWrites(odinContext),
                 });
             }
         }

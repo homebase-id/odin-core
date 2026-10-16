@@ -419,8 +419,9 @@ namespace Odin.Services.DataSubscription.Follower
             var collection = await peerDriveQueryService.GetBatchCollectionAsync(identityIFollow, request, FileSystemType.Standard,
                 odinContext);
 
+            // The posts are the followed identity's, not the caller's own writes
             var patchedContext = sharedSecret == null
-                ? odinContext
+                ? OdinContextUpgrades.ForOthersWrites(odinContext)
                 : OdinContextUpgrades.PatchInSharedSecret(
                     odinContext,
                     sharedSecret: sharedSecret);

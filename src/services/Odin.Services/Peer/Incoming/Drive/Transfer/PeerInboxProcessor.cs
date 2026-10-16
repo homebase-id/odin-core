@@ -64,9 +64,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext callerContext, int batchSize = 1)
         {
-            // The items are the senders' writes, not the caller's: a copy is never a request's own context, so a
-            // socket excluding its own writes still gets them, whichever device's query or socket drained the inbox
-            var odinContext = callerContext.Clone();
+            // The items are the senders' writes, not the caller's, whichever device's query or socket drained the inbox.
+            // Copied when there is an item to write: most calls find the inbox empty
+            IOdinContext odinContext = null;
 
             int actualBatchSize = batchSize < 1 ? 1 : batchSize;
             var driveId = targetDrive.Alias;
@@ -92,6 +92,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     return await GetPendingCountAsync(targetDrive, driveId);
                 }
 
+                odinContext ??= OdinContextUpgrades.ForOthersWrites(callerContext);
                 logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
                 logger.LogDebug("Processing Inbox (no call to CUOWA) item with marker/popStamp [{marker}]", inboxItem.Marker);
 

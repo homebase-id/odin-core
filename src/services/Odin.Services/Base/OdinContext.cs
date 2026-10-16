@@ -17,16 +17,18 @@ namespace Odin.Services.Base
         PermissionContext PermissionsContext { get; }
 
         /// <summary>
-        /// The token of the HTTP request this is the context of, while it is that request's own context: what a
-        /// drive write made with it is attributed to, for sockets that exclude their own writes. Null for a copy
-        /// and for contexts built for jobs, sockets or system work, so work done later or on someone else's behalf
-        /// is never taken for the request's own write.
+        /// The token of the HTTP request this is the context of, while it is marked as that request's own: what a
+        /// drive write made with it is attributed to, for sockets that exclude their own writes. Null for contexts
+        /// built for jobs or system work, and for a plain copy (<see cref="IGenericCloneable{T}.Clone"/> does not
+        /// carry the mark), so work done later or on someone else's behalf is never taken for the request's own
+        /// write; a copy that is the same request with more permissions carries it (see OdinContextUpgrades).
         /// </summary>
         Guid? RequestTokenId { get; }
 
+        bool IsRequestContext { get; }
+
         /// <summary>
-        /// Marks this as the context of the HTTP request being handled; <see cref="IGenericCloneable{T}.Clone"/>
-        /// does not carry the mark
+        /// Marks this as the context of the HTTP request being handled (see <see cref="RequestTokenId"/>)
         /// </summary>
         void MarkAsRequestContext();
 
@@ -55,11 +57,11 @@ namespace Odin.Services.Base
         public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
 
-        private bool _isRequestContext;
+        public bool IsRequestContext { get; private set; }
 
-        public Guid? RequestTokenId => _isRequestContext ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
+        public Guid? RequestTokenId => IsRequestContext ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
 
-        public void MarkAsRequestContext() => _isRequestContext = true;
+        public void MarkAsRequestContext() => IsRequestContext = true;
 
         public IOdinContext Clone()
         {

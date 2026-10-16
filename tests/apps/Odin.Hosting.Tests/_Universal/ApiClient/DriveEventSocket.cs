@@ -22,6 +22,7 @@ public sealed class DriveEventSocket
 
     private readonly ConcurrentQueue<(ClientNotificationType Type, JsonElement Data)> _events = new();
     private readonly Func<Task> _disconnect;
+    private Exception _receiveError;
 
     private DriveEventSocket(Func<Task> disconnect) => _disconnect = disconnect;
 
@@ -49,10 +50,18 @@ public sealed class DriveEventSocket
         byte[] sharedSecret, EstablishConnectionOptions options)
     {
         var webSocket = await LiveRelayTestHelpers.ConnectAppSocketAsync(identity, token, CancellationToken.None);
-        var handshake = await LiveRelayTestHelpers.DoHandshakeAsync(webSocket, sharedSecret, options, CancellationToken.None);
-        if (handshake?.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
+        try
         {
-            throw new Exception($"Did not receive a valid handshake: {handshake?.NotificationType} {handshake?.Data}");
+            var handshake = await LiveRelayTestHelpers.DoHandshakeAsync(webSocket, sharedSecret, options, CancellationToken.None);
+            if (handshake?.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
+            {
+                throw new Exception($"Did not receive a valid handshake: {handshake?.NotificationType} {handshake?.Data}");
+            }
+        }
+        catch
+        {
+            webSocket.Dispose();
+            throw;
         }
 
         var cts = new CancellationTokenSource();
@@ -76,6 +85,11 @@ public sealed class DriveEventSocket
             catch (Exception e) when (e is OperationCanceledException or WebSocketException)
             {
                 // closed
+            }
+            catch (Exception e)
+            {
+                // Reported by the next NextAsync, rather than as a timeout
+                socket._receiveError = e;
             }
         });
 
@@ -101,6 +115,11 @@ public sealed class DriveEventSocket
         (ClientNotificationType Type, JsonElement Data) next;
         while (!_events.TryDequeue(out next))
         {
+            if (_receiveError != null)
+            {
+                Assert.Fail($"receiving stopped: {_receiveError}");
+            }
+
             if (DateTime.UtcNow > deadline)
             {
                 Assert.Fail($"no drive event arrived within {WaitTimeout.TotalSeconds} s");
