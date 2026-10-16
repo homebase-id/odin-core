@@ -262,7 +262,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId), expectedVersionTag);
 
             // If some files fail, they are simply orphaned
-            forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
+            if (descriptors is { Count: > 0 })
+            {
+                forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
+            }
         }
 
         public async Task<bool> PayloadExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)

@@ -62,8 +62,8 @@ public class HardDeleteBatchTests : V2Fixture
         var stale = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "stale");
         var tombstone = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "tombstone");
         var staleTombstone = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "stale tombstone");
-        await SoftDeleteAsync(owner, tombstone);
-        await SoftDeleteAsync(owner, staleTombstone);
+        await AppFileUploads.SoftDeleteAsync(owner, tombstone);
+        await AppFileUploads.SoftDeleteAsync(owner, staleTombstone);
         var feed = await FeedAsync(owner, spec.TargetDrive);
         var missing = Guid.NewGuid();
 
@@ -131,41 +131,23 @@ public class HardDeleteBatchTests : V2Fixture
     }
 
     [Test]
-    public async Task RejectsMalformedBatches()
+    public async Task RejectsAMalformedBatch()
     {
+        // The full matrix of malformed batches is in ArchivalStatusBatchTests; both endpoints share the validator
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, _) = await SetupCallerWithOwner(spec);
         var duplicate = Guid.NewGuid();
-        var batches = new Dictionary<string, HardDeleteBatchRequestV2>
-        {
-            ["empty"] = Batch(),
-            ["too many"] = Batch(Enumerable.Range(0, FileVersionTagBatchV2.MaxFiles + 1)
-                .Select(_ => (Guid.NewGuid(), Guid.NewGuid())).ToArray()),
-            ["duplicate"] = Batch((duplicate, Guid.NewGuid()), (duplicate, Guid.NewGuid())),
-            ["no version tag"] = Batch((Guid.NewGuid(), Guid.Empty)),
-            ["no file id"] = Batch((Guid.Empty, Guid.NewGuid())),
-            ["null entry"] = new HardDeleteBatchRequestV2 { Files = [null] },
-        };
 
-        var statuses = new Dictionary<string, HttpStatusCode>();
-        foreach (var (name, batch) in batches)
-        {
-            statuses[name] = (await caller.Drives.Writer.HardDeleteBatch(spec.TargetDrive.Alias, batch)).StatusCode;
-        }
+        var response = await caller.Drives.Writer.HardDeleteBatch(spec.TargetDrive.Alias,
+            Batch((duplicate, Guid.NewGuid()), (duplicate, Guid.NewGuid())));
 
-        Assert.That(statuses, Is.EqualTo(batches.Keys.ToDictionary(k => k, _ => HttpStatusCode.BadRequest)));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
     }
 
     private static HardDeleteBatchRequestV2 Batch(params (Guid FileId, Guid VersionTag)[] files) => new()
     {
         Files = files.Select(f => new FileVersionTagV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
     };
-
-    private static async Task SoftDeleteAsync(OwnerSession owner, CreateFileResult file)
-    {
-        var delete = await owner.Drives.Writer.SoftDeleteFile(file.DriveId, file.FileId);
-        Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
-    }
 
     /// <summary>
     /// Every row of the drive's change feed, tombstones included

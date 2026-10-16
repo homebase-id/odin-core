@@ -871,42 +871,38 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            return HardDeleteLongTermFileInternal(file, odinContext, expectedVersionTag: null);
-        }
-
-        /// <summary>
-        /// Hard-deletes the file, active or a tombstone, only while it is still at <paramref name="expectedVersionTag"/>
-        /// (4160 otherwise; checked again atomically by the delete itself).  Unlike the unversioned delete, which treats
-        /// a missing file as done, a file that is missing or hidden from the caller by its ACL is FileNotFound: the
-        /// caller named a version of it.
-        /// </summary>
-        public Task HardDeleteLongTermFile(InternalDriveFileId file, Guid expectedVersionTag, IOdinContext odinContext)
-        {
-            return HardDeleteLongTermFileInternal(file, odinContext, expectedVersionTag);
-        }
-
-        private async Task HardDeleteLongTermFileInternal(InternalDriveFileId file, IOdinContext odinContext, Guid? expectedVersionTag)
+        public async Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var versioned = expectedVersionTag.HasValue;
-            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true, aclDeniedAsMissing: versioned);
-
-            if (fileHeader == null)
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
+            if (fileHeader != null)
             {
-                if (versioned)
-                {
-                    throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
-                }
-
-                return;
+                await HardDeleteHeaderAsync(file, fileHeader, expectedVersionTag: null, odinContext);
             }
+        }
 
-            AssertVersionTagMatches(fileHeader, expectedVersionTag);
+        /// <summary>
+        /// Hard-deletes the file, active or a tombstone, only while it is still at <paramref name="expectedVersionTag"/>
+        /// (4160 otherwise, checked atomically by the delete itself).  Unlike the unversioned delete, which treats a
+        /// missing file as done, a file that is missing or hidden from the caller by its ACL is FileNotFound: the caller
+        /// named a version of it.
+        /// </summary>
+        public async Task HardDeleteLongTermFile(InternalDriveFileId file, Guid expectedVersionTag, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true, aclDeniedAsMissing: true)
+                             ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+            await HardDeleteHeaderAsync(file, fileHeader, expectedVersionTag, odinContext);
+        }
+
+        private async Task HardDeleteHeaderAsync(InternalDriveFileId file, ServerFileHeader fileHeader, Guid? expectedVersionTag,
+            IOdinContext odinContext)
+        {
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
             await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads, expectedVersionTag);
 
             if (await TryShouldRaiseDriveEventAsync(file))

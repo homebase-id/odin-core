@@ -72,8 +72,7 @@ public class ArchivalStatusBatchTests : V2Fixture
         var current = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "current");
         var stale = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "stale");
         var deleted = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "deleted");
-        var delete = await owner.Drives.Writer.SoftDeleteFile(deleted.DriveId, deleted.FileId);
-        Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
+        await AppFileUploads.SoftDeleteAsync(owner, deleted);
         var missing = Guid.NewGuid();
 
         var response = await caller.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, Batch(2,
@@ -168,7 +167,7 @@ public class ArchivalStatusBatchTests : V2Fixture
         var batches = new Dictionary<string, UpdateArchivalStatusBatchRequestV2>
         {
             ["empty"] = Batch(2),
-            ["too many"] = Batch(2, Enumerable.Range(0, UpdateArchivalStatusBatchRequestV2.MaxFiles + 1)
+            ["too many"] = Batch(2, Enumerable.Range(0, FileVersionTagBatchV2.MaxFiles + 1)
                 .Select(_ => (Guid.NewGuid(), Guid.NewGuid())).ToArray()),
             ["duplicate"] = Batch(2, (duplicate, Guid.NewGuid()), (duplicate, Guid.NewGuid())),
             ["no version tag"] = Batch(2, (Guid.NewGuid(), Guid.Empty)),

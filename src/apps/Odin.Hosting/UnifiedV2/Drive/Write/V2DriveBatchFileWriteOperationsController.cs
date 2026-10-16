@@ -59,7 +59,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         }
 
         /// <summary>
-        /// Sets only the archival status of up to <see cref="UpdateArchivalStatusBatchRequestV2.MaxFiles"/> files.
+        /// Sets only the archival status of up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files.
         /// </summary>
         [HttpPost("update-archival-status-batch")]
         [SwaggerOperation(
@@ -80,21 +80,13 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
 
             var status = request.ArchivalStatus!.Value;
             var storage = GetFileSystem().Storage;
-            var results = new List<UpdateArchivalStatusResultV2>(request.Files.Count);
-            foreach (var f in request.Files)
-            {
-                try
+            var results = await PerFileAsync(driveId, request.Files,
+                async (file, f) => new UpdateArchivalStatusResultV2
                 {
-                    var newVersionTag = await storage.UpdateArchivalStatus(new InternalDriveFileId(driveId, f.FileId), f.VersionTag,
-                        status, WebOdinContext);
-                    results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, NewVersionTag = newVersionTag });
-                }
-                catch (OdinClientException e)
-                {
-                    // Per file, so one bad file never strands the ones already written before it
-                    results.Add(new UpdateArchivalStatusResultV2 { FileId = f.FileId, ErrorCode = e.ErrorCode });
-                }
-            }
+                    FileId = f.FileId,
+                    NewVersionTag = await storage.UpdateArchivalStatus(file, f.VersionTag, status, WebOdinContext)
+                },
+                (fileId, errorCode) => new UpdateArchivalStatusResultV2 { FileId = fileId, ErrorCode = errorCode });
 
             return new UpdateArchivalStatusBatchResultV2 { Results = results };
         }
@@ -118,22 +110,38 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
             var storage = GetFileSystem().Storage;
-            var results = new List<HardDeleteResultV2>(request.Files.Count);
-            foreach (var f in request.Files)
+            var results = await PerFileAsync(driveId, request.Files,
+                async (file, f) =>
+                {
+                    await storage.HardDeleteLongTermFile(file, f.VersionTag, WebOdinContext);
+                    return new HardDeleteResultV2 { FileId = f.FileId };
+                },
+                (fileId, errorCode) => new HardDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
+
+            return new HardDeleteBatchResultV2 { Results = results };
+        }
+
+        /// <summary>
+        /// Runs <paramref name="write"/> on each file in request order. A client error becomes that file's result, so one
+        /// bad file never stops the others nor strands the ones already written before it; anything else fails the request.
+        /// </summary>
+        private static async Task<List<TResult>> PerFileAsync<TResult>(Guid driveId, List<FileVersionTagV2> files,
+            Func<InternalDriveFileId, FileVersionTagV2, Task<TResult>> write, Func<Guid, OdinClientErrorCode, TResult> failed)
+        {
+            var results = new List<TResult>(files.Count);
+            foreach (var f in files)
             {
                 try
                 {
-                    await storage.HardDeleteLongTermFile(new InternalDriveFileId(driveId, f.FileId), f.VersionTag, WebOdinContext);
-                    results.Add(new HardDeleteResultV2 { FileId = f.FileId });
+                    results.Add(await write(new InternalDriveFileId(driveId, f.FileId), f));
                 }
                 catch (OdinClientException e)
                 {
-                    // Per file, so one bad file never strands the ones already deleted before it
-                    results.Add(new HardDeleteResultV2 { FileId = f.FileId, ErrorCode = e.ErrorCode });
+                    results.Add(failed(f.FileId, e.ErrorCode));
                 }
             }
 
-            return new HardDeleteBatchResultV2 { Results = results };
+            return results;
         }
 
         [HttpPost("delete-batch/by-group-id")]

@@ -52,9 +52,6 @@ namespace Odin.Services.Drives.DriveCore.Query
         Task SoftDeleteFileHeader(ServerFileHeader metadata);
 
         /// <summary>
-        /// Removes the specified file from the index that is currently in use.
-        /// </summary>
-        /// <summary>
         /// Deletes the file's header and index rows; with <paramref name="expectedVersionTag"/>, only while the header is
         /// still at that tag (4160 otherwise)
         /// </summary>

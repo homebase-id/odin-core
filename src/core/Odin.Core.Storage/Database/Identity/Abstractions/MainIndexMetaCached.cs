@@ -31,7 +31,11 @@ public class MainIndexMetaCached : AbstractTableCaching
     public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId, Guid? expectedVersionTag = null)
     {
         var result = await _meta.DeleteEntryAsync(driveId, fileId, expectedVersionTag);
-        await InvalidateDriveAsync(driveId);
+        if (result > 0)
+        {
+            await InvalidateDriveAsync(driveId);
+        }
+
         return result;
     }
 
