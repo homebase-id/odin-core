@@ -940,6 +940,11 @@ real previous one. #1909 shows deterministically that such a stale entry can sur
 it does not show that a concurrent reader of this file exists. Leave the test running: the Error is the
 only signal.
 
+**Again 2026-10-16.** PR #1970 (`slim-socket-notifications`) commit `e7dd4e369`, run 38875476846,
+`ubuntu/sqlite/release`: one `HardDeletePayloadFile -> source payload does not exist` event for a
+`pknt0001` payload, the only failure in the run; postgres and Windows passed on the same commit. Not
+caused by the PR: it changes socket notifications and no upload, payload or overwrite code.
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`
