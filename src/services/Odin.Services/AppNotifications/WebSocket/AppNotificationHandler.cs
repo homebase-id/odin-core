@@ -255,25 +255,15 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case SocketCommandType.EstablishConnectionRequest:
                     try
                     {
-                        var drives = new List<Guid>();
-                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
-                                      new EstablishConnectionOptions()
-                                      {
-                                          Drives = []
-                                      };
+                        var options = EstablishConnectionOptions.Parse(command.Data);
 
-                        foreach (var td in options.Drives)
-                        {
-                            var driveId = td.Alias;
-                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-                            drives.Add(driveId);
-                        }
-
+                        // The context before ApplyTo sets the drives: from then on events reach the socket, and the
+                        // dispatcher closes a subscribed socket that has no context as stale
                         deviceSocket.DeviceOdinContext = odinContext.Clone();
-                        deviceSocket.Drives = drives;
                         // Capture the app this socket is authenticated as, so app-scoped
                         // notifications (e.g. live relay) are delivered only to its sockets.
                         deviceSocket.AppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+                        options.ApplyTo(deviceSocket, odinContext.PermissionsContext);
                     }
                     catch (OdinSecurityException e)
                     {
@@ -284,6 +274,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                             encrypt: false,
                             cancellationToken);
 
+                        throw new CloseWebSocketException();
+                    }
+                    catch (OdinClientException e)
+                    {
+                        await SendErrorMessageAsync(deviceSocket, $"[Command:{command.Command}] {e.Message}", cancellationToken);
                         throw new CloseWebSocketException();
                     }
 
