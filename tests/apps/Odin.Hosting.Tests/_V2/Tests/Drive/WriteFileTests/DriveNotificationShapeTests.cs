@@ -77,11 +77,12 @@ public class DriveNotificationShapeTests
             await HardDeleteAsync(owner, drive, file.FileId, tombstoneTag);
             var hardDeleted = await socket.NextAsync(ClientNotificationType.FileDeleted);
 
-            Assert.That(Describe(added), Is.EqualTo($"header:null fileRef:{file.FileId}/{upload.Content.NewVersionTag}/active"));
-            Assert.That(Describe(modified), Is.EqualTo($"header:null fileRef:{file.FileId}/{update.Content!.NewVersionTag}/active"));
+            // Only what the event carries: no header keys, and no null for an absent ref
+            Assert.That(Describe(added), Is.EqualTo($"targetDrive fileRef:{file.FileId}/{upload.Content.NewVersionTag}/active"));
+            Assert.That(Describe(modified), Is.EqualTo($"targetDrive fileRef:{file.FileId}/{update.Content!.NewVersionTag}/active"));
             Assert.That(Describe(softDeleted), Is.EqualTo(
-                $"header:null fileRef:{file.FileId}/{tombstoneTag}/deleted previousFileRef:{file.FileId}/{update.Content.NewVersionTag}/active"));
-            Assert.That(Describe(hardDeleted), Is.EqualTo($"header:null previousFileRef:{file.FileId}/{tombstoneTag}/deleted"));
+                $"targetDrive fileRef:{file.FileId}/{tombstoneTag}/deleted previousFileRef:{file.FileId}/{update.Content.NewVersionTag}/active"));
+            Assert.That(Describe(hardDeleted), Is.EqualTo($"targetDrive previousFileRef:{file.FileId}/{tombstoneTag}/deleted"));
         }
         finally
         {
@@ -189,21 +190,12 @@ public class DriveNotificationShapeTests
     }
 
     /// <summary>
-    /// The header's presence and each ref as fileId/versionTag/fileState, so one assertion shows the whole event
+    /// Every key of the event, each ref as fileId/versionTag/fileState, so one assertion shows the whole event
     /// </summary>
-    private static string Describe(JsonElement data)
-    {
-        var parts = new List<string> { data.TryGetProperty("header", out var h) && h.ValueKind != JsonValueKind.Null ? "header:set" : "header:null" };
-        foreach (var name in new[] { "fileRef", "previousFileRef" })
-        {
-            if (data.TryGetProperty(name, out var r))
-            {
-                parts.Add($"{name}:{r.GetProperty("fileId").GetGuid()}/{r.GetProperty("versionTag").GetGuid()}/{r.GetProperty("fileState").GetString()}");
-            }
-        }
-
-        return string.Join(" ", parts);
-    }
+    private static string Describe(JsonElement data) =>
+        string.Join(" ", data.EnumerateObject().Select(p => p.Name is "fileRef" or "previousFileRef"
+            ? $"{p.Name}:{p.Value.GetProperty("fileId").GetGuid()}/{p.Value.GetProperty("versionTag").GetGuid()}/{p.Value.GetProperty("fileState").GetString()}"
+            : p.Name));
 
     private static string Content(JsonElement data, string header = "header") =>
         data.GetProperty(header).GetProperty("fileMetadata").GetProperty("appData").GetProperty("content").GetString();

@@ -1,4 +1,5 @@
 #nullable enable
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -83,6 +84,13 @@ public sealed class DriveEventMessage(
     ServerFileHeader? header,
     ServerFileHeader? previousHeader)
 {
+    // A minimal event leaves out what it does not carry (the headers, an absent ref) instead of sending null;
+    // full and noContent keep their nulls, as clients have always had them
+    private static readonly JsonSerializerOptions MinimalOptions = new(OdinSystemSerializer.JsonSerializerOptions!)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private string? _minimalJson;
 
     public string JsonFor(DeviceSocket socket)
@@ -101,7 +109,9 @@ public sealed class DriveEventMessage(
         var json = OdinSystemSerializer.Serialize(new
         {
             NotificationType = notificationType,
-            Data = OdinSystemSerializer.Serialize(notification)
+            Data = shape == FileResultShape.Minimal
+                ? OdinSystemSerializer.Serialize(notification, MinimalOptions)
+                : OdinSystemSerializer.Serialize(notification)
         });
 
         if (shared)
