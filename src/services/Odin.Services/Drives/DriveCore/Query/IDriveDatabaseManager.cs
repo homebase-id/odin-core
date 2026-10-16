@@ -87,6 +87,7 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType);
 
-        Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary);
+        /// <returns>The file's modified time, which saving the summary moves</returns>
+        Task<UnixTimeUtc> SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary);
     }
 }

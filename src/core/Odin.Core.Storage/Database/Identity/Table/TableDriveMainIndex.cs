@@ -179,21 +179,31 @@ public class TableDriveMainIndex(
         // Unreachable return 0;
     }
 
-    internal async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
+    internal async Task<(int, long)> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
         string sqlNowStr = updateCommand.SqlNow();
         updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+            $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary " +
+            $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
 
         updateCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         updateCommand.AddParameter("@driveId", DbType.Binary, driveId);
         updateCommand.AddParameter("@fileId", DbType.Binary, fileId);
         updateCommand.AddParameter("@hdrReactionSummary", DbType.String, reactionSummary);
 
-        return await updateCommand.ExecuteNonQueryAsync();
+        using (var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.Default))
+        {
+            if (await rdr.ReadAsync())
+            {
+                var modified = (rdr[0] == DBNull.Value) ? 0 : (Int64)rdr[0];
+                return (1, modified);
+            }
+        }
+
+        return (0, 0);
     }
 
     internal async Task<(int, long)> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory)

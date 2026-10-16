@@ -107,6 +107,33 @@ public class ExcludeOwnWritesTests
     }
 
     [Test]
+    public async Task ASoftDeleteEventCarriesTheTombstonesModifiedTime()
+    {
+        // Clearing the reaction summary moves modified after the tombstone is written. A client that leaves out its
+        // own writes compares the other's events with the feed, so the event must carry that final time too.
+        var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.DriveManager.CreateDrive(drive, "Soft delete event time test drive", "", allowAnonymousReads: false);
+        var socket = await ConnectAsync(owner, owner.GetTokenContext(), drive, excludeOwnWrites: false);
+        try
+        {
+            var file = await UploadAsync(owner.DriveRedux, drive);
+            await socket.NextAsync(ClientNotificationType.FileAdded);
+            var softDelete = await owner.DriveRedux.SoftDeleteFile(file.File);
+            Assert.That(softDelete.IsSuccessStatusCode, Is.True, $"soft delete failed: {softDelete.StatusCode}");
+
+            var deleted = await socket.NextAsync(ClientNotificationType.FileDeleted);
+            var tombstone = await owner.DriveRedux.GetFileHeader(file.File);
+            Assert.That(deleted.GetProperty("fileRef").GetProperty("updated").GetInt64(),
+                Is.EqualTo(tombstone.Content!.FileMetadata.Updated.milliseconds), deleted.ToString());
+        }
+        finally
+        {
+            await socket.DisconnectAsync();
+        }
+    }
+
+    [Test]
     public async Task AnOwnWriteMadeWithRaisedPermissionsIsStillLeftOut()
     {
         // A contact is written with a copy of the request's context that bypasses the drive ACL

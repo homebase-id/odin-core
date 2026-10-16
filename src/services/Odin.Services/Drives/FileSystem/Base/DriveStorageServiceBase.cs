@@ -847,7 +847,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
-        public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
+        /// <returns>The tombstone's modified time, as the change feed shows it; null when the delete failed</returns>
+        public async Task<UnixTimeUtc?> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -2031,7 +2032,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
+        private async Task<UnixTimeUtc?> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
             var file = existingHeader.FileMetadata.File;
@@ -2086,7 +2087,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     await WriteFileHeaderInternal(deletedServerFileHeader, odinContext);
-                    await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+
+                    // Clearing the summary moves modified again; the tombstone, its event and the caller carry that
+                    // final time, as the feed does
+                    var modified = await longTermStorageManager.DeleteReactionSummary(drive, file.FileId);
+                    deletedServerFileHeader.FileMetadata.SetCreatedModifiedWithDatabaseValue(
+                        deletedServerFileHeader.FileMetadata.Created, modified);
                     await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
 
                     _logger.LogDebug("{method} -> markComplete {message}",
@@ -2138,7 +2144,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return success;
+            return success ? deletedServerFileHeader.FileMetadata.Updated : null;
         }
 
         private async Task<ServerFileHeader> CreateServerHeaderInternal(InternalDriveFileId targetFile, KeyHeader keyHeader,
