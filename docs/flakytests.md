@@ -843,6 +843,12 @@ at all. See the new `PayloadConcurrentHammerEncryptedTests` entry. This fixture'
 of #1780, has not been seen in CI since 2026-09-17 -- two days before the WAL harness fix; whether that
 fix is why is not established.
 
+**Seen on Linux too, 2026-10-16 (locally, Ubuntu, Release).** Branch `slim-socket-notifications`
+(no upload, payload or overwrite changes). Failed twice in full `Odin.Hosting.Tests.V2` runs that
+overlapped with a Release rebuild and WebScaffold socket tests on the same machine; passed 3 of 3
+runs on its own straight after. Only the failure line was captured: two fixtures share this test name
+(this one and `PayloadConcurrentHammerEncryptedTests`), so which failed, and with which symptom, is unknown.
+
 ---
 
 ## `Odin.SetupHelper.Tests.TcpProbeTests`
@@ -933,6 +939,11 @@ old, the request would delete the payload its predecessor already deleted (this 
 real previous one. #1909 shows deterministically that such a stale entry can survive an invalidation;
 it does not show that a concurrent reader of this file exists. Leave the test running: the Error is the
 only signal.
+
+**Again 2026-10-16.** PR #1970 (`slim-socket-notifications`) commit `e7dd4e369`, run 38875476846,
+`ubuntu/sqlite/release`: one `HardDeletePayloadFile -> source payload does not exist` event for a
+`pknt0001` payload, the only failure in the run; postgres and Windows passed on the same commit. Not
+caused by the PR: it changes socket notifications and no upload, payload or overwrite code.
 
 ---
 

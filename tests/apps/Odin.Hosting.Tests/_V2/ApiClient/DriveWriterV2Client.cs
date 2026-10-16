@@ -436,6 +436,22 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         return apiResponse;
     }
 
+    public async Task<ApiResponse<UpdateArchivalStatusBatchResultV2>> UpdateArchivalStatusBatch(Guid driveId,
+        UpdateArchivalStatusBatchRequestV2 request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        return await svc.UpdateArchivalStatusBatch(driveId, request);
+    }
+
+    public async Task<ApiResponse<HardDeleteBatchResultV2>> HardDeleteBatch(Guid driveId,
+        HardDeleteBatchRequestV2 request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        return await svc.HardDeleteBatch(driveId, request);
+    }
+
     public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(Guid driveId, Guid fileId, string key, Guid versionTag)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);

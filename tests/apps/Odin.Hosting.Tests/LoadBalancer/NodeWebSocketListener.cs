@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Odin.Hosting.Tests._Universal.ApiClient;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
@@ -55,7 +56,8 @@ public sealed class NodeWebSocketListener : IAsyncDisposable
         var result = await _socket.ReceiveAsync(buffer, _cts.Token);
         var bytes = buffer.Array!;
         Array.Resize(ref bytes, result.Count);
-        var handshake = Decrypt<EstablishConnectionResponse>(bytes);
+        // A generic notification: EstablishConnectionResponse.NotificationType is fixed to DeviceHandshakeSuccess
+        var handshake = Decrypt<TestClientNotification>(bytes);
         if (handshake.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
         {
             throw new Exception($"handshake failed on port {port}: {handshake.NotificationType}");

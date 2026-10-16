@@ -125,6 +125,16 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetBatch(driveId, request);
     }
 
+    /// <summary>
+    /// The decrypted response as JSON, for asserting what is (not) on the wire
+    /// </summary>
+    public async Task<ApiResponse<System.Text.Json.JsonElement>> GetBatchJsonAsync(Guid driveId, QueryBatchRequest request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetBatchJson(driveId, request);
+    }
+
     public async Task<ApiResponse<QueryBatchResponse>> GetSmartBatchAsync(Guid driveId, QueryBatchRequest request)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

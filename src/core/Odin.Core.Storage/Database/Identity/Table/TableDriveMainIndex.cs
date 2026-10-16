@@ -62,6 +62,26 @@ public class TableDriveMainIndex(
         return await base.DeleteAsync(odinIdentity, driveId, fileId);
     }
 
+    /// <summary>
+    /// Deletes the row only while its header is still at <paramref name="expectedVersionTag"/>; 0 when it has moved on
+    /// (or is gone), so a delete cannot wipe a write it has not seen
+    /// </summary>
+    internal async Task<int> DeleteIfVersionTagAsync(Guid driveId, Guid fileId, Guid expectedVersionTag)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var deleteCommand = cn.CreateCommand();
+
+        deleteCommand.CommandText =
+            "DELETE FROM driveMainIndex WHERE identityId=@identityId AND driveId=@driveId AND fileId=@fileId AND hdrVersionTag=@hdrVersionTag;";
+
+        deleteCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        deleteCommand.AddParameter("@driveId", DbType.Binary, driveId);
+        deleteCommand.AddParameter("@fileId", DbType.Binary, fileId);
+        deleteCommand.AddParameter("@hdrVersionTag", DbType.Binary, expectedVersionTag);
+
+        return await deleteCommand.ExecuteNonQueryAsync();
+    }
+
     internal DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
         return ReadRecordFromReader1(rdr, odinIdentity.IdentityId, driveId);

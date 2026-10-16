@@ -31,6 +31,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public int ArchivalStatus { get; set; }
 
+        /// <summary>
+        /// A copy without <see cref="Content"/>, for a caller that must not change an instance others share
+        /// </summary>
+        public AppFileMetaData WithoutContent()
+        {
+            var copy = (AppFileMetaData)MemberwiseClone();
+            copy.Content = string.Empty;
+            return copy;
+        }
 
         public bool TryValidate()
         {

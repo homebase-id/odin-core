@@ -10,7 +10,7 @@ namespace Odin.Services.Drives;
 [DebuggerDisplay("{DebuggerData}")]
 public class QueryBatchResult
 {
-    private string DebuggerData => $"Time: {QueryTime} | Count: {SearchResults.Count()}";
+    private string DebuggerData => $"Time: {QueryTime} | Count: {FileRefs?.Count() ?? SearchResults?.Count()}";
     public QueryBatchCursor Cursor { get; set; }
 
     /// <summary>
@@ -23,7 +23,15 @@ public class QueryBatchResult
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
     
+    /// <summary>
+    /// The rows, unless the result shape is <see cref="FileResultShape.Minimal"/>; null then
+    /// </summary>
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
+
+    /// <summary>
+    /// The rows when the result shape is <see cref="FileResultShape.Minimal"/>; null otherwise
+    /// </summary>
+    public IEnumerable<FileRef> FileRefs { get; set; }
 
     public bool HasMoreRows { get; set; }
 }

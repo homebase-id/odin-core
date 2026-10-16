@@ -59,7 +59,9 @@ public class V2PeerAppNotificationWebSocketTests
     }
 
     [Test]
-    public async Task MemberReceivesFileAddedOverV2PeerWebSocket()
+    [TestCase(null)]
+    [TestCase(FileResultShape.Minimal)]
+    public async Task MemberReceivesFileAddedOverV2PeerWebSocket(FileResultShape? shape)
     {
         var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
         var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -79,8 +81,11 @@ public class V2PeerAppNotificationWebSocketTests
         {
             if (n.NotificationType == ClientNotificationType.FileAdded)
             {
+                // A minimal socket names the file with a fileRef, a full one with the header
                 var driveNotification = OdinSystemSerializer.Deserialize<ClientDriveNotification>(n.Data);
-                receivedGtid.TrySetResult(driveNotification.Header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                receivedGtid.TrySetResult(shape == FileResultShape.Minimal
+                    ? driveNotification.FileRef?.GlobalTransitId ?? Guid.Empty
+                    : driveNotification.Header.FileMetadata.GlobalTransitId.GetValueOrDefault());
             }
 
             return Task.CompletedTask;
@@ -88,7 +93,7 @@ public class V2PeerAppNotificationWebSocketTests
 
         // Connect to the V2 peer websocket and subscribe to the community drive.
         await listener.ConnectAsync(host.Identity.OdinId, token,
-            new EstablishConnectionOptions { Drives = [targetDrive] },
+            new EstablishConnectionOptions { Drives = [targetDrive], ResultShape = shape },
             UnifiedApiRouteConstants.PeerNotifySocket);
 
         // Member posts a message to the host's drive over peer; the host's dispatcher should push
