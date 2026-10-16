@@ -26,14 +26,10 @@ public class WriteResponseUpdatedTests : V2Fixture
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (_, owner) = await SetupCallerWithOwner(spec);
 
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "first", acl: AccessControlList.Anonymous);
-        var create = await owner.Drives.Writer.CreateNewUnencryptedFile(spec.TargetDrive.Alias, metadata,
-            new UploadManifest { PayloadDescriptors = [] }, []);
-        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK), create.Error?.Content);
-        var file = create.Content!;
+        var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "first");
         await AssertHeaderShows(owner, file, file.Updated, "create");
 
-        metadata.AppData.Content = "second";
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "second", acl: AccessControlList.Anonymous);
         metadata.VersionTag = file.NewVersionTag;
         var update = await owner.Drives.Writer.UpdateFileByFileId(file.DriveId, file.FileId, new FileUpdateInstructionSetV2
         {

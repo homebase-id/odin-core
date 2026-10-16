@@ -14,7 +14,8 @@ public static class OdinContextUpgrades
 {
     /// <summary>
     /// A copy for writing what others sent or made (inbox items, synced feed posts, reaction summaries): it is
-    /// not the request's own context, so a socket excluding the caller's own writes still gets these
+    /// not the request's own context, so a socket excluding the caller's own writes still gets these. The only
+    /// helper here that drops the mark; every upgrade below keeps it.
     /// </summary>
     public static IOdinContext ForOthersWrites(IOdinContext odinContext) => odinContext.Clone();
 
@@ -22,7 +23,7 @@ public static class OdinContextUpgrades
     private static IOdinContext SameRequestWithMorePermissions(IOdinContext odinContext)
     {
         var copy = odinContext.Clone();
-        if (odinContext.IsRequestContext)
+        if (odinContext.RequestTokenId != null)
         {
             copy.MarkAsRequestContext();
         }
@@ -99,8 +100,7 @@ public static class OdinContextUpgrades
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey = null,
         SymmetricKeyEncryptedAes encryptedIcrKey = null)
     {
-        // A plain copy: the synced posts are not the caller's own writes
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
 
 
         // Upgrade access briefly to perform functions
@@ -130,8 +130,7 @@ public static class OdinContextUpgrades
 
     public static IOdinContext PatchInSharedSecret(IOdinContext odinContext, SensitiveByteArray sharedSecret)
     {
-        // A plain copy: it writes synced feed posts, which are not the caller's own writes
-        var patchedContext = odinContext.Clone();
+        var patchedContext = SameRequestWithMorePermissions(odinContext);
         patchedContext.PermissionsContext.SetSharedSecretKey(sharedSecret);
         return patchedContext;
     }

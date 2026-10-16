@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Test.Helpers;
 using Odin.Hosting.Tests._Universal.ApiClient;
@@ -17,6 +15,8 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests._V2.ApiClient.Factory;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -141,8 +141,8 @@ public class ExcludeOwnWritesTests
         var owner = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var tokenA = owner.GetTokenContext();
         var tokenB = await _scaffold.OldOwnerApi.LoginAnotherOwnerSessionAsync(owner.Identity.OdinId);
-        var contactsA = new V1ContactsClient(owner.Identity.OdinId, new RootOwnerApiClientFactory(tokenA));
-        var contactsB = new V1ContactsClient(owner.Identity.OdinId, new RootOwnerApiClientFactory(tokenB));
+        var contactsA = new V1ContactsClient(owner.Identity.OdinId, new ApiClientFactoryV2(OwnerAuthConstants.CookieName, tokenA.AuthenticationResult, tokenA.SharedSecret.GetKey()));
+        var contactsB = new V1ContactsClient(owner.Identity.OdinId, new ApiClientFactoryV2(OwnerAuthConstants.CookieName, tokenB.AuthenticationResult, tokenB.SharedSecret.GetKey()));
 
         var aExcluding = await ConnectAsync(owner, tokenA, WellKnownAppDrives.ContactDrive, excludeOwnWrites: true);
         try
@@ -370,24 +370,5 @@ public class ExcludeOwnWritesTests
             CircleIdsGrantedToRecipient = [circles[sender]],
             CircleIdsGrantedToSender = [circles[recipient]]
         });
-    }
-
-    /// <summary>
-    /// An owner client rooted at the host, for clients whose routes carry the full path (V1ContactsClient);
-    /// <see cref="OwnerApiClientFactory"/> roots at the owner API base path
-    /// </summary>
-    private sealed class RootOwnerApiClientFactory(OwnerAuthTokenContext token) : IApiClientFactory
-    {
-        private readonly OwnerApiClientFactory _inner = new(token.AuthenticationResult, token.SharedSecret.GetKey());
-
-        public SensitiveByteArray SharedSecret => _inner.SharedSecret;
-
-        public HttpClient CreateHttpClient(OdinId identity, out SensitiveByteArray sharedSecret,
-            FileSystemType fileSystemType = FileSystemType.Standard)
-        {
-            var client = _inner.CreateHttpClient(identity, out sharedSecret, fileSystemType);
-            client.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
-            return client;
-        }
     }
 }

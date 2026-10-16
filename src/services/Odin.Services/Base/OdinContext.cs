@@ -25,8 +25,6 @@ namespace Odin.Services.Base
         /// </summary>
         Guid? RequestTokenId { get; }
 
-        bool IsRequestContext { get; }
-
         /// <summary>
         /// Marks this as the context of the HTTP request being handled (see <see cref="RequestTokenId"/>)
         /// </summary>
@@ -57,11 +55,11 @@ namespace Odin.Services.Base
         public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
 
-        public bool IsRequestContext { get; private set; }
+        private bool _isRequestContext;
 
-        public Guid? RequestTokenId => IsRequestContext ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
+        public Guid? RequestTokenId => _isRequestContext ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
 
-        public void MarkAsRequestContext() => IsRequestContext = true;
+        public void MarkAsRequestContext() => _isRequestContext = true;
 
         public IOdinContext Clone()
         {
