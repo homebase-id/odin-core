@@ -843,6 +843,12 @@ at all. See the new `PayloadConcurrentHammerEncryptedTests` entry. This fixture'
 of #1780, has not been seen in CI since 2026-09-17 -- two days before the WAL harness fix; whether that
 fix is why is not established.
 
+**Seen on Linux too, 2026-10-16 (locally, Ubuntu, Release).** Branch `slim-socket-notifications`
+(no upload, payload or overwrite changes). Failed twice in full `Odin.Hosting.Tests.V2` runs that
+overlapped with a Release rebuild and WebScaffold socket tests on the same machine; passed 3 of 3
+runs on its own straight after. Only the failure line was captured: two fixtures share this test name
+(this one and `PayloadConcurrentHammerEncryptedTests`), so which failed, and with which symptom, is unknown.
+
 ---
 
 ## `Odin.SetupHelper.Tests.TcpProbeTests`
