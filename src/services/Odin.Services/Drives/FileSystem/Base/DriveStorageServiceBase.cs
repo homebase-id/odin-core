@@ -911,6 +911,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     IsHardDelete = true,
                     File = file,
+                    // As a soft delete does: the header the file had, so clients learn which file went (nothing is left
+                    // of it, hence no ServerFileHeader, which is how handlers tell a hard delete from a soft one)
+                    PreviousServerFileHeader = fileHeader,
                     ServerFileHeader = null,
                     SharedSecretEncryptedFileHeader = null,
                     OdinContext = odinContext,
