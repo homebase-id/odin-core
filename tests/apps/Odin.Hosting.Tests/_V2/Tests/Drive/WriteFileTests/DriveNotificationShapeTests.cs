@@ -140,7 +140,8 @@ public class DriveNotificationShapeTests
 
             // As a soft delete does: nothing is left (header null), and the header the file had names it
             var previous = deleted.GetProperty("previousServerFileHeader");
-            Assert.That(deleted.GetProperty("targetDrive").GetProperty("alias").GetGuid(), Is.EqualTo(drive.Alias.Value));
+            // The alias is serialized without dashes, which JsonElement.GetGuid does not read
+            Assert.That(Guid.Parse(deleted.GetProperty("targetDrive").GetProperty("alias").GetString()!), Is.EqualTo(drive.Alias.Value));
             Assert.That((deleted.GetProperty("header").ValueKind, previous.GetProperty("fileId").GetGuid(),
                     previous.GetProperty("fileMetadata").GetProperty("globalTransitId").GetGuid()),
                 Is.EqualTo((JsonValueKind.Null, upload.Content.File.FileId, upload.Content.GlobalTransitId!.Value)), deleted.ToString());
