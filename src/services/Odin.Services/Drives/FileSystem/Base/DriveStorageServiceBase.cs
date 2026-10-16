@@ -871,20 +871,43 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
+        public Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            return HardDeleteLongTermFileInternal(file, odinContext, expectedVersionTag: null);
+        }
+
+        /// <summary>
+        /// Hard-deletes the file, active or a tombstone, only while it is still at <paramref name="expectedVersionTag"/>
+        /// (4160 otherwise; checked again atomically by the delete itself).  Unlike the unversioned delete, which treats
+        /// a missing file as done, a file that is missing or hidden from the caller by its ACL is FileNotFound: the
+        /// caller named a version of it.
+        /// </summary>
+        public Task HardDeleteLongTermFile(InternalDriveFileId file, Guid expectedVersionTag, IOdinContext odinContext)
+        {
+            return HardDeleteLongTermFileInternal(file, odinContext, expectedVersionTag);
+        }
+
+        private async Task HardDeleteLongTermFileInternal(InternalDriveFileId file, IOdinContext odinContext, Guid? expectedVersionTag)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
+            var versioned = expectedVersionTag.HasValue;
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true, aclDeniedAsMissing: versioned);
 
             if (fileHeader == null)
             {
+                if (versioned)
+                {
+                    throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+                }
+
                 return;
             }
 
-            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads);
+            AssertVersionTagMatches(fileHeader, expectedVersionTag);
+            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads, expectedVersionTag);
 
             if (await TryShouldRaiseDriveEventAsync(file))
             {

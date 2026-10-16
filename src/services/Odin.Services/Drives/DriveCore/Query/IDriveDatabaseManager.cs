@@ -54,7 +54,11 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
-        Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file);
+        /// <summary>
+        /// Deletes the file's header and index rows; with <paramref name="expectedVersionTag"/>, only while the header is
+        /// still at that tag (4160 otherwise)
+        /// </summary>
+        Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file, Guid? expectedVersionTag = null);
 
         Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete);
 

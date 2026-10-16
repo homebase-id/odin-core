@@ -73,14 +73,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             [FromBody] UpdateArchivalStatusBatchRequestV2 request)
         {
             OdinValidationUtils.AssertNotNull(request, nameof(request));
-            OdinValidationUtils.AssertNotNull(request.Files, nameof(request.Files));
+            FileVersionTagBatchV2.AssertValid(request.Files);
             OdinValidationUtils.AssertIsTrue(request.ArchivalStatus.HasValue, "archivalStatus is required");
-            OdinValidationUtils.AssertIsTrue(request.Files.Count is > 0 and <= UpdateArchivalStatusBatchRequestV2.MaxFiles,
-                $"files must hold 1 to {UpdateArchivalStatusBatchRequestV2.MaxFiles} entries");
-            OdinValidationUtils.AssertIsTrue(request.Files.All(f => f != null && f.FileId != Guid.Empty && f.VersionTag != Guid.Empty),
-                "every file needs a fileId and a versionTag");
-            OdinValidationUtils.AssertIsTrue(request.Files.Select(f => f.FileId).Distinct().Count() == request.Files.Count,
-                "a file may appear only once");
 
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
@@ -103,6 +97,43 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             }
 
             return new UpdateArchivalStatusBatchResultV2 { Results = results };
+        }
+
+        /// <summary>
+        /// Hard-deletes up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files, each only at its version tag.
+        /// </summary>
+        [HttpPost("hard-delete-batch")]
+        [SwaggerOperation(
+            Summary = "Hard delete many files, each at a known version",
+            Description = "Permanently removes each file (active or a tombstone) with its payloads and thumbnails, only if its " +
+                          "version tag still matches. Nothing is left in the change feed, and nothing is sent to peers. " +
+                          "Results are per file; see HardDeleteResultV2.",
+            Tags = [SwaggerInfo.FileWrite]
+        )]
+        public async Task<HardDeleteBatchResultV2> HardDeleteBatch(Guid driveId, [FromBody] HardDeleteBatchRequestV2 request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            FileVersionTagBatchV2.AssertValid(request.Files);
+
+            WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+
+            var storage = GetFileSystem().Storage;
+            var results = new List<HardDeleteResultV2>(request.Files.Count);
+            foreach (var f in request.Files)
+            {
+                try
+                {
+                    await storage.HardDeleteLongTermFile(new InternalDriveFileId(driveId, f.FileId), f.VersionTag, WebOdinContext);
+                    results.Add(new HardDeleteResultV2 { FileId = f.FileId });
+                }
+                catch (OdinClientException e)
+                {
+                    // Per file, so one bad file never strands the ones already deleted before it
+                    results.Add(new HardDeleteResultV2 { FileId = f.FileId, ErrorCode = e.ErrorCode });
+                }
+            }
+
+            return new HardDeleteBatchResultV2 { Results = results };
         }
 
         [HttpPost("delete-batch/by-group-id")]

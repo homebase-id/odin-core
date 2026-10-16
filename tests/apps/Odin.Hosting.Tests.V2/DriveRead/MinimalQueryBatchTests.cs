@@ -43,7 +43,7 @@ public class MinimalQueryBatchTests : V2Fixture
         var archive = await owner.Drives.Writer.UpdateArchivalStatusBatch(spec.TargetDrive.Alias, new UpdateArchivalStatusBatchRequestV2
         {
             ArchivalStatus = 2,
-            Files = [new UpdateArchivalStatusFileV2 { FileId = files[3].FileId, VersionTag = files[3].NewVersionTag }]
+            Files = [new FileVersionTagV2 { FileId = files[3].FileId, VersionTag = files[3].NewVersionTag }]
         });
         Assert.That(archive.IsSuccessStatusCode, Is.True, $"seed archive failed: {archive.StatusCode}");
 

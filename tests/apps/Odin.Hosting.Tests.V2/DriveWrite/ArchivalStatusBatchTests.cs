@@ -188,7 +188,7 @@ public class ArchivalStatusBatchTests : V2Fixture
     private static UpdateArchivalStatusBatchRequestV2 Batch(int? status, params (Guid FileId, Guid VersionTag)[] files) => new()
     {
         ArchivalStatus = status,
-        Files = files.Select(f => new UpdateArchivalStatusFileV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
+        Files = files.Select(f => new FileVersionTagV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
     };
 
 

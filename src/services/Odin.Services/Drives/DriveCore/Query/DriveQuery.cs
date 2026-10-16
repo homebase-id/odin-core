@@ -356,11 +356,19 @@ public class DriveQuery(
         throw new NotImplementedException("No longer needed, this will be removed");
     }
 
-    public async Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file)
+    public async Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file, Guid? expectedVersionTag = null)
     {
-        int n = await metaIndex.DeleteEntryAsync(drive.Id, file.FileId);
+        int n = await metaIndex.DeleteEntryAsync(drive.Id, file.FileId, expectedVersionTag);
         if (n < 1)
+        {
+            if (expectedVersionTag.HasValue)
+            {
+                // Written (or deleted) since the caller read it
+                throw new OdinClientException($"Mismatching version tag {expectedVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+            }
+
             throw new OdinSystemException("HardDeleteFileHeaderAsync() unable to delete header");
+        }
     }
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction,

@@ -255,10 +255,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>
-        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors,
+            Guid? expectedVersionTag = null)
         {
-            // First delete the DB header
-            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
+            // First delete the DB header; a stale expectedVersionTag throws here, before any payload is touched
+            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId), expectedVersionTag);
 
             // If some files fail, they are simply orphaned
             forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
