@@ -830,6 +830,18 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
+    public async Task<bool> IsInvitationCodeWorthUsing(string code)
+    {
+        if (_invitationCodes.IsEnabled && !string.IsNullOrWhiteSpace(code) && !IsConfiguredInvitationCode(code.Trim()))
+        {
+            return InvitationCodeServiceClient.LooksLikeCode(code);
+        }
+
+        return await IsValidInvitationCode(code);
+    }
+
+    //
+
     public Task<bool> CodeGrantsPublicWebPresence(string code)
     {
         var withoutPresence = !string.IsNullOrEmpty(code) &&

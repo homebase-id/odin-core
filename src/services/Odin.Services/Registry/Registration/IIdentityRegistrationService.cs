@@ -172,6 +172,13 @@ public interface IIdentityRegistrationService
     Task<bool> IsValidInvitationCode(string code);
 
     /// <summary>
+    /// The check before <see cref="CreateIdentityOnDomainAsync"/>: like <see cref="IsValidInvitationCode"/>, except a
+    /// code for the invitation-code service is only checked for its shape. Using it, which creating does, is the
+    /// real check, so asking the service first as well would be a wasted round trip.
+    /// </summary>
+    Task<bool> IsInvitationCodeWorthUsing(string code);
+
+    /// <summary>
     /// Determines if the invitation code grants a public web presence.
     /// True unless the code is configured in Registry:InvitationCodesWithoutPublicWebPresence.
     /// </summary>

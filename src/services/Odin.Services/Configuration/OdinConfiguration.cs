@@ -181,7 +181,8 @@ public class OdinConfiguration
         public List<string> InvitationCodesWithoutPublicWebPresence { get; init; } = [];
 
         /// <summary>
-        /// The invitation-code service (#1908), homebase-id/homebase-invites. Off when empty.
+        /// The invitation-code service (#1908), homebase-id/homebase-invites. Off when empty. Must be https,
+        /// except on loopback.
         /// </summary>
         public string InvitationCodeServiceUrl { get; init; } = "";
 
@@ -246,11 +247,10 @@ public class OdinConfiguration
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
+            // Not Required: a host with the URL but no key runs with invitation codes off and logs why
+            // (InvitationCodeServiceClient), rather than failing to start
             InvitationCodeServiceUrl = config.GetOrDefault("Registry:InvitationCodeService:Url", "").Trim().TrimEnd('/');
-            if (InvitationCodeServiceUrl != "")
-            {
-                InvitationCodeServiceApiKey = config.Required<string>("Registry:InvitationCodeService:ApiKey");
-            }
+            InvitationCodeServiceApiKey = config.GetOrDefault("Registry:InvitationCodeService:ApiKey", "").Trim();
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
 

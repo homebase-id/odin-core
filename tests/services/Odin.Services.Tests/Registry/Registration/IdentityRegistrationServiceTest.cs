@@ -249,6 +249,64 @@ public class IdentityRegistrationServiceTest
         Assert.That(capturedRequest.EnablePublicWebPresence, Is.False);
     }
 
+    [TestCase("https://invites.example.com", "key", true)]
+    [TestCase("http://127.0.0.1:8090", "key", true)]
+    [TestCase("http://localhost:8090", "key", true)]
+    [TestCase("http://invites.example.com", "key", false)]
+    [TestCase("https://invites.example.com", "", false)]
+    [TestCase("", "key", false)]
+    public void TheServiceIsOnlyUsedWhenConfiguredSafely(string url, string key, bool enabled)
+    {
+        var configuration = new OdinConfiguration
+        {
+            Registry = new OdinConfiguration.RegistrySection
+            {
+                InvitationCodeServiceUrl = url,
+                InvitationCodeServiceApiKey = key,
+            }
+        };
+
+        Assert.That(InvitationCodeClient(configuration).IsEnabled, Is.EqualTo(enabled));
+    }
+
+    [TestCase("K7QX-M2PD-9FHW", true)]
+    [TestCase("k7qx m2pd 9fhw", true)]
+    [TestCase("K7QXM2PD9FHO", true)] // O reads as 0
+    [TestCase("K7QX-M2PD-9FH", false)]
+    [TestCase("K7QX-M2PD-9FHWX", false)]
+    [TestCase("K7QX-M2PD-9FHU", false)] // U is not in the alphabet
+    [TestCase("K7QX_M2PD_9FHW", false)]
+    [TestCase("", false)]
+    public void ItShouldRecognizeTheShapeOfACode(string input, bool looksLikeCode)
+    {
+        Assert.That(InvitationCodeServiceClient.LooksLikeCode(input), Is.EqualTo(looksLikeCode));
+        Assert.That(InvitationCodeServiceClient.LooksLikeCode(new string('A', 200)), Is.False);
+    }
+
+    [Test]
+    public async Task ItShouldNotCallTheServiceForInputThatCannotBeACode()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+
+        Assert.That(await registration.IsValidInvitationCode("not a code"), Is.False);
+        Assert.That(await registration.IsValidInvitationCode(new string('A', 5000)), Is.False);
+        Assert.That(await registration.IsInvitationCodeWorthUsing("not a code"), Is.False);
+        Assert.That(service.Calls, Is.Empty);
+    }
+
+    [Test]
+    public async Task ItShouldNotValidateAServiceCodeItIsAboutToUse()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService(["configured"]));
+
+        Assert.That(await registration.IsInvitationCodeWorthUsing(ServiceCode), Is.True);
+        Assert.That(await registration.IsInvitationCodeWorthUsing("configured"), Is.True);
+        Assert.That(await registration.IsInvitationCodeWorthUsing(""), Is.False);
+        Assert.That(service.Calls, Is.Empty);
+    }
+
     [Test]
     public void ItShouldRefuseACodeWithNoUsesLeft()
     {
