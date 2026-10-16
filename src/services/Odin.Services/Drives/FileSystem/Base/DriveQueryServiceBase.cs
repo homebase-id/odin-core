@@ -464,8 +464,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     if (serverFileHeader.FileMetadata.FileState == FileState.Deleted)
                     {
-                        _logger.LogDebug("Creating Client File Header for deleted file (File {file} on drive {drive})", file.FileId,
-                            file.DriveId);
+                        // Off: one line per deleted row of every query, so a client paging a feed of tombstones (e.g. filesync
+                        // after a purge) made it 96% of the dev server's log, about 1 GB every 20 minutes, and filled the disk
+                        // _logger.LogDebug("Creating Client File Header for deleted file (File {file} on drive {drive})", file.FileId,
+                        //     file.DriveId);
                         // var header = DriveFileUtility.CreateDeletedClientFileHeader(serverFileHeader, odinContext);
                         // results.Add(header);
                         // continue;
