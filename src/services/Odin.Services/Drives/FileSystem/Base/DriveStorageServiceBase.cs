@@ -885,7 +885,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <summary>
         /// Hard-deletes the file, active or a tombstone, only while it is still at <paramref name="expectedVersionTag"/>
-        /// (4160 otherwise, checked atomically by the delete itself).  Unlike the unversioned delete, which treats a
+        /// (4160 otherwise, checked here and again atomically by the delete itself).  Unlike the unversioned delete, which treats a
         /// missing file as done, a file that is missing or hidden from the caller by its ACL is FileNotFound: the caller
         /// named a version of it.
         /// </summary>
@@ -896,6 +896,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var fileHeader = await GetServerFileHeaderInternal(file, odinContext, includeExpired: true, aclDeniedAsMissing: true)
                              ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+
+            // Not redundant with the DELETE's own check: the payloads removed and the header published are this read's,
+            // so it must be the version the DELETE removes (a stale cached read would otherwise strand the newer payloads)
+            AssertVersionTagMatches(fileHeader, expectedVersionTag);
             await HardDeleteHeaderAsync(file, fileHeader, expectedVersionTag, odinContext);
         }
 

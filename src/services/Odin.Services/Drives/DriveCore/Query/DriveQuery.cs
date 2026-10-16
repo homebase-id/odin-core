@@ -363,7 +363,12 @@ public class DriveQuery(
         {
             if (expectedVersionTag.HasValue)
             {
-                // Written (or deleted) since the caller read it
+                // Since the caller read it, the file was either written (still there) or deleted by someone else (gone)
+                if (await tblDriveMainIndex.GetAsync(drive.Id, file.FileId) == null)
+                {
+                    throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+                }
+
                 throw new OdinClientException($"Mismatching version tag {expectedVersionTag}", OdinClientErrorCode.VersionTagMismatch);
             }
 

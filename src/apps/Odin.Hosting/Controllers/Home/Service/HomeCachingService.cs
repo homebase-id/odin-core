@@ -87,10 +87,10 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             if (drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType)
             {
-                var header = notification.ServerFileHeader;
+                // A hard delete leaves no header; the one the file had is what decides
+                var header = notification.ServerFileHeader ?? (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader;
                 if (header == null)
                 {
-                    // A hard delete carries no header, so whether it mattered to the home page is unknown
                     await InvalidateAsync();
                     return;
                 }

@@ -118,6 +118,12 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 },
                 (fileId, errorCode) => new HardDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
 
+            // Nothing else records an irreversible delete: no feed row, nothing to peers
+            Logger.LogInformation(
+                "[DeleteFlow] HardDeleteBatch tenant:{tenant} caller:{caller} driveId:{driveId} requested:{requested} deleted:{deleted} files:{files}",
+                WebOdinContext.Tenant, WebOdinContext.Caller?.OdinId, driveId, results.Count, results.Count(r => r.ErrorCode == null),
+                string.Join(",", results.Where(r => r.ErrorCode == null).Select(r => r.FileId)));
+
             return new HardDeleteBatchResultV2 { Results = results };
         }
 
