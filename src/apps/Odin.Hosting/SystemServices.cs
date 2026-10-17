@@ -53,6 +53,7 @@ using Odin.Services.LastSeen;
 using Odin.Services.Registry;
 using Odin.Services.Registry.PayloadMove;
 using Odin.Services.Registry.Registration;
+using Odin.Services.Security.Email;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
 
@@ -250,6 +251,9 @@ public static class SystemServices
             services.AddSingleton<IMailRelayProvider, NullMailRelayProvider>();
         }
         services.AddSingleton<IMailRelayFailureStore, MailRelayFailureStore>();
+
+        // Recovery links go out by email only; tests swap this to read them (#1866)
+        services.AddSingleton<IRecoveryNotificationSink, NullRecoveryNotificationSink>();
 
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(
             sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),

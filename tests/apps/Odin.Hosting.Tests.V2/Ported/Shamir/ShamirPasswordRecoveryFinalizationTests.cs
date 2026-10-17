@@ -22,10 +22,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <para>
 /// Decisions:
 /// <list type="bullet">
-/// <item>No caller matrix in the original and none added; the <c>#if !DEBUG [Ignore]</c> guards are
-/// carried verbatim. The finalize nonce and the final recovery key are read out of the log for the
-/// same reason as the enter/exit nonces — <c>RecoveryNotifier.EnqueueFinalizeRecoveryEmail</c> logs
-/// them under <c>#if DEBUG</c> and no mail is sent.</item>
+/// <item>No caller matrix in the original and none added; the originals'
+/// <c>#if !DEBUG [Ignore]</c> guards were dropped by #1866. The finalize nonce and the final recovery
+/// key come from <see cref="ShamirFixture"/>'s recovery sink, like the enter/exit nonces, because no
+/// mail is sent.</item>
 /// <item><c>Security.WaitForShamirStatus(AwaitingOwnerFinalization)</c> becomes a straight status
 /// read; see <see cref="ShamirPasswordRecoveryTestForDelegates"/>'s remarks for why there is nothing
 /// to wait for.</item>
@@ -75,9 +75,6 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         base.HostIdentities.Union(AutomatedPlayerIdentities).ToArray();
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task DelegatePlayersCanApproveShardRequestsAndPasswordCanBeReset()
     {
         //
@@ -104,9 +101,6 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
     /// </summary>
     [TestCase(PlayerType.Delegate)]
     [TestCase(PlayerType.Automatic)]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task ShardsAreRotatedAndRecoverTheIdentityAgain(PlayerType playerType)
     {
         var (frodo, players) = Cast();
@@ -125,9 +119,6 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
     /// The owner app fires several requests at once after a login; only one of them may rotate.
     /// </summary>
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task ConcurrentRequestsAfterRecoveryRotateOnce()
     {
         var (frodo, players, firstShardConfig) = await ArrangeDelegateShardsAsync();

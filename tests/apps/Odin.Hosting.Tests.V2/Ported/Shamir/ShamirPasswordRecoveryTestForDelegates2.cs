@@ -22,8 +22,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <para>
 /// Decisions:
 /// <list type="bullet">
-/// <item>No caller matrix in the original and none added; the <c>#if !DEBUG [Ignore]</c> guard and
-/// the <c>[Description]</c> are carried verbatim.</item>
+/// <item>No caller matrix in the original and none added; the <c>[Description]</c> is carried
+/// verbatim. The original's <c>#if !DEBUG [Ignore]</c> guard was dropped by #1866.</item>
 /// <item>The original inlined the shard-request lookup in the test body <i>and</i> carried a private
 /// <c>GetPlayerShardRequest</c> copy that nothing called. The inline loop asserts exactly what
 /// <see cref="ShamirFixture.AssertEveryPlayerHasRequestAsync"/> asserts, so it uses the shared
@@ -38,9 +38,6 @@ public class ShamirPasswordRecoveryTestForDelegates2 : ShamirFixture
     [Test]
     [Description("When I configure shards with players that require approval before releasing a shard, " +
                  "that player can see a request from the dealer in a list")]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task DelegatePlayersCanSeeShardReleaseRequests()
     {
         //
