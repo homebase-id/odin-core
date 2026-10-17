@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -12,6 +13,31 @@ namespace Odin.Core.Storage.Cache;
 public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cache) : IFusionCacheWrapper
 {
     protected abstract FusionCacheEntryOptions DefaultEntryOptions { get; }
+
+    //
+
+    // When this cache last removed anything, in Stopwatch ticks (monotonic, unaffected by clock changes). FusionCache
+    // keeps an entry stored after a remove, even when its factory read the database before the write that removed it
+    // (#1909): the entry's timestamp is when it was stored, not when it was read. So a factory notes when it started,
+    // and an answer that started before the last remove is not kept. Every entry and tag carries this wrapper's
+    // prefix, so only this wrapper can remove what it stored, and one value per wrapper (one per tenant) is enough.
+    private long _lastRemoval;
+
+    private void MarkRemoval() => Interlocked.Exchange(ref _lastRemoval, Stopwatch.GetTimestamp());
+
+    private bool RemovedSince(long fillStarted) => Interlocked.Read(ref _lastRemoval) >= fillStarted;
+
+    // Inside a factory: return the value without storing it, and without telling other nodes of a write that did not happen
+    private static void SkipWrites<TValue>(FusionCacheFactoryExecutionContext<TValue> ctx)
+    {
+        ctx.Options.SkipMemoryCacheWrite = true;
+        ctx.Options.SkipDistributedCacheWrite = true;
+        ctx.Options.SkipBackplaneNotifications = true;
+    }
+
+    // After a fill: a remove may have landed between the factory's check and FusionCache's store. Removing what was
+    // just stored costs at most a miss. It runs after GetOrSet returned, outside FusionCache's per-key factory lock.
+    private bool RemovedDuringFill(long fillStarted) => fillStarted != 0 && RemovedSince(fillStarted);
 
     //
 
@@ -165,12 +191,29 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
         GuardDurationForL2(duration, options);
 
-        return cache.GetOrSet<TValue>(
+        long fillStarted = 0;
+        var result = cache.GetOrSet<TValue>(
             AddPrefix(key),
-            factory,
+            (ctx, ct) =>
+            {
+                fillStarted = Stopwatch.GetTimestamp();
+                var value = factory(ct);
+                if (RemovedSince(fillStarted))
+                {
+                    SkipWrites(ctx);
+                }
+                return value;
+            },
             options,
             tags: AddPrefix(tags),
             cancellationToken);
+
+        if (RemovedDuringFill(fillStarted))
+        {
+            cache.Remove(AddPrefix(key), DefaultEntryOptions.Duplicate(), cancellationToken);
+        }
+
+        return result;
     }
 
     //
@@ -183,24 +226,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        CacheTypeGuard<TValue>.EnsureValid();
-
-        var options = DefaultEntryOptions.Duplicate(duration);
-        options.Size = entrySize;
-
-        GuardDurationForL2(duration, options);
-
-        return cache.GetOrSetAsync<TValue>(
-            AddPrefix(key),
-            factory,
-            options,
-            tags: AddPrefix(tags),
-            cancellationToken);
+        return GetOrSetAsync(key, factory, duration, _ => entrySize, tags, storeIf: null, cancellationToken);
     }
 
     //
 
-    public ValueTask<TValue> GetOrSetAsync<TValue>(
+    public async ValueTask<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan duration,
@@ -215,24 +246,30 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
         GuardDurationForL2(duration, options);
 
-        return cache.GetOrSetAsync<TValue>(
+        long fillStarted = 0;
+        var result = await cache.GetOrSetAsync<TValue>(
             AddPrefix(key),
             async (ctx, ct) =>
             {
-                var result = await factory(ct);
-                ctx.Options.Size = entrySizeFactory(result);
-                if (storeIf != null && !storeIf(result))
+                fillStarted = Stopwatch.GetTimestamp();
+                var value = await factory(ct);
+                ctx.Options.Size = entrySizeFactory(value);
+                if ((storeIf != null && !storeIf(value)) || RemovedSince(fillStarted))
                 {
-                    // Return the value without storing it, and without telling other nodes of a write that did not happen
-                    ctx.Options.SkipMemoryCacheWrite = true;
-                    ctx.Options.SkipDistributedCacheWrite = true;
-                    ctx.Options.SkipBackplaneNotifications = true;
+                    SkipWrites(ctx);
                 }
-                return result;
+                return value;
             },
             options,
             tags: AddPrefix(tags),
             cancellationToken);
+
+        if (RemovedDuringFill(fillStarted))
+        {
+            await cache.RemoveAsync(AddPrefix(key), DefaultEntryOptions.Duplicate(), cancellationToken);
+        }
+
+        return result;
     }
 
     //
@@ -289,6 +326,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public void Remove(string key, CancellationToken cancellationToken = default)
     {
+        MarkRemoval();
         var options = DefaultEntryOptions.Duplicate();
 
         cache.Remove(
@@ -301,6 +339,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
+        MarkRemoval();
         var options = DefaultEntryOptions.Duplicate();
 
         return cache.RemoveAsync(
@@ -313,6 +352,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public void RemoveByTag(string tag, CancellationToken cancellationToken = default)
     {
+        MarkRemoval();
         cache.RemoveByTag(
             AddPrefix(tag),
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
@@ -323,6 +363,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
+        MarkRemoval();
         return cache.RemoveByTagAsync(
             AddPrefix(tag),
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
@@ -335,6 +376,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     {
         ArgumentNullException.ThrowIfNull(tags, nameof(tags));
 
+        MarkRemoval();
         cache.RemoveByTag(
             AddPrefix(tags)!,
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
@@ -347,6 +389,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     {
         ArgumentNullException.ThrowIfNull(tags, nameof(tags));
 
+        MarkRemoval();
         return cache.RemoveByTagAsync(
             AddPrefix(tags)!,
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
