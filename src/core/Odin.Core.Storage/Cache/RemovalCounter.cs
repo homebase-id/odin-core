@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StackExchange.Redis;
@@ -25,8 +26,9 @@ public interface IRemovalCounter
 }
 
 /// <summary>
-/// Makes the remove counter of a cache whose entries every node shares (L2): one counter for all nodes when the
-/// distributed cache is Redis, since another node's remove must stop this node's fill too; this node's otherwise
+/// Makes a cache wrapper's remove counter: one counter for all nodes when the distributed cache is Redis, since
+/// another node's remove must stop this node's fill too (for L1 as well: tag removes travel through the
+/// distributed cache); this node's otherwise
 /// </summary>
 public interface IRemovalCounterFactory
 {
@@ -62,7 +64,8 @@ public sealed class InMemoryRemovalCounterFactory : IRemovalCounterFactory
 //
 
 /// <summary>
-/// One count in Redis for every node sharing the cache. A Redis error leaves an increment undone (the remove itself
+/// One count in Redis for every node sharing the cache. A Redis error or timeout (a RedisTimeoutException is a
+/// TimeoutException, not a RedisException) leaves an increment undone (the remove itself
 /// still runs) and makes a read unknown, so a fill keeps nothing rather than an answer it cannot vouch for.
 /// </summary>
 public sealed class RedisRemovalCounter(IConnectionMultiplexer redis, string key) : IRemovalCounter
@@ -75,7 +78,7 @@ public sealed class RedisRemovalCounter(IConnectionMultiplexer redis, string key
         {
             Db.StringIncrement(key);
         }
-        catch (RedisException)
+        catch (Exception e) when (e is RedisException or TimeoutException)
         {
             // The remove goes ahead; FusionCache reaches the other nodes the same way, or not at all
         }
@@ -87,7 +90,7 @@ public sealed class RedisRemovalCounter(IConnectionMultiplexer redis, string key
         {
             await Db.StringIncrementAsync(key);
         }
-        catch (RedisException)
+        catch (Exception e) when (e is RedisException or TimeoutException)
         {
             // As above
         }
@@ -99,7 +102,7 @@ public sealed class RedisRemovalCounter(IConnectionMultiplexer redis, string key
         {
             return (long?)Db.StringGet(key) ?? 0;
         }
-        catch (RedisException)
+        catch (Exception e) when (e is RedisException or TimeoutException)
         {
             return null;
         }
@@ -111,7 +114,7 @@ public sealed class RedisRemovalCounter(IConnectionMultiplexer redis, string key
         {
             return (long?)await Db.StringGetAsync(key) ?? 0;
         }
-        catch (RedisException)
+        catch (Exception e) when (e is RedisException or TimeoutException)
         {
             return null;
         }

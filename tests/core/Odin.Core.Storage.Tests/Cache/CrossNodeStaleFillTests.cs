@@ -46,11 +46,14 @@ public class CrossNodeStaleFillTests
         _nodes.Clear();
     }
 
-    [Test]
-    public async Task AFillOnOneNodeThatLoadedBeforeAnotherNodesRemoveDoesNotOutliveIt()
+    // L1 too: its entries stay on the node, but FusionCache keeps tag expirations in Redis, so B's tag remove
+    // reaches A's L1 entries without passing A's wrapper
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task AFillOnOneNodeThatLoadedBeforeAnotherNodesRemoveDoesNotOutliveIt(bool level1)
     {
-        var nodeA = StartNode();
-        var nodeB = StartNode();
+        var nodeA = StartNode(level1);
+        var nodeB = StartNode(level1);
         List<string> tags = ["row"];
 
         var stored = "old";
@@ -72,13 +75,13 @@ public class CrossNodeStaleFillTests
         Assert.That(await slowReaderOnA, Is.EqualTo("old"), "the slow reader itself still answers what it read");
 
         var onB = await nodeB.GetOrSetAsync("key", _ => Task.FromResult(stored), TimeSpan.FromHours(1), tags: tags);
-        Assert.That(onB, Is.EqualTo("new"), "node B must not get what its own write replaced, from A's fill in Redis");
+        Assert.That(onB, Is.EqualTo("new"), "node B must not get what its own write replaced");
         var onA = await nodeA.GetOrSetAsync("key", _ => Task.FromResult(stored), TimeSpan.FromHours(1), tags: tags);
         Assert.That(onA, Is.EqualTo("new"), "node A must not keep what B's write replaced");
     }
 
     // A node: its own FusionCache and memory cache, sharing the test's Redis for L2, the backplane and the count
-    private ITenantLevel2Cache StartNode()
+    private IFusionCacheWrapper StartNode(bool level1)
     {
         var services = new ServiceCollection();
         var connection = _redis.GetConnectionString();
@@ -92,8 +95,11 @@ public class CrossNodeStaleFillTests
         var provider = services.BuildServiceProvider();
         _nodes.Add(provider);
 
-        return new TenantLevel2Cache(new CacheKeyPrefix("tenant"), provider.GetRequiredService<IFusionCache>(),
-            provider.GetRequiredService<IRemovalCounterFactory>());
+        var fusion = provider.GetRequiredService<IFusionCache>();
+        var removals = provider.GetRequiredService<IRemovalCounterFactory>();
+        return level1
+            ? new TenantLevel1Cache(new CacheKeyPrefix("tenant"), fusion, removals)
+            : new TenantLevel2Cache(new CacheKeyPrefix("tenant"), fusion, removals);
     }
 }
 #endif

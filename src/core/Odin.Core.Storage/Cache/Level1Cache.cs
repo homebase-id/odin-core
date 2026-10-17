@@ -18,8 +18,11 @@ public abstract class Level1Cache : FusionCacheWrapper, ILevel1Cache
 
     //
 
-    // Its entries never leave this node, so neither do its removes: the count is this node's
-    protected Level1Cache(string prefix, IFusionCache cache) : base(prefix + ":L1", cache, new InMemoryRemovalCounter())
+    // Its entries stay on this node, but its tag removes do not: FusionCache keeps tag expirations in the distributed
+    // cache, so another node's RemoveByTag reaches these entries without passing this wrapper. So the count comes
+    // from the same factory as L2's, shared by every node when they share Redis.
+    protected Level1Cache(string prefix, IFusionCache cache, IRemovalCounterFactory removals)
+        : base(prefix + ":L1", cache, removals.Create(prefix + ":L1"))
     {
         _defaultEntryOptions = cache.DefaultEntryOptions.Duplicate();
         _defaultEntryOptions.SkipDistributedCacheRead = true;
@@ -33,8 +36,8 @@ public abstract class Level1Cache : FusionCacheWrapper, ILevel1Cache
     //
 }
 
-public abstract class Level1Cache<T>(string prefix, IFusionCache cache) :
-    Level1Cache(prefix + ":" + typeof(T).FullName, cache), ILevel1Cache<T>
+public abstract class Level1Cache<T>(string prefix, IFusionCache cache, IRemovalCounterFactory removals) :
+    Level1Cache(prefix + ":" + typeof(T).FullName, cache, removals), ILevel1Cache<T>
 {
     // This space is intentionally left blank
 }
