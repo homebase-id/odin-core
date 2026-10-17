@@ -103,6 +103,25 @@ public interface IFusionCacheWrapper
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// When a read that a later <see cref="SetIfNotRemovedSinceAsync{TValue}"/> stores started
+    /// </summary>
+    CacheReadStart BeginRead();
+
+    /// <summary>
+    /// Stores a value read since <paramref name="readStarted"/>, unless this cache removed anything after that: the
+    /// removed entry may be what was read (#1909). For a caller that reads the cache, builds the value itself and
+    /// then sets it, instead of using a factory GetOrSet, which does this already.
+    /// </summary>
+    ValueTask SetIfNotRemovedSinceAsync<TValue>(
+        string key,
+        TValue value,
+        CacheReadStart readStarted,
+        TimeSpan duration,
+        long entrySize = EntrySize.Small,
+        IEnumerable<string>? tags = null,
+        CancellationToken cancellationToken = default);
+
     //
     // Removers
     //

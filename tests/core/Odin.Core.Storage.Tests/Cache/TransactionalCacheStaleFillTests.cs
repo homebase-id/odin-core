@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Factory;
@@ -62,6 +63,28 @@ public class TransactionalCacheStaleFillTests : IocTestBase
         await cache.GetOrSetAsync(Key, Load, TimeSpan.FromHours(1), tags: Tags);
 
         Assert.That(factoryCalls, Is.EqualTo(1), "a fill that read after the last remove must be kept");
+    }
+
+    [Test]
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ASetOfAValueReadBeforeARemoveIsNotKept(bool redisEnabled)
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
+        var cache = Services.Resolve<ITenantLevel2Cache>();
+
+        var raced = cache.BeginRead(); // the read, before the write below
+        await cache.RemoveByTagAsync(Tags); // the write's invalidation
+        await cache.SetIfNotRemovedSinceAsync("raced", "old", raced, TimeSpan.FromHours(1), tags: Tags);
+        Assert.That((await cache.TryGetAsync<string>("raced")).HasValue, Is.False,
+            "a value read before the remove must not be stored after it");
+
+        var fresh = cache.BeginRead();
+        await cache.SetIfNotRemovedSinceAsync("fresh", "new", fresh, TimeSpan.FromHours(1), tags: Tags);
+        Assert.That((await cache.TryGetAsync<string>("fresh")).Value, Is.EqualTo("new"),
+            "a value read after the last remove is stored");
     }
 
     //

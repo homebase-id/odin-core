@@ -364,6 +364,32 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
+    public CacheReadStart BeginRead() => new(Stopwatch.GetTimestamp());
+
+    public async ValueTask SetIfNotRemovedSinceAsync<TValue>(
+        string key,
+        TValue value,
+        CacheReadStart readStarted,
+        TimeSpan duration,
+        long entrySize = EntrySize.Small,
+        IEnumerable<string>? tags = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (RemovedSince(readStarted.Ticks))
+        {
+            return;
+        }
+
+        await SetAsync(key, value, duration, entrySize, tags, cancellationToken);
+
+        if (RemovedSince(readStarted.Ticks))
+        {
+            await RemoveStoredEntryAsync(key, cancellationToken);
+        }
+    }
+
+    //
+
     public void Remove(string key, CancellationToken cancellationToken = default)
     {
         MarkRemoval();
