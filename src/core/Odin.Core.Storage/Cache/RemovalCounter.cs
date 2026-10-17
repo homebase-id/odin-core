@@ -10,19 +10,12 @@ namespace Odin.Core.Storage.Cache;
 /// <summary>
 /// Counts a cache's removes, so a fill can tell whether one happened while it read (#1909): it reads the count
 /// before its query and again before and after storing, and keeps nothing if the count moved. Shaped like Redis
-/// INCR and GET. Get answers null when the count cannot be read; a fill then keeps nothing.
+/// INCR and GET. GetAsync answers null when the count cannot be read; a fill then keeps nothing.
 /// </summary>
 public interface IRemovalCounter
 {
-    void Increment();
     ValueTask IncrementAsync(CancellationToken cancellationToken = default);
-    long? Get();
     ValueTask<long?> GetAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// True when a count read before is known and still the same
-    /// </summary>
-    static bool Unchanged(long? before, long? now) => before != null && before == now;
 }
 
 /// <summary>
@@ -44,16 +37,14 @@ public sealed class InMemoryRemovalCounter : IRemovalCounter
 {
     private long _count;
 
-    public void Increment() => Interlocked.Increment(ref _count);
-
     public ValueTask IncrementAsync(CancellationToken cancellationToken = default)
     {
-        Increment();
+        Interlocked.Increment(ref _count);
         return ValueTask.CompletedTask;
     }
 
-    public long? Get() => Interlocked.Read(ref _count);
-    public ValueTask<long?> GetAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult(Get());
+    public ValueTask<long?> GetAsync(CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<long?>(Interlocked.Read(ref _count));
 }
 
 public sealed class InMemoryRemovalCounterFactory : IRemovalCounterFactory
@@ -72,18 +63,6 @@ public sealed class RedisRemovalCounter(IConnectionMultiplexer redis, string key
 {
     private IDatabase Db => redis.GetDatabase();
 
-    public void Increment()
-    {
-        try
-        {
-            Db.StringIncrement(key);
-        }
-        catch (Exception e) when (e is RedisException or TimeoutException)
-        {
-            // The remove goes ahead; FusionCache reaches the other nodes the same way, or not at all
-        }
-    }
-
     public async ValueTask IncrementAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -92,19 +71,7 @@ public sealed class RedisRemovalCounter(IConnectionMultiplexer redis, string key
         }
         catch (Exception e) when (e is RedisException or TimeoutException)
         {
-            // As above
-        }
-    }
-
-    public long? Get()
-    {
-        try
-        {
-            return (long?)Db.StringGet(key) ?? 0;
-        }
-        catch (Exception e) when (e is RedisException or TimeoutException)
-        {
-            return null;
+            // The remove goes ahead; FusionCache reaches the other nodes the same way, or not at all
         }
     }
 

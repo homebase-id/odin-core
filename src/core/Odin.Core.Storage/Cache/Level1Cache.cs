@@ -22,7 +22,7 @@ public abstract class Level1Cache : FusionCacheWrapper, ILevel1Cache
     // cache, so another node's RemoveByTag reaches these entries without passing this wrapper. So the count comes
     // from the same factory as L2's, shared by every node when they share Redis.
     protected Level1Cache(string prefix, IFusionCache cache, IRemovalCounterFactory removals)
-        : base(prefix + ":L1", cache, removals.Create(prefix + ":L1"))
+        : base(prefix + ":L1", cache, removals)
     {
         _defaultEntryOptions = cache.DefaultEntryOptions.Duplicate();
         _defaultEntryOptions.SkipDistributedCacheRead = true;

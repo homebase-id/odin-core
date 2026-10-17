@@ -23,7 +23,7 @@ public abstract class Level2Cache : FusionCacheWrapper, ILevel2Cache
     //
 
     protected Level2Cache(string prefix, IFusionCache cache, IRemovalCounterFactory removals)
-        : base(prefix + ":L2", cache, removals.Create(prefix + ":L2"))
+        : base(prefix + ":L2", cache, removals)
     {
         _defaultEntryOptions = cache.DefaultEntryOptions.Duplicate();
         _defaultEntryOptions.SkipDistributedCacheRead = false;

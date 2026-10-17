@@ -58,14 +58,6 @@ public interface IFusionCacheWrapper
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
-    TValue GetOrSet<TValue>(
-        string key,
-        Func<CancellationToken, TValue> factory,
-        TimeSpan duration,
-        long entrySize = EntrySize.Small,
-        IEnumerable<string>? tags = null,
-        CancellationToken cancellationToken = default);
-
     ValueTask<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
@@ -104,10 +96,10 @@ public interface IFusionCacheWrapper
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Where the cache's remove count stood when a read that a later <see cref="SetIfNotRemovedSinceAsync{TValue}"/>
-    /// stores started
+    /// The cache's remove count when a read that a later <see cref="SetIfNotRemovedSinceAsync{TValue}"/> stores
+    /// starts; null when it cannot be read
     /// </summary>
-    ValueTask<CacheReadStart> BeginReadAsync(CancellationToken cancellationToken = default);
+    ValueTask<long?> BeginReadAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stores a value read since <paramref name="readStarted"/>, unless this cache has removed anything since: the
@@ -117,7 +109,7 @@ public interface IFusionCacheWrapper
     ValueTask SetIfNotRemovedSinceAsync<TValue>(
         string key,
         TValue value,
-        CacheReadStart readStarted,
+        long? readStarted,
         TimeSpan duration,
         long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
@@ -127,24 +119,12 @@ public interface IFusionCacheWrapper
     // Removers
     //
 
-    void Remove(
-        string key,
-        CancellationToken cancellationToken = default);
-
     ValueTask RemoveAsync(
         string key,
         CancellationToken cancellationToken = default);
 
-    void RemoveByTag(
-        string tag,
-        CancellationToken cancellationToken = default);
-
     ValueTask RemoveByTagAsync(
         string tag,
-        CancellationToken cancellationToken = default);
-
-    void RemoveByTag(
-        IEnumerable<string> tags,
         CancellationToken cancellationToken = default);
 
     ValueTask RemoveByTagAsync(

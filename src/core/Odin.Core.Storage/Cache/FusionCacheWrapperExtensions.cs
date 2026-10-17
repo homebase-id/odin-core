@@ -24,17 +24,6 @@ public static class FusionCacheWrapperExtensions
     {
         services.AddSingleton(cacheConfiguration);
 
-        // One remove count per L2 cache for every node when they share Redis (#1909); this node's otherwise
-        if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)
-        {
-            services.AddSingleton<IRemovalCounterFactory>(sp =>
-                new RedisRemovalCounterFactory(sp.GetRequiredService<IConnectionMultiplexer>()));
-        }
-        else
-        {
-            services.AddSingleton<IRemovalCounterFactory, InMemoryRemovalCounterFactory>();
-        }
-
         // Tests pass in their own MemoryCache so they can hold a reference for WipeL1(). When
         // not supplied, we create one here that's only ever reachable via FusionCache — it is
         // not registered in DI, so it can't shadow any IMemoryCache another consumer registers.
@@ -80,8 +69,12 @@ public static class FusionCacheWrapperExtensions
             // SEB:TODO switch to FusionCacheNeueccMessagePackSerializer?
             .WithSerializer(new FusionCacheSystemTextJsonSerializer());
 
+        // A cache's remove count (#1909) is one for every node when they share Redis, this node's otherwise
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)
         {
+            services.AddSingleton<IRemovalCounterFactory>(sp =>
+                new RedisRemovalCounterFactory(sp.GetRequiredService<IConnectionMultiplexer>()));
+
             builder
                 .WithDistributedCache(sp =>
                 {
@@ -99,6 +92,10 @@ public static class FusionCacheWrapperExtensions
                         ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer)
                     });
                 });
+        }
+        else
+        {
+            services.AddSingleton<IRemovalCounterFactory, InMemoryRemovalCounterFactory>();
         }
 
         return services;

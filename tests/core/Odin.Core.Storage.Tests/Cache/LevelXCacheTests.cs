@@ -136,9 +136,9 @@ public class LevelXCacheTests
             TimeSpan.FromSeconds(30)
         );
 
-        var record2 = cache.GetOrSet<PocoA?>(
+        var record2 = await cache.GetOrSetAsync<PocoA?>(
             $"poco:{id}",
-            _ => GetProductFromDbAsync(id).Result,
+            _ => GetProductFromDbAsync(id),
             TimeSpan.FromSeconds(30)
         );
 
@@ -177,9 +177,9 @@ public class LevelXCacheTests
             TimeSpan.FromSeconds(30)
         );
 
-        var record2 = cache.GetOrSet<PocoA?>(
+        var record2 = await cache.GetOrSetAsync<PocoA?>(
             $"poco:{id}",
-            _ => GetProductFromDbAsync(id).Result,
+            _ => GetProductFromDbAsync(id),
             TimeSpan.FromSeconds(30)
         );
 
