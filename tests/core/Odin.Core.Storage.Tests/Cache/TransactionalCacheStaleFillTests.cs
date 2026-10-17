@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
@@ -18,36 +19,40 @@ namespace Odin.Core.Storage.Tests.Cache;
 /// </summary>
 public class TransactionalCacheStaleFillTests : IocTestBase
 {
-    private static IEnumerable<object[]> Cases()
-    {
-        yield return [DatabaseType.Sqlite, false];
+    [Test]
+    [TestCase(false)]
 #if RUN_REDIS_TESTS
-        yield return [DatabaseType.Sqlite, true];
+    [TestCase(true)]
 #endif
-    }
-
-    [Test, TestCaseSource(nameof(Cases))]
-    public async Task AFillThatLoadedBeforeARemoveByTagDoesNotOutliveIt(DatabaseType databaseType, bool redisEnabled)
+    public async Task AFillThatLoadedBeforeARemoveByTagDoesNotOutliveIt(bool redisEnabled)
     {
-        var cache = await CreateCacheAsync(databaseType, redisEnabled);
+        var cache = await CreateCacheAsync(redisEnabled);
         await AssertLateFillIsNotKept(cache, c => c.CreateRemoveByTagsAction(Tags));
     }
 
-    [Test, TestCaseSource(nameof(Cases))]
-    public async Task AFillThatLoadedBeforeARemoveByKeyDoesNotOutliveIt(DatabaseType databaseType, bool redisEnabled)
+    [Test]
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task AFillThatLoadedBeforeARemoveByKeyDoesNotOutliveIt(bool redisEnabled)
     {
-        var cache = await CreateCacheAsync(databaseType, redisEnabled);
+        var cache = await CreateCacheAsync(redisEnabled);
         await AssertLateFillIsNotKept(cache, c => c.CreateRemoveByKeyAction(Key));
     }
 
-    [Test, TestCaseSource(nameof(Cases))]
-    public async Task AFillThatStartsAfterTheRemoveIsCached(DatabaseType databaseType, bool redisEnabled)
+    [Test]
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task AFillThatStartsAfterTheRemoveIsCached(bool redisEnabled)
     {
-        var cache = await CreateCacheAsync(databaseType, redisEnabled);
+        var cache = await CreateCacheAsync(redisEnabled);
         await cache.InvalidateAsync([cache.CreateRemoveByTagsAction(Tags)]);
 
         var factoryCalls = 0;
-        Task<string> Load(System.Threading.CancellationToken _)
+        Task<string> Load(CancellationToken _)
         {
             factoryCalls++;
             return Task.FromResult("value");
@@ -64,9 +69,9 @@ public class TransactionalCacheStaleFillTests : IocTestBase
     private const string Key = "key";
     private static readonly List<string> Tags = ["row"];
 
-    private async Task<TransactionalCache> CreateCacheAsync(DatabaseType databaseType, bool redisEnabled)
+    private async Task<TransactionalCache> CreateCacheAsync(bool redisEnabled)
     {
-        await RegisterServicesAsync(databaseType, redisEnabled: redisEnabled);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         var scope = Services.BeginLifetimeScope();
         return scope.Resolve<IIdentityTransactionalCacheFactory>().Create("stale-fill", "stale-fill-root");
     }
