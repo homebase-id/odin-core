@@ -18,8 +18,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <para>
 /// Decisions:
 /// <list type="bullet">
-/// <item>No caller matrix in the original and none added; the <c>#if !DEBUG [Ignore]</c> guards and
-/// the <c>[Description]</c> are carried verbatim.</item>
+/// <item>No caller matrix in the original and none added; the <c>[Description]</c> is carried
+/// verbatim. The originals' <c>#if !DEBUG [Ignore]</c> guards were dropped by #1866.</item>
 /// <item><c>Security.WaitForShamirStatus(AwaitingOwnerFinalization)</c> was a passive poll (40 s
 /// budget, 100 ms ticks) and becomes a straight <c>GetShamirRecoverStatus()</c> read
 /// (<see cref="ShamirFixture.AssertRecoveryStateAsync"/>). Nothing here is asynchronous to wait for:
@@ -50,9 +50,6 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
     [Test]
     [Description("When I configure shards with players that require approval before releasing a shard, " +
                  "that player can see a request from the dealer in a list")]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task DelegatePlayersCanApproveShardRequests()
     {
         //
@@ -77,9 +74,6 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
     }
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task DelegatePlayersCanRejectRequestsAndRecoveryFails()
     {
         //
@@ -103,9 +97,6 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
     }
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task DelegatePlayersCanRejectRequestsAndRecoveryFailsThenResubmitRecoveryModeASecondTime()
     {
         //
