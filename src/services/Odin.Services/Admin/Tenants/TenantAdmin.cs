@@ -32,7 +32,8 @@ public class TenantAdmin(
     IdentityStorageCensus identityStorageCensus,
     PayloadMoveSource payloadMoveSource,
     PayloadMoveAdmin payloadMoveAdmin,
-    SystemDatabase systemDatabase)
+    SystemDatabase systemDatabase,
+    PlanQuotas planQuotas)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -251,6 +252,7 @@ public class TenantAdmin(
             EnablePublicWebPresence = registration.EnablePublicWebPresence,
             Email = registration.Email,
             PlanId = registration.PlanId,
+            QuotaBytes = planQuotas.QuotaFor(registration.PlanId),
             CreatedAt = registration.Created,
             MarkedForDeletionDate = registration.MarkedForDeletionDate,
             LastActivity = await lastSeenService.GetLastSeenAsync(registration.PrimaryDomainName),

@@ -1019,3 +1019,11 @@ the V1 and services log-event assertions list the events in their message, so a 
   do it again.
 - Two Windows runs stopped after about an hour with no failing test in the log (36480736192,
   36573203843): a hang, test unknown.
+- Ten Odin.Hosting.Tests.V2 tests in one local full run on macOS, 2026-10-17, branch `plan-quota`:
+  `AppDeletesItsOwnCircleAndRemovesItsMembers`, `ConnectionAlreadyFullyProvisioned_IsNoOp`,
+  `ConnectionMissingWriteOnlyKeyPair_IsBackfilled`, both `ConnectionRequiringKskUpgrade_*`,
+  `CreateNewApp_WithAuthorizedCircles_AfterSamIsConnected_Multiple_Circles`,
+  `AppExtData_CoreUpdate_PreservesBulkPayload`, `ReviewedConnection_CanSeeConnectedContent`,
+  `AdoptingWithoutBothSlugsIsRefused("   ","drive")`, `AppQueryBatchEnforcesPermissionsOnAnonymousDrive`.
+  The run took over 10 minutes against the usual 3.5, so the machine was loaded. All 15 cases passed when
+  re-run alone, and the next full run on the same tree was clean (1607 passed). Load, not the change.

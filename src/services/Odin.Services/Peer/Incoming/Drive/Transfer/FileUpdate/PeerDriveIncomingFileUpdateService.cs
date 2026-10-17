@@ -59,7 +59,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task AcceptPayload(PayloadDescriptor descriptor, bool isEncrypted, Stream data, IOdinContext odinContext)
         {
             // Refused before any bytes are read, so the sender defers the update instead of losing it
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             _uploadedKeys.TryAdd(descriptor.Key, new List<string>());
 
@@ -70,7 +70,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
             IOdinContext odinContext)
         {
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
             {

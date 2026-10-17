@@ -196,6 +196,12 @@ public class OdinConfiguration
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
         /// <summary>
+        /// Hosting plans and their disk quotas (docs/plan-quota.md). Empty: quotas are off. When set it must
+        /// include <see cref="HostingPlan.DefaultPlanId"/>, whose quota also applies to an unknown plan.
+        /// </summary>
+        public List<HostingPlan> Plans { get; init; } = [];
+
+        /// <summary>
         /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
         /// Default true; set false where the configured hostnames are not the real ones — a dev box
         /// resolves them through /etc/hosts, so every lookup fails and the retry loop just logs noise.
@@ -245,6 +251,10 @@ public class OdinConfiguration
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
+            Plans = config.GetOrDefault("Registry:Plans", Plans)
+                .Select(p => new HostingPlan { Id = p.Id.Trim(), QuotaBytes = p.QuotaBytes })
+                .ToList();
+            AssertValidPlans(Plans);
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
@@ -255,6 +265,48 @@ public class OdinConfiguration
                     "Registry:InvitationCodes and Registry:InvitationCodesWithoutPublicWebPresence must not overlap: " +
                     string.Join(", ", ambiguousCodes));
             }
+        }
+
+        private static void AssertValidPlans(List<HostingPlan> plans)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var plan in plans)
+            {
+                if (plan.Id == "")
+                {
+                    throw new OdinSystemException("Registry:Plans: every plan needs an Id");
+                }
+                if (plan.QuotaBytes < 0)
+                {
+                    throw new OdinSystemException($"Registry:Plans: QuotaBytes of '{plan.Id}' must not be negative");
+                }
+                if (!ids.Add(plan.Id))
+                {
+                    throw new OdinSystemException($"Registry:Plans has '{plan.Id}' twice");
+                }
+            }
+
+            if (plans.Count > 0 && !ids.Contains(HostingPlan.DefaultPlanId))
+            {
+                throw new OdinSystemException(
+                    $"Registry:Plans must include '{HostingPlan.DefaultPlanId}', which also applies to an unknown plan");
+            }
+        }
+
+        public class HostingPlan
+        {
+            /// <summary>
+            /// The plan every identity has unless its invitation code gave it another; the registry stores it
+            /// for a null plan
+            /// </summary>
+            public const string DefaultPlanId = "free";
+
+            public string Id { get; init; } = "";
+
+            /// <summary>
+            /// Bytes the identity may store; null for unlimited
+            /// </summary>
+            public long? QuotaBytes { get; init; }
         }
 
         public class ManagedDomainApex
