@@ -66,10 +66,11 @@ public interface IIdentityRegistrationService
     Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Create identity on own or managed domain
+    /// Create identity on own or managed domain. Its hosting plan comes only from the invitation code; without
+    /// one it gets the registry's default ("free").
     /// </summary>
     /// <returns>First-run token</returns>
-    Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string planId, string invitationCode);
+    Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string invitationCode);
     
     //
     // Managed Domain

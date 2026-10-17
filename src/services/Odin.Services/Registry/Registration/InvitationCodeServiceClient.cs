@@ -14,7 +14,9 @@ namespace Odin.Services.Registry.Registration;
 /// <summary>
 /// A code the invitation-code service let a signup use, with what it carries.
 /// </summary>
-public record InvitationCodeUse(string Code, string? Owner, string Source, bool EnablePublicWebPresence);
+/// <param name="PlanId">The hosting plan the code gives the new identity; null for none. Absent from older
+/// services, which reads as null.</param>
+public record InvitationCodeUse(string Code, string? Owner, string Source, bool EnablePublicWebPresence, string? PlanId = null);
 
 /// <summary>
 /// The invitation-code service is unreachable or answered with an error.

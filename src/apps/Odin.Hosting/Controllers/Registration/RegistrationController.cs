@@ -324,7 +324,7 @@ public class RegistrationController : ControllerBase
             );
         }
 
-        var firstRunToken = await _regService.CreateIdentityOnDomainAsync(asciiDomain, identity.Email, identity.PlanId, identity.InvitationCode);
+        var firstRunToken = await _regService.CreateIdentityOnDomainAsync(asciiDomain, identity.Email, identity.InvitationCode);
         return new JsonResult(firstRunToken);
     }
     

@@ -707,7 +707,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string planId, string invitationCode)
+    public async Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string invitationCode)
     {
         var identity = await _registry.GetAsync(domain.DomainName);
         if (identity != null)
@@ -730,7 +730,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Id = null, // Sanity
             OdinId = new OdinId(domain),
             Email = email,
-            PlanId = planId,
+            // Only a code gives a plan, never the signup request; null is stored as "free"
+            PlanId = used?.PlanId,
             IsCertificateManaged = false, //TODO
             EnablePublicWebPresence = used?.EnablePublicWebPresence ?? await CodeGrantsPublicWebPresence(code ?? ""),
             Invitation = used != null ? new RegistrationInvitation(used.Code, used.Owner, used.Source)
