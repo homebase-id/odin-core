@@ -41,7 +41,6 @@ public class PlanQuotasTests
     {
         var quotas = Quotas([]);
 
-        Assert.That(quotas.IsEnabled, Is.False);
         Assert.That(quotas.QuotaFor("free"), Is.Null);
         Assert.That(quotas.QuotaFor(null), Is.Null);
     }

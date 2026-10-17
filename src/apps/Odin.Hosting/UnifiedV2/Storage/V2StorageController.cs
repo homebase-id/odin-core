@@ -17,7 +17,6 @@ namespace Odin.Hosting.UnifiedV2.Storage;
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2StorageController(TenantQuotaGuard quotaGuard) : OdinControllerBase
 {
-    // GET /api/v2/storage/usage — quotaBytes is null for unlimited; isOverQuota is what the quota guard decides
     [SwaggerOperation(Tags = [SwaggerInfo.Storage])]
     [HttpGet("usage")]
     [ProducesResponseType(typeof(StorageUsage), 200)]

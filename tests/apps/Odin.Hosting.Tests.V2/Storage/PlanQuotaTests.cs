@@ -1,9 +1,11 @@
 #nullable enable
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -30,8 +32,6 @@ public interface IStorageUsageClient
 [TestFixture]
 public class PlanQuotaTests : V2Fixture
 {
-    private const string PayloadKey = "quotapay1";
-
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>
     {
         ["Registry:Plans:0:Id"] = "free",
@@ -43,10 +43,10 @@ public class PlanQuotaTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var drive = await CreateDriveAsync(owner);
+        await StoreSomethingAsync(owner, drive);
 
-        var response = await owner.V1.Drive.UploadNewMetadata(drive, SampleMetadataData.Create(fileType: 100));
-
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"header upload: {response.StatusCode}");
+        // Over the quota now, and a second header still goes in
+        await StoreSomethingAsync(owner, drive);
     }
 
     [Test]
@@ -56,18 +56,8 @@ public class PlanQuotaTests : V2Fixture
         var drive = await CreateDriveAsync(owner);
         await StoreSomethingAsync(owner, drive);
 
-        var manifest = new UploadManifest
-        {
-            PayloadDescriptors = [new() { Iv = null, PayloadKey = PayloadKey, Thumbnails = [] }]
-        };
-        var payloads = new List<TestPayloadDefinition>
-        {
-            new()
-            {
-                Iv = null, Key = PayloadKey, ContentType = "application/x-binary",
-                Content = "over quota".ToUtf8ByteArray(), Thumbnails = []
-            }
-        };
+        var payloads = new List<TestPayloadDefinition> { SamplePayloadDefinitions.GetPayloadDefinition1() };
+        var manifest = new UploadManifest { PayloadDescriptors = payloads.ToPayloadDescriptorList().ToList() };
 
         var response = await owner.V1.Drive.UploadNewFile(drive, SampleMetadataData.CreateWithContent(200, "x"), manifest, payloads);
 
@@ -86,8 +76,7 @@ public class PlanQuotaTests : V2Fixture
         });
 
         var ownerUsage = (await owner.RefitFor<IStorageUsageClient>().GetUsage()).Content!;
-        var client = app.Factory.CreateHttpClient(app.Identity, out var sharedSecret);
-        var appResponse = await RefitCreator.RestServiceFor<IStorageUsageClient>(client, sharedSecret).GetUsage();
+        var appResponse = await app.RefitFor<IStorageUsageClient>().GetUsage();
 
         Assert.That(appResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(ownerUsage.QuotaBytes, Is.EqualTo(1));

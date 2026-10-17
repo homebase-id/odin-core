@@ -251,7 +251,9 @@ public class OdinConfiguration
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
-            Plans = config.GetOrDefault("Registry:Plans", Plans);
+            Plans = config.GetOrDefault("Registry:Plans", Plans)
+                .Select(p => new HostingPlan { Id = p.Id.Trim(), QuotaBytes = p.QuotaBytes })
+                .ToList();
             AssertValidPlans(Plans);
 
             var ambiguousCodes = InvitationCodes
@@ -267,32 +269,24 @@ public class OdinConfiguration
 
         private static void AssertValidPlans(List<HostingPlan> plans)
         {
-            if (plans.Count == 0)
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var plan in plans)
             {
-                return;
+                if (plan.Id == "")
+                {
+                    throw new OdinSystemException("Registry:Plans: every plan needs an Id");
+                }
+                if (plan.QuotaBytes < 0)
+                {
+                    throw new OdinSystemException($"Registry:Plans: QuotaBytes of '{plan.Id}' must not be negative");
+                }
+                if (!ids.Add(plan.Id))
+                {
+                    throw new OdinSystemException($"Registry:Plans has '{plan.Id}' twice");
+                }
             }
 
-            if (plans.Any(p => string.IsNullOrWhiteSpace(p.Id)))
-            {
-                throw new OdinSystemException("Registry:Plans: every plan needs an Id");
-            }
-
-            var duplicates = plans
-                .GroupBy(p => p.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-            if (duplicates.Count > 0)
-            {
-                throw new OdinSystemException("Registry:Plans has duplicate ids: " + string.Join(", ", duplicates));
-            }
-
-            if (plans.Any(p => p.QuotaBytes < 0))
-            {
-                throw new OdinSystemException("Registry:Plans: QuotaBytes must not be negative");
-            }
-
-            if (!plans.Any(p => string.Equals(p.Id.Trim(), HostingPlan.DefaultPlanId, StringComparison.OrdinalIgnoreCase)))
+            if (plans.Count > 0 && !ids.Contains(HostingPlan.DefaultPlanId))
             {
                 throw new OdinSystemException(
                     $"Registry:Plans must include '{HostingPlan.DefaultPlanId}', which also applies to an unknown plan");

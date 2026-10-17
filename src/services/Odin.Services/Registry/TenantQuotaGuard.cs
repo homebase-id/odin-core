@@ -27,7 +27,8 @@ public record StorageUsage(string? PlanId, long UsedBytes, long? QuotaBytes, boo
 /// retry later and keep the item in their outbox; see the outbox retry-later handling.
 ///
 /// A soft limit: an upload's size is not known until it has been read, so this asks "is the identity
-/// already full", not "would this fit". One upload can go over.
+/// already full", not "would this fit", and the usage it reads may be up to a minute old. An upload or two
+/// can go over, and freeing space can take a minute to count.
 /// </remarks>
 public class TenantQuotaGuard(
     IIdentityRegistry identityRegistry,
@@ -35,44 +36,45 @@ public class TenantQuotaGuard(
     PlanQuotas planQuotas,
     TableDriveMainIndexCached driveMainIndex)
 {
+    // How stale the usage behind the quota may be; see GetTotalSizeAllDrivesForQuotaAsync
+    private static readonly TimeSpan UsageMaxAge = TimeSpan.FromMinutes(1);
+
     public async Task AssertCanAddPayloadBytesAsync()
     {
         var registration = Registration();
-        if (registration?.Status == TenantStatus.OutOfQuota)
-        {
-            throw OutOfQuota();
-        }
-
         var quota = planQuotas.QuotaFor(registration?.PlanId);
-        if (quota != null && await driveMainIndex.GetTotalSizeAllDrivesAsync() >= quota)
+
+        // Read usage only when it can matter: not with no quota, nor when the status already decides
+        var used = quota == null || registration?.Status == TenantStatus.OutOfQuota ? 0 : await UsedBytesAsync();
+        if (IsOverQuota(registration, used, quota))
         {
-            throw OutOfQuota();
+            throw new OdinRetryLaterException(
+                $"{tenantContext.HostOdinId.DomainName} is out of storage quota",
+                HttpStatusCode.InsufficientStorage,
+                TimeSpan.FromSeconds(TenantStatusRules.OutOfQuotaRetryAfterSeconds));
         }
     }
 
     public async Task<StorageUsage> GetUsageAsync()
     {
         var registration = Registration();
-        var used = await driveMainIndex.GetTotalSizeAllDrivesAsync();
         var quota = planQuotas.QuotaFor(registration?.PlanId);
-        var over = registration?.Status == TenantStatus.OutOfQuota || used >= quota;
-        return new StorageUsage(registration?.PlanId, used, quota, over);
+        var used = await UsedBytesAsync();
+        return new StorageUsage(registration?.PlanId, used, quota, IsOverQuota(registration, used, quota));
     }
 
-    //
+    // The one rule: set OutOfQuota by an admin, or storing at least what the plan allows
+    private static bool IsOverQuota(IdentityRegistration? registration, long used, long? quota)
+    {
+        return registration?.Status == TenantStatus.OutOfQuota || used >= quota;
+    }
+
+    private Task<long> UsedBytesAsync() => driveMainIndex.GetTotalSizeAllDrivesForQuotaAsync(UsageMaxAge);
 
     // The same in-memory lookup the multi-tenant middleware uses, so a status set on another node takes
     // effect here as soon as it has been announced
     private IdentityRegistration? Registration()
     {
         return identityRegistry.ResolveIdentityRegistration(tenantContext.HostOdinId.DomainName, out _);
-    }
-
-    private OdinRetryLaterException OutOfQuota()
-    {
-        return new OdinRetryLaterException(
-            $"{tenantContext.HostOdinId.DomainName} is out of storage quota",
-            HttpStatusCode.InsufficientStorage,
-            TimeSpan.FromSeconds(TenantStatusRules.OutOfQuotaRetryAfterSeconds));
     }
 }

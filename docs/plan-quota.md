@@ -62,10 +62,13 @@ endpoint and the admin metrics all call it, so they never disagree about a limit
 
 Same 507, same Retry-After, same message to peers, so nothing downstream changes. Because the guard is only
 called where payload or thumbnail bytes are added, headers, metadata, reactions, read receipts and deletes keep
-working, and deleting files brings an identity back under its quota at once.
+working, and deleting files brings an identity back under its quota within a minute.
 
 It is a soft limit: an upload's size is not known until it has been streamed, so the check is "is this identity
-already full", not "would this fit". One upload can go over. That avoids buffering or pre-declared sizes.
+already full", not "would this fit". That avoids buffering or pre-declared sizes. The usage it reads is the
+same sum, cached under its own key for up to a minute rather than dropped on every write, so a busy identity
+does not pay for a full sum on each upload: an upload or two can go over, and freed space can take a minute to
+count.
 
 The guard needs the identity database for the usage figure, so it changes from a per-tenant singleton to a
 per-lifetime-scope registration in `TenantServices`, and its seven callers await it.
