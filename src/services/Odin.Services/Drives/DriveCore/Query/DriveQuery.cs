@@ -327,10 +327,11 @@ public class DriveQuery(
         tx.Commit();
     }
 
-    public async Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
+    public async Task<UnixTimeUtc> SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
     {
         var json = summary == null ? "" : OdinSystemSerializer.Serialize(summary);
-        await tblDriveMainIndex.UpdateReactionSummaryAsync(drive.Id, fileId, json);
+        var (_, modified) = await tblDriveMainIndex.UpdateReactionSummaryAsync(drive.Id, fileId, json);
+        return new UnixTimeUtc(modified);
     }
 
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
@@ -356,11 +357,24 @@ public class DriveQuery(
         throw new NotImplementedException("No longer needed, this will be removed");
     }
 
-    public async Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file)
+    public async Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file, Guid? expectedVersionTag = null)
     {
-        int n = await metaIndex.DeleteEntryAsync(drive.Id, file.FileId);
+        int n = await metaIndex.DeleteEntryAsync(drive.Id, file.FileId, expectedVersionTag);
         if (n < 1)
+        {
+            if (expectedVersionTag.HasValue)
+            {
+                // Since the caller read it, the file was either written (still there) or deleted by someone else (gone)
+                if (await tblDriveMainIndex.GetAsync(drive.Id, file.FileId) == null)
+                {
+                    throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+                }
+
+                throw new OdinClientException($"Mismatching version tag {expectedVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+            }
+
             throw new OdinSystemException("HardDeleteFileHeaderAsync() unable to delete header");
+        }
     }
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction,

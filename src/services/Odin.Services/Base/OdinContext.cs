@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -14,6 +15,26 @@ namespace Odin.Services.Base
         OdinId Tenant { get; set; }
         CallerContext Caller { get; set; }
         PermissionContext PermissionsContext { get; }
+
+        /// <summary>
+        /// The token of the HTTP request this is the context of, while it is marked as that request's own: what a
+        /// drive write made with it is attributed to, for sockets that exclude their own writes. Null for contexts
+        /// built for jobs or system work, and for a plain copy (<see cref="IGenericCloneable{T}.Clone"/> does not
+        /// carry the mark), so work done later or on someone else's behalf is never taken for the request's own
+        /// write; a copy that is the same request with more permissions carries it (see OdinContextUpgrades).
+        /// </summary>
+        Guid? RequestTokenId { get; }
+
+        /// <summary>
+        /// The request's own writes while this is marked as that request's context; null otherwise
+        /// </summary>
+        RequestOwnWrites OwnWrites { get; }
+
+        /// <summary>
+        /// Marks this as the context of the HTTP request being handled (see <see cref="RequestTokenId"/>). A copy that
+        /// is the same request passes the original's <paramref name="ownWrites"/>, so both record into one.
+        /// </summary>
+        void MarkAsRequestContext(RequestOwnWrites ownWrites = null);
 
         /// <summary>
         /// The age of the <see cref="ClientAuthenticationToken"/>
@@ -39,6 +60,12 @@ namespace Odin.Services.Base
         public OdinId Tenant { get; set; }
         public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
+
+        public RequestOwnWrites OwnWrites { get; private set; }
+
+        public Guid? RequestTokenId => OwnWrites != null ? Caller?.OdinClientContext?.AccessRegistrationId?.Value : null;
+
+        public void MarkAsRequestContext(RequestOwnWrites ownWrites = null) => OwnWrites = ownWrites ?? new RequestOwnWrites();
 
         public IOdinContext Clone()
         {

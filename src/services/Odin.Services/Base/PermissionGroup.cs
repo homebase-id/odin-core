@@ -35,7 +35,8 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
     public PermissionGroup(PermissionGroup other)
     {
         _permissionSet = other._permissionSet?.Clone();
-        _driveGrants = other._driveGrants?.Select(dg => dg.Clone());
+        // Copied once: a lazy Select would clone every grant again on each permission check of the copy
+        _driveGrants = other._driveGrants?.Select(dg => dg.Clone()).ToList();
         _keyStoreKey = other._keyStoreKey?.Clone();
         _encryptedIcrKey = other._encryptedIcrKey?.Clone();
     }

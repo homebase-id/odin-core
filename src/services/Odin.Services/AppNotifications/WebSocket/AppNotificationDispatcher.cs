@@ -199,7 +199,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                 File = notification.File,
                 IsDeleteNotification = notification is DriveFileDeletedNotification,
                 ServerFileHeader = notification.ServerFileHeader,
-                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader
+                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader,
+                OriginTokenId = notification.OdinContext?.RequestTokenId
             };
 
             await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));
@@ -213,6 +214,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var sockets = _deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId))
+                .Where(ds => ds.ExcludedWriterTokenId == null || ds.ExcludedWriterTokenId != notification.OriginTokenId)
                 .ToList();
 
             if (sockets.Count == 0)
@@ -229,29 +231,11 @@ namespace Odin.Services.AppNotifications.WebSocket
             var driveManager =  scope.Resolve<IDriveManager>();
             var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
 
+            var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader);
             foreach (var deviceSocket in sockets)
             {
-                var deviceOdinContext = deviceSocket.DeviceOdinContext;
-                var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
-
-                var o = new ClientDriveNotification
-                {
-                    TargetDrive = drive?.TargetDriveInfo,
-                    Header = hasSharedSecret
-                        ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
-                        : null,
-                    PreviousServerFileHeader = hasSharedSecret
-                        ? notification.IsDeleteNotification
-                            ? DriveFileUtility.CreateClientFileHeader(notification.PreviousServerFileHeader, deviceOdinContext!)
-                            : null
-                        : null
-                };
-
-                var json = OdinSystemSerializer.Serialize(new
-                {
-                    notification.NotificationType,
-                    Data = OdinSystemSerializer.Serialize(o)
-                });
+                var json = driveEvent.JsonFor(deviceSocket);
 
                 await SendMessageAsync(deviceSocket, json, encrypt: true);
             }
@@ -399,7 +383,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             await SendMessageAsync(
                 deviceSocket,
                 json,
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                deviceSocket.HasSharedSecret,
                 cancellationToken);
         }
 
@@ -482,6 +466,12 @@ namespace Odin.Services.AppNotifications.WebSocket
             public required bool IsDeleteNotification { get; init; }
             public required ServerFileHeader ServerFileHeader { get; init; }
             public required ServerFileHeader? PreviousServerFileHeader { get; init; }
+
+            /// <summary>
+            /// The token of the request that made the write, for sockets that exclude their own writes; null for
+            /// a write not made by a request of its own (job, inbox, system work)
+            /// </summary>
+            public Guid? OriginTokenId { get; init; }
         }
 
         private class InboxItemReceivedNotificationMessage

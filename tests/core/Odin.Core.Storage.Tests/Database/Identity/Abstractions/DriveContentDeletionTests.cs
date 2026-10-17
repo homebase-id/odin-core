@@ -45,6 +45,29 @@ public class DriveContentDeletionTests : IocTestBase
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
 #endif
+    public async Task AVersionedDeleteRemovesNothingAtAStaleTagAndEverythingAtTheCurrentOne(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var meta = scope.Resolve<MainIndexMeta>();
+        var driveId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        await AddFileWithEverythingAsync(scope, driveId, fileId);
+        var currentTag = (await scope.Resolve<TableDriveMainIndex>().GetAsync(driveId, fileId)).hdrVersionTag;
+
+        var staleDeleted = await meta.DeleteEntryAsync(driveId, fileId, Guid.NewGuid());
+        var afterStale = await RowsForFileAsync(scope, driveId, fileId);
+        var currentDeleted = await meta.DeleteEntryAsync(driveId, fileId, currentTag);
+
+        Assert.That((staleDeleted, afterStale), Is.EqualTo((0, (true, 1, 1, 1))), "a stale tag must touch no table");
+        Assert.That((currentDeleted, await RowsForFileAsync(scope, driveId, fileId)), Is.EqualTo((1, (false, 0, 0, 0))));
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
     public async Task EmptyingADriveLeavesOtherDrivesAlone(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

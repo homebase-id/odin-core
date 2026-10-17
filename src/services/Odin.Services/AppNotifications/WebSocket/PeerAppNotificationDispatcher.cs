@@ -170,29 +170,11 @@ namespace Odin.Services.AppNotifications.WebSocket
             var driveManager =  scope.Resolve<IDriveManager>();
             var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
 
+            var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
+                notification.ServerFileHeader, notification.PreviousServerFileHeader);
             foreach (var deviceSocket in sockets)
             {
-                var deviceOdinContext = deviceSocket.DeviceOdinContext;
-                var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
-
-                var o = new ClientDriveNotification
-                {
-                    TargetDrive = drive?.TargetDriveInfo,
-                    Header = hasSharedSecret
-                        ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
-                        : null,
-                    PreviousServerFileHeader = hasSharedSecret
-                        ? notification.IsDeleteNotification
-                            ? DriveFileUtility.CreateClientFileHeader(notification.PreviousServerFileHeader, deviceOdinContext!)
-                            : null
-                        : null
-                };
-
-                var json = OdinSystemSerializer.Serialize(new
-                {
-                    notification.NotificationType,
-                    Data = OdinSystemSerializer.Serialize(o)
-                });
+                var json = driveEvent.JsonFor(deviceSocket);
 
                 await SendMessageAsync(
                     deviceSocket,
@@ -210,7 +192,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     NotificationType = ClientNotificationType.Error,
                     Data = errorText,
                 }),
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                deviceSocket.HasSharedSecret,
                 sendEvenIfNoDeviceOdinContext: false,
                 cancellationToken);
         }
