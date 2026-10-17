@@ -9,7 +9,7 @@ namespace Odin.Core.Storage.Cache;
 
 #nullable enable
 
-public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cache) : IFusionCacheWrapper
+public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cache, IRemovalCounter removals) : IFusionCacheWrapper
 {
     protected abstract FusionCacheEntryOptions DefaultEntryOptions { get; }
 
@@ -20,8 +20,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     // when it was read. So a fill reads the count before its query and keeps nothing if it moved. Every entry and tag
     // carries this wrapper's prefix, so only this wrapper can remove what it stored, and one count per wrapper is
     // enough. It is coarse: the tenant's wrapper serves every cached table, so a remove in any of them keeps every
-    // overlapping fill from being stored (each is still returned). Removes made on another node do not move it.
-    private readonly IRemovalCounter _removals = new InMemoryRemovalCounter();
+    // overlapping fill from being stored (each is still returned). For an L2 cache on Redis the count is one for all
+    // nodes, so another node's remove stops this node's fill too (IRemovalCounterFactory).
+    private readonly IRemovalCounter _removals = removals;
 
     // Inside a factory: return the value without storing it, and without telling other nodes of a write that did not happen
     private static void SkipWrites<TValue>(FusionCacheFactoryExecutionContext<TValue> ctx)
@@ -199,7 +200,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
             {
                 var removesBefore = _removals.Get();
                 var value = factory(ct);
-                if (_removals.Get() != removesBefore)
+                if (!IRemovalCounter.Unchanged(removesBefore, _removals.Get()))
                 {
                     SkipWrites(ctx);
                 }
@@ -213,7 +214,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
             tags: AddPrefix(tags),
             cancellationToken);
 
-        if (storedAt != null && _removals.Get() != storedAt)
+        if (storedAt != null && !IRemovalCounter.Unchanged(storedAt, _removals.Get()))
         {
             RemoveStoredEntry(key, cancellationToken);
         }
@@ -281,7 +282,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
                 {
                     ctx.Options.Size = entrySizeFactory(value);
                 }
-                if ((storeIf != null && !storeIf(value)) || await _removals.GetAsync(ct) != removesBefore)
+                if ((storeIf != null && !storeIf(value)) || !IRemovalCounter.Unchanged(removesBefore, await _removals.GetAsync(ct)))
                 {
                     SkipWrites(ctx);
                 }
@@ -295,7 +296,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
             tags: AddPrefix(tags),
             cancellationToken);
 
-        if (storedAt != null && await _removals.GetAsync(cancellationToken) != storedAt)
+        if (storedAt != null && !IRemovalCounter.Unchanged(storedAt, await _removals.GetAsync(cancellationToken)))
         {
             await RemoveStoredEntryAsync(key, cancellationToken);
         }
@@ -367,14 +368,14 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        if (await _removals.GetAsync(cancellationToken) != readStarted.RemoveCount)
+        if (!IRemovalCounter.Unchanged(readStarted.RemoveCount, await _removals.GetAsync(cancellationToken)))
         {
             return;
         }
 
         await SetAsync(key, value, duration, entrySize, tags, cancellationToken);
 
-        if (await _removals.GetAsync(cancellationToken) != readStarted.RemoveCount)
+        if (!IRemovalCounter.Unchanged(readStarted.RemoveCount, await _removals.GetAsync(cancellationToken)))
         {
             await RemoveStoredEntryAsync(key, cancellationToken);
         }

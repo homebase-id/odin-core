@@ -18,7 +18,8 @@ public abstract class Level1Cache : FusionCacheWrapper, ILevel1Cache
 
     //
 
-    protected Level1Cache(string prefix, IFusionCache cache) : base(prefix + ":L1", cache)
+    // Its entries never leave this node, so neither do its removes: the count is this node's
+    protected Level1Cache(string prefix, IFusionCache cache) : base(prefix + ":L1", cache, new InMemoryRemovalCounter())
     {
         _defaultEntryOptions = cache.DefaultEntryOptions.Duplicate();
         _defaultEntryOptions.SkipDistributedCacheRead = true;

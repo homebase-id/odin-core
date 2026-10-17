@@ -123,7 +123,7 @@ public class PeerCapiSessionDomainBindingTests
     private static ITenantLevel2Cache<PeerCapiAuthenticationHandler> NewSessionCache()
     {
         var fusion = new FusionCache(new FusionCacheOptions());
-        return new TenantLevel2Cache<PeerCapiAuthenticationHandler>(new CacheKeyPrefix("test"), fusion);
+        return new TenantLevel2Cache<PeerCapiAuthenticationHandler>(new CacheKeyPrefix("test"), fusion, new InMemoryRemovalCounterFactory());
     }
 
     private static OdinConfiguration NewConfiguration() => new()
