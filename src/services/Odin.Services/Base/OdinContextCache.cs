@@ -76,7 +76,7 @@ public class OdinContextCache(
         var result = await level1Cache.GetOrDefaultAsync<IOdinContext?>(key);
         if (result == null)
         {
-            var buildStarted = level1Cache.BeginRead();
+            var buildStarted = await level1Cache.BeginReadAsync();
             (result, var cacheFor) = await dotYouContextFactory();
             var duration = cacheFor < DefaultDuration ? cacheFor.Value : DefaultDuration;
 

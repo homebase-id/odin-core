@@ -104,12 +104,13 @@ public interface IFusionCacheWrapper
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// When a read that a later <see cref="SetIfNotRemovedSinceAsync{TValue}"/> stores started
+    /// Where the cache's remove count stood when a read that a later <see cref="SetIfNotRemovedSinceAsync{TValue}"/>
+    /// stores started
     /// </summary>
-    CacheReadStart BeginRead();
+    ValueTask<CacheReadStart> BeginReadAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stores a value read since <paramref name="readStarted"/>, unless this cache removed anything after that: the
+    /// Stores a value read since <paramref name="readStarted"/>, unless this cache has removed anything since: the
     /// removed entry may be what was read (#1909). For a caller that reads the cache, builds the value itself and
     /// then sets it, instead of using a factory GetOrSet, which does this already.
     /// </summary>

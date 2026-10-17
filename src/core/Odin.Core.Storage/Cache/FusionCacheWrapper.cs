@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -16,21 +15,13 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
-    // When this cache last removed anything, in Stopwatch ticks (monotonic, unaffected by clock changes). FusionCache
-    // keeps an entry stored after a remove, even when its factory read the database before the write that removed it
-    // (#1909): the entry's timestamp is when it was stored, not when it was read. So a factory notes when it started,
-    // and an answer that started before the last remove is not kept. Every entry and tag carries this wrapper's
-    // prefix, so only this wrapper can remove what it stored, and one value per wrapper is enough. It is coarse: the
-    // tenant's wrapper serves every cached table, so a remove in any of them keeps every overlapping fill from being
-    // stored (each is still returned). Removes made on another node do not move it.
-    private long _lastRemoval;
-
-    // A fill that stored nothing; RemovedSince never holds for it
-    private const long NothingStored = long.MaxValue;
-
-    private void MarkRemoval() => Interlocked.Exchange(ref _lastRemoval, Stopwatch.GetTimestamp());
-
-    private bool RemovedSince(long fillStarted) => Interlocked.Read(ref _lastRemoval) >= fillStarted;
+    // How many removes this cache has made. FusionCache keeps an entry stored after a remove, even when its factory
+    // read the database before the write that removed it (#1909): the entry's timestamp is when it was stored, not
+    // when it was read. So a fill reads the count before its query and keeps nothing if it moved. Every entry and tag
+    // carries this wrapper's prefix, so only this wrapper can remove what it stored, and one count per wrapper is
+    // enough. It is coarse: the tenant's wrapper serves every cached table, so a remove in any of them keeps every
+    // overlapping fill from being stored (each is still returned). Removes made on another node do not move it.
+    private readonly IRemovalCounter _removals = new InMemoryRemovalCounter();
 
     // Inside a factory: return the value without storing it, and without telling other nodes of a write that did not happen
     private static void SkipWrites<TValue>(FusionCacheFactoryExecutionContext<TValue> ctx)
@@ -41,7 +32,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     }
 
     // After a fill that stored: a remove may have landed between the factory's check and FusionCache's store, so the
-    // entry is removed again. Not through Remove(): that would mark a removal, and keep other fills in flight from
+    // entry is removed again. Not through Remove(): that would count a remove, and keep other fills in flight from
     // storing, though no data changed. It runs after GetOrSet returned, outside FusionCache's per-key factory lock.
     private void RemoveStoredEntry(string key, CancellationToken cancellationToken) =>
         cache.Remove(AddPrefix(key), DefaultEntryOptions.Duplicate(), cancellationToken);
@@ -201,20 +192,20 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
         GuardDurationForL2(duration, options);
 
-        var fillStarted = NothingStored;
+        long? storedAt = null; // the remove count a stored fill read at; null when nothing was stored
         var result = cache.GetOrSet<TValue>(
             AddPrefix(key),
             (ctx, ct) =>
             {
-                var started = Stopwatch.GetTimestamp();
+                var removesBefore = _removals.Get();
                 var value = factory(ct);
-                if (RemovedSince(started))
+                if (_removals.Get() != removesBefore)
                 {
                     SkipWrites(ctx);
                 }
                 else
                 {
-                    fillStarted = started;
+                    storedAt = removesBefore;
                 }
                 return value;
             },
@@ -222,7 +213,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
             tags: AddPrefix(tags),
             cancellationToken);
 
-        if (RemovedSince(fillStarted))
+        if (storedAt != null && _removals.Get() != storedAt)
         {
             RemoveStoredEntry(key, cancellationToken);
         }
@@ -279,24 +270,24 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         Func<TValue, bool>? storeIf,
         CancellationToken cancellationToken)
     {
-        var fillStarted = NothingStored;
+        long? storedAt = null; // the remove count a stored fill read at; null when nothing was stored
         var result = await cache.GetOrSetAsync<TValue>(
             AddPrefix(key),
             async (ctx, ct) =>
             {
-                var started = Stopwatch.GetTimestamp();
+                var removesBefore = await _removals.GetAsync(ct);
                 var value = await factory(ct);
                 if (entrySizeFactory != null)
                 {
                     ctx.Options.Size = entrySizeFactory(value);
                 }
-                if ((storeIf != null && !storeIf(value)) || RemovedSince(started))
+                if ((storeIf != null && !storeIf(value)) || await _removals.GetAsync(ct) != removesBefore)
                 {
                     SkipWrites(ctx);
                 }
                 else
                 {
-                    fillStarted = started;
+                    storedAt = removesBefore;
                 }
                 return value;
             },
@@ -304,7 +295,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
             tags: AddPrefix(tags),
             cancellationToken);
 
-        if (RemovedSince(fillStarted))
+        if (storedAt != null && await _removals.GetAsync(cancellationToken) != storedAt)
         {
             await RemoveStoredEntryAsync(key, cancellationToken);
         }
@@ -364,7 +355,8 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
-    public CacheReadStart BeginRead() => new(Stopwatch.GetTimestamp());
+    public async ValueTask<CacheReadStart> BeginReadAsync(CancellationToken cancellationToken = default) =>
+        new(await _removals.GetAsync(cancellationToken));
 
     public async ValueTask SetIfNotRemovedSinceAsync<TValue>(
         string key,
@@ -375,14 +367,14 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        if (RemovedSince(readStarted.Ticks))
+        if (await _removals.GetAsync(cancellationToken) != readStarted.RemoveCount)
         {
             return;
         }
 
         await SetAsync(key, value, duration, entrySize, tags, cancellationToken);
 
-        if (RemovedSince(readStarted.Ticks))
+        if (await _removals.GetAsync(cancellationToken) != readStarted.RemoveCount)
         {
             await RemoveStoredEntryAsync(key, cancellationToken);
         }
@@ -392,7 +384,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public void Remove(string key, CancellationToken cancellationToken = default)
     {
-        MarkRemoval();
+        _removals.Increment();
         var options = DefaultEntryOptions.Duplicate();
 
         cache.Remove(
@@ -403,12 +395,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
-    public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
+    public async ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
-        MarkRemoval();
+        await _removals.IncrementAsync(cancellationToken);
         var options = DefaultEntryOptions.Duplicate();
 
-        return cache.RemoveAsync(
+        await cache.RemoveAsync(
             AddPrefix(key),
             options,
             cancellationToken);
@@ -418,7 +410,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public void RemoveByTag(string tag, CancellationToken cancellationToken = default)
     {
-        MarkRemoval();
+        _removals.Increment();
         cache.RemoveByTag(
             AddPrefix(tag),
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
@@ -427,10 +419,10 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     
     //
 
-    public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
+    public async ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
-        MarkRemoval();
-        return cache.RemoveByTagAsync(
+        await _removals.IncrementAsync(cancellationToken);
+        await cache.RemoveByTagAsync(
             AddPrefix(tag),
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
             cancellationToken);
@@ -442,7 +434,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     {
         ArgumentNullException.ThrowIfNull(tags, nameof(tags));
 
-        MarkRemoval();
+        _removals.Increment();
         cache.RemoveByTag(
             AddPrefix(tags)!,
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
@@ -451,12 +443,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
-    public ValueTask RemoveByTagAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
+    public async ValueTask RemoveByTagAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tags, nameof(tags));
 
-        MarkRemoval();
-        return cache.RemoveByTagAsync(
+        await _removals.IncrementAsync(cancellationToken);
+        await cache.RemoveByTagAsync(
             AddPrefix(tags)!,
             null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
             cancellationToken);

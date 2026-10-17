@@ -75,13 +75,13 @@ public class TransactionalCacheStaleFillTests : IocTestBase
         await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         var cache = Services.Resolve<ITenantLevel2Cache>();
 
-        var raced = cache.BeginRead(); // the read, before the write below
+        var raced = await cache.BeginReadAsync(); // the read, before the write below
         await cache.RemoveByTagAsync(Tags); // the write's invalidation
         await cache.SetIfNotRemovedSinceAsync("raced", "old", raced, TimeSpan.FromHours(1), tags: Tags);
         Assert.That((await cache.TryGetAsync<string>("raced")).HasValue, Is.False,
             "a value read before the remove must not be stored after it");
 
-        var fresh = cache.BeginRead();
+        var fresh = await cache.BeginReadAsync();
         await cache.SetIfNotRemovedSinceAsync("fresh", "new", fresh, TimeSpan.FromHours(1), tags: Tags);
         Assert.That((await cache.TryGetAsync<string>("fresh")).Value, Is.EqualTo("new"),
             "a value read after the last remove is stored");
