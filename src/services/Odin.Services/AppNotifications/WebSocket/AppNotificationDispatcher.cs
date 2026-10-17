@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.PubSub;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -233,8 +234,14 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
                 notification.ServerFileHeader, notification.PreviousServerFileHeader);
+            var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {
+                if (!await driveEvent.VisibleToAsync(deviceSocket, aclService))
+                {
+                    continue;
+                }
+
                 var json = driveEvent.JsonFor(deviceSocket);
 
                 await SendMessageAsync(deviceSocket, json, encrypt: true);
