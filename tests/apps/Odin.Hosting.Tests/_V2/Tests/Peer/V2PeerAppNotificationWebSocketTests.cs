@@ -140,6 +140,86 @@ public class V2PeerAppNotificationWebSocketTests
         }
     }
 
+    [Test]
+    public async Task APeerSocketGetsNoEventForAFileItsAclExcludes()
+    {
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var host = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var memberAppApi = await PrepareScenario(host, member, targetDrive);
+        var listener = new PeerTestAppWebSocketListener();
+        try
+        {
+            var tokenResponse = await memberAppApi.PeerAppNotification.GetRemoteNotificationToken(
+                new GetRemoteTokenRequest { Identity = host.Identity.OdinId });
+            ClassicAssert.IsTrue(tokenResponse.IsSuccessStatusCode, "failed to get remote notification token");
+
+            var addedFileIds = new List<Guid>();
+            var visibleReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Guid? visibleFileId = null;
+            listener.NotificationReceived += n =>
+            {
+                if (n.NotificationType == ClientNotificationType.FileAdded)
+                {
+                    var fileId = OdinSystemSerializer.Deserialize<ClientDriveNotification>(n.Data).Header.FileId;
+                    lock (addedFileIds)
+                    {
+                        addedFileIds.Add(fileId);
+                    }
+
+                    if (fileId == visibleFileId)
+                    {
+                        visibleReceived.TrySetResult();
+                    }
+                }
+
+                return Task.CompletedTask;
+            };
+
+            await listener.ConnectAsync(host.Identity.OdinId, tokenResponse.Content!.ToCat(),
+                new EstablishConnectionOptions { Drives = [targetDrive] },
+                UnifiedApiRouteConstants.PeerNotifySocket);
+
+            // The member reads the drive, but the owner-only file's ACL excludes them; the second file's does not.
+            // Events go out in order, so once the second arrives the first would have too.
+            var hidden = await host.DriveRedux.UploadNewMetadata(targetDrive, new UploadFileMetadata
+            {
+                AppData = new() { Content = "owner only" },
+                AccessControlList = AccessControlList.OwnerOnly
+            });
+            ClassicAssert.IsTrue(hidden.IsSuccessStatusCode);
+
+            var visible = await host.DriveRedux.UploadNewMetadata(targetDrive, new UploadFileMetadata
+            {
+                AppData = new() { Content = "for members" },
+                AccessControlList = AccessControlList.Authenticated
+            });
+            ClassicAssert.IsTrue(visible.IsSuccessStatusCode);
+            visibleFileId = visible.Content!.File.FileId;
+            lock (addedFileIds)
+            {
+                if (addedFileIds.Contains(visibleFileId.Value))
+                {
+                    visibleReceived.TrySetResult();
+                }
+            }
+
+            var winner = await Task.WhenAny(visibleReceived.Task, Task.Delay(TimeSpan.FromSeconds(30)));
+            ClassicAssert.IsTrue(winner == visibleReceived.Task, "did not receive fileAdded for the file the member may read");
+            lock (addedFileIds)
+            {
+                CollectionAssert.DoesNotContain(addedFileIds, hidden.Content!.File.FileId,
+                    "received fileAdded for a file whose ACL excludes the member");
+            }
+        }
+        finally
+        {
+            await listener.DisconnectAsync();
+            await Shutdown(host, member);
+        }
+    }
+
     private async Task<AppApiClientRedux> PrepareScenario(OwnerApiClientRedux host, OwnerApiClientRedux member,
         TargetDrive groupChannelDrive)
     {

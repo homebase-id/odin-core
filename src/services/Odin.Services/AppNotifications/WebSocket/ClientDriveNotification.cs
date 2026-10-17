@@ -1,9 +1,11 @@
 #nullable enable
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -77,6 +79,7 @@ public class ClientDriveNotification
 /// One drive event, as the message each socket gets in the shape it asked for. A minimal socket's message does not
 /// depend on the socket (no key header in it), so it is built once per event; full and noContent carry a key header
 /// encrypted for each socket. <paramref name="previousHeader"/> is set only for a delete (the publisher sees to that).
+/// A socket gets the event only if the file's ACL lets it read the file (<see cref="VisibleToAsync"/>).
 /// </summary>
 public sealed class DriveEventMessage(
     ClientNotificationType notificationType,
@@ -92,6 +95,24 @@ public sealed class DriveEventMessage(
     };
 
     private string? _minimalJson;
+
+    /// <summary>
+    /// Whether <paramref name="socket"/> may read the file, by the same ACL check a query applies
+    /// (<see cref="IDriveAclAuthorizationService.CallerHasPermission"/>). Drive read, checked at the handshake, is
+    /// not enough: a file's ACL can exclude a reader of its drive. A delete is checked against the file as it was,
+    /// since the deleted header no longer says who could read it.
+    /// </summary>
+    public Task<bool> VisibleToAsync(DeviceSocket socket, IDriveAclAuthorizationService aclService)
+    {
+        var deviceOdinContext = socket.DeviceOdinContext;
+        if (deviceOdinContext == null)
+        {
+            return Task.FromResult(false);
+        }
+
+        var acl = (previousHeader ?? header)?.ServerMetadata?.AccessControlList;
+        return aclService.CallerHasPermission(acl!, deviceOdinContext);
+    }
 
     public string JsonFor(DeviceSocket socket)
     {

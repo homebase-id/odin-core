@@ -74,7 +74,7 @@ public sealed partial class OdinHost : IAsyncDisposable
 
     /// <summary>
     /// This host's in-memory Serilog sink — the store behind <c>V2Fixture</c>'s no-error-log
-    /// invariant, and the only place the <c>#if DEBUG</c> recovery nonces surface. Saves every
+    /// invariant. Saves every
     /// consumer digging it out of <see cref="Server"/>'s service provider by hand.
     /// </summary>
     public ILogEventMemoryStore LogStore => Server.Services.GetRequiredService<ILogEventMemoryStore>();

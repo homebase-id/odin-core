@@ -20,9 +20,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <list type="bullet">
 /// <item>No caller matrix in the original and none added — an <c>OwnerApi/</c> fixture, plain
 /// <c>[Test]</c>.</item>
-/// <item>The <c>#if !DEBUG [Ignore]</c> guard is carried verbatim. It is load-bearing twice over:
-/// the whole flow depends on <c>RecoveryNotifier</c>'s <c>#if DEBUG</c> nonce logging, and on
-/// <c>AssertEmailEnabled</c> not throwing while <c>Mailgun:Enabled</c> is false.</item>
+/// <item>The original's <c>#if !DEBUG [Ignore]</c> guard is gone (#1866). The flow reads its nonces
+/// from <see cref="ShamirFixture"/>'s recovery sink, and <c>AssertEmailEnabled</c> lets a
+/// development host (a <c>Development</c> config section) recover with <c>Mailgun:Enabled</c>
+/// false.</item>
 /// <item><c>DriveRedux.WaitForEmptyOutbox(TransientTempDrive)</c> becomes
 /// <c>dealer.Sync.DrainOutboxAsync()</c>, inside
 /// <see cref="ShamirFixture.DistributeAndVerifyShardsAsync"/>.</item>
@@ -56,9 +57,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 public class ShamirPasswordRecoveryTests : ShamirFixture
 {
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task CanEnterAndExitRecoveryMode()
     {
         var (frodo, players) = Cast();

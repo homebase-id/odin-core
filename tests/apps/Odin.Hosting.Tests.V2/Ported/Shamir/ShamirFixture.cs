@@ -1,15 +1,18 @@
 #nullable enable
 using System;
+using Autofac;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
+using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -50,16 +53,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// where a failure is a failed test rather than a broken fixture.
 /// </para>
 /// <para>
-/// <b>Recovery nonces come out of the log, as they did in V1.</b> <c>RecoveryNotifier</c> writes the
-/// enter / exit / finalize nonce at <c>Information</c> under a named property — explicitly "for
-/// integration testing", and only under <c>#if DEBUG</c> — because with <c>Mailgun:Enabled</c> false
-/// no mail is ever sent. V1 polled for that property with
-/// <c>WebScaffold.WaitForLogPropertyValue</c> (180 s budget, 100 ms ticks). Here
-/// <see cref="ReadLogPropertyValue"/> reads once and throws if absent: the notifier logs
-/// synchronously inside the request that the test just awaited, so there is nothing to wait for, and
-/// a poll against a store that will never fill is exactly the shape that costs a full timeout. Both
-/// scan newest-first — the resubmit test enters recovery mode twice and must pick up the second
-/// nonce, since <c>GetNonceDataOrFail</c> pops the first.
+/// <b>Recovery links come from a <see cref="CapturingRecoveryNotificationSink"/>.</b> With
+/// <c>Mailgun:Enabled</c> false no mail is ever sent, so the fixture swaps in a sink that records the
+/// enter / exit / finalize links <c>RecoveryNotifier</c> generates. V1 (and this port, until #1866)
+/// scraped the nonces out of a <c>#if DEBUG</c>-only log line instead, which is why none of these
+/// tests could run in a Release build. The notifier calls the sink synchronously inside the request
+/// the test just awaited, so <see cref="CapturingRecoveryNotificationSink.Latest"/> reads once and
+/// throws if absent; it takes the newest link because the resubmit test enters recovery mode twice
+/// and must follow the second, <c>GetNonceDataOrFail</c> having popped the first. The sink is
+/// per host, so unlike the log it cannot pick up a neighbouring fixture's links.
 /// </para>
 /// <para>
 /// <b>Outbox verdict.</b> <c>ConfigureShards</c> writes each player's encrypted shard to the
@@ -77,15 +79,16 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// transient file addressed at the players' <c>ShardRecoveryDrive</c>; the assertion that it landed
 /// is <c>VerifyShards</c>, a live peer round-trip, and it passes off the drain alone.
 /// </para>
-/// <para>
-/// <b>Carried latent defect:</b> the originals assert the recovery nonce with
-/// <c>Is.Not.Null.Or.Empty</c>, which reads as "not null, or empty" and so accepts the empty string.
-/// Carried verbatim — it is decorative either way, because the lookup throws when the property is
-/// missing (V1 threw <c>TimeoutException</c>; here <see cref="ReadLogPropertyValue"/> throws).
-/// </para>
 /// </remarks>
 public abstract class ShamirFixture : V2Fixture
 {
+    private readonly CapturingRecoveryNotificationSink _recoveryLinks = new();
+
+    protected override void ConfigureRootContainer(ContainerBuilder cb)
+    {
+        cb.RegisterInstance(_recoveryLinks).As<IRecoveryNotificationSink>().SingleInstance();
+    }
+
     /// <summary>
     /// The four players, in the order every original listed them. All four are real tenants on the
     /// host: the shards are delivered to them and then verified over a peer call, so a merely-named
@@ -244,9 +247,7 @@ public abstract class ShamirFixture : V2Fixture
         var enterResponse = await security.InitiateRecoveryMode();
         Assert.That(enterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        // watch for the recovery links
-        var nonceId = ReadLogPropertyValue(RecoveryNotifier.EnterNoncePropertyName);
-        Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
+        var nonceId = RecoveryLink(dealer, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString();
 
         var verifyEnterResponse = await security.VerifyEnterRecoveryMode(nonceId);
         // Windows CI has answered 403 here (docs/flakytests.md); the body names the exception behind it
@@ -264,7 +265,7 @@ public abstract class ShamirFixture : V2Fixture
         var exitResponse = await security.ExitRecoveryMode();
         Assert.That(exitResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var exitRecoveryNonceId = ReadLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName);
+        var exitRecoveryNonceId = RecoveryLink(dealer, RecoveryNotificationKind.ExitRecoveryMode).NonceId.ToString();
 
         var verifyExitResponse = await security.VerifyExitRecoveryMode(exitRecoveryNonceId);
         // Windows CI has answered 403 here (docs/flakytests.md); the body names the exception behind it
@@ -381,34 +382,10 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// Newest-first lookup of a named log property — the V2 stand-in for
-    /// <c>WebScaffold.WaitForLogPropertyValue</c>. Throws rather than returning null so a missing
-    /// nonce reads as a broken arrange, exactly as V1's <c>TimeoutException</c> did.
+    /// The newest recovery link of <paramref name="kind"/> generated for <paramref name="dealer"/>.
     /// </summary>
-    /// <remarks>
-    /// Every level is scanned, not just <c>Information</c>. These property names are unique to a
-    /// single <c>RecoveryNotifier</c> call site, so there is nothing to disambiguate by level — while
-    /// pinning the level means a product change from <c>LogInformation</c> to <c>LogDebug</c> would
-    /// turn five tests into a confusing "broken arrange" throw instead of a clean pass.
-    /// </remarks>
-    protected string ReadLogPropertyValue(string propertyName)
-    {
-        // Newest-first: the resubmit test enters recovery mode twice and needs the second nonce.
-        // Each level's list is chronological and GetLogEvents() hands back a copy, so unlike V1's
-        // in-place Reverse() this does not mutate the store's own list.
-        var match = Host.LogStore.GetLogEvents().Values
-            .SelectMany(events => events)
-            .LastOrDefault(e => e.Properties.ContainsKey(propertyName));
-
-        if (match == null)
-        {
-            throw new InvalidOperationException(
-                $"No log event carried the property '{propertyName}'. " +
-                "These nonces are only logged under #if DEBUG — see RecoveryNotifier.");
-        }
-
-        return match.Properties[propertyName]?.ToString() ?? string.Empty;
-    }
+    protected RecoveryNotification RecoveryLink(OwnerSession dealer, RecoveryNotificationKind kind) =>
+        _recoveryLinks.Latest(new OdinId(dealer.Identity.DomainName), kind);
 
     /// <summary>
     /// Enters recovery mode, has the delegates approve (automated players release unasked), and
@@ -428,7 +405,7 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// Reads the finalize nonce + final recovery key out of the log, posts
+    /// Reads the finalize nonce + final recovery key from the captured link, posts
     /// <paramref name="newPassword"/> against them, and logs in with it.
     /// </summary>
     protected async Task<OwnerSession> FinalizeRecoveryAndLoginAsync(OwnerSession dealer, string newPassword)
@@ -436,12 +413,10 @@ public abstract class ShamirFixture : V2Fixture
         // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
         await AssertRecoveryStateAsync(dealer, ShamirRecoveryState.AwaitingOwnerFinalization);
 
-        // scan for the nonceId
-        var finalizeNonceId = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryNonceIdPropertyName);
-        var finalRecoveryKey = ReadLogPropertyValue(RecoveryNotifier.FinalRecoveryKeyPropertyName);
-
-        Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
-        Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
+        var finalizeLink = RecoveryLink(dealer, RecoveryNotificationKind.FinalizeRecovery);
+        var finalizeNonceId = finalizeLink.NonceId.ToString();
+        var finalRecoveryKey = finalizeLink.FinalRecoveryKey.ToString();
+        Assert.That(finalRecoveryKey, Is.Not.Empty, "the finalize link carried no recovery key");
 
         var saltyReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(
             Host, dealer.Identity.DomainName, newPassword);

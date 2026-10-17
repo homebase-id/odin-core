@@ -52,6 +52,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Email.Dkim.DkimStorageKey), "4bbcfd3f"},
         // Same pattern as DkimStore: a scope per call for the scoped system table
         {typeof(Odin.Services.Email.Relay.MailRelayFailureStore), "931df0d6"},
+        {typeof(Odin.Services.Security.Email.NullRecoveryNotificationSink), "e6f1c919"},
         {typeof(Odin.Core.Http.DynamicHttpClientFactory), "2558a116"},
         {typeof(Odin.Core.Storage.Concurrency.RedisLock), "9fdeb43b"},
         {typeof(Odin.Core.Storage.Concurrency.NodeLock), "e6f1c919"},
