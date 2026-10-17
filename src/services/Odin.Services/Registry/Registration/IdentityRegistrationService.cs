@@ -715,6 +715,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             throw new OdinSystemException($"Identity {domain} already exists");
         }
 
+        // A code from the invitation-code service is used up here, not when it was checked: two signups
+        // racing for its last use must not both get it. Codes from config are not counted.
+        var code = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim();
+        InvitationCodeUse? used = null;
+        if (code != null && IsServiceCode(code))
+        {
+            used = await _invitationCodes.TryUseAsync(code)
+                   ?? throw new OdinClientException("Invalid or expired Invitation Code");
+        }
+
         var request = new IdentityRegistrationRequest()
         {
             Id = null, // Sanity
@@ -722,25 +732,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Email = email,
             PlanId = planId,
             IsCertificateManaged = false, //TODO
-            EnablePublicWebPresence = await CodeGrantsPublicWebPresence(invitationCode),
+            EnablePublicWebPresence = used?.EnablePublicWebPresence ?? await CodeGrantsPublicWebPresence(code ?? ""),
+            Invitation = used != null ? new RegistrationInvitation(used.Code, used.Owner, used.Source)
+                : code != null ? new RegistrationInvitation(code, null, null)
+                : null,
         };
-
-        var code = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim();
-        if (code != null)
-        {
-            request.Invitation = new RegistrationInvitation(code, null, null);
-        }
-
-        // A code from the invitation-code service is used up here, not when it was checked: two signups
-        // racing for its last use must not both get it. Codes from config are not counted.
-        InvitationCodeUse? used = null;
-        if (_invitationCodes.IsEnabled && code != null && !IsConfiguredInvitationCode(code))
-        {
-            used = await _invitationCodes.TryUseAsync(code)
-                   ?? throw new OdinClientException("Invalid or expired Invitation Code");
-            request.Invitation = new RegistrationInvitation(used.Code, used.Owner, used.Source);
-            request.EnablePublicWebPresence = used.EnablePublicWebPresence;
-        }
 
         try
         {
@@ -789,7 +785,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             if (used != null)
             {
-                await UndoInvitationCodeUseAsync(code!);
+                await _invitationCodes.TryUndoUseAsync(used.Code);
             }
             await _registry.DeleteRegistration(domain.DomainName);
             // The zone may have been created above (or earlier during DNS validation);
@@ -803,41 +799,21 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsInvitationCodeNeeded()
     {
-        return Task.FromResult(ConfiguredInvitationCodeCount > 0 || _invitationCodes.IsEnabled);
+        return Task.FromResult(InvitationCodeRequired);
     }
 
     //
 
-    public async Task<bool> IsValidInvitationCode(string code)
+    public Task<bool> IsValidInvitationCode(string code)
     {
-        if (ConfiguredInvitationCodeCount == 0 && !_invitationCodes.IsEnabled)
-        {
-            return true;
-        }
-
-        if (string.IsNullOrEmpty(code))
-        {
-            return false;
-        }
-
-        if (IsConfiguredInvitationCode(code))
-        {
-            return true;
-        }
-
-        return _invitationCodes.IsEnabled && await _invitationCodes.IsValidAsync(code);
+        return CheckInvitationCodeAsync(code, askService: true);
     }
 
     //
 
-    public async Task<bool> IsInvitationCodeWorthUsing(string code)
+    public Task<bool> IsInvitationCodeWorthUsing(string code)
     {
-        if (_invitationCodes.IsEnabled && !string.IsNullOrWhiteSpace(code) && !IsConfiguredInvitationCode(code.Trim()))
-        {
-            return InvitationCodeServiceClient.LooksLikeCode(code);
-        }
-
-        return await IsValidInvitationCode(code);
+        return CheckInvitationCodeAsync(code, askService: false);
     }
 
     //
@@ -851,17 +827,38 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    private async Task UndoInvitationCodeUseAsync(string code)
+    // A configured code is accepted as is. A service code is only checked for its shape unless askService:
+    // using it, which CreateIdentityOnDomainAsync does, is the real check.
+    private async Task<bool> CheckInvitationCodeAsync(string code, bool askService)
     {
-        try
+        if (!InvitationCodeRequired)
         {
-            await _invitationCodes.UndoUseAsync(code);
+            return true;
         }
-        catch (Exception e)
+
+        if (string.IsNullOrWhiteSpace(code))
         {
-            _logger.LogError(e, "Failed to give back a use of invitation code {code} after a failed signup", code);
+            return false;
         }
+
+        if (IsConfiguredInvitationCode(code))
+        {
+            return true;
+        }
+
+        if (!_invitationCodes.IsEnabled)
+        {
+            return false;
+        }
+
+        return askService
+            ? await _invitationCodes.IsValidAsync(code)
+            : InvitationCodeServiceClient.LooksLikeCode(code);
     }
+
+    private bool InvitationCodeRequired => ConfiguredInvitationCodeCount > 0 || _invitationCodes.IsEnabled;
+
+    private bool IsServiceCode(string code) => _invitationCodes.IsEnabled && !IsConfiguredInvitationCode(code);
 
     private bool IsConfiguredInvitationCode(string code)
     {
@@ -875,6 +872,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     private static bool MatchesAny(List<string> codes, string code)
     {
-        return codes.Exists(c => string.Equals(c, code, StringComparison.InvariantCultureIgnoreCase));
+        var trimmed = code.Trim();
+        return codes.Exists(c => string.Equals(c, trimmed, StringComparison.InvariantCultureIgnoreCase));
     }
 }

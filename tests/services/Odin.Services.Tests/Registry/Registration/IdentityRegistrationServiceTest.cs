@@ -182,6 +182,11 @@ public class IdentityRegistrationServiceTest
         }
     }
 
+    private void NoExistingRegistration()
+    {
+        _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
+    }
+
     private StubInvitationCodeService UseInvitationCodeService()
     {
         var service = new StubInvitationCodeService();
@@ -237,7 +242,7 @@ public class IdentityRegistrationServiceTest
         var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
 
         IdentityRegistrationRequest? capturedRequest = null;
-        _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
+        NoExistingRegistration();
         _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
             .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
             .ReturnsAsync(Guid.NewGuid());
@@ -276,11 +281,11 @@ public class IdentityRegistrationServiceTest
     [TestCase("K7QX-M2PD-9FHWX", false)]
     [TestCase("K7QX-M2PD-9FHU", false)] // U is not in the alphabet
     [TestCase("K7QX_M2PD_9FHW", false)]
+    [TestCase("K7QX-M2PD-9FHW------------------------", false)] // too long, though only 12 count
     [TestCase("", false)]
     public void ItShouldRecognizeTheShapeOfACode(string input, bool looksLikeCode)
     {
         Assert.That(InvitationCodeServiceClient.LooksLikeCode(input), Is.EqualTo(looksLikeCode));
-        Assert.That(InvitationCodeServiceClient.LooksLikeCode(new string('A', 200)), Is.False);
     }
 
     [Test]
@@ -307,27 +312,15 @@ public class IdentityRegistrationServiceTest
         Assert.That(service.Calls, Is.Empty);
     }
 
-    [Test]
-    public void ItShouldRefuseACodeWithNoUsesLeft()
+    [TestCase(false, false, Description = "no uses left")]
+    [TestCase(true, true, Description = "service down")]
+    public void ItShouldRefuseTheCodeWithoutRegistering(bool used, bool unreachable)
     {
         var service = UseInvitationCodeService();
-        service.Used = false;
+        service.Used = used;
+        service.Unreachable = unreachable;
         var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
-        _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
-        _registry.Invocations.Clear(); // the mock is shared by the fixture's tests
-
-        Assert.ThrowsAsync<OdinClientException>(() =>
-            registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "free", ServiceCode));
-        _registry.Verify(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()), Times.Never);
-    }
-
-    [Test]
-    public void ItShouldRefuseTheCodeAsInvalidWhenTheServiceIsDown()
-    {
-        var service = UseInvitationCodeService();
-        service.Unreachable = true;
-        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
-        _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
+        NoExistingRegistration();
         _registry.Invocations.Clear(); // the mock is shared by the fixture's tests
 
         Assert.ThrowsAsync<OdinClientException>(() =>
@@ -340,7 +333,7 @@ public class IdentityRegistrationServiceTest
     {
         var service = UseInvitationCodeService();
         var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
-        _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
+        NoExistingRegistration();
         _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
             .ThrowsAsync(new OdinSystemException("disk full"));
 

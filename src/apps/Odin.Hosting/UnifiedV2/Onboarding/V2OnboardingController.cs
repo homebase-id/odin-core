@@ -2,7 +2,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
-using Odin.Services.Base;
 using Odin.Services.Registry;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -16,7 +15,7 @@ namespace Odin.Hosting.UnifiedV2.Onboarding;
 [Route(UnifiedApiRouteConstants.Onboarding)]
 [UnifiedV2Authorize(UnifiedPolicies.Owner)]
 [ApiExplorerSettings(GroupName = "v2")]
-public class V2OnboardingController(TenantContext tenantContext, IIdentityRegistry registry) : OdinControllerBase
+public class V2OnboardingController(IIdentityRegistry registry) : OdinControllerBase
 {
     /// <param name="InvitedBy">The invitation code's owner; null when the code had none, or there was no code</param>
     public record InvitedByResponse(string InvitedBy);
@@ -29,7 +28,7 @@ public class V2OnboardingController(TenantContext tenantContext, IIdentityRegist
     {
         WebOdinContext.Caller.AssertHasMasterKey();
 
-        var registration = await registry.GetAsync(tenantContext.HostOdinId.DomainName);
+        var registration = await registry.GetAsync(WebOdinContext.Tenant.DomainName);
         return new InvitedByResponse(registration?.Invitation?.InvitedBy);
     }
 }
