@@ -22,6 +22,7 @@ public static class UnifiedApiRouteConstants
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
     public const string Links = BasePath + "/links";
     public const string Mail = BasePath + "/mail";
+    public const string Storage = BasePath + "/storage";
     public const string Capi = BasePath + "/capi";
 
     // Slug addressing: /apps/{appSlug}/drives/{driveSlug} (docs/drive-addressing.md). Rooted at

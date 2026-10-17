@@ -149,7 +149,7 @@ public class ProfileAttributeService(
     public async Task<ProfileAttributeWriteResult> SetPhotoAttributeAsync(SetPhotoAttributeRequest request,
         IOdinContext odinContext)
     {
-        quotaGuard.AssertCanAddPayloadBytes();
+        await quotaGuard.AssertCanAddPayloadBytesAsync();
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "Photo content is required");

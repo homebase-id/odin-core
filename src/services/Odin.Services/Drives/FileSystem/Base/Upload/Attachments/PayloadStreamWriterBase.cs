@@ -65,7 +65,7 @@ public abstract class PayloadStreamWriterBase : IUploadPartWriter
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
-        QuotaGuard.AssertCanAddPayloadBytes();
+        await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -99,7 +99,7 @@ public abstract class PayloadStreamWriterBase : IUploadPartWriter
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
         IOdinContext odinContext)
     {
-        QuotaGuard.AssertCanAddPayloadBytes();
+        await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 

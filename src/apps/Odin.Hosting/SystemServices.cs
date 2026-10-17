@@ -200,6 +200,7 @@ public static class SystemServices
         services.AddSingleton<ILookupClient>(new LookupClient());
 
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
+        services.AddSingleton<PlanQuotas>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
         services.AddSingleton<IDnssecLookup, DnssecLookup>();

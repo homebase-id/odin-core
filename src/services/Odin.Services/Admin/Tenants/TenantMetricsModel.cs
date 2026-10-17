@@ -52,6 +52,11 @@ public class TenantMetricsModel
     public bool? EnablePublicWebPresence { get; set; }
     public string? Email { get; set; }
     public string? PlanId { get; set; }
+
+    /// <summary>
+    /// Bytes the plan allows (docs/plan-quota.md); null for unlimited, and while quotas are off
+    /// </summary>
+    public long? QuotaBytes { get; set; }
     public UnixTimeUtc? CreatedAt { get; set; }
     public UnixTimeUtc? MarkedForDeletionDate { get; set; }
 
