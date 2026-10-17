@@ -28,6 +28,8 @@ public static class SwaggerInfo
 
     public const string Contacts = "Contact Operations";
 
+    public const string Onboarding = "Onboarding";
+
     public const string Profile = "Profile Attribute Operations";
 
     public const string Links = "Links";

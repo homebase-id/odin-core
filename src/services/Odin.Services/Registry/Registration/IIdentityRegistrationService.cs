@@ -66,10 +66,11 @@ public interface IIdentityRegistrationService
     Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Create identity on own or managed domain
+    /// Create identity on own or managed domain. Its hosting plan comes only from the invitation code; without
+    /// one it gets the registry's default ("free").
     /// </summary>
     /// <returns>First-run token</returns>
-    Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string planId, string invitationCode);
+    Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string invitationCode);
     
     //
     // Managed Domain
@@ -170,6 +171,13 @@ public interface IIdentityRegistrationService
     /// Determines if the invitation code is valid
     /// </summary>
     Task<bool> IsValidInvitationCode(string code);
+
+    /// <summary>
+    /// The check before <see cref="CreateIdentityOnDomainAsync"/>: like <see cref="IsValidInvitationCode"/>, except a
+    /// code for the invitation-code service is only checked for its shape. Using it, which creating does, is the
+    /// real check, so asking the service first as well would be a wasted round trip.
+    /// </summary>
+    Task<bool> IsInvitationCodeWorthUsing(string code);
 
     /// <summary>
     /// Determines if the invitation code grants a public web presence.

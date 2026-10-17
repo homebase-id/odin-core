@@ -184,6 +184,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             EnablePublicWebPresence = request.EnablePublicWebPresence,
+            Invitation = request.Invitation,
             FirstRunToken = Guid.NewGuid()
         };
 
@@ -502,7 +503,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var state = new TenantStatusState(TenantStatus.Paused, null, UnixTimeUtc.Now());
         // Superseded by the status in json; written as a mirror for nodes on older versions
         record.disabled = state.Status == TenantStatus.Disabled;
-        record.json = RegistrationJsonMapper.ToJson(state);
+        record.json = RegistrationJsonMapper.WithStatus(record.json, state);
         await systemDatabase.Registrations.UpdateAsync(record);
         await systemDatabase.Settings.BumpMonotonicAsync(RegistryVersionKey);
     }

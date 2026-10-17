@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
@@ -48,7 +51,14 @@ public class IdentityRegistrationServiceTest
             _dnsRestClient.Object,
             _httpClientFactory.Object,
             dnsLookupService,
-            _jobManager.Object);
+            _jobManager.Object,
+            InvitationCodeClient(configuration));
+    }
+
+    private InvitationCodeServiceClient InvitationCodeClient(OdinConfiguration configuration)
+    {
+        return new InvitationCodeServiceClient(configuration, _httpClientFactory.Object,
+            new Mock<ILogger<InvitationCodeServiceClient>>().Object);
     }
 
     //
@@ -132,12 +142,265 @@ public class IdentityRegistrationServiceTest
             .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
             .ReturnsAsync(System.Guid.NewGuid());
 
-        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "free", "no-presence");
+        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "no-presence");
         Assert.That(capturedRequest, Is.Not.Null);
         Assert.That(capturedRequest!.EnablePublicWebPresence, Is.False);
 
-        await registration.CreateIdentityOnDomainAsync(D("sam.example.com"), "sam@example.com", "free", "with-presence");
+        await registration.CreateIdentityOnDomainAsync(D("sam.example.com"), "sam@example.com", "with-presence");
         Assert.That(capturedRequest!.EnablePublicWebPresence, Is.True);
+    }
+
+    // Invitation codes from the invitation-code service, homebase-id/homebase-invites (#1908)
+
+    private const string ServiceCode = "K7QX-M2PD-9FHW";
+
+    private sealed class StubInvitationCodeService : HttpMessageHandler
+    {
+        public readonly List<string> Calls = [];
+        public bool Used = true;
+        public bool Unreachable;
+
+        // The plan on the used code. SendPlanId false answers like a service from before plans, with no
+        // planId field at all; true sends PlanId, null included.
+        public bool SendPlanId;
+        public string? PlanId;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (Unreachable)
+            {
+                throw new HttpRequestException("connection refused");
+            }
+
+            var path = request.RequestUri!.AbsolutePath;
+            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            Calls.Add($"{path} {request.Headers.GetValues("Odin-Api-Key").Single()}");
+            object answer = path switch
+            {
+                "/api/v1/invitation-codes/validate" => new { valid = body.Contains(ServiceCode) },
+                "/api/v1/invitation-codes/use" => Used
+                    ? new { used = true, code = UsedCode() }
+                    : new { used = false, code = (object?)null },
+                _ => new { }
+            };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(answer) };
+        }
+
+        private Dictionary<string, object?> UsedCode()
+        {
+            var code = new Dictionary<string, object?>
+            {
+                ["code"] = ServiceCode, ["owner"] = "sam.example.com", ["source"] = "spring",
+                ["enablePublicWebPresence"] = false,
+            };
+            if (SendPlanId)
+            {
+                code["planId"] = PlanId;
+            }
+            return code;
+        }
+    }
+
+    private void NoExistingRegistration()
+    {
+        _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
+    }
+
+    private StubInvitationCodeService UseInvitationCodeService()
+    {
+        var service = new StubInvitationCodeService();
+        _httpClientFactory
+            .Setup(f => f.CreateClient(It.IsAny<string>(), It.IsAny<Action<ClientHandlerConfig>?>()))
+            .Returns(() => new HttpClient(service, disposeHandler: false));
+        return service;
+    }
+
+    private static OdinConfiguration ConfigurationWithInvitationCodeService(List<string>? configuredCodes = null)
+    {
+        return new OdinConfiguration
+        {
+            Registry = new OdinConfiguration.RegistrySection
+            {
+                InvitationCodes = configuredCodes ?? [],
+                InvitationCodeServiceUrl = "https://invitations.example.com",
+                InvitationCodeServiceApiKey = "signup-key",
+            }
+        };
+    }
+
+    [Test]
+    public async Task ItShouldNeedAndValidateCodesThroughTheService()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+
+        Assert.That(await registration.IsInvitationCodeNeeded(), Is.True);
+        Assert.That(await registration.IsValidInvitationCode(ServiceCode), Is.True);
+        Assert.That(await registration.IsValidInvitationCode("ZZZZ-ZZZZ-ZZZZ"), Is.False);
+        Assert.That(await registration.IsValidInvitationCode(""), Is.False);
+        Assert.That(service.Calls, Has.All.EndsWith(" signup-key"));
+
+        service.Unreachable = true;
+        Assert.That(await registration.IsValidInvitationCode(ServiceCode), Is.False);
+    }
+
+    [Test]
+    public async Task ItShouldNotAskTheServiceAboutConfiguredCodes()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService(["configured"]));
+
+        Assert.That(await registration.IsValidInvitationCode("configured"), Is.True);
+        Assert.That(service.Calls, Is.Empty);
+    }
+
+    [Test]
+    public async Task ItShouldUseTheCodeAndStoreWhatItCarries()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+
+        IdentityRegistrationRequest? capturedRequest = null;
+        NoExistingRegistration();
+        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
+            .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
+            .ReturnsAsync(Guid.NewGuid());
+
+        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "k7qx m2pd 9fhw");
+
+        Assert.That(service.Calls.Select(c => c.Split(' ')[0]), Is.EqualTo(new[] { "/api/v1/invitation-codes/use" }));
+        Assert.That(capturedRequest!.Invitation, Is.EqualTo(new RegistrationInvitation(ServiceCode, "sam.example.com", "spring")));
+        Assert.That(capturedRequest.EnablePublicWebPresence, Is.False);
+    }
+
+    [TestCase(true, "pro-100gb", "pro-100gb", Description = "the code's plan")]
+    [TestCase(true, null, null, Description = "a code without a plan: the registry's default")]
+    [TestCase(false, null, null, Description = "an older service sends no planId at all")]
+    public async Task ItShouldGiveTheIdentityOnlyTheCodesPlan(bool sendPlanId, string? codePlan, string? expectedPlan)
+    {
+        var service = UseInvitationCodeService();
+        service.SendPlanId = sendPlanId;
+        service.PlanId = codePlan;
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+
+        IdentityRegistrationRequest? capturedRequest = null;
+        NoExistingRegistration();
+        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
+            .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
+            .ReturnsAsync(Guid.NewGuid());
+
+        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", ServiceCode);
+
+        Assert.That(capturedRequest!.PlanId, Is.EqualTo(expectedPlan));
+    }
+
+    [Test]
+    public async Task ItShouldGiveAConfiguredCodeNoPlan()
+    {
+        var service = UseInvitationCodeService();
+        service.SendPlanId = true;
+        service.PlanId = "pro-100gb";
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService(["configured"]));
+
+        IdentityRegistrationRequest? capturedRequest = null;
+        NoExistingRegistration();
+        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
+            .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
+            .ReturnsAsync(Guid.NewGuid());
+
+        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "configured");
+
+        Assert.That(capturedRequest!.PlanId, Is.Null);
+        Assert.That(service.Calls, Is.Empty);
+    }
+
+    [TestCase("https://invites.example.com", "key", true)]
+    [TestCase("http://127.0.0.1:8090", "key", true)]
+    [TestCase("http://localhost:8090", "key", true)]
+    [TestCase("http://invites.example.com", "key", false)]
+    [TestCase("https://invites.example.com", "", false)]
+    [TestCase("", "key", false)]
+    public void TheServiceIsOnlyUsedWhenConfiguredSafely(string url, string key, bool enabled)
+    {
+        var configuration = new OdinConfiguration
+        {
+            Registry = new OdinConfiguration.RegistrySection
+            {
+                InvitationCodeServiceUrl = url,
+                InvitationCodeServiceApiKey = key,
+            }
+        };
+
+        Assert.That(InvitationCodeClient(configuration).IsEnabled, Is.EqualTo(enabled));
+    }
+
+    [TestCase("K7QX-M2PD-9FHW", true)]
+    [TestCase("k7qx m2pd 9fhw", true)]
+    [TestCase("K7QXM2PD9FHO", true)] // O reads as 0
+    [TestCase("K7QX-M2PD-9FH", false)]
+    [TestCase("K7QX-M2PD-9FHWX", false)]
+    [TestCase("K7QX-M2PD-9FHU", false)] // U is not in the alphabet
+    [TestCase("K7QX_M2PD_9FHW", false)]
+    [TestCase("K7QX-M2PD-9FHW------------------------", false)] // too long, though only 12 count
+    [TestCase("", false)]
+    public void ItShouldRecognizeTheShapeOfACode(string input, bool looksLikeCode)
+    {
+        Assert.That(InvitationCodeServiceClient.LooksLikeCode(input), Is.EqualTo(looksLikeCode));
+    }
+
+    [Test]
+    public async Task ItShouldNotCallTheServiceForInputThatCannotBeACode()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+
+        Assert.That(await registration.IsValidInvitationCode("not a code"), Is.False);
+        Assert.That(await registration.IsValidInvitationCode(new string('A', 5000)), Is.False);
+        Assert.That(await registration.IsInvitationCodeWorthUsing("not a code"), Is.False);
+        Assert.That(service.Calls, Is.Empty);
+    }
+
+    [Test]
+    public async Task ItShouldNotValidateAServiceCodeItIsAboutToUse()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService(["configured"]));
+
+        Assert.That(await registration.IsInvitationCodeWorthUsing(ServiceCode), Is.True);
+        Assert.That(await registration.IsInvitationCodeWorthUsing("configured"), Is.True);
+        Assert.That(await registration.IsInvitationCodeWorthUsing(""), Is.False);
+        Assert.That(service.Calls, Is.Empty);
+    }
+
+    [TestCase(false, false, Description = "no uses left")]
+    [TestCase(true, true, Description = "service down")]
+    public void ItShouldRefuseTheCodeWithoutRegistering(bool used, bool unreachable)
+    {
+        var service = UseInvitationCodeService();
+        service.Used = used;
+        service.Unreachable = unreachable;
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+        NoExistingRegistration();
+        _registry.Invocations.Clear(); // the mock is shared by the fixture's tests
+
+        Assert.ThrowsAsync<OdinClientException>(() =>
+            registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", ServiceCode));
+        _registry.Verify(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()), Times.Never);
+    }
+
+    [Test]
+    public void ItShouldGiveTheUseBackWhenRegistrationFails()
+    {
+        var service = UseInvitationCodeService();
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+        NoExistingRegistration();
+        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
+            .ThrowsAsync(new OdinSystemException("disk full"));
+
+        Assert.ThrowsAsync<OdinSystemException>(() =>
+            registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", ServiceCode));
+        Assert.That(service.Calls.Select(c => c.Split(' ')[0]),
+            Is.EqualTo(new[] { "/api/v1/invitation-codes/use", "/api/v1/invitation-codes/undo-use" }));
     }
 
     //
@@ -365,7 +628,8 @@ public class IdentityRegistrationServiceTest
             _dnsRestClient.Object,
             _httpClientFactory.Object,
             dnsLookupService.Object,
-            _jobManager.Object);
+            _jobManager.Object,
+            InvitationCodeClient(ConfigurationWithZoneHosting()));
 
         var result = await registration.CreateOwnDomainZone(D("michael.seifert.page"));
 
@@ -637,7 +901,8 @@ public class IdentityRegistrationServiceTest
             _dnsRestClient.Object,
             _httpClientFactory.Object,
             dnsLookupService.Object,
-            _jobManager.Object);
+            _jobManager.Object,
+            InvitationCodeClient(ConfigurationWithZoneHosting()));
 
         var result = await registration.GetDnssecStatusAsync(D("frodo.example.com"));
 
