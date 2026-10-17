@@ -57,6 +57,10 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Concurrency.NodeLock), "e6f1c919"},
         {typeof(Odin.Services.LastSeen.LastSeenService), "ef375af0"},
         {typeof(Odin.Core.Storage.Database.TransactionalCacheStats), "e6f1c919"},
+        // #1909 remove counters: the in-memory factory has no dependencies; the Redis one (registered by delegate,
+        // so listed by its service type) holds only the singleton IConnectionMultiplexer
+        {typeof(Odin.Core.Storage.Cache.InMemoryRemovalCounterFactory), "e6f1c919"},
+        {typeof(Odin.Core.Storage.Cache.IRemovalCounterFactory), "e6f1c919;9ff35e3d"},
         {typeof(Odin.Core.Tasks.ForgottenTasks), "e6f1c919"},
         {typeof(Odin.Core.Storage.PubSub.ChannelPrefix), "ec4d8d30"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.UploadFileStore), "5b81378a"},
