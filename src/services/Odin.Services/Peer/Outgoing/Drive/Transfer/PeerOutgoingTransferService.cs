@@ -13,6 +13,7 @@ using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Background;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -196,8 +197,32 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 throw new OdinClientException("File not found", OdinClientErrorCode.InvalidFile);
             }
 
+            if (recipientList.Count > 0)
+            {
+                AssertCanTellRecipientsToDelete(fileTransferOptions.FileSystemType, odinContext);
+            }
+
             return await EnqueueDeletes(header, fileTransferOptions, recipientList.ToOdinIdList(),
-                r => ResolveTokenOrThrowAsync(r, odinContext), odinContext);
+                async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes(),
+                odinContext);
+        }
+
+        /// <summary>
+        /// What telling recipients to delete a file (by file id) needs: UseTransitWrite, as any file delete on a peer
+        /// does, except in the comment file system, which keeps its long-standing rule (either transit key). Batches
+        /// call it before their first file, so a refusal touches nothing.
+        /// </summary>
+        public static void AssertCanTellRecipientsToDelete(FileSystemType fileSystemType, IOdinContext odinContext)
+        {
+            if (fileSystemType == FileSystemType.Comment)
+            {
+                odinContext.PermissionsContext.AssertHasAtLeastOnePermission(PermissionKeys.UseTransitWrite,
+                    PermissionKeys.UseTransitRead);
+            }
+            else
+            {
+                odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
+            }
         }
 
         /// <summary>
@@ -205,12 +230,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// once for a whole batch, so a refusal (no transit permission, no ICR key) comes before anything is sent.
         /// </summary>
         public async Task<Dictionary<OdinId, byte[]>> ResolveRecipientTokensAsync(IEnumerable<OdinId> recipients,
-            IOdinContext odinContext)
+            FileSystemType fileSystemType, IOdinContext odinContext)
         {
             var tokens = new Dictionary<OdinId, byte[]>();
-            foreach (var recipient in recipients.Distinct())
+            var distinct = recipients.Distinct().ToList();
+            if (distinct.Count > 0)
             {
-                var token = await ResolveClientAccessTokenAsync(recipient, odinContext, PeerAccess.Write, failIfNotConnected: false);
+                AssertCanTellRecipientsToDelete(fileSystemType, odinContext);
+            }
+
+            foreach (var recipient in distinct)
+            {
+                var token = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected: false);
                 tokens[recipient] = token?.ToAuthenticationToken().ToPortableBytes();
             }
 
@@ -239,15 +270,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
             return await EnqueueDeletes(header, options, list,
                 r => Task.FromResult(recipientTokens.GetValueOrDefault(r)), odinContext);
-        }
-
-        /// <summary>
-        /// A drive file delete by file id: an ordinary file operation, so it needs UseTransitWrite
-        /// </summary>
-        private async Task<byte[]> ResolveTokenOrThrowAsync(OdinId recipient, IOdinContext odinContext)
-        {
-            var token = await ResolveClientAccessTokenAsync(recipient, odinContext, PeerAccess.Write);
-            return token.ToAuthenticationToken().ToPortableBytes();
         }
 
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(ServerFileHeader header,

@@ -5,7 +5,9 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
@@ -222,6 +224,45 @@ public class SoftDeleteBatchTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
         var feed = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
         Assert.That(new[] { first, second }.Select(f => feed[f.FileId].FileState), Is.All.EqualTo(FileState.Active));
+    }
+
+    [Test, TestCaseSource(nameof(CallersThatMayNotWriteToPeers))]
+    public async Task TheOlderDeleteBatchIsRefusedWholeToo(CallerSpec spec)
+    {
+        var (caller, owner) = await SetupCallerWithOwner(spec);
+        var first = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "no recipients, first in the batch");
+        var second = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "with a recipient");
+
+        var response = await caller.Drives.Writer.DeleteFileList(spec.TargetDrive.Alias,
+        [
+            new DeleteFileRequestV2 { FileId = first.FileId },
+            new DeleteFileRequestV2 { FileId = second.FileId, Recipients = ["sam.dotyou.cloud"] }
+        ]);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
+        var feed = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
+        Assert.That(new[] { first, second }.Select(f => feed[f.FileId].FileState), Is.All.EqualTo(FileState.Active),
+            "the refusal comes before the first file, not after it was deleted");
+    }
+
+    [TestCase(FileSystemType.Standard, HttpStatusCode.Forbidden)]
+    [TestCase(FileSystemType.Comment, HttpStatusCode.OK)]
+    public async Task ATransitReadOnlyCallerMayTellRecipientsToDeleteOnlyComments(FileSystemType fileSystemType,
+        HttpStatusCode expected)
+    {
+        // Comments keep their long-standing rule (either transit key); every other file delete on a peer needs write
+        var spec = CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write, [PermissionKeys.UseTransitRead]);
+        var (caller, _) = await SetupCallerWithOwner(spec);
+        var writer = new DriveWriterV2Client(caller.Identity, caller.Factory, fileSystemType);
+
+        var response = await writer.SoftDeleteBatch(spec.TargetDrive.Alias,
+            Batch(File(Guid.NewGuid(), recipients: ["sam.dotyou.cloud"])));
+
+        Assert.That(response.StatusCode, Is.EqualTo(expected), response.Error?.Content);
+        if (expected == HttpStatusCode.OK)
+        {
+            Assert.That(response.Content!.Results.Single().ErrorCode, Is.EqualTo(OdinClientErrorCode.FileNotFound));
+        }
     }
 
     [Test]
