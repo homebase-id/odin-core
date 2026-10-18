@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -13,6 +14,7 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
@@ -239,9 +241,14 @@ public static class AppFileUploads
     /// An unencrypted metadata-only file (fileType 100) holding <paramref name="content"/>, uploaded by the owner
     /// </summary>
     public static async Task<CreateFileResult> SeedTextFileAsync(OwnerSession owner, TargetDrive drive, string content,
-        AccessControlList? acl = null)
+        AccessControlList? acl = null, long? ttl = null)
     {
         var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: acl ?? AccessControlList.Anonymous);
+        if (ttl.HasValue)
+        {
+            metadata.Ttl = ttl.Value;
+        }
+
         var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
             new UploadManifest { PayloadDescriptors = [] }, []);
         Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
@@ -255,5 +262,19 @@ public static class AppFileUploads
     {
         var delete = await owner.Drives.Writer.SoftDeleteFile(file.DriveId, file.FileId);
         Assert.That(delete.IsSuccessStatusCode, Is.True, $"seed delete failed: {delete.StatusCode}");
+    }
+
+    /// <summary>
+    /// Every row of the drive's change feed, tombstones included
+    /// </summary>
+    public static async Task<Dictionary<Guid, FileRef>> FeedAsync(OwnerSession owner, TargetDrive drive)
+    {
+        var response = await owner.Drives.Reader.GetBatchAsync(drive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = drive, FileState = [FileState.Active, FileState.Deleted] },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, ResultShape = FileResultShape.Minimal }
+        });
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"feed query failed: {response.StatusCode}");
+        return response.Content!.FileRefs.ToDictionary(r => r.FileId);
     }
 }
