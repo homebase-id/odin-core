@@ -43,7 +43,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
-        private const int MaxRecipientCount = 1000;
+        public const int MaxRecipientCount = 1000;
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         /// <summary>
@@ -165,8 +165,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 DriveId = SystemDriveConstants.TransientTempDrive.Alias
             };
 
-            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext,
-                failIfNotConnected: true);
+            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions,
+                recipients.Select(r => (OdinId)r), r => ResolveTokenOrThrowAsync(r, odinContext));
 
             return result;
         }
@@ -191,21 +191,52 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 throw new OdinClientException("File not found", OdinClientErrorCode.InvalidFile);
             }
 
-            return await SendDeleteFileRequest(header, fileTransferOptions, recipientList, odinContext, failIfNotConnected: true);
+            return await EnqueueDeletes(header, fileTransferOptions, recipientList.Select(r => (OdinId)r),
+                r => ResolveTokenOrThrowAsync(r, odinContext), odinContext);
+        }
+
+        /// <summary>
+        /// Each distinct recipient's encrypted access token, null for one the caller is no longer connected to. Resolved
+        /// once for a whole batch, so a refusal (no transit permission, no ICR key) comes before anything is sent.
+        /// </summary>
+        public async Task<Dictionary<OdinId, byte[]>> ResolveRecipientTokensAsync(IEnumerable<OdinId> recipients,
+            IOdinContext odinContext)
+        {
+            var tokens = new Dictionary<OdinId, byte[]>();
+            foreach (var recipient in recipients.Distinct())
+            {
+                var token = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected: false);
+                tokens[recipient] = token?.ToAuthenticationToken().ToPortableBytes();
+            }
+
+            return tokens;
         }
 
         /// <summary>
         /// Tells <paramref name="recipients"/> to delete their copies of the file <paramref name="header"/> describes, which
-        /// the caller has already read
+        /// the caller has already read, with the tokens <see cref="ResolveRecipientTokensAsync"/> resolved. A recipient
+        /// without a token (no longer connected) is EnqueueFailed.
         /// </summary>
-        /// <param name="failIfNotConnected">False reports a recipient the caller is no longer connected to as
-        /// EnqueueFailed instead of failing the request</param>
-        public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
-            ServerFileHeader header,
-            FileTransferOptions fileTransferOptions,
-            IEnumerable<string> recipients,
-            IOdinContext odinContext,
-            bool failIfNotConnected)
+        public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(ServerFileHeader header,
+            IEnumerable<OdinId> recipients, IReadOnlyDictionary<OdinId, byte[]> recipientTokens, IOdinContext odinContext)
+        {
+            var options = new FileTransferOptions
+            {
+                FileSystemType = header.ServerMetadata.FileSystemType,
+                TransferFileType = TransferFileType.Normal
+            };
+            return await EnqueueDeletes(header, options, recipients ?? [], r => Task.FromResult(recipientTokens[r]), odinContext);
+        }
+
+        private async Task<byte[]> ResolveTokenOrThrowAsync(OdinId recipient, IOdinContext odinContext)
+        {
+            var token = await ResolveClientAccessTokenAsync(recipient, odinContext);
+            return token.ToAuthenticationToken().ToPortableBytes();
+        }
+
+        private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(ServerFileHeader header,
+            FileTransferOptions fileTransferOptions, IEnumerable<OdinId> recipients, Func<OdinId, Task<byte[]>> tokenFor,
+            IOdinContext odinContext)
         {
             var fileId = header.FileMetadata.File;
             var remoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
@@ -219,8 +250,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 remoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 remoteGlobalTransitIdFileIdentifier.TargetDrive);
 
-            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext,
-                failIfNotConnected);
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, tokenFor);
         }
 
         /// <summary>
@@ -500,25 +530,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(InternalDriveFileId fileId,
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
-            IEnumerable<string> recipients,
-            IOdinContext odinContext,
-            bool failIfNotConnected)
+            IEnumerable<OdinId> recipients,
+            Func<OdinId, Task<byte[]>> tokenFor)
         {
             var results = new Dictionary<string, DeleteLinkedFileStatus>();
 
-            foreach (var r in recipients)
+            foreach (var recipient in recipients)
             {
-                var recipient = (OdinId)r;
-
-                //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected);
-                if (clientAuthToken == null)
+                var encryptedClientAccessToken = await tokenFor(recipient);
+                if (encryptedClientAccessToken == null)
                 {
                     results.Add(recipient.DomainName, DeleteLinkedFileStatus.EnqueueFailed);
                     continue;
                 }
-
-                var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                 var item = new OutboxFileItem()
                 {

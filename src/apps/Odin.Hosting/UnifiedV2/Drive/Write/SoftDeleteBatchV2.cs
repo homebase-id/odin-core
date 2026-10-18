@@ -19,7 +19,7 @@ public class SoftDeleteBatchRequestV2
 
     /// <summary>
     /// A malformed batch is refused whole (400) before any file is touched: no files, too many, a file twice, an
-    /// empty fileId or versionTag, or a recipient that is not a valid identity
+    /// empty fileId or versionTag, or a file's recipients malformed, null, the caller itself, repeated or too many
     /// </summary>
     public void AssertValid(OdinId tenant)
     {
@@ -28,7 +28,11 @@ public class SoftDeleteBatchRequestV2
         foreach (var f in Files.Where(f => f.Recipients != null))
         {
             OdinValidationUtils.AssertIsTrue(f.Recipients.All(r => r != null), "a recipient cannot be null");
+            OdinValidationUtils.AssertIsTrue(f.Recipients.Count <= PeerOutgoingTransferService.MaxRecipientCount,
+                $"a file may name at most {PeerOutgoingTransferService.MaxRecipientCount} recipients");
             OdinValidationUtils.AssertValidRecipientList(f.Recipients, allowEmpty: true, tenant);
+            OdinValidationUtils.AssertIsTrue(f.Recipients.Select(r => (OdinId)r).Distinct().Count() == f.Recipients.Count,
+                "a recipient may appear only once per file");
         }
     }
 }
@@ -39,7 +43,8 @@ public class SoftDeleteFileV2 : IBatchFileV2
 
     /// <summary>
     /// Optional. When set, the file is only deleted if it is still at this version; otherwise its result carries
-    /// errorCode "versionTagMismatch", nothing is sent to its recipients, and the rest of the batch goes ahead.
+    /// errorCode "versionTagMismatch", nothing is sent to its recipients, and the rest of the batch goes ahead. A file
+    /// that is already deleted is not checked: it answers as deleted, and its recipients are told.
     /// </summary>
     public Guid? VersionTag { get; init; }
 
@@ -74,8 +79,9 @@ public class SoftDeleteResultV2
     public UnixTimeUtc? Updated { get; init; }
 
     /// <summary>
-    /// Per recipient: "enqueued", or "enqueueFailed" for one the caller is no longer connected to. Recipients are told
-    /// before the local delete, so if that delete then fails (an edit landing in between) this still shows who was told.
+    /// Per recipient: "enqueued", or "enqueueFailed" for one the caller is no longer connected to, or when the file was
+    /// never sent to anyone (it has no global transit id). Recipients are told before the local delete, so if that
+    /// delete then fails (an edit landing in between) this still shows who was told.
     /// </summary>
     public Dictionary<string, DeleteLinkedFileStatus> RecipientStatus { get; init; } = new();
 }

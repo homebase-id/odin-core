@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -136,8 +136,9 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         [SwaggerOperation(
             Summary = "Delete many files, leaving tombstones",
             Description = "Deletes each file, leaving a tombstone in the change feed, only if its version tag still matches " +
-                          "when one is given, and tells the file's recipients to delete their copies. A malformed batch " +
-                          "is refused whole before anything is touched. Results are per file; see SoftDeleteResultV2.",
+                          "when one is given (a file already deleted is not checked), and tells the file's recipients to " +
+                          "delete their copies. A malformed batch, or a caller that may not reach peers, is refused whole " +
+                          "before anything is touched. Results are per file; see SoftDeleteResultV2.",
             Tags = [SwaggerInfo.FileWrite]
         )]
         public async Task<SoftDeleteBatchResultV2> SoftDeleteBatch(Guid driveId, [FromBody] SoftDeleteBatchRequestV2 request)
@@ -146,14 +147,12 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             request.AssertValid(WebOdinContext.Tenant);
 
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
-            if (request.Files.Any(f => f.Recipients is { Count: > 0 }))
-            {
-                // Up front, so a refusal touches no file
-                PeerServiceBase.AssertCanUseTransit(WebOdinContext);
-            }
+            // Every recipient once, up front: a caller that may not reach peers is refused before any file is touched
+            var tokens = await PeerOutgoingTransferService.ResolveRecipientTokensAsync(
+                request.Files.SelectMany(f => f.Recipients ?? []).Select(r => (OdinId)r), WebOdinContext);
 
             var results = await PerFileAsync(driveId, request.Files,
-                (file, f) => SoftDeleteFileAsync(file, f.VersionTag, f.Recipients),
+                (file, f) => SoftDeleteFileAsync(file, f.VersionTag, f.Recipients?.Select(r => (OdinId)r).ToList() ?? [], tokens),
                 (fileId, errorCode) => new SoftDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
 
             return new SoftDeleteBatchResultV2 { Results = results };
