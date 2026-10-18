@@ -30,9 +30,9 @@ public class DeleteFileResultV2
     public UnixTimeUtc? Updated { get; set; }
 
     /// <summary>
-    /// Why this file was left alone, as a camelCase string: "versionTagMismatch" when the request's versionTag is no
-    /// longer the file's, and the file stays as it is. Left out of the JSON when null, so a request without version
-    /// tags gets the same response as before.
+    /// Why this file was not deleted, as a camelCase string: "versionTagMismatch" when the request's versionTag is no
+    /// longer the file's. Null and left out of the JSON otherwise, so a request without version tags gets the same
+    /// response as before.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OdinClientErrorCode? ErrorCode { get; set; }

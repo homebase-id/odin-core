@@ -272,11 +272,11 @@ public class DeleteFileTests : V2Fixture
         return upload.Content!;
     }
 
-    private static async Task AssertActiveAsync(OwnerSession owner, CreateFileResult file)
+    private static async Task AssertStateAsync(OwnerSession owner, CreateFileResult file, FileState expected)
     {
         var header = await owner.Drives.Reader.GetFileHeaderAsync(file.DriveId, file.FileId);
-        Assert.That(header.IsSuccessStatusCode, Is.True);
-        Assert.That(header.Content!.FileState, Is.EqualTo(FileState.Active));
+        Assert.That(header.IsSuccessStatusCode, Is.True, $"file {file.FileId}: header GET {header.StatusCode}");
+        Assert.That(header.Content!.FileState, Is.EqualTo(expected), $"file {file.FileId}");
     }
 
     [Test]
@@ -290,7 +290,7 @@ public class DeleteFileTests : V2Fixture
 
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That(TestUtils.ParseProblemDetails(delete.Error!), Is.EqualTo(OdinClientErrorCode.VersionTagMismatch));
-        await AssertActiveAsync(owner, file);
+        await AssertStateAsync(owner, file, FileState.Active);
     }
 
     [Test]
@@ -331,33 +331,25 @@ public class DeleteFileTests : V2Fixture
             (untagged.FileId, true, null)
         }));
 
-        await AssertActiveAsync(owner, stale);
-        foreach (var deleted in new[] { current, untagged })
-        {
-            var header = await owner.Drives.Reader.GetFileHeaderAsync(deleted.DriveId, deleted.FileId);
-            Assert.That(header.Content?.FileState, Is.EqualTo(FileState.Deleted), $"file {deleted.FileId}");
-        }
+        await AssertStateAsync(owner, stale, FileState.Active);
+        await AssertStateAsync(owner, current, FileState.Deleted);
+        await AssertStateAsync(owner, untagged, FileState.Deleted);
     }
 
     [Test]
     public void DeleteResultWithoutErrorLeavesErrorCodeOutOfTheJson()
     {
         // Callers that send no version tag (odin-js, chat-kmp's outbox) must keep getting the response they parse today
-        var json = OdinSystemSerializer.Serialize(new DeleteFileResultV2
+        var result = new DeleteFileResultV2
         {
             FileId = Guid.NewGuid(),
             RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
             LocalFileDeleted = true
-        });
-        Assert.That(json, Does.Not.Contain("errorCode"));
+        };
+        Assert.That(OdinSystemSerializer.Serialize(result), Does.Not.Contain("errorCode"));
 
-        var mismatch = OdinSystemSerializer.Serialize(new DeleteFileResultV2
-        {
-            FileId = Guid.NewGuid(),
-            RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
-            ErrorCode = OdinClientErrorCode.VersionTagMismatch
-        });
-        TestContext.Out.WriteLine(mismatch);
-        Assert.That(mismatch, Does.Contain("\"errorCode\":\"versionTagMismatch\""));
+        result.LocalFileDeleted = false;
+        result.ErrorCode = OdinClientErrorCode.VersionTagMismatch;
+        Assert.That(OdinSystemSerializer.Serialize(result), Does.Contain("\"errorCode\":\"versionTagMismatch\""));
     }
 }

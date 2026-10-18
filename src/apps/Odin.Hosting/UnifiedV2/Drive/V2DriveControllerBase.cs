@@ -112,7 +112,8 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 }
                 catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
                 {
-                    // A stale tag answers for its own file; the rest of the batch is still deleted
+                    // A stale tag answers for its own file; the rest of the batch is still deleted. Only this error,
+                    // unlike PerFileAsync: a batch without tags still fails whole on any other client error, as before
                     results.Add(new DeleteFileResultV2
                     {
                         FileId = r.FileId,
