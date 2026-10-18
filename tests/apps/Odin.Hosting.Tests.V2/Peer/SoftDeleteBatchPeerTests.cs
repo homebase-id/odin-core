@@ -32,8 +32,8 @@ public class SoftDeleteBatchPeerTests : V2Fixture
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
         var drive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, DrivePermission.Write, "soft-delete-batch");
-        var deleted = await UploadAndDistribute(sender, recipient, drive, fileType: 501);
-        var stale = await UploadAndDistribute(sender, recipient, drive, fileType: 502);
+        var deleted = await UploadAndDistribute(sender, recipient, drive);
+        var stale = await UploadAndDistribute(sender, recipient, drive);
 
         var response = await sender.Drives.Writer.SoftDeleteBatch(drive.Alias, Batch(
             File(deleted.FileId, deleted.VersionTag, [recipient.Identity]),
@@ -47,8 +47,7 @@ public class SoftDeleteBatchPeerTests : V2Fixture
             (stale.FileId, OdinClientErrorCode.VersionTagMismatch, "")
         }));
 
-        await sender.Sync.DrainOutboxAsync();
-        await recipient.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(sender, recipient, drive);
         Assert.That((await RecipientStateAsync(recipient, drive, deleted.Gtid), await RecipientStateAsync(recipient, drive, stale.Gtid)),
             Is.EqualTo((FileState.Deleted, FileState.Active)));
     }
@@ -59,13 +58,9 @@ public class SoftDeleteBatchPeerTests : V2Fixture
         var sender = await LoginAsOwner(Identities.Frodo);
         var connected = await LoginAsOwner(Identities.Sam);
         var gone = await LoginAsOwner(Identities.Merry);
-        var drive = TargetDrive.NewTargetDrive();
-        await sender.Admin.CreateDrive(drive, $"{sender.Identity} soft-delete-batch");
-        await connected.Admin.CreateDrive(drive, $"{connected.Identity} soft-delete-batch");
-        await gone.Admin.CreateDrive(drive, $"{gone.Identity} soft-delete-batch");
-        await PeerFlow.ConnectAsync(sender, connected, drive, DrivePermission.Write);
-        await PeerFlow.ConnectAsync(sender, gone, drive, DrivePermission.Write);
-        var file = await UploadAndDistribute(sender, connected, drive, fileType: 503);
+        var drive = await PeerFlow.CreatePeerDriveAsync(sender, connected, DrivePermission.Write, "soft-delete-batch");
+        await PeerFlow.CreatePeerDriveAsync(sender, gone, DrivePermission.Write, "soft-delete-batch", drive: drive);
+        var file = await UploadAndDistribute(sender, connected, drive);
         await PeerFlow.DisconnectAsync(sender, gone);
 
         var response = await sender.Drives.Writer.SoftDeleteBatch(drive.Alias,
@@ -73,11 +68,14 @@ public class SoftDeleteBatchPeerTests : V2Fixture
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         var result = response.Content!.Results.Single();
-        Assert.That((result.ErrorCode, Status(result.RecipientStatus)), Is.EqualTo(((OdinClientErrorCode?)null,
-            string.Join(",", new[] { $"{connected.Identity}=Enqueued", $"{gone.Identity}=EnqueueFailed" }.Order()))));
+        Assert.That(result.ErrorCode, Is.Null);
+        Assert.That(result.RecipientStatus, Is.EquivalentTo(new Dictionary<string, DeleteLinkedFileStatus>
+        {
+            [connected.Identity] = DeleteLinkedFileStatus.Enqueued,
+            [gone.Identity] = DeleteLinkedFileStatus.EnqueueFailed,
+        }));
 
-        await sender.Sync.DrainOutboxAsync();
-        await connected.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(sender, connected, drive);
         Assert.That(await RecipientStateAsync(connected, drive, file.Gtid), Is.EqualTo(FileState.Deleted));
     }
 
@@ -87,7 +85,7 @@ public class SoftDeleteBatchPeerTests : V2Fixture
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
         var drive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, DrivePermission.Write, "for me then everyone");
-        var file = await UploadAndDistribute(sender, recipient, drive, fileType: 504);
+        var file = await UploadAndDistribute(sender, recipient, drive);
 
         var forMe = await sender.Drives.Writer.SoftDeleteBatch(drive.Alias, Batch(File(file.FileId)));
         var forEveryone = await sender.Drives.Writer.SoftDeleteBatch(drive.Alias,
@@ -99,8 +97,7 @@ public class SoftDeleteBatchPeerTests : V2Fixture
         Assert.That((result.ErrorCode, Status(result.RecipientStatus), result.Updated),
             Is.EqualTo(((OdinClientErrorCode?)null, $"{recipient.Identity}=Enqueued", forMe.Content!.Results.Single().Updated)));
 
-        await sender.Sync.DrainOutboxAsync();
-        await recipient.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(sender, recipient, drive);
         Assert.That(await RecipientStateAsync(recipient, drive, file.Gtid), Is.EqualTo(FileState.Deleted));
     }
 
@@ -108,9 +105,9 @@ public class SoftDeleteBatchPeerTests : V2Fixture
         string.Join(",", status.Select(kv => $"{kv.Key}={kv.Value}").Order());
 
     private static async Task<(Guid FileId, Guid VersionTag, Guid Gtid)> UploadAndDistribute(
-        OwnerSession sender, OwnerSession recipient, TargetDrive drive, int fileType)
+        OwnerSession sender, OwnerSession recipient, TargetDrive drive)
     {
-        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Connected, allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: 500, acl: AccessControlList.Connected, allowDistribution: true);
         var transit = new TransitOptions { Recipients = [recipient.Identity], Priority = OutboxPriority.High };
 
         var response = await sender.Drives.Writer.UploadNewMetadata(drive.Alias, metadata, transit);
@@ -118,8 +115,7 @@ public class SoftDeleteBatchPeerTests : V2Fixture
         var upload = response.Content!;
         var gtid = upload.GlobalTransitId ?? throw new InvalidOperationException("distribution upload must yield a GlobalTransitId");
 
-        await sender.Sync.DrainOutboxAsync();
-        await recipient.Sync.ProcessInboxAsync(drive);
+        await PeerFlow.DistributeAsync(sender, recipient, drive);
         Assert.That(await RecipientStateAsync(recipient, drive, gtid), Is.EqualTo(FileState.Active));
         return (upload.FileId, upload.NewVersionTag, gtid);
     }

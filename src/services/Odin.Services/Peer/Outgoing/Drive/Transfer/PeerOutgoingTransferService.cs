@@ -165,19 +165,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 DriveId = SystemDriveConstants.TransientTempDrive.Alias
             };
 
-            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext);
+            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext,
+                failIfNotConnected: true);
 
             return result;
         }
 
-        /// <param name="unconnectedAsFailed">When true, a recipient the caller is no longer connected to is reported as
-        /// EnqueueFailed instead of failing the request</param>
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
             InternalDriveFileId fileId,
             FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients,
-            IOdinContext odinContext,
-            bool unconnectedAsFailed = false)
+            IOdinContext odinContext)
         {
             var recipientList = recipients?.ToList() ?? [];
             logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> tenant:{tenant} fileId:{fileId} fileSystemType:{fst} recipientCount:{rc}",
@@ -193,10 +191,27 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 throw new OdinClientException("File not found", OdinClientErrorCode.InvalidFile);
             }
 
+            return await SendDeleteFileRequest(header, fileTransferOptions, recipientList, odinContext, failIfNotConnected: true);
+        }
+
+        /// <summary>
+        /// Tells <paramref name="recipients"/> to delete their copies of the file <paramref name="header"/> describes, which
+        /// the caller has already read
+        /// </summary>
+        /// <param name="failIfNotConnected">False reports a recipient the caller is no longer connected to as
+        /// EnqueueFailed instead of failing the request</param>
+        public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
+            ServerFileHeader header,
+            FileTransferOptions fileTransferOptions,
+            IEnumerable<string> recipients,
+            IOdinContext odinContext,
+            bool failIfNotConnected)
+        {
+            var fileId = header.FileMetadata.File;
             var remoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = odinContext.PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId)
+                TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId)
             };
 
             logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> fileId: {fileId} -> resolved gtid:{gtid} targetDrive:{drive}; calling EnqueueDeletes",
@@ -204,8 +219,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 remoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 remoteGlobalTransitIdFileIdentifier.TargetDrive);
 
-            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipientList, odinContext,
-                unconnectedAsFailed);
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext,
+                failIfNotConnected);
         }
 
         /// <summary>
@@ -487,7 +502,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients,
             IOdinContext odinContext,
-            bool unconnectedAsFailed = false)
+            bool failIfNotConnected)
         {
             var results = new Dictionary<string, DeleteLinkedFileStatus>();
 
@@ -496,7 +511,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 var recipient = (OdinId)r;
 
                 //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected: !unconnectedAsFailed);
+                var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected);
                 if (clientAuthToken == null)
                 {
                     results.Add(recipient.DomainName, DeleteLinkedFileStatus.EnqueueFailed);

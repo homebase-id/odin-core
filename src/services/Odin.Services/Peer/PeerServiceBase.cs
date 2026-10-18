@@ -57,13 +57,21 @@ namespace Odin.Services.Peer
             return payload;
         }
 
+        /// <summary>
+        /// Whether the caller may reach a peer at all; every recipient's token is resolved behind this check
+        /// </summary>
+        public static void AssertCanUseTransit(IOdinContext odinContext)
+        {
+            odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
+                PermissionKeys.UseTransitWrite,
+                PermissionKeys.UseTransitRead);
+        }
+
         protected async Task<ClientAccessToken> ResolveClientAccessTokenAsync(OdinId recipient, IOdinContext odinContext,
             bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
-            odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
-                PermissionKeys.UseTransitWrite,
-                PermissionKeys.UseTransitRead);
+            AssertCanUseTransit(odinContext);
 
             
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead

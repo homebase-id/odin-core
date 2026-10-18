@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
@@ -41,7 +42,7 @@ public class SoftDeleteBatchTests : V2Fixture
             Batch(File(a.FileId, a.NewVersionTag), File(b.FileId)));
 
         Assert.That(response.StatusCode, Is.EqualTo(expected), response.Error?.Content);
-        var feed = await FeedAsync(owner, spec.TargetDrive);
+        var feed = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
         if (expected != HttpStatusCode.OK)
         {
             Assert.That(feed.Values.Select(f => f.FileState), Is.All.EqualTo(FileState.Active));
@@ -52,7 +53,7 @@ public class SoftDeleteBatchTests : V2Fixture
         Assert.That(results.Select(r => (r.FileId, r.ErrorCode, r.RecipientStatus.Count)),
             Is.EqualTo(new[] { (a.FileId, (OdinClientErrorCode?)null, 0), (b.FileId, null, 0) }));
         Assert.That(results.Select(r => (r.FileId, r.Updated)),
-            Is.EqualTo(new[] { a, b }.Select(f => (f.FileId, (Odin.Core.Time.UnixTimeUtc?)feed[f.FileId].Updated))),
+            Is.EqualTo(new[] { a, b }.Select(f => (f.FileId, (UnixTimeUtc?)feed[f.FileId].Updated))),
             "updated is the tombstone's time in the feed");
         Assert.That(feed.Values.Select(f => f.FileState), Is.All.EqualTo(FileState.Deleted));
     }
@@ -67,7 +68,7 @@ public class SoftDeleteBatchTests : V2Fixture
         var untagged = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "untagged");
         var tombstone = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "tombstone");
         await AppFileUploads.SoftDeleteAsync(owner, tombstone);
-        var tombstoneBefore = (await FeedAsync(owner, spec.TargetDrive))[tombstone.FileId];
+        var tombstoneBefore = (await AppFileUploads.FeedAsync(owner, spec.TargetDrive))[tombstone.FileId];
         var missing = Guid.NewGuid();
 
         var response = await caller.Drives.Writer.SoftDeleteBatch(spec.TargetDrive.Alias, Batch(
@@ -88,7 +89,7 @@ public class SoftDeleteBatchTests : V2Fixture
             (tombstone.FileId, null, true),
         }));
 
-        var after = await FeedAsync(owner, spec.TargetDrive);
+        var after = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
         Assert.That(after.ToDictionary(kv => kv.Key, kv => kv.Value.FileState), Is.EquivalentTo(new Dictionary<Guid, FileState>
         {
             [current.FileId] = FileState.Deleted,
@@ -98,7 +99,7 @@ public class SoftDeleteBatchTests : V2Fixture
         }));
         Assert.That(after[stale.FileId].VersionTag, Is.EqualTo(stale.NewVersionTag), "a refused file is left untouched");
         Assert.That((after[tombstone.FileId].VersionTag, after[tombstone.FileId].Updated, results[4].Updated),
-            Is.EqualTo((tombstoneBefore.VersionTag, tombstoneBefore.Updated, (Odin.Core.Time.UnixTimeUtc?)tombstoneBefore.Updated)),
+            Is.EqualTo((tombstoneBefore.VersionTag, tombstoneBefore.Updated, (UnixTimeUtc?)tombstoneBefore.Updated)),
             "an existing tombstone is left as it is and answers its own time");
     }
 
@@ -136,7 +137,7 @@ public class SoftDeleteBatchTests : V2Fixture
             (hidden.FileId, (OdinClientErrorCode?)OdinClientErrorCode.FileNotFound),
             (visible.FileId, null)
         }));
-        var feed = await FeedAsync(owner, spec.TargetDrive);
+        var feed = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
         Assert.That(feed[hidden.FileId].FileState, Is.EqualTo(FileState.Active));
     }
 
@@ -160,13 +161,18 @@ public class SoftDeleteBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var good = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "first in the batch");
-        var files = malformed.Count is 0 or > FileVersionTagBatchV2.MaxFiles ? malformed : [File(good.FileId), .. malformed];
+        // A good file ahead of the bad one shows nothing ran; a batch refused for its size has no file to put first
+        var sized = malformed.Count is 0 or > FileVersionTagBatchV2.MaxFiles;
+        var good = sized ? null : await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "first in the batch");
+        var files = sized ? malformed : [File(good!.FileId), .. malformed];
 
         var response = await caller.Drives.Writer.SoftDeleteBatch(spec.TargetDrive.Alias, new SoftDeleteBatchRequestV2 { Files = files });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
-        Assert.That((await FeedAsync(owner, spec.TargetDrive))[good.FileId].FileState, Is.EqualTo(FileState.Active));
+        if (good != null)
+        {
+            Assert.That((await AppFileUploads.FeedAsync(owner, spec.TargetDrive))[good.FileId].FileState, Is.EqualTo(FileState.Active));
+        }
     }
 
     [Test]
@@ -180,25 +186,11 @@ public class SoftDeleteBatchTests : V2Fixture
             Batch(File(file.FileId, recipients: [owner.Identity])));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
-        Assert.That((await FeedAsync(owner, spec.TargetDrive))[file.FileId].FileState, Is.EqualTo(FileState.Active));
+        Assert.That((await AppFileUploads.FeedAsync(owner, spec.TargetDrive))[file.FileId].FileState, Is.EqualTo(FileState.Active));
     }
 
     internal static SoftDeleteFileV2 File(Guid fileId, Guid? versionTag = null, List<string> recipients = null) =>
         new() { FileId = fileId, VersionTag = versionTag, Recipients = recipients };
 
     internal static SoftDeleteBatchRequestV2 Batch(params SoftDeleteFileV2[] files) => new() { Files = files.ToList() };
-
-    /// <summary>
-    /// Every row of the drive's change feed, tombstones included
-    /// </summary>
-    private static async Task<Dictionary<Guid, FileRef>> FeedAsync(OwnerSession owner, TargetDrive drive)
-    {
-        var response = await owner.Drives.Reader.GetBatchAsync(drive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1 { TargetDrive = drive, FileState = [FileState.Active, FileState.Deleted] },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, ResultShape = FileResultShape.Minimal }
-        });
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"feed query failed: {response.StatusCode}");
-        return response.Content!.FileRefs.ToDictionary(r => r.FileId);
-    }
 }

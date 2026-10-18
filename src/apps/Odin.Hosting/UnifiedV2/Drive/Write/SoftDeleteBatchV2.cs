@@ -23,13 +23,8 @@ public class SoftDeleteBatchRequestV2
     /// </summary>
     public void AssertValid(OdinId tenant)
     {
-        OdinValidationUtils.AssertNotNull(Files, "files");
-        OdinValidationUtils.AssertIsTrue(Files.Count is > 0 and <= FileVersionTagBatchV2.MaxFiles,
-            $"files must hold 1 to {FileVersionTagBatchV2.MaxFiles} entries");
-        OdinValidationUtils.AssertIsTrue(Files.All(f => f != null && f.FileId != Guid.Empty && f.VersionTag != Guid.Empty),
-            "every file needs a fileId, and a versionTag when it names one");
-        OdinValidationUtils.AssertIsTrue(Files.Select(f => f.FileId).Distinct().Count() == Files.Count,
-            "a file may appear only once");
+        FileVersionTagBatchV2.AssertValidBatch(Files);
+        OdinValidationUtils.AssertIsTrue(Files.All(f => f.VersionTag != Guid.Empty), "a versionTag, when given, cannot be empty");
         foreach (var f in Files.Where(f => f.Recipients != null))
         {
             OdinValidationUtils.AssertIsTrue(f.Recipients.All(r => r != null), "a recipient cannot be null");
@@ -38,7 +33,7 @@ public class SoftDeleteBatchRequestV2
     }
 }
 
-public class SoftDeleteFileV2
+public class SoftDeleteFileV2 : IBatchFileV2
 {
     public Guid FileId { get; init; }
 

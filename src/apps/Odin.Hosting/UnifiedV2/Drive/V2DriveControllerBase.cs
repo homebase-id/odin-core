@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer;
@@ -127,6 +130,56 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 results.Count(x => x.LocalFileNotFound));
 
             return results;
+        }
+
+        /// <summary>
+        /// Soft-deletes one file of a batch, telling its recipients first. Throws a client error only before anything is
+        /// sent or written; after that, a failure is in the result, beside who was told.
+        /// </summary>
+        protected async Task<SoftDeleteResultV2> SoftDeleteFileAsync(InternalDriveFileId file, Guid? versionTag, List<string> recipients)
+        {
+            var storage = GetFileSystem().Storage;
+            var header = await storage.GetServerFileHeaderForWriting(file, WebOdinContext, aclDeniedAsMissing: true)
+                         ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
+
+            // A tombstone is done (a retry whose answer was lost, or a delete-for-me then for-everyone): its tag has moved
+            // on, so it is not checked, but its recipients are still told
+            var alreadyDeleted = header.FileMetadata.FileState == FileState.Deleted;
+            if (!alreadyDeleted)
+            {
+                DriveStorageServiceBase.AssertVersionTagMatches(header, versionTag);
+            }
+
+            // Recipients before the local delete: if the delete then fails, the copy stays to retry from, which the
+            // reverse would not leave
+            var recipientStatus = recipients is { Count: > 0 }
+                ? await peerOutgoingTransferService.SendDeleteFileRequest(header,
+                    new FileTransferOptions
+                    {
+                        FileSystemType = header.ServerMetadata.FileSystemType,
+                        TransferFileType = TransferFileType.Normal
+                    },
+                    recipients, WebOdinContext, failIfNotConnected: false)
+                : [];
+
+            UnixTimeUtc? updated = header.FileMetadata.Updated;
+            OdinClientErrorCode? errorCode = null;
+            if (!alreadyDeleted)
+            {
+                try
+                {
+                    updated = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, versionTag);
+                    // The tombstone write logs and swallows anything but a client or security error
+                    errorCode = updated == null ? OdinClientErrorCode.UnhandledScenario : null;
+                }
+                catch (OdinClientException e)
+                {
+                    // An edit since the check above; the recipients were told already, and the result says so
+                    (updated, errorCode) = (null, e.ErrorCode);
+                }
+            }
+
+            return new SoftDeleteResultV2 { FileId = file.FileId, Updated = updated, ErrorCode = errorCode, RecipientStatus = recipientStatus };
         }
 
         protected IDriveFileSystem GetFileSystem()

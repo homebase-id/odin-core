@@ -41,7 +41,7 @@ public class HardDeleteBatchTests : V2Fixture
             Batch((a.FileId, a.NewVersionTag), (b.FileId, b.NewVersionTag)));
 
         Assert.That(response.StatusCode, Is.EqualTo(expected), response.Error?.Content);
-        var remaining = await FeedAsync(owner, spec.TargetDrive);
+        var remaining = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
         if (expected != HttpStatusCode.OK)
         {
             Assert.That(remaining.Keys, Is.EquivalentTo(new[] { a.FileId, b.FileId }));
@@ -64,7 +64,7 @@ public class HardDeleteBatchTests : V2Fixture
         var staleTombstone = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "stale tombstone");
         await AppFileUploads.SoftDeleteAsync(owner, tombstone);
         await AppFileUploads.SoftDeleteAsync(owner, staleTombstone);
-        var feed = await FeedAsync(owner, spec.TargetDrive);
+        var feed = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
         var missing = Guid.NewGuid();
 
         var response = await caller.Drives.Writer.HardDeleteBatch(spec.TargetDrive.Alias, Batch(
@@ -84,7 +84,7 @@ public class HardDeleteBatchTests : V2Fixture
             (staleTombstone.FileId, OdinClientErrorCode.VersionTagMismatch),
         }));
 
-        var after = await FeedAsync(owner, spec.TargetDrive);
+        var after = await AppFileUploads.FeedAsync(owner, spec.TargetDrive);
         Assert.That(after.ToDictionary(kv => kv.Key, kv => kv.Value.FileState), Is.EquivalentTo(new Dictionary<Guid, FileState>
         {
             [stale.FileId] = FileState.Active,
@@ -127,7 +127,7 @@ public class HardDeleteBatchTests : V2Fixture
             (hidden.FileId, (OdinClientErrorCode?)OdinClientErrorCode.FileNotFound),
             (visible.FileId, null)
         }));
-        Assert.That((await FeedAsync(owner, spec.TargetDrive)).Keys, Is.EqualTo(new[] { hidden.FileId }));
+        Assert.That((await AppFileUploads.FeedAsync(owner, spec.TargetDrive)).Keys, Is.EqualTo(new[] { hidden.FileId }));
     }
 
     [Test]
@@ -148,18 +148,4 @@ public class HardDeleteBatchTests : V2Fixture
     {
         Files = files.Select(f => new FileVersionTagV2 { FileId = f.FileId, VersionTag = f.VersionTag }).ToList()
     };
-
-    /// <summary>
-    /// Every row of the drive's change feed, tombstones included
-    /// </summary>
-    private static async Task<Dictionary<Guid, FileRef>> FeedAsync(OwnerSession owner, TargetDrive drive)
-    {
-        var response = await owner.Drives.Reader.GetBatchAsync(drive.Alias, new QueryBatchRequest
-        {
-            QueryParams = new FileQueryParamsV1 { TargetDrive = drive, FileState = [FileState.Active, FileState.Deleted] },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest { MaxRecords = 100, ResultShape = FileResultShape.Minimal }
-        });
-        Assert.That(response.IsSuccessStatusCode, Is.True, $"feed query failed: {response.StatusCode}");
-        return response.Content!.FileRefs.ToDictionary(r => r.FileId);
-    }
 }
