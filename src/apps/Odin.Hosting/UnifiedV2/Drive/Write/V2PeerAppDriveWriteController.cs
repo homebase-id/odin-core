@@ -65,9 +65,8 @@ public class V2PeerAppDriveWriteController(
     /// instructions part are ignored here</b> — <c>remoteTargetDrive</c> and <c>recipients</c> — because
     /// the URL already states both.  Send them or omit them; the path wins either way.</para>
     ///
-    /// <para>You need a Write grant on whatever the address resolves to, and either
-    /// <c>UseTransitWrite</c> or <c>UseTransitRead</c>.  A deposit-only grant is enough: you do not
-    /// need to be able to read the drive you are writing to.</para>
+    /// <para>You need a Write grant on whatever the address resolves to, and <c>UseTransitWrite</c>.
+    /// A deposit-only grant is enough: you do not need to be able to read the drive you are writing to.</para>
     ///
     /// <para>400 when nothing on that identity answers to the address.</para>
     /// </remarks>
