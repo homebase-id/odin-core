@@ -97,6 +97,12 @@ namespace Odin.Hosting.UnifiedV2.Drive
             logger.LogDebug("[DeleteFlow] DeleteFileIdBatchInternal -> driveId:{driveId} batchCount:{count}",
                 driveId, requests?.Count ?? 0);
 
+            // Before the first file, so a refusal touches nothing
+            if (requests.Any(r => r.Recipients?.Count > 0))
+            {
+                PeerOutgoingTransferService.AssertCanTellRecipientsToDelete(GetFileSystemType(), WebOdinContext);
+            }
+
             // Check every version tag before deleting anything, so a stale tag fails the batch whole
             // instead of after the files ahead of it were deleted
             var fs = this.GetFileSystem();

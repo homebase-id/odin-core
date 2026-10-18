@@ -18,21 +18,22 @@ public class SoftDeleteBatchRequestV2
     public List<SoftDeleteFileV2> Files { get; init; }
 
     /// <summary>
+    /// Recipients over all files of one batch, e.g. 100 messages to a 100-member group. A larger delete (1000
+    /// messages to that group) is split by the caller into several batches; one over the cap is refused with 400.
+    /// </summary>
+    public const int MaxRecipientEntries = 10_000;
+
+    /// <summary>
     /// A malformed batch is refused whole (400) before any file is touched: no files, too many, a file twice, an
     /// empty fileId or versionTag, or a file's recipients malformed, null, this identity, repeated or too many (1000
     /// per file, <see cref="MaxRecipientEntries"/> in all)
     /// </summary>
-    /// <summary>
-    /// Recipients over all files of one batch: 100 messages to a 100-member group
-    /// </summary>
-    public const int MaxRecipientEntries = 10_000;
-
     public void AssertValid(OdinId tenant)
     {
         FileVersionTagBatchV2.AssertValidBatch(Files);
         OdinValidationUtils.AssertIsTrue(Files.All(f => f.VersionTag != Guid.Empty), "a versionTag, when given, cannot be empty");
         OdinValidationUtils.AssertIsTrue(Files.Sum(f => f.Recipients?.Count ?? 0) <= MaxRecipientEntries,
-            $"a batch may name at most {MaxRecipientEntries} recipients in all");
+            $"a batch may name at most {MaxRecipientEntries} recipients over all its files; split it into smaller batches");
         foreach (var f in Files.Where(f => f.Recipients != null))
         {
             OdinValidationUtils.AssertIsTrue(f.Recipients.All(r => r != null), "a recipient cannot be null");

@@ -353,6 +353,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         private async Task<DeleteFileIdBatchResult> PerformDeleteFileIdBatch(DeleteFileIdBatchRequest batchRequest)
         {
+            // Before the first file, so a refusal touches nothing
+            if (batchRequest.Requests.Any(r => r.Recipients?.Count > 0))
+            {
+                PeerOutgoingTransferService.AssertCanTellRecipientsToDelete(GetHttpFileSystemResolver().GetFileSystemType(),
+                    WebOdinContext);
+            }
+
             var results = new List<DeleteFileResult>();
             foreach (var request in batchRequest.Requests)
             {
