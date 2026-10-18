@@ -170,11 +170,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return result;
         }
 
+        /// <param name="unconnectedAsFailed">When true, a recipient the caller is no longer connected to is reported as
+        /// EnqueueFailed instead of failing the request</param>
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
             InternalDriveFileId fileId,
             FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            bool unconnectedAsFailed = false)
         {
             var recipientList = recipients?.ToList() ?? [];
             logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> tenant:{tenant} fileId:{fileId} fileSystemType:{fst} recipientCount:{rc}",
@@ -201,7 +204,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 remoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 remoteGlobalTransitIdFileIdentifier.TargetDrive);
 
-            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipientList, odinContext);
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipientList, odinContext,
+                unconnectedAsFailed);
         }
 
         /// <summary>
@@ -482,7 +486,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            bool unconnectedAsFailed = false)
         {
             var results = new Dictionary<string, DeleteLinkedFileStatus>();
 
@@ -491,7 +496,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 var recipient = (OdinId)r;
 
                 //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext);
+                var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected: !unconnectedAsFailed);
+                if (clientAuthToken == null)
+                {
+                    results.Add(recipient.DomainName, DeleteLinkedFileStatus.EnqueueFailed);
+                    continue;
+                }
+
                 var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                 var item = new OutboxFileItem()

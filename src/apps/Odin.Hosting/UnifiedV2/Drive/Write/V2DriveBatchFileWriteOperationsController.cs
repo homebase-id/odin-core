@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -80,7 +83,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
 
             var status = request.ArchivalStatus!.Value;
             var storage = GetFileSystem().Storage;
-            var results = await PerFileAsync(driveId, request.Files,
+            var results = await PerFileAsync(driveId, request.Files, f => f.FileId,
                 async (file, f) =>
                 {
                     var (versionTag, updated) = await storage.UpdateArchivalStatus(file, f.VersionTag, status, WebOdinContext);
@@ -110,7 +113,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
             var storage = GetFileSystem().Storage;
-            var results = await PerFileAsync(driveId, request.Files,
+            var results = await PerFileAsync(driveId, request.Files, f => f.FileId,
                 async (file, f) =>
                 {
                     await storage.HardDeleteLongTermFile(file, f.VersionTag, WebOdinContext);
@@ -128,22 +131,103 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         }
 
         /// <summary>
+        /// Soft-deletes up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files, each optionally only at its version tag,
+        /// and tells each file's recipients to delete their copies.
+        /// </summary>
+        [HttpPost("soft-delete-batch")]
+        [SwaggerOperation(
+            Summary = "Delete many files, leaving tombstones",
+            Description = "Deletes each file, leaving a tombstone in the change feed, only if its version tag still matches " +
+                          "when one is given, and tells the file's recipients to delete their copies. A malformed batch " +
+                          "is refused whole before anything is touched. Results are per file; see SoftDeleteResultV2.",
+            Tags = [SwaggerInfo.FileWrite]
+        )]
+        public async Task<SoftDeleteBatchResultV2> SoftDeleteBatch(Guid driveId, [FromBody] SoftDeleteBatchRequestV2 request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            request.AssertValid(WebOdinContext.Tenant);
+
+            WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+            if (request.Files.Any(f => f.Recipients is { Count: > 0 }))
+            {
+                // The check telling a recipient makes, made up front so a refusal touches no file
+                WebOdinContext.PermissionsContext.AssertHasAtLeastOnePermission(PermissionKeys.UseTransitWrite,
+                    PermissionKeys.UseTransitRead);
+            }
+
+            var storage = GetFileSystem().Storage;
+            var results = await PerFileAsync(driveId, request.Files, f => f.FileId,
+                async (file, f) =>
+                {
+                    var header = await storage.GetServerFileHeaderForWriting(file, WebOdinContext, aclDeniedAsMissing: true)
+                                 ?? throw new OdinClientException("Cannot delete a file that does not exist",
+                                     OdinClientErrorCode.FileNotFound);
+
+                    // A tombstone is done (a retry whose answer was lost, or a delete-for-me then for-everyone): its tag
+                    // has moved on, so it is not checked, but its recipients are still told
+                    var alreadyDeleted = header.FileMetadata.FileState == FileState.Deleted;
+                    if (!alreadyDeleted)
+                    {
+                        DriveStorageServiceBase.AssertVersionTagMatches(header, f.VersionTag);
+                    }
+
+                    // Recipients before the local delete: if the delete then fails, its copy stays to retry from, which
+                    // the reverse would not leave
+                    var recipientStatus = f.Recipients is { Count: > 0 }
+                        ? await PeerOutgoingTransferService.SendDeleteFileRequest(file,
+                            new FileTransferOptions
+                            {
+                                FileSystemType = header.ServerMetadata.FileSystemType,
+                                TransferFileType = TransferFileType.Normal
+                            },
+                            f.Recipients, WebOdinContext, unconnectedAsFailed: true)
+                        : new Dictionary<string, DeleteLinkedFileStatus>();
+
+                    if (alreadyDeleted)
+                    {
+                        return new SoftDeleteResultV2 { FileId = f.FileId, Updated = header.FileMetadata.Updated, RecipientStatus = recipientStatus };
+                    }
+
+                    try
+                    {
+                        var updated = await storage.SoftDeleteLongTermFile(file, WebOdinContext, null, f.VersionTag);
+                        return new SoftDeleteResultV2
+                        {
+                            FileId = f.FileId,
+                            Updated = updated,
+                            RecipientStatus = recipientStatus,
+                            // The tombstone write logs and swallows anything but a client or security error
+                            ErrorCode = updated == null ? OdinClientErrorCode.UnhandledScenario : null
+                        };
+                    }
+                    catch (OdinClientException e)
+                    {
+                        // An edit since the check above; the recipients were told already, and the result says so
+                        return new SoftDeleteResultV2 { FileId = f.FileId, ErrorCode = e.ErrorCode, RecipientStatus = recipientStatus };
+                    }
+                },
+                (fileId, errorCode) => new SoftDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
+
+            return new SoftDeleteBatchResultV2 { Results = results };
+        }
+
+        /// <summary>
         /// Runs <paramref name="write"/> on each file in request order. A client error becomes that file's result, so one
         /// bad file never stops the others nor strands the ones already written before it; anything else fails the request.
         /// </summary>
-        private static async Task<List<TResult>> PerFileAsync<TResult>(Guid driveId, List<FileVersionTagV2> files,
-            Func<InternalDriveFileId, FileVersionTagV2, Task<TResult>> write, Func<Guid, OdinClientErrorCode, TResult> failed)
+        private static async Task<List<TResult>> PerFileAsync<TFile, TResult>(Guid driveId, List<TFile> files, Func<TFile, Guid> fileId,
+            Func<InternalDriveFileId, TFile, Task<TResult>> write, Func<Guid, OdinClientErrorCode, TResult> failed)
         {
             var results = new List<TResult>(files.Count);
             foreach (var f in files)
             {
                 try
                 {
-                    results.Add(await write(new InternalDriveFileId(driveId, f.FileId), f));
+                    results.Add(await write(new InternalDriveFileId(driveId, fileId(f)), f));
                 }
                 catch (OdinClientException e)
                 {
-                    results.Add(failed(f.FileId, e.ErrorCode));
+                    results.Add(failed(fileId(f), e.ErrorCode));
                 }
             }
 

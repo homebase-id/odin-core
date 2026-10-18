@@ -444,6 +444,14 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         return await svc.UpdateArchivalStatusBatch(driveId, request);
     }
 
+    public async Task<ApiResponse<SoftDeleteBatchResultV2>> SoftDeleteBatch(Guid driveId,
+        SoftDeleteBatchRequestV2 request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        return await svc.SoftDeleteBatch(driveId, request);
+    }
+
     public async Task<ApiResponse<HardDeleteBatchResultV2>> HardDeleteBatch(Guid driveId,
         HardDeleteBatchRequestV2 request)
     {
