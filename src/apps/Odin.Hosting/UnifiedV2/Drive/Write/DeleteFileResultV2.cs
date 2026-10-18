@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
@@ -26,4 +28,12 @@ public class DeleteFileResultV2
     /// the local file was not deleted
     /// </summary>
     public UnixTimeUtc? Updated { get; set; }
+
+    /// <summary>
+    /// Why this file was left alone, as a camelCase string: "versionTagMismatch" when the request's versionTag is no
+    /// longer the file's, and the file stays as it is. Left out of the JSON when null, so a request without version
+    /// tags gets the same response as before.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OdinClientErrorCode? ErrorCode { get; set; }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Drive.Write;
@@ -93,18 +94,6 @@ namespace Odin.Hosting.UnifiedV2.Drive
             logger.LogDebug("[DeleteFlow] DeleteFileIdBatchInternal -> driveId:{driveId} batchCount:{count}",
                 driveId, requests?.Count ?? 0);
 
-            // Check every version tag before deleting anything, so a stale tag fails the batch whole
-            // instead of after the files ahead of it were deleted
-            var fs = this.GetFileSystem();
-            foreach (var r in requests.Where(r => r.VersionTag.HasValue))
-            {
-                var header = await fs.Storage.GetServerFileHeaderForWriting(new InternalDriveFileId(driveId, r.FileId), WebOdinContext);
-                if (header != null)
-                {
-                    DriveStorageServiceBase.AssertVersionTagMatches(header, r.VersionTag);
-                }
-            }
-
             var results = new List<DeleteFileResultV2>();
             foreach (var r in requests)
             {
@@ -117,8 +106,20 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 logger.LogDebug("[DeleteFlow] DeleteFileIdBatchInternal -> processing fileId:{fileId} recipientCount:{rc}",
                     r.FileId, options.Recipients.Count);
 
-                var result = await PerformFileDelete(driveId, r.FileId, options);
-                results.Add(result);
+                try
+                {
+                    results.Add(await PerformFileDelete(driveId, r.FileId, options));
+                }
+                catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+                {
+                    // A stale tag answers for its own file; the rest of the batch is still deleted
+                    results.Add(new DeleteFileResultV2
+                    {
+                        FileId = r.FileId,
+                        RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
+                        ErrorCode = e.ErrorCode
+                    });
+                }
             }
 
             logger.LogDebug("[DeleteFlow] DeleteFileIdBatchInternal -> driveId:{driveId} complete; localDeleted:{ld} notFound:{nf}",

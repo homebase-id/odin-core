@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -14,6 +15,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 
@@ -305,22 +307,57 @@ public class DeleteFileTests : V2Fixture
     }
 
     [Test]
-    public async Task BatchDeleteWithOneStaleVersionTagDeletesNothing()
+    public async Task BatchDeleteWithOneStaleVersionTagDeletesTheOthersAndReportsThatFile()
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var current = await UploadAsync(owner, spec);
         var stale = await UploadAsync(owner, spec);
+        var untagged = await UploadAsync(owner, spec);
 
         var delete = await caller.Drives.Writer.DeleteFileList(spec.TargetDrive.Alias,
         [
             new DeleteFileRequestV2 { FileId = current.FileId, VersionTag = current.NewVersionTag },
-            new DeleteFileRequestV2 { FileId = stale.FileId, VersionTag = Guid.NewGuid() }
+            new DeleteFileRequestV2 { FileId = stale.FileId, VersionTag = Guid.NewGuid() },
+            new DeleteFileRequestV2 { FileId = untagged.FileId }
         ]);
 
-        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(TestUtils.ParseProblemDetails(delete.Error!), Is.EqualTo(OdinClientErrorCode.VersionTagMismatch));
-        await AssertActiveAsync(owner, current);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var results = delete.Content!.Results;
+        Assert.That(results.Select(r => (r.FileId, r.LocalFileDeleted, r.ErrorCode)), Is.EqualTo(new[]
+        {
+            (current.FileId, true, (OdinClientErrorCode?)null),
+            (stale.FileId, false, OdinClientErrorCode.VersionTagMismatch),
+            (untagged.FileId, true, null)
+        }));
+
         await AssertActiveAsync(owner, stale);
+        foreach (var deleted in new[] { current, untagged })
+        {
+            var header = await owner.Drives.Reader.GetFileHeaderAsync(deleted.DriveId, deleted.FileId);
+            Assert.That(header.Content?.FileState, Is.EqualTo(FileState.Deleted), $"file {deleted.FileId}");
+        }
+    }
+
+    [Test]
+    public void DeleteResultWithoutErrorLeavesErrorCodeOutOfTheJson()
+    {
+        // Callers that send no version tag (odin-js, chat-kmp's outbox) must keep getting the response they parse today
+        var json = OdinSystemSerializer.Serialize(new DeleteFileResultV2
+        {
+            FileId = Guid.NewGuid(),
+            RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
+            LocalFileDeleted = true
+        });
+        Assert.That(json, Does.Not.Contain("errorCode"));
+
+        var mismatch = OdinSystemSerializer.Serialize(new DeleteFileResultV2
+        {
+            FileId = Guid.NewGuid(),
+            RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
+            ErrorCode = OdinClientErrorCode.VersionTagMismatch
+        });
+        TestContext.Out.WriteLine(mismatch);
+        Assert.That(mismatch, Does.Contain("\"errorCode\":\"versionTagMismatch\""));
     }
 }

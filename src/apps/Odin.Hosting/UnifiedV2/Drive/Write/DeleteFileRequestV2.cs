@@ -16,8 +16,9 @@ public class DeleteFileRequestV2
     public List<string> Recipients { get; set; }
 
     /// <summary>
-    /// Optional. When set, the file is only deleted if it is still at this version; otherwise 4160
-    /// VersionTagMismatch, and nothing in the batch is deleted.
+    /// Optional. When set, the file is only deleted if it is still at this version. Otherwise a single delete fails
+    /// with 4160 VersionTagMismatch, and in a batch that file's result has errorCode "versionTagMismatch" while the
+    /// others are deleted.
     /// </summary>
     public Guid? VersionTag { get; set; }
 }
