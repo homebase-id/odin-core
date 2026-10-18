@@ -6,14 +6,13 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
-using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Tests.V2.DriveWrite;
@@ -163,6 +162,9 @@ public class SoftDeleteBatchTests : V2Fixture
         {
             File(Guid.NewGuid(), recipients: Enumerable.Range(0, PeerOutgoingTransferService.MaxRecipientCount + 1).Select(i => $"r{i}.example.com").ToList())
         }).SetName("too many recipients");
+        yield return new TestCaseData(Enumerable.Range(0, 11)
+            .Select(_ => File(Guid.NewGuid(), recipients: Enumerable.Range(0, 1000).Select(i => $"r{i}.example.com").ToList())).ToList())
+            .SetName("too many recipients in all");
         yield return new TestCaseData(Enumerable.Range(0, FileVersionTagBatchV2.MaxFiles + 1).Select(_ => File(Guid.NewGuid())).ToList())
             .SetName("too many files");
     }
@@ -200,10 +202,16 @@ public class SoftDeleteBatchTests : V2Fixture
         Assert.That((await AppFileUploads.FeedAsync(owner, spec.TargetDrive))[file.FileId].FileState, Is.EqualTo(FileState.Active));
     }
 
-    [Test]
-    public async Task ACallerThatMayNotReachPeersIsRefusedWholeWhenAFileNamesRecipients()
+    public static IEnumerable<TestCaseData> CallersThatMayNotWriteToPeers()
     {
-        var spec = CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write); // no transit permission
+        yield return new TestCaseData(CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write)).SetName("no transit permission");
+        yield return new TestCaseData(CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write, [PermissionKeys.UseTransitRead]))
+            .SetName("transit read only");
+    }
+
+    [Test, TestCaseSource(nameof(CallersThatMayNotWriteToPeers))]
+    public async Task ACallerThatMayNotWriteToPeersIsRefusedWholeWhenAFileNamesRecipients(CallerSpec spec)
+    {
         var (caller, owner) = await SetupCallerWithOwner(spec);
         var first = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "no recipients, first in the batch");
         var second = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "with a recipient");
@@ -241,18 +249,17 @@ public class SoftDeleteBatchTests : V2Fixture
     {
         var spec = CallerSpec.Owner(DriveSpec.Anon());
         var (caller, owner) = await SetupCallerWithOwner(spec);
-        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "short-lived", acl: AccessControlList.Anonymous);
-        metadata.Ttl = FileTtl.After(TimeSpan.FromSeconds(1));
-        var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(spec.TargetDrive.Alias, metadata,
-            new UploadManifest { PayloadDescriptors = [] }, []);
-        Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
+        var file = await AppFileUploads.SeedTextFileAsync(owner, spec.TargetDrive, "short-lived",
+            ttl: FileTtl.After(TimeSpan.FromSeconds(1)));
         await Task.Delay(TimeSpan.FromSeconds(1.5)); // due; the test host runs no expiry job
 
-        var response = await caller.Drives.Writer.SoftDeleteBatch(spec.TargetDrive.Alias, Batch(File(upload.Content!.FileId)));
+        var response = await caller.Drives.Writer.SoftDeleteBatch(spec.TargetDrive.Alias, Batch(File(file.FileId)));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         var result = response.Content!.Results.Single();
-        Assert.That((result.ErrorCode, result.Updated.HasValue), Is.EqualTo(((OdinClientErrorCode?)null, true)));
+        Assert.That(result.ErrorCode, Is.Null);
+        Assert.That(result.Updated, Is.Not.Null);
+        Assert.That((await AppFileUploads.FeedAsync(owner, spec.TargetDrive))[file.FileId].FileState, Is.EqualTo(FileState.Deleted));
     }
 
     internal static SoftDeleteFileV2 File(Guid fileId, Guid? versionTag = null, List<string> recipients = null) =>

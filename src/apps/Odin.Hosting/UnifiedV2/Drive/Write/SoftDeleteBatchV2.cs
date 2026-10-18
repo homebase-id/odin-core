@@ -19,19 +19,26 @@ public class SoftDeleteBatchRequestV2
 
     /// <summary>
     /// A malformed batch is refused whole (400) before any file is touched: no files, too many, a file twice, an
-    /// empty fileId or versionTag, or a file's recipients malformed, null, the caller itself, repeated or too many
+    /// empty fileId or versionTag, or a file's recipients malformed, null, this identity, repeated or too many (1000
+    /// per file, <see cref="MaxRecipientEntries"/> in all)
     /// </summary>
+    /// <summary>
+    /// Recipients over all files of one batch: 100 messages to a 100-member group
+    /// </summary>
+    public const int MaxRecipientEntries = 10_000;
+
     public void AssertValid(OdinId tenant)
     {
         FileVersionTagBatchV2.AssertValidBatch(Files);
         OdinValidationUtils.AssertIsTrue(Files.All(f => f.VersionTag != Guid.Empty), "a versionTag, when given, cannot be empty");
+        OdinValidationUtils.AssertIsTrue(Files.Sum(f => f.Recipients?.Count ?? 0) <= MaxRecipientEntries,
+            $"a batch may name at most {MaxRecipientEntries} recipients in all");
         foreach (var f in Files.Where(f => f.Recipients != null))
         {
             OdinValidationUtils.AssertIsTrue(f.Recipients.All(r => r != null), "a recipient cannot be null");
-            OdinValidationUtils.AssertIsTrue(f.Recipients.Count <= PeerOutgoingTransferService.MaxRecipientCount,
-                $"a file may name at most {PeerOutgoingTransferService.MaxRecipientCount} recipients");
+            PeerOutgoingTransferService.AssertRecipientCount(f.Recipients.Count);
             OdinValidationUtils.AssertValidRecipientList(f.Recipients, allowEmpty: true, tenant);
-            OdinValidationUtils.AssertIsTrue(f.Recipients.Select(r => (OdinId)r).Distinct().Count() == f.Recipients.Count,
+            OdinValidationUtils.AssertIsTrue(f.Recipients.ToOdinIdList().Distinct().Count() == f.Recipients.Count,
                 "a recipient may appear only once per file");
         }
     }
@@ -79,9 +86,9 @@ public class SoftDeleteResultV2
     public UnixTimeUtc? Updated { get; init; }
 
     /// <summary>
-    /// Per recipient: "enqueued", or "enqueueFailed" for one the caller is no longer connected to, or when the file was
-    /// never sent to anyone (it has no global transit id). Recipients are told before the local delete, so if that
-    /// delete then fails (an edit landing in between) this still shows who was told.
+    /// Per recipient, keyed by its lower-cased domain: "enqueued", or "enqueueFailed" for one the caller is no longer
+    /// connected to, or when the file was never sent to anyone (it has no global transit id). Recipients are told before
+    /// the local delete, so if that delete then fails (an edit landing in between) this still shows who was told.
     /// </summary>
     public Dictionary<string, DeleteLinkedFileStatus> RecipientStatus { get; init; } = new();
 }

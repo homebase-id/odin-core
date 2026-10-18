@@ -154,9 +154,8 @@ namespace Odin.Hosting.UnifiedV2.Drive
             }
 
             // Recipients before the local delete: if the delete then fails, the copy stays to retry from, which the
-            // reverse would not leave. A file never sent to anyone has no global transit id for them to match.
-            var recipientStatus = header.FileMetadata.GlobalTransitId == null
-                ? recipients.ToDictionary(r => r.DomainName, _ => DeleteLinkedFileStatus.EnqueueFailed)
+            // reverse would not leave
+            var recipientStatus = recipients.Count == 0 ? []
                 : await peerOutgoingTransferService.SendDeleteFileRequest(header, recipients, recipientTokens, WebOdinContext);
 
             UnixTimeUtc? updated = header.FileMetadata.Updated;

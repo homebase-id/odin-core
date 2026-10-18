@@ -241,9 +241,14 @@ public static class AppFileUploads
     /// An unencrypted metadata-only file (fileType 100) holding <paramref name="content"/>, uploaded by the owner
     /// </summary>
     public static async Task<CreateFileResult> SeedTextFileAsync(OwnerSession owner, TargetDrive drive, string content,
-        AccessControlList? acl = null)
+        AccessControlList? acl = null, long? ttl = null)
     {
         var metadata = SampleMetadataData.CreateWithContent(fileType: 100, content, acl: acl ?? AccessControlList.Anonymous);
+        if (ttl.HasValue)
+        {
+            metadata.Ttl = ttl.Value;
+        }
+
         var upload = await owner.Drives.Writer.CreateNewUnencryptedFile(drive.Alias, metadata,
             new UploadManifest { PayloadDescriptors = [] }, []);
         Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner seed upload failed: {upload.StatusCode}");
