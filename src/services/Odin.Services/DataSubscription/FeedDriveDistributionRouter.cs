@@ -145,10 +145,6 @@ namespace Odin.Services.DataSubscription
                     }
                 }
             }
-            else
-            {
-                _logger.LogDebug("FeedDriveDistributionRouter Handle -> should not distribute");
-            }
         }
 
         private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(IDriveNotification notification,

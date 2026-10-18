@@ -162,7 +162,6 @@ public class TableDriveMainIndex(
                 if (modified != created)
                 {
                     item.hdrVersionTag = useThisNewVersionTag.Value;
-                    logger.LogDebug("Final resulting version tag: {f}", item.hdrVersionTag);
                 }
 
                 item.rowId = (long)rdr[2];

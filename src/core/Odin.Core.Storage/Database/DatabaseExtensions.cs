@@ -12,7 +12,6 @@ public static class DatabaseExtensions
     public static ContainerBuilder AddDatabaseServices(this ContainerBuilder cb)
     {
         cb.RegisterType<DatabaseCounters>().SingleInstance();
-        cb.RegisterType<TransactionalCacheStats>().As<ITransactionalCacheStats>().SingleInstance();
         return cb;
     }
 
