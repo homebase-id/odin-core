@@ -16,7 +16,7 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - Homebase is a generic self-sovereign **app platform**. One identity = one domain = one tenant, with its own server.
 - Apps authenticate with **YouAuth**, an OAuth2-like flow: the owner consents to what the app asks for, and each device
   gets a client token.
-- Apps own **drives** and **circles** (section 2). Each drive is encrypted with its own **storage key** (section 7).
+- Apps own **drives** and **circles** (section 2). Each drive is encrypted with its own **storage key** (section 8).
 - An app sees only what it was granted: "an app gains nothing beyond its own reach". This is cryptographic, not just a
   check: no storage key in hand, no working grant (`PermissionContextStorageKeySource`) **(V)**.
 - All files are zero knowledge encrypted at rest. No decryption keys are stored on the server, they only appears as in-memory blips when the user is online and calls the API.
@@ -100,7 +100,7 @@ Later:
 | `Comment` 8 | write comments |
 | `ConditionalTemporalRead` 16 | read only recently modified files, only via the temporal API; not part of `ReadWrite`/`All` |
 
-- **Write-only is cryptographic**: a writer never holds the storage key **(V, plan doc)**.
+- **Write-only is cryptographic**: a writer never holds the storage key **(V, plan doc)**. Example: Chat.
 - **TO-DO** Allow / block enumerating files on a drive (block queryBatch) for web-drop like apps.
 
 ### Drive options (`StorageDriveDetails`) **(V)**
@@ -174,7 +174,43 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
 - Everything else (comments, reactions, receipts, introductions, connections, live relay, notification tokens, Shamir)
   keeps its own rule. Don't centralize those.
 
-## 7. Envelope encryption
+## 7. The file (HomebaseFile)
+
+What a client gets back for one file (`SharedSecretEncryptedFileHeader`; odin-js calls it `HomebaseFile`) **(V)**:
+
+```
+fileId, targetDrive, fileState, fileSystemType, priority, fileByteCount
+sharedSecretEncryptedKeyHeader   the file's KeyHeader, wrapped for this caller (section 8)
+fileMetadata
+  globalTransitId, referencedFile (comments), created, updated, senderOdinId, originalAuthor
+  isEncrypted, versionTag, payloads[], dataSource, ttl
+  appData          uniqueId, tags, fileType, dataType, groupId, userDate, archivalStatus,
+                   content (≤ 10 KB), previewThumbnail
+  localAppData     versionTag, iv, content (≤ 4 KB), tags, readTime, localReactions
+  reactionPreview  the ReactionSummary
+serverMetadata
+  accessControlList, allowDistribution, doNotIndex, originalRecipientCount
+  transferHistory  per recipient: status, in outbox, read time
+```
+
+- **`versionTag`** is the file's optimistic-concurrency token. Every header write gives it a new one, and a write that names
+  a stale tag fails with `VersionTagMismatch` (`AssertVersionTagMatches`) **(V)**. Compare `updated` too, not only the
+  tag (#1967).
+- **Three parts don't follow that rule.** They have their own update paths, which write their own column and advance
+  `modified` (`updated`), but leave `versionTag` alone (`TableDriveMainIndex`) **(V)**:
+  - **`localAppData`** has **its own `versionTag`**, checked by compare-and-set on `hdrLocalVersionTag`. It's for
+    client-side sync only and is never propagated to peers. A normal header write doesn't overwrite it;
+  - **`reactionPreview`** (`UpdateReactionSummary`) doesn't advance the file's `versionTag`. A header write carries the
+    existing summary forward, so an edit doesn't wipe the reactions;
+  - **`transferHistory`** (`UpdateTransferHistory`) doesn't either.
+- So a client that caches by `versionTag` alone misses reaction, read-receipt and local-data changes. It has to watch
+  `updated` (or the change notifications) for those.
+- Who may write them **(V)**:
+  - the reaction summary needs `React`, `Comment` or `Write`;
+  - transfer history needs read or write on the drive;
+  - local app data needs write.
+
+## 8. Envelope encryption
 
 ```
 master key ──► storage key (one per drive; MasterKeyEncryptedStorageKey)
@@ -194,7 +230,7 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
 - Write-without-read keys: drive `WriteOnlyKeyPair` (data deposits) and `PeerKeyStore.WriteOnlyKeyPair` (grant deposits)
   **(V)**.
 
-## 8. System APIs may bypass the regular checks
+## 9. System APIs may bypass the regular checks
 
 Shamir recovery (the Recovery app), introductions, connections (requests, verification) and contacts are **system APIs**. They do what
 they must regardless of the caller's ordinary permissions. Don't "fix" them to use the file rule.
@@ -208,7 +244,7 @@ How they bypass **(V)**:
   Shamir and the connection services;
 - a `System` caller passes every file ACL.
 
-## 9. Things noticed while writing this (not fixed)
+## 10. Things noticed while writing this (not fixed)
 
 - `IsReadonly` is not enforced anywhere **(V)**.
 - On anonymous drives the comment file system skips the `Comment` check **(V)**; the impact is **(?)**.
