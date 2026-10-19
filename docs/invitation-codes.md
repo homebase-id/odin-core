@@ -21,8 +21,8 @@ The host-wide codes in `Registry:InvitationCodes` keep working as before; the tw
   identity has one.
 - An identity's hosting plan comes only from its invitation code (`planId`), never from the signup request:
   `create-identity-on-domain` no longer takes a `planId`, and one the client still sends is ignored. A code
-  without a plan, a configured code, a service from before plans, or a host with no codes leaves it unset, and
-  the registry stores `free`. What a plan means in quota is odin-core's, as for any `PlanId`.
+  without a plan, a configured code, a service from before plans, or a host with no codes leaves it unset, which
+  is the default plan. What a plan gives is odin-core's (docs/hosting-plans.md).
 
 ## Configuration (Homebase-run identity hosts only)
 

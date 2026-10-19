@@ -29,9 +29,10 @@ public class HostingPlansTests
     private static HostingPlans Plans(Dictionary<string, string?> plans) =>
         new(new OdinConfiguration { Registry = Registry(plans) });
 
+    // The default is not called free: free is what the registry stored for no plan before #1974
     private static readonly Dictionary<string, string?> FreeAndPro = new()
     {
-        ["0:Id"] = "free", ["0:QuotaBytes"] = "1000",
+        ["0:Id"] = "basic", ["0:QuotaBytes"] = "1000", ["0:Default"] = "true",
         ["1:Id"] = "pro-100gb", ["1:QuotaBytes"] = "100000",
         ["2:Id"] = "unlimited",
     };
@@ -45,11 +46,12 @@ public class HostingPlansTests
         Assert.That(quotas.QuotaFor(null), Is.Null);
     }
 
-    [TestCase("free", 1000L)]
+    [TestCase("basic", 1000L)]
     [TestCase("PRO-100GB", 100000L)] // ids are case-insensitive
     [TestCase(" pro-100gb ", 100000L)]
     [TestCase("unlimited", null)]
-    [TestCase("no-such-plan", 1000L)] // unknown plans get the free plan's quota
+    [TestCase("no-such-plan", 1000L)] // unknown plans get the default plan's quota
+    [TestCase("free", 1000L)] // as stored for no plan before #1974, and not in the list
     [TestCase(null, 1000L)]
     public void APlanResolvesToItsQuota(string? planId, long? quota)
     {
@@ -72,16 +74,17 @@ public class HostingPlansTests
 
     private static readonly Dictionary<string, string?> WithPublicWebPresence = new()
     {
-        ["0:Id"] = "free",
+        ["0:Id"] = "legacy", ["0:Default"] = "true",
         ["1:Id"] = "public", ["1:PublicWebPresence"] = "true",
         ["2:Id"] = "private", ["2:PublicWebPresence"] = "false",
     };
 
     [TestCase("public", false, true, Description = "the plan's yes wins over the identity's no")]
     [TestCase("PRIVATE", true, false, Description = "the plan's no wins over the identity's yes")]
-    [TestCase("free", true, true, Description = "a plan that does not say leaves it to the identity")]
-    [TestCase("free", false, false)]
-    [TestCase("no-such-plan", false, false, Description = "an unknown plan gets free's, which does not say")]
+    [TestCase("legacy", true, true, Description = "a plan that does not say leaves it to the identity")]
+    [TestCase("legacy", false, false)]
+    [TestCase("no-such-plan", false, false, Description = "an unknown plan gets the default's, which does not say")]
+    [TestCase("free", true, true, Description = "stored for no plan before #1974: the default's")]
     [TestCase(null, true, true)]
     public void APlanDecidesPublicWebPresenceOnlyWhenItSays(string? planId, bool identitySetting, bool expected)
     {
@@ -96,9 +99,12 @@ public class HostingPlansTests
     }
 
     [Test]
-    public void TheFreePlanIsRequired()
+    public void ExactlyOneDefaultPlanIsRequired()
     {
         Assert.Throws<OdinSystemException>(() => Registry(new() { ["0:Id"] = "pro", ["0:QuotaBytes"] = "10" }));
+        Assert.Throws<OdinSystemException>(() => Registry(new()
+            { ["0:Id"] = "a", ["0:Default"] = "true", ["1:Id"] = "b", ["1:Default"] = "true" }));
+        Assert.DoesNotThrow(() => Registry(new() { ["0:Id"] = "legacy", ["0:Default"] = "true" }));
     }
 
     [Test]

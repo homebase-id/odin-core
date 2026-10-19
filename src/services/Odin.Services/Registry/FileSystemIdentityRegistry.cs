@@ -526,7 +526,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // Superseded by the status in json; written as a mirror for nodes on older versions
             disabled = registration.Status == TenantStatus.Disabled,
             markedForDeletionDate = registration.MarkedForDeletionDate,
-            planId = registration.PlanId ?? OdinConfiguration.RegistrySection.HostingPlan.DefaultPlanId,
+            // Null for no plan: it resolves to the default plan (HostingPlans). Until #1974 this wrote "free".
+            planId = registration.PlanId,
             enablePublicWebPresence = registration.EnablePublicWebPresence,
             json = RegistrationJsonMapper.ToJson(registration)
         };

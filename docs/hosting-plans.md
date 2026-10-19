@@ -5,7 +5,7 @@ Status: built on branch `plan-quota` (#1974).
 ## Today
 
 - An identity's plan is `PlanId` on its registration. Since #1908 it comes only from the invitation code it
-  signed up with; without one the registry stores `free`.
+  signed up with; without one it has none (the registry wrote `free` for that until this change).
 - `TenantQuotaGuard.AssertCanAddPayloadBytes()` is the one enforcement point. It is called only where payload
   or thumbnail bytes are added (the upload, update and attachment writers, the peer equivalents, the profile
   photo, contact images and the contacts' app blob) and refuses with 507 and a one-hour Retry-After. Peers keep
@@ -21,7 +21,7 @@ Status: built on branch `plan-quota` (#1974).
 | | |
 |---|---|
 | Where plans are defined | Config, per host |
-| A plan that is not in the config | Gets the `free` plan's quota |
+| A plan that is not in the config, or none | Gets the `Default` plan's quota and web presence |
 | What counts as usage | All indexed bytes, tombstones included (`totalBytes`) |
 | Enforcement | A live check in the existing guard, no automatic status changes |
 | Out of quota | File headers still upload and update; payloads and thumbnails do not |
@@ -35,9 +35,9 @@ Status: built on branch `plan-quota` (#1974).
 ```json
 "Registry": {
   "Plans": [
-    { "Id": "free", "QuotaBytes": 1073741824 },
-    { "Id": "pro-100gb", "QuotaBytes": 107374182400, "PublicWebPresence": true },
-    { "Id": "unlimited" }
+    { "Id": "legacy", "Default": true },
+    { "Id": "free-1gb", "QuotaBytes": 1073741824, "PublicWebPresence": false },
+    { "Id": "pro-100gb", "QuotaBytes": 107374182400, "PublicWebPresence": true }
   ]
 }
 ```
@@ -45,9 +45,13 @@ Status: built on branch `plan-quota` (#1974).
 - `QuotaBytes` missing or null means unlimited.
 - `PublicWebPresence` missing or null leaves it to the identity (section 7).
 - No `Plans` section at all means quotas are off, so self-hosted servers and existing hosts behave as today.
-- If `Plans` is set it must contain `free`, and ids must be unique; otherwise the host fails at startup, like
-  the overlapping invitation-code check in `RegistrySection`.
-- Lookup is by exact id, case-insensitive. An id not in the list, or a null plan, gets `free`'s quota.
+- If `Plans` is set exactly one plan is `Default: true`, and ids must be unique; otherwise the host fails at
+  startup, like the overlapping invitation-code check in `RegistrySection`.
+- The default plan is every identity's whose plan is not in the list: no plan, an unknown id, or `free`, which
+  the registry stored for no plan before this change. So every identity that existed before plans is on the
+  default plan until an admin gives it another, with no migration. Do not name a plan `free` unless it is meant
+  for all of them.
+- Lookup is by exact id, case-insensitive. An id not in the list, or a null plan, gets the default plan.
 
 ### 2. One resolver
 
@@ -81,7 +85,7 @@ per-lifetime-scope registration in `TenantServices`, and its seven callers await
 `GET /api/v2/storage/usage`, policy `OwnerOrApp`, no permission key:
 
 ```json
-{ "planId": "free", "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false }
+{ "planId": "free-1gb", "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false }
 ```
 
 `quotaBytes` is null for unlimited. `isOverQuota` is exactly what the guard would decide, including a hand-set
@@ -97,7 +101,7 @@ per-lifetime-scope registration in `TenantServices`, and its seven callers await
 `{ "planId": "pro-100gb" }`, returns `{ "previousPlanId": ... }`.
 
 - While quotas are on, the plan must be in `Registry:Plans` (400 otherwise), so a typo cannot quietly mean
-  `free`'s quota. While they are off any id is accepted, so plans can be assigned before quotas are turned on.
+  the default plan. While they are off any id is accepted, so plans can be assigned before quotas are turned on.
 - The registry saves and announces it like a status change. The guard reads the plan from the in-memory
   registration, so every node enforces the new quota once it has applied the announcement.
 
@@ -114,8 +118,8 @@ Whether an identity has a public home page and sitemap (`TenantContext.EnablePub
 - It is resolved live, when the identity's `TenantContext` is built, so changing an identity's plan (section 6)
   changes it at once, on every node once the announcement is applied. The identity's own setting is kept, and
   applies again if it moves to a plan that does not say.
-- Every existing identity is on `free` with its own setting. Leave `free` without `PublicWebPresence` to keep
-  them as they are; `false` there takes every such identity's public page down.
+- Every identity from before plans is on the default plan with its own setting. Leave the default plan without
+  `PublicWebPresence` to keep them as they are; `false` there takes every such identity's public page down.
 
 ## Out of scope
 
@@ -125,10 +129,10 @@ Whether an identity has a public home page and sitemap (`TenantContext.EnablePub
 
 ## Tests
 
-- Config: no section means off; `free` required; duplicate ids refused; unknown and null plans resolve to
-  `free`; null `QuotaBytes` is unlimited.
+- Config: no section means off; exactly one `Default` required; duplicate ids refused; unknown, null and
+  `free` plans resolve to the default; null `QuotaBytes` is unlimited.
 - Public web presence: a plan's `true` or `false` wins over the identity's setting; a plan without it, an
-  unknown plan whose `free` has none, and plans off all keep the identity's setting.
+  unknown plan whose default has none, and plans off all keep the identity's setting.
 - Guard: refuses payloads and thumbnails at or over quota, allows them under it, allows headers either way,
   still honours a hand-set `OutOfQuota`, never refuses with quotas off or an unlimited plan.
 - Integration (V2): an identity over a small quota can upload a header but gets 507 for a payload; after a

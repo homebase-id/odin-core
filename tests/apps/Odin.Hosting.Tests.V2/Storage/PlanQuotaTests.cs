@@ -40,6 +40,7 @@ public class PlanQuotaTests : V2Fixture
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>
     {
         ["Registry:Plans:0:Id"] = "free",
+        ["Registry:Plans:0:Default"] = "true",
         ["Registry:Plans:0:QuotaBytes"] = "1",
     };
 
@@ -148,6 +149,7 @@ public class SetTenantPlanTests : V2Fixture
         ["Admin:ApiPort"] = AdminPort.ToString(),
         ["Admin:Domain"] = AdminDomain,
         ["Registry:Plans:0:Id"] = "free",
+        ["Registry:Plans:0:Default"] = "true",
         ["Registry:Plans:0:QuotaBytes"] = "1",
         ["Registry:Plans:1:Id"] = "unlimited",
         // The test identities' own plan (DevEnvironmentSetup), as tight as free so they start over quota

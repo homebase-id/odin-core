@@ -208,7 +208,7 @@ public class OdinConfiguration
 
         /// <summary>
         /// Hosting plans: each one's disk quota and public web presence (docs/hosting-plans.md). Empty: plans are off.
-        /// When set it must include <see cref="HostingPlan.DefaultPlanId"/>, which also applies to an unknown plan.
+        /// When set exactly one is <see cref="HostingPlan.Default"/>: the plan of every identity without a plan in the list.
         /// </summary>
         public List<HostingPlan> Plans { get; init; } = [];
 
@@ -301,22 +301,24 @@ public class OdinConfiguration
                 }
             }
 
-            if (plans.Count > 0 && !ids.Contains(HostingPlan.DefaultPlanId))
+            var defaults = plans.Count(p => p.Default);
+            if (plans.Count > 0 && defaults != 1)
             {
                 throw new OdinSystemException(
-                    $"Registry:Plans must include '{HostingPlan.DefaultPlanId}', which also applies to an unknown plan");
+                    $"Registry:Plans must have exactly one Default plan, for identities without a plan in the list; it has {defaults}");
             }
         }
 
         public record HostingPlan
         {
-            /// <summary>
-            /// The plan every identity has unless its invitation code gave it another; the registry stores it
-            /// for a null plan
-            /// </summary>
-            public const string DefaultPlanId = "free";
-
             public string Id { get; init; } = "";
+
+            /// <summary>
+            /// The plan of every identity whose plan is not in the list: one with no plan (its invitation code gave
+            /// none, or it signed up before plans), one whose plan id is unknown here, and one stored as "free", which
+            /// the registry wrote for no plan until #1974. Exactly one plan is the default.
+            /// </summary>
+            public bool Default { get; init; }
 
             /// <summary>
             /// Bytes the identity may store; null for unlimited

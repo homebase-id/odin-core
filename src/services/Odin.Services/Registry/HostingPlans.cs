@@ -19,6 +19,9 @@ public class HostingPlans(OdinConfiguration configuration)
     private readonly Dictionary<string, HostingPlan> _plans = configuration.Registry.Plans
         .ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
 
+    // Null exactly when plans are off: the config refuses a list without one
+    private readonly HostingPlan? _default = configuration.Registry.Plans.SingleOrDefault(p => p.Default);
+
     /// <summary>
     /// Bytes the plan allows; null for unlimited, and for everyone while Registry:Plans is empty.
     /// </summary>
@@ -49,6 +52,6 @@ public class HostingPlans(OdinConfiguration configuration)
     {
         return planId != null && _plans.TryGetValue(planId.Trim(), out var plan)
             ? plan
-            : _plans.GetValueOrDefault(HostingPlan.DefaultPlanId);
+            : _default;
     }
 }
