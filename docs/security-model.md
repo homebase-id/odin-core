@@ -14,13 +14,12 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 ## 1. The platform
 
 - Homebase is a generic self-sovereign **app platform**. One identity = one domain = one tenant, with its own server.
-- Apps authenticate with **YouAuth**, an OAuth2-like flow: the owner consents to the drives and permission keys the app
-  asks for, and each device gets a client token.
-- An app may own **drives** and **circles**. Every drive has an owning `AppId`; owner drives belong to the owner console
-  (`StorageDriveData.AppId`) **(V)**. Uninstalling an app can delete its drives and circles (drive-deletion doc) **(V)**.
-- An app sees only what it was granted. The rule is "an app gains nothing beyond its own reach", and it is cryptographic,
-  not just a check: no storage key in hand, no working grant (`PermissionContextStorageKeySource`) **(V)**.
-- Each drive is encrypted with its own **storage key** (section 6).
+- Apps authenticate with **YouAuth**, an OAuth2-like flow: the owner consents to what the app asks for, and each device
+  gets a client token.
+- Apps own **drives** and **circles** (section 2). Each drive is encrypted with its own **storage key** (section 7).
+- An app sees only what it was granted: "an app gains nothing beyond its own reach". This is cryptographic, not just a
+  check: no storage key in hand, no working grant (`PermissionContextStorageKeySource`) **(V)**.
+- All files are zero knowledge encrypted at rest. No decryption keys are stored on the server, they only appears as in-memory blips when the user is online and calls the API.
 
 ### Callers
 
@@ -42,21 +41,50 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 `UseTransitWrite` 210, `UseTransitRead` 305, `SendPushNotifications` 405, `PublishStaticContent` 505,
 `SendOnBehalfOfOwner` 707, `AllowIntroductions` 808, `SendIntroductions` 909. Some imply others (`Implications`).
 
-## 2. Circles
+## 2. Apps
 
-- A circle is a named set of identities plus what membership grants: `DriveGrants` and `Permissions`
-  (`CircleDefinition.cs`) **(V)**.
-- A connected caller's rights are the union of their enabled circles' grants. A disabled circle grants nothing **(V)**.
-- `AppId` on a circle: the owning app, null = owner circle. An app may create, change and delete only its own circles **(V)**.
-- **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants carry no key
-  material (`RequiresPeerKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
-  grant next time the Peer Key is in scope **(V)**.
-- Hazard: an app must not plant a circle naming a drive it can't read; the owner's next grant would make it work
-  ("confused deputy", drive-addressing doc). Validate at definition time **(V doc; enforcement not re-checked)**.
-- Built-in circles: Chat, Friends, Email, Feed, HomePage, Emergency Location Access, Mail, Recovery, Community,
-  Lists (`BuiltinCircles.cs`) **(V)**.
-- Unreviewed connections are treated as `Authenticated`, not `Connected`, when content is evaluated
-  (`ReviewedSecurityTier`) **(V)**.
+Everything is an app. Drives and circles exist because an app owns them. Every drive has an owning `AppId`; owner
+drives belong to the owner console (`StorageDriveData.AppId`) **(V)**.
+
+### Three kinds
+
+- **System app: Contacts.** It has a special API, and owns the contact and profile drives and their circles (Friends)
+  (`BuiltinApps.Builtin`) **(V)**. A Homebase with just Contacts and the system drives is viable.
+- **System drives** belong to the System app, which is the owner console (`SystemAppId`, e.g. the transient drive) **(V)**.
+- **Default pre-installed apps:** Chat, Email, Feed, HomePage, Location (Emergency Location Access), Mail and Community.
+  They are only there so the user doesn't have to install them one by one.
+  - The code's seeded list (`BuiltinApps.Builtin`) differs a little: it also seeds Recovery, Moments, Webdrop and Vault.
+    Community is only "well-known" (not seeded), and Mail isn't on the tree at all, though its drive is created
+    (`BuiltinApps` remarks) **(V)**. Which list is the intent: **(?)**.
+  - Recovery (Shamir) is not classified above **(?)**.
+- **Third-party apps:** anything else the owner installs.
+- `AppUninstallService.IsBuiltIn` (the owner console + every app on the tree, plus Lists and Mail) can't be uninstalled **(V)**.
+
+### How a client installs an app (YouAuth, `youauth-unified-authorization.md`) **(V)**
+
+1. The app starts YouAuth (`/authorize`, `client_type=app`) with its `permission_request`.
+2. Not registered yet → the identity redirects to the owner console's `/owner/appreg` with the app's parameters [045].
+3. The request is an `AppRegistrationRequest`:
+   - `AppId`, `AppSlug` (required, first-come, immutable), `Name`, `CorsHostName`;
+   - `PermissionSet`: the permission keys the app wants;
+   - `Drives`: drive grants, each with `driveMeta` to create the drive if it's missing. For example, two drives;
+   - `Circles`: circles the app declares and will own (#1939);
+   - `AuthorizedCircles` + `CircleMemberPermissionGrant`: existing circles whose members may use the identity through
+     this app, and what they get.
+4. The owner approves [047]. The console then:
+   - creates each missing drive with the installing app as owner (`useApp.ts ensureAppOwnedDrives`, odin-js). It never
+     creates a well-known drive for an app that doesn't own it; that grant is left for the server to refuse;
+   - registers the app.
+5. The server checks the declared circles **before** saving the registration, bounded by what the registration grants
+   (`CircleDefinitionService.AssertDeclaredCirclesAsync`), and creates them after it. A refused circle refuses the install.
+6. Consent [050–055], then the token exchange gives the device its client token and shared secret.
+
+Later:
+- **Extend permissions** (owner console `ExtendAppPermissions`) adds drives at runtime, e.g. one per feed channel.
+- **Owned circles at runtime:** an app may create circles, but only granting permission keys and drive access it holds
+  itself. On a drive it doesn't own it may grant Read only, and only with the storage key
+  (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**.
+- **Uninstall** can delete the app's drives and circles (`drive-deletion-and-app-uninstall.md`) **(V)**.
 
 ## 3. Drives
 
@@ -71,13 +99,14 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 | `ConditionalTemporalRead` 16 | read only recently modified files, only via the temporal API; not part of `ReadWrite`/`All` |
 
 - **Write-only is cryptographic**: a writer never holds the storage key **(V, plan doc)**.
+- **TO-DO** Allow / block enumerating files on a drive (block queryBatch) for web-drop like apps.
 
 ### Drive options (`StorageDriveDetails`) **(V)**
 
 | Option | Effect |
 |---|---|
 | `OwnerOnly` | every file must carry the Owner ACL (`FileSystemStreamWriterBase`, `FileSystemUpdateWriterBase`); can't be combined with anonymous reads or subscriptions (`DriveManager`) |
-| `AllowAnonymousReads` | anyone may read files whose ACL allows it; also relaxes the comment checks (section 5) |
+| `AllowAnonymousReads` | anyone may read files whose ACL allows it; also relaxes the comment checks (section 6) |
 | `AllowSubscriptions` | followers may subscribe (feed); collaborative channels need it |
 | `AllowCdn` | the CDN may read payloads (`IsCdnEnabled`); anonymous drives are reachable anyway |
 | `RequirePayloadHashes` | every payload must carry client hashes |
@@ -90,7 +119,25 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - Tenant settings add rights on anonymous drives for authenticated and connected identities: Read always,
   Comment/React by flag (`TenantSettings.GetAnonymousDrivePermissionsFor…`) **(V)**.
 
-## 4. Files and their ACL
+## 4. Circles
+
+Circles are a consequence of apps: each pre-installed app brings its circle (Chat → Chat, Feed → Feed,
+Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`) **(V)**.
+
+- A circle is a set of identities plus what membership grants: `DriveGrants` and `Permissions` (`CircleDefinition.cs`) **(V)**.
+- A connected caller's rights are the union of their enabled circles' grants. A disabled circle grants nothing **(V)**.
+- `AppId` on a circle is the owning app; null = owner circle. An app may change only its own circles and can't enrol
+  anyone into an owner circle **(V)**.
+- **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants carry no key
+  material (`RequiresPeerKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
+  grant next time the Peer Key is in scope **(V)**.
+- **No confused deputy:** an app can't plant a circle naming a drive it can't read, which the owner's next grant would
+  otherwise make work (`drive-addressing.md`). Creation is bounded by what the app holds (section 2), and updating a
+  circle definition needs the master key (`CircleMembershipService.UpdateAsync`) **(V)**.
+- Unreviewed connections are treated as `Authenticated`, not `Connected`, when content is evaluated
+  (`ReviewedSecurityTier`) **(V)**.
+
+## 5. Files and their ACL
 
 - Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` **(V)**.
 - Security groups are a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 <
@@ -102,7 +149,7 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
   (`DriveQueryServiceBase` filter) **(V)**.
 - `LocalAppMetadata` never leaves the identity.
 
-## 5. Comments, reactions and other special file kinds
+## 6. Comments, reactions and other special file kinds
 
 - **Comments are a separate file system** (`FileSystemType.Comment`) on the same drive **(V)**:
   - a comment must reference a file (`ReferencedFile`); its `GroupId` is forced to that file's global transit id
@@ -125,7 +172,7 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - Everything else (comments, reactions, receipts, introductions, connections, live relay, notification tokens, Shamir)
   keeps its own rule. Don't centralize those.
 
-## 6. Envelope encryption
+## 7. Envelope encryption
 
 ```
 master key ──► storage key (one per drive; MasterKeyEncryptedStorageKey)
@@ -145,7 +192,7 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
 - Write-without-read keys: drive `WriteOnlyKeyPair` (data deposits) and `PeerKeyStore.WriteOnlyKeyPair` (grant deposits)
   **(V)**.
 
-## 7. Built-in system apps may bypass the regular checks
+## 8. System APIs may bypass the regular checks
 
 Shamir recovery, introductions, connections (requests, verification) and contacts are **system APIs**. They do what
 they must regardless of the caller's ordinary permissions. Don't "fix" them to use the file rule.
@@ -159,10 +206,9 @@ How they bypass **(V)**:
   Shamir and the connection services;
 - a `System` caller passes every file ACL.
 
-Built-in apps (`SystemAppConstants`) can't be uninstalled (`AppUninstallService.IsBuiltIn`) **(V)**.
-
-## 8. Things noticed while writing this (not fixed)
+## 9. Things noticed while writing this (not fixed)
 
 - `IsReadonly` is not enforced anywhere **(V)**.
 - On anonymous drives the comment file system skips the `Comment` check **(V)**; the impact is **(?)**.
 - `CommentFileStorageService.CanWriteToDrive` checks `Write` while `AssertCanWriteToDrive` checks `Comment` **(V)**.
+- `BuiltinApps` says "Nothing reads this yet" while `BuiltinProvisioner` walks it: one of the two is stale **(V)**.
