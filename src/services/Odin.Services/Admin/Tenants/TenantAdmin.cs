@@ -429,6 +429,7 @@ public class TenantAdmin(
             StatusChangedAt = identityRegistration.StatusChangedAt,
             EnablePublicWebPresence = hostingPlans.PublicWebPresenceFor(identityRegistration.PlanId,
                 identityRegistration.EnablePublicWebPresence),
+            PlanId = identityRegistration.PlanId,
             Created = identityRegistration.Created,
             LastActivity = await lastSeenService.GetLastSeenAsync(identityRegistration.PrimaryDomainName)
         };

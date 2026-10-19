@@ -44,6 +44,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
         grid.AddColumn(); // Domain
         grid.AddColumn(); // Id
         grid.AddColumn(); // Status
+        grid.AddColumn(); // Plan
         grid.AddColumn(); // Web Presence
         grid.AddColumn(); // Created
         grid.AddColumn(); // Last activity
@@ -56,6 +57,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
                 new Text("Domain", new Style(Color.Blue)).LeftJustified(),
                 new Text("Id", new Style(Color.Blue)).LeftJustified(),
                 new Text("Status", new Style(Color.Blue)).LeftJustified(),
+                new Text("Plan", new Style(Color.Blue)).LeftJustified(),
                 new Text("Web Presence", new Style(Color.Blue)).RightJustified(),
                 new Text("Created", new Style(Color.Blue)).LeftJustified(),
                 new Text("Last activity", new Style(Color.Blue)).LeftJustified(),
@@ -68,6 +70,7 @@ public sealed class ShowTenantCommand : AsyncCommand<ShowTenantCommand.Settings>
             new Text(tenant.Domain).LeftJustified(),
             new Text(tenant.Id).LeftJustified(),
             new Text(TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
+            new Text(tenant.PlanId ?? "-").LeftJustified(),
             new Text(tenant.EnablePublicWebPresence ? "yes" : "no").LeftJustified(),
             new Text(tenant.CreatedText()).LeftJustified(),
             new Text(tenant.LastActivityText()).LeftJustified(),

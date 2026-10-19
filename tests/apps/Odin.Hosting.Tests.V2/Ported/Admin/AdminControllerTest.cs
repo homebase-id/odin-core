@@ -391,6 +391,7 @@ public class AdminControllerTest : V2Fixture
         Assert.That(frodoMetrics.Domain, Is.EqualTo(tenant.Domain));
         Assert.That(frodoMetrics.Enabled, Is.EqualTo(tenant.Enabled));
         Assert.That(frodoMetrics.EnablePublicWebPresence, Is.EqualTo(tenant.EnablePublicWebPresence));
+        Assert.That(tenant.PlanId, Is.Not.Null.And.EqualTo(frodoMetrics.PlanId));
         Assert.That(frodoMetrics.RegistrationPath, Is.EqualTo(tenant.RegistrationPath));
         Assert.That(frodoMetrics.RegistrationSize, Is.EqualTo(tenant.RegistrationSize));
         Assert.That(frodoMetrics.PayloadPath, Is.EqualTo(tenant.PayloadPath));
