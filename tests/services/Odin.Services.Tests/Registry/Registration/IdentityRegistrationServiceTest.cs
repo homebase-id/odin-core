@@ -274,7 +274,8 @@ public class IdentityRegistrationServiceTest
 
         Assert.That(service.Calls.Select(c => c.Split(' ')[0]), Is.EqualTo(new[] { "/api/v1/invitation-codes/use" }));
         Assert.That(capturedRequest()!.Invitation, Is.EqualTo(new RegistrationInvitation(ServiceCode, "sam.example.com", "spring")));
-        Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.False);
+        // The code says false, and is ignored: the identity's plan decides its public web presence
+        Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.True);
     }
 
     [TestCase(true, "pro-100gb", "pro-100gb", Description = "the code's plan")]

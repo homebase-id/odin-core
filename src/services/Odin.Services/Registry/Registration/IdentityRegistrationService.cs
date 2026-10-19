@@ -733,7 +733,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             // Only a code gives a plan, never the signup request; null is stored as "free"
             PlanId = used?.PlanId,
             IsCertificateManaged = false, //TODO
-            EnablePublicWebPresence = used?.EnablePublicWebPresence ?? await CodeGrantsPublicWebPresence(code ?? ""),
+            // Not from a service code: its plan decides (docs/hosting-plans.md). A configured code still can.
+            EnablePublicWebPresence = await CodeGrantsPublicWebPresence(code ?? ""),
             Invitation = used?.ToRegistrationInvitation() ?? (code != null ? new RegistrationInvitation(code, null, null) : null),
         };
 

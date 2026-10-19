@@ -107,8 +107,10 @@ Whether an identity has a public home page and sitemap (`TenantContext.EnablePub
 `RequirePublicWebPresenceAttribute`, the sitemap and the SSR page service).
 
 - A plan with `PublicWebPresence: true` or `false` decides it, over the identity's own setting.
-- A plan without it, or with plans off, leaves it to the identity's own setting: what its invitation code gave
-  it at signup, or what an admin set with `enable-public-web-presence`.
+- A plan without it, or with plans off, leaves it to the identity's own setting: on, unless it signed up with a
+  configured code in `Registry:InvitationCodesWithoutPublicWebPresence` or an admin changed it. A code from the
+  invitation-code service no longer sets it (docs/invitation-codes.md), so every plan a service code names
+  should say `PublicWebPresence`.
 - It is resolved live, when the identity's `TenantContext` is built, so changing an identity's plan (section 6)
   changes it at once, on every node once the announcement is applied. The identity's own setting is kept, and
   applies again if it moves to a plan that does not say.
