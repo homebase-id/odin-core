@@ -28,4 +28,13 @@ public class PlanQuotas(OdinConfiguration configuration)
             ? quota
             : _quotas.GetValueOrDefault(HostingPlan.DefaultPlanId);
     }
+
+    /// <summary>
+    /// Whether an admin may give an identity this plan: one in Registry:Plans, so a typo cannot silently mean
+    /// the default plan's quota. Any plan while quotas are off, so plans can be assigned before they are turned on.
+    /// </summary>
+    public bool IsAssignable(string planId)
+    {
+        return _quotas.Count == 0 || _quotas.ContainsKey(planId.Trim());
+    }
 }

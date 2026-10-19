@@ -56,6 +56,20 @@ public class PlanQuotasTests
         Assert.That(Quotas(FreeAndPro).QuotaFor(planId), Is.EqualTo(quota));
     }
 
+    [TestCase("pro-100gb", true)]
+    [TestCase(" UNLIMITED ", true)]
+    [TestCase("no-such-plan", false)] // a typo must not quietly mean the free plan's quota
+    public void OnlyAConfiguredPlanIsAssignable(string planId, bool assignable)
+    {
+        Assert.That(Quotas(FreeAndPro).IsAssignable(planId), Is.EqualTo(assignable));
+    }
+
+    [Test]
+    public void AnyPlanIsAssignableWhileQuotasAreOff()
+    {
+        Assert.That(Quotas([]).IsAssignable("pro-100gb"), Is.True);
+    }
+
     [Test]
     public void TheFreePlanIsRequired()
     {

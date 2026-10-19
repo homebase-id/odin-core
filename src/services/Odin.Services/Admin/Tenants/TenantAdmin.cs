@@ -391,6 +391,19 @@ public class TenantAdmin(
 
     //
 
+    public async Task<string?> SetTenantPlanAsync(string domain, string planId)
+    {
+        planId = planId.Trim();
+        if (planId == "" || !planQuotas.IsAssignable(planId))
+        {
+            throw new OdinClientException($"'{planId}' is not a plan in Registry:Plans");
+        }
+
+        return await identityRegistry.SetPlanAsync(domain, planId);
+    }
+
+    //
+
     public async Task EnablePublicWebPresence(string domain)
     {
         await identityRegistry.SetPublicWebPresenceAsync(domain, true);

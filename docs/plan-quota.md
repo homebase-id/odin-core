@@ -88,9 +88,18 @@ per-lifetime-scope registration in `TenantServices`, and its seven callers await
 
 `/api/admin/v1/tenants/metrics` gains `quotaBytes` per registered identity, from the same resolver.
 
+### 6. Changing a plan
+
+`odin-cli tenant set-plan <tenant> <plan>`, or `PATCH /api/admin/v1/tenants/{domain}/plan` with
+`{ "planId": "pro-100gb" }`, returns `{ "previousPlanId": ... }`.
+
+- While quotas are on, the plan must be in `Registry:Plans` (400 otherwise), so a typo cannot quietly mean
+  `free`'s quota. While they are off any id is accepted, so plans can be assigned before quotas are turned on.
+- The registry saves and announces it like a status change. The guard reads the plan from the in-memory
+  registration, so every node enforces the new quota once it has applied the announcement.
+
 ## Out of scope
 
-- Changing an identity's plan after signup (an admin command). Today a plan is fixed at signup.
 - Warning the owner as they near their quota.
 - Email storage, which Stalwart limits on its own.
 - Hard limits that refuse an upload that would cross the quota.
@@ -104,3 +113,5 @@ per-lifetime-scope registration in `TenantServices`, and its seven callers await
 - Integration (V2): an identity over a small quota can upload a header but gets 507 for a payload; after a
   delete it can upload again; the usage endpoint reports the same numbers for the owner and an app.
 - Admin metrics include `quotaBytes`.
+- Set plan: a configured plan brings its quota (an over-quota identity can upload payloads again on an
+  unlimited plan), an unconfigured plan is a 400, an unknown tenant a 404.

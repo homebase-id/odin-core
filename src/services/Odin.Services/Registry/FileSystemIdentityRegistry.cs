@@ -681,6 +681,35 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return result;
     }
 
+    public async Task<string> SetPlanAsync(string domain, string planId)
+    {
+        string result = null;
+        long? version = null;
+        await _registryLock.WaitAsync();
+        try
+        {
+            var reg = _trie.LookupExactName(domain);
+            if (reg != null)
+            {
+                result = reg.PlanId;
+                if (reg.PlanId != planId)
+                {
+                    reg.PlanId = planId;
+                    version = await SaveRegistrationInternal(reg);
+                }
+            }
+        }
+        finally
+        {
+            _registryLock.Release();
+        }
+
+        // The quota guard reads the plan from the in-memory registration, so other nodes enforce the new
+        // quota as soon as they have applied this announcement
+        await AnnounceAsync(version, domain);
+        return result;
+    }
+
     public async Task<UnixTimeUtc> MarkForDeletionAsync(string domain)
     {
         UnixTimeUtc markedDate;
