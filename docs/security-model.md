@@ -219,7 +219,7 @@ storage key ──► KeyHeader (per file: random AES key + IV; stored as Encryp
 KeyHeader ──► payloads, thumbnails, appData.content (AES)
 ```
 
-- On upload the client sends the KeyHeader wrapped in its **shared secret**; the server rewraps it with the storage key
+- On upload the client sends the KeyHeader wrapped in its **shared secret** (derived from the YouAuth login); the server rewraps it with the storage key
   (`DriveStorageServiceBase`, `EncryptKeyHeaderAes`) **(V)**. Reads return it wrapped in the caller's shared secret.
 - **Transit:** the sender wraps the KeyHeader with the shared secret of the CAT the recipient issued
   (`CreateTransferInstructionSet`); the recipient unwraps it from the ICR (`PeerInboxProcessor.DecryptedKeyHeaderAsync`)
