@@ -307,7 +307,7 @@ public class RegistrationController : ControllerBase
             throw new BadRequestException(message: "Invalid email address");
         }
 
-        if (!await _regService.IsValidInvitationCode(identity.InvitationCode))
+        if (!await _regService.IsInvitationCodeWorthUsing(identity.InvitationCode))
         {
             throw new BadRequestException(message: "Invalid or expired Invitation Code");
         }
@@ -324,7 +324,7 @@ public class RegistrationController : ControllerBase
             );
         }
 
-        var firstRunToken = await _regService.CreateIdentityOnDomainAsync(asciiDomain, identity.Email, identity.PlanId, identity.InvitationCode);
+        var firstRunToken = await _regService.CreateIdentityOnDomainAsync(asciiDomain, identity.Email, identity.InvitationCode);
         return new JsonResult(firstRunToken);
     }
     

@@ -123,6 +123,10 @@ The core storage abstraction. Each identity has drives containing files. `IDrive
 
 Identities connect via **Circles** (connection groups). Transit system handles encrypted file/message transport. Outgoing requests go through `PeerOutgoingTransferService` -> outbox -> background workers -> HTTP to peer. Incoming requests land in transit inbox -> `PeerInboxProcessor`. Read receipts, file transfers, and delete notifications all use this pattern.
 
+### Security model
+
+**Read `docs/security-model.md` before adding, changing or centralizing any permission check.** It covers callers and their keys, circles, drive permissions and options, file ACLs, comments and reactions, envelope encryption, and the built-in system APIs (Shamir, introductions, connections, contacts) that deliberately bypass the regular checks.
+
 ### Events
 
 MediatR for in-process pub/sub. Key notifications: `DriveFileAddedNotification`, `DriveFileChangedNotification`, `DriveFileDeletedNotification`. Handlers update caches, propagate to peers, and push WebSocket notifications.
