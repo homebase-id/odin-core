@@ -207,8 +207,8 @@ public class OdinConfiguration
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
         /// <summary>
-        /// Hosting plans and their disk quotas (docs/plan-quota.md). Empty: quotas are off. When set it must
-        /// include <see cref="HostingPlan.DefaultPlanId"/>, whose quota also applies to an unknown plan.
+        /// Hosting plans: each one's disk quota and public web presence (docs/hosting-plans.md). Empty: plans are off.
+        /// When set it must include <see cref="HostingPlan.DefaultPlanId"/>, which also applies to an unknown plan.
         /// </summary>
         public List<HostingPlan> Plans { get; init; } = [];
 
@@ -267,7 +267,7 @@ public class OdinConfiguration
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
             Plans = config.GetOrDefault("Registry:Plans", Plans)
-                .Select(p => new HostingPlan { Id = p.Id.Trim(), QuotaBytes = p.QuotaBytes })
+                .Select(p => p with { Id = p.Id.Trim() })
                 .ToList();
             AssertValidPlans(Plans);
 
@@ -308,7 +308,7 @@ public class OdinConfiguration
             }
         }
 
-        public class HostingPlan
+        public record HostingPlan
         {
             /// <summary>
             /// The plan every identity has unless its invitation code gave it another; the registry stores it
@@ -322,6 +322,13 @@ public class OdinConfiguration
             /// Bytes the identity may store; null for unlimited
             /// </summary>
             public long? QuotaBytes { get; init; }
+
+            /// <summary>
+            /// Whether identities on the plan have a public web presence (a public home page and sitemap). Decides
+            /// it live, over the identity's own setting, so changing an identity's plan changes it too. Null leaves
+            /// it to the identity: what its invitation code gave it, or an admin set.
+            /// </summary>
+            public bool? PublicWebPresence { get; init; }
         }
 
         public class ManagedDomainApex

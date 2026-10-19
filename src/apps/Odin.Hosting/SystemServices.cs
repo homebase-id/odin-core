@@ -201,7 +201,7 @@ public static class SystemServices
 
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
         services.AddSingleton<InvitationCodeServiceClient>();
-        services.AddSingleton<PlanQuotas>();
+        services.AddSingleton<HostingPlans>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
         services.AddSingleton<IDnssecLookup, DnssecLookup>();

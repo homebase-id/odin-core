@@ -133,7 +133,7 @@ namespace Odin.Services.Registry
         Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled);
 
         /// <summary>
-        /// Sets the identity's hosting plan, and so its disk quota (docs/plan-quota.md)
+        /// Sets the identity's hosting plan, and so its disk quota (docs/hosting-plans.md)
         /// </summary>
         /// <returns>Previous plan or null if not found</returns>
         Task<string> SetPlanAsync(string domain, string planId);

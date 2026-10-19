@@ -7,7 +7,7 @@ using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenant;
 
-[Description("Enable tenant public web presence (public home page)")]
+[Description("Enable tenant public web presence (public home page). A plan that sets PublicWebPresence decides instead (docs/hosting-plans.md)")]
 public sealed class EnablePublicWebPresenceCommand : AsyncCommand<EnablePublicWebPresenceCommand.Settings>
 {
     public sealed class Settings : ApiSettings

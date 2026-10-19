@@ -1,6 +1,6 @@
-# Plan quotas: disk usage limits per hosting plan
+# Hosting plans: a disk quota and a public web presence per plan
 
-Status: built on branch `plan-quota`.
+Status: built on branch `plan-quota` (#1974).
 
 ## Today
 
@@ -26,6 +26,7 @@ Status: built on branch `plan-quota`.
 | Enforcement | A live check in the existing guard, no automatic status changes |
 | Out of quota | File headers still upload and update; payloads and thumbnails do not |
 | Owner and apps | Can read their usage on the V2 API |
+| Public web presence | The plan decides it when it says, live; otherwise the identity's own setting |
 
 ## Design
 
@@ -35,13 +36,14 @@ Status: built on branch `plan-quota`.
 "Registry": {
   "Plans": [
     { "Id": "free", "QuotaBytes": 1073741824 },
-    { "Id": "pro-100gb", "QuotaBytes": 107374182400 },
+    { "Id": "pro-100gb", "QuotaBytes": 107374182400, "PublicWebPresence": true },
     { "Id": "unlimited" }
   ]
 }
 ```
 
 - `QuotaBytes` missing or null means unlimited.
+- `PublicWebPresence` missing or null leaves it to the identity (section 7).
 - No `Plans` section at all means quotas are off, so self-hosted servers and existing hosts behave as today.
 - If `Plans` is set it must contain `free`, and ids must be unique; otherwise the host fails at startup, like
   the overlapping invitation-code check in `RegistrySection`.
@@ -49,8 +51,9 @@ Status: built on branch `plan-quota`.
 
 ### 2. One resolver
 
-`PlanQuotas.QuotaFor(string? planId) => long?` (null for unlimited) reads the config once. The guard, the V2
-endpoint and the admin metrics all call it, so they never disagree about a limit.
+`HostingPlans` reads the config once and is the one place a plan id becomes what it gives:
+`QuotaFor(string? planId) => long?` (null for unlimited) and `PublicWebPresenceFor(planId, identitySetting)`.
+The guard, the V2 endpoint, the public pages and the admin metrics all call it, so they never disagree.
 
 ### 3. Enforcement in the guard
 
@@ -98,6 +101,20 @@ per-lifetime-scope registration in `TenantServices`, and its seven callers await
 - The registry saves and announces it like a status change. The guard reads the plan from the in-memory
   registration, so every node enforces the new quota once it has applied the announcement.
 
+### 7. Public web presence
+
+Whether an identity has a public home page and sitemap (`TenantContext.EnablePublicWebPresence`, checked by
+`RequirePublicWebPresenceAttribute`, the sitemap and the SSR page service).
+
+- A plan with `PublicWebPresence: true` or `false` decides it, over the identity's own setting.
+- A plan without it, or with plans off, leaves it to the identity's own setting: what its invitation code gave
+  it at signup, or what an admin set with `enable-public-web-presence`.
+- It is resolved live, when the identity's `TenantContext` is built, so changing an identity's plan (section 6)
+  changes it at once, on every node once the announcement is applied. The identity's own setting is kept, and
+  applies again if it moves to a plan that does not say.
+- Every existing identity is on `free` with its own setting. Leave `free` without `PublicWebPresence` to keep
+  them as they are; `false` there takes every such identity's public page down.
+
 ## Out of scope
 
 - Warning the owner as they near their quota.
@@ -108,6 +125,8 @@ per-lifetime-scope registration in `TenantServices`, and its seven callers await
 
 - Config: no section means off; `free` required; duplicate ids refused; unknown and null plans resolve to
   `free`; null `QuotaBytes` is unlimited.
+- Public web presence: a plan's `true` or `false` wins over the identity's setting; a plan without it, an
+  unknown plan whose `free` has none, and plans off all keep the identity's setting.
 - Guard: refuses payloads and thumbnails at or over quota, allows them under it, allows headers either way,
   still honours a hand-set `OutOfQuota`, never refuses with quotas off or an unlimited plan.
 - Integration (V2): an identity over a small quota can upload a header but gets 507 for a payload; after a

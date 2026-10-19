@@ -66,6 +66,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly IMultiTenantContainer _serviceProvider;
     private readonly Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
+    private readonly HostingPlans _hostingPlans;
 
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
@@ -88,6 +89,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _serviceProvider = serviceProvider;
         _tenantContainerBuilder = tenantContainerBuilder;
         _config = config;
+        _hostingPlans = new HostingPlans(config);
     }
 
     public Guid? ResolveId(string domain)
@@ -154,7 +156,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             isPreconfigured,
             idReg.MarkedForDeletionDate,
             idReg.Email,
-            idReg.EnablePublicWebPresence);
+            // The plan decides when it says; changing the plan re-creates this (CacheIdentityAsync)
+            _hostingPlans.PublicWebPresenceFor(idReg.PlanId, idReg.EnablePublicWebPresence));
 
         return tc;
     }

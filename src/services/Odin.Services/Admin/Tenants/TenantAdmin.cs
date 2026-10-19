@@ -33,7 +33,7 @@ public class TenantAdmin(
     PayloadMoveSource payloadMoveSource,
     PayloadMoveAdmin payloadMoveAdmin,
     SystemDatabase systemDatabase,
-    PlanQuotas planQuotas)
+    HostingPlans hostingPlans)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -249,10 +249,10 @@ public class TenantAdmin(
             Domain = registration.PrimaryDomainName,
             Registered = true,
             Enabled = registration.Status != TenantStatus.Disabled,
-            EnablePublicWebPresence = registration.EnablePublicWebPresence,
+            EnablePublicWebPresence = hostingPlans.PublicWebPresenceFor(registration.PlanId, registration.EnablePublicWebPresence),
             Email = registration.Email,
             PlanId = registration.PlanId,
-            QuotaBytes = planQuotas.QuotaFor(registration.PlanId),
+            QuotaBytes = hostingPlans.QuotaFor(registration.PlanId),
             CreatedAt = registration.Created,
             MarkedForDeletionDate = registration.MarkedForDeletionDate,
             LastActivity = await lastSeenService.GetLastSeenAsync(registration.PrimaryDomainName),
@@ -394,7 +394,7 @@ public class TenantAdmin(
     public async Task<string?> SetTenantPlanAsync(string domain, string planId)
     {
         planId = planId.Trim();
-        if (planId == "" || !planQuotas.IsAssignable(planId))
+        if (planId == "" || !hostingPlans.IsAssignable(planId))
         {
             throw new OdinClientException($"'{planId}' is not a plan in Registry:Plans");
         }
@@ -427,7 +427,8 @@ public class TenantAdmin(
             Status = identityRegistration.Status,
             DisabledReason = identityRegistration.DisabledReason,
             StatusChangedAt = identityRegistration.StatusChangedAt,
-            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence,
+            EnablePublicWebPresence = hostingPlans.PublicWebPresenceFor(identityRegistration.PlanId,
+                identityRegistration.EnablePublicWebPresence),
             Created = identityRegistration.Created,
             LastActivity = await lastSeenService.GetLastSeenAsync(identityRegistration.PrimaryDomainName)
         };

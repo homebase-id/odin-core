@@ -8,7 +8,7 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.UnifiedV2.Storage;
 
 /// <summary>
-/// The identity's disk usage against its plan's quota (docs/plan-quota.md), for the owner console and the
+/// The identity's disk usage against its plan's quota (docs/hosting-plans.md), for the owner console and the
 /// owner's apps, so they can show "X of Y used" and explain a 507 before the user hits one.
 /// </summary>
 [ApiController]

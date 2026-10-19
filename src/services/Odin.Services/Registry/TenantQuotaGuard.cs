@@ -10,7 +10,7 @@ using Odin.Services.Base;
 namespace Odin.Services.Registry;
 
 /// <summary>
-/// How much an identity stores, against what its plan allows (docs/plan-quota.md)
+/// How much an identity stores, against what its plan allows (docs/hosting-plans.md)
 /// </summary>
 /// <param name="QuotaBytes">Null for unlimited</param>
 /// <param name="IsOverQuota">Exactly what <see cref="TenantQuotaGuard"/> decides: over the plan's quota, or set
@@ -33,7 +33,7 @@ public record StorageUsage(string? PlanId, long UsedBytes, long? QuotaBytes, boo
 public class TenantQuotaGuard(
     IIdentityRegistry identityRegistry,
     TenantContext tenantContext,
-    PlanQuotas planQuotas,
+    HostingPlans hostingPlans,
     TableDriveMainIndexCached driveMainIndex)
 {
     // How stale the usage behind the quota may be; see GetTotalSizeAllDrivesForQuotaAsync
@@ -42,7 +42,7 @@ public class TenantQuotaGuard(
     public async Task AssertCanAddPayloadBytesAsync()
     {
         var registration = Registration();
-        var quota = planQuotas.QuotaFor(registration?.PlanId);
+        var quota = hostingPlans.QuotaFor(registration?.PlanId);
 
         // Read usage only when it can matter: not with no quota, nor when the status already decides
         var used = quota == null || registration?.Status == TenantStatus.OutOfQuota ? 0 : await UsedBytesAsync();
@@ -58,7 +58,7 @@ public class TenantQuotaGuard(
     public async Task<StorageUsage> GetUsageAsync()
     {
         var registration = Registration();
-        var quota = planQuotas.QuotaFor(registration?.PlanId);
+        var quota = hostingPlans.QuotaFor(registration?.PlanId);
         var used = await UsedBytesAsync();
         return new StorageUsage(registration?.PlanId, used, quota, IsOverQuota(registration, used, quota));
     }

@@ -26,7 +26,7 @@ public interface ITenantAdmin
     Task<TenantStatusState?> UnlockMovedAsync(string domain);
 
     /// <summary>
-    /// Sets the tenant's hosting plan (docs/plan-quota.md). Returns the previous plan, or null if the tenant does not
+    /// Sets the tenant's hosting plan (docs/hosting-plans.md). Returns the previous plan, or null if the tenant does not
     /// exist. Throws <see cref="Odin.Core.Exceptions.OdinClientException"/> for a plan not in Registry:Plans.
     /// </summary>
     Task<string?> SetTenantPlanAsync(string domain, string planId);

@@ -10,7 +10,7 @@ using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenant;
 
-[Description("Set tenant hosting plan, and so its disk quota (docs/plan-quota.md)")]
+[Description("Set tenant hosting plan, and so its disk quota (docs/hosting-plans.md)")]
 public sealed class SetTenantPlanCommand : AsyncCommand<SetTenantPlanCommand.Settings>
 {
     public sealed class Settings : ApiSettings

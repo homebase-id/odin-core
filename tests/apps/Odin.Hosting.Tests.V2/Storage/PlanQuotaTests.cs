@@ -30,7 +30,7 @@ public interface IStorageUsageClient
 }
 
 /// <summary>
-/// Plan quotas (docs/plan-quota.md) with the free plan's quota at 1 byte, so an identity is over it as soon as
+/// Plan quotas (docs/hosting-plans.md) with the free plan's quota at 1 byte, so an identity is over it as soon as
 /// it stores anything: headers still upload, payloads are refused with 507, and the usage endpoint says so to
 /// the owner and apps.
 /// </summary>
@@ -128,8 +128,8 @@ public class PlanQuotaOffTests : V2Fixture
 }
 
 /// <summary>
-/// An admin moves an identity to another plan, and its quota follows: over a 1-byte plan, a payload is refused;
-/// on the unlimited plan, it goes in.
+/// An admin moves an identity to another plan, and what the plan gives follows: over a 1-byte plan, a payload is
+/// refused; on the unlimited plan, it goes in. On a plan that says no public web presence, the public page goes.
 /// </summary>
 [TestFixture]
 public class SetTenantPlanTests : V2Fixture
@@ -153,6 +153,8 @@ public class SetTenantPlanTests : V2Fixture
         // The test identities' own plan (DevEnvironmentSetup), as tight as free so they start over quota
         ["Registry:Plans:2:Id"] = DevPlan,
         ["Registry:Plans:2:QuotaBytes"] = "1",
+        ["Registry:Plans:3:Id"] = "private",
+        ["Registry:Plans:3:PublicWebPresence"] = "false",
     };
 
     /// <summary>
@@ -186,6 +188,23 @@ public class SetTenantPlanTests : V2Fixture
         Assert.That(usage.PlanId, Is.EqualTo("Unlimited"));
         Assert.That(usage.QuotaBytes, Is.Null);
         Assert.That(usage.IsOverQuota, Is.False);
+    }
+
+    [Test]
+    public async Task ANewPlanBringsItsPublicWebPresence()
+    {
+        using var anonymous = Host.CreateAnonymousClient(Identities.Frodo);
+        async Task<string> Home() => await (await anonymous.GetAsync("/ssr/home")).Content.ReadAsStringAsync();
+        const string placeholder = "This is a Homebase ID.";
+
+        Assert.That(await Home(), Does.Not.Contain(placeholder));
+
+        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), "private")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await Home(), Does.Contain(placeholder), "the plan's no wins over the identity's yes");
+
+        // A plan that does not say leaves it to the identity again, which never changed
+        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), DevPlan)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await Home(), Does.Not.Contain(placeholder));
     }
 
     [Test]

@@ -19,6 +19,7 @@ public class TenantModel
     public bool Enabled => Status != TenantStatus.Disabled;
     public DisabledReason? DisabledReason { get; set; }
     public UnixTimeUtc? StatusChangedAt { get; set; }
+    // What the identity has: its plan's say if the plan has one (docs/hosting-plans.md), otherwise its own
     public bool EnablePublicWebPresence { get; set; }
     public string? PayloadPath { get; set; } = null;
     public long? PayloadSize { get; set; } = null;
