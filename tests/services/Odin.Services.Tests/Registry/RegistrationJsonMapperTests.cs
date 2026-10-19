@@ -135,4 +135,44 @@ public class RegistrationJsonMapperTests
         Assert.That(valid, Is.True);
         Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
     }
+
+    [Test]
+    public void RoundTripsTheInvitation()
+    {
+        var source = Registration(TenantStatus.Active, null, null);
+        source.Invitation = Invitation;
+
+        var target = new IdentityRegistration();
+        RegistrationJsonMapper.Apply(target, disabledColumn: false, RegistrationJsonMapper.ToJson(source));
+
+        Assert.That(target.Invitation, Is.EqualTo(Invitation));
+    }
+
+    [Test]
+    public void ReadsJsonWrittenBeforeInvitations()
+    {
+        var target = new IdentityRegistration();
+        var valid = RegistrationJsonMapper.Apply(target, disabledColumn: false, "{\"status\":\"paused\"}");
+
+        Assert.That(valid, Is.True);
+        Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
+        Assert.That(target.Invitation, Is.Null);
+    }
+
+    [Test]
+    public void WithStatusKeepsTheInvitation()
+    {
+        var source = Registration(TenantStatus.Active, null, null);
+        source.Invitation = Invitation;
+
+        var json = RegistrationJsonMapper.WithStatus(RegistrationJsonMapper.ToJson(source),
+            new TenantStatusState(TenantStatus.Paused, null, new UnixTimeUtc(1)));
+
+        var target = new IdentityRegistration();
+        RegistrationJsonMapper.Apply(target, disabledColumn: false, json);
+        Assert.That(target.Status, Is.EqualTo(TenantStatus.Paused));
+        Assert.That(target.Invitation, Is.EqualTo(Invitation));
+    }
+
+    private static readonly RegistrationInvitation Invitation = new("K7QX-M2PD-9FHW", "frodo.dotyou.cloud", "spring");
 }
