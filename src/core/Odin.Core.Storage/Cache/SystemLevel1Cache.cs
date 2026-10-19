@@ -12,14 +12,14 @@ public interface ISystemLevel1Cache<T> : ILevel1Cache<T>
     // This space is intentionally left blank
 }
 
-public class SystemLevel1Cache(IFusionCache cache)
-    : Level1Cache("system", cache), ISystemLevel1Cache
+public class SystemLevel1Cache(IFusionCache cache, IRemovalCounterFactory removals)
+    : Level1Cache("system", cache, removals), ISystemLevel1Cache
 {
     // This space is intentionally left blank
 }
 
-public class SystemLevel1Cache<T>(IFusionCache cache)
-    : Level1Cache<T>("system", cache), ISystemLevel1Cache<T>
+public class SystemLevel1Cache<T>(IFusionCache cache, IRemovalCounterFactory removals)
+    : Level1Cache<T>("system", cache, removals), ISystemLevel1Cache<T>
 {
     // This space is intentionally left blank
 }

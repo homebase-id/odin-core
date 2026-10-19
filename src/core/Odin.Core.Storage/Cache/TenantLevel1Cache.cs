@@ -12,14 +12,14 @@ public interface ITenantLevel1Cache<T> : ILevel1Cache<T>
     // This space is intentionally left blank
 }
 
-public class TenantLevel1Cache(CacheKeyPrefix prefix, IFusionCache cache)
-    : Level1Cache(prefix, cache), ITenantLevel1Cache
+public class TenantLevel1Cache(CacheKeyPrefix prefix, IFusionCache cache, IRemovalCounterFactory removals)
+    : Level1Cache(prefix, cache, removals), ITenantLevel1Cache
 {
     // This space is intentionally left blank
 }
 
-public class TenantLevel1Cache<T>(CacheKeyPrefix prefix, IFusionCache cache)
-    : Level1Cache<T>(prefix, cache), ITenantLevel1Cache<T>
+public class TenantLevel1Cache<T>(CacheKeyPrefix prefix, IFusionCache cache, IRemovalCounterFactory removals)
+    : Level1Cache<T>(prefix, cache, removals), ITenantLevel1Cache<T>
 {
     // This space is intentionally left blank
 }

@@ -57,6 +57,16 @@ namespace Odin.Services.Peer
             return payload;
         }
 
+        /// <summary>
+        /// For an ordinary file operation on the peer: the access it needs is decided by <see cref="PeerAccess"/>
+        /// </summary>
+        protected async Task<ClientAccessToken> ResolveClientAccessTokenAsync(OdinId recipient, IOdinContext odinContext,
+            PeerAccess access, bool failIfNotConnected = true)
+        {
+            odinContext.PermissionsContext.AssertCanUsePeer(access);
+            return await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected);
+        }
+
         protected async Task<ClientAccessToken> ResolveClientAccessTokenAsync(OdinId recipient, IOdinContext odinContext,
             bool failIfNotConnected = true)
         {

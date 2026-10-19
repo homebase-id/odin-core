@@ -945,6 +945,14 @@ only signal.
 `pknt0001` payload, the only failure in the run; postgres and Windows passed on the same commit. Not
 caused by the PR: it changes socket notifications and no upload, payload or overwrite code.
 
+**Again 2026-10-18, after the #1909 fix.** PR #1977 (`soft-delete-batch`) commit `665f5db16`, run
+39121528552, `ubuntu/postgres/release`: the same single `pknt0001` event ("Threads 9, Iterations 100"),
+the only failure in the run; `ubuntu/sqlite/release` and `windows/sqlite/debug` passed on the same
+commit. The branch contains #1973 (the stale-cache-fill fix, merged 2026-10-17), so a stale fill of the
+kind #1909 describes is no longer a sufficient explanation: either the cause is elsewhere, or a path the
+remove count does not guard is involved. Not caused by the PR: it adds soft-delete-batch and peer
+permission checks and changes no upload, payload or overwrite code.
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`

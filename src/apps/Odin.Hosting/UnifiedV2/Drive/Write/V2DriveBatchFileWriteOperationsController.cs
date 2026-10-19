@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -128,11 +129,42 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         }
 
         /// <summary>
+        /// Soft-deletes up to <see cref="FileVersionTagBatchV2.MaxFiles"/> files, each optionally only at its version tag,
+        /// and tells each file's recipients to delete their copies.
+        /// </summary>
+        [HttpPost("soft-delete-batch")]
+        [SwaggerOperation(
+            Summary = "Delete many files, leaving tombstones",
+            Description = "Deletes each file, leaving a tombstone in the change feed, only if its version tag still matches " +
+                          "when one is given (a file already deleted is not checked), and tells the file's recipients to " +
+                          "delete their copies. A malformed batch, or a caller that may not reach peers, is refused whole " +
+                          "before anything is touched. Results are per file; see SoftDeleteResultV2.",
+            Tags = [SwaggerInfo.FileWrite]
+        )]
+        public async Task<SoftDeleteBatchResultV2> SoftDeleteBatch(Guid driveId, [FromBody] SoftDeleteBatchRequestV2 request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            request.AssertValid(WebOdinContext.Tenant);
+
+            WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+            // Every recipient once, up front: a caller that may not reach peers is refused before any file is touched
+            var tokens = await PeerOutgoingTransferService.ResolveRecipientTokensAsync(
+                request.Files.SelectMany(f => f.Recipients ?? []).ToOdinIdList(), GetFileSystemType(), WebOdinContext);
+
+            var results = await PerFileAsync(driveId, request.Files,
+                (file, f) => SoftDeleteFileAsync(file, f.VersionTag, f.Recipients?.ToOdinIdList() ?? [], tokens),
+                (fileId, errorCode) => new SoftDeleteResultV2 { FileId = fileId, ErrorCode = errorCode });
+
+            return new SoftDeleteBatchResultV2 { Results = results };
+        }
+
+        /// <summary>
         /// Runs <paramref name="write"/> on each file in request order. A client error becomes that file's result, so one
         /// bad file never stops the others nor strands the ones already written before it; anything else fails the request.
         /// </summary>
-        private static async Task<List<TResult>> PerFileAsync<TResult>(Guid driveId, List<FileVersionTagV2> files,
-            Func<InternalDriveFileId, FileVersionTagV2, Task<TResult>> write, Func<Guid, OdinClientErrorCode, TResult> failed)
+        private static async Task<List<TResult>> PerFileAsync<TFile, TResult>(Guid driveId, List<TFile> files,
+            Func<InternalDriveFileId, TFile, Task<TResult>> write, Func<Guid, OdinClientErrorCode, TResult> failed)
+            where TFile : IBatchFileV2
         {
             var results = new List<TResult>(files.Count);
             foreach (var f in files)

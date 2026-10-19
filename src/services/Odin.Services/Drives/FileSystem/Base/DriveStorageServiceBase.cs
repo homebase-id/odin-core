@@ -720,12 +720,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <param name="aclDeniedAsMissing">Answer null, as for a missing file, when the file's ACL denies the caller,
         /// instead of throwing; the drive-level checks still throw.</param>
+        /// <param name="includeExpired">True for a delete, which must still see a file whose TTL is due but not yet removed</param>
         public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext,
-            bool aclDeniedAsMissing = false)
+            bool aclDeniedAsMissing = false, bool includeExpired = false)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file, odinContext, aclDeniedAsMissing: aclDeniedAsMissing);
+            var header = await GetServerFileHeaderInternal(file, odinContext, includeExpired, aclDeniedAsMissing);
 
             if (header == null)
             {
@@ -840,7 +841,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
+            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true)
+                                 ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
             var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
@@ -1991,7 +1993,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
-            _logger.LogDebug("Calling header.validate on gtid: {file}", header.FileMetadata.GlobalTransitId);
             header.Validate(odinContext);
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);

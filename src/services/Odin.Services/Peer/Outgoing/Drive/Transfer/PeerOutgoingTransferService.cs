@@ -12,8 +12,8 @@ using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Background;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -43,7 +43,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
-        private const int MaxRecipientCount = 1000;
+        public const int MaxRecipientCount = 1000;
+
+        /// <summary>
+        /// The most recipients one file may be sent to, or told to delete
+        /// </summary>
+        public static void AssertRecipientCount(int count) =>
+            OdinValidationUtils.AssertIsTrue(count <= MaxRecipientCount, $"max recipients is {MaxRecipientCount}");
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         /// <summary>
@@ -55,10 +61,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IOdinContext odinContext,
             DataSource overrideDataSource = null)
         {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+            odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
 
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
-            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
+            AssertRecipientCount(options.Recipients.Count);
 
             var sfo = new FileTransferOptions()
             {
@@ -110,9 +116,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IOdinContext odinContext,
             DataSource overrideDataSource = null)
         {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+            odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
             OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
-            OdinValidationUtils.AssertIsTrue(recipients.Count <= MaxRecipientCount, "max recipients is 1000");
+            AssertRecipientCount(recipients.Count);
 
             var request = new UpdateRemoteFileRequest()
             {
@@ -165,7 +171,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 DriveId = SystemDriveConstants.TransientTempDrive.Alias
             };
 
-            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext);
+            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions,
+                recipients.ToOdinIdList(), async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes());
 
             return result;
         }
@@ -190,10 +197,90 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 throw new OdinClientException("File not found", OdinClientErrorCode.InvalidFile);
             }
 
+            if (recipientList.Count > 0)
+            {
+                AssertCanTellRecipientsToDelete(fileTransferOptions.FileSystemType, odinContext);
+            }
+
+            return await EnqueueDeletes(header, fileTransferOptions, recipientList.ToOdinIdList(),
+                async r => (await ResolveClientAccessTokenAsync(r, odinContext)).ToAuthenticationToken().ToPortableBytes(),
+                odinContext);
+        }
+
+        /// <summary>
+        /// What telling recipients to delete a file (by file id) needs: UseTransitWrite, as any file delete on a peer
+        /// does, except in the comment file system, which keeps its long-standing rule (either transit key). Batches
+        /// call it before their first file, so a refusal touches nothing.
+        /// </summary>
+        public static void AssertCanTellRecipientsToDelete(FileSystemType fileSystemType, IOdinContext odinContext)
+        {
+            if (fileSystemType == FileSystemType.Comment)
+            {
+                odinContext.PermissionsContext.AssertHasAtLeastOnePermission(PermissionKeys.UseTransitWrite,
+                    PermissionKeys.UseTransitRead);
+            }
+            else
+            {
+                odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Write);
+            }
+        }
+
+        /// <summary>
+        /// Each distinct recipient's encrypted access token, null for one the caller is no longer connected to. Resolved
+        /// once for a whole batch, so a refusal (no transit permission, no ICR key) comes before anything is sent.
+        /// </summary>
+        public async Task<Dictionary<OdinId, byte[]>> ResolveRecipientTokensAsync(IEnumerable<OdinId> recipients,
+            FileSystemType fileSystemType, IOdinContext odinContext)
+        {
+            var tokens = new Dictionary<OdinId, byte[]>();
+            var distinct = recipients.Distinct().ToList();
+            if (distinct.Count > 0)
+            {
+                AssertCanTellRecipientsToDelete(fileSystemType, odinContext);
+            }
+
+            foreach (var recipient in distinct)
+            {
+                var token = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected: false);
+                tokens[recipient] = token?.ToAuthenticationToken().ToPortableBytes();
+            }
+
+            return tokens;
+        }
+
+        /// <summary>
+        /// Tells <paramref name="recipients"/> to delete their copies of the file <paramref name="header"/> describes, which
+        /// the caller has already read, with the tokens <see cref="ResolveRecipientTokensAsync"/> resolved. A recipient
+        /// without a token (no longer connected, or not resolved) is EnqueueFailed, and so is every recipient of a file
+        /// never sent to anyone (no global transit id for them to match).
+        /// </summary>
+        public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(ServerFileHeader header,
+            IEnumerable<OdinId> recipients, IReadOnlyDictionary<OdinId, byte[]> recipientTokens, IOdinContext odinContext)
+        {
+            var list = recipients?.ToList() ?? [];
+            if (header.FileMetadata.GlobalTransitId == null)
+            {
+                return list.ToDictionary(r => r.DomainName, _ => DeleteLinkedFileStatus.EnqueueFailed);
+            }
+
+            var options = new FileTransferOptions
+            {
+                FileSystemType = header.ServerMetadata.FileSystemType,
+                TransferFileType = TransferFileType.Normal
+            };
+            return await EnqueueDeletes(header, options, list,
+                r => Task.FromResult(recipientTokens.GetValueOrDefault(r)), odinContext);
+        }
+
+        private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(ServerFileHeader header,
+            FileTransferOptions fileTransferOptions, IEnumerable<OdinId> recipients, Func<OdinId, Task<byte[]>> tokenFor,
+            IOdinContext odinContext)
+        {
+            var fileId = header.FileMetadata.File;
             var remoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = odinContext.PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId)
+                TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId)
             };
 
             logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> fileId: {fileId} -> resolved gtid:{gtid} targetDrive:{drive}; calling EnqueueDeletes",
@@ -201,7 +288,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 remoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 remoteGlobalTransitIdFileIdentifier.TargetDrive);
 
-            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipientList, odinContext);
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, tokenFor);
         }
 
         /// <summary>
@@ -325,7 +412,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task SendPeerPushNotification(AppNotificationOptions options, Guid driveId, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, false);
-            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
+            AssertRecipientCount(options.Recipients.Count);
 
             //ISSUE: this is running as the identity uploading the file, which cannot read the ICR key to decrypt the CAT
             // var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
@@ -481,18 +568,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(InternalDriveFileId fileId,
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
-            IEnumerable<string> recipients,
-            IOdinContext odinContext)
+            IEnumerable<OdinId> recipients,
+            Func<OdinId, Task<byte[]>> tokenFor)
         {
             var results = new Dictionary<string, DeleteLinkedFileStatus>();
 
-            foreach (var r in recipients)
+            foreach (var recipient in recipients)
             {
-                var recipient = (OdinId)r;
-
-                //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext);
-                var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
+                var encryptedClientAccessToken = await tokenFor(recipient);
+                if (encryptedClientAccessToken == null)
+                {
+                    results.Add(recipient.DomainName, DeleteLinkedFileStatus.EnqueueFailed);
+                    continue;
+                }
 
                 var item = new OutboxFileItem()
                 {
@@ -586,7 +674,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 {
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
                     //TODO: apply encryption before storing in the outbox
-                    var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext);
+                    var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, PeerAccess.Write);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new OutboxFileItem()
@@ -643,7 +731,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 try
                 {
-                    var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext);
+                    var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, PeerAccess.Write);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     var iv = ByteArrayUtil.GetRndByteArray(16);

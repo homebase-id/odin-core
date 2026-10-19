@@ -186,7 +186,7 @@ public class PeerDriveQueryService(
     public async Task<QueryModifiedResult> GetModifiedAsync(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         try
         {
@@ -228,7 +228,7 @@ public class PeerDriveQueryService(
         FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -259,7 +259,7 @@ public class PeerDriveQueryService(
     public async Task<QueryBatchResult> GetBatchAsync(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -295,7 +295,7 @@ public class PeerDriveQueryService(
         FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -329,7 +329,7 @@ public class PeerDriveQueryService(
         ExternalFileIdentifier file, string key, FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext)
     {
         var permissionContext = odinContext.PermissionsContext;
-        permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        permissionContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -361,7 +361,7 @@ public class PeerDriveQueryService(
         FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -398,7 +398,7 @@ public class PeerDriveQueryService(
     public async Task<TemporalAccessStatus> VerifyTemporalAccessAsync(OdinId odinId, TargetDrive targetDrive,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -422,7 +422,7 @@ public class PeerDriveQueryService(
     public async Task<QueryBatchResult> GetTemporalBatchAsync(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -448,7 +448,7 @@ public class PeerDriveQueryService(
     public async Task<SharedSecretEncryptedFileHeader> GetTemporalFileHeaderAsync(OdinId odinId, ExternalFileIdentifier file,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -478,7 +478,7 @@ public class PeerDriveQueryService(
         GetTemporalPayloadStreamAsync(OdinId odinId, ExternalFileIdentifier file, string key, FileChunk chunk,
             FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -509,7 +509,7 @@ public class PeerDriveQueryService(
         Stream thumbnail)> GetTemporalThumbnailAsync(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
         try
@@ -541,7 +541,7 @@ public class PeerDriveQueryService(
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByTypeAsync(OdinId odinId, Guid driveType, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -578,7 +578,7 @@ public class PeerDriveQueryService(
         GlobalTransitIdFileIdentifier file,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -610,7 +610,7 @@ public class PeerDriveQueryService(
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdAsync(OdinId odinId, GetPayloadByUniqueIdRequest file,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
 
@@ -644,7 +644,7 @@ public class PeerDriveQueryService(
             GlobalTransitIdFileIdentifier file, string key,
             FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -681,7 +681,7 @@ public class PeerDriveQueryService(
         GetThumbnailByGlobalTransitIdAsync(OdinId odinId, GlobalTransitIdFileIdentifier file, string payloadKey,
             int width, int height, bool directMatchOnly, FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
         try
@@ -713,7 +713,7 @@ public class PeerDriveQueryService(
 
     public async Task<RedactedOdinContext> GetRemoteDotYouContextAsync(OdinId odinId, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         try
         {
             var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
@@ -738,7 +738,7 @@ public class PeerDriveQueryService(
     public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByUniqueId(OdinId odinId, Guid driveId, Guid uniqueId,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         try
         {
             var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
@@ -768,7 +768,7 @@ public class PeerDriveQueryService(
     public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByGlobalTransitId(OdinId odinId, Guid driveId, Guid globalTransitId,
         IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        odinContext.PermissionsContext.AssertCanUsePeer(PeerAccess.Read);
         try
         {
             var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
