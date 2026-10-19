@@ -1,11 +1,9 @@
 using System;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Services.Configuration;
+using Refit;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -16,12 +14,29 @@ namespace Odin.Services.Registry.Registration;
 /// </summary>
 /// <param name="PlanId">The hosting plan the code gives the new identity; null for none. Absent from older
 /// services, which reads as null.</param>
-public record InvitationCodeUse(string Code, string? Owner, string Source, bool EnablePublicWebPresence, string? PlanId = null);
+public record InvitationCodeUse(string Code, string? Owner, string Source, bool EnablePublicWebPresence, string? PlanId = null)
+{
+    public RegistrationInvitation ToRegistrationInvitation() => new(Code, Owner, Source);
+}
+
+internal record InvitationCodeRequest(string Code);
+internal record InvitationCodeValidateResponse(bool Valid);
+internal record InvitationCodeUseResponse(bool Used, InvitationCodeUse? Code);
 
 /// <summary>
-/// The invitation-code service is unreachable or answered with an error.
+/// The invitation-code service's API, homebase-id/homebase-invites; its README has the details.
 /// </summary>
-public class InvitationCodeServiceException(string message, Exception? inner = null) : OdinSystemException(message, inner);
+internal interface IInvitationCodeApi
+{
+    [Post("/api/v1/invitation-codes/validate")]
+    Task<InvitationCodeValidateResponse> Validate([Body] InvitationCodeRequest request);
+
+    [Post("/api/v1/invitation-codes/use")]
+    Task<InvitationCodeUseResponse> Use([Body] InvitationCodeRequest request);
+
+    [Post("/api/v1/invitation-codes/undo-use")]
+    Task UndoUse([Body] InvitationCodeRequest request);
+}
 
 /// <summary>
 /// odin-core's one plug point into the invitation-code service, homebase-id/homebase-invites (#1908): signup checks a
@@ -31,17 +46,12 @@ public class InvitationCodeServiceException(string message, Exception? inner = n
 public class InvitationCodeServiceClient
 {
     private const string ApiKeyHeader = "Odin-Api-Key";
-    private const string Root = "api/v1/invitation-codes";
 
     // A code is 12 Crockford base32 characters; the service also reads O as 0 and I, L as 1, and ignores
     // dashes and spaces. Anything else cannot be a code, and is refused without calling the service.
     private const int CodeLength = 12;
     private const int MaxInputLength = 32;
     private const string CodeCharacters = "0123456789ABCDEFGHIJKLMNOPQRSTVWXYZ";
-
-    private record CodeRequest(string Code);
-    private record ValidateResponse(bool Valid);
-    private record UseResponse(bool Used, InvitationCodeUse? Code);
 
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ILogger<InvitationCodeServiceClient> _logger;
@@ -113,7 +123,7 @@ public class InvitationCodeServiceClient
     /// </summary>
     public async Task<bool> IsValidAsync(string code)
     {
-        return (await TryPostAsync<ValidateResponse>("validate", code))?.Valid == true;
+        return (await TryCallAsync("validate", code, (api, request) => api.Validate(request)))?.Valid == true;
     }
 
     /// <summary>
@@ -122,7 +132,7 @@ public class InvitationCodeServiceClient
     /// </summary>
     public async Task<InvitationCodeUse?> TryUseAsync(string code)
     {
-        var response = await TryPostAsync<UseResponse>("use", code);
+        var response = await TryCallAsync("use", code, (api, request) => api.Use(request));
         return response is { Used: true } ? response.Code : null;
     }
 
@@ -130,88 +140,60 @@ public class InvitationCodeServiceClient
     /// Gives back the code's latest use, for a signup that failed after taking it. A failure here only leaks
     /// that use, so it is logged rather than thrown.
     /// </summary>
-    public async Task TryUndoUseAsync(string code)
+    public Task TryUndoUseAsync(string code)
     {
-        await TryPostAsync<object>("undo-use", code, readAnswer: false);
+        return TryCallAsync("undo-use", code, async (api, request) =>
+        {
+            await api.UndoUse(request);
+            return true;
+        });
     }
 
     //
 
     // Every call goes through here: input that cannot be a code is refused without a call, and a failing
     // service is logged as an error and answered with null
-    private async Task<T?> TryPostAsync<T>(string path, string code, bool readAnswer = true) where T : class
+    private async Task<T?> TryCallAsync<T>(string what, string code,
+        Func<IInvitationCodeApi, InvitationCodeRequest, Task<T>> call)
     {
         if (!IsEnabled || !LooksLikeCode(code))
         {
-            return null;
+            return default;
         }
 
         try
         {
-            using var response = await SendAsync(path, code);
-            return readAnswer ? await ReadAsync<T>(response) : null;
+            return await call(Api, new InvitationCodeRequest(code));
         }
         catch (Exception e)
         {
-            // Any failure, not only the expected ones: a signup must never fail, or lose its cleanup, because
-            // the service misbehaved
-            _logger.LogError(e, "Invitation-code {path} failed; the invitation-code service is enabled but failing", path);
-            return null;
+            // Any failure, not only the expected ones (unreachable, non-2xx, unreadable answer): a signup must
+            // never fail, or lose its cleanup, because the service misbehaved
+            _logger.LogError(e, "Invitation-code {what} failed; the invitation-code service is enabled but failing", what);
+            return default;
+        }
+    }
+
+    private IInvitationCodeApi Api
+    {
+        get
+        {
+            var httpClient = _httpClientFactory.CreateClient($"{nameof(IInvitationCodeApi)}:{_baseUri!.Host}");
+            httpClient.BaseAddress = _baseUri;
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            httpClient.DefaultRequestHeaders.Add(ApiKeyHeader, _apiKey);
+            return RestService.For<IInvitationCodeApi>(httpClient);
         }
     }
 
     //
 
-    private static async Task<T> ReadAsync<T>(HttpResponseMessage response)
-    {
-        try
-        {
-            return await response.Content.ReadFromJsonAsync<T>()
-                   ?? throw new InvitationCodeServiceException("The invitation-code service sent an empty answer");
-        }
-        catch (Exception e) when (e is System.Text.Json.JsonException or NotSupportedException)
-        {
-            throw new InvitationCodeServiceException("The invitation-code service sent an unreadable answer", e);
-        }
-    }
-
-    private async Task<HttpResponseMessage> SendAsync(string path, string code)
-    {
-        var client = _httpClientFactory.CreateClient($"{nameof(InvitationCodeServiceClient)}:{_baseUri!.Host}");
-        client.BaseAddress = _baseUri;
-        client.Timeout = TimeSpan.FromSeconds(10);
-
-        HttpResponseMessage response;
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{Root}/{path}");
-            request.Headers.Add(ApiKeyHeader, _apiKey);
-            request.Content = JsonContent.Create(new CodeRequest(code));
-            response = await client.SendAsync(request);
-        }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
-        {
-            throw new InvitationCodeServiceException($"The invitation-code service is unreachable: {e.Message}", e);
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            response.Dispose();
-            throw new InvitationCodeServiceException(
-                $"The invitation-code service answered {(int)response.StatusCode} to {path}");
-        }
-
-        return response;
-    }
-
-    //
-
-    // https, or http to loopback, so the key is never sent in clear. The base address ends in / so the
-    // relative request paths keep any path the URL has.
+    // https, or http to loopback, so the key is never sent in clear. Refit puts any path the URL has
+    // (configuration trims its trailing /) in front of each request's.
     private static bool TryParseSafeUrl(string url, out Uri? baseUri)
     {
         baseUri = null;
-        if (!Uri.TryCreate(url + "/", UriKind.Absolute, out var uri) ||
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
             !(uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)))
         {
             return false;

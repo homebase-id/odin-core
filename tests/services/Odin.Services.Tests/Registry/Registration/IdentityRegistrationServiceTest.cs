@@ -136,18 +136,14 @@ public class IdentityRegistrationServiceTest
         var configuration = ConfigurationWithInvitationCodes(["with-presence"], ["no-presence"]);
         var registration = CreateIdentityRegistrationService(configuration);
 
-        IdentityRegistrationRequest? capturedRequest = null;
-        _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
-        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
-            .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
-            .ReturnsAsync(System.Guid.NewGuid());
+        var capturedRequest = CaptureRegistration();
 
         await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "no-presence");
-        Assert.That(capturedRequest, Is.Not.Null);
-        Assert.That(capturedRequest!.EnablePublicWebPresence, Is.False);
+        Assert.That(capturedRequest(), Is.Not.Null);
+        Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.False);
 
         await registration.CreateIdentityOnDomainAsync(D("sam.example.com"), "sam@example.com", "with-presence");
-        Assert.That(capturedRequest!.EnablePublicWebPresence, Is.True);
+        Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.True);
     }
 
     // Invitation codes from the invitation-code service, homebase-id/homebase-invites (#1908)
@@ -206,6 +202,17 @@ public class IdentityRegistrationServiceTest
         _registry.Setup(r => r.GetAsync(It.IsAny<string>())).ReturnsAsync((IdentityRegistration?)null!);
     }
 
+    // No identity registered yet; returns what the next registration was asked to store
+    private Func<IdentityRegistrationRequest?> CaptureRegistration()
+    {
+        IdentityRegistrationRequest? captured = null;
+        NoExistingRegistration();
+        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
+            .Callback<IdentityRegistrationRequest>(r => captured = r)
+            .ReturnsAsync(Guid.NewGuid());
+        return () => captured;
+    }
+
     private StubInvitationCodeService UseInvitationCodeService()
     {
         var service = new StubInvitationCodeService();
@@ -215,15 +222,16 @@ public class IdentityRegistrationServiceTest
         return service;
     }
 
-    private static OdinConfiguration ConfigurationWithInvitationCodeService(List<string>? configuredCodes = null)
+    private static OdinConfiguration ConfigurationWithInvitationCodeService(List<string>? configuredCodes = null,
+        string url = "https://invitations.example.com", string key = "signup-key")
     {
         return new OdinConfiguration
         {
             Registry = new OdinConfiguration.RegistrySection
             {
                 InvitationCodes = configuredCodes ?? [],
-                InvitationCodeServiceUrl = "https://invitations.example.com",
-                InvitationCodeServiceApiKey = "signup-key",
+                InvitationCodeServiceUrl = url,
+                InvitationCodeServiceApiKey = key,
             }
         };
     }
@@ -260,17 +268,13 @@ public class IdentityRegistrationServiceTest
         var service = UseInvitationCodeService();
         var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
 
-        IdentityRegistrationRequest? capturedRequest = null;
-        NoExistingRegistration();
-        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
-            .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
-            .ReturnsAsync(Guid.NewGuid());
+        var capturedRequest = CaptureRegistration();
 
         await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "k7qx m2pd 9fhw");
 
         Assert.That(service.Calls.Select(c => c.Split(' ')[0]), Is.EqualTo(new[] { "/api/v1/invitation-codes/use" }));
-        Assert.That(capturedRequest!.Invitation, Is.EqualTo(new RegistrationInvitation(ServiceCode, "sam.example.com", "spring")));
-        Assert.That(capturedRequest.EnablePublicWebPresence, Is.False);
+        Assert.That(capturedRequest()!.Invitation, Is.EqualTo(new RegistrationInvitation(ServiceCode, "sam.example.com", "spring")));
+        Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.False);
     }
 
     [TestCase(true, "pro-100gb", "pro-100gb", Description = "the code's plan")]
@@ -283,15 +287,11 @@ public class IdentityRegistrationServiceTest
         service.PlanId = codePlan;
         var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
 
-        IdentityRegistrationRequest? capturedRequest = null;
-        NoExistingRegistration();
-        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
-            .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
-            .ReturnsAsync(Guid.NewGuid());
+        var capturedRequest = CaptureRegistration();
 
         await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", ServiceCode);
 
-        Assert.That(capturedRequest!.PlanId, Is.EqualTo(expectedPlan));
+        Assert.That(capturedRequest()!.PlanId, Is.EqualTo(expectedPlan));
     }
 
     [Test]
@@ -302,15 +302,11 @@ public class IdentityRegistrationServiceTest
         service.PlanId = "pro-100gb";
         var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService(["configured"]));
 
-        IdentityRegistrationRequest? capturedRequest = null;
-        NoExistingRegistration();
-        _registry.Setup(r => r.AddRegistration(It.IsAny<IdentityRegistrationRequest>()))
-            .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
-            .ReturnsAsync(Guid.NewGuid());
+        var capturedRequest = CaptureRegistration();
 
         await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "configured");
 
-        Assert.That(capturedRequest!.PlanId, Is.Null);
+        Assert.That(capturedRequest()!.PlanId, Is.Null);
         Assert.That(service.Calls, Is.Empty);
     }
 
@@ -322,15 +318,7 @@ public class IdentityRegistrationServiceTest
     [TestCase("", "key", false)]
     public void TheServiceIsOnlyUsedWhenConfiguredSafely(string url, string key, bool enabled)
     {
-        var configuration = new OdinConfiguration
-        {
-            Registry = new OdinConfiguration.RegistrySection
-            {
-                InvitationCodeServiceUrl = url,
-                InvitationCodeServiceApiKey = key,
-            }
-        };
-
+        var configuration = ConfigurationWithInvitationCodeService(url: url, key: key);
         Assert.That(InvitationCodeClient(configuration).IsEnabled, Is.EqualTo(enabled));
     }
 

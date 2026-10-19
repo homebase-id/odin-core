@@ -717,7 +717,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         // A code from the invitation-code service is used up here, not when it was checked: two signups
         // racing for its last use must not both get it. Codes from config are not counted.
-        var code = string.IsNullOrWhiteSpace(invitationCode) ? null : invitationCode.Trim();
+        var code = NormalizeInvitationCode(invitationCode);
         InvitationCodeUse? used = null;
         if (code != null && IsServiceCode(code))
         {
@@ -734,9 +734,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             PlanId = used?.PlanId,
             IsCertificateManaged = false, //TODO
             EnablePublicWebPresence = used?.EnablePublicWebPresence ?? await CodeGrantsPublicWebPresence(code ?? ""),
-            Invitation = used != null ? new RegistrationInvitation(used.Code, used.Owner, used.Source)
-                : code != null ? new RegistrationInvitation(code, null, null)
-                : null,
+            Invitation = used?.ToRegistrationInvitation() ?? (code != null ? new RegistrationInvitation(code, null, null) : null),
         };
 
         try
@@ -830,14 +828,15 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     // A configured code is accepted as is. A service code is only checked for its shape unless askService:
     // using it, which CreateIdentityOnDomainAsync does, is the real check.
-    private async Task<bool> CheckInvitationCodeAsync(string code, bool askService)
+    private async Task<bool> CheckInvitationCodeAsync(string input, bool askService)
     {
         if (!InvitationCodeRequired)
         {
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(code))
+        var code = NormalizeInvitationCode(input);
+        if (code == null)
         {
             return false;
         }
@@ -857,7 +856,13 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             : InvitationCodeServiceClient.LooksLikeCode(code);
     }
 
-    private bool InvitationCodeRequired => ConfiguredInvitationCodeCount > 0 || _invitationCodes.IsEnabled;
+    private bool InvitationCodeRequired =>
+        _configuration.Registry.InvitationCodes.Count > 0 ||
+        _configuration.Registry.InvitationCodesWithoutPublicWebPresence.Count > 0 ||
+        _invitationCodes.IsEnabled;
+
+    // Where a code enters: the same string is then matched against config, sent to the service and stored
+    private static string? NormalizeInvitationCode(string? code) => string.IsNullOrWhiteSpace(code) ? null : code.Trim();
 
     private bool IsServiceCode(string code) => _invitationCodes.IsEnabled && !IsConfiguredInvitationCode(code);
 
@@ -867,13 +872,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                MatchesAny(_configuration.Registry.InvitationCodesWithoutPublicWebPresence, code);
     }
 
-    private int ConfiguredInvitationCodeCount =>
-        _configuration.Registry.InvitationCodes.Count +
-        _configuration.Registry.InvitationCodesWithoutPublicWebPresence.Count;
-
     private static bool MatchesAny(List<string> codes, string code)
     {
-        var trimmed = code.Trim();
-        return codes.Exists(c => string.Equals(c, trimmed, StringComparison.InvariantCultureIgnoreCase));
+        return codes.Exists(c => string.Equals(c, code, StringComparison.InvariantCultureIgnoreCase));
     }
 }
