@@ -48,15 +48,17 @@ drives belong to the owner console (`StorageDriveData.AppId`) **(V)**.
 
 ### Three kinds
 
-- **System app: Contacts.** It has a special API, and owns the contact and profile drives and their circles (Friends)
-  (`BuiltinApps.Builtin`) **(V)**. A Homebase with just Contacts and the system drives is viable.
+- **System apps** have special APIs:
+  - **Contacts** owns the contact and profile drives and their circle (Friends) (`BuiltinApps.Builtin`) **(V)**.
+    A Homebase with just Contacts and the system drives is viable.
+  - **Recovery** is the app side of Shamir password recovery. It owns the shard drive (`ShardRecoveryDrive`), which the
+    Shamir services use (`ShardRequestApprovalCollector`). Its circle, Recovery, holds the people who keep a shard: it grants
+    Write only on that drive, and nobody joins it without the owner's review (`GrantOn = Review`) **(V)**.
 - **System drives** belong to the System app, which is the owner console (`SystemAppId`, e.g. the transient drive) **(V)**.
-- **Default pre-installed apps:** Chat, Email, Feed, HomePage, Location (Emergency Location Access), Mail and Community.
-  They are only there so the user doesn't have to install them one by one.
-  - The code's seeded list (`BuiltinApps.Builtin`) differs a little: it also seeds Recovery, Moments, Webdrop and Vault.
-    Community is only "well-known" (not seeded), and Mail isn't on the tree at all, though its drive is created
-    (`BuiltinApps` remarks) **(V)**. Which list is the intent: **(?)**.
-  - Recovery (Shamir) is not classified above **(?)**.
+- **Default pre-installed apps:** Chat, Email, Feed, HomePage, Location (Emergency Location Access), Mail, Community,
+  Moments, Webdrop and Vault. They are only there so the user doesn't have to install them one by one.
+  - The code's seeded list (`BuiltinApps.Builtin`) doesn't match yet: Community is only "well-known" (not seeded), and
+    Mail isn't on the tree at all, though its drive is created (`BuiltinApps` remarks) **(V)**.
 - **Third-party apps:** anything else the owner installs.
 - `AppUninstallService.IsBuiltIn` (the owner console + every app on the tree, plus Lists and Mail) can't be uninstalled **(V)**.
 
@@ -194,7 +196,7 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
 
 ## 8. System APIs may bypass the regular checks
 
-Shamir recovery, introductions, connections (requests, verification) and contacts are **system APIs**. They do what
+Shamir recovery (the Recovery app), introductions, connections (requests, verification) and contacts are **system APIs**. They do what
 they must regardless of the caller's ordinary permissions. Don't "fix" them to use the file rule.
 
 How they bypass **(V)**:
