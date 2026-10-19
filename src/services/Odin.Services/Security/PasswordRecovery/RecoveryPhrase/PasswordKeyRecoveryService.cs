@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Security.Email;
 using Odin.Services.Util;
 
@@ -18,10 +19,9 @@ namespace Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 public class PasswordKeyRecoveryService(
     TableKeyValueCached tblKeyValue,
     TenantContext tenantContext,
-    RecoveryNotifier recoveryNotifier)
+    RecoveryNotifier recoveryNotifier,
+    OdinConfiguration configuration)
 {
-    public const int RecoveryKeyWaitingPeriodSecondsForTesting = 5;
-
     private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private const string ContextKey = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
 
@@ -248,11 +248,8 @@ public class PasswordKeyRecoveryService(
 
     private TimeSpan GetWaitingPeriod()
     {
-        var recoveryKeyWaitingPeriod = TimeSpan.FromDays(14);
-#if DEBUG
-        recoveryKeyWaitingPeriod = TimeSpan.FromSeconds(RecoveryKeyWaitingPeriodSecondsForTesting);
-#endif
-        return recoveryKeyWaitingPeriod;
+        var seconds = configuration.Development.RecoveryKeyWaitingPeriodSeconds;
+        return seconds.HasValue ? TimeSpan.FromSeconds(seconds.Value) : TimeSpan.FromDays(14);
     }
 
     public async Task StartUpdateRecoveryEmail(MailAddress email, IOdinContext odinContext)

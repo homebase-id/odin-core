@@ -166,7 +166,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
-    public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
+    public async Task<(int, long)> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         var result = await _table.UpdateReactionSummaryAsync(driveId, fileId, reactionSummary);
         await InvalidateDriveAsync(driveId);

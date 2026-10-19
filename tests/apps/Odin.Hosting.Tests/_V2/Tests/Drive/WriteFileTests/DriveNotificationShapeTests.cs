@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -27,7 +26,6 @@ namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests;
 [TestFixture]
 public class DriveNotificationShapeTests
 {
-    private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(15);
     private WebScaffold _scaffold;
 
     [OneTimeSetUp]
@@ -54,7 +52,7 @@ public class DriveNotificationShapeTests
     public async Task AMinimalSocketGetsAFileRefForEveryDriveEvent()
     {
         var (owner, drive) = await SetupDriveAsync();
-        var socket = await ShapedSocket.ConnectAsync(owner, drive, FileResultShape.Minimal);
+        var socket = await ConnectAsync(owner, drive, FileResultShape.Minimal);
 
         try
         {
@@ -74,7 +72,7 @@ public class DriveNotificationShapeTests
 
             // The tombstone's tag, as a minimal client learns it: from the event
             var tombstoneTag = softDeleted.GetProperty("fileRef").GetProperty("versionTag").GetGuid();
-            await HardDeleteAsync(owner, drive, file.FileId, tombstoneTag);
+            await owner.HardDeleteOneV2Async(drive, file.FileId, tombstoneTag);
             var hardDeleted = await socket.NextAsync(ClientNotificationType.FileDeleted);
 
             // Only what the event carries: no header keys, and no null for an absent ref
@@ -94,12 +92,12 @@ public class DriveNotificationShapeTests
     public async Task EachSocketGetsTheShapeItAskedFor()
     {
         var (owner, drive) = await SetupDriveAsync();
-        ShapedSocket full = null, noContent = null;
+        DriveEventSocket full = null, noContent = null;
 
         try
         {
-            full = await ShapedSocket.ConnectAsync(owner, drive, null);
-            noContent = await ShapedSocket.ConnectAsync(owner, drive, FileResultShape.NoContent);
+            full = await ConnectAsync(owner, drive, null);
+            noContent = await ConnectAsync(owner, drive, FileResultShape.NoContent);
 
             var upload = await owner.DriveRedux.UploadNewMetadata(drive, SampleMetadataData.CreateWithContent(100, "the content"));
             Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
@@ -128,7 +126,7 @@ public class DriveNotificationShapeTests
     public async Task AFullSocketIsToldWhichFileAHardDeleteRemoved()
     {
         var (owner, drive) = await SetupDriveAsync();
-        var socket = await ShapedSocket.ConnectAsync(owner, drive, null);
+        var socket = await ConnectAsync(owner, drive, null);
 
         try
         {
@@ -136,7 +134,7 @@ public class DriveNotificationShapeTests
             Assert.That(upload.IsSuccessStatusCode, Is.True, $"upload failed: {upload.StatusCode}");
             await socket.NextAsync(ClientNotificationType.FileAdded);
 
-            await HardDeleteAsync(owner, drive, upload.Content!.File.FileId, upload.Content.NewVersionTag);
+            await owner.HardDeleteOneV2Async(drive, upload.Content!.File.FileId, upload.Content.NewVersionTag);
             var deleted = await socket.NextAsync(ClientNotificationType.FileDeleted);
 
             // As a soft delete does: nothing is left (header null), and the header the file had names it
@@ -176,19 +174,6 @@ public class DriveNotificationShapeTests
         return (owner, drive);
     }
 
-    private static async Task HardDeleteAsync(OwnerApiClientRedux owner, TargetDrive drive, Guid fileId, Guid versionTag)
-    {
-        var callerContext = new OwnerTestCase(drive);
-        await callerContext.Initialize(owner);
-        var writer = new DriveWriterV2Client(owner.Identity.OdinId, callerContext.GetFactory());
-        var response = await writer.HardDeleteBatch(drive.Alias, new HardDeleteBatchRequestV2
-        {
-            Files = [new FileVersionTagV2 { FileId = fileId, VersionTag = versionTag }]
-        });
-        Assert.That((response.IsSuccessStatusCode, response.Content?.Results.Single().ErrorCode),
-            Is.EqualTo((true, (Odin.Core.Exceptions.OdinClientErrorCode?)null)), response.Error?.Content);
-    }
-
     /// <summary>
     /// Every key of the event, each ref as fileId/versionTag/fileState, so one assertion shows the whole event
     /// </summary>
@@ -202,53 +187,7 @@ public class DriveNotificationShapeTests
 
     private static List<string> Keys(JsonElement data) => data.EnumerateObject().Select(p => p.Name).ToList();
 
-    /// <summary>
-    /// An owner notification socket that asked for <paramref name="shape"/>, keeping each drive event's data as JSON
-    /// </summary>
-    private sealed class ShapedSocket
-    {
-        private readonly TestOwnerWebSocketListener _listener = new();
-        private readonly ConcurrentQueue<(ClientNotificationType Type, JsonElement Data)> _events = new();
-
-        public static async Task<ShapedSocket> ConnectAsync(OwnerApiClientRedux owner, TargetDrive drive, FileResultShape? shape)
-        {
-            var socket = new ShapedSocket();
-            socket._listener.NotificationReceived += n =>
-            {
-                if (n.NotificationType is ClientNotificationType.FileAdded or ClientNotificationType.FileModified
-                    or ClientNotificationType.FileDeleted)
-                {
-                    socket._events.Enqueue((n.NotificationType, JsonDocument.Parse(n.Data).RootElement.Clone()));
-                }
-
-                return Task.CompletedTask;
-            };
-            await socket._listener.ConnectAsync(owner.Identity.OdinId, owner.GetTokenContext(),
-                new EstablishConnectionOptions { Drives = [drive], ResultShape = shape });
-            return socket;
-        }
-
-        /// <summary>
-        /// The next drive event, which must be of <paramref name="expected"/> type
-        /// </summary>
-        public async Task<JsonElement> NextAsync(ClientNotificationType expected)
-        {
-            var deadline = DateTime.UtcNow + WaitTimeout;
-            (ClientNotificationType Type, JsonElement Data) next;
-            while (!_events.TryDequeue(out next))
-            {
-                if (DateTime.UtcNow > deadline)
-                {
-                    Assert.Fail($"no {expected} arrived within {WaitTimeout.TotalSeconds} s");
-                }
-
-                await Task.Delay(50);
-            }
-
-            Assert.That(next.Type, Is.EqualTo(expected), next.Data.ToString());
-            return next.Data;
-        }
-
-        public Task DisconnectAsync() => _listener.DisconnectAsync();
-    }
+    private static Task<DriveEventSocket> ConnectAsync(OwnerApiClientRedux owner, TargetDrive drive, FileResultShape? shape) =>
+        DriveEventSocket.ConnectOwnerAsync(owner.Identity.OdinId, owner.GetTokenContext(),
+            new EstablishConnectionOptions { Drives = [drive], ResultShape = shape });
 }

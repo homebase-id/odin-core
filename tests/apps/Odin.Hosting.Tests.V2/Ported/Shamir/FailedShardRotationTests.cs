@@ -28,9 +28,6 @@ public class FailedShardRotationTests : ShamirFixture
     ];
 
     [Test]
-#if !DEBUG
-    [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
     public async Task FailedRotationIsNotRetriedOnTheNextRequest()
     {
         var (frodo, players, config) = await ArrangeDelegateShardsAsync();

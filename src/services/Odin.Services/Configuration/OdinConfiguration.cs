@@ -149,6 +149,12 @@ public class OdinConfiguration
         public string SslSourcePath { get; init; } = "";
         public bool VersionUpgradeTestModeEnabled { get; init; }
 
+        /// <summary>
+        /// Shortens the recovery-key waiting period (14 days otherwise) so it can be exercised
+        /// locally and in tests. Null leaves the production period.
+        /// </summary>
+        public int? RecoveryKeyWaitingPeriodSeconds { get; init; }
+
         public DevelopmentSection()
         {
             // Mockable support
@@ -162,6 +168,7 @@ public class OdinConfiguration
                 PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
+                RecoveryKeyWaitingPeriodSeconds = config.GetOrDefault<int?>("Development:RecoveryKeyWaitingPeriodSeconds", null);
             }
         }
     }

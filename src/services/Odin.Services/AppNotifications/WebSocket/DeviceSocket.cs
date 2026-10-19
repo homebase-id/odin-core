@@ -26,11 +26,22 @@ public class EstablishConnectionOptions
     public FileResultShape? ResultShape { get; set; }
 
     /// <summary>
-    /// What both socket handshakes take from these options: the drives, each of which the caller must be able to read
-    /// (OdinSecurityException otherwise), and the shape (OdinClientException when unknown). Nothing is set on the
-    /// socket unless all of it is valid.
+    /// When true, the socket gets no drive events for writes made by a request with its own token: a client that
+    /// applies its writes locally need not hear them back. That includes what the same request changed on the side
+    /// (e.g. the transfer history an upload starts). Writes by any other token, files and receipts arriving from
+    /// peers, and the server's later work (e.g. the outbox's delivery updates, reaction previews) still arrive.
+    /// Sockets sharing one token (e.g. two tabs of an app) also miss each other's writes.
     /// </summary>
-    public void ApplyTo(DeviceSocket socket, PermissionContext permissions)
+    public bool ExcludeOwnWrites { get; set; }
+
+    /// <summary>
+    /// What both socket handshakes take from these options: the drives, each of which the caller must be able to read
+    /// (OdinSecurityException otherwise), the shape (OdinClientException when unknown) and whose writes to leave
+    /// out. <paramref name="ownTokenId"/> is the connection's own token, null where it has none to exclude (a peer);
+    /// asking to exclude own writes there is an OdinClientException. Nothing is set on the socket unless all of it
+    /// is valid.
+    /// </summary>
+    public void ApplyTo(DeviceSocket socket, PermissionContext permissions, Guid? ownTokenId)
     {
         var drives = new List<Guid>();
         foreach (var td in Drives ?? [])
@@ -39,8 +50,14 @@ public class EstablishConnectionOptions
             drives.Add(td.Alias);
         }
 
-        // The shape before the drives: drives are what route events to the socket, so it is in shape by then
+        if (ExcludeOwnWrites && ownTokenId == null)
+        {
+            throw new OdinClientException("excludeOwnWrites is not available on this connection", OdinClientErrorCode.InvalidQuery);
+        }
+
+        // All but the drives first: drives are what route events to the socket, so the rest is in place by then
         socket.ResultShape = FileResultShapes.Resolve(ResultShape, whenAbsent: FileResultShape.Full);
+        socket.ExcludedWriterTokenId = ExcludeOwnWrites ? ownTokenId : null;
         socket.Drives = drives;
     }
 
@@ -87,6 +104,12 @@ public class DeviceSocket
     /// What drive events sent to this socket describe their file with, as the socket asked at its handshake
     /// </summary>
     public FileResultShape ResultShape { get; set; } = FileResultShape.Full;
+
+    /// <summary>
+    /// The token whose drive writes this socket does not get, as it asked at its handshake; null for all writes
+    /// </summary>
+    public Guid? ExcludedWriterTokenId { get; set; }
+
     public TimeSpan Timeout { get; init; } = DefaultTimeout;
 
     //

@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.PubSub;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -199,7 +200,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                 File = notification.File,
                 IsDeleteNotification = notification is DriveFileDeletedNotification,
                 ServerFileHeader = notification.ServerFileHeader,
-                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader
+                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader,
+                OriginTokenId = notification.OdinContext?.RequestTokenId
             };
 
             await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));
@@ -213,6 +215,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var sockets = _deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId))
+                .Where(ds => ds.ExcludedWriterTokenId == null || ds.ExcludedWriterTokenId != notification.OriginTokenId)
                 .ToList();
 
             if (sockets.Count == 0)
@@ -231,8 +234,14 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
                 notification.ServerFileHeader, notification.PreviousServerFileHeader);
+            var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {
+                if (!await driveEvent.VisibleToAsync(deviceSocket, aclService))
+                {
+                    continue;
+                }
+
                 var json = driveEvent.JsonFor(deviceSocket);
 
                 await SendMessageAsync(deviceSocket, json, encrypt: true);
@@ -464,6 +473,12 @@ namespace Odin.Services.AppNotifications.WebSocket
             public required bool IsDeleteNotification { get; init; }
             public required ServerFileHeader ServerFileHeader { get; init; }
             public required ServerFileHeader? PreviousServerFileHeader { get; init; }
+
+            /// <summary>
+            /// The token of the request that made the write, for sockets that exclude their own writes; null for
+            /// a write not made by a request of its own (job, inbox, system work)
+            /// </summary>
+            public Guid? OriginTokenId { get; init; }
         }
 
         private class InboxItemReceivedNotificationMessage

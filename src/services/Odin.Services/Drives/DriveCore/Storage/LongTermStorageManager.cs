@@ -166,9 +166,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.SaveReactionSummary(drive, fileId, summary);
         }
 
-        public async Task DeleteReactionSummary(StorageDrive drive, Guid fileId)
+        /// <returns>The file's modified time, which clearing the summary moves</returns>
+        public async Task<UnixTimeUtc> DeleteReactionSummary(StorageDrive drive, Guid fileId)
         {
-            await driveQuery.SaveReactionSummary(drive, fileId, null);
+            return await driveQuery.SaveReactionSummary(drive, fileId, null);
         }
 /*
         private void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)

@@ -720,12 +720,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         /// <param name="aclDeniedAsMissing">Answer null, as for a missing file, when the file's ACL denies the caller,
         /// instead of throwing; the drive-level checks still throw.</param>
+        /// <param name="includeExpired">True for a delete, which must still see a file whose TTL is due but not yet removed</param>
         public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext,
-            bool aclDeniedAsMissing = false)
+            bool aclDeniedAsMissing = false, bool includeExpired = false)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file, odinContext, aclDeniedAsMissing: aclDeniedAsMissing);
+            var header = await GetServerFileHeaderInternal(file, odinContext, includeExpired, aclDeniedAsMissing);
 
             if (header == null)
             {
@@ -833,16 +834,19 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <param name="expectedVersionTag">When set, the delete only goes ahead if the file is still at this
         /// version, so it cannot wipe an edit the caller has not seen (#1903). The tombstone write is itself
         /// conditional on the tag read here, which closes the gap between this check and the write.</param>
-        public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
+        /// <returns>The tombstone's modified time, as the change feed shows it; null when the delete failed</returns>
+        public async Task<UnixTimeUtc?> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete, Guid? expectedVersionTag = null)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
-            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true);
+            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, includeExpired: true)
+                                 ?? throw new OdinClientException("Cannot delete a file that does not exist", OdinClientErrorCode.FileNotFound);
             AssertVersionTagMatches(existingHeader, expectedVersionTag);
 
-            return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            var tombstone = await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
+            return tombstone == null ? null : UpdatedAfterOwnWrites(file, tombstone.FileMetadata.Updated, odinContext);
         }
 
         /// <summary>
@@ -1251,7 +1255,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     File = targetFile,
                     ServerFileHeader = refreshedHeader,
                     SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext),
-                    OdinContext = odinContext,
+                    // The summary of everyone's reactions, not the writer's own change
+                    OdinContext = OdinContextUpgrades.ForOthersWrites(odinContext),
                 });
             }
         }
@@ -1470,6 +1475,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
             where TNotification : INotification
         {
+            if (notification is IDriveNotification { ServerFileHeader: not null } driveNotification)
+            {
+                // The write's response answers the time of the request's last own change to the file
+                driveNotification.OdinContext?.OwnWrites?.Record(driveNotification.File,
+                    driveNotification.ServerFileHeader.FileMetadata.Updated);
+            }
+
             try
             {
                 await mediator.Publish(notification, cancellationToken);
@@ -1618,10 +1630,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// caller needs neither the key header nor the content. The write is conditional on
         /// <paramref name="expectedVersionTag"/> (4160 when stale) and, like any header write, gives the file a new
         /// version tag and moves its modified time. A file already at that status is left alone. Returns the file's
-        /// version tag afterwards. A file the caller may not see answers 4106, as a query would leave it out.
+        /// version tag and modified time afterwards. A file the caller may not see answers 4106, as a query would
+        /// leave it out.
         /// </summary>
-        public async Task<Guid> UpdateArchivalStatus(InternalDriveFileId file, Guid expectedVersionTag, int archivalStatus,
-            IOdinContext odinContext)
+        public async Task<(Guid VersionTag, UnixTimeUtc Updated)> UpdateArchivalStatus(InternalDriveFileId file,
+            Guid expectedVersionTag, int archivalStatus, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
@@ -1634,7 +1647,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (header.FileMetadata.AppData.ArchivalStatus == archivalStatus)
             {
                 // Nothing to change: no new version tag, and modified (a client's "removed at") stays put
-                return header.FileMetadata.VersionTag.GetValueOrDefault();
+                return (header.FileMetadata.VersionTag.GetValueOrDefault(), header.FileMetadata.Updated);
             }
 
             header.FileMetadata.AppData.ArchivalStatus = archivalStatus;
@@ -1650,8 +1663,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
 
-            return header.FileMetadata.VersionTag.GetValueOrDefault();
+            return (header.FileMetadata.VersionTag.GetValueOrDefault(), UpdatedAfterOwnWrites(file, header.FileMetadata.Updated, odinContext));
         }
+
+        /// <summary>
+        /// The modified time a write's response answers: the later of the time its header write returned and the
+        /// request's own changes since (see <see cref="RequestOwnWrites"/>)
+        /// </summary>
+        public static UnixTimeUtc UpdatedAfterOwnWrites(InternalDriveFileId file, UnixTimeUtc written, IOdinContext odinContext) =>
+            odinContext.OwnWrites?.UpdatedAfter(file, written) ?? written;
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
@@ -1973,7 +1993,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
-            _logger.LogDebug("Calling header.validate on gtid: {file}", header.FileMetadata.GlobalTransitId);
             header.Validate(odinContext);
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
@@ -2015,7 +2034,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
+        /// <returns>The tombstone written; null when the delete failed</returns>
+        private async Task<ServerFileHeader> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
             var file = existingHeader.FileMetadata.File;
@@ -2070,7 +2090,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     await WriteFileHeaderInternal(deletedServerFileHeader, odinContext);
-                    await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+
+                    // Clearing the summary moves modified again; the tombstone, its event and the caller carry that
+                    // final time, as the feed does
+                    var modified = await longTermStorageManager.DeleteReactionSummary(drive, file.FileId);
+                    deletedServerFileHeader.FileMetadata.SetCreatedModifiedWithDatabaseValue(
+                        deletedServerFileHeader.FileMetadata.Created, modified);
                     await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
 
                     _logger.LogDebug("{method} -> markComplete {message}",
@@ -2122,7 +2147,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return success;
+            return success ? deletedServerFileHeader : null;
         }
 
         private async Task<ServerFileHeader> CreateServerHeaderInternal(InternalDriveFileId targetFile, KeyHeader keyHeader,

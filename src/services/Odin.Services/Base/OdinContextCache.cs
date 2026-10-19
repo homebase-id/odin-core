@@ -69,11 +69,14 @@ public class OdinContextCache(
     {
         var key = token.AsKey().ToString().ToLower();
 
-        // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory
-        // We accept the risk for a potential race condition since they should always produce the same result for the same token
+        // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory.
+        // Two builds for the same token give the same context, except across a ResetAsync: a context built from the
+        // permissions before a reset must not be stored after it, so the set is skipped when the cache removed
+        // anything since the build started (#1909).
         var result = await level1Cache.GetOrDefaultAsync<IOdinContext?>(key);
         if (result == null)
         {
+            var buildStarted = await level1Cache.BeginReadAsync();
             (result, var cacheFor) = await dotYouContextFactory();
             var duration = cacheFor < DefaultDuration ? cacheFor.Value : DefaultDuration;
 
@@ -81,7 +84,7 @@ public class OdinContextCache(
             // credential is about to end anyway; serve this request from the fresh build and stop.
             if (result != null && duration >= FusionCacheWrapper.MinL2Duration)
             {
-                await level1Cache.SetAsync(key, result, duration, EntrySize.Small, _cacheTags);
+                await level1Cache.SetIfNotRemovedSinceAsync(key, result, buildStarted, duration, EntrySize.Small, _cacheTags);
             }
         }
 
