@@ -30,7 +30,7 @@ public class HostingPlansTests
         new(new OdinConfiguration { Registry = Registry(plans) });
 
     // The default is not called free: free is what the registry stored for no plan before #1974
-    private static readonly Dictionary<string, string?> FreeAndPro = new()
+    private static readonly Dictionary<string, string?> BasicProAndUnlimited = new()
     {
         ["0:Id"] = "basic", ["0:QuotaBytes"] = "1000", ["0:Default"] = "true",
         ["1:Id"] = "pro-100gb", ["1:QuotaBytes"] = "100000",
@@ -55,15 +55,15 @@ public class HostingPlansTests
     [TestCase(null, 1000L)]
     public void APlanResolvesToItsQuota(string? planId, long? quota)
     {
-        Assert.That(Plans(FreeAndPro).QuotaFor(planId), Is.EqualTo(quota));
+        Assert.That(Plans(BasicProAndUnlimited).QuotaFor(planId), Is.EqualTo(quota));
     }
 
     [TestCase("pro-100gb", true)]
-    [TestCase(" UNLIMITED ", true)]
+    [TestCase("UNLIMITED", true)] // ids are case-insensitive; the caller trims
     [TestCase("no-such-plan", false)] // a typo must not quietly mean the free plan's quota
     public void OnlyAConfiguredPlanIsAssignable(string planId, bool assignable)
     {
-        Assert.That(Plans(FreeAndPro).IsAssignable(planId), Is.EqualTo(assignable));
+        Assert.That(Plans(BasicProAndUnlimited).IsAssignable(planId), Is.EqualTo(assignable));
     }
 
     [Test]

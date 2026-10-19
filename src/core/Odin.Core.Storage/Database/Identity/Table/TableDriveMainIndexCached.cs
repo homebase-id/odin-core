@@ -230,7 +230,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
     public async Task<long> GetTotalSizeAllDrivesForQuotaAsync(TimeSpan maxAge)
     {
         return await Cache.GetOrSetAsync(
-            "quotatotalsizealldrives",
+            _cacheKeys.GetQuotaTotalSizeAllDrivesCacheKey(),
             _ => _table.GetTotalSizeAllDrivesAsync(),
             maxAge);
     }

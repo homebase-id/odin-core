@@ -108,8 +108,8 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
                 new Text(tenant.Domain).LeftJustified(),
                 new Text(tenant.Id).LeftJustified(),
                 new Text(Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)).LeftJustified(),
-                new Text(tenant.PlanId ?? "-").LeftJustified(),
-                new Text(tenant.EnablePublicWebPresence ? "yes" : "no").LeftJustified(),
+                new Text(tenant.PlanText()).LeftJustified(),
+                new Text(tenant.WebPresenceText()).LeftJustified(),
                 new Text(tenant.CreatedText()).LeftJustified(),
                 new Text(tenant.LastActivityText()).LeftJustified(),
                 new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
@@ -130,8 +130,8 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             var t = root.AddNode($"[blue]{tenant.Domain}[/]");
             t.AddNode($"[blue]Id:[/] {tenant.Id}");
             t.AddNode($"[blue]Status:[/] {Tenant.TenantStatusApi.Describe(tenant.Status, tenant.DisabledReason)}");
-            t.AddNode($"[blue]Plan:[/] {Markup.Escape(tenant.PlanId ?? "-")}");
-            t.AddNode($"[blue]Web Presence:[/] {(tenant.EnablePublicWebPresence ? "yes" : "no")}");
+            t.AddNode($"[blue]Plan:[/] {Markup.Escape(tenant.PlanText())}");
+            t.AddNode($"[blue]Web Presence:[/] {tenant.WebPresenceText()}");
             t.AddNode($"[blue]Created:[/] {tenant.CreatedText()}");
             t.AddNode($"[blue]Last activity:[/] {tenant.LastActivityText()}");
             t.AddNode($"[blue]Registration Size:[/] {tenant.RegistrationSize.HumanReadableBytes()}");

@@ -1,10 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
-using Odin.Core.Serialization;
-using Odin.Services.Admin.Tenants;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -29,14 +26,9 @@ public sealed class SetTenantPlanCommand : AsyncCommand<SetTenantPlanCommand.Set
     public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
     {
         var httpClient = CliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
-        var body = OdinSystemSerializer.Serialize(new SetTenantPlanRequest { PlanId = settings.PlanId });
-        using var content = new StringContent(body, Encoding.UTF8, "application/json");
-        var response = await httpClient.PatchAsync($"tenants/{settings.TenantDomain}/plan", content);
-        await TenantStatusApi.EnsureSuccessAsync(response, settings.TenantDomain);
-
-        var result = OdinSystemSerializer.Deserialize<SetTenantPlanResponse>(await response.Content.ReadAsStringAsync());
+        var result = await TenantStatusApi.SetPlanAsync(httpClient, settings.TenantDomain, settings.PlanId);
         AnsiConsole.MarkupLineInterpolated(
-            $"{settings.TenantDomain}: plan {settings.PlanId.Trim()} (was {result?.PreviousPlanId ?? "none"})");
+            $"{settings.TenantDomain}: plan {settings.PlanId.Trim()} (was {result.PreviousPlanId ?? "none"})");
         return 0;
     }
 }

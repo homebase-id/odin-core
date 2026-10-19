@@ -13,6 +13,7 @@ using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
 using Odin.Services.Authorization.Permissions;
@@ -135,19 +136,10 @@ public class PlanQuotaOffTests : V2Fixture
 [TestFixture]
 public class SetTenantPlanTests : V2Fixture
 {
-    private const string AdminDomain = "admin.dotyou.cloud";
-    private const int AdminPort = 4444;
-    private const string AdminApiKey = "your-secret-api-key-here";
-    private const string AdminApiKeyHeaderName = "Odin-Admin-Api-Key";
     private const string DevPlan = "dev-domain";
 
-    protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>
+    protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>(TestAdminApi.Config())
     {
-        ["Admin:ApiEnabled"] = "true",
-        ["Admin:ApiKey"] = AdminApiKey,
-        ["Admin:ApiKeyHttpHeaderName"] = AdminApiKeyHeaderName,
-        ["Admin:ApiPort"] = AdminPort.ToString(),
-        ["Admin:Domain"] = AdminDomain,
         ["Registry:Plans:0:Id"] = "free",
         ["Registry:Plans:0:Default"] = "true",
         ["Registry:Plans:0:QuotaBytes"] = "1",
@@ -225,19 +217,12 @@ public class SetTenantPlanTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
-    // TestServer leaves LocalPort at 0, and the admin API checks it; see AdminControllerTest
     private async Task<HttpResponseMessage> SetPlanAsync(string domain, string planId)
     {
-        using var client = new HttpClient(Host.Server.CreateHandler(context => context.Connection.LocalPort = AdminPort))
-        {
-            BaseAddress = new Uri($"https://{AdminDomain}:{AdminPort}/")
-        };
-        var request = new HttpRequestMessage(HttpMethod.Patch, $"api/admin/v1/tenants/{domain}/plan")
-        {
-            Headers = { { AdminApiKeyHeaderName, AdminApiKey } },
-            Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantPlanRequest { PlanId = planId }),
-                Encoding.UTF8, "application/json")
-        };
+        using var client = TestAdminApi.CreateClient(Host);
+        var request = TestAdminApi.Request(HttpMethod.Patch, $"tenants/{domain}/plan");
+        request.Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantPlanRequest { PlanId = planId }),
+            Encoding.UTF8, "application/json");
         return await client.SendAsync(request);
     }
 }

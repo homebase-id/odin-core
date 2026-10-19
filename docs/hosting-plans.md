@@ -2,7 +2,7 @@
 
 Status: built on branch `plan-quota` (#1974).
 
-## Today
+## Before plans
 
 - An identity's plan is `PlanId` on its registration. Since #1908 it comes only from the invitation code it
   signed up with; without one it has none (the registry wrote `free` for that until this change).

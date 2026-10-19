@@ -74,7 +74,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainer serviceProvider,
         Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> tenantContainerBuilder,
-        OdinConfiguration config
+        OdinConfiguration config,
+        HostingPlans hostingPlans
     )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
@@ -89,7 +90,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _serviceProvider = serviceProvider;
         _tenantContainerBuilder = tenantContainerBuilder;
         _config = config;
-        _hostingPlans = new HostingPlans(config);
+        _hostingPlans = hostingPlans;
     }
 
     public Guid? ResolveId(string domain)
@@ -157,7 +158,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             idReg.MarkedForDeletionDate,
             idReg.Email,
             // The plan decides when it says; changing the plan re-creates this (CacheIdentityAsync)
-            _hostingPlans.PublicWebPresenceFor(idReg.PlanId, idReg.EnablePublicWebPresence));
+            _hostingPlans.PublicWebPresenceFor(idReg));
 
         return tc;
     }
@@ -661,34 +662,25 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
     {
-        bool? result = null;
-        long? version = null;
-        await _registryLock.WaitAsync();
-        try
-        {
-            var reg = _trie.LookupExactName(domain);
-            if (reg != null)
-            {
-                result = reg.EnablePublicWebPresence;
-                if (reg.EnablePublicWebPresence != enabled)
-                {
-                    reg.EnablePublicWebPresence = enabled;
-                    version = await SaveRegistrationInternal(reg);
-                }
-            }
-        }
-        finally
-        {
-            _registryLock.Release();
-        }
-
-        await AnnounceAsync(version, domain);
-        return result;
+        var (found, previous) = await SetRegistrationFieldAsync(domain,
+            reg => reg.EnablePublicWebPresence, (reg, value) => reg.EnablePublicWebPresence = value, enabled);
+        return found ? previous : null;
     }
 
     public async Task<string> SetPlanAsync(string domain, string planId)
     {
-        string result = null;
+        // The quota guard reads the plan from the in-memory registration, so other nodes enforce the new
+        // quota as soon as they have applied the announcement
+        var (_, previous) = await SetRegistrationFieldAsync(domain, reg => reg.PlanId, (reg, value) => reg.PlanId = value, planId);
+        return previous;
+    }
+
+    // Sets one field of a registration, saving and announcing only if it changed. Found is false for an unknown domain.
+    private async Task<(bool Found, T Previous)> SetRegistrationFieldAsync<T>(
+        string domain, Func<IdentityRegistration, T> get, Action<IdentityRegistration, T> set, T value)
+    {
+        var found = false;
+        T previous = default;
         long? version = null;
         await _registryLock.WaitAsync();
         try
@@ -696,10 +688,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var reg = _trie.LookupExactName(domain);
             if (reg != null)
             {
-                result = reg.PlanId;
-                if (reg.PlanId != planId)
+                found = true;
+                previous = get(reg);
+                if (!EqualityComparer<T>.Default.Equals(previous, value))
                 {
-                    reg.PlanId = planId;
+                    set(reg, value);
                     version = await SaveRegistrationInternal(reg);
                 }
             }
@@ -709,10 +702,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             _registryLock.Release();
         }
 
-        // The quota guard reads the plan from the in-memory registration, so other nodes enforce the new
-        // quota as soon as they have applied this announcement
         await AnnounceAsync(version, domain);
-        return result;
+        return (found, previous);
     }
 
     public async Task<UnixTimeUtc> MarkForDeletionAsync(string domain)

@@ -39,13 +39,18 @@ public class HostingPlans(OdinConfiguration configuration)
         return PlanFor(planId)?.PublicWebPresence ?? identitySetting;
     }
 
+    public bool PublicWebPresenceFor(IdentityRegistration registration)
+    {
+        return PublicWebPresenceFor(registration.PlanId, registration.EnablePublicWebPresence);
+    }
+
     /// <summary>
     /// Whether an admin may give an identity this plan: one in Registry:Plans, so a typo cannot silently mean
     /// the default plan. Any plan while plans are off, so plans can be assigned before they are turned on.
     /// </summary>
     public bool IsAssignable(string planId)
     {
-        return _plans.Count == 0 || _plans.ContainsKey(planId.Trim());
+        return planId != "" && (_plans.Count == 0 || _plans.ContainsKey(planId));
     }
 
     private HostingPlan? PlanFor(string? planId)

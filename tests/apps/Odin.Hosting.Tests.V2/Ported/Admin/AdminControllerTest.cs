@@ -17,6 +17,7 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Authorization.Acl;
@@ -157,10 +158,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 [TestFixture]
 public class AdminControllerTest : V2Fixture
 {
-    private const string AdminDomain = "admin.dotyou.cloud";
-    private const int AdminPort = 4444;
-    private const string AdminApiKey = "your-secret-api-key-here";
-    private const string AdminApiKeyHeaderName = "Odin-Admin-Api-Key";
+    private const string AdminDomain = TestAdminApi.Domain;
+    private const int AdminPort = TestAdminApi.Port;
 
     private readonly string _exportTargetPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("n"));
 
@@ -171,13 +170,8 @@ public class AdminControllerTest : V2Fixture
     private TargetDrive _payloadDrive = null!;
 
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
-        new Dictionary<string, string?>
+        new Dictionary<string, string?>(TestAdminApi.Config())
         {
-            ["Admin:ApiEnabled"] = "true",
-            ["Admin:ApiKey"] = AdminApiKey,
-            ["Admin:ApiKeyHttpHeaderName"] = AdminApiKeyHeaderName,
-            ["Admin:ApiPort"] = AdminPort.ToString(),
-            ["Admin:Domain"] = AdminDomain,
             ["Admin:ExportTargetPath"] = _exportTargetPath,
         };
 
@@ -233,17 +227,7 @@ public class AdminControllerTest : V2Fixture
 
     private string TenantDataRootPath => Config.Host.TenantDataRootPath;
 
-    /// <summary>
-    /// A client onto the admin branch of the pipeline. <c>BaseAddress</c> names the admin domain so
-    /// <c>Startup</c>'s <c>MapWhen</c> takes it, and the handler stamps
-    /// <see cref="ConnectionInfo.LocalPort"/> because <c>AdminApiRestrictedAttribute</c> checks it
-    /// and TestServer leaves it at 0 — see the fixture remarks.
-    /// </summary>
-    private HttpClient CreateAdminClient() =>
-        new(Host.Server.CreateHandler(context => context.Connection.LocalPort = AdminPort))
-        {
-            BaseAddress = new Uri($"https://{AdminDomain}:{AdminPort}/")
-        };
+    private HttpClient CreateAdminClient() => TestAdminApi.CreateClient(Host);
 
     /// <summary>
     /// Relative on purpose: <see cref="CreateAdminClient"/> already carries the admin origin as its
@@ -257,7 +241,7 @@ public class AdminControllerTest : V2Fixture
     {
         return new HttpRequestMessage(method, uri)
         {
-            Headers = { { AdminApiKeyHeaderName, AdminApiKey } }
+            Headers = { { TestAdminApi.ApiKeyHeaderName, TestAdminApi.ApiKey } }
         };
     }
 

@@ -190,7 +190,8 @@ public static class SystemServices
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainer>(),
             TenantServices.ConfigureTenantServices,
-            config));
+            config,
+            sp.GetRequiredService<HostingPlans>()));
 
         services.AddSingleton(new CertificateStorageKey(config.CertificateRenewal.StorageKey));
         services.AddSingleton(new AcmeAccountConfig

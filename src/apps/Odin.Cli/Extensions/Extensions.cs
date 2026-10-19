@@ -30,4 +30,8 @@ public static class Extensions
     public static string CreatedText(this TenantModel tenant) => tenant.Created.ToCliTime();
 
     public static string LastActivityText(this TenantModel tenant) => tenant.LastActivity.ToCliTime("never");
+
+    public static string PlanText(this TenantModel tenant) => tenant.PlanId ?? "-";
+
+    public static string WebPresenceText(this TenantModel tenant) => tenant.EnablePublicWebPresence ? "yes" : "no";
 }
