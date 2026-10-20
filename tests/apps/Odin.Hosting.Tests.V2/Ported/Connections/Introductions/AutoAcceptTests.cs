@@ -34,23 +34,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// Merry.
 /// </para>
 /// <para>
-/// <b>Measured, and it does not reproduce the sleep's state.</b> Probing the fixture either side of
-/// the drain: the outbox item for Sam is present before it and gone after it.
-/// <c>PeerOutboxProcessorBackgroundService.DrainAsync</c> makes three retry passes and then exhausts
-/// a permanently-failing item rather than leaving it queued behind a backoff, which is the state the
-/// V1 three-second sleep relied on. Nothing observable changes, because the assertion that reads the
-/// item is vacuous either way (see the carried defects below) — but its <i>intent</i> is no longer
-/// satisfiable here: repairing that assertion would leave it passing on <c>WebScaffold</c> and
-/// failing on this framework. Expressing it would need a drain that can be told to stop before
-/// exhausting an item.
+/// The original expected Sam's outbox item to stay queued, but its assertion could not fail (an
+/// <c>ApiResponse</c> is never null). Fixed (#1767) to what is intended: Sam refuses the introduction,
+/// <c>SendIntroductionOutboxWorker</c> treats a 403 as final and completes the item, so it is gone
+/// after the drain.
 /// </para>
 /// <para>
 /// Carried defects, behaviour left exactly as found:
 /// <list type="bullet">
-/// <item><c>GetOutboxItem</c> returns an <c>ApiResponse</c>, which is never null, so
-/// <c>IsNotNull(samOutboxItem)</c> in <see cref="WillNotAutoAcceptWhenRecipientDisablesIntroductions"/>
-/// asserts nothing about whether the item exists. Carried as a null check on the response.</item>
-/// <item>That test's commented-out block asserting the outgoing request to Sam is carried as found.</item>
+/// <item><see cref="WillNotAutoAcceptWhenRecipientDisablesIntroductions"/>'s commented-out block asserting the outgoing request to Sam is carried as found.</item>
 /// </list>
 /// </para>
 /// <para>
@@ -205,8 +197,8 @@ public class AutoAcceptTests : V2Fixture
 
         var samOutboxItem = await frodo.V1.Drive.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
             sam.Identity.ToHashId(), sam.Identity);
-        Assert.That(samOutboxItem, Is.Not.Null,
-            "there should be an outbox item for sam since it failed he blocked incoming introductions");
+        Assert.That(samOutboxItem.Content, Is.Null,
+            "sam refused the introduction (403), which is final: the outbox item is dropped, not retried");
 
         await sam.Sync.DrainOutboxAsync();
         await merry.Sync.DrainOutboxAsync();

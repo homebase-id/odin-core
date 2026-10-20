@@ -50,8 +50,6 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <c>merryRequestFromSamResponse</c> off <b>Sam's</b> identity asking for a request from Merry —
 /// the identical call one line above. Merry's side is never queried, so the "merry should have no
 /// request from sam" half of each test is vacuous.</item>
-/// <item><c>GetOutboxItem</c> returns an <c>ApiResponse</c>, which is never null, so the
-/// <c>IsNotNull</c> on it asserts nothing about whether the item exists.</item>
 /// <item><see cref="WillFailToSendConnectionRequestWhenRecipientIsBlocked"/> calls its Samwise
 /// session <c>pippinOwnerClient</c>; Pippin is not in the fixture at all.</item>
 /// <item><see cref="WillIgnoreIntroductionIfIntrodceeIsBlocked"/>'s first assertion block is
@@ -378,8 +376,8 @@ public class SendingIntroductionsTests : V2Fixture
 
         var samOutboxItem = await frodo.V1.Drive.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
             sam.Identity.ToHashId(), sam.Identity);
-        Assert.That(samOutboxItem, Is.Not.Null,
-            "there should be an outbox item for sam since it failed he blocked incoming introductions");
+        Assert.That(samOutboxItem.Content, Is.Null,
+            "sam refused the introduction (403), which is final: the outbox item is dropped, not retried");
 
         // ensure introductions are processed
         var samProcessResponse = await Requests(sam).ProcessIncomingIntroductions();
