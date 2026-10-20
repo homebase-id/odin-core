@@ -48,8 +48,8 @@ public class PayloadMoveJob(
     public override string? CreateJobHash() => IdentityId is { } identityId ? JobHashFor(identityId) : null;
 
     /// <summary>
-    /// Schedules the identity's payload move, replacing any earlier one (a finished move of the same identity
-    /// would otherwise keep the hash and swallow the new job).
+    /// Schedules the identity's payload move, replacing any earlier one, even one still queued or running: a new
+    /// import brings its own handoff token and rows, which the scheduler would otherwise not take over.
     /// </summary>
     public static async Task<Guid> ScheduleAsync(IJobManager jobManager, Guid identityId, string baseUrl, string handoffToken,
         long startRowId)
