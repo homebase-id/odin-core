@@ -141,7 +141,8 @@ namespace Odin.Core.Trie
                 int c;
                 for (var i = asciiName.Length - 1; i >= 0; i--)
                 {
-                    c = m_aTrieMap[asciiName[i]]; // Map (and ignore case)
+                    // Beyond the map (non-ASCII) is as illegal as a mapped 128, not an IndexOutOfRangeException
+                    c = asciiName[i] < m_aTrieMap.Length ? m_aTrieMap[asciiName[i]] : 128; // Map (and ignore case)
 
                     if (c == 128) // Illegal character
                         throw new ArgumentException("Illegal character in " + asciiName + " " + c.ToString());
@@ -180,7 +181,8 @@ namespace Odin.Core.Trie
                 int c;
                 for (var i = asciiName.Length - 1; i >= 0; i--)
                 {
-                    c = m_aTrieMap[asciiName[i]]; // Map (and ignore case)
+                    // Beyond the map (non-ASCII) is as illegal as a mapped 128, not an IndexOutOfRangeException
+                    c = asciiName[i] < m_aTrieMap.Length ? m_aTrieMap[asciiName[i]] : 128; // Map (and ignore case)
 
                     if (c == 128) // Illegal character
                         throw new ArgumentException("Illegal character in " + asciiName + " " + c.ToString());
