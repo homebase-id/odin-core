@@ -339,6 +339,20 @@ public static class DataImporter
             () => targetIdentityDatabase.CreateScopedConnectionAsync(),
             logger, sourceIdentityDatabase.AppRegistrations.TableName);
 
+        // BundleTokens
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.BundleTokens.PagingByRowIdAsync,
+            r => targetIdentityDatabase.BundleTokens.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.BundleTokens.TableName);
+
+        // BundleTokenApps
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.BundleTokenApps.PagingByRowIdAsync,
+            r => targetIdentityDatabase.BundleTokenApps.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.BundleTokenApps.TableName);
+
         // Circle
         totalRows += await ImportTableAsync(sourceIdentityDatabase.Circle.PagingByRowIdAsync,
             r => targetIdentityDatabase.Circle.InsertAsync(r), logger, sourceIdentityDatabase.Circle.TableName);
