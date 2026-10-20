@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -151,16 +150,6 @@ public class MailActivationService(
     /// </param>
     private async Task ScheduleRelayOnboardingAsync(string domain, bool? recordsWritten = null)
     {
-        // The job is unique per domain, and a finished run keeps its row for a while (a failed
-        // one for a day). Left there, that row would swallow this request - the scheduler hands
-        // back the existing job - and the repair button would silently do nothing. A queued or
-        // running job is left alone: it is already doing what we ask.
-        var existing = await jobManager.GetJobByHashAsync(MailRelayOnboardingJob.JobHashFor(domain));
-        if (existing != null && (JobState)existing.state is JobState.Succeeded or JobState.Failed)
-        {
-            await jobManager.DeleteJobByHashAsync(existing.jobHash);
-        }
-
         var job = jobManager.NewJob<MailRelayOnboardingJob>();
         job.Data = new MailRelayOnboardingJobData
         {
