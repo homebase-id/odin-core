@@ -21,12 +21,8 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// The original was two 49-line methods differing only in the drive permission and the expected
 /// <c>HasStorageKey</c>; they are one <see cref="TestCaseSourceAttribute"/> row each here.
 /// <para>
-/// Carried defect: the no-read row builds its <c>PermissionedDrive</c> with
-/// <c>DrivePermission.Write &amp; DrivePermission.WriteReactionsAndComments</c> — a bitwise AND of
-/// 2 and 12, i.e. <see cref="DrivePermission.None"/>, where <c>|</c> was plainly meant. The row
-/// still demonstrates what its name says (no <c>Read</c> ⇒ no storage key), just with a weaker
-/// grant than intended. Carried verbatim — fixing it inside a port would make the diff
-/// unreviewable.
+/// The original's no-read row ANDed <c>Write</c> and <c>WriteReactionsAndComments</c>, an empty
+/// grant; it is ORed here (#1767), so the row grants everything but <c>Read</c>.
 /// </para>
 /// <para>
 /// The original created its circle through <c>client.Membership.CreateCircle</c>, which generates
@@ -48,8 +44,8 @@ public class KeyStoreTests : V2Fixture
 
     public static IEnumerable<object[]> StorageKeyCases()
     {
-        // No Read in the grant => no storage key. The AND is the original's; see <remarks>.
-        yield return [DrivePermission.Write & DrivePermission.WriteReactionsAndComments, false];
+        // No Read in the grant => no storage key
+        yield return [DrivePermission.Write | DrivePermission.WriteReactionsAndComments, false];
         yield return [DrivePermission.Read | DrivePermission.Write | DrivePermission.WriteReactionsAndComments, true];
     }
 
