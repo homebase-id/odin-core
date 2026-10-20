@@ -38,10 +38,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// which polled the outbox unconditionally — no distribute call follows the seed. The only seed
 /// distribute left is the mixed case's, which really does have recipients to deliver to.
 ///
-/// <b>Carried defect:</b> the third case is named
-/// <c>...With1PayloadsAnd1Thumbnails...</c> but seeds
-/// <c>SamplePayloadDefinitions.GetPayloadDefinition1()</c>, which has no thumbnails at all — so the
-/// thumbnail half of the name never ran in the original either. Left as-is: a port is a move.
+/// Fixed since (#1767): the third case is named <c>...With1PayloadsAnd1Thumbnails...</c> but seeded
+/// <c>GetPayloadDefinition1()</c>, which has no thumbnails, so the thumbnail half never ran. It now
+/// seeds <c>GetPayloadDefinitionWithThumbnail1()</c> and checks the thumbnail is served before the
+/// update deletes the payload, and gone after.
 /// </remarks>
 [TestFixture]
 public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
@@ -223,7 +223,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
         // the file does not exist on the remote server
         var transitOptions = new TransitOptions();
 
-        var payloadToBeDeleted = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var payloadToBeDeleted = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var thumbnail = payloadToBeDeleted.Thumbnails.Single();
         List<TestPayloadDefinition> testPayloads = [payloadToBeDeleted];
 
         var uploadManifest = new UploadManifest()
@@ -237,6 +238,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult!.File;
+
+        var seededThumbnail = await sender.V1.Drive.GetThumbnail(targetFile, thumbnail.PixelWidth,
+            thumbnail.PixelHeight, payloadToBeDeleted.Key);
+        Assert.That(seededThumbnail.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -275,5 +280,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests : V2Fixture
             sender, recipients, targetDrive, targetFile, uploadResult.GlobalTransitIdFileIdentifier,
             updatedFileMetadata, updateFileResponse.Content!.NewVersionTag,
             deletedPayloadKey: payloadToBeDeleted.Key);
+
+        // The thumbnail went with its payload
+        var deletedThumbnail = await sender.V1.Drive.GetThumbnail(targetFile, thumbnail.PixelWidth,
+            thumbnail.PixelHeight, payloadToBeDeleted.Key);
+        Assert.That(deletedThumbnail.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 }
