@@ -515,6 +515,50 @@ public class ExceptionHandlingMiddlewareTest
     }
 
     [Test]
+    public async Task KestrelBadRequestUsesItsOwnStatusAndLogsWarning()
+    {
+        // A client sending its body too slowly (MinRequestBodyDataRate): Kestrel says 408, and it is not a
+        // server error. BadHttpRequestException is an IOException, so this also guards that it is not a 500.
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            throw new BadHttpRequestException(
+                "Reading the request body timed out due to data arriving too slowly. See MinRequestBodyDataRate.",
+                StatusCodes.Status408RequestTimeout);
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(408));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo(408));
+        Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
+
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Never);
+    }
+
+    [Test]
     public async Task NonAbortedIOExceptionRemainsInternalServerError()
     {
         // Guards the gating: the same IOException message without an aborted request (e.g. a genuine
