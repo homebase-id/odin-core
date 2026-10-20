@@ -45,14 +45,16 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// the file on upload, so they share <see cref="RunRemoteUpsertEncrypted"/>: the first names no
 /// recipient on the upload (nobody holds the file), the second names half of them.
 ///
-/// <b>Carried defects</b>, left alone because a port is a move:
+/// Fixed since (#1767), in
+/// <see cref="CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1ThumbnailsWhenTargetFileDoesNotExistOnRemoteServer_Encrypted"/>:
 /// <list type="bullet">
-/// <item>In <see cref="CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1ThumbnailsWhenTargetFileDoesNotExistOnRemoteServer_Encrypted"/>
-/// the <c>PreviewThumbnail = default</c> / empty <c>Thumbnails</c> on the added payload descriptor
-/// mean the "1Thumbnails" half of its name applies only to the payload being deleted.</item>
+/// <item>The per-recipient payload assertions read the <i>sender's</i> local header, so the
+/// recipients' payload sets were never checked; they now read each recipient's.</item>
+/// <item>The added payload had no thumbnails (<c>PreviewThumbnail = default</c>, empty
+/// <c>Thumbnails</c>), so the "1Thumbnails" half of its name applied only to the payload being
+/// deleted. It now adds <c>GetPayloadDefinitionWithThumbnail2()</c> with its thumbnail, and the sender's
+/// and every recipient's copy are checked for it.</item>
 /// </list>
-/// Fixed since (#1767): the same test's per-recipient payload assertions read the <i>sender's</i>
-/// local header, so the recipients' payload sets were never checked; they now read each recipient's.
 /// </remarks>
 [TestFixture]
 public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
@@ -265,21 +267,13 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
         updatedFileMetadata.AppData.DataType = 991;
         updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
 
-        var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
+        payloadToAdd.Iv = ByteArrayUtil.GetRndByteArray(16);
         var updateInstructionSet = BuildUpdateInstructionSet(
             targetFile,
             recipients.Select(x => x.Identity).ToList(),
             [
-                new UploadManifestPayloadDescriptor
-                {
-                    PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
-                    Iv = ByteArrayUtil.GetRndByteArray(16),
-                    PayloadKey = payloadToAdd.Key,
-                    DescriptorContent = null,
-                    ContentType = payloadToAdd.ContentType,
-                    PreviewThumbnail = default,
-                    Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
-                },
+                payloadToAdd.ToPayloadDescriptor(PayloadUpdateOperationType.AppendOrOverwrite),
                 new UploadManifestPayloadDescriptor()
                 {
                     PayloadUpdateOperationType = PayloadUpdateOperationType.DeletePayload,
@@ -307,6 +301,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncryptedTests : V2Fixture
         {
             Assert.That(h.FileMetadata.Payloads.Select(pd => pd.Key), Does.Contain(payloadToAdd.Key),
                 "payloadToAdd should have been, well, added :)");
+            Assert.That(h.FileMetadata.Payloads.Single(pd => pd.Key == payloadToAdd.Key).Thumbnails.Count(),
+                Is.EqualTo(payloadToAdd.Thumbnails.Count), "payloadToAdd's thumbnail should have come with it");
             Assert.That(h.FileMetadata.Payloads.Select(pd => pd.Key), Does.Not.Contain(payloadToBeDeleted.Key),
                 "payload 1 should have been removed:)");
         }
