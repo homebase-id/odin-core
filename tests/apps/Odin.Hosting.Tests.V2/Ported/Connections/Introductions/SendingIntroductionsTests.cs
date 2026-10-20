@@ -45,16 +45,14 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections.Introductions;
 /// <para>
 /// Carried defects, behaviour left exactly as found:
 /// <list type="bullet">
-/// <item><see cref="WillIgnoreIntroductionIfIntrodceeIsBlocked"/> and
-/// <see cref="WillIgnoreIntroductionIfAlreadyConnected"/> both read
-/// <c>merryRequestFromSamResponse</c> off <b>Sam's</b> identity asking for a request from Merry —
-/// the identical call one line above. Merry's side is never queried, so the "merry should have no
-/// request from sam" half of each test is vacuous.</item>
 /// <item><see cref="WillFailToSendConnectionRequestWhenRecipientIsBlocked"/> calls its Samwise
 /// session <c>pippinOwnerClient</c>; Pippin is not in the fixture at all.</item>
 /// <item><see cref="WillIgnoreIntroductionIfIntrodceeIsBlocked"/>'s first assertion block is
 /// commented out in the original where it would have asserted Sam's recipient status.</item>
 /// </list>
+/// Fixed since (#1767): <see cref="WillIgnoreIntroductionIfIntrodceeIsBlocked"/> and
+/// <see cref="WillIgnoreIntroductionIfAlreadyConnected"/> asked Sam twice for a request from Merry, so
+/// Merry's side was never queried; the second query now asks Merry for a request from Sam.
 /// </para>
 /// <para>
 /// The <c>[TearDown]</c> <c>Cleanup()</c>, the trailing <c>Cleanup()</c> in every test, and the
@@ -115,7 +113,7 @@ public class SendingIntroductionsTests : V2Fixture
         var samRequestFromMerryResponse = await sam.Connections.GetIncomingRequestFrom(merry.Identity);
         Assert.That(samRequestFromMerryResponse.Content, Is.Null);
 
-        var merryRequestFromSamResponse = await sam.Connections.GetIncomingRequestFrom(merry.Identity);
+        var merryRequestFromSamResponse = await merry.Connections.GetIncomingRequestFrom(sam.Identity);
         Assert.That(merryRequestFromSamResponse.Content, Is.Null);
 
         //
@@ -167,7 +165,7 @@ public class SendingIntroductionsTests : V2Fixture
         var samRequestFromMerryResponse = await sam.Connections.GetIncomingRequestFrom(merry.Identity);
         Assert.That(samRequestFromMerryResponse.Content, Is.Null);
 
-        var merryRequestFromSamResponse = await sam.Connections.GetIncomingRequestFrom(merry.Identity);
+        var merryRequestFromSamResponse = await merry.Connections.GetIncomingRequestFrom(sam.Identity);
         Assert.That(merryRequestFromSamResponse.Content, Is.Null);
 
         //
