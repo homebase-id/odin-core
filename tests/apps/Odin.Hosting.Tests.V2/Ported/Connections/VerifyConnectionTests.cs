@@ -18,19 +18,15 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Carried defects, behaviour left exactly as found:
-/// <list type="bullet">
-/// <item><see cref="VerifyConnectionFailsWhenRecipientNotConnected"/> and
-/// <see cref="VerificationReturnsFalseWhenSenderNotConnectedButRecipientIs"/> are the same test: both
-/// have <b>Frodo</b> (the verifier) drop his side and then assert
-/// <c>IsValid == false, RemoteIdentityWasConnected == null</c>. The first is also misnamed — the
-/// recipient never disconnects in it.</item>
-/// <item><see cref="WillVerifyValidConnectionWhenAlreadyConnectedAndReturnBadRequest"/> never calls
-/// <c>VerifyConnection</c> despite its name; it re-sends a connection request over a live connection
-/// and asserts 400.</item>
-/// <item>The fixture booted Merry solely so its trailing <c>Disconnect()</c> helper could disconnect
-/// her from everyone. No test ever used her otherwise; she is not booted here.</item>
-/// </list>
+/// Fixed since (#1767): <c>VerifyConnectionFailsWhenRecipientNotConnected</c> was a misnamed copy of
+/// <see cref="VerificationReturnsFalseWhenSenderNotConnectedButRecipientIs"/> (the verifier drops his
+/// side in both) and is deleted; <c>WillVerifyValidConnectionWhenAlreadyConnectedAndReturnBadRequest</c>
+/// never called <c>VerifyConnection</c> and is renamed for what it does,
+/// <see cref="ResendingAConnectionRequestOverALiveConnectionIsABadRequest"/>.
+/// </para>
+/// <para>
+/// The fixture booted Merry solely so its trailing <c>Disconnect()</c> helper could disconnect her
+/// from everyone. No test ever used her otherwise; she is not booted here.
 /// </para>
 /// <para>
 /// Every disconnect in the original went out with <c>notifyRemote: false</c> — the default on both
@@ -91,7 +87,7 @@ public class VerifyConnectionTests : V2Fixture
     }
 
     [Test]
-    public async Task WillVerifyValidConnectionWhenAlreadyConnectedAndReturnBadRequest()
+    public async Task ResendingAConnectionRequestOverALiveConnectionIsABadRequest()
     {
         var frodo = await LoginAsOwner(Identities.Frodo);
         var sam = await LoginAsOwner(Identities.Sam);
@@ -119,27 +115,6 @@ public class VerifyConnectionTests : V2Fixture
         Assert.That(response.IsSuccessStatusCode, Is.True);
         Assert.That(result!.IsValid, Is.True);
         Assert.That(result.RemoteIdentityWasConnected, Is.True);
-    }
-
-    [Test]
-    public async Task VerifyConnectionFailsWhenRecipientNotConnected()
-    {
-        var frodo = await LoginAsOwner(Identities.Frodo);
-        var sam = await LoginAsOwner(Identities.Sam);
-
-        await frodo.Connections.SendConnectionRequest(sam.Identity, []);
-        await sam.Connections.AcceptConnectionRequest(frodo.Identity);
-
-        //
-        // Now: have frodo delete it but sam keep it
-        //
-        await frodo.Connections.DisconnectFrom(sam.Identity);
-        var response = await VerifyConnection(frodo, sam.Identity);
-        Assert.That(response.IsSuccessStatusCode, Is.True);
-
-        var result = response.Content;
-        Assert.That(result!.IsValid, Is.False);
-        Assert.That(result.RemoteIdentityWasConnected, Is.Null);
     }
 
     [Test]
