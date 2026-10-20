@@ -26,23 +26,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Concepts;
 /// Does not test security but rather drive features.
 /// </summary>
 /// <remarks>
-/// Checked port. Two latent defects are carried, not fixed (see #1767):
-/// <list type="bullet">
-/// <item><b>The owner row is dead.</b> <c>[TestCaseSource(nameof(OwnerAllowed))]</c> is commented out
-/// on <i>both</i> tests in the original, so the owner caller has never been exercised here. The row
-/// is carried commented out in <see cref="PushNotificationCases"/> so it stays findable.</item>
-/// <item><b>The caller matrix is inert.</b> Neither test ever calls
-/// <c>callerContext.Initialize(...)</c>, so no app and no YouAuth domain is ever registered and every
-/// call is made as the owner — the upload in the first test by the collaboration-chat identity, the
-/// peer send in the second by member1. <c>callerContext.Cleanup()</c> is a no-op for both live rows
-/// (<c>AppPermissionsKeysOnly</c>'s is literally empty; <c>ConnectedIdentityLoggedInOnGuestApi</c>'s
-/// early-returns on a null <c>_api</c> because Initialize never ran). The only thing the matrix does
-/// is supply <c>expected</c>, whose non-OK value skips the second half of each test. The
-/// <see cref="CollabCallerSpec"/> parameter is therefore deliberately left unused here — building it
-/// would grant access the original never granted. Contrast
-/// <see cref="CollaborationChannelTests"/>, where the same contexts <i>are</i> initialized and do
-/// drive the call.</item>
-/// </list>
+/// Checked port. Fixed since (#1767): the original ran each test over a caller matrix that did
+/// nothing. Neither test ever called <c>callerContext.Initialize(...)</c>, so no app or YouAuth domain
+/// was registered and every call was made as the owner; the matrix only supplied an <c>expected</c>
+/// status whose non-OK value skipped the second half of the test, and its owner row was commented
+/// out. Both tests are now plain owner tests that always run to the end, which is what they always
+/// exercised. Contrast <see cref="CollaborationChannelTests"/>, where the same contexts <i>are</i>
+/// initialized and do drive the call.
 /// Porting notes:
 /// <list type="bullet">
 /// <item>Push notifications travel on the peer outbox (<c>SendPushNotificationOutboxWorker</c>), so
@@ -54,7 +44,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Concepts;
 /// <item><c>TestIdentities.InitializedIdentities</c> is null here, so recipients are mapped to their
 /// owner sessions through a local dictionary instead.</item>
 /// <item>The original's <c>SetupScenario</c> — drive, circle, two handshakes, three app
-/// registrations, three push subscriptions — ran per test case, four times over. All of it is
+/// registrations, three push subscriptions — ran per test case. All of it is
 /// identity-DB state that the baseline snapshot carries, so it is baked in once by
 /// <see cref="WarmTenantBaselineAsync"/> under fixed ids. The uploads stay per-test: the payload tree
 /// is wiped on reset, so a file baked into the baseline would have a header and no payloads.</item>
@@ -69,7 +59,7 @@ public class CollaborationChatPushNotificationTests : V2Fixture
 
     // Fixed rather than minted per test: the whole scenario below — drive, circle, two handshakes,
     // three app registrations, three push subscriptions — is baseline state, so it is baked in once
-    // (see WarmTenantBaselineAsync) instead of being rebuilt for each of the four executions. Only
+    // (see WarmTenantBaselineAsync) instead of being rebuilt for each test. Only
     // the file uploads stay per-test: the payload tree is wiped on reset.
     private static readonly TargetDrive CollabChatDrive = new()
     {
@@ -111,24 +101,11 @@ public class CollaborationChatPushNotificationTests : V2Fixture
         }
     }
 
-    public static IEnumerable<object[]> PushNotificationCases()
-    {
-        // Carried verbatim from the original, where it is commented out on both tests — the owner
-        // caller is untested here (see <remarks>):
-        //   yield return [CollabCallerSpec.Owner(), HttpStatusCode.OK];
-        yield return [CollabCallerSpec.AppWithOnlyUseTransitWrite(), HttpStatusCode.OK];
-        yield return [CollabCallerSpec.ConnectedIdentityLoggedInOnGuestApi(), HttpStatusCode.MethodNotAllowed];
-    }
-
-    [Test, TestCaseSource(nameof(PushNotificationCases))]
+    [Test]
     [Description("the collab channel identity uploads a chat message to itself.  A push notification should " +
                  "still be scheduled (pending options from api)")]
-    public async Task CanAddPushNotificationWhenUploadingChatMessageDirectly(
-        CollabCallerSpec callerContext, HttpStatusCode expected)
+    public async Task CanAddPushNotificationWhenUploadingChatMessageDirectly()
     {
-        // callerContext is intentionally unused: the original never initialized it. See <remarks>.
-        _ = callerContext;
-
         var collabChatIdentity = await LoginAsOwner(Identities.Collab);
         var member1 = await LoginAsOwner(Identities.Merry);
         var member2 = await LoginAsOwner(Identities.Pippin);
@@ -152,12 +129,6 @@ public class CollaborationChatPushNotificationTests : V2Fixture
             notificationOptions);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        // Let's test more
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
-
         // push notifications ride the outbox, so one drain covers both the transient-temp drive and
         // the chat drive the V1 original polled separately
         await collabChatIdentity.Sync.DrainOutboxAsync();
@@ -166,13 +137,9 @@ public class CollaborationChatPushNotificationTests : V2Fixture
             [member1, member2, collabChatIdentity]);
     }
 
-    [Test, TestCaseSource(nameof(PushNotificationCases))]
-    public async Task CanAddPushNotificationWhenSendingChatMessageOverPeer(
-        CollabCallerSpec callerContext, HttpStatusCode expected)
+    [Test]
+    public async Task CanAddPushNotificationWhenSendingChatMessageOverPeer()
     {
-        // callerContext is intentionally unused: the original never initialized it. See <remarks>.
-        _ = callerContext;
-
         var collabChatIdentity = await LoginAsOwner(Identities.Collab);
         var member1 = await LoginAsOwner(Identities.Merry);
         var member2 = await LoginAsOwner(Identities.Pippin);
@@ -198,12 +165,6 @@ public class CollaborationChatPushNotificationTests : V2Fixture
             notificationOptions);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var remoteTargetFile = response.Content!.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
-
-        // Let's test more
-        if (expected != HttpStatusCode.OK)
-        {
-            return;
-        }
 
         // The collab chat identity has to take the file off its inbox before it can redistribute the
         // push notifications; V1 leaned on the inbox background service for this.
