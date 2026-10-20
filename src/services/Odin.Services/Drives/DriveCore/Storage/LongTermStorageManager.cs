@@ -139,8 +139,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 Summary = new TransferHistorySummary()
                 {
                     TotalInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
+                    // A recipient out of storage is waiting for room, not failed; past the outbox's retry-later
+                    // limit it becomes SendingServerTooManyAttempts and counts
                     TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatus.Delivered &&
-                                                                 h.LatestTransferStatus != LatestTransferStatus.None),
+                                                                 h.LatestTransferStatus != LatestTransferStatus.None &&
+                                                                 h.LatestTransferStatus != LatestTransferStatus.RecipientIdentityOutOfStorage),
                     TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatus.Delivered),
                     TotalReadByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
                 }
