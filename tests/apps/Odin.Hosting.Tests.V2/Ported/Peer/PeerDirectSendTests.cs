@@ -52,9 +52,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// it is why the assertion sits at the call sites rather than in
 /// <see cref="TransferCommentToFreshDrive"/>.</item>
 /// </list>
-/// Carried defect: <see cref="UniversalPeerDirectApiClient.DeleteFile"/> discards its
-/// <c>ApiResponse</c>, so <c>CanDelete_Unencrypted_Comment</c> never checks that the delete request
-/// was accepted — it only observes the resulting file state. Left as-is.
+/// Fixed since (#1767): <see cref="UniversalPeerDirectApiClient.DeleteFile"/> discarded its
+/// <c>ApiResponse</c>, so <c>CanDelete_Unencrypted_Comment</c> never checked that the delete request
+/// was accepted; it now returns it and the test asserts it.
 /// </remarks>
 [TestFixture]
 public class PeerDirectSendTests : V2Fixture
@@ -178,10 +178,11 @@ public class PeerDirectSendTests : V2Fixture
         //Delete the comment
         //
 
-        await sender.V1.PeerDirect.DeleteFile(
+        var deleteResponse = await sender.V1.PeerDirect.DeleteFile(
             FileSystemType.Comment,
             scenario.RemoteComment,
             [recipient.Identity]);
+        Assert.That(deleteResponse.IsSuccessStatusCode, Is.True, $"delete request failed: {deleteResponse.StatusCode}");
 
         await sender.Sync.DrainOutboxAsync();
 
