@@ -51,6 +51,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Peer;
 /// printed <c>SenderOdinId</c>, not the original author it was about (in the second test it was
 /// labelled "sender was" outright). Those messages restated the comparison, so per the README's
 /// assertion rule they are dropped here rather than corrected — NUnit prints both sides.
+///
+/// Fixed since (#1767): in the second test the original author (Pippin) made the update and the
+/// secondary author (Merry) never acted, so it did not test what its name says. Merry now makes the
+/// update, as in the first test.
 /// </remarks>
 [TestFixture]
 public class PeerUpdateOriginalAuthorTests : V2Fixture
@@ -129,7 +133,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         await collabChannelOwnerClient.Sync.DrainOutboxAsync();
 
         //
-        // Update the file via pippin's identity
+        // Update the file via merry's identity (the secondary author)
         //
 
         await originalAuthor_OwnerClient.Sync.ProcessInboxAsync(WellKnownAppDrives.FeedDrive);
@@ -239,10 +243,10 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
     [Test]
     public async Task CanUpdateRemoteFile_FromIdentityOtherThanOriginalAuthor_AndSeeChangesDistributedToFeed()
     {
-        // The caller (the acting identity) is the original author in this variant.
-        var (caller, originalAuthor_OwnerClient) =
-            await SetupCallerWithOwner(CallerSpec.Owner(DriveSpec.Anon()), Identities.Pippin);
-        var secondaryAuthor_OwnerClient = await LoginAsOwner(Identities.Merry);
+        // The caller (the acting identity) is the secondary author.
+        var (caller, secondaryAuthor_OwnerClient) =
+            await SetupCallerWithOwner(CallerSpec.Owner(DriveSpec.Anon()), Identities.Merry);
+        var originalAuthor_OwnerClient = await LoginAsOwner(Identities.Pippin);
         var collabChannelOwnerClient = await LoginAsOwner(Identities.Frodo);
         var member2_OwnerClient = await LoginAsOwner(Identities.Sam);
 
@@ -291,7 +295,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         await collabChannelOwnerClient.Sync.DrainOutboxAsync();
 
         //
-        // Update the file via pippin's identity
+        // Update the file via merry's identity (the secondary author)
         //
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
@@ -332,7 +336,7 @@ public class PeerUpdateOriginalAuthorTests : V2Fixture
         };
 
         var updateFileResponse = await caller.V1.Drive.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
-        await originalAuthor_OwnerClient.Sync.DrainOutboxAsync();
+        await secondaryAuthor_OwnerClient.Sync.DrainOutboxAsync();
         Assert.That(updateFileResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // handle any incoming feed items
