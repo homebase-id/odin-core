@@ -57,6 +57,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata,
             IOdinContext odinContext)
         {
+            // Refused before anything is staged: a full recipient keeps no half-received file, and the sender defers
+            if (metadata.Payloads?.Count > 0 && !metadata.PayloadsAreRemote)
+            {
+                await quotaGuard.AssertCanAddPayloadBytesAsync();
+            }
+
             var driveId = transferInstructionSet.TargetDrive.Alias;
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 

@@ -46,6 +46,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             FileMetadata fileMetadata,
             IOdinContext odinContext)
         {
+            // Refused before anything is staged when the update adds payloads; one that only deletes them goes through
+            var addsPayloads = transferInstructionSet.Request.Manifest?.PayloadDescriptors?
+                .Any(d => d.PayloadUpdateOperationType == PayloadUpdateOperationType.AppendOrOverwrite) ?? false;
+            if (addsPayloads)
+            {
+                await quotaGuard.AssertCanAddPayloadBytesAsync();
+            }
+
             var driveId = transferInstructionSet.Request.File.TargetDrive.Alias;
             _isDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
 
