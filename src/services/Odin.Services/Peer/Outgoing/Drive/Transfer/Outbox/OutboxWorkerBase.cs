@@ -85,6 +85,7 @@ public abstract class OutboxWorkerBase(
                 return await GiveUpAsync(odinContext, e);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
+            case LatestTransferStatus.RecipientIdentityOutOfStorage:
             case LatestTransferStatus.RecipientServerNotResponding:
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
                 if (e.RetryAfter.HasValue)
@@ -157,6 +158,12 @@ public abstract class OutboxWorkerBase(
             return LatestTransferStatus.RecipientIdentityReturnedBadRequest;
         }
 
+        // Its own status so the sender's apps can say "waiting for room" rather than "failed"
+        if (response.StatusCode == HttpStatusCode.InsufficientStorage)
+        {
+            return LatestTransferStatus.RecipientIdentityOutOfStorage;
+        }
+
         return LatestTransferStatus.RecipientIdentityReturnedServerError;
     }
 
@@ -165,6 +172,7 @@ public abstract class OutboxWorkerBase(
         switch (transferStatus)
         {
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
+            case LatestTransferStatus.RecipientIdentityOutOfStorage:
             case LatestTransferStatus.RecipientServerNotResponding:
                 return CalculateBackoffNextRunTime();
 

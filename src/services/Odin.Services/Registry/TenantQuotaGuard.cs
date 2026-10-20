@@ -10,12 +10,20 @@ using Odin.Services.Base;
 namespace Odin.Services.Registry;
 
 /// <summary>
-/// How much an identity stores, against what its plan allows (docs/hosting-plans.md)
+/// The identity's hosting plan, what it gives, and how much of it is used (docs/hosting-plans.md)
+/// </summary>
+/// <param name="Id">The plan the identity gets: the default's for no plan or an unknown one; null while plans are off</param>
+/// <param name="IsDefault">Whether that is the default plan</param>
+/// <param name="PublicWebPresence">Whether the identity has a public home page: the plan's say, or its own</param>
+public record IdentityPlan(string? Id, bool IsDefault, bool PublicWebPresence, StorageUsage Storage);
+
+/// <summary>
+/// How much an identity stores, against what its plan allows
 /// </summary>
 /// <param name="QuotaBytes">Null for unlimited</param>
 /// <param name="IsOverQuota">Exactly what <see cref="TenantQuotaGuard"/> decides: over the plan's quota, or set
 /// <see cref="TenantStatus.OutOfQuota"/> by an admin</param>
-public record StorageUsage(string? PlanId, long UsedBytes, long? QuotaBytes, bool IsOverQuota);
+public record StorageUsage(long UsedBytes, long? QuotaBytes, bool IsOverQuota);
 
 /// <summary>
 /// Refuses writes that add payload bytes while this identity is out of quota: set
@@ -55,12 +63,16 @@ public class TenantQuotaGuard(
         }
     }
 
-    public async Task<StorageUsage> GetUsageAsync()
+    public async Task<IdentityPlan> GetPlanAsync()
     {
         var registration = Registration();
-        var quota = hostingPlans.QuotaFor(registration?.PlanId);
+        var plan = hostingPlans.PlanFor(registration?.PlanId);
         var used = await UsedBytesAsync();
-        return new StorageUsage(registration?.PlanId, used, quota, IsOverQuota(registration, used, quota));
+        return new IdentityPlan(
+            plan?.Id,
+            plan?.Default ?? false,
+            registration != null && hostingPlans.PublicWebPresenceFor(registration),
+            new StorageUsage(used, plan?.QuotaBytes, IsOverQuota(registration, used, plan?.QuotaBytes)));
     }
 
     // The one rule: set OutOfQuota by an admin, or storing at least what the plan allows

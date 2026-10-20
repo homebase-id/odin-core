@@ -24,15 +24,15 @@ using Refit;
 
 namespace Odin.Hosting.Tests.V2.Storage;
 
-public interface IStorageUsageClient
+public interface IPlanClient
 {
-    [Get("/api/v2/storage/usage")]
-    Task<ApiResponse<StorageUsage>> GetUsage();
+    [Get("/api/v2/plan")]
+    Task<ApiResponse<IdentityPlan>> GetPlan();
 }
 
 /// <summary>
 /// Plan quotas (docs/hosting-plans.md) with the free plan's quota at 1 byte, so an identity is over it as soon as
-/// it stores anything: headers still upload, payloads are refused with 507, and the usage endpoint says so to
+/// it stores anything: headers still upload, payloads are refused with 507, and the plan endpoint says so to
 /// the owner and apps.
 /// </summary>
 [TestFixture]
@@ -69,7 +69,7 @@ public class PlanQuotaTests : V2Fixture
     }
 
     [Test]
-    public async Task TheOwnerAndAnAppSeeTheUsage()
+    public async Task TheOwnerAndAnAppSeeThePlanAndItsUsage()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         await StoreSomethingAsync(owner, await CreateDriveAsync(owner));
@@ -79,14 +79,18 @@ public class PlanQuotaTests : V2Fixture
             PermissionSet = new PermissionSet(new List<int>())
         });
 
-        var ownerUsage = (await owner.RefitFor<IStorageUsageClient>().GetUsage()).Content!;
-        var appResponse = await app.RefitFor<IStorageUsageClient>().GetUsage();
+        var ownerPlan = (await owner.RefitFor<IPlanClient>().GetPlan()).Content!;
+        var appResponse = await app.RefitFor<IPlanClient>().GetPlan();
 
         Assert.That(appResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(ownerUsage.QuotaBytes, Is.EqualTo(1));
-        Assert.That(ownerUsage.UsedBytes, Is.GreaterThan(0));
-        Assert.That(ownerUsage.IsOverQuota, Is.True);
-        Assert.That(appResponse.Content, Is.EqualTo(ownerUsage));
+        // The test identities' own plan is not in this config, so they get the default
+        Assert.That(ownerPlan.Id, Is.EqualTo("free"));
+        Assert.That(ownerPlan.IsDefault, Is.True);
+        Assert.That(ownerPlan.PublicWebPresence, Is.True, "the plan does not say, and the identity's own is on");
+        Assert.That(ownerPlan.Storage.QuotaBytes, Is.EqualTo(1));
+        Assert.That(ownerPlan.Storage.UsedBytes, Is.GreaterThan(0));
+        Assert.That(ownerPlan.Storage.IsOverQuota, Is.True);
+        Assert.That(appResponse.Content, Is.EqualTo(ownerPlan));
     }
 
     internal static Task<ApiResponse<UploadResult>> UploadPayloadAsync(OwnerSession owner, TargetDrive drive)
@@ -112,7 +116,7 @@ public class PlanQuotaTests : V2Fixture
 }
 
 /// <summary>
-/// Without Registry:Plans there are no quotas: usage is reported, with no limit, and payloads upload.
+/// Without Registry:Plans there are no plans and no quotas: usage is reported, with no limit, and payloads upload.
 /// </summary>
 [TestFixture]
 public class PlanQuotaOffTests : V2Fixture
@@ -122,10 +126,12 @@ public class PlanQuotaOffTests : V2Fixture
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
-        var usage = (await owner.RefitFor<IStorageUsageClient>().GetUsage()).Content!;
+        var plan = (await owner.RefitFor<IPlanClient>().GetPlan()).Content!;
 
-        Assert.That(usage.QuotaBytes, Is.Null);
-        Assert.That(usage.IsOverQuota, Is.False);
+        Assert.That(plan.Id, Is.Null);
+        Assert.That(plan.IsDefault, Is.False);
+        Assert.That(plan.Storage.QuotaBytes, Is.Null);
+        Assert.That(plan.Storage.IsOverQuota, Is.False);
     }
 }
 
@@ -178,10 +184,11 @@ public class SetTenantPlanTests : V2Fixture
         var upload = await PlanQuotaTests.UploadPayloadAsync(owner, drive);
         Assert.That(upload.IsSuccessStatusCode, Is.True, upload.Error?.Content);
 
-        var usage = (await owner.RefitFor<IStorageUsageClient>().GetUsage()).Content!;
-        Assert.That(usage.PlanId, Is.EqualTo("Unlimited"));
-        Assert.That(usage.QuotaBytes, Is.Null);
-        Assert.That(usage.IsOverQuota, Is.False);
+        var plan = (await owner.RefitFor<IPlanClient>().GetPlan()).Content!;
+        Assert.That(plan.Id, Is.EqualTo("unlimited"), "the configured id, not the admin's spelling");
+        Assert.That(plan.IsDefault, Is.False);
+        Assert.That(plan.Storage.QuotaBytes, Is.Null);
+        Assert.That(plan.Storage.IsOverQuota, Is.False);
     }
 
     [Test]
@@ -195,6 +202,8 @@ public class SetTenantPlanTests : V2Fixture
 
         Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), "private")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await Home(), Does.Contain(placeholder), "the plan's no wins over the identity's yes");
+        var owner = await LoginAsOwner(Identities.Frodo);
+        Assert.That((await owner.RefitFor<IPlanClient>().GetPlan()).Content!.PublicWebPresence, Is.False);
 
         // A plan that does not say leaves it to the identity again, which never changed
         Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), DevPlan)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
