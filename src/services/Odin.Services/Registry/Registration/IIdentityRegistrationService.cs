@@ -67,7 +67,7 @@ public interface IIdentityRegistrationService
     
     /// <summary>
     /// Create identity on own or managed domain. Its hosting plan comes only from the invitation code; without
-    /// one it gets the registry's default ("free").
+    /// one it has none, and so the default plan (docs/hosting-plans.md).
     /// </summary>
     /// <returns>First-run token</returns>
     Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string invitationCode);

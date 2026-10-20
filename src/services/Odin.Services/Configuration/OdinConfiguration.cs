@@ -207,6 +207,12 @@ public class OdinConfiguration
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
         /// <summary>
+        /// Hosting plans: each one's disk quota and public web presence (docs/hosting-plans.md). Empty: plans are off.
+        /// When set exactly one is <see cref="HostingPlan.Default"/>: the plan of every identity without a plan in the list.
+        /// </summary>
+        public List<HostingPlan> Plans { get; init; } = [];
+
+        /// <summary>
         /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
         /// Default true; set false where the configured hostnames are not the real ones — a dev box
         /// resolves them through /etc/hosts, so every lookup fails and the retry loop just logs noise.
@@ -260,6 +266,10 @@ public class OdinConfiguration
             InvitationCodeServiceApiKey = config.GetOrDefault("Registry:InvitationCodeService:ApiKey", "").Trim();
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
+            Plans = config.GetOrDefault("Registry:Plans", Plans)
+                .Select(p => p with { Id = p.Id.Trim() })
+                .ToList();
+            AssertValidPlans(Plans);
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
@@ -270,6 +280,57 @@ public class OdinConfiguration
                     "Registry:InvitationCodes and Registry:InvitationCodesWithoutPublicWebPresence must not overlap: " +
                     string.Join(", ", ambiguousCodes));
             }
+        }
+
+        private static void AssertValidPlans(List<HostingPlan> plans)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var plan in plans)
+            {
+                if (plan.Id == "")
+                {
+                    throw new OdinSystemException("Registry:Plans: every plan needs an Id");
+                }
+                if (plan.QuotaBytes < 0)
+                {
+                    throw new OdinSystemException($"Registry:Plans: QuotaBytes of '{plan.Id}' must not be negative");
+                }
+                if (!ids.Add(plan.Id))
+                {
+                    throw new OdinSystemException($"Registry:Plans has '{plan.Id}' twice");
+                }
+            }
+
+            var defaults = plans.Count(p => p.Default);
+            if (plans.Count > 0 && defaults != 1)
+            {
+                throw new OdinSystemException(
+                    $"Registry:Plans must have exactly one Default plan, for identities without a plan in the list; it has {defaults}");
+            }
+        }
+
+        public record HostingPlan
+        {
+            public string Id { get; init; } = "";
+
+            /// <summary>
+            /// The plan of every identity whose plan is not in the list: one with no plan (its invitation code gave
+            /// none, or it signed up before plans), one whose plan id is unknown here, and one stored as "free", which
+            /// the registry wrote for no plan until #1974. Exactly one plan is the default.
+            /// </summary>
+            public bool Default { get; init; }
+
+            /// <summary>
+            /// Bytes the identity may store; null for unlimited
+            /// </summary>
+            public long? QuotaBytes { get; init; }
+
+            /// <summary>
+            /// Whether identities on the plan have a public web presence (a public home page and sitemap). Decides
+            /// it live, over the identity's own setting, so changing an identity's plan changes it too. Null leaves
+            /// it to the identity: what its invitation code gave it, or an admin set.
+            /// </summary>
+            public bool? PublicWebPresence { get; init; }
         }
 
         public class ManagedDomainApex

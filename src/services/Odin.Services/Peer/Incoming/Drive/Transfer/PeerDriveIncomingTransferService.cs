@@ -57,6 +57,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata,
             IOdinContext odinContext)
         {
+            // Refused before anything is staged: a full recipient keeps no half-received file, and the sender defers
+            if (metadata.Payloads?.Count > 0 && !metadata.PayloadsAreRemote)
+            {
+                await quotaGuard.AssertCanAddPayloadBytesAsync();
+            }
+
             var driveId = transferInstructionSet.TargetDrive.Alias;
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 
@@ -70,7 +76,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptPayload(PayloadDescriptor descriptor, bool isEncrypted, Stream data, IOdinContext odinContext)
         {
             // Refused before any bytes are read, so the sender defers the transfer instead of losing it
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             _uploadedKeys.TryAdd(descriptor.Key, new List<string>());
 
@@ -83,7 +89,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
             IOdinContext odinContext)
         {
-            quotaGuard.AssertCanAddPayloadBytes();
+            await quotaGuard.AssertCanAddPayloadBytesAsync();
 
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
             {

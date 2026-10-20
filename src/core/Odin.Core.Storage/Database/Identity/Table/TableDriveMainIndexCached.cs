@@ -222,6 +222,21 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
+    /// <summary>
+    /// The same total as <see cref="GetTotalSizeAllDrivesAsync"/>, up to <paramref name="maxAge"/> old: writes do not
+    /// drop it, so a busy identity does not pay for the sum on every upload. For the storage quota, which is a soft
+    /// limit anyway.
+    /// </summary>
+    public async Task<long> GetTotalSizeAllDrivesForQuotaAsync(TimeSpan maxAge)
+    {
+        return await Cache.GetOrSetAsync(
+            _cacheKeys.GetQuotaTotalSizeAllDrivesCacheKey(),
+            _ => _table.GetTotalSizeAllDrivesAsync(),
+            maxAge);
+    }
+
+    //
+
     public async Task<IdentityStorageStats> GetIdentityStorageStatsAsync(TimeSpan? ttl = null)
     {
         return await Cache.GetOrSetAsync(

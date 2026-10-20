@@ -151,7 +151,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
-        QuotaGuard.AssertCanAddPayloadBytes();
+        await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         if (Package.Payloads.Any(p => p.KeyEquals(key)))
         {
@@ -186,7 +186,7 @@ public abstract class FileSystemUpdateWriterBase : IUploadPartWriter
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
     {
-        QuotaGuard.AssertCanAddPayloadBytes();
+        await QuotaGuard.AssertCanAddPayloadBytesAsync();
 
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 

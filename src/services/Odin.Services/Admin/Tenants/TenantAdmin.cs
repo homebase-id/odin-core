@@ -32,7 +32,8 @@ public class TenantAdmin(
     IdentityStorageCensus identityStorageCensus,
     PayloadMoveSource payloadMoveSource,
     PayloadMoveAdmin payloadMoveAdmin,
-    SystemDatabase systemDatabase)
+    SystemDatabase systemDatabase,
+    HostingPlans hostingPlans)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -248,9 +249,10 @@ public class TenantAdmin(
             Domain = registration.PrimaryDomainName,
             Registered = true,
             Enabled = registration.Status != TenantStatus.Disabled,
-            EnablePublicWebPresence = registration.EnablePublicWebPresence,
+            EnablePublicWebPresence = hostingPlans.PublicWebPresenceFor(registration),
             Email = registration.Email,
             PlanId = registration.PlanId,
+            QuotaBytes = hostingPlans.QuotaFor(registration.PlanId),
             CreatedAt = registration.Created,
             MarkedForDeletionDate = registration.MarkedForDeletionDate,
             LastActivity = await lastSeenService.GetLastSeenAsync(registration.PrimaryDomainName),
@@ -389,6 +391,19 @@ public class TenantAdmin(
 
     //
 
+    public async Task<string?> SetTenantPlanAsync(string domain, string planId)
+    {
+        planId = planId.Trim();
+        if (!hostingPlans.IsAssignable(planId))
+        {
+            throw new OdinClientException($"'{planId}' is not a plan in Registry:Plans");
+        }
+
+        return await identityRegistry.SetPlanAsync(domain, planId);
+    }
+
+    //
+
     public async Task EnablePublicWebPresence(string domain)
     {
         await identityRegistry.SetPublicWebPresenceAsync(domain, true);
@@ -412,7 +427,8 @@ public class TenantAdmin(
             Status = identityRegistration.Status,
             DisabledReason = identityRegistration.DisabledReason,
             StatusChangedAt = identityRegistration.StatusChangedAt,
-            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence,
+            EnablePublicWebPresence = hostingPlans.PublicWebPresenceFor(identityRegistration),
+            PlanId = identityRegistration.PlanId,
             Created = identityRegistration.Created,
             LastActivity = await lastSeenService.GetLastSeenAsync(identityRegistration.PrimaryDomainName)
         };

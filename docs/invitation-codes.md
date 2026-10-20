@@ -16,11 +16,13 @@ The host-wide codes in `Registry:InvitationCodes` keep working as before; the tw
   using it is the real check, so it is not validated first as well.
 - `CreateIdentityOnDomainAsync` takes a use (`use`) before registering, and gives it back (`undo-use`) if
   registering fails. The registration stores `Invitation` (code, the code's owner as `InvitedBy`, source)
-  in its json column, and the code's `enablePublicWebPresence` decides the identity's public home page.
+  in its json column. A code's `enablePublicWebPresence`, which older services still send, is ignored: the
+  identity's plan decides its public home page (docs/hosting-plans.md), and without a say from the plan the
+  identity has one.
 - An identity's hosting plan comes only from its invitation code (`planId`), never from the signup request:
   `create-identity-on-domain` no longer takes a `planId`, and one the client still sends is ignored. A code
-  without a plan, a configured code, a service from before plans, or a host with no codes leaves it unset, and
-  the registry stores `free`. What a plan means in quota is odin-core's, as for any `PlanId`.
+  without a plan, a configured code, a service from before plans, or a host with no codes leaves it unset, which
+  is the default plan. What a plan gives is odin-core's (docs/hosting-plans.md).
 
 ## Configuration (Homebase-run identity hosts only)
 

@@ -7,6 +7,8 @@ public static class SwaggerInfo
 
     public const string Health = "Health";
 
+    public const string Storage = "Storage";
+
     // Drive-level status
     public const string DriveMetadata = "Drive Metadata";
     public const string DriveInbox = "Drive Inbox";

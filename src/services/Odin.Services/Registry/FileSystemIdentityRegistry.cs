@@ -66,6 +66,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly IMultiTenantContainer _serviceProvider;
     private readonly Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
+    private readonly HostingPlans _hostingPlans;
 
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
@@ -73,7 +74,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainer serviceProvider,
         Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> tenantContainerBuilder,
-        OdinConfiguration config
+        OdinConfiguration config,
+        HostingPlans hostingPlans
     )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
@@ -88,6 +90,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _serviceProvider = serviceProvider;
         _tenantContainerBuilder = tenantContainerBuilder;
         _config = config;
+        _hostingPlans = hostingPlans;
     }
 
     public Guid? ResolveId(string domain)
@@ -154,7 +157,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             isPreconfigured,
             idReg.MarkedForDeletionDate,
             idReg.Email,
-            idReg.EnablePublicWebPresence);
+            // The plan decides when it says; changing the plan re-creates this (CacheIdentityAsync)
+            _hostingPlans.PublicWebPresenceFor(idReg));
 
         return tc;
     }
@@ -523,7 +527,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // Superseded by the status in json; written as a mirror for nodes on older versions
             disabled = registration.Status == TenantStatus.Disabled,
             markedForDeletionDate = registration.MarkedForDeletionDate,
-            planId = registration.PlanId ?? "free",
+            // Null for no plan: it resolves to the default plan (HostingPlans). Until #1974 this wrote "free".
+            planId = registration.PlanId,
             enablePublicWebPresence = registration.EnablePublicWebPresence,
             json = RegistrationJsonMapper.ToJson(registration)
         };
@@ -657,7 +662,25 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
     {
-        bool? result = null;
+        var (found, previous) = await SetRegistrationFieldAsync(domain,
+            reg => reg.EnablePublicWebPresence, (reg, value) => reg.EnablePublicWebPresence = value, enabled);
+        return found ? previous : null;
+    }
+
+    public async Task<string> SetPlanAsync(string domain, string planId)
+    {
+        // The quota guard reads the plan from the in-memory registration, so other nodes enforce the new
+        // quota as soon as they have applied the announcement
+        var (_, previous) = await SetRegistrationFieldAsync(domain, reg => reg.PlanId, (reg, value) => reg.PlanId = value, planId);
+        return previous;
+    }
+
+    // Sets one field of a registration, saving and announcing only if it changed. Found is false for an unknown domain.
+    private async Task<(bool Found, T Previous)> SetRegistrationFieldAsync<T>(
+        string domain, Func<IdentityRegistration, T> get, Action<IdentityRegistration, T> set, T value)
+    {
+        var found = false;
+        T previous = default;
         long? version = null;
         await _registryLock.WaitAsync();
         try
@@ -665,10 +688,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var reg = _trie.LookupExactName(domain);
             if (reg != null)
             {
-                result = reg.EnablePublicWebPresence;
-                if (reg.EnablePublicWebPresence != enabled)
+                found = true;
+                previous = get(reg);
+                if (!EqualityComparer<T>.Default.Equals(previous, value))
                 {
-                    reg.EnablePublicWebPresence = enabled;
+                    set(reg, value);
                     version = await SaveRegistrationInternal(reg);
                 }
             }
@@ -679,7 +703,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         await AnnounceAsync(version, domain);
-        return result;
+        return (found, previous);
     }
 
     public async Task<UnixTimeUtc> MarkForDeletionAsync(string domain)

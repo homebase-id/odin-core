@@ -55,9 +55,10 @@ milliseconds. **Null means "not applicable or unknown", never zero.**
 | `registrationSize` | Bytes on local disk under the registration directory. On Postgres + S3 this is legitimately near zero: the database is remote and payloads are in S3. Only meaningful on SQLite. |
 | `lastActivity` | See the caveat below — this is **not** "when the tenant was last used". |
 | `enabled` | Inverse of `registrations.disabled`, set by `odin-admin tenant set-status <domain> disabled` / `active`. Boolean. |
-| `enablePublicWebPresence` | The other CLI-togglable flag (`odin-cli tenant enable-public-web-presence` / `disable-public-web-presence`). Boolean; the V202607101000 migration backfilled every existing row to true. |
+| `enablePublicWebPresence` | What the identity has: its plan's `PublicWebPresence` when the plan sets one, otherwise its own flag (`odin-cli tenant enable-public-web-presence` / `disable-public-web-presence`; the V202607101000 migration backfilled every existing row to true). See [hosting-plans.md](hosting-plans.md). |
 | `markedForDeletionDate` | Null, or when the **owner** requested deletion (`OwnerSecurityController`, not the CLI). A tenant pending deletion is neither enabled nor gone, and a report that cannot say so will mislabel it. |
-| `planId` | Free text, `"free"` everywhere today. See caveat 5. |
+| `planId` | The hosting plan as stored; null for none. None, `"free"` or an id not in `Registry:Plans` is the default plan. See caveat 5. |
+| `quotaBytes` | The plan's disk quota; null for unlimited, and for everyone while `Registry:Plans` is empty. |
 | `registered` | False when the identity has no `Registrations` row. Such rows have `domain: null`; we do not invent a name. |
 | `metricsError` | Null on a healthy row. Set when that tenant's figures could not be read, with the storage fields left **null rather than zero** — a zero there is indistinguishable from the data loss this report exists to detect. One unreadable tenant does not fail the whole report. |
 | `orphanSource` | `"index"` (still owns rows) or `"directory"` (a registration directory with no registration). Null when registered. |
@@ -158,12 +159,10 @@ something read from code.
    `FileMetadata.PayloadsAreRemote`, which means *the payload is hosted by another identity*, not
    "stored in S3".
 
-5. **Quota: `planId` is the intended seam, but carries no quota today.** It is free text supplied
-   by the caller at registration, never validated against any list, defaulted to `"free"`, and never
-   branched on; there is no plans table, no config section, and nothing enforces a limit on
-   `byteCount`. The plan on a registration (`"free"` on every tenant today) is what quotas are
-   expected to hang off once plans exist, so `planId` is exposed here and a consumer should key
-   quota lookups on it. Until then, resolve plan-to-quota outside odin-core.
+5. **Quota: `planId` is resolved in odin-core.** Plans and their quotas are host config
+   (`Registry:Plans`), and the plan comes from the invitation code at signup or `tenant set-plan`;
+   see [hosting-plans.md](hosting-plans.md). `quotaBytes` is that plan's limit, compared against
+   `totalBytes` by the quota guard, so a consumer does not need its own plan-to-quota table.
 
 6. **Byte order is only a concern outside .NET.** Guids are stored as `Guid.ToByteArray()` (the
    mixed-endian .NET layout) in an opaque `BYTEA`/BLOB, and round-trip unchanged. The API has always
