@@ -25,6 +25,7 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Core.Util;
 using Odin.Hosting.Cli;
 using Odin.Hosting.Kestrel;
 using Odin.Services.Certificate;
@@ -383,7 +384,10 @@ namespace Odin.Hosting
             // and does a scoped DB read on every connection to a certless domain.
             var sw = Stopwatch.StartNew();
 
-            if (string.IsNullOrWhiteSpace(hostName))
+            // A name that is not a valid ASCII DNS name (e.g. a non-ASCII SNI) cannot be a tenant or a
+            // system domain, so it gets the same silent abort as any other unknown name rather than
+            // tripping the registry lookup, which only maps ASCII
+            if (string.IsNullOrWhiteSpace(hostName) || !AsciiDomainNameValidator.TryValidateDomain(hostName))
             {
                 return (null, false);
             }

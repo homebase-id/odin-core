@@ -128,6 +128,20 @@ namespace Odin.Core.Tests
         }
 
         [Test]
+        public void LookupOfNonAsciiNameThrowsArgumentException()
+        {
+            var t = new Trie<Guid>();
+            t.AddDomain("aa.com", Guid.NewGuid());
+
+            // U+00E9 is inside the map (as illegal); U+0101 and U+4E2D are beyond it
+            foreach (var name in new[] { "\u00e9a.com", "\u0101a.com", "\u4e2da.com" })
+            {
+                Assert.Throws<ArgumentException>(() => t.LookupExactName(name), name);
+                Assert.Throws<ArgumentException>(() => t.LookupName(name), name);
+            }
+        }
+
+        [Test]
         public void NameTooLongFails()
         {
             var t = new Trie<Guid>();
