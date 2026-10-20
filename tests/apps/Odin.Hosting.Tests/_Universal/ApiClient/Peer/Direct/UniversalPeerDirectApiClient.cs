@@ -15,6 +15,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Hosting.Controllers.Base.Drive;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
@@ -208,7 +209,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
     }
 
 
-    public async Task DeleteFile(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+    public async Task<ApiResponse<DeleteFileResult>> DeleteFile(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
         List<OdinId> recipients)
     {
         var request = new DeleteFileByGlobalTransitIdRequest()
@@ -221,7 +222,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var transitSvc = RefitCreator.RestServiceFor<IUniversalRefitPeerDirect>(client, sharedSecret);
-            var response = await transitSvc.SendDeleteRequest(request);
+            return await transitSvc.SendDeleteRequest(request);
         }
     }
 
