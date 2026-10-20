@@ -1160,6 +1160,66 @@ public class JobManagerTests
     //
 
     [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task AFinishedUniqueJobDoesNotSwallowANewOne(DatabaseType databaseType)
+    {
+        // Arrange: a unique job that succeeded and keeps its row for an hour
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        var schedule = new JobSchedule { OnSuccessDeleteAfter = TimeSpan.FromHours(1) };
+
+        var jobId1 = await jobManager.ScheduleJobAsync(_container.Resolve<JobWithHashTest>(), schedule);
+        await jobManager.RunJobNowAsync(jobId1, CancellationToken.None);
+        Assert.That((await jobManager.GetJobAsync<JobWithHashTest>(jobId1))!.State, Is.EqualTo(JobState.Succeeded));
+
+        // Act
+        var jobId2 = await jobManager.ScheduleJobAsync(_container.Resolve<JobWithHashTest>(), schedule);
+
+        // Assert: a new job, scheduled, and the finished one is gone
+        Assert.That(jobId2, Is.Not.EqualTo(jobId1));
+        Assert.That((await jobManager.GetJobAsync<JobWithHashTest>(jobId2))!.State, Is.EqualTo(JobState.Scheduled));
+        Assert.That(await jobManager.JobExistsAsync(jobId1), Is.False);
+
+        // A job that is still queued does block, as before
+        var jobId3 = await jobManager.ScheduleJobAsync(_container.Resolve<JobWithHashTest>(), schedule);
+        Assert.That(jobId3, Is.EqualTo(jobId2));
+
+        AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task AFailedUniqueJobDoesNotSwallowANewOne(DatabaseType databaseType)
+    {
+        // Arrange: a unique job that gave up and keeps its row for an hour
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        var schedule = new JobSchedule { MaxAttempts = 1, OnFailureDeleteAfter = TimeSpan.FromHours(1) };
+
+        var jobId1 = await jobManager.ScheduleJobAsync(_container.Resolve<FailingJobWithHashTest>(), schedule);
+        await jobManager.RunJobNowAsync(jobId1, CancellationToken.None);
+        Assert.That((await jobManager.GetJobAsync<FailingJobWithHashTest>(jobId1))!.State, Is.EqualTo(JobState.Failed));
+
+        // Act
+        var jobId2 = await jobManager.ScheduleJobAsync(_container.Resolve<FailingJobWithHashTest>(), schedule);
+
+        // Assert
+        Assert.That(jobId2, Is.Not.EqualTo(jobId1));
+        Assert.That((await jobManager.GetJobAsync<FailingJobWithHashTest>(jobId2))!.State, Is.EqualTo(JobState.Scheduled));
+        Assert.That(await jobManager.JobExistsAsync(jobId1), Is.False);
+    }
+
+    //
+
+    [Test]
     [TestCase(DatabaseType.Sqlite, 0)]
     [TestCase(DatabaseType.Sqlite, 100)]
     public async Task ItShouldDeleteExpiredSuccessfulJobsDirectly(DatabaseType databaseType, int deleteAfterMilliseconds)

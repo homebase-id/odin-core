@@ -147,6 +147,17 @@ public class JobManager(
                         result = record.id;
                     }
                 }
+                else if ((JobState)existingRecord.state is JobState.Succeeded or JobState.Failed)
+                {
+                    // A finished job is only waiting out OnSuccessDeleteAfter/OnFailureDeleteAfter, so it must not
+                    // swallow a new request: delete it (unless it changed since we read it) and try the insert again
+                    logger.LogDebug("JobManager unique job '{name}' hash:{jobHash} replaces finished job id:{OldJobId}",
+                        record.name,
+                        record.jobHash,
+                        existingRecord.id);
+                    await tableJobs.DeleteIfUnchangedAsync(existingRecord.id, existingRecord.state,
+                        existingRecord.modified.milliseconds);
+                }
                 else
                 {
                     logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
