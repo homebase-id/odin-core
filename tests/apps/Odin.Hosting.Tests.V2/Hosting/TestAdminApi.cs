@@ -2,6 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using Odin.Core.Serialization;
+using Odin.Services.Admin.Tenants;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
@@ -37,4 +41,14 @@ public static class TestAdminApi
     /// <summary>A request to <c>api/admin/v1/{relativePath}</c>, relative to <see cref="CreateClient"/>'s origin.</summary>
     public static HttpRequestMessage Request(HttpMethod method, string relativePath) =>
         new(method, $"api/admin/v1/{relativePath}") { Headers = { { ApiKeyHeaderName, ApiKey } } };
+
+    /// <summary>PATCH tenants/{domain}/plan: the raw response, for tests that expect a refusal.</summary>
+    public static async Task<HttpResponseMessage> SetPlanAsync(OdinHost host, string domain, string planId)
+    {
+        using var client = CreateClient(host);
+        var request = Request(HttpMethod.Patch, $"tenants/{domain}/plan");
+        request.Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantPlanRequest { PlanId = planId }),
+            Encoding.UTF8, "application/json");
+        return await client.SendAsync(request);
+    }
 }

@@ -217,12 +217,5 @@ public class SetTenantPlanTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
-    private async Task<HttpResponseMessage> SetPlanAsync(string domain, string planId)
-    {
-        using var client = TestAdminApi.CreateClient(Host);
-        var request = TestAdminApi.Request(HttpMethod.Patch, $"tenants/{domain}/plan");
-        request.Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantPlanRequest { PlanId = planId }),
-            Encoding.UTF8, "application/json");
-        return await client.SendAsync(request);
-    }
+    private Task<HttpResponseMessage> SetPlanAsync(string domain, string planId) => TestAdminApi.SetPlanAsync(Host, domain, planId);
 }
