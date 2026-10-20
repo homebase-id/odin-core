@@ -1041,3 +1041,11 @@ the V1 and services log-event assertions list the events in their message, so a 
   `Unauthorized to read to drive`. Passed on re-running the job (attempt 2) with no change, and passes on the
   ubuntu jobs of the same commit and on recent `main` Windows runs. The branch touches nothing in peer
   WebSockets (hosting plans and quota checks). Undiagnosed.
+- `Odin.Core.Storage.Tests.Cache.CrossNodeStaleFillTests.AFillOnOneNodeThatLoadedBeforeAnotherNodesRemoveDoesNotOutliveIt(False)`
+  -- `ubuntu/sqlite/release`, branch `notify-unstarted-service` (#1985), 2026-10-20 (run 39468059354, attempt 1).
+  The test body passed; the `[TearDown]` (`StopNodes`, disposing a node's service provider) threw a
+  `NullReferenceException` from inside StackExchange.Redis, in `ConnectionMultiplexer.AllComplete` under
+  `DisposeAsync` -> `CloseAsync`. The `(True)` case passed in the same run, and so did the postgres/release and
+  windows/sqlite/debug jobs of the same commit. The branch touches no cache or Redis code (background service
+  manager only). Not in the last 15 failed runs of the workflow. Suspected a race in the Redis client's close,
+  not verified.
