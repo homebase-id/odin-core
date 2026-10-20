@@ -128,7 +128,7 @@ public class CircleNetworkApiClient
 
     public async Task<ApiResponse<bool>> SendConnectionRequestRaw(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
     {
-        if (!TestIdentities.InitializedIdentities.TryGetValue(recipient.OdinId, out var recipientIdentity))
+        if (!TestIdentities.InitializedIdentities.TryGetValue(recipient.OdinId, out _))
         {
             throw new NotImplementedException("need to add your recipient to the list of identities");
         }
@@ -144,7 +144,7 @@ public class CircleNetworkApiClient
                 Id = id,
                 Recipient = recipient.OdinId,
                 Message = "Please add me",
-                ContactData = recipientIdentity.ContactData,
+                ContactData = _identity.ContactData,
                 CircleIds = circlesGrantedToRecipient?.ToList()
             };
 
