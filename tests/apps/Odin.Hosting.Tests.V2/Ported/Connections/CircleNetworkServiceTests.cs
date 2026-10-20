@@ -66,10 +66,10 @@ namespace Odin.Hosting.Tests.V2.Ported.Connections;
 /// <item><c>CreateConnectionRequestFrodoToSam</c> registers the app on <i>both</i> identities with
 /// the same <c>authorizedCircles</c> list, which holds circle ids that exist only on Frodo; the
 /// registration on Sam therefore authorizes circles Sam does not have.</item>
-/// <item><c>DeleteConnectionRequestsFromFrodoToSam</c> deletes Frodo's pending request on Sam, then
-/// asserts that Sam has no pending request <i>from Sam</i> — it queries its own identity rather than
-/// Frodo's, so the assertion is vacuous. Same shape in the sent-request half.</item>
 /// </list>
+/// Fixed since (#1767): <c>DeleteConnectionRequestsFromFrodoToSam</c> asked Sam for a pending request
+/// from Sam, and Frodo for a <i>pending</i> request after deleting his <i>sent</i> one; it now asks for
+/// the request it deleted in each half.
 /// Not a carried defect: <c>CreateConnectionRequestFrodoToSam</c> used to return the request header
 /// as a third tuple element every caller discarded. That signature was the port's own code rather
 /// than moved behaviour, so it is a 2-tuple now.
@@ -919,7 +919,7 @@ public class CircleNetworkServiceTests : V2Fixture
             var deleteResponse = await svc.DeletePendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
             Assert.That(deleteResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sam.Identity });
+            var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
             Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         }
 
@@ -929,7 +929,7 @@ public class CircleNetworkServiceTests : V2Fixture
             var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
             Assert.That(deleteResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sam.Identity });
+            var getResponse = await svc.GetSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
             Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         }
     }
