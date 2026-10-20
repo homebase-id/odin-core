@@ -170,6 +170,13 @@ public class PlanQuotaPathTests : V2Fixture
 
         await sam.Sync.DrainOutboxAsync();
         Assert.That(await sam.Sync.IsOutboxEmptyAsync(drive), Is.False, "the refused file stays in the sender's outbox");
+        var waiting = (await sam.V1.Drive.GetTransferHistory(send.Content!.File)).Content!.GetHistoryItem(frodo.Identity);
+        Assert.That(waiting.LatestTransferStatus, Is.EqualTo(LatestTransferStatus.RecipientIdentityOutOfStorage),
+            "the sender knows why: the recipient is out of storage");
+        Assert.That(waiting.IsInOutbox, Is.True, "and that it is still trying");
+        var summary = (await sam.V1.Drive.GetFileHeader(send.Content.File)).Content!.ServerMetadata.TransferHistory.Summary;
+        Assert.That(summary.TotalFailed, Is.Zero, "waiting for room is not a failure");
+        Assert.That(summary.TotalInOutbox, Is.EqualTo(1));
 
         var inbox = await frodo.Sync.ProcessInboxAsync(drive);
         Assert.That(inbox.TotalItems, Is.Zero, "nothing reached the full recipient's inbox");

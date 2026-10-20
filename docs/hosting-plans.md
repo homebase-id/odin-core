@@ -82,14 +82,24 @@ per-lifetime-scope registration in `TenantServices`, and its seven callers await
 
 ### 4. V2 endpoint for the owner and apps
 
-`GET /api/v2/storage/usage`, policy `OwnerOrApp`, no permission key:
+`GET /api/v2/plan`, policy `OwnerOrApp`, no permission key: the identity's plan, what it gives, and how much
+of it is used.
 
 ```json
-{ "planId": "free-1gb", "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false }
+{
+  "id": "free-1gb",
+  "isDefault": false,
+  "publicWebPresence": false,
+  "storage": { "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false }
+}
 ```
 
-`quotaBytes` is null for unlimited. `isOverQuota` is exactly what the guard would decide, including a hand-set
-`OutOfQuota`, so an app can explain a 507 before the user hits one.
+- `id` is the plan the identity gets, as configured: the default's for no plan or an unknown one, so an app
+  never needs the fallback rule. Null, with `isDefault` false, while plans are off.
+- `publicWebPresence` is the identity's effective setting: the plan's when it says, otherwise the identity's own.
+- `storage.quotaBytes` is null for unlimited. `storage.isOverQuota` is exactly what the guard would decide,
+  including a hand-set `OutOfQuota`, so an app can explain a 507 before the user hits one.
+- What a plan gives will grow; each new thing is one more field here.
 
 ### 5. Admin metrics
 
@@ -136,7 +146,7 @@ Whether an identity has a public home page and sitemap (`TenantContext.EnablePub
 - Guard: refuses payloads and thumbnails at or over quota, allows them under it, allows headers either way,
   still honours a hand-set `OutOfQuota`, never refuses with quotas off or an unlimited plan.
 - Integration (V2): an identity over a small quota can upload a header but gets 507 for a payload; after a
-  delete it can upload again; the usage endpoint reports the same numbers for the owner and an app.
+  delete it can upload again; the plan endpoint reports the same plan and numbers for the owner and an app.
 - Admin metrics include `quotaBytes`.
 - Set plan: a configured plan brings its quota (an over-quota identity can upload payloads again on an
   unlimited plan), an unconfigured plan is a 400, an unknown tenant a 404.

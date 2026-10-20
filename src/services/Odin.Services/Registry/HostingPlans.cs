@@ -53,7 +53,10 @@ public class HostingPlans(OdinConfiguration configuration)
         return planId != "" && (_plans.Count == 0 || _plans.ContainsKey(planId));
     }
 
-    private HostingPlan? PlanFor(string? planId)
+    /// <summary>
+    /// The plan an identity with this plan id gets; null while Registry:Plans is empty
+    /// </summary>
+    public HostingPlan? PlanFor(string? planId)
     {
         return planId != null && _plans.TryGetValue(planId.Trim(), out var plan)
             ? plan
