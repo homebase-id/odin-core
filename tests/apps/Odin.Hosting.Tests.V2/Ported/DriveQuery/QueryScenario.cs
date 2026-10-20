@@ -27,7 +27,7 @@ namespace Odin.Hosting.Tests.V2.Ported.DriveQuery;
 /// Hobbits; and Frodo posts the same metadata twice — once unencrypted, once encrypted — with an ACL
 /// restricted to Connected members of the Mordor Crew circle.
 ///
-/// The V1 <c>ScenarioSetup.cs</c> stays where it is: it is not part of this port's deletions.
+/// The V1 <c>ScenarioSetup.cs</c> has since been deleted (#1767): nothing called it.
 /// </remarks>
 public static class QueryScenario
 {
