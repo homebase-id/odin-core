@@ -1051,3 +1051,10 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
   `Unauthorized to read to drive`. Passed on re-running the job (attempt 2) with no change, and passes on the
   ubuntu jobs of the same commit and on recent `main` Windows runs. The branch touches nothing in peer
   WebSockets (hosting plans and quota checks). Undiagnosed.
+- Four `_Universal` tests that call the admin API fail locally on macOS with `HttpRequestException: nodename
+  nor servname provided, or not known (admin.dotyou.cloud:4444)`: `AnUnsentOutboxItemsFileIsAmongTheQueuedFiles`,
+  `ItemIsDroppedOnceItHasBeenDeferredForLongerThanTheMaxAge`, `PausedSenderDoesNotSendFromItsOutbox` and
+  `TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume`. Seen 2026-10-21 on branch
+  `feed-acl-before-queue`; they fail the same way with the branch's `src` changes stashed. Environment:
+  `WebScaffold` sets `Admin__Domain=admin.dotyou.cloud`, and that name does not resolve on this machine
+  (presumably it needs a hosts entry, as the identity domains have). Not a product failure.
