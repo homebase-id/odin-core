@@ -1058,3 +1058,9 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
   `feed-acl-before-queue`; they fail the same way with the branch's `src` changes stashed. Environment:
   `WebScaffold` sets `Admin__Domain=admin.dotyou.cloud`, and that name does not resolve on this machine
   (presumably it needs a hosts entry, as the identity domains have). Not a product failure.
+- `V1TagTests.CanQueryModifiedByLocalTagsMatchAtLeastOne(Owner,OK)` (Odin.Hosting.Tests.V2) -- `ubuntu/sqlite/release`,
+  branch `feed-acl-before-queue`, 2026-10-21 (run 39672278932): the owner's `QueryModified` with
+  `LocalTagsMatchAtLeastOne` returned no file carrying the tag just set (`Expected: True But was: False`, line 489).
+  The `App` and `Guest` cases of the same test passed in that job, the `postgres/release` and `windows/sqlite/debug`
+  jobs of the same commit passed, and all three cases pass locally on the branch. The branch only changes feed
+  distribution for channel drives, which this test does not touch. Undiagnosed.
