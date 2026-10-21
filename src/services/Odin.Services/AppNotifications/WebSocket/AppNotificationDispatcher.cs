@@ -229,20 +229,46 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            var driveManager =  scope.Resolve<IDriveManager>();
-            var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
+            StorageDrive? drive;
+            try
+            {
+                var driveManager = scope.Resolve<IDriveManager>();
+                drive = await driveManager.GetDriveAsync(notification.File.DriveId);
+            }
+            catch (Exception e)
+            {
+                // Every socket on the drive misses the event, so every one reconnects and catches up (#1966)
+                _logger.LogError(e, "Drive event for drive {driveId}: {error}", notification.File.DriveId, e.Message);
+                foreach (var deviceSocket in sockets)
+                {
+                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
+                }
+
+                return;
+            }
 
             var driveEvent = new DriveEventMessage(notification.NotificationType, drive?.TargetDriveInfo,
                 notification.ServerFileHeader, notification.PreviousServerFileHeader);
             var aclService = scope.Resolve<IDriveAclAuthorizationService>();
             foreach (var deviceSocket in sockets)
             {
-                if (!await driveEvent.VisibleToAsync(deviceSocket, aclService))
+                string json;
+                try
                 {
+                    if (!await driveEvent.VisibleToAsync(deviceSocket, aclService))
+                    {
+                        continue;
+                    }
+
+                    json = driveEvent.JsonFor(deviceSocket);
+                }
+                catch (Exception e)
+                {
+                    // This socket misses the event; the others still get it (#1966)
+                    _logger.LogError(e, "Drive event for socket {key}: {error}", deviceSocket.Key, e.Message);
+                    deviceSocket.Abort(_logger, "drive event could not be prepared", e);
                     continue;
                 }
-
-                var json = driveEvent.JsonFor(deviceSocket);
 
                 await SendMessageAsync(deviceSocket, json, encrypt: true);
             }
@@ -438,7 +464,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 };
 
                 var json = OdinSystemSerializer.Serialize(payload);
-                await deviceSocket.FireAndForgetAsync(json, cancellationToken);
+                await deviceSocket.FireAndForgetAsync(json, _logger, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -452,6 +478,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 //HACK: need to find out what is trying to write when the response is complete
                 _logger.LogError(e, "SendMessageAsync: {error}", e.Message);
+                deviceSocket.Abort(_logger, "message could not be prepared", e);
             }
         }
 

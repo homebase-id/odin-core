@@ -234,7 +234,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     };
 
                     var json = OdinSystemSerializer.Serialize(payload);
-                    await deviceSocket.FireAndForgetAsync(json, cancellationToken);
+                    await deviceSocket.FireAndForgetAsync(json, _logger, cancellationToken);
                 }
 
                 return;
@@ -261,7 +261,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 };
 
                 var json = OdinSystemSerializer.Serialize(payload);
-                await deviceSocket.FireAndForgetAsync(json, cancellationToken);
+                await deviceSocket.FireAndForgetAsync(json, _logger, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -275,6 +275,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 //HACK: need to find out what is trying to write when the response is complete
                 _logger.LogError(e, "SendMessageAsync: {error}", e.Message);
+                deviceSocket.Abort(_logger, "message could not be prepared", e);
             }
         }
 
