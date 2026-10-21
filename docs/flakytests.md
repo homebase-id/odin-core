@@ -1011,6 +1011,16 @@ which fits the recipient still answering 503 after the admin call returned. The 
 counted one Error event, but the V1 assertion printed only the count. **Undiagnosed.** Since 2026-10-10
 the V1 and services log-event assertions list the events in their message, so a recurrence will say more.
 
+**Fixture teardown, 2026-10-21:** `TearDown failed for test fixture ... TenantStatusTests`, "Unexpected
+number of Error log events", Expected 0 but was 1, on `ubuntu/sqlite/release` (run 39618216754, PR #1991,
+whose change is in the upload path only). The event is `Could not align background services of
+20000000-...-0002 with its status (attempt 1); retrying ...: "simulated failure to align background
+services"`. `AFailedAlignmentAfterAnotherNodesChangeIsRetried` throws that failure on purpose, and
+`FileSystemIdentityRegistry` logs it at Error before retrying. The fixture asserts log events only once,
+at `RunAfterAnyTests`, and the test does not declare the Error it causes. `main` passed
+`ubuntu/sqlite/release` on b9b076985 the same day, so the event usually doesn't reach the count. Why it
+only sometimes does is **undiagnosed**. It may also be the unexplained Error in the 10-06 failure above.
+
 ---
 
 ## Seen once, not chased (2026-09-05 to 10-20)
