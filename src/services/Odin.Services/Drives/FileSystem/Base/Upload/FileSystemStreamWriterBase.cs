@@ -77,7 +77,10 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
         InternalDriveFileId file;
         var overwriteFileId = instructionSet.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
-        // odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+        // Refuse a caller that cannot write before reading any of the upload; otherwise the size
+        // checks at finalize answer 400 to a caller that should get 403. The file system's own
+        // override, so a comment drive applies its rule rather than plain Write.
+        await FileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
         bool isUpdateOperation = false;
 
