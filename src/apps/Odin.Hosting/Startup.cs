@@ -121,7 +121,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         // Plan service mapping: homebase-invites reads and sets plans here (docs/hosting-plans.md section 9), on
         // the provisioning domain whether or not this host provisions, as payload move does
-        if (config.Registry.PlanServiceApiKey != "")
+        if (config.Registry.AccountServiceApiKey != "")
         {
             app.MapWhen(
                 context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&

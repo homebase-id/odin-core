@@ -220,10 +220,10 @@ public class OdinConfiguration
         public string UpgradeUrl { get; init; } = "";
 
         /// <summary>
-        /// The key the plan service (homebase-invites) sends to read and set an identity's plan here, at
-        /// /api/plans/v1 on the provisioning domain. Empty: that API is off.
+        /// The key the hosting company's account service (homebase-invites) sends to manage identities here: today
+        /// reading and setting an identity's plan at /api/plans/v1 on the provisioning domain. Empty: that API is off.
         /// </summary>
-        public string PlanServiceApiKey { get; init; } = "";
+        public string AccountServiceApiKey { get; init; } = "";
 
         /// <summary>
         /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
@@ -284,7 +284,7 @@ public class OdinConfiguration
                 .ToList();
             AssertValidPlans(Plans);
             UpgradeUrl = config.GetOrDefault("Registry:UpgradeUrl", "").Trim();
-            PlanServiceApiKey = config.GetOrDefault("Registry:PlanService:ApiKey", "").Trim();
+            AccountServiceApiKey = config.GetOrDefault("Registry:AccountService:ApiKey", "").Trim();
             AssertValidUpgradeUrl(UpgradeUrl);
 
             var ambiguousCodes = InvitationCodes

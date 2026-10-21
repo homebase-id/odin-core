@@ -269,7 +269,7 @@ public static class SystemServices
 
         services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
         services.AddSingleton(new PayloadMoveRestrictedAttribute(config.PayloadMove.SourceEnabled, config.Registry.ProvisioningDomain));
-        services.AddSingleton(new PlanServiceRestrictedAttribute(config.Registry.PlanServiceApiKey, config.Registry.ProvisioningDomain));
+        services.AddSingleton(new PlanServiceRestrictedAttribute(config.Registry.AccountServiceApiKey, config.Registry.ProvisioningDomain));
 
         services.AddTransient<ITenantAdmin, TenantAdmin>();
         services.AddTransient<PayloadMoveSource>();

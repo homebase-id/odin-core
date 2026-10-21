@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace Odin.Hosting.Controllers.PlanService;
 
 /// <summary>
-/// The plan service API answers only on the provisioning domain, and only when this host has a plan service key.
+/// The account service API answers only on the provisioning domain, and only when this host has an account service key.
 /// Controllers are mapped on every host name, so the host is checked here, not just in Startup's branch. Anything
 /// else is a 404, to not confirm the endpoint exists; a wrong or missing key is a 401.
 /// </summary>

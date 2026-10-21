@@ -33,7 +33,7 @@ public class PlanServiceApiTests : V2Fixture
         ["Registry:Plans:1:Id"] = "veterans",
         ["Registry:Plans:1:QuotaBytes"] = "1099511627776",
         ["Registry:Plans:2:Id"] = DevPlan,
-        ["Registry:PlanService:ApiKey"] = Key,
+        ["Registry:AccountService:ApiKey"] = Key,
     };
 
     /// <summary>

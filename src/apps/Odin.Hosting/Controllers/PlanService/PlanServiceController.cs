@@ -10,9 +10,9 @@ using Odin.Services.Registry;
 namespace Odin.Hosting.Controllers.PlanService;
 
 /// <summary>
-/// For the plan service (homebase-invites), which sells bigger plans: read an identity's plan, and set it after
-/// a payment (docs/hosting-plans.md section 9). On the provisioning domain, with the plan service key
-/// (Registry:PlanService:ApiKey); it can do nothing else, unlike the admin key. 404 for an identity not on this
+/// For the hosting company's account service (homebase-invites), which sells bigger plans: read an identity's plan, and set it after
+/// a payment (docs/hosting-plans.md section 9). On the provisioning domain, with the account service key
+/// (Registry:AccountService:ApiKey); it can do nothing else, unlike the admin key. 404 for an identity not on this
 /// host, which is how the service learns where an identity lives.
 /// </summary>
 [ApiController]
@@ -50,7 +50,7 @@ public class PlanServiceController(
 
         // A missing plan is a 400 before we get here: [Required] on the property, [ApiController] on the class
         var previous = await tenantAdmin.SetTenantPlanAsync(domain, request.PlanId!);
-        logger.LogInformation("Plan service set {domain} to plan {planId} (was {previous}), reference {reference}",
+        logger.LogInformation("Account service set {domain} to plan {planId} (was {previous}), reference {reference}",
             domain, request.PlanId!.Trim(), previous ?? "none", request.Reference ?? "none");
 
         return new PlanServiceIdentity { Domain = domain, PlanId = hostingPlans.PlanFor(request.PlanId)?.Id };
