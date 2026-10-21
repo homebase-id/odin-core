@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -80,7 +81,11 @@ public class EstablishConnectionOptions
 
 public class DeviceSocket
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+    /// <summary>
+    /// How long a send may take, waiting for the socket's lock included. Past it the socket is aborted, so it must
+    /// allow a slow but healthy client to take a burst of events (#1966)
+    /// </summary>
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
     private readonly AsyncLock _lock = new();
 
     public Guid Key { get; init; }
@@ -121,15 +126,32 @@ public class DeviceSocket
 
     //
 
-    public Task FireAndForgetAsync(string json, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Sends without waiting for the send. A send that fails or times out aborts the socket: the message is lost,
+    /// and the client learns it missed something only by reconnecting, which then catches it up (#1966).
+    /// </summary>
+    public Task FireAndForgetAsync(string json, ILogger logger, CancellationToken cancellationToken = default)
     {
         // Fire and forget, so NO await here:
-        InternalSendAsync(json, cancellationToken).ContinueWith(_ =>
-        {
-            // Not much we can do here, nom-nom
-        }, TaskContinuationOptions.OnlyOnFaulted);
+        InternalSendAsync(json, cancellationToken).ContinueWith(
+            t => Abort(logger, t.IsCanceled ? "send timed out or was cancelled" : "send failed", t.Exception?.GetBaseException()),
+            TaskContinuationOptions.NotOnRanToCompletion);
 
         return Task.CompletedTask;
+    }
+
+    //
+
+    /// <summary>
+    /// Drops the connection when a message can't be delivered to it, so the client reconnects and catches up instead
+    /// of never learning it missed the message. An abort, not a close: a close frame would queue behind a stuck send.
+    /// The connection's receive loop then removes the socket. Safe to call more than once.
+    /// </summary>
+    public void Abort(ILogger logger, string reason, Exception? exception = null)
+    {
+        logger.LogInformation("WebSocket {key}: undeliverable message ({reason}: {error}); aborting it so the client reconnects",
+            Key, reason, exception?.Message ?? "-");
+        Socket?.Abort();
     }
 
     //
