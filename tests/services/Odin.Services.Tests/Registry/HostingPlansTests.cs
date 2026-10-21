@@ -119,9 +119,11 @@ public class HostingPlansTests
         Assert.Throws<OdinSystemException>(() => Registry(new() { ["0:Id"] = "free", ["1:QuotaBytes"] = "5" }));
     }
 
-    [TestCase("https://billing.example.com/upgrade", "https://billing.example.com/upgrade?id=frodo.dotyou.cloud")]
-    [TestCase(" https://billing.example.com/upgrade?src=app ", "https://billing.example.com/upgrade?src=app&id=frodo.dotyou.cloud")]
-    public void TheUpgradeUrlCarriesTheIdentity(string configured, string expected)
+    [TestCase("https://billing.example.com/upgrade",
+        "https://billing.example.com/upgrade?id=frodo.dotyou.cloud&host=provisioning.example.com")]
+    [TestCase(" https://billing.example.com/upgrade?src=app ",
+        "https://billing.example.com/upgrade?src=app&id=frodo.dotyou.cloud&host=provisioning.example.com")]
+    public void TheUpgradeUrlCarriesTheIdentityAndItsHost(string configured, string expected)
     {
         var plans = new HostingPlans(new OdinConfiguration { Registry = Registry([], configured) });
         Assert.That(plans.UpgradeUrlFor(new OdinId("frodo.dotyou.cloud")), Is.EqualTo(expected));

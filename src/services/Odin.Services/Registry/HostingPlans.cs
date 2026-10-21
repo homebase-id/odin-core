@@ -21,6 +21,7 @@ public class HostingPlans(OdinConfiguration configuration)
         .ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
 
     private readonly string _upgradeUrl = configuration.Registry.UpgradeUrl;
+    private readonly string _provisioningDomain = configuration.Registry.ProvisioningDomain;
 
     // Null exactly when plans are off: the config refuses a list without one
     private readonly HostingPlan? _default = configuration.Registry.Plans.SingleOrDefault(p => p.Default);
@@ -43,9 +44,10 @@ public class HostingPlans(OdinConfiguration configuration)
     }
 
     /// <summary>
-    /// The hosting provider's page for a bigger plan, for this identity: Registry:UpgradeUrl with ?id=&lt;identity&gt;
-    /// added. Null when none is configured. The id only says who to log in; the page must take the identity from
-    /// YouAuth, since anyone can write any id into a link.
+    /// The hosting provider's page for a bigger plan, for this identity: Registry:UpgradeUrl with
+    /// ?id=&lt;identity&gt;&amp;host=&lt;this host's provisioning domain&gt; added. Null when none is configured.
+    /// Both are hints anyone can edit: the page must take the identity from YouAuth, and use host only to pick one
+    /// of the hosts it already knows, which then confirms the identity is its own.
     /// </summary>
     public string? UpgradeUrlFor(OdinId identity)
     {
@@ -55,7 +57,8 @@ public class HostingPlans(OdinConfiguration configuration)
         }
 
         var separator = _upgradeUrl.Contains('?') ? "&" : "?";
-        return $"{_upgradeUrl}{separator}id={Uri.EscapeDataString(identity.DomainName)}";
+        return $"{_upgradeUrl}{separator}id={Uri.EscapeDataString(identity.DomainName)}" +
+               $"&host={Uri.EscapeDataString(_provisioningDomain)}";
     }
 
     public bool PublicWebPresenceFor(IdentityRegistration registration)

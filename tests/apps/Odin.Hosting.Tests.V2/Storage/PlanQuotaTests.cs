@@ -91,7 +91,7 @@ public class PlanQuotaTests : V2Fixture
         Assert.That(ownerPlan.Storage.QuotaBytes, Is.EqualTo(1));
         Assert.That(ownerPlan.Storage.UsedBytes, Is.GreaterThan(0));
         Assert.That(ownerPlan.Storage.IsOverQuota, Is.True);
-        Assert.That(ownerPlan.UpgradeUrl, Is.EqualTo($"https://billing.example.com/upgrade?id={Identities.Frodo}"));
+        Assert.That(ownerPlan.UpgradeUrl, Does.StartWith($"https://billing.example.com/upgrade?id={Identities.Frodo}&host="));
         Assert.That(appResponse.Content, Is.EqualTo(ownerPlan));
     }
 

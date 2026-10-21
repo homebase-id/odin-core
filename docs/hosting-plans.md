@@ -91,7 +91,7 @@ of it is used.
   "isDefault": false,
   "publicWebPresence": false,
   "storage": { "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false },
-  "upgradeUrl": "https://billing.example.com/upgrade?id=frodo.dotyou.cloud"
+  "upgradeUrl": "https://billing.example.com/upgrade?id=frodo.dotyou.cloud&host=provisioning.dotyou.cloud"
 }
 ```
 
@@ -139,7 +139,9 @@ Whether an identity has a public home page and sitemap (`TenantContext.EnablePub
 `https://billing.example.com/upgrade`. It must be an absolute `https` address without a `#fragment`, or the
 host refuses to start.
 
-- `/api/v2/plan` returns it as `upgradeUrl`, with `?id=<identity>` added (or `&id=` when it has a query).
+- `/api/v2/plan` returns it as `upgradeUrl`, with `?id=<identity>&host=<this host's provisioning domain>` added
+  (`&id=` when it already has a query). `host` tells the page which host serves the identity, so it knows where
+  to set the plan after payment.
 - The apps link to `/owner/settings/plan?upgrade=1` for "how to upgrade". With an upgrade URL, the owner console
   sends the owner on to it; without one (self-hosted, or a provider with no such page) it tells them to contact
   their hosting provider. The console only ever goes to this configured address, never to one from the link.
@@ -147,8 +149,9 @@ host refuses to start.
   is installed on the identity. The owner is already signed in to their console, so there is no password;
   there is a consent screen the first time, unless they approved the domain before or the identity is
   connected to it.
-- `id` only says who to log in. Anyone can put any id into a link, so the page must act on the identity YouAuth
-  returns, never on `id`.
+- `id` and `host` are hints anyone can edit. The page must act on the identity YouAuth returns, never on `id`,
+  and use `host` only to pick one of the hosts it already knows (with that host's key), which then confirms
+  the identity is its own. An unknown `host` is ignored, so an edited link cannot send a key anywhere.
 - The page changes the plan with the admin API (section 6) once the owner has paid. That needs the host's admin
   key, which can do far more than change a plan.
 
