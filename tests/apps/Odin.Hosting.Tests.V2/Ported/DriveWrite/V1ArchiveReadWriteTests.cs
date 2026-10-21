@@ -32,7 +32,7 @@ public class V1ArchiveReadWriteTests : V2Fixture
 {
     /// <summary>
     /// Owner writes to an archived drive succeed; an app or guest is rejected whatever its drive
-    /// grant, so the read-only guest row lands on the same BadRequest as the write-granted ones.
+    /// grant. On delete the read-only guest row lands on the same BadRequest as the write-granted ones.
     /// </summary>
     public static IEnumerable<object[]> ArchiveCases()
     {
@@ -42,7 +42,19 @@ public class V1ArchiveReadWriteTests : V2Fixture
         yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.BadRequest];
     }
 
-    [Test, TestCaseSource(nameof(ArchiveCases))]
+    /// <summary>
+    /// <see cref="ArchiveCases"/> for an upload. The read-only guest cannot write at all, and an upload
+    /// checks that first, so it gets Forbidden before the archive is considered.
+    /// </summary>
+    public static IEnumerable<object[]> UploadArchiveCases()
+    {
+        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.BadRequest];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.BadRequest];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Forbidden];
+    }
+
+    [Test, TestCaseSource(nameof(UploadArchiveCases))]
     public async Task FailToUploadMetadataDataWithoutPayloadsToArchivedDrive(CallerSpec spec, HttpStatusCode expected)
     {
         var (caller, owner) = await SetupCallerWithOwner(spec);
@@ -57,7 +69,7 @@ public class V1ArchiveReadWriteTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(expected));
     }
 
-    [Test, TestCaseSource(nameof(ArchiveCases))]
+    [Test, TestCaseSource(nameof(UploadArchiveCases))]
     public async Task FailToUploadFileWith2PayloadsAnd2ThumbnailsToArchivedDrive(CallerSpec spec, HttpStatusCode expected)
     {
         var (caller, owner) = await SetupCallerWithOwner(spec);
