@@ -33,15 +33,12 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// </list>
 /// </para>
 /// <para>
-/// <b>Not carried, and worth a reviewer's eye:</b> the ignored
+/// <b>Per-test log expectation (#1767):</b> the ignored
 /// <c>FailToDistributeWhenOneOrMorePeersIsNotConnected</c> registered a per-test
 /// <c>SetAssertLogEventsAction</c> asserting exactly one Error event starting "Failed while creating
-/// outbox item". <c>V2Fixture</c> has no per-test equivalent — only fixture-wide
-/// <c>ToleratedErrorLogSubstrings</c> / <c>AssertLogEvents</c> — and adding a fixture-wide toleration
-/// would blunt the invariant for the four tests that do run, to satisfy one that never does. The
-/// registration is therefore dropped and flagged here instead; whoever un-ignores that test needs to
-/// put the toleration back at the same time. Note the original's assertion was never once executed:
-/// the <c>[Ignore]</c> predates it.
+/// outbox item". It is carried as <see cref="V2Fixture.ExpectErrorLogEvent"/>, so it applies to that
+/// test alone and is live the day the <c>[Ignore]</c> comes off. The original's assertion never once
+/// executed: the <c>[Ignore]</c> predates it.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -110,9 +107,7 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
     [Ignore("dark launched")]
     public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
     {
-        // The original registered a per-test log-event assertion here — exactly one Error event
-        // starting "Failed while creating outbox item". See the class remarks for why it is not
-        // carried and what has to be restored alongside this [Ignore].
+        ExpectErrorLogEvent("Failed while creating outbox item");
 
         var (frodo, players) = Cast();
 

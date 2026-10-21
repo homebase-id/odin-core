@@ -229,9 +229,26 @@ public abstract class V2Fixture
         }
     }
 
+    private readonly List<(string MessagePrefix, int Count)> _expectedErrorLogEvents = [];
+
+    /// <summary>
+    /// Declares that this test logs exactly <paramref name="count"/> Error events whose rendered
+    /// message starts with <paramref name="messagePrefix"/>. At teardown that count is asserted, and
+    /// the matching events are left out of the no-errors check. Unlike
+    /// <see cref="ToleratedErrorLogSubstrings"/>, it is per test and positive: the error has to happen,
+    /// and only in the test that declared it. Mirrors the V1 <c>SetAssertLogEventsAction</c> shape
+    /// "exactly one Error starting …".
+    /// </summary>
+    protected void ExpectErrorLogEvent(string messagePrefix, int count = 1)
+    {
+        _expectedErrorLogEvents.Add((messagePrefix, count));
+    }
+
     [SetUp]
     public async Task V2FixturePerTestSetUp()
     {
+        _expectedErrorLogEvents.Clear();
+
         if (ResetBetweenTests && Host != null)
         {
             await Host.ResetAsync();
@@ -245,12 +262,27 @@ public abstract class V2Fixture
     [TearDown]
     public void V2FixturePerTestTearDown()
     {
-        if (!AssertNoErrorLogEvents || LogStore == null)
+        if (LogStore == null)
         {
             return;
         }
 
-        AssertLogEvents(LogStore.GetLogEvents());
+        var logEvents = LogStore.GetLogEvents();
+        foreach (var (messagePrefix, count) in _expectedErrorLogEvents)
+        {
+            var expected = logEvents.TryGetValue(LogEventLevel.Error, out var errors)
+                ? errors.Where(e => e.RenderMessage().StartsWith(messagePrefix)).ToList()
+                : [];
+            Assert.That(expected, Has.Count.EqualTo(count), $"Error log events starting '{messagePrefix}'");
+            errors?.RemoveAll(expected.Contains);
+        }
+
+        if (!AssertNoErrorLogEvents)
+        {
+            return;
+        }
+
+        AssertLogEvents(logEvents);
     }
 
     private ILogEventMemoryStore? LogStore =>
