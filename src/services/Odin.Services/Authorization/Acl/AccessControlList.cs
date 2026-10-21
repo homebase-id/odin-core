@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 
 namespace Odin.Services.Authorization.Acl
 {
@@ -22,7 +23,8 @@ namespace Odin.Services.Authorization.Acl
         public List<Guid> CircleIdList { get; set; }
 
         /// <summary>
-        /// The list of OdinId allowed access the file.
+        /// Identities which can access this file.  Together with <see cref="CircleIdList"/>: the caller must be in one of the
+        /// circles or be one of these identities, and must still meet <see cref="RequiredSecurityGroup"/>.
         /// </summary>
         public List<string> OdinIdList { get; set; }
 
@@ -66,6 +68,18 @@ namespace Odin.Services.Authorization.Acl
                     throw new OdinClientException("Cannot specify circle or identity list when required security group is anonymous or owner",
                         OdinClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
                 }
+            }
+
+            // Named identities are indexed by their hash id, which must match the caller's: store them in
+            // OdinId's canonical form, once each, and refuse what isn't one rather than fail at indexing.
+            if (OdinIdList != null)
+            {
+                if (OdinIdList.Any(id => !OdinId.IsValid(id)))
+                {
+                    throw new OdinClientException("The identity list contains an invalid identity", OdinClientErrorCode.ArgumentError);
+                }
+
+                OdinIdList = OdinIdList.Select(id => ((OdinId)id).DomainName).Distinct().ToList();
             }
 
             //Note: this is now allowed because of YouAuth Domains`

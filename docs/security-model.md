@@ -141,11 +141,15 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
 
 ## 5. Files and their ACL
 
-- Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` **(V)**.
+- Each file carries an `AccessControlList`: `RequiredSecurityGroup` + optional `CircleIdList` and `OdinIdList` **(V)**.
 - Security groups are a ladder: `Anonymous` 111 < `Authenticated` 444 < `AutoConnected` 555 < `Connected` 777 <
   `Owner` 999. A caller passes every rung at or below their own (`DriveAclAuthorizationService.Allows`) **(V)**.
-- A circle list narrows further: the caller must be in at least one listed circle **(V)**.
-- `OdinIdList` is not supported and admits no one **(V)**. `System` (1) is a caller level, never a file ACL **(V)**.
+- Named circles and named identities narrow further, together: the caller must be in at least one listed circle **or**
+  be one of the listed identities, and still meet the security group, so a named identity that is unconnected or
+  unreviewed does not pass a `Connected` ACL **(V)**. Queries apply the same rule in SQL (`aclAnyOf`) **(V)**.
+- `OdinIdList` is stored canonical and de-duplicated by `AccessControlList.Validate`, and is cleared before a file is
+  sent to a peer, so a recipient never learns who else was named **(V)**. `System` (1) is a caller level, never a file
+  ACL **(V)**.
 - Owner and `System` callers skip the ACL **(V)**.
 - Reading a file needs **both** drive Read and the ACL. Queries also drop encrypted files the caller has no storage key for
   (`DriveQueryServiceBase` filter) **(V)**.
