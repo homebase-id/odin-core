@@ -15,7 +15,9 @@ namespace Odin.Services.Registry;
 /// <param name="Id">The plan the identity gets: the default's for no plan or an unknown one; null while plans are off</param>
 /// <param name="IsDefault">Whether that is the default plan</param>
 /// <param name="PublicWebPresence">Whether the identity has a public home page: the plan's say, or its own</param>
-public record IdentityPlan(string? Id, bool IsDefault, bool PublicWebPresence, StorageUsage Storage);
+/// <param name="UpgradeUrl">The hosting provider's page for a bigger plan, with this identity's ?id=; null when the
+/// host has none</param>
+public record IdentityPlan(string? Id, bool IsDefault, bool PublicWebPresence, StorageUsage Storage, string? UpgradeUrl);
 
 /// <summary>
 /// How much an identity stores, against what its plan allows
@@ -72,7 +74,8 @@ public class TenantQuotaGuard(
             plan?.Id,
             plan?.Default ?? false,
             registration != null && hostingPlans.PublicWebPresenceFor(registration),
-            new StorageUsage(used, plan?.QuotaBytes, IsOverQuota(registration, used, plan?.QuotaBytes)));
+            new StorageUsage(used, plan?.QuotaBytes, IsOverQuota(registration, used, plan?.QuotaBytes)),
+            hostingPlans.UpgradeUrlFor(tenantContext.HostOdinId));
     }
 
     // The one rule: set OutOfQuota by an admin, or storing at least what the plan allows

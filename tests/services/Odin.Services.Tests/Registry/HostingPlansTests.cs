@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 
@@ -10,7 +11,7 @@ namespace Odin.Services.Tests.Registry;
 public class HostingPlansTests
 {
     // The keys RegistrySection requires, plus the plans under test
-    private static OdinConfiguration.RegistrySection Registry(Dictionary<string, string?> plans)
+    private static OdinConfiguration.RegistrySection Registry(Dictionary<string, string?> plans, string? upgradeUrl = null)
     {
         var pairs = new Dictionary<string, string?>
         {
@@ -21,6 +22,10 @@ public class HostingPlansTests
         foreach (var (key, value) in plans)
         {
             pairs[$"Registry:Plans:{key}"] = value;
+        }
+        if (upgradeUrl != null)
+        {
+            pairs["Registry:UpgradeUrl"] = upgradeUrl;
         }
 
         return new OdinConfiguration.RegistrySection(new ConfigurationBuilder().AddInMemoryCollection(pairs).Build());
@@ -112,6 +117,28 @@ public class HostingPlansTests
     {
         Assert.Throws<OdinSystemException>(() => Registry(new() { ["0:Id"] = "free", ["1:Id"] = "FREE" }));
         Assert.Throws<OdinSystemException>(() => Registry(new() { ["0:Id"] = "free", ["1:QuotaBytes"] = "5" }));
+    }
+
+    [TestCase("https://billing.example.com/upgrade", "https://billing.example.com/upgrade?id=frodo.dotyou.cloud")]
+    [TestCase(" https://billing.example.com/upgrade?src=app ", "https://billing.example.com/upgrade?src=app&id=frodo.dotyou.cloud")]
+    public void TheUpgradeUrlCarriesTheIdentity(string configured, string expected)
+    {
+        var plans = new HostingPlans(new OdinConfiguration { Registry = Registry([], configured) });
+        Assert.That(plans.UpgradeUrlFor(new OdinId("frodo.dotyou.cloud")), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void WithoutAnUpgradeUrlThereIsNone()
+    {
+        Assert.That(Plans([]).UpgradeUrlFor(new OdinId("frodo.dotyou.cloud")), Is.Null);
+    }
+
+    [TestCase("http://billing.example.com/upgrade")] // an owner's browser is sent there: https only
+    [TestCase("/upgrade")]
+    [TestCase("https://billing.example.com/upgrade#plans")] // the fragment would swallow ?id=
+    public void AnUpgradeUrlMustBeAbsoluteHttpsWithoutAFragment(string upgradeUrl)
+    {
+        Assert.Throws<OdinSystemException>(() => Registry([], upgradeUrl));
     }
 
     [Test]

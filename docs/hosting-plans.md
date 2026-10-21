@@ -90,7 +90,8 @@ of it is used.
   "id": "free-1gb",
   "isDefault": false,
   "publicWebPresence": false,
-  "storage": { "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false }
+  "storage": { "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false },
+  "upgradeUrl": "https://billing.example.com/upgrade?id=frodo.dotyou.cloud"
 }
 ```
 
@@ -99,6 +100,7 @@ of it is used.
 - `publicWebPresence` is the identity's effective setting: the plan's when it says, otherwise the identity's own.
 - `storage.quotaBytes` is null for unlimited. `storage.isOverQuota` is exactly what the guard would decide,
   including a hand-set `OutOfQuota`, so an app can explain a 507 before the user hits one.
+- `upgradeUrl` is the hosting provider's page for a bigger plan (section 8), or null.
 - What a plan gives will grow; each new thing is one more field here.
 
 ### 5. Admin metrics
@@ -130,6 +132,25 @@ Whether an identity has a public home page and sitemap (`TenantContext.EnablePub
   applies again if it moves to a plan that does not say.
 - Every identity from before plans is on the default plan with its own setting. Leave the default plan without
   `PublicWebPresence` to keep them as they are; `false` there takes every such identity's public page down.
+
+### 8. Getting a bigger plan
+
+`Registry:UpgradeUrl` (optional) is the hosting provider's page for a bigger plan, e.g.
+`https://billing.example.com/upgrade`. It must be an absolute `https` address without a `#fragment`, or the
+host refuses to start.
+
+- `/api/v2/plan` returns it as `upgradeUrl`, with `?id=<identity>` added (or `&id=` when it has a query).
+- The apps link to `/owner/settings/plan?upgrade=1` for "how to upgrade". With an upgrade URL, the owner console
+  sends the owner on to it; without one (self-hosted, or a provider with no such page) it tells them to contact
+  their hosting provider. The console only ever goes to this configured address, never to one from the link.
+- The page logs the owner in with YouAuth as a domain client (docs/youauth-unified-authorization.md). Nothing
+  is installed on the identity. The owner is already signed in to their console, so there is no password;
+  there is a consent screen the first time, unless they approved the domain before or the identity is
+  connected to it.
+- `id` only says who to log in. Anyone can put any id into a link, so the page must act on the identity YouAuth
+  returns, never on `id`.
+- The page changes the plan with the admin API (section 6) once the owner has paid. That needs the host's admin
+  key, which can do far more than change a plan.
 
 ## Out of scope
 

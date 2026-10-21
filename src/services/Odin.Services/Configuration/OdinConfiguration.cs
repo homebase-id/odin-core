@@ -213,6 +213,13 @@ public class OdinConfiguration
         public List<HostingPlan> Plans { get; init; } = [];
 
         /// <summary>
+        /// The hosting provider's page for a bigger plan (docs/hosting-plans.md). The owner console sends an owner
+        /// there with ?id=&lt;identity&gt;, and the page logs them in with YouAuth. Empty: the console tells them to
+        /// contact their hosting provider.
+        /// </summary>
+        public string UpgradeUrl { get; init; } = "";
+
+        /// <summary>
         /// Whether the post-startup DNS infrastructure check runs (<see cref="Odin.Services.Dns.Health.DnsInfraVerifier"/>).
         /// Default true; set false where the configured hostnames are not the real ones — a dev box
         /// resolves them through /etc/hosts, so every lookup fails and the retry loop just logs noise.
@@ -270,6 +277,8 @@ public class OdinConfiguration
                 .Select(p => p with { Id = p.Id.Trim() })
                 .ToList();
             AssertValidPlans(Plans);
+            UpgradeUrl = config.GetOrDefault("Registry:UpgradeUrl", "").Trim();
+            AssertValidUpgradeUrl(UpgradeUrl);
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
@@ -279,6 +288,20 @@ public class OdinConfiguration
                 throw new OdinSystemException(
                     "Registry:InvitationCodes and Registry:InvitationCodesWithoutPublicWebPresence must not overlap: " +
                     string.Join(", ", ambiguousCodes));
+            }
+        }
+
+        // An owner's browser is sent there, so only an absolute https address; a fragment would swallow the ?id=
+        private static void AssertValidUpgradeUrl(string upgradeUrl)
+        {
+            if (upgradeUrl == "")
+            {
+                return;
+            }
+
+            if (!Uri.TryCreate(upgradeUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || uri.Fragment != "")
+            {
+                throw new OdinSystemException($"Registry:UpgradeUrl must be an absolute https address without a #fragment: '{upgradeUrl}'");
             }
         }
 

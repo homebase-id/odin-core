@@ -43,6 +43,7 @@ public class PlanQuotaTests : V2Fixture
         ["Registry:Plans:0:Id"] = "free",
         ["Registry:Plans:0:Default"] = "true",
         ["Registry:Plans:0:QuotaBytes"] = "1",
+        ["Registry:UpgradeUrl"] = "https://billing.example.com/upgrade",
     };
 
     [Test]
@@ -90,6 +91,7 @@ public class PlanQuotaTests : V2Fixture
         Assert.That(ownerPlan.Storage.QuotaBytes, Is.EqualTo(1));
         Assert.That(ownerPlan.Storage.UsedBytes, Is.GreaterThan(0));
         Assert.That(ownerPlan.Storage.IsOverQuota, Is.True);
+        Assert.That(ownerPlan.UpgradeUrl, Is.EqualTo($"https://billing.example.com/upgrade?id={Identities.Frodo}"));
         Assert.That(appResponse.Content, Is.EqualTo(ownerPlan));
     }
 
@@ -132,6 +134,7 @@ public class PlanQuotaOffTests : V2Fixture
         Assert.That(plan.IsDefault, Is.False);
         Assert.That(plan.Storage.QuotaBytes, Is.Null);
         Assert.That(plan.Storage.IsOverQuota, Is.False);
+        Assert.That(plan.UpgradeUrl, Is.Null, "no upgrade page configured");
     }
 }
 
