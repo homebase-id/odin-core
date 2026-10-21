@@ -30,6 +30,7 @@ using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Controllers.PayloadMove;
+using Odin.Hosting.Controllers.PlanService;
 using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Multitenant;
@@ -268,6 +269,7 @@ public static class SystemServices
 
         services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
         services.AddSingleton(new PayloadMoveRestrictedAttribute(config.PayloadMove.SourceEnabled, config.Registry.ProvisioningDomain));
+        services.AddSingleton(new PlanServiceRestrictedAttribute(config.Registry.PlanServiceApiKey, config.Registry.ProvisioningDomain));
 
         services.AddTransient<ITenantAdmin, TenantAdmin>();
         services.AddTransient<PayloadMoveSource>();

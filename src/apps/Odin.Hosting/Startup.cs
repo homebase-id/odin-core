@@ -34,6 +34,7 @@ using Odin.Services.Background;
 using Odin.Services.PublicPage;
 using Odin.Core.Storage.Database.System;
 using Odin.Hosting.Extensions;
+using Odin.Hosting.Controllers.PlanService;
 using Odin.Services.Dns;
 using StackExchange.Redis;
 
@@ -111,6 +112,20 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(
                 context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&
                            context.Request.Path.StartsWithSegments(PayloadMoveProtocol.RootPath),
+                appBranch =>
+                {
+                    appBranch.UseRouting();
+                    appBranch.UseEndpoints(endpoints => endpoints.MapControllers());
+                });
+        }
+
+        // Plan service mapping: homebase-invites reads and sets plans here (docs/hosting-plans.md section 9), on
+        // the provisioning domain whether or not this host provisions, as payload move does
+        if (config.Registry.PlanServiceApiKey != "")
+        {
+            app.MapWhen(
+                context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&
+                           context.Request.Path.StartsWithSegments(PlanServiceApiPathConstants.RootPath),
                 appBranch =>
                 {
                     appBranch.UseRouting();

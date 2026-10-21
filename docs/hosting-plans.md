@@ -155,6 +155,28 @@ host refuses to start.
 - The page changes the plan with the admin API (section 6) once the owner has paid. That needs the host's admin
   key, which can do far more than change a plan.
 
+### 9. The plan service API
+
+The page that sells bigger plans belongs to the hosting company, not to odin-core: homebase-invites, which
+already gives plans out through invitation codes. After a payment it sets the plan on the host that serves the
+identity, through a narrow API on that host's provisioning domain:
+
+| Call | Answer |
+|---|---|
+| `GET /api/plans/v1/identities/{domain}` | `{ "domain", "planId" }`, the plan the identity gets (the default's for none); 404 if the identity is not on this host |
+| `PUT /api/plans/v1/identities/{domain}/plan` `{ "planId", "reference" }` | the same, after setting it; 400 for a plan not in `Registry:Plans`, 404 if the identity is not on this host |
+
+- The key is `Registry:PlanService:ApiKey`, sent in the `Odin-Api-Key` header (the header homebase-invites
+  takes its own keys in); a wrong or missing key is a 401. One key shared by every host, for now.
+- Without a key the API is not there (404), and it is only on the provisioning domain, whether or not this host
+  provisions (like payload move). On an identity's own domain it is a 404.
+- It can only read and set plans, through the same code as `odin-admin tenant set-plan`; the admin key, which
+  can delete or move identities, never leaves the host.
+- Setting the plan an identity already has changes nothing, so the service retries until it hears back.
+  `reference` (the service's payment or grant id) is logged with the change.
+- The 404 for an identity not on this host is how the service finds where an identity lives: it tries the
+  `host` from the upgrade link first, if it is a host it knows, and otherwise asks each host it knows.
+
 ## Out of scope
 
 - Warning the owner as they near their quota.
