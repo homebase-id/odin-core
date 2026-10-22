@@ -11,6 +11,7 @@ using Odin.Core.Util;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.YouAuth;
 using Odin.Services.Util;
@@ -23,9 +24,17 @@ public sealed class YouAuthUnifiedService(
     IAppRegistrationService appRegistrationService,
     YouAuthDomainRegistrationService domainRegistrationService,
     CircleNetworkService circleNetwork,
-    ITenantLevel2Cache<YouAuthUnifiedService> level2Cache)
+    ITenantLevel2Cache<YouAuthUnifiedService> level2Cache,
+    OdinConfiguration configuration)
     : IYouAuthUnifiedService
 {
+    //
+
+    private bool IsAutoConsentDomain(string domain)
+    {
+        return configuration.HostingProvider.AutoConsentDomains.Contains(domain.Trim().ToLowerInvariant());
+    }
+
     //
 
     public async Task<bool> NeedConsent(
@@ -48,6 +57,13 @@ public sealed class YouAuthUnifiedService(
 
         if (clientType == ClientType.domain)
         {
+            // The hosting provider's own domains (HostingProvider:AutoConsentDomains): it runs this host already, so
+            // knowing who the owner is gives it nothing new. Domains only, never apps.
+            if (IsAutoConsentDomain(clientIdOrDomain))
+            {
+                return false;
+            }
+
             return await domainRegistrationService.IsConsentRequiredAsync(new AsciiDomainName(clientIdOrDomain), odinContext);
         }
 

@@ -161,6 +161,10 @@ public class IdentityRegistrationServiceTest
         public bool SendPlanId;
         public string? PlanId;
 
+        // What the plan gives, sent only when set: a service from before plans on the registration sends neither
+        public long? QuotaBytes;
+        public bool? PublicWebPresence;
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (Unreachable)
@@ -192,6 +196,14 @@ public class IdentityRegistrationServiceTest
             if (SendPlanId)
             {
                 code["planId"] = PlanId;
+            }
+            if (QuotaBytes != null)
+            {
+                code["quotaBytes"] = QuotaBytes;
+            }
+            if (PublicWebPresence != null)
+            {
+                code["publicWebPresence"] = PublicWebPresence;
             }
             return code;
         }
@@ -274,12 +286,47 @@ public class IdentityRegistrationServiceTest
 
         Assert.That(service.Calls.Select(c => c.Split(' ')[0]), Is.EqualTo(new[] { "/api/v1/invitation-codes/use" }));
         Assert.That(capturedRequest()!.Invitation, Is.EqualTo(new RegistrationInvitation(ServiceCode, "sam.example.com", "spring")));
-        // The code says false, and is ignored: the identity's plan decides its public web presence
+        // The code's older enablePublicWebPresence (false here) is ignored: only the plan's publicWebPresence counts
         Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.True);
     }
 
+    [Test]
+    public async Task ItShouldStoreWhatTheCodesPlanGives()
+    {
+        var service = UseInvitationCodeService();
+        service.SendPlanId = true;
+        service.PlanId = "free-1gb";
+        service.QuotaBytes = 1_073_741_824;
+        service.PublicWebPresence = false;
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+
+        var capturedRequest = CaptureRegistration();
+
+        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", ServiceCode);
+
+        Assert.That(capturedRequest()!.PlanId, Is.EqualTo("free-1gb"));
+        Assert.That(capturedRequest()!.QuotaBytes, Is.EqualTo(1_073_741_824));
+        Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.False);
+    }
+
+    [Test]
+    public async Task ACodeWithoutWhatItsPlanGivesLeavesTheDefaults()
+    {
+        var service = UseInvitationCodeService();
+        service.SendPlanId = true;
+        service.PlanId = "free-1gb";
+        var registration = CreateIdentityRegistrationService(ConfigurationWithInvitationCodeService());
+
+        var capturedRequest = CaptureRegistration();
+
+        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", ServiceCode);
+
+        Assert.That(capturedRequest()!.QuotaBytes, Is.Null, "the host's default quota");
+        Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.True, "as signup without a plan gives");
+    }
+
     [TestCase(true, "pro-100gb", "pro-100gb", Description = "the code's plan")]
-    [TestCase(true, null, null, Description = "a code without a plan: the registry's default")]
+    [TestCase(true, null, null, Description = "a code without a plan")]
     [TestCase(false, null, null, Description = "an older service sends no planId at all")]
     public async Task ItShouldGiveTheIdentityOnlyTheCodesPlan(bool sendPlanId, string? codePlan, string? expectedPlan)
     {

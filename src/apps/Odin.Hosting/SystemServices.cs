@@ -191,8 +191,7 @@ public static class SystemServices
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainer>(),
             TenantServices.ConfigureTenantServices,
-            config,
-            sp.GetRequiredService<HostingPlans>()));
+            config));
 
         services.AddSingleton(new CertificateStorageKey(config.CertificateRenewal.StorageKey));
         services.AddSingleton(new AcmeAccountConfig
@@ -203,7 +202,6 @@ public static class SystemServices
 
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
         services.AddSingleton<InvitationCodeServiceClient>();
-        services.AddSingleton<HostingPlans>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
         services.AddSingleton<IDnssecLookup, DnssecLookup>();

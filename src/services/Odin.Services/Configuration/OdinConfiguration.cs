@@ -49,6 +49,7 @@ public class OdinConfiguration
     public S3StorageSection S3Storage { get; init; } = new();
     public S3PayloadSection S3Payload { get; init; } = new();
     public PayloadMoveSection PayloadMove { get; init; } = new();
+    public HostingProviderSection HostingProvider { get; init; } = new();
 
     /// <summary>
     /// The provisioning domain is served (and needs its certificate) when this host provisions, and when it
@@ -89,6 +90,7 @@ public class OdinConfiguration
         S3Storage = new S3StorageSection(config);
         S3Payload = new S3PayloadSection(config);
         PayloadMove = new PayloadMoveSection(config);
+        HostingProvider = new HostingProviderSection(config);
         Cdn = new CdnSection(config);
         OpenObserve = new OpenObserveSection(config);
         Stun = new StunSection(config);
@@ -207,19 +209,6 @@ public class OdinConfiguration
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
         /// <summary>
-        /// Hosting plans: each one's disk quota and public web presence (docs/hosting-plans.md). Empty: plans are off.
-        /// When set exactly one is <see cref="HostingPlan.Default"/>: the plan of every identity without a plan in the list.
-        /// </summary>
-        public List<HostingPlan> Plans { get; init; } = [];
-
-        /// <summary>
-        /// The hosting provider's page for a bigger plan (docs/hosting-plans.md). The owner console sends an owner
-        /// there with ?id=&lt;identity&gt;, and the page logs them in with YouAuth. Empty: the console tells them to
-        /// contact their hosting provider.
-        /// </summary>
-        public string UpgradeUrl { get; init; } = "";
-
-        /// <summary>
         /// The key the hosting company's account service (homebase-invites) sends to manage identities here: today
         /// reading and setting an identity's plan at /api/plans/v1 on the provisioning domain. Empty: that API is off.
         /// </summary>
@@ -279,13 +268,7 @@ public class OdinConfiguration
             InvitationCodeServiceApiKey = config.GetOrDefault("Registry:InvitationCodeService:ApiKey", "").Trim();
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             CatchUpIntervalSeconds = config.GetOrDefault("Registry:CatchUpIntervalSeconds", CatchUpIntervalSeconds);
-            Plans = config.GetOrDefault("Registry:Plans", Plans)
-                .Select(p => p with { Id = p.Id.Trim() })
-                .ToList();
-            AssertValidPlans(Plans);
-            UpgradeUrl = config.GetOrDefault("Registry:UpgradeUrl", "").Trim();
             AccountServiceApiKey = config.GetOrDefault("Registry:AccountService:ApiKey", "").Trim();
-            AssertValidUpgradeUrl(UpgradeUrl);
 
             var ambiguousCodes = InvitationCodes
                 .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
@@ -296,71 +279,6 @@ public class OdinConfiguration
                     "Registry:InvitationCodes and Registry:InvitationCodesWithoutPublicWebPresence must not overlap: " +
                     string.Join(", ", ambiguousCodes));
             }
-        }
-
-        // An owner's browser is sent there, so only an absolute https address; a fragment would swallow the ?id=
-        private static void AssertValidUpgradeUrl(string upgradeUrl)
-        {
-            if (upgradeUrl == "")
-            {
-                return;
-            }
-
-            if (!Uri.TryCreate(upgradeUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || uri.Fragment != "")
-            {
-                throw new OdinSystemException($"Registry:UpgradeUrl must be an absolute https address without a #fragment: '{upgradeUrl}'");
-            }
-        }
-
-        private static void AssertValidPlans(List<HostingPlan> plans)
-        {
-            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var plan in plans)
-            {
-                if (plan.Id == "")
-                {
-                    throw new OdinSystemException("Registry:Plans: every plan needs an Id");
-                }
-                if (plan.QuotaBytes < 0)
-                {
-                    throw new OdinSystemException($"Registry:Plans: QuotaBytes of '{plan.Id}' must not be negative");
-                }
-                if (!ids.Add(plan.Id))
-                {
-                    throw new OdinSystemException($"Registry:Plans has '{plan.Id}' twice");
-                }
-            }
-
-            var defaults = plans.Count(p => p.Default);
-            if (plans.Count > 0 && defaults != 1)
-            {
-                throw new OdinSystemException(
-                    $"Registry:Plans must have exactly one Default plan, for identities without a plan in the list; it has {defaults}");
-            }
-        }
-
-        public record HostingPlan
-        {
-            public string Id { get; init; } = "";
-
-            /// <summary>
-            /// The plan of every identity whose plan is not in the list: one with no plan (its invitation code gave
-            /// none, or it signed up before plans), one whose plan id is unknown here, and one stored as "free", which
-            /// the registry wrote for no plan until #1974. Exactly one plan is the default.
-            /// </summary>
-            public bool Default { get; init; }
-
-            /// <summary>
-            /// Bytes the identity may store; null for unlimited
-            /// </summary>
-            public long? QuotaBytes { get; init; }
-
-            /// <summary>
-            /// Whether identities on the plan have a public web presence (a public home page and sitemap). Decides
-            /// it live, over the identity's own setting, so changing an identity's plan changes it too. Null leaves
-            /// it to the identity: what its invitation code gave it, or an admin set.
-            /// </summary>
-            public bool? PublicWebPresence { get; init; }
         }
 
         public class ManagedDomainApex
@@ -1165,6 +1083,102 @@ public class OdinConfiguration
     /// Moving an identity's payloads to another host: this host serving them as the source, and pulling
     /// them as the target. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
     /// </summary>
+    /// <summary>
+    /// Who runs this host for its owners, and what they give them (docs/hosting-plans.md). An identity's plan, quota
+    /// and public web presence are on its registration; the plans themselves belong to the hosting provider.
+    /// </summary>
+    public class HostingProviderSection
+    {
+        public const long SixtyGigabytes = 60L * 1024 * 1024 * 1024;
+
+        /// <summary>
+        /// The provider's name, shown to owners ("We'll send you to ... to upgrade your plan"). Empty: no hosting
+        /// provider, and owners are told to contact whoever runs the server.
+        /// </summary>
+        public string DisplayName { get; init; } = "";
+
+        /// <summary>
+        /// The provider's page for a bigger plan. An owner's browser is sent there with ?id=&lt;identity&gt;&amp;host=,
+        /// and the page signs them in with YouAuth. Empty: none.
+        /// </summary>
+        public string UpgradeUrl { get; init; } = "";
+
+        /// <summary>
+        /// The provider's own domains: a YouAuth domain sign-in from one of these needs no consent screen. Exact,
+        /// lower-case names, no wildcards; never apps.
+        /// </summary>
+        public List<string> AutoConsentDomains { get; init; } = [];
+
+        /// <summary>
+        /// The quota of an identity that has none on its registration: every identity from before quotas were
+        /// stored there. There is no unlimited.
+        /// </summary>
+        public long DefaultQuotaBytes { get; init; } = SixtyGigabytes;
+
+        public HostingProviderSection()
+        {
+            // Mockable support
+        }
+
+        public HostingProviderSection(IConfiguration config)
+        {
+            DisplayName = config.GetOrDefault("HostingProvider:DisplayName", "").Trim();
+            UpgradeUrl = config.GetOrDefault("HostingProvider:UpgradeUrl", "").Trim();
+            AutoConsentDomains = config.GetOrDefault("HostingProvider:AutoConsentDomains", new List<string>())
+                .Select(d => d.Trim().ToLowerInvariant())
+                .Where(d => d != "")
+                .Distinct()
+                .ToList();
+            DefaultQuotaBytes = config.GetOrDefault("HostingProvider:DefaultQuotaBytes", SixtyGigabytes);
+
+            AssertValidUpgradeUrl(UpgradeUrl);
+            foreach (var domain in AutoConsentDomains)
+            {
+                AsciiDomainNameValidator.AssertValidDomain(domain);
+            }
+            if (DefaultQuotaBytes <= 0)
+            {
+                throw new OdinSystemException($"HostingProvider:DefaultQuotaBytes must be more than 0: {DefaultQuotaBytes}");
+            }
+        }
+
+        /// <summary>
+        /// The quota of an identity: its own, or the default when it has none
+        /// </summary>
+        public long QuotaFor(long? quotaBytes) => quotaBytes ?? DefaultQuotaBytes;
+
+        /// <summary>
+        /// The upgrade page for this identity: <see cref="UpgradeUrl"/> with ?id=&lt;identity&gt;&amp;host=&lt;this
+        /// host's provisioning domain&gt; added. Null when there is none. Both are hints anyone can edit: the page
+        /// takes the identity from YouAuth, and uses host only to pick one of the hosts it already knows.
+        /// </summary>
+        public string? UpgradeUrlFor(string identity, string provisioningDomain)
+        {
+            if (UpgradeUrl == "")
+            {
+                return null;
+            }
+
+            var separator = UpgradeUrl.Contains('?') ? "&" : "?";
+            return $"{UpgradeUrl}{separator}id={Uri.EscapeDataString(identity)}&host={Uri.EscapeDataString(provisioningDomain)}";
+        }
+
+        // An owner's browser is sent there, so only an absolute https address; a fragment would swallow the ?id=
+        private static void AssertValidUpgradeUrl(string upgradeUrl)
+        {
+            if (upgradeUrl == "")
+            {
+                return;
+            }
+
+            if (!Uri.TryCreate(upgradeUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || uri.Fragment != "")
+            {
+                throw new OdinSystemException(
+                    $"HostingProvider:UpgradeUrl must be an absolute https address without a #fragment: '{upgradeUrl}'");
+            }
+        }
+    }
+
     public class PayloadMoveSection
     {
         /// <summary>

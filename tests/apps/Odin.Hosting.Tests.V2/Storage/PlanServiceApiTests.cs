@@ -23,16 +23,12 @@ public class PlanServiceApiTests : V2Fixture
     private const string Key = "plan-service-test-key";
     private const string ProvisioningDomain = "provisioning.dotyou.cloud";
 
-    // The test identities' own plan (DevEnvironmentSetup); configured, so the teardown can put it back
+    // The test identities' own plan label (DevEnvironmentSetup), and what they get back after each test
     private const string DevPlan = "dev-domain";
+    private const long DefaultQuota = 64_424_509_440;
 
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>
     {
-        ["Registry:Plans:0:Id"] = "free",
-        ["Registry:Plans:0:Default"] = "true",
-        ["Registry:Plans:1:Id"] = "veterans",
-        ["Registry:Plans:1:QuotaBytes"] = "1099511627776",
-        ["Registry:Plans:2:Id"] = DevPlan,
         ["Registry:AccountService:ApiKey"] = Key,
     };
 
@@ -42,7 +38,7 @@ public class PlanServiceApiTests : V2Fixture
     [TearDown]
     public async Task RestorePlan()
     {
-        await SetPlanAsync(Identities.Frodo.ToString(), DevPlan);
+        await SetPlanAsync(Identities.Frodo.ToString(), DevPlan, DefaultQuota, true);
     }
 
     [Test]
@@ -54,25 +50,38 @@ public class PlanServiceApiTests : V2Fixture
         var identity = await ReadAsync(response);
         Assert.That(identity.Domain, Is.EqualTo(Identities.Frodo.ToString()));
         Assert.That(identity.PlanId, Is.EqualTo(DevPlan));
+        Assert.That(identity.QuotaBytes, Is.EqualTo(DefaultQuota), "none of its own: the default");
+        Assert.That(identity.PublicWebPresence, Is.True);
     }
 
     [Test]
-    public async Task TheServiceSetsAPlan_AndSettingItAgainChangesNothing()
+    public async Task TheServiceSetsAPlanWithWhatItGives_AndSettingItAgainChangesNothing()
     {
-        var first = await SetPlanAsync(Identities.Frodo.ToString(), "veterans", "payment-1");
-        var again = await SetPlanAsync(Identities.Frodo.ToString(), "veterans", "payment-1");
+        var first = await SetPlanAsync(Identities.Frodo.ToString(), "veterans", 1_099_511_627_776, false, "payment-1");
+        var again = await SetPlanAsync(Identities.Frodo.ToString(), "veterans", 1_099_511_627_776, false, "payment-1");
 
         Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.OK), "a retry is fine");
-        Assert.That((await ReadAsync(again)).PlanId, Is.EqualTo("veterans"));
-        Assert.That((await ReadAsync(await SendAsync(HttpMethod.Get, $"identities/{Identities.Frodo}"))).PlanId,
-            Is.EqualTo("veterans"));
+        var read = await ReadAsync(await SendAsync(HttpMethod.Get, $"identities/{Identities.Frodo}"));
+        Assert.That(read.PlanId, Is.EqualTo("veterans"));
+        Assert.That(read.QuotaBytes, Is.EqualTo(1_099_511_627_776));
+        Assert.That(read.PublicWebPresence, Is.False);
+        Assert.That(await ReadAsync(again), Is.EqualTo(read).Using<PlanServiceIdentity>((a, b) =>
+            a.PlanId == b.PlanId && a.QuotaBytes == b.QuotaBytes && a.PublicWebPresence == b.PublicWebPresence));
     }
 
     [Test]
-    public async Task APlanNotConfiguredHereIsRefused()
+    public async Task AnyPlanIdIsAccepted_ItIsTheServicesLabel()
     {
-        var response = await SetPlanAsync(Identities.Frodo.ToString(), "no-such-plan");
+        var response = await SetPlanAsync(Identities.Frodo.ToString(), "a-plan-this-host-never-heard-of");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task AQuotaOfNothingIsRefused()
+    {
+        var response = await SetPlanAsync(Identities.Frodo.ToString(), "nothing", 0);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -105,9 +114,11 @@ public class PlanServiceApiTests : V2Fixture
 
     //
 
-    private Task<HttpResponseMessage> SetPlanAsync(string domain, string planId, string? reference = null) =>
+    private Task<HttpResponseMessage> SetPlanAsync(string domain, string planId, long? quotaBytes = null,
+        bool? publicWebPresence = null, string? reference = null) =>
         SendAsync(HttpMethod.Put, $"identities/{domain}/plan",
-            OdinSystemSerializer.Serialize(new SetPlanServicePlanRequest { PlanId = planId, Reference = reference }));
+            OdinSystemSerializer.Serialize(new SetPlanServicePlanRequest
+                { PlanId = planId, QuotaBytes = quotaBytes, PublicWebPresence = publicWebPresence, Reference = reference }));
 
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string? json = null,
         string? key = Key, string origin = ProvisioningDomain)

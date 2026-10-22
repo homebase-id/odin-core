@@ -730,11 +730,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Id = null, // Sanity
             OdinId = new OdinId(domain),
             Email = email,
-            // Only a code gives a plan, never the signup request; without one, the default plan applies
+            // Only a code gives a plan, never the signup request. What the plan gives comes with it; without it, the
+            // host's default quota and the public web presence a configured code (or none) gives.
             PlanId = used?.PlanId,
+            QuotaBytes = used?.QuotaBytes > 0 ? used.QuotaBytes : null,
             IsCertificateManaged = false, //TODO
-            // Not from a service code: its plan decides (docs/hosting-plans.md). A configured code still can.
-            EnablePublicWebPresence = await CodeGrantsPublicWebPresence(code ?? ""),
+            EnablePublicWebPresence = used?.PublicWebPresence ?? await CodeGrantsPublicWebPresence(code ?? ""),
             Invitation = used?.ToRegistrationInvitation() ?? (code != null ? new RegistrationInvitation(code, null, null) : null),
         };
 

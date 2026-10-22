@@ -7,9 +7,9 @@ using Odin.Core.Time;
 namespace Odin.Services.Registry;
 
 /// <summary>
-/// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/> and the
-/// <see cref="RegistrationInvitation"/> the identity signed up with. Kept out of dedicated columns so it can grow without a
-/// schema change.
+/// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/>, the
+/// <see cref="RegistrationInvitation"/> the identity signed up with, and its quota. Kept out of dedicated columns so it can
+/// grow without a schema change.
 /// </summary>
 public static class RegistrationJsonMapper
 {
@@ -18,11 +18,12 @@ public static class RegistrationJsonMapper
         TenantStatus Status,
         DisabledReason? DisabledReason,
         UnixTimeUtc? StatusChangedAt,
-        RegistrationInvitation? Invitation);
+        RegistrationInvitation? Invitation,
+        long? QuotaBytes = null);
 
     public static string ToJson(IdentityRegistration registration)
     {
-        return Serialize(registration.StatusState, registration.Invitation);
+        return Serialize(registration.StatusState, registration.Invitation, registration.QuotaBytes);
     }
 
     /// <summary>
@@ -30,13 +31,14 @@ public static class RegistrationJsonMapper
     /// </summary>
     public static string WithStatus(string? existingJson, TenantStatusState state)
     {
-        return Serialize(state, TryParse(existingJson, out _)?.Invitation);
+        var existing = TryParse(existingJson, out _);
+        return Serialize(state, existing?.Invitation, existing?.QuotaBytes);
     }
 
-    private static string Serialize(TenantStatusState state, RegistrationInvitation? invitation)
+    private static string Serialize(TenantStatusState state, RegistrationInvitation? invitation, long? quotaBytes)
     {
         return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, invitation));
+            state.StatusChangedAt, invitation, quotaBytes));
     }
 
     /// <summary>
@@ -52,6 +54,7 @@ public static class RegistrationJsonMapper
     {
         var parsed = TryParse(json, out var valid);
         target.Invitation = parsed?.Invitation;
+        target.QuotaBytes = parsed?.QuotaBytes;
 
         if (disabledColumn)
         {

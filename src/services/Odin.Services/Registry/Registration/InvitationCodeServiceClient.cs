@@ -14,9 +14,13 @@ namespace Odin.Services.Registry.Registration;
 /// </summary>
 /// <param name="PlanId">The hosting plan the code gives the new identity; null for none. Absent from older
 /// services, which reads as null.</param>
-/// <remarks>The service may still send the code's enablePublicWebPresence; it is ignored. The identity's plan
-/// decides that (docs/hosting-plans.md).</remarks>
-public record InvitationCodeUse(string Code, string? Owner, string Source, string? PlanId = null)
+/// <param name="QuotaBytes">What the plan gives (docs/hosting-plans.md): its quota, stored on the new identity;
+/// null leaves it the host's default</param>
+/// <param name="PublicWebPresence">What the plan gives: a public home page or not; null leaves it as signup
+/// would without a plan</param>
+/// <remarks>The service may still send the code's older enablePublicWebPresence; it is ignored.</remarks>
+public record InvitationCodeUse(string Code, string? Owner, string Source, string? PlanId = null, long? QuotaBytes = null,
+    bool? PublicWebPresence = null)
 {
     public RegistrationInvitation ToRegistrationInvitation() => new(Code, Owner, Source);
 }

@@ -31,19 +31,18 @@ public interface IPlanClient
 }
 
 /// <summary>
-/// Plan quotas (docs/hosting-plans.md) with the free plan's quota at 1 byte, so an identity is over it as soon as
-/// it stores anything: headers still upload, payloads are refused with 507, and the plan endpoint says so to
-/// the owner and apps.
+/// Quotas (docs/hosting-plans.md) with the host's default quota at 1 byte, so an identity without one of its own
+/// is over it as soon as it stores anything: headers still upload, payloads are refused with 507, and the plan
+/// endpoint says so to the owner and apps, with the hosting provider to ask for more.
 /// </summary>
 [TestFixture]
 public class PlanQuotaTests : V2Fixture
 {
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>
     {
-        ["Registry:Plans:0:Id"] = "free",
-        ["Registry:Plans:0:Default"] = "true",
-        ["Registry:Plans:0:QuotaBytes"] = "1",
-        ["Registry:UpgradeUrl"] = "https://billing.example.com/upgrade",
+        ["HostingProvider:DefaultQuotaBytes"] = "1",
+        ["HostingProvider:DisplayName"] = "Test Hosting",
+        ["HostingProvider:UpgradeUrl"] = "https://billing.example.com/upgrade",
     };
 
     [Test]
@@ -70,7 +69,7 @@ public class PlanQuotaTests : V2Fixture
     }
 
     [Test]
-    public async Task TheOwnerAndAnAppSeeThePlanAndItsUsage()
+    public async Task TheOwnerAndAnAppSeeThePlanItsUsageAndTheHostingProvider()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         await StoreSomethingAsync(owner, await CreateDriveAsync(owner));
@@ -84,14 +83,15 @@ public class PlanQuotaTests : V2Fixture
         var appResponse = await app.RefitFor<IPlanClient>().GetPlan();
 
         Assert.That(appResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        // The test identities' own plan is not in this config, so they get the default
-        Assert.That(ownerPlan.Id, Is.EqualTo("free"));
-        Assert.That(ownerPlan.IsDefault, Is.True);
-        Assert.That(ownerPlan.PublicWebPresence, Is.True, "the plan does not say, and the identity's own is on");
+        // The test identities' own plan label (DevEnvironmentSetup), with no quota of their own: the default
+        Assert.That(ownerPlan.Id, Is.EqualTo("dev-domain"));
+        Assert.That(ownerPlan.PublicWebPresence, Is.True);
         Assert.That(ownerPlan.Storage.QuotaBytes, Is.EqualTo(1));
         Assert.That(ownerPlan.Storage.UsedBytes, Is.GreaterThan(0));
         Assert.That(ownerPlan.Storage.IsOverQuota, Is.True);
-        Assert.That(ownerPlan.UpgradeUrl, Does.StartWith($"https://billing.example.com/upgrade?id={Identities.Frodo}&host="));
+        Assert.That(ownerPlan.HostingProvider!.DisplayName, Is.EqualTo("Test Hosting"));
+        Assert.That(ownerPlan.HostingProvider.UpgradeUrl,
+            Does.StartWith($"https://billing.example.com/upgrade?id={Identities.Frodo}&host="));
         Assert.That(appResponse.Content, Is.EqualTo(ownerPlan));
     }
 
@@ -118,29 +118,27 @@ public class PlanQuotaTests : V2Fixture
 }
 
 /// <summary>
-/// Without Registry:Plans there are no plans and no quotas: usage is reported, with no limit, and payloads upload.
+/// With no hosting provider configured: every identity has the default quota, 60 GB, and nobody to ask for more.
 /// </summary>
 [TestFixture]
-public class PlanQuotaOffTests : V2Fixture
+public class PlanWithoutAHostingProviderTests : V2Fixture
 {
     [Test]
-    public async Task WithoutPlansThereIsNoQuota()
+    public async Task TheDefaultQuotaAndNoHostingProvider()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
 
         var plan = (await owner.RefitFor<IPlanClient>().GetPlan()).Content!;
 
-        Assert.That(plan.Id, Is.Null);
-        Assert.That(plan.IsDefault, Is.False);
-        Assert.That(plan.Storage.QuotaBytes, Is.Null);
+        Assert.That(plan.Storage.QuotaBytes, Is.EqualTo(64_424_509_440));
         Assert.That(plan.Storage.IsOverQuota, Is.False);
-        Assert.That(plan.UpgradeUrl, Is.Null, "no upgrade page configured");
+        Assert.That(plan.HostingProvider, Is.Null);
     }
 }
 
 /// <summary>
-/// An admin moves an identity to another plan, and what the plan gives follows: over a 1-byte plan, a payload is
-/// refused; on the unlimited plan, it goes in. On a plan that says no public web presence, the public page goes.
+/// An admin sets an identity's plan with what it gives: a bigger quota lets a payload in, a public web presence of
+/// false takes the public page down, and values left out stay as they were.
 /// </summary>
 [TestFixture]
 public class SetTenantPlanTests : V2Fixture
@@ -149,15 +147,8 @@ public class SetTenantPlanTests : V2Fixture
 
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>(TestAdminApi.Config())
     {
-        ["Registry:Plans:0:Id"] = "free",
-        ["Registry:Plans:0:Default"] = "true",
-        ["Registry:Plans:0:QuotaBytes"] = "1",
-        ["Registry:Plans:1:Id"] = "unlimited",
-        // The test identities' own plan (DevEnvironmentSetup), as tight as free so they start over quota
-        ["Registry:Plans:2:Id"] = DevPlan,
-        ["Registry:Plans:2:QuotaBytes"] = "1",
-        ["Registry:Plans:3:Id"] = "private",
-        ["Registry:Plans:3:PublicWebPresence"] = "false",
+        // So the test identities, with no quota of their own, start over it
+        ["HostingProvider:DefaultQuotaBytes"] = "1",
     };
 
     /// <summary>
@@ -166,11 +157,11 @@ public class SetTenantPlanTests : V2Fixture
     [TearDown]
     public async Task RestorePlan()
     {
-        await SetPlanAsync(Identities.Frodo.ToString(), DevPlan);
+        await SetPlanAsync(Identities.Frodo.ToString(), DevPlan, 1, true);
     }
 
     [Test]
-    public async Task ANewPlanBringsItsQuota()
+    public async Task ABiggerQuotaLetsAPayloadIn()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var drive = await PlanQuotaTests.CreateDriveAsync(owner);
@@ -178,7 +169,7 @@ public class SetTenantPlanTests : V2Fixture
         Assert.That((await PlanQuotaTests.UploadPayloadAsync(owner, drive)).StatusCode,
             Is.EqualTo(HttpStatusCode.InsufficientStorage));
 
-        var response = await SetPlanAsync(Identities.Frodo.ToString(), " Unlimited ");
+        var response = await SetPlanAsync(Identities.Frodo.ToString(), " veterans ", 1_099_511_627_776);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var change = OdinSystemSerializer.Deserialize<SetTenantPlanResponse>(await response.Content.ReadAsStringAsync());
@@ -188,14 +179,13 @@ public class SetTenantPlanTests : V2Fixture
         Assert.That(upload.IsSuccessStatusCode, Is.True, upload.Error?.Content);
 
         var plan = (await owner.RefitFor<IPlanClient>().GetPlan()).Content!;
-        Assert.That(plan.Id, Is.EqualTo("unlimited"), "the configured id, not the admin's spelling");
-        Assert.That(plan.IsDefault, Is.False);
-        Assert.That(plan.Storage.QuotaBytes, Is.Null);
+        Assert.That(plan.Id, Is.EqualTo("veterans"), "trimmed");
+        Assert.That(plan.Storage.QuotaBytes, Is.EqualTo(1_099_511_627_776));
         Assert.That(plan.Storage.IsOverQuota, Is.False);
     }
 
     [Test]
-    public async Task ANewPlanBringsItsPublicWebPresence()
+    public async Task APlanWithoutAPublicWebPresenceTakesThePageDown()
     {
         using var anonymous = Host.CreateAnonymousClient(Identities.Frodo);
         async Task<string> Home() => await (await anonymous.GetAsync("/ssr/home")).Content.ReadAsStringAsync();
@@ -203,20 +193,43 @@ public class SetTenantPlanTests : V2Fixture
 
         Assert.That(await Home(), Does.Not.Contain(placeholder));
 
-        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), "private")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await Home(), Does.Contain(placeholder), "the plan's no wins over the identity's yes");
+        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), "private", publicWebPresence: false)).StatusCode,
+            Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(await Home(), Does.Contain(placeholder));
         var owner = await LoginAsOwner(Identities.Frodo);
         Assert.That((await owner.RefitFor<IPlanClient>().GetPlan()).Content!.PublicWebPresence, Is.False);
 
-        // A plan that does not say leaves it to the identity again, which never changed
-        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), DevPlan)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), DevPlan, publicWebPresence: true)).StatusCode,
+            Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await Home(), Does.Not.Contain(placeholder));
     }
 
     [Test]
-    public async Task APlanNotInTheConfigIsRefused()
+    public async Task ValuesLeftOutStayAsTheyWere()
     {
-        var response = await SetPlanAsync(Identities.Frodo.ToString(), "no-such-plan");
+        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), "first", 5000, false)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await SetPlanAsync(Identities.Frodo.ToString(), "second")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var plan = (await owner.RefitFor<IPlanClient>().GetPlan()).Content!;
+        Assert.That(plan.Id, Is.EqualTo("second"));
+        Assert.That(plan.Storage.QuotaBytes, Is.EqualTo(5000));
+        Assert.That(plan.PublicWebPresence, Is.False);
+    }
+
+    [TestCase(0L)]
+    [TestCase(-5L)]
+    public async Task AQuotaOfNothingIsRefused(long quotaBytes)
+    {
+        var response = await SetPlanAsync(Identities.Frodo.ToString(), "nothing", quotaBytes);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task AnEmptyPlanIsRefused()
+    {
+        var response = await SetPlanAsync(Identities.Frodo.ToString(), "  ");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
@@ -224,10 +237,12 @@ public class SetTenantPlanTests : V2Fixture
     [Test]
     public async Task AnUnknownTenantIsNotFound()
     {
-        var response = await SetPlanAsync("no-such-tenant.dotyou.cloud", "unlimited");
+        var response = await SetPlanAsync("no-such-tenant.dotyou.cloud", "veterans");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
-    private Task<HttpResponseMessage> SetPlanAsync(string domain, string planId) => TestAdminApi.SetPlanAsync(Host, domain, planId);
+    private Task<HttpResponseMessage> SetPlanAsync(string domain, string planId, long? quotaBytes = null,
+        bool? publicWebPresence = null) =>
+        TestAdminApi.SetPlanAsync(Host, domain, planId, quotaBytes, publicWebPresence);
 }
