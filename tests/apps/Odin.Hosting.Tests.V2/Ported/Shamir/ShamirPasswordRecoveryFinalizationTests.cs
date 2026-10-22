@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -61,9 +63,9 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <see cref="ShamirFixture.AutomatedPlayerIdentities"/>, so the host carries those too.
 /// </para>
 /// <para>
-/// <b>Latent defect carried, not fixed:</b> the first test's name promises "…AndPasswordCanBeReset"
-/// and it does reset the password, but the only proof it kept is that a fresh login with the new
-/// password succeeds — it never checks the old password now fails.
+/// <b>Defect in the original, fixed (#1767):</b> the first test's name promises
+/// "…AndPasswordCanBeReset", but the only proof it kept was that a fresh login with the new password
+/// succeeds. It now also checks that the old password no longer logs in.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -93,6 +95,11 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         await ApproveEveryShardRequestAsync(frodo, players, config);
 
         await FinalizeRecoveryAndLoginAsync(frodo, NewPassword);
+
+        // the reset replaced the password: the one the baseline set no longer logs in
+        var oldPasswordLogin = Assert.ThrowsAsync<InvalidOperationException>(() =>
+            OwnerSession.LoginAsync(Host, frodo.Identity.DomainName, OwnerLogin.DefaultPassword));
+        Assert.That(oldPasswordLogin!.Message, Does.StartWith("Authenticate failed"));
     }
 
     /// <summary>
