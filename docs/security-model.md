@@ -72,7 +72,11 @@ drives belong to the owner console (`StorageDriveData.AppId`) **(V)**.
    - `Drives`: drive grants, each with `driveMeta` to create the drive if it's missing. For example, two drives;
    - `Circles`: circles the app declares and will own (#1939);
    - `AuthorizedCircles` + `CircleMemberPermissionGrant`: existing circles whose members may use the identity through
-     this app, and what they get.
+     this app, and what they get. Each must be a circle this identity has: an unknown id, or one of the retired
+     Confirmed Connections / Auto Connections circles (deleted by #1809), is refused with 400
+     (`AppRegistrationService.AssertCirclesExistAsync`, #2001). Authorizing a circle with no members would grant
+     nothing, silently. Updating the authorized circles checks only the ones added, so a registration that already
+     holds a circle that is gone still saves **(V)**.
 4. The owner approves [047]. The console then:
    - creates each missing drive with the installing app as owner (`useApp.ts ensureAppOwnedDrives`, odin-js). It never
      creates a well-known drive for an app that doesn't own it; that grant is left for the server to refuse;
@@ -86,6 +90,16 @@ Later:
 - **Owned circles at runtime:** an app may create circles, but only granting permission keys and drive access it holds
   itself. On a drive it doesn't own it may grant Read only, and only with the storage key
   (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**.
+- **No connection-wide circle for third-party apps.** There is no "all my connections" circle to authorize any more,
+  and an app's own circles are only ever granted explicitly: `CreateAppCircleRequest` has no `GrantOn`
+  (`V2ConnectionNetworkController.CreateCircle`) **(V)**. An app that wants to reach people creates its own circle
+  and adds them:
+  - `POST /api/v2/connections/circles/create` with a `Slug`: idempotent by slug, so a second device finds the
+    circle the first one made. A slug is 1-14 lower-case letters, digits and inner hyphens (`OdinSlug.MaxLength`,
+    `OdinSlug.AssertValidOrNull`), otherwise 400;
+  - `POST /api/v2/connections/circles/add` (and `circles/revoke`) for its members.
+  - V2 reads the app's client token from `Authorization: Bearer <token>` (or the app cookie), not from the V1 app
+    header (`UnifiedAuthenticationHandler.TryFindClientAuthToken`) **(V)**.
 - **Uninstall** can delete the app's drives and circles (`drive-deletion-and-app-uninstall.md`) **(V)**.
 
 ## 3. Drives
