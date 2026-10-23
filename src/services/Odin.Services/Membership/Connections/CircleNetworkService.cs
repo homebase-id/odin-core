@@ -2120,9 +2120,14 @@ namespace Odin.Services.Membership.Connections
 
                     foreach (var odinId in members)
                     {
+                        // A member may hold no grant for the app, e.g. after an earlier reconcile failed or skipped
+                        // it (#2000): nothing to take away then
                         var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                        icr.PeerKeyStore.AppGrants[appKey]?.Remove(circleId);
-                        await this.SaveIcrAsync(icr, odinContext);
+                        if (icr.PeerKeyStore.AppGrants.TryGetValue(appKey, out var appCircleGrants) &&
+                            appCircleGrants.Remove(circleId))
+                        {
+                            await this.SaveIcrAsync(icr, odinContext);
+                        }
                     }
                 }
             }
@@ -2135,9 +2140,14 @@ namespace Odin.Services.Membership.Connections
                 foreach (var odinId in members)
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
+
+                    // The same upgrades UpdateCircleDefinitionAsync runs before re-granting (#2000). Both write the
+                    // stored record, not this copy, so refetch after either: saving the stale copy below would put
+                    // the weak token back
+                    var tokenNeededUpgrade = icr.TemporaryWeakClientAccessToken != null && icr.EncryptedClientAccessToken == null;
+                    await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext) || tokenNeededUpgrade)
                     {
-                        // refetch the record since the above method just writes to db
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                     }
 
