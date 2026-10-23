@@ -110,7 +110,7 @@ domain:
 
 | Call | Answer |
 |---|---|
-| `GET /api/plans/v1/identities/{domain}` | `{ "domain", "planId", "quotaBytes", "publicWebPresence" }`: the plan Id, the quota in effect and the public web presence; 404 if the identity is not on this host |
+| `GET /api/plans/v1/identities/{domain}` | `{ "domain", "planId", "quotaBytes", "publicWebPresence", "usedBytes", "isOverQuota" }`: what the identity has now (the plan Id, the quota in effect, the public web presence) and how much of it is used, exactly as its owner's own plan page says; 404 if the identity is not on this host |
 | `PUT /api/plans/v1/identities/{domain}/plan` `{ "planId", "quotaBytes", "publicWebPresence", "reference" }` | the same, after setting it as in section 5; 400 for an empty plan Id or a quota that is not more than 0, 404 if the identity is not on this host |
 
 - The key is sent in the `Odin-Api-Key` header; a wrong or missing key is a 401. One key shared by every host, for

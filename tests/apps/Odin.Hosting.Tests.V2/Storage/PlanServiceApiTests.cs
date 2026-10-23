@@ -53,6 +53,8 @@ public class PlanServiceApiTests : V2Fixture
         Assert.That(identity.PlanId, Is.EqualTo(DevPlan));
         Assert.That(identity.QuotaBytes, Is.EqualTo(DefaultQuota), "none of its own: the default");
         Assert.That(identity.PublicWebPresence, Is.True);
+        Assert.That(identity.UsedBytes, Is.GreaterThanOrEqualTo(0), "what the owner's own plan page says");
+        Assert.That(identity.IsOverQuota, Is.False);
     }
 
     [Test]
