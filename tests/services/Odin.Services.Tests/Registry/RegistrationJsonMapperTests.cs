@@ -175,4 +175,32 @@ public class RegistrationJsonMapperTests
     }
 
     private static readonly RegistrationInvitation Invitation = new("K7QX-M2PD-9FHW", "frodo.dotyou.cloud", "spring");
+
+    [Test]
+    public void TheQuotaRoundTrips_AndSurvivesAStatusChange()
+    {
+        var source = Registration(TenantStatus.Active, null, null);
+        source.QuotaBytes = 1_099_511_627_776;
+        var json = RegistrationJsonMapper.ToJson(source);
+
+        var target = new IdentityRegistration();
+        RegistrationJsonMapper.Apply(target, disabledColumn: false, json);
+        Assert.That(target.QuotaBytes, Is.EqualTo(1_099_511_627_776));
+
+        var paused = RegistrationJsonMapper.WithStatus(json, new TenantStatusState(TenantStatus.Paused, null, null));
+        var afterPause = new IdentityRegistration();
+        RegistrationJsonMapper.Apply(afterPause, disabledColumn: false, paused);
+        Assert.That(afterPause.QuotaBytes, Is.EqualTo(1_099_511_627_776), "a status change keeps the quota");
+    }
+
+    [Test]
+    public void ARowFromBeforeQuotasHasNone()
+    {
+        // As written before the quota was stored: no QuotaBytes, so the host's default applies
+        const string json = "{\"status\":\"active\",\"disabledReason\":null,\"statusChangedAt\":null,\"invitation\":null}";
+
+        var target = new IdentityRegistration { QuotaBytes = 5 };
+        Assert.That(RegistrationJsonMapper.Apply(target, disabledColumn: false, json), Is.True);
+        Assert.That(target.QuotaBytes, Is.Null);
+    }
 }

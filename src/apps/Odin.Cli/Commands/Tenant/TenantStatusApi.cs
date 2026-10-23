@@ -34,9 +34,11 @@ internal static class TenantStatusApi
 
     //
 
-    public static async Task<SetTenantPlanResponse> SetPlanAsync(HttpClient httpClient, string domain, string planId)
+    public static async Task<SetTenantPlanResponse> SetPlanAsync(HttpClient httpClient, string domain, string planId,
+        long? quotaBytes = null, bool? publicWebPresence = null)
     {
-        var body = OdinSystemSerializer.Serialize(new SetTenantPlanRequest { PlanId = planId });
+        var body = OdinSystemSerializer.Serialize(new SetTenantPlanRequest
+            { PlanId = planId, QuotaBytes = quotaBytes, PublicWebPresence = publicWebPresence });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         var response = await httpClient.PatchAsync($"tenants/{domain}/plan", content);
         await EnsureSuccessAsync(response, domain);
