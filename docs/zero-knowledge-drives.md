@@ -133,6 +133,9 @@ Plans for steps 1 and 2, in two halves: A, keys and database, is the current pla
 3. **Recovery phrase,** the same way. Small once Shamir works.
 4. **Private drives and conversion,** Vault first (see
    [Private drives and conversion](#private-drives-and-conversion)).
+   - Every drive gets a ZK copy of its key, whatever its sharing model, and every new drive
+     always gets one from then on (see [Every drive gets a ZK copy](#every-drive-gets-a-zk-copy)).
+   - Consent seals the keys of every drive an app is granted to the app.
 5. **Chat,** once deposits exist (see [Work for Chat and Vault](#work-for-chat-and-vault)).
 
 ## Peers
@@ -353,9 +356,11 @@ Server:
 5. Consent carries the browser's locked drive keys: one more field, `ZkDriveKeys`, in `EncryptedTokenExchange`
    (see [Getting ZK drive keys to an app](#getting-zk-drive-keys-to-an-app)).
 6. An owner-only conversion endpoint for steps 2 to 4 above.
+7. An owner-only endpoint that adds a ZK copy of a drive's key without converting the drive (see
+   [Every drive gets a ZK copy](#every-drive-gets-a-zk-copy)).
 
 Owner console (browser): the second password key at login, the zero-knowledge master key,
-sealing at consent, and the conversion.
+sealing at consent, the conversion, and a ZK copy for every drive.
 
 Apps: lock and open file headers with the drive key instead of the shared secret, and keep the
 drive keys in the device key store.
@@ -366,7 +371,34 @@ drive keys in the device key store.
   re-locks them with the drive key (`PeerInboxProcessor`) **(V)**. They convert once deposits
   exist.
 - Selective Share, and the recovery phrase redesign.
-- Collaborative, which doesn't change.
+- Collaborative sharing, which doesn't change. Collaborative drives still get a ZK copy of their
+  key (below).
+
+### Every drive gets a ZK copy
+
+Decided 2026-10-23: from step 4 on, every drive has a copy of its key locked by the
+zero-knowledge master key, whatever its sharing model. Every app is handed the keys of the drives
+it is granted, locked to the app at consent. Whether it uses them is up to the app.
+
+- **A ZK copy is not conversion.** Collaborative and Selective Share drives keep their master-key
+  copy, and the server keeps working with it as today. Only a Private drive loses its master-key
+  copy, at conversion. Zero knowledge means "no master-key copy" (`StorageDrive.IsZeroKnowledge`),
+  so a drive with both copies isn't mistaken for zero knowledge **(V)**.
+- **New drives always get one.**
+  - When the owner console creates a drive, the browser is there: it adds the ZK copy right away.
+  - Some drives are created on the server with no browser present: built-in drives at first run
+    and at version upgrades (`BuiltinProvisioner.EnsureDrivesAsync`, called from
+    `TenantConfigService`) **(V)**. The login backfill below picks those up.
+- **Existing drives, at the next login.** The browser lists the drives with no ZK copy. For each
+  one, the server opens the key with today's master key and sends it locked to the owner's shared
+  secret, as in step 2 of the conversion. The browser locks it with the ZK master key and sends
+  the copy back. This is the same login step that converts the Shard Recovery drive today.
+- **The server never had less.** For these drives it already holds the master-key copy, so
+  sending the key to the owner's browser shows it nothing new.
+- **When the copy no longer opens.** After a reset with the recovery key the ZK master key is new.
+  The browser replaces the copy of every drive that still has a master-key copy. A Private drive
+  has none, so only a recovery that gives back the second password key can reach it: Shamir does
+  that in plan B, and the recovery phrase in step 3.
 
 ### First drive: Vault
 
