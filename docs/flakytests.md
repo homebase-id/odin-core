@@ -953,6 +953,12 @@ kind #1909 describes is no longer a sufficient explanation: either the cause is 
 remove count does not guard is involved. Not caused by the PR: it adds soft-delete-batch and peer
 permission checks and changes no upload, payload or overwrite code.
 
+**Again 2026-10-20.** PR #1989 (`plan-endpoint`) commit `850eda8c1`, run 39500115635,
+`ubuntu/sqlite/release`: the same single `HardDeletePayloadFile -> source payload does not exist` event
+for a `pknt0001` payload, the only failure in 1710; postgres and Windows passed on the same commit. Not
+caused by the PR: it adds `GET /api/v2/plan` and a recipient-out-of-storage transfer status, and changes
+no overwrite or hard-delete code.
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`

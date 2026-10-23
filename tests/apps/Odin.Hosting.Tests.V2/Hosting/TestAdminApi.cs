@@ -43,11 +43,13 @@ public static class TestAdminApi
         new(method, $"api/admin/v1/{relativePath}") { Headers = { { ApiKeyHeaderName, ApiKey } } };
 
     /// <summary>PATCH tenants/{domain}/plan: the raw response, for tests that expect a refusal.</summary>
-    public static async Task<HttpResponseMessage> SetPlanAsync(OdinHost host, string domain, string planId)
+    public static async Task<HttpResponseMessage> SetPlanAsync(OdinHost host, string domain, string planId,
+        long? quotaBytes = null, bool? publicWebPresence = null)
     {
         using var client = CreateClient(host);
         var request = Request(HttpMethod.Patch, $"tenants/{domain}/plan");
-        request.Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantPlanRequest { PlanId = planId }),
+        request.Content = new StringContent(OdinSystemSerializer.Serialize(new SetTenantPlanRequest
+                { PlanId = planId, QuotaBytes = quotaBytes, PublicWebPresence = publicWebPresence }),
             Encoding.UTF8, "application/json");
         return await client.SendAsync(request);
     }
