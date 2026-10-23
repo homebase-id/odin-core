@@ -1,6 +1,6 @@
 # Plans on the identity, a hosting provider, and upgrading
 
-Status: odin-core part built on #1994 (`upgrade-url`); homebase-invites, DevOps, odin-js and chat-kmp to follow. Decisions are Todd's, 2026-10-22.
+Status: odin-core part built on #1994 (`upgrade-url`); raven-hosting built (homebase-id/raven-hosting#18); DevOps, odin-js and chat-kmp to follow. Decisions are Todd's, 2026-10-22.
 
 ## Goal
 
@@ -16,7 +16,7 @@ the hosting provider, not to odin-core.
 - An identity with no quota stored gets `HostingProvider:DefaultQuotaBytes`, which defaults to 60 GB
   (64424509440 bytes). A self-hosted server can change it.
 - There is no unlimited: every identity has a number of bytes. For "lots", give a big quota (1 TB).
-- The catalog lives in homebase-invites (the hosting provider's account service). It sends the plan's quota and
+- The catalog lives in raven-hosting (the hosting provider's account service). It sends the plan's quota and
   public web presence with the plan, whenever it gives one: a code at signup, a grant, a purchase.
 - Apps never build the upgrade address: `GET /api/v2/plan` returns it ready to open, with the hosting
   provider's name.
@@ -60,7 +60,7 @@ required; `quotaBytes` and `publicWebPresence` left out keep the identity's curr
 
 ### Signup with an invitation code
 
-homebase-invites' `use` answer carries the code's `planId`, `quotaBytes` and `publicWebPresence`; the host
+raven-hosting's `use` answer carries the code's `planId`, `quotaBytes` and `publicWebPresence`; the host
 stores them on the new registration. A code without them (an older service) stores the plan Id alone, so the
 identity gets the default quota and the public web presence it would have had.
 
@@ -91,10 +91,10 @@ consent. Apps are never auto-consented. The owner still has to be signed in to t
 They have no `QuotaBytes` stored, so they get `DefaultQuotaBytes` (60 GB, the size `free` has today) and keep
 their own public web presence. Nothing changes for them.
 
-## homebase-invites
+## raven-hosting
 
-- The plan catalog: every plan's `Id`, `Name`, `Description`, `QuotaBytes`, `PublicWebPresence`, and whether
-  it is for sale.
+- The plan catalog, in its database: every plan's `Id`, `Name`, `Description`, `QuotaBytes`,
+  `PublicWebPresence`, and whether it is for sale. Managed with `raven.sh plan-create` / `plan-edit`.
 - `use` returns the code's plan values; grants and checkout send all three to the host.
 
 ## DevOps
@@ -102,7 +102,7 @@ their own public web presence. Nothing changes for them.
 - Remove `hosting-plans.yml` and its `Registry:Plans` wiring (Hetzner `json_patch`, OVH `managed.env`).
 - Add `HostingProvider`: `DisplayName`, `UpgradeUrl` (`https://invites.ravenhosting.cloud/upgrade`),
   `AutoConsentDomains` (`invites.ravenhosting.cloud`), `DefaultQuotaBytes`.
-- The plan catalog goes into homebase-invites' config.
+- No plans here: raven-hosting keeps them in its database. Remove the upgrade page's old plans-for-sale settings.
 
 ## odin-js
 
@@ -117,4 +117,4 @@ Plan & storage reads `hostingProvider` from `/api/v2/plan`: the "See plans and u
 
 ## Order
 
-odin-core (this branch), then homebase-invites, then DevOps, then odin-js and chat-kmp.
+odin-core (this branch), then raven-hosting, then DevOps, then odin-js and chat-kmp.

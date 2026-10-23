@@ -10,7 +10,7 @@ using Odin.Services.Registry;
 namespace Odin.Hosting.Controllers.PlanService;
 
 /// <summary>
-/// For the hosting company's account service (homebase-invites), which sells bigger plans: read an identity's plan, and set it after
+/// For the hosting company's account service (raven-hosting), which sells bigger plans: read an identity's plan, and set it after
 /// a payment (docs/hosting-plans.md section 9). On the provisioning domain, with the account service key
 /// (Registry:AccountService:ApiKey); it can do nothing else, unlike the admin key. 404 for an identity not on this
 /// host, which is how the service learns where an identity lives.

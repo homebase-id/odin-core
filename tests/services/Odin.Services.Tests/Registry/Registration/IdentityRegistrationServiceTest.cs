@@ -146,7 +146,7 @@ public class IdentityRegistrationServiceTest
         Assert.That(capturedRequest()!.EnablePublicWebPresence, Is.True);
     }
 
-    // Invitation codes from the invitation-code service, homebase-id/homebase-invites (#1908)
+    // Invitation codes from the invitation-code service, homebase-id/raven-hosting (#1908)
 
     private const string ServiceCode = "K7QX-M2PD-9FHW";
 

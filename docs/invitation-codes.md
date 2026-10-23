@@ -1,6 +1,6 @@
 # Invitation codes (#1908)
 
-Invitation codes live in their own service, [homebase-id/homebase-invites](https://github.com/homebase-id/homebase-invites):
+Invitation codes live in their own service, [homebase-id/raven-hosting](https://github.com/homebase-id/raven-hosting):
 it issues the codes and counts their uses, and its README has the API. odin-core only asks it about a code
 at signup. Who signed up with a code is kept on the new identity's registration, not in the service.
 
@@ -23,7 +23,7 @@ The host-wide codes in `Registry:InvitationCodes` keep working as before; the tw
 - An identity's hosting plan comes only from its invitation code (`planId`), never from the signup request:
   `create-identity-on-domain` no longer takes a `planId`, and one the client still sends is ignored. A code
   without a plan, a configured code, a service from before plans, or a host with no codes leaves it unset, and
-  the identity gets the host's default quota. What a plan gives is the hosting provider's (homebase-invites).
+  the identity gets the host's default quota. What a plan gives is the hosting provider's (raven-hosting).
 
 ## Configuration (Homebase-run identity hosts only)
 

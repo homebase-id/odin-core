@@ -7,7 +7,7 @@ is [plan-upgrade.md](plan-upgrade.md).
 
 | | |
 |---|---|
-| Where plans are defined | By the hosting provider, outside odin-core (homebase-invites holds the catalog) |
+| Where plans are defined | By the hosting provider, outside odin-core (raven-hosting holds the catalog) |
 | What an identity has | Its own `PlanId` (a label), `QuotaBytes` and `EnablePublicWebPresence`, on its registration |
 | An identity with no quota stored | `HostingProvider:DefaultQuotaBytes`, 60 GB unless configured |
 | Unlimited | There is none: every identity has a number of bytes |
@@ -104,7 +104,7 @@ keep the identity's current values. Any plan Id is accepted: it is the provider'
 
 ## 6. The account service API
 
-The hosting provider's account service (homebase-invites, which already gives plans out through invitation codes)
+The hosting provider's account service (raven-hosting, which already gives plans out through invitation codes)
 manages identities on its hosts with one key, `Registry:AccountService:ApiKey`, on each host's provisioning
 domain:
 
@@ -137,7 +137,7 @@ then confirms the identity is its own. An unknown `host` is ignored, so an edite
 
 ## 8. Signup with an invitation code
 
-homebase-invites' `use` answer carries the code's `planId` and what the plan gives, `quotaBytes` and
+raven-hosting's `use` answer carries the code's `planId` and what the plan gives, `quotaBytes` and
 `publicWebPresence`; the host stores all three on the new registration. A service that sends no `quotaBytes` leaves
 the default quota, and no `publicWebPresence` leaves what signup gives without a plan (on, unless a configured code
 says otherwise). The code's older `enablePublicWebPresence` is ignored.

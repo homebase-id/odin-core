@@ -30,7 +30,7 @@ internal record InvitationCodeValidateResponse(bool Valid);
 internal record InvitationCodeUseResponse(bool Used, InvitationCodeUse? Code);
 
 /// <summary>
-/// The invitation-code service's API, homebase-id/homebase-invites; its README has the details.
+/// The invitation-code service's API, homebase-id/raven-hosting; its README has the details.
 /// </summary>
 internal interface IInvitationCodeApi
 {
@@ -45,7 +45,7 @@ internal interface IInvitationCodeApi
 }
 
 /// <summary>
-/// odin-core's one plug point into the invitation-code service, homebase-id/homebase-invites (#1908): signup checks a
+/// odin-core's one plug point into the invitation-code service, homebase-id/raven-hosting (#1908): signup checks a
 /// code, uses it, and gives the use back if registering fails. On only when Registry:InvitationCodeService:Url and
 /// :ApiKey are both set and the URL is https (or loopback); anything else is off, with an error logged when this is created.
 /// </summary>

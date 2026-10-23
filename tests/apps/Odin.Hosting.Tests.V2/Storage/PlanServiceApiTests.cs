@@ -15,7 +15,7 @@ using Odin.Hosting.Tests.V2.Hosting;
 namespace Odin.Hosting.Tests.V2.Storage;
 
 /// <summary>
-/// The plan service API (docs/hosting-plans.md section 9): homebase-invites reads and sets an identity's plan, on
+/// The plan service API (docs/hosting-plans.md section 9): raven-hosting reads and sets an identity's plan, on
 /// the provisioning domain, with the plan service key and nothing else.
 /// </summary>
 [TestFixture]

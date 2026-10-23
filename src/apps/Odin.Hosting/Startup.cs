@@ -121,7 +121,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             MapProvisioningDomainApi(PayloadMoveProtocol.RootPath);
         }
 
-        // Account service: homebase-invites reads and sets plans here (docs/hosting-plans.md section 9)
+        // Account service: raven-hosting reads and sets plans here (docs/hosting-plans.md section 9)
         if (config.Registry.AccountServiceApiKey != "")
         {
             MapProvisioningDomainApi(PlanServiceApiPathConstants.RootPath);

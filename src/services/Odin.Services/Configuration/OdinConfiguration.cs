@@ -191,7 +191,7 @@ public class OdinConfiguration
         public List<string> InvitationCodesWithoutPublicWebPresence { get; init; } = [];
 
         /// <summary>
-        /// The invitation-code service (#1908), homebase-id/homebase-invites. Off when empty. Must be https,
+        /// The invitation-code service (#1908), homebase-id/raven-hosting. Off when empty. Must be https,
         /// except on loopback.
         /// </summary>
         public string InvitationCodeServiceUrl { get; init; } = "";
@@ -210,7 +210,7 @@ public class OdinConfiguration
         public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
         /// <summary>
-        /// The key the hosting company's account service (homebase-invites) sends to manage identities here: today
+        /// The key the hosting company's account service (raven-hosting) sends to manage identities here: today
         /// reading and setting an identity's plan at /api/plans/v1 on the provisioning domain. Empty: that API is off.
         /// </summary>
         public string AccountServiceApiKey { get; init; } = "";
