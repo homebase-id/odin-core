@@ -36,9 +36,13 @@ public static class DriveWriteOnlyKey
     {
         var publicKey = EccPublicKeyData.FromJwkPublicKey(jwk, LifetimeHours);
 
-        // The column holds an EccFullKeyData; this one carries the public fields and leaves the
-        // private-half fields empty.
-        return OdinSystemSerializer.Deserialize<EccFullKeyData>(OdinSystemSerializer.Serialize(publicKey));
+        // The column holds an EccFullKeyData; this one leaves the private-half fields empty.
+        return new EccFullKeyData
+        {
+            publicKey = publicKey.publicKey,
+            crc32c = publicKey.crc32c,
+            expiration = publicKey.expiration
+        };
     }
 
     /// <summary>

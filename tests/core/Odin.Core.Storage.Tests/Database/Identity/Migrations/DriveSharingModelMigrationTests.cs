@@ -24,10 +24,10 @@ public class DriveSharingModelMigrationTests : IocTestBase
 {
     private const long VersionBeforeSharingModel = 202610140701;
 
-    private static readonly Guid VaultDrive = Guid.Parse("f47ac10b58cc4372a5670e02b2c3d479");
-    private static readonly Guid PhotoLibraryDrive = Guid.Parse("6483b7b1f71bd43eb6896c86148668cc");
-    private static readonly Guid TransientTempDrive = Guid.Parse("90f5e74ab7f9efda0ac298373a32ad8c");
-    private static readonly Guid CommunityDrive = Guid.Parse("3e5de26f8fa343c1975ad0dd2aa8564c");
+    private static readonly Guid VaultDrive = WellKnownAppDrives.VaultDrive.Alias.Value;
+    private static readonly Guid PhotoLibraryDrive = WellKnownAppDrives.PhotoLibraryDrive.Alias.Value;
+    private static readonly Guid TransientTempDrive = SystemDriveConstants.TransientTempDrive.Alias.Value;
+    private static readonly Guid CommunityDrive = WellKnownAppDrives.CommunityDrive.Alias.Value;
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]

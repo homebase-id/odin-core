@@ -234,25 +234,13 @@ namespace Odin.Services.Authentication.Owner
             await this.AssertPasswordKeyMatchAsync(request.CurrentAuthenticationPasswordReply.NonceHashedPassword64,
                 request.CurrentAuthenticationPasswordReply.Nonce64);
 
-            var hasZkKeys = await zeroKnowledgeKeyService.ExistsAsync();
-            if (hasZkKeys && request.ZkKeys == null)
-            {
-                throw new OdinClientException(
-                    "The zero-knowledge keys must be re-locked with the new password in the same request",
-                    OdinClientErrorCode.ZeroKnowledgeKeysRequired);
-            }
-
             var masterKey = odinContext.Caller.GetMasterKey();
 
             // One transaction: a new password without the re-locked keys would leave them locked by
             // the old one.
             await using var tx = await db.BeginStackedTransactionAsync();
+            await zeroKnowledgeKeyService.RelockForPasswordChangeAsync(request.ZkKeys);
             await SavePasswordAsync(request.NewPasswordReply, masterKey);
-            if (hasZkKeys)
-            {
-                await zeroKnowledgeKeyService.ReplaceForPasswordChangeAsync(request.ZkKeys);
-            }
-
             tx.Commit();
         }
 

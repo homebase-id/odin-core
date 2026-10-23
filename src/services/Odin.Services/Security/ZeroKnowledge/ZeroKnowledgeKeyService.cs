@@ -50,8 +50,6 @@ public class ZeroKnowledgeKeyService(
         {
             ZkSaltKek64 = record?.ZkSaltKek64,
             ZkKekEncryptedZkMasterKey = record?.ZkKekEncryptedZkMasterKey,
-            HasLoginKeys = !string.IsNullOrEmpty(record?.ZkMasterKeyEncryptedLoginKeys),
-            ShardRecoveryDriveIsZeroKnowledge = shardDrive?.IsZeroKnowledge ?? false,
             ShardRecoveryDriveZkMasterKeyEncryptedStorageKey = shardDrive?.ZkMasterKeyEncryptedStorageKey
         };
     }
@@ -77,24 +75,26 @@ public class ZeroKnowledgeKeyService(
     /// <summary>
     /// The password change half: the browser re-locked the master key with the new password and
     /// worked out the new login keys.  Called by <c>OwnerSecretService.ResetPasswordAsync</c> in the
-    /// same request as the password itself.
+    /// same transaction as the password itself.  Nothing to do before the browser has made the keys;
+    /// once it has, a password change without them would leave them locked by the old password.
     /// </summary>
-    public async Task ReplaceForPasswordChangeAsync(ZkKeysRequest request)
+    public async Task RelockForPasswordChangeAsync(ZkKeysRequest request)
     {
-        request.Validate();
-
         var existing = await GetRecordAsync();
         if (existing == null)
         {
-            throw new OdinClientException("Zero-knowledge keys are not set", OdinClientErrorCode.ZeroKnowledgeKeysNotSet);
+            return;
         }
 
-        await SaveAsync(request, existing.Created);
-    }
+        if (request == null)
+        {
+            throw new OdinClientException(
+                "The zero-knowledge keys must be re-locked with the new password in the same request",
+                OdinClientErrorCode.ZeroKnowledgeKeysRequired);
+        }
 
-    public async Task<bool> ExistsAsync()
-    {
-        return await GetRecordAsync() != null;
+        request.Validate();
+        await SaveAsync(request, existing.Created);
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ public class ZeroKnowledgeKeyService(
         odinContext.Caller.AssertHasMasterKey();
         request.Validate();
 
-        if (!await ExistsAsync())
+        if (await GetRecordAsync() == null)
         {
             throw new OdinClientException("Make the zero-knowledge keys before converting a drive",
                 OdinClientErrorCode.ZeroKnowledgeKeysNotSet);

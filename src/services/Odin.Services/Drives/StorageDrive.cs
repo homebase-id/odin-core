@@ -60,10 +60,21 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     public DriveSharingModel SharingModel => Data.SharingModel;
 
     /// <summary>
-    /// The drive key is locked by the owner's zero-knowledge master key, which only the browser can
-    /// open.  The server holds no copy it can open, so it never encrypts or decrypts for this drive.
+    /// The server holds no copy of the drive key it can open, so it never encrypts or decrypts for
+    /// this drive: the only copy is locked by the owner's zero-knowledge master key, which only the
+    /// browser can open.
     /// </summary>
-    public bool IsZeroKnowledge => Data.ZkMasterKeyEncryptedStorageKey != null;
+    public bool IsZeroKnowledge => Data.MasterKeyEncryptedStorageKey == null;
+
+    /// <summary>
+    /// Whether a grant with <paramref name="permission"/> carries the drive's storage key: reading
+    /// needs it, and ConditionalTemporalRead does too so the grantee can decrypt in-window files while
+    /// the owner is offline.  Never on a zero-knowledge drive, whose key reaches an app only from the
+    /// browser (docs/zero-knowledge-drives.md).
+    /// </summary>
+    public bool GrantCarriesStorageKey(DrivePermission permission) =>
+        !IsZeroKnowledge &&
+        (permission.HasFlag(DrivePermission.Read) || permission.HasFlag(DrivePermission.ConditionalTemporalRead));
 
     /// <summary>The browser's locked copy of the drive key.  Opaque to the server.</summary>
     public string ZkMasterKeyEncryptedStorageKey => Data.ZkMasterKeyEncryptedStorageKey;

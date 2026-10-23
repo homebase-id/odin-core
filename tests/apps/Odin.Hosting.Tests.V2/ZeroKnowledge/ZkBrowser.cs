@@ -6,7 +6,6 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Serialization;
 using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
@@ -41,14 +40,6 @@ internal static class ZkBrowser
     {
         var bytes = locked64.FromBase64();
         return AesGcm.Decrypt(bytes[IvLength..], key.ToSensitiveByteArray(), bytes[..IvLength]);
-    }
-
-    /// <summary>The login keys as login sends them: the password hash and the KEK.</summary>
-    public static byte[] LoginKeys(string password, string saltPassword64, string saltKek64)
-    {
-        var hpwd64 = SecondPasswordKey(password, saltPassword64).ToBase64();
-        var kek64 = SecondPasswordKey(password, saltKek64).ToBase64();
-        return OdinSystemSerializer.Serialize(new { hpwd64, kek64 }).ToUtf8ByteArray();
     }
 
     public sealed record Keys(byte[] MasterKey, ZkKeysRequest Request);

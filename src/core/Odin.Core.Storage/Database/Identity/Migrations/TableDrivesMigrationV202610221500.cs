@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
@@ -119,7 +120,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
         // row here.  Values match Odin.Services.Drives.DriveSharingModel.
         // ---------------------------------------------------------------------------------------------
         //
-        // A test holds this map and BuiltinDrives together (DriveSharingModelMapTests).
+        // A test holds this map and BuiltinDrives together (DriveSharingModelMigrationTests).
 
         private const int Private = 1;
         private const int SelectiveShare = 2;
@@ -148,15 +149,22 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
 
         // Runs on the new table, after the copy.  No identity filter: on Postgres every identity shares
         // the table and it is migrated once.
+        // One statement per model: DriveId is not the leading column of any index, so each statement
+        // scans the table.
         private static async Task FillSharingModelAsync(IConnectionWrapper cn)
         {
-            foreach (var (driveId, sharingModel) in BuiltinSharingModels)
+            foreach (var group in BuiltinSharingModels.GroupBy(kv => kv.Value))
             {
                 await using var update = cn.CreateCommand();
-                update.CommandText =
-                    "UPDATE DrivesMigrationsV202610221500 SET SharingModel=@sharingModel WHERE DriveId=@driveId;";
-                update.AddParameter("@sharingModel", DbType.Int32, sharingModel);
-                update.AddParameter("@driveId", DbType.Binary, driveId);
+                var driveIds = group.Select((kv, i) => (Name: $"@driveId{i}", DriveId: kv.Key)).ToList();
+                update.CommandText = "UPDATE DrivesMigrationsV202610221500 SET SharingModel=@sharingModel " +
+                                     $"WHERE DriveId IN ({string.Join(",", driveIds.Select(d => d.Name))});";
+                update.AddParameter("@sharingModel", DbType.Int32, group.Key);
+                foreach (var (name, driveId) in driveIds)
+                {
+                    update.AddParameter(name, DbType.Binary, driveId);
+                }
+
                 await update.ExecuteNonQueryAsync();
             }
         }

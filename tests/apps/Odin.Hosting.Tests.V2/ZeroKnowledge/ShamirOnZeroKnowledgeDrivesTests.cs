@@ -41,6 +41,6 @@ public class ShamirOnZeroKnowledgeDrivesTests : ShamirFixture
 
         var newKeys = await ZkOwnerSteps.CreateKeysAsync(recovered, NewPassword, "login keys".ToUtf8ByteArray());
         await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(recovered, newKeys.MasterKey);
-        Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).ShardRecoveryDriveIsZeroKnowledge, Is.True);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).ShardRecoveryDriveZkMasterKeyEncryptedStorageKey, Is.Not.Null);
     }
 }

@@ -2657,8 +2657,7 @@ namespace Odin.Services.Membership.Connections
                 var drive = await driveManager.GetDriveAsync(req.PermissionedDrive.Drive.Alias, true);
                 var permission = req.PermissionedDrive.Permission;
 
-                var needsStorageKey = permission.HasFlag(DrivePermission.Read) ||
-                                      permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+                var needsStorageKey = drive.GrantCarriesStorageKey(permission);
 
                 if (needsStorageKey)
                 {
@@ -2849,8 +2848,7 @@ namespace Odin.Services.Membership.Connections
             {
                 var drive = await driveManager.GetDriveAsync(req.PermissionedDrive.Drive.Alias, true);
 
-                bool needsStorageKey = req.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) ||
-                                       req.PermissionedDrive.Permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+                bool needsStorageKey = drive.GrantCarriesStorageKey(req.PermissionedDrive.Permission);
 
                 EccEncryptedPayload sealedStorageKey = null;
                 if (needsStorageKey)

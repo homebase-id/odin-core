@@ -71,9 +71,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// <summary>Who holds which key; see <see cref="DriveSharingModel"/>.</summary>
         public DriveSharingModel SharingModel { get; set; }
 
-        /// <summary>The drive key is locked by the zero-knowledge master key and only the browser can open it.</summary>
-        public bool IsZeroKnowledge { get; set; }
-
         /// <summary>
         /// A zero-knowledge drive's key, locked by the owner's zero-knowledge master key.  The owner's
         /// browser opens it; the server cannot.  Null on every other drive.
@@ -106,7 +103,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
                 WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c,
                 SharingModel = drive.SharingModel,
-                IsZeroKnowledge = drive.IsZeroKnowledge,
                 ZkMasterKeyEncryptedStorageKey = drive.ZkMasterKeyEncryptedStorageKey,
                 ZkStorageKeyEncryptedWriteOnlyPrivateKey = drive.ZkStorageKeyEncryptedWriteOnlyPrivateKey
             };

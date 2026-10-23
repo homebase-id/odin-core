@@ -2,6 +2,7 @@ using System;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Services.Util;
 
 namespace Odin.Services.Security.ZeroKnowledge;
 
@@ -51,14 +52,10 @@ public sealed class ZkStatusResponse
 
     public string ZkKekEncryptedZkMasterKey { get; init; }
 
-    public bool HasLoginKeys { get; init; }
-
-    public bool ShardRecoveryDriveIsZeroKnowledge { get; init; }
-
     /// <summary>
-    /// The Shard Recovery drive's key, locked by the zero-knowledge master key.  The browser converts
-    /// the drive again when this no longer opens: after a reset with the recovery key the master key
-    /// is new.
+    /// The Shard Recovery drive's key, locked by the zero-knowledge master key; null until the drive
+    /// is converted.  The browser converts the drive again when this no longer opens: after a reset
+    /// with the recovery key the master key is new.
     /// </summary>
     public string ShardRecoveryDriveZkMasterKeyEncryptedStorageKey { get; init; }
 }
@@ -85,14 +82,12 @@ public sealed class ZkConvertDriveRequest
 
     public void Validate()
     {
-        ZkBlob.AssertLocked(ZkMasterKeyEncryptedStorageKey, nameof(ZkMasterKeyEncryptedStorageKey));
+        // The limits are the Drives columns'
+        ZkBlob.AssertLocked(ZkMasterKeyEncryptedStorageKey, nameof(ZkMasterKeyEncryptedStorageKey), maxLength: 1024);
         ZkBlob.AssertBase64(EncryptedIdIv64, nameof(EncryptedIdIv64), exactLength: 16);
-        ZkBlob.AssertBase64(EncryptedIdValue64, nameof(EncryptedIdValue64));
-        ZkBlob.AssertLocked(ZkStorageKeyEncryptedWriteOnlyPrivateKey, nameof(ZkStorageKeyEncryptedWriteOnlyPrivateKey));
-        if (string.IsNullOrWhiteSpace(WriteOnlyPublicKeyJwk))
-        {
-            throw new OdinClientException($"{nameof(WriteOnlyPublicKeyJwk)} is required", OdinClientErrorCode.ArgumentError);
-        }
+        ZkBlob.AssertBase64(EncryptedIdValue64, nameof(EncryptedIdValue64), maxLength: 1024);
+        ZkBlob.AssertLocked(ZkStorageKeyEncryptedWriteOnlyPrivateKey, nameof(ZkStorageKeyEncryptedWriteOnlyPrivateKey), maxLength: 4096);
+        OdinValidationUtils.AssertNotNullOrEmpty(WriteOnlyPublicKeyJwk, nameof(WriteOnlyPublicKeyJwk));
     }
 }
 
@@ -103,22 +98,23 @@ public sealed class ZkConvertDriveRequest
 internal static class ZkBlob
 {
     private const int MinLockedLength = 12 + 1 + 16;
-    private const int MaxLength = 4096;
+    private const int DefaultMaxLength = 4096;
 
-    public static void AssertLocked(string value64, string name)
+    public static void AssertLocked(string value64, string name, int maxLength = DefaultMaxLength)
     {
-        var bytes = AssertBase64(value64, name);
+        var bytes = AssertBase64(value64, name, maxLength: maxLength);
         if (bytes.Length < MinLockedLength)
         {
             throw new OdinClientException($"{name} is too short to be a locked value", OdinClientErrorCode.ArgumentError);
         }
     }
 
-    public static byte[] AssertBase64(string value64, string name, int? exactLength = null)
+    public static byte[] AssertBase64(string value64, string name, int? exactLength = null, int maxLength = DefaultMaxLength)
     {
-        if (string.IsNullOrWhiteSpace(value64) || value64.Length > MaxLength)
+        OdinValidationUtils.AssertNotNullOrEmpty(value64, name);
+        if (value64.Length > maxLength)
         {
-            throw new OdinClientException($"{name} is required", OdinClientErrorCode.ArgumentError);
+            throw new OdinClientException($"{name} is longer than {maxLength}", OdinClientErrorCode.ArgumentError);
         }
 
         byte[] bytes;
