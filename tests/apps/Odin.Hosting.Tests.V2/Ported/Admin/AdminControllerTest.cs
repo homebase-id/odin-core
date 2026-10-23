@@ -128,13 +128,11 @@ namespace Odin.Hosting.Tests.V2.Ported.Admin;
 /// <c>AppData.Content</c> was left empty. Nothing asserts on content, so the behaviour is unchanged
 /// here and the argument is simply gone.</item>
 ///
-/// <item><b>Two assertions in the original that cannot fail, carried verbatim:</b>
+/// <item><b>Assertions in the original that could not fail, fixed (#1767):</b>
 /// <c>TenantModel.Id</c> is a <c>string</c> that defaults to <c>""</c>, so
-/// <c>Assert.That(tenant.Id, Is.Not.Null)</c> and <c>Is.Not.EqualTo(Guid.Empty)</c> are both
-/// vacuously true — the second compares a boxed string against a boxed <c>Guid</c> and never reaches
-/// an equality operator, the same trap the README records for <c>GuidId</c> vs <c>Guid</c>. Tightening
-/// them would be a coverage change, so they stay as they are; the id is checked for real one test
-/// over, in <see cref="ItShouldGetTenantMetrics"/>, which parses it.</item>
+/// <c>Assert.That(tenant.Id, Is.Not.Null)</c> and <c>Is.Not.EqualTo(Guid.Empty)</c> were both
+/// vacuously true — the second compared a boxed string against a boxed <c>Guid</c>. Both tests that
+/// had them now parse the id as a UUID and compare the parsed value with <see cref="Guid.Empty"/>.</item>
 ///
 /// <item>The log-event invariant is on and needs no tolerations: nothing this fixture does — including
 /// reading metrics for the five registered-but-never-materialised tenants, which opens a scope per
@@ -452,8 +450,8 @@ public class AdminControllerTest : V2Fixture
     {
         using var apiClient = CreateAdminClient();
         var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}?include-payload=true");
-        Assert.That(tenant.Id, Is.Not.Null);
-        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(Guid.TryParse(tenant.Id, out var tenantId), Is.True, $"not a canonical UUID: {tenant.Id}");
+        Assert.That(tenantId, Is.Not.EqualTo(Guid.Empty));
 
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
         Assert.That(tenant.RegistrationPath, Does.StartWith(TenantDataRootPath));
@@ -483,8 +481,8 @@ public class AdminControllerTest : V2Fixture
         using var apiClient = CreateAdminClient();
         var tenant = await GetOkAsync<TenantModel>(apiClient, $"tenants/{Identities.Frodo}?include-payload=true");
 
-        Assert.That(tenant.Id, Is.Not.Null);
-        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(Guid.TryParse(tenant.Id, out var tenantId), Is.True, $"not a canonical UUID: {tenant.Id}");
+        Assert.That(tenantId, Is.Not.EqualTo(Guid.Empty));
 
         Assert.That(tenant.Domain, Is.EqualTo(Identities.Frodo));
         Assert.That(tenant.RegistrationPath, Does.StartWith(TenantDataRootPath));
