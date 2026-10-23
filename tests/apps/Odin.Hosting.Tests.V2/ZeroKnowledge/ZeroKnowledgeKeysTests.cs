@@ -88,6 +88,26 @@ public class ZeroKnowledgeKeysTests : V2Fixture
     }
 
     [Test]
+    public async Task TwoFirstLoginsAtOnceSaveOneSetOfKeys()
+    {
+        var owner = await LoginAsOwner();
+        var first = ZkBrowser.MakeKeys(Password, LoginKeys);
+        var second = ZkBrowser.MakeKeys(Password, LoginKeys);
+
+        var responses = await Task.WhenAll(
+            Client(owner).CreateKeys(first.Request),
+            Client(owner).CreateKeys(second.Request));
+
+        var accepted = responses.Count(r => r.IsSuccessStatusCode);
+        Assert.That(accepted, Is.EqualTo(1),
+            string.Join(", ", responses.Select(r => $"{r.StatusCode}: {r.Error?.Content}")));
+        var (winner, loser) = responses[0].IsSuccessStatusCode ? (first, responses[1]) : (second, responses[0]);
+        DriveAsserts.AssertRejected(loser, OdinClientErrorCode.ZeroKnowledgeKeysAlreadySet);
+        Assert.That(ZkBrowser.OpenMasterKey(Password, await GetStatus(owner)), Is.EqualTo(winner.MasterKey),
+            "the stored keys are the ones the server said yes to");
+    }
+
+    [Test]
     public async Task APasswordChangeMustReLockTheKeys()
     {
         var owner = await LoginAsOwner();
@@ -189,10 +209,11 @@ public class ZeroKnowledgeKeysTests : V2Fixture
         var keys = await CreateKeys(owner);
         await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
 
-        var upload = await UploadEncryptedFile(await LoginAsOwner());
+        var freshOwner = await LoginAsOwner();
 
-        Assert.That(upload.IsSuccessStatusCode, Is.False,
-            $"an encrypted upload to a zero-knowledge drive must fail; actual {upload.StatusCode}");
+        // The upload client throws on any 400 rather than returning it.
+        var e = Assert.ThrowsAsync<System.Exception>(() => UploadEncryptedFile(freshOwner));
+        Assert.That(e!.Message, Does.EndWith(nameof(OdinClientErrorCode.DriveIsZeroKnowledge)));
     }
 
     // ---------------------------------------------------------------------------------------------

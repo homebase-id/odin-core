@@ -63,13 +63,12 @@ public class ZeroKnowledgeKeyService(
         odinContext.Caller.AssertHasMasterKey();
         request.Validate();
 
-        if (await GetRecordAsync() != null)
+        // Insert-if-absent, not check-then-write: two first logins at once must not both win.
+        if (!await Storage.TryInsertAsync(tblKeyValue, ZkKeyStorageId, ToRecord(request, created: UnixTimeUtc.Now())))
         {
             throw new OdinClientException("Zero-knowledge keys are already set",
                 OdinClientErrorCode.ZeroKnowledgeKeysAlreadySet);
         }
-
-        await SaveAsync(request, created: UnixTimeUtc.Now());
     }
 
     /// <summary>
@@ -94,7 +93,7 @@ public class ZeroKnowledgeKeyService(
         }
 
         request.Validate();
-        await SaveAsync(request, existing.Created);
+        await Storage.UpsertAsync(tblKeyValue, ZkKeyStorageId, ToRecord(request, existing.Created));
     }
 
     /// <summary>
@@ -169,17 +168,12 @@ public class ZeroKnowledgeKeyService(
         return await Storage.GetAsync<ZkKeyRecord>(tblKeyValue, ZkKeyStorageId);
     }
 
-    private async Task SaveAsync(ZkKeysRequest request, UnixTimeUtc created)
+    private static ZkKeyRecord ToRecord(ZkKeysRequest request, UnixTimeUtc created) => new()
     {
-        var record = new ZkKeyRecord
-        {
-            ZkSaltKek64 = request.ZkSaltKek64,
-            ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
-            ZkMasterKeyEncryptedLoginKeys = request.ZkMasterKeyEncryptedLoginKeys,
-            Created = created,
-            Updated = UnixTimeUtc.Now()
-        };
-
-        await Storage.UpsertAsync(tblKeyValue, ZkKeyStorageId, record);
-    }
+        ZkSaltKek64 = request.ZkSaltKek64,
+        ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
+        ZkMasterKeyEncryptedLoginKeys = request.ZkMasterKeyEncryptedLoginKeys,
+        Created = created,
+        Updated = UnixTimeUtc.Now()
+    };
 }

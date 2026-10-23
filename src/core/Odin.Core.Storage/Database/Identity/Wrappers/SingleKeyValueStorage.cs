@@ -69,6 +69,14 @@ public class SingleKeyValueStorage
         return await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
+    /// <summary>Saves <paramref name="value"/> only when nothing is stored under <paramref name="key"/>.</summary>
+    /// <returns>False when something already was; it is left as it was.</returns>
+    public async Task<bool> TryInsertAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
+    {
+        var json = OdinSystemSerializer.Serialize(value);
+        return await tblKeyValue.TryInsertAsync(new KeyValueRecord { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+    }
+
     public async Task<int> UpsertBytesAsync(TableKeyValueCached tblKeyValue, Guid key, byte[] value)
     {
         return await tblKeyValue.UpsertAsync(new KeyValueRecord { key = MakeStorageKey(key), data = value });

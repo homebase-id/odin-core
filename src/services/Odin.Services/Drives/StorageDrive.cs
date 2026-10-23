@@ -229,7 +229,12 @@ public sealed class StorageDriveData
 {
     public Guid Id { get; init; }
 
-    public Guid TempOriginalDriveId { get; init; }
+    /// <summary>
+    /// What <see cref="EncryptedIdValue"/> decrypts to (the StorageKeyCheckValue column).  On drives
+    /// older than the alias migration it is not <see cref="Id"/>; a browser-made key encrypts
+    /// <see cref="Id"/>, so conversion sets it to that.
+    /// </summary>
+    public Guid TempOriginalDriveId { get; set; }
 
     public string Name { get; init; }
 

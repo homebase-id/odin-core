@@ -517,9 +517,11 @@ public class DriveManager : IDriveManager
         }
 
         storageDrive.MasterKeyEncryptedStorageKey = null;
+        storageDrive.SharingModel = DriveSharingModel.Private; // its label already, for Shard Recovery
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
         storageDrive.EncryptedIdIv = encryptedIdIv;
         storageDrive.EncryptedIdValue = encryptedIdValue;
+        storageDrive.TempOriginalDriveId = storageDrive.Id; // what the browser encrypted
         storageDrive.WriteOnlyKeyPair = writeOnlyPublicKey;
         storageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey = zkStorageKeyEncryptedWriteOnlyPrivateKey;
 
@@ -887,6 +889,13 @@ public class DriveManager : IDriveManager
 
     private static DrivesRecord ToRecord(StorageDriveData storageDrive)
     {
+        // A missing master-key copy is what makes a drive zero knowledge, so a drive with neither
+        // copy would pass for one with no key anywhere.
+        if (storageDrive.MasterKeyEncryptedStorageKey == null && storageDrive.ZkMasterKeyEncryptedStorageKey == null)
+        {
+            throw new OdinSystemException($"Drive {storageDrive.Id} has no copy of its key");
+        }
+
         var details = new StorageDriveDetails
         {
             Metadata = storageDrive.Metadata,

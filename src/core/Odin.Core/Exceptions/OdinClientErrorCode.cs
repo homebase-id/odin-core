@@ -156,4 +156,5 @@ public enum OdinClientErrorCode
     ZeroKnowledgeKeysNotSet = 9009,
     ZeroKnowledgeKeysRequired = 9010,
     DriveHasEncryptedFiles = 9011,
+    DriveIsZeroKnowledge = 9012,
 }

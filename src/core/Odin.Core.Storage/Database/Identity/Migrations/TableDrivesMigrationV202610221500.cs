@@ -120,7 +120,8 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
         // row here.  Values match Odin.Services.Drives.DriveSharingModel.
         // ---------------------------------------------------------------------------------------------
         //
-        // A test holds this map and BuiltinDrives together (DriveSharingModelMigrationTests).
+        // A test pins this map as it shipped (DriveSharingModelMigrationTests).  A built-in drive added
+        // or relabelled later needs a migration of its own.
 
         private const int Private = 1;
         private const int SelectiveShare = 2;

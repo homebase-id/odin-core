@@ -683,9 +683,15 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+            var drive = await this.DriveManager.GetDriveAsync(driveId);
+            if (drive.IsZeroKnowledge)
+            {
+                throw new OdinClientException("The server cannot encrypt for a zero-knowledge drive",
+                    OdinClientErrorCode.DriveIsZeroKnowledge);
+            }
 
-            (await this.DriveManager.GetDriveAsync(driveId)).AssertValidStorageKey(storageKey);
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+            drive.AssertValidStorageKey(storageKey);
 
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;

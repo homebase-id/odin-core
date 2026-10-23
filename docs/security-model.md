@@ -21,6 +21,9 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - An app sees only what it was granted: "an app gains nothing beyond its own reach". This is cryptographic, not just a
   check: no storage key in hand, no working grant (`PermissionContextStorageKeySource`) **(V)**.
 - All files are zero knowledge encrypted at rest. No decryption keys are stored on the server, they only appears as in-memory blips when the user is online and calls the API.
+- **Zero-knowledge drives** (today only Shard Recovery) have no master-key copy of their key: the only copy is locked
+  by the owner's zero-knowledge master key, which only the browser opens (`StorageDrive.IsZeroKnowledge`). The server
+  never encrypts for one, and no grant on one carries its key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
 
 ### Callers
 
@@ -86,7 +89,8 @@ Later:
 - **Extend permissions** (owner console `ExtendAppPermissions`) adds drives at runtime, e.g. one per feed channel.
 - **Owned circles at runtime:** an app may create circles, but only granting permission keys and drive access it holds
   itself. On a drive it doesn't own it may grant Read only, and only with the storage key
-  (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**.
+  (`CircleMembershipService` → `AssertAppMayGrantDrivesAsync`) **(V)**. No app holds a zero-knowledge drive's key, so
+  Read on one it doesn't own is refused **(V)**.
 - **Uninstall** can delete the app's drives and circles (`drive-deletion-and-app-uninstall.md`) **(V)**.
 
 ## 3. Drives
@@ -131,8 +135,9 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
 - A connected caller's rights are the union of their enabled circles' grants. A disabled circle grants nothing **(V)**.
 - `AppId` on a circle is the owning app; null = owner circle. An app may change only its own circles and can't enrol
   anyone into an owner circle **(V)**.
-- **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants carry no key
-  material (`RequiresPeerKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
+- **Read grants need the Peer Key** (the drive's storage key is wrapped for the member). Write/react grants, and every
+  grant on a zero-knowledge drive, carry no key material (`CircleNetworkService.RequiresPeerKeyAsync`, which asks
+  `StorageDrive.GrantCarriesStorageKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
   grant next time the Peer Key is in scope **(V)**.
 - **No confused deputy:** an app can't plant a circle naming a drive it can't read, which the owner's next grant would
   otherwise make work (`drive-addressing.md`). Creation is bounded by what the app holds (section 2), and updating a
@@ -233,6 +238,8 @@ KeyHeader ──► payloads, thumbnails, appData.content (AES)
   and rewraps it with its own storage key **(V)**. Payload bytes are not re-encrypted **(inferred)**.
 - `IsEncrypted = false` files use an empty KeyHeader and are stored in clear **(V)**.
 - `StorageDrive.AssertValidStorageKey` checks a key against the drive's encrypted id before use **(V)**.
+- A zero-knowledge drive refuses any upload the server would have to rewrap (`EncryptKeyHeader` →
+  `DriveIsZeroKnowledge`) **(V)**. Its files must be unencrypted until the browser can write the header itself.
 - Ciphers: AES-CBC in `KeyHeader`, AES-GCM preferred for newer paths (CLAUDE.md, `youauth` docs).
 - Write-without-read keys: drive `WriteOnlyKeyPair` (data deposits) and `PeerKeyStore.WriteOnlyKeyPair` (grant deposits)
   **(V)**.

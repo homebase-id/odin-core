@@ -1,6 +1,8 @@
 # Zero-knowledge keys in the database and the browser: plan A
 
-**Status:** plan, nothing built. Half A of steps 1 and 2 in the
+**Status:** built, in review: odin-core #1998, odin-js #988 and Odin-SQLite-Generator #38
+(2026-10-23). [As built](#as-built-2026-10-23) lists where the build differs from the plan below.
+Half A of steps 1 and 2 in the
 [order of work](zero-knowledge-drives.md#order-of-work). Half B, Shamir in the browser, is kept as
 a reference in [zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md). It is there so
 A gets B's foundations right; it is not being built now.
@@ -8,10 +10,10 @@ A gets B's foundations right; it is not being built now.
 Markers: **(V)** verified by reading the code (2026-10-22). Line counts and estimates are
 inferred.
 
-## As built (experiment, 2026-10-22)
+## As built (2026-10-23)
 
 Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
-(Odin-SQLite-Generator), uncommitted. Where it differs from the plan below:
+(Odin-SQLite-Generator). Where it differs from the plan below:
 
 - **The keys have their own record** (`ZeroKnowledgeKeyService`, KeyValue), not new fields in
   `PasswordData`. The browser makes the salt itself and reads it back after login from
@@ -27,10 +29,21 @@ Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
   whenever the drive key no longer opens with the current master key.
 - **Old grant copies of the drive key are left alone.** Conversion replaces the key, so the old
   one locks nothing, and the server refuses it from then on: the drive id is encrypted with the
-  new key. A test proves an encrypted upload to a converted drive fails.
+  new key. The server never encrypts for a zero-knowledge drive at all: an encrypted upload is
+  refused with `DriveIsZeroKnowledge`, and a test proves it.
+- **Shard Recovery is the first Private drive.** It is labelled Private by the migration's frozen
+  map and by its `CreateDriveRequest`, and conversion sets Private as well. Conversion drops the
+  master-key copy, stores the browser's locked keys and the new write-only pair, and resets the
+  whole `OdinContextCache` after commit.
+- **The check value becomes the drive id.** The browser encrypts the drive id, but
+  `AssertValidStorageKey` compares with `StorageKeyCheckValue`, which on drives older than the
+  alias migration is not the drive id. Conversion sets it to the drive id.
+- **No drive is saved without a copy of its key**: a drive is zero knowledge because it has no
+  master-key copy, so `DriveManager` refuses to save one with neither copy.
 - **Grants never escrow a zero-knowledge drive's key** (`ExchangeGrantService.CreateDriveGrant`).
 - **New drives get their label** from `CreateDriveRequest.SharingModel`, set on every built-in
-  drive; a test holds `BuiltinDrives` and the migration's frozen map together.
+  drive. Existing identities get it from the migration's frozen map, which a test pins as it
+  shipped; a built-in drive added or relabelled later needs a migration of its own.
 - **The write-only pair**: the public half is the server's usual record, built from the browser's
   JWK; the private half (PKCS8, locked by the drive key) is in a third new column,
   `ZkStorageKeyEncryptedWriteOnlyPrivateKey`.
@@ -53,7 +66,7 @@ Nothing a user sees. After A, every owner who logs in has, without noticing:
 - A **zero-knowledge Shard Recovery drive**: a new drive key locked by the ZK master key, and a
   new write-only key pair. The server's old copies are gone.
 
-The database has the drive columns `SharingModel` and `ZkMasterKeyEncryptedStorageKeyJson`, with
+The database has the drive columns `SharingModel` and `ZkMasterKeyEncryptedStorageKey`, with
 `SharingModel` filled in for existing drives.
 
 **Why A first:** the login keys and the conversion need the password, so they can only happen at
@@ -96,8 +109,7 @@ social-sync after a run.
 
 **Change (one generator commit):**
 - In `Drives()` in `Program.cs`, add:
-  - `ZkMasterKeyEncryptedStorageKeyJson`: String, nullable, the same shape as the master key
-    column.
+  - `ZkMasterKeyEncryptedStorageKey`: String, nullable. The browser's locked value, not JSON.
   - `SharingModel`: Int32 with a default, like Circle's `GrantOn`.
 - Change `MasterKeyEncryptedStorageKeyJson` to `notNull = false`. There is no precedent for making
   a NOT NULL column nullable; only the other direction has been done.
@@ -144,9 +156,10 @@ social-sync after a run.
 - Convert the Shard Recovery drive:
   - Take the ZK-locked drive key and the new write-only key pair.
   - Refuse if any file on the drive is encrypted with the drive key (decision 4).
-  - Set `SharingModel` to Private. Delete the MK copy and any grant copies. Write grants carry no
-    key (`ExchangeGrantService.CreateDriveGrant`) **(V)**, so the Recovery circle is unaffected.
-  - Clear the `OdinContextCache` entries that hold the old key.
+  - Delete the MK copy. Grant copies of the old key are left alone (see As built). Write grants
+    carry no key (`ExchangeGrantService.CreateDriveGrant`) **(V)**, so the Recovery circle is
+    unaffected.
+  - Reset the `OdinContextCache`, whose owner contexts hold the old key.
 
 ### Tests
 
@@ -186,7 +199,7 @@ Decide these before coding, because B reads them and they are stored for every o
 |---|---|---|---|
 | `ZkKekEncryptedZkMasterKey` | browser | browser | AES-GCM, random IV, 16-byte key like today's master key |
 | `ZkMasterKeyEncryptedLoginKeys` | browser | browser (B: Shamir setup) | AES-GCM; JSON with `hpwd64` and `kek64` as login sends them |
-| `ZkMasterKeyEncryptedStorageKeyJson` | browser | browser, then sealed to apps | AES-GCM, 16-byte drive key like today's |
+| `ZkMasterKeyEncryptedStorageKey` | browser | browser, then sealed to apps | AES-GCM, 16-byte drive key like today's |
 | Write-only key pair | browser | server reads the public half; browsers open the private half (B) | public: JWK as today; private: PKCS8 locked with AES-GCM |
 
 The write-only key pair reuses the formats the browser and the server already share; nothing

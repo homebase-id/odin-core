@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
@@ -10,9 +9,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Migrations;
 using Odin.Core.Storage.Factory;
-using Odin.Services.Apps.Builtin;
 using Odin.Services.Drives;
-using Odin.Services.Drives.Management;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
 
@@ -75,19 +72,37 @@ public class DriveSharingModelMigrationTests : IocTestBase
 
     /// <summary>
     /// Existing identities get their labels from the migration's frozen map; new identities from
-    /// <see cref="BuiltinDrives"/>.  The two must agree.
+    /// <c>BuiltinDrives</c>.  The map is pinned to the declarations as they were when it
+    /// shipped (2026-10-22), not to today's: a drive added or relabelled later needs its own
+    /// migration, and must not change this one.
     /// </summary>
     [Test]
-    public void TheMigrationsLabelsMatchTheLiveDeclarations()
+    public void TheMigrationsLabelsAreTheDeclarationsWhenItShipped()
     {
-        var live = typeof(BuiltinDrives)
-            .GetFields(BindingFlags.Public | BindingFlags.Static)
-            .Where(f => f.FieldType == typeof(CreateDriveRequest))
-            .Select(f => (CreateDriveRequest)f.GetValue(null)!)
-            .Where(d => d.SharingModel != DriveSharingModel.Collaborative)
-            .ToDictionary(d => d.TargetDrive.Alias.Value, d => (int)d.SharingModel);
+        const int @private = (int)DriveSharingModel.Private;
+        const int selectiveShare = (int)DriveSharingModel.SelectiveShare;
+        var whenShipped = new Dictionary<Guid, int>
+        {
+            [Guid.Parse("2612429d1c3f037282b8d42fb2cc0499")] = @private, // contacts
+            [Guid.Parse("92bbcad8-3558-417b-9376-9976c086a674")] = @private, // email
+            [Guid.Parse("4db49422ebad02e99ab96e9c477d1e08")] = @private, // feed
+            [Guid.Parse("a6f991e214b11c8c9796f664e1ec0cac")] = @private, // wallet
+            [Guid.Parse("f47ac10b58cc4372a5670e02b2c3d479")] = @private, // vault
+            [Guid.Parse("9ff813aff2d61e2f9b9db189e72d1a11")] = @private, // chat
+            [Guid.Parse("e69b5a48a663482fbfd846f3b0b143b0")] = @private, // mail
+            [Guid.Parse("46242d0d67604b2aa683f05cd48d4aef")] = @private, // shard recovery
+            [Guid.Parse("6483b7b1f71bd43eb6896c86148668cc")] = selectiveShare, // photo library
+            [Guid.Parse("3b9c5f2e-7a41-4d6b-9e0c-8f1a2b3c4d5e")] = selectiveShare, // stickers
+            [Guid.Parse("2e191a14-8640-4ebc-b0c8-aaac913f6fa8")] = selectiveShare, // location
+            [Guid.Parse("a44e7a2651f44a26ad125d7627b35d0e")] = selectiveShare, // lists
+            [Guid.Parse("a85f8562-6c74-4947-896b-619812cafccc")] = selectiveShare, // moments
+            [Guid.Parse("ec83345af6a747d4404ef8b0f8844caa")] = selectiveShare, // home page config
+            [Guid.Parse("8f12d8c4933813d378488d91ed23b64c")] = selectiveShare, // profile
+            [Guid.Parse("6d1711af-8b93-43ef-b798-b84d51f25828")] = selectiveShare, // webdrop
+            [Guid.Parse("90f5e74ab7f9efda0ac298373a32ad8c")] = (int)DriveSharingModel.Unclassified, // transient temp
+        };
 
-        Assert.That(TableDrivesMigrationV202610221500.BuiltinSharingModels, Is.EquivalentTo(live));
+        Assert.That(TableDrivesMigrationV202610221500.BuiltinSharingModels, Is.EquivalentTo(whenShipped));
     }
 
     private static async Task InsertAsync(ScopedIdentityConnectionFactory connectionFactory, Guid identityId,
