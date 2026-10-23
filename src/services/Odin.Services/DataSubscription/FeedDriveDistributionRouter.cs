@@ -160,9 +160,17 @@ namespace Odin.Services.DataSubscription
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(notification.OdinContext);
             {
+                // Only followers the ACL admits, as for encrypted posts; the worker checks again at send time.
+                // Sequential: the checks share the request's database connection.  For a public post they read nothing.
+                var acl = notification.ServerFileHeader.ServerMetadata.AccessControlList;
                 var recipients = await GetFollowersAsync(notification.File.DriveId, newContext);
                 foreach (var recipient in recipients)
                 {
+                    if (!await _driveAcl.IdentityHasPermissionAsync(recipient, acl, newContext))
+                    {
+                        continue;
+                    }
+
                     _logger.LogDebug("Distributing {file} {recipient}", item.SourceFile, recipient);
                     await AddToFeedOutbox(recipient, item, subscriptionSource);
                 }
