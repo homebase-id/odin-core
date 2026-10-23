@@ -31,7 +31,7 @@ using Odin.Services.Profile;
 namespace Odin.Hosting.Tests.V2.Storage;
 
 /// <summary>
-/// Every path that adds payload bytes refuses them once the identity is on a full plan (docs/hosting-plans.md), and
+/// Every path that adds payload bytes refuses them once the identity is over its quota (docs/hosting-plans.md), and
 /// a peer's file waits in the sender's outbox, leaving nothing on the full recipient, until set-plan gives it room.
 /// TenantQuotaTests covers the same guard for a hand-set OutOfQuota and the owner's own uploads.
 /// </summary>
@@ -43,16 +43,14 @@ public class PlanQuotaPathTests : V2Fixture
 
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
+    // The full plan's quota: one byte, which an identity storing anything is at or over
+    private const long FullQuota = 1;
+
+    // What the test identities get back: plenty, so only the identity moved to "full" is full
+    private const long RoomyQuota = 1_099_511_627_776;
+
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
-        new Dictionary<string, string?>(TestAdminApi.Config())
-        {
-            ["Registry:Plans:0:Id"] = "free",
-            ["Registry:Plans:0:Default"] = "true",
-            // The test identities' own plan (DevEnvironmentSetup), unlimited so only the identity moved to "full" is full
-            ["Registry:Plans:1:Id"] = DevPlan,
-            ["Registry:Plans:2:Id"] = FullPlan,
-            ["Registry:Plans:2:QuotaBytes"] = "0",
-        };
+        new Dictionary<string, string?>(TestAdminApi.Config());
 
     /// <summary>The plan lives in the identity registry, which the per-test reset does not restore</summary>
     [TearDown]
@@ -249,8 +247,16 @@ public class PlanQuotaPathTests : V2Fixture
 
     private async Task SetPlanAsync(string identity, string planId)
     {
-        var response = await TestAdminApi.SetPlanAsync(Host, identity, planId);
+        var quota = planId == FullPlan ? FullQuota : RoomyQuota;
+        var response = await TestAdminApi.SetPlanAsync(Host, identity, planId, quota);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"set-plan {identity} {planId}");
+
+        if (planId == FullPlan)
+        {
+            // A quota is more than 0, so full takes something stored: a header is enough to be at a 1-byte quota
+            var owner = await LoginAsOwner(identity);
+            await PlanQuotaTests.StoreSomethingAsync(owner, await PlanQuotaTests.CreateDriveAsync(owner));
+        }
     }
 
     private static UploadManifest ManifestFor(List<TestPayloadDefinition> payloads) =>

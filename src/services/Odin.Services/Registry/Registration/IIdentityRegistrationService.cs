@@ -66,8 +66,8 @@ public interface IIdentityRegistrationService
     Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Create identity on own or managed domain. Its hosting plan comes only from the invitation code; without
-    /// one it has none, and so the default plan (docs/hosting-plans.md).
+    /// Create identity on own or managed domain. Its plan, quota and public web presence come only from the
+    /// invitation code; without them it has no plan and the host's default quota (docs/hosting-plans.md).
     /// </summary>
     /// <returns>First-run token</returns>
     Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string invitationCode);

@@ -19,12 +19,11 @@ public class TenantModel
     public bool Enabled => Status != TenantStatus.Disabled;
     public DisabledReason? DisabledReason { get; set; }
     public UnixTimeUtc? StatusChangedAt { get; set; }
-    // What the identity has: its plan's say if the plan has one (docs/hosting-plans.md), otherwise its own
+    // What the identity has, set with its plan (docs/hosting-plans.md)
     public bool EnablePublicWebPresence { get; set; }
 
     /// <summary>
-    /// The hosting plan as the registry stores it; null for none. None, "free" or an id not in Registry:Plans is the
-    /// default plan (docs/hosting-plans.md).
+    /// The hosting provider's plan on the registration, a label; null for none (docs/hosting-plans.md)
     /// </summary>
     public string? PlanId { get; set; }
     public string? PayloadPath { get; set; } = null;

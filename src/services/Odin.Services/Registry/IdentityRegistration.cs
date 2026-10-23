@@ -14,6 +14,11 @@ namespace Odin.Services.Registry
     /// <param name="Source">Where the code came from, as the invitation-code service has it</param>
     public record RegistrationInvitation(string Code, string InvitedBy, string Source);
 
+    /// <summary>
+    /// An identity's plan and what it gives: its quota (null for the host's default) and public web presence
+    /// </summary>
+    public record PlanSetting(string PlanId, long? QuotaBytes, bool EnablePublicWebPresence);
+
     public class IdentityRegistrationRequest
     {
         public Guid? Id { get; init; }
@@ -25,6 +30,12 @@ namespace Odin.Services.Registry
         /// gets stored with the identity   
         /// </summary>
         public string PlanId { get; set; }
+
+        /// <summary>
+        /// The plan's quota; null for the host's default (HostingProvider:DefaultQuotaBytes)
+        /// </summary>
+        public long? QuotaBytes { get; set; }
+
         public bool IsCertificateManaged { get; set; }
 
         /// <summary>
@@ -71,7 +82,16 @@ namespace Odin.Services.Registry
         /// </summary>
         public Guid? FirstRunToken { get; set; }
 
+        /// <summary>
+        /// The hosting provider's plan, a label (docs/hosting-plans.md). What it gives is <see cref="QuotaBytes"/>
+        /// and <see cref="EnablePublicWebPresence"/>, set with it.
+        /// </summary>
         public string PlanId { get; set; }
+
+        /// <summary>
+        /// Bytes of payloads the identity may store; null for the host's HostingProvider:DefaultQuotaBytes
+        /// </summary>
+        public long? QuotaBytes { get; set; }
         
         /// <summary>
         /// Operational state of the identity, shared by every node

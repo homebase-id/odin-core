@@ -66,7 +66,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly IMultiTenantContainer _serviceProvider;
     private readonly Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
-    private readonly HostingPlans _hostingPlans;
 
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
@@ -74,8 +73,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainer serviceProvider,
         Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> tenantContainerBuilder,
-        OdinConfiguration config,
-        HostingPlans hostingPlans
+        OdinConfiguration config
     )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
@@ -90,7 +88,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _serviceProvider = serviceProvider;
         _tenantContainerBuilder = tenantContainerBuilder;
         _config = config;
-        _hostingPlans = hostingPlans;
     }
 
     public Guid? ResolveId(string domain)
@@ -157,8 +154,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             isPreconfigured,
             idReg.MarkedForDeletionDate,
             idReg.Email,
-            // The plan decides when it says; changing the plan re-creates this (CacheIdentityAsync)
-            _hostingPlans.PublicWebPresenceFor(idReg));
+            // Set with the plan; changing it re-creates this (CacheIdentityAsync)
+            idReg.EnablePublicWebPresence);
 
         return tc;
     }
@@ -185,6 +182,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             Id = request.Id ?? Guid.NewGuid(),
             Email = request.Email,
             PlanId = request.PlanId,
+            QuotaBytes = request.QuotaBytes,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             EnablePublicWebPresence = request.EnablePublicWebPresence,
@@ -527,7 +525,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // Superseded by the status in json; written as a mirror for nodes on older versions
             disabled = registration.Status == TenantStatus.Disabled,
             markedForDeletionDate = registration.MarkedForDeletionDate,
-            // Null for no plan: it resolves to the default plan (HostingPlans). Until #1974 this wrote "free".
+            // Null for no plan. What a plan gives is QuotaBytes (in json) and EnablePublicWebPresence.
             planId = registration.PlanId,
             enablePublicWebPresence = registration.EnablePublicWebPresence,
             json = RegistrationJsonMapper.ToJson(registration)
@@ -663,21 +661,31 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
     {
         var (found, previous) = await SetRegistrationFieldAsync(domain,
-            reg => reg.EnablePublicWebPresence, (reg, value) => reg.EnablePublicWebPresence = value, enabled);
+            reg => reg.EnablePublicWebPresence, (reg, value) => reg.EnablePublicWebPresence = value, _ => enabled);
         return found ? previous : null;
     }
 
-    public async Task<string> SetPlanAsync(string domain, string planId)
+    public async Task<PlanSetting> SetPlanAsync(string domain, string planId, long? quotaBytes, bool? publicWebPresence)
     {
-        // The quota guard reads the plan from the in-memory registration, so other nodes enforce the new
-        // quota as soon as they have applied the announcement
-        var (_, previous) = await SetRegistrationFieldAsync(domain, reg => reg.PlanId, (reg, value) => reg.PlanId = value, planId);
-        return previous;
+        // The quota guard and the public web presence read the in-memory registration, so other nodes apply the
+        // new plan as soon as they have applied the announcement
+        var (found, previous) = await SetRegistrationFieldAsync(domain,
+            reg => new PlanSetting(reg.PlanId, reg.QuotaBytes, reg.EnablePublicWebPresence),
+            (reg, value) =>
+            {
+                reg.PlanId = value.PlanId;
+                reg.QuotaBytes = value.QuotaBytes;
+                reg.EnablePublicWebPresence = value.EnablePublicWebPresence;
+            },
+            reg => new PlanSetting(planId, quotaBytes ?? reg.QuotaBytes, publicWebPresence ?? reg.EnablePublicWebPresence));
+        return found ? previous : null;
     }
 
-    // Sets one field of a registration, saving and announcing only if it changed. Found is false for an unknown domain.
+    // Sets a field of a registration (the value may depend on the registration as it is), saving and announcing only
+    // if it changed. Found is false for an unknown domain.
     private async Task<(bool Found, T Previous)> SetRegistrationFieldAsync<T>(
-        string domain, Func<IdentityRegistration, T> get, Action<IdentityRegistration, T> set, T value)
+        string domain, Func<IdentityRegistration, T> get, Action<IdentityRegistration, T> set,
+        Func<IdentityRegistration, T> valueFor)
     {
         var found = false;
         T previous = default;
@@ -690,6 +698,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             {
                 found = true;
                 previous = get(reg);
+                var value = valueFor(reg);
                 if (!EqualityComparer<T>.Default.Equals(previous, value))
                 {
                     set(reg, value);

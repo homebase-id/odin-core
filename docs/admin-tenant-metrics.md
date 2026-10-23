@@ -57,8 +57,8 @@ milliseconds. **Null means "not applicable or unknown", never zero.**
 | `enabled` | Inverse of `registrations.disabled`, set by `odin-admin tenant set-status <domain> disabled` / `active`. Boolean. |
 | `enablePublicWebPresence` | What the identity has: its plan's `PublicWebPresence` when the plan sets one, otherwise its own flag (`odin-cli tenant enable-public-web-presence` / `disable-public-web-presence`; the V202607101000 migration backfilled every existing row to true). See [hosting-plans.md](hosting-plans.md). |
 | `markedForDeletionDate` | Null, or when the **owner** requested deletion (`OwnerSecurityController`, not the CLI). A tenant pending deletion is neither enabled nor gone, and a report that cannot say so will mislabel it. |
-| `planId` | The hosting plan as stored; null for none. None, `"free"` or an id not in `Registry:Plans` is the default plan. See caveat 5. |
-| `quotaBytes` | The plan's disk quota; null for unlimited, and for everyone while `Registry:Plans` is empty. |
+| `planId` | The hosting provider's plan on the registration, a label; null for none. See caveat 5. |
+| `quotaBytes` | The identity's quota in effect: its own (set with its plan), or `HostingProvider:DefaultQuotaBytes` when it has none. Never null. |
 | `registered` | False when the identity has no `Registrations` row. Such rows have `domain: null`; we do not invent a name. |
 | `metricsError` | Null on a healthy row. Set when that tenant's figures could not be read, with the storage fields left **null rather than zero** — a zero there is indistinguishable from the data loss this report exists to detect. One unreadable tenant does not fail the whole report. |
 | `orphanSource` | `"index"` (still owns rows) or `"directory"` (a registration directory with no registration). Null when registered. |
@@ -159,10 +159,11 @@ something read from code.
    `FileMetadata.PayloadsAreRemote`, which means *the payload is hosted by another identity*, not
    "stored in S3".
 
-5. **Quota: `planId` is resolved in odin-core.** Plans and their quotas are host config
-   (`Registry:Plans`), and the plan comes from the invitation code at signup or `tenant set-plan`;
-   see [hosting-plans.md](hosting-plans.md). `quotaBytes` is that plan's limit, compared against
-   `totalBytes` by the quota guard, so a consumer does not need its own plan-to-quota table.
+5. **Quota: it is on the identity.** Each registration stores its plan Id, quota and public web
+   presence, set together by the invitation code at signup, the account service, or `tenant set-plan`;
+   see [hosting-plans.md](hosting-plans.md). `quotaBytes` is the quota in effect (the identity's own, or
+   the host's default), compared against `totalBytes` by the quota guard, so a consumer does not need
+   its own plan-to-quota table.
 
 6. **Byte order is only a concern outside .NET.** Guids are stored as `Guid.ToByteArray()` (the
    mixed-endian .NET layout) in an opaque `BYTEA`/BLOB, and round-trip unchanged. The API has always

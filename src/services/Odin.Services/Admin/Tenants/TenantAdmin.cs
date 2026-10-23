@@ -32,8 +32,7 @@ public class TenantAdmin(
     IdentityStorageCensus identityStorageCensus,
     PayloadMoveSource payloadMoveSource,
     PayloadMoveAdmin payloadMoveAdmin,
-    SystemDatabase systemDatabase,
-    HostingPlans hostingPlans)
+    SystemDatabase systemDatabase)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -249,10 +248,10 @@ public class TenantAdmin(
             Domain = registration.PrimaryDomainName,
             Registered = true,
             Enabled = registration.Status != TenantStatus.Disabled,
-            EnablePublicWebPresence = hostingPlans.PublicWebPresenceFor(registration),
+            EnablePublicWebPresence = registration.EnablePublicWebPresence,
             Email = registration.Email,
             PlanId = registration.PlanId,
-            QuotaBytes = hostingPlans.QuotaFor(registration.PlanId),
+            QuotaBytes = config.HostingProvider.QuotaFor(registration.QuotaBytes),
             CreatedAt = registration.Created,
             MarkedForDeletionDate = registration.MarkedForDeletionDate,
             LastActivity = await lastSeenService.GetLastSeenAsync(registration.PrimaryDomainName),
@@ -391,15 +390,19 @@ public class TenantAdmin(
 
     //
 
-    public async Task<string?> SetTenantPlanAsync(string domain, string planId)
+    public async Task<PlanSetting?> SetTenantPlanAsync(string domain, string planId, long? quotaBytes, bool? publicWebPresence)
     {
         planId = planId.Trim();
-        if (!hostingPlans.IsAssignable(planId))
+        if (planId == "")
         {
-            throw new OdinClientException($"'{planId}' is not a plan in Registry:Plans");
+            throw new OdinClientException("planId is required");
+        }
+        if (quotaBytes <= 0)
+        {
+            throw new OdinClientException($"quotaBytes must be more than 0: {quotaBytes}");
         }
 
-        return await identityRegistry.SetPlanAsync(domain, planId);
+        return await identityRegistry.SetPlanAsync(domain, planId, quotaBytes, publicWebPresence);
     }
 
     //
@@ -427,7 +430,7 @@ public class TenantAdmin(
             Status = identityRegistration.Status,
             DisabledReason = identityRegistration.DisabledReason,
             StatusChangedAt = identityRegistration.StatusChangedAt,
-            EnablePublicWebPresence = hostingPlans.PublicWebPresenceFor(identityRegistration),
+            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence,
             PlanId = identityRegistration.PlanId,
             Created = identityRegistration.Created,
             LastActivity = await lastSeenService.GetLastSeenAsync(identityRegistration.PrimaryDomainName)
