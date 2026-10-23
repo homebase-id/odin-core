@@ -8,6 +8,7 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
@@ -16,6 +17,7 @@ using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
 using Odin.Services.Security;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
 
 namespace Odin.Services.Authentication.Owner
@@ -25,7 +27,9 @@ namespace Odin.Services.Authentication.Owner
         PasswordKeyRecoveryService recoveryService,
         PublicPrivateKeyService publicPrivateKeyService,
         TableKeyValueCached tblKeyValue,
-        TableNonce nonceTable)
+        TableNonce nonceTable,
+        ZeroKnowledgeKeyService zeroKnowledgeKeyService,
+        IdentityDatabase db)
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
 
@@ -213,7 +217,14 @@ namespace Odin.Services.Authentication.Owner
         public async Task ResetPasswordUsingRecoveryKeyAsync(string recoveryKey, PasswordReply reply, IOdinContext odinContext)
         {
             var masterKey = await recoveryService.AssertValidKeyAsync(recoveryKey);
+
+            await using var tx = await db.BeginStackedTransactionAsync();
             await SavePasswordAsync(reply, masterKey);
+
+            // Locked by the forgotten password, so they can never be opened again.  The browser makes
+            // new ones at the next login.
+            await zeroKnowledgeKeyService.DeleteAsync();
+            tx.Commit();
         }
 
         public async Task ResetPasswordAsync(ResetPasswordRequest request, IOdinContext odinContext)
@@ -223,8 +234,26 @@ namespace Odin.Services.Authentication.Owner
             await this.AssertPasswordKeyMatchAsync(request.CurrentAuthenticationPasswordReply.NonceHashedPassword64,
                 request.CurrentAuthenticationPasswordReply.Nonce64);
 
+            var hasZkKeys = await zeroKnowledgeKeyService.ExistsAsync();
+            if (hasZkKeys && request.ZkKeys == null)
+            {
+                throw new OdinClientException(
+                    "The zero-knowledge keys must be re-locked with the new password in the same request",
+                    OdinClientErrorCode.ZeroKnowledgeKeysRequired);
+            }
+
             var masterKey = odinContext.Caller.GetMasterKey();
+
+            // One transaction: a new password without the re-locked keys would leave them locked by
+            // the old one.
+            await using var tx = await db.BeginStackedTransactionAsync();
             await SavePasswordAsync(request.NewPasswordReply, masterKey);
+            if (hasZkKeys)
+            {
+                await zeroKnowledgeKeyService.ReplaceForPasswordChangeAsync(request.ZkKeys);
+            }
+
+            tx.Commit();
         }
 
         public async Task<NonceData> AssertValidPasswordAsync(PasswordReply reply)

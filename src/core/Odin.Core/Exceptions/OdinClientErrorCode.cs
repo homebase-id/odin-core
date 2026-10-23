@@ -150,4 +150,10 @@ public enum OdinClientErrorCode
     MissingVerificationHash = 9005,
     PasswordAlreadySet = 9006,
     IntroductoryRequestAlreadySent = 9007,
+
+    // Zero-knowledge keys (docs/zero-knowledge-keys-plan.md)
+    ZeroKnowledgeKeysAlreadySet = 9008,
+    ZeroKnowledgeKeysNotSet = 9009,
+    ZeroKnowledgeKeysRequired = 9010,
+    DriveHasEncryptedFiles = 9011,
 }

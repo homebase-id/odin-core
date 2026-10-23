@@ -1,0 +1,237 @@
+#nullable enable
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
+using Odin.Hosting.Tests.OwnerApi.Authentication;
+using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
+using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Drives;
+using Odin.Services.Security.ZeroKnowledge;
+using Refit;
+
+namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
+
+/// <summary>
+/// Plan A (docs/zero-knowledge-keys-plan.md): the owner's zero-knowledge keys and the Shard Recovery
+/// drive's conversion.  <see cref="ZkBrowser"/> plays the browser, so these tests also pin the
+/// formats the browser writes for every owner.
+/// </summary>
+[TestFixture]
+public class ZeroKnowledgeKeysTests : V2Fixture
+{
+    private const string Password = OwnerLogin.DefaultPassword;
+    private const string NewPassword = "672c~!!9402044";
+
+    /// <summary>
+    /// The same vector odin-js checks (js-lib ZeroKnowledgeKeys.test.ts), made with Python's
+    /// hashlib and cryptography.  It pins the formats on both sides to each other.
+    /// </summary>
+    [Test]
+    public void TheSharedVectorOpens()
+    {
+        var status = new ZkStatusResponse
+        {
+            ZkSaltKek64 = "AAECAwQFBgcICQoLDA0ODw==",
+            ZkKekEncryptedZkMasterKey = "ICEiIyQlJicoKSorjWGICGzIuJPS3SPnEBWvlaM3EZ0jd9msGp8vJrhDYXA="
+        };
+
+        Assert.That(ZkBrowser.SecondPasswordKey("EnSøienØ", status.ZkSaltKek64).ToBase64(),
+            Is.EqualTo("+pL3zwkIcDcDpYKkLbVc4A=="));
+        Assert.That(ZkBrowser.OpenMasterKey("EnSøienØ", status).ToBase64(), Is.EqualTo("EBESExQVFhcYGRobHB0eHw=="));
+        Assert.That(System.Guid.Parse("46242d0d67604b2aa683f05cd48d4aef").ToByteArray().ToBase64(),
+            Is.EqualTo(System.Convert.ToBase64String(System.Convert.FromHexString("0d2d244660672a4ba683f05cd48d4aef"))),
+            "the browser encrypts the drive id in .NET's Guid byte order");
+    }
+
+    [Test]
+    public async Task StatusIsEmptyUntilTheBrowserMakesTheKeys()
+    {
+        var owner = await LoginAsOwner();
+
+        var status = await GetStatus(owner);
+
+        Assert.That(status.ZkSaltKek64, Is.Null);
+        Assert.That(status.ZkKekEncryptedZkMasterKey, Is.Null);
+        Assert.That(status.HasLoginKeys, Is.False);
+        Assert.That(status.ShardRecoveryDriveIsZeroKnowledge, Is.False);
+    }
+
+    [Test]
+    public async Task TheStoredMasterKeyOpensWithThePassword()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await CreateKeys(owner);
+
+        var status = await GetStatus(owner);
+
+        Assert.That(status.HasLoginKeys, Is.True);
+        Assert.That(ZkBrowser.OpenMasterKey(Password, status), Is.EqualTo(keys.MasterKey));
+    }
+
+    [Test]
+    public async Task KeysAreNotReplacedOnceSet()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await CreateKeys(owner);
+
+        var second = ZkBrowser.MakeKeys(Password, await LoginKeys(Password));
+        var response = await Client(owner).CreateKeys(second.Request);
+
+        AssertClientError(response, OdinClientErrorCode.ZeroKnowledgeKeysAlreadySet);
+        Assert.That(ZkBrowser.OpenMasterKey(Password, await GetStatus(owner)), Is.EqualTo(keys.MasterKey));
+    }
+
+    [Test]
+    public async Task APasswordChangeMustReLockTheKeys()
+    {
+        var owner = await LoginAsOwner();
+        await CreateKeys(owner);
+
+        var request = await OwnerPasswordFlow.BuildResetPasswordRequestAsync(Host, PrimaryIdentity, Password, NewPassword);
+        var response = await owner.RefitFor<ITestSecurityContextOwnerClient>().ResetPassword(request);
+
+        AssertClientError(response, OdinClientErrorCode.ZeroKnowledgeKeysRequired);
+        var clientKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+        var login = await OwnerPasswordFlow.LoginAsync(Host, PrimaryIdentity, Password, clientKey);
+        Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the refused change must leave the old password working");
+    }
+
+    [Test]
+    public async Task APasswordChangeKeepsTheSameMasterKey()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await CreateKeys(owner);
+
+        var request = await OwnerPasswordFlow.BuildResetPasswordRequestAsync(Host, PrimaryIdentity, Password, NewPassword);
+        request.ZkKeys = ZkBrowser.MakeKeys(NewPassword, "new login keys".ToUtf8ByteArray(), keys.MasterKey).Request;
+        var response = await owner.RefitFor<ITestSecurityContextOwnerClient>().ResetPassword(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+
+        var status = await GetStatus(await OwnerSession.LoginAsync(Host, PrimaryIdentity, NewPassword));
+        Assert.That(ZkBrowser.OpenMasterKey(NewPassword, status), Is.EqualTo(keys.MasterKey));
+    }
+
+    [Test]
+    public async Task ConvertingNeedsTheKeysFirst()
+    {
+        var owner = await LoginAsOwner();
+        var driveKeys = ZkBrowser.MakeDriveKeys(WellKnownAppDrives.ShardRecoveryDrive.Alias, ByteArrayUtil.GetRndByteArray(16));
+
+        var response = await Client(owner).ConvertShardRecoveryDrive(driveKeys.Request);
+
+        AssertClientError(response, OdinClientErrorCode.ZeroKnowledgeKeysNotSet);
+    }
+
+    [Test]
+    public async Task TheConvertedDriveOpensOnlyThroughTheMasterKey()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await CreateKeys(owner);
+        var driveKeys = ZkBrowser.MakeDriveKeys(WellKnownAppDrives.ShardRecoveryDrive.Alias, keys.MasterKey);
+
+        var response = await Client(owner).ConvertShardRecoveryDrive(driveKeys.Request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+
+        var status = await GetStatus(owner);
+        Assert.That(status.ShardRecoveryDriveIsZeroKnowledge, Is.True);
+        Assert.That(ZkBrowser.Open(status.ShardRecoveryDriveZkMasterKeyEncryptedStorageKey, keys.MasterKey),
+            Is.EqualTo(driveKeys.DriveKey), "the browser checks the drive key opens before skipping the conversion");
+
+        // A fresh login builds the owner's permissions from every drive; the converted one has no
+        // master-key copy, and that must not break it.
+        var freshOwner = await LoginAsOwner();
+        var drive = (await freshOwner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
+
+        Assert.That(drive.IsZeroKnowledge, Is.True);
+        Assert.That(drive.SharingModel, Is.EqualTo(DriveSharingModel.Private));
+        Assert.That(drive.WriteOnlyPublicKeyJwk, Is.EqualTo(driveKeys.WriteOnlyPublicKeyJwk));
+
+        // The browser's path: master key -> drive key -> write-only private key.
+        var driveKey = ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, keys.MasterKey);
+        Assert.That(driveKey, Is.EqualTo(driveKeys.DriveKey));
+        Assert.That(ZkBrowser.Open(drive.ZkStorageKeyEncryptedWriteOnlyPrivateKey, driveKey),
+            Is.EqualTo(driveKeys.WriteOnlyPrivateKey));
+    }
+
+    [Test]
+    public async Task TheDriveCanBeConvertedAgain()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await CreateKeys(owner);
+        var first = ZkBrowser.MakeDriveKeys(WellKnownAppDrives.ShardRecoveryDrive.Alias, keys.MasterKey);
+        var second = ZkBrowser.MakeDriveKeys(WellKnownAppDrives.ShardRecoveryDrive.Alias, keys.MasterKey);
+
+        Assert.That((await Client(owner).ConvertShardRecoveryDrive(first.Request)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var response = await Client(owner).ConvertShardRecoveryDrive(second.Request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+
+        var drive = (await owner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
+        Assert.That(ZkBrowser.Open(drive.ZkMasterKeyEncryptedStorageKey, keys.MasterKey), Is.EqualTo(second.DriveKey));
+    }
+
+    [Test]
+    public async Task ConvertingIsRefusedWhenAFileUsesTheDriveKey()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await CreateKeys(owner);
+
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "encrypted content", AccessControlList.OwnerOnly);
+        var (upload, _, _, _) = await owner.Drives.Writer.CreateEncryptedFile(
+            WellKnownAppDrives.ShardRecoveryDrive.Alias, metadata, transitOptions: null!);
+        Assert.That(upload.IsSuccessStatusCode, Is.True, $"actual {upload.StatusCode}: {upload.Error?.Content}");
+
+        var driveKeys = ZkBrowser.MakeDriveKeys(WellKnownAppDrives.ShardRecoveryDrive.Alias, keys.MasterKey);
+        var response = await Client(owner).ConvertShardRecoveryDrive(driveKeys.Request);
+
+        AssertClientError(response, OdinClientErrorCode.DriveHasEncryptedFiles);
+        Assert.That((await GetStatus(owner)).ShardRecoveryDriveIsZeroKnowledge, Is.False);
+    }
+
+    [Test]
+    public async Task TheServerRefusesToEncryptWithAConvertedDrive()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await CreateKeys(owner);
+        var driveKeys = ZkBrowser.MakeDriveKeys(WellKnownAppDrives.ShardRecoveryDrive.Alias, keys.MasterKey);
+        Assert.That((await Client(owner).ConvertShardRecoveryDrive(driveKeys.Request)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var metadata = SampleMetadataData.CreateWithContent(fileType: 100, "encrypted content", AccessControlList.OwnerOnly);
+        var (upload, _, _, _) = await (await LoginAsOwner()).Drives.Writer.CreateEncryptedFile(
+            WellKnownAppDrives.ShardRecoveryDrive.Alias, metadata, transitOptions: null!);
+
+        Assert.That(upload.IsSuccessStatusCode, Is.False,
+            $"an encrypted upload to a zero-knowledge drive must fail; actual {upload.StatusCode}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    private static IZeroKnowledgeOwnerClient Client(OwnerSession owner) => ZkOwnerSteps.Client(owner);
+
+    private static Task<ZkStatusResponse> GetStatus(OwnerSession owner) => ZkOwnerSteps.GetStatusAsync(owner);
+
+    private async Task<ZkBrowser.Keys> CreateKeys(OwnerSession owner) =>
+        await ZkOwnerSteps.CreateKeysAsync(owner, Password, await LoginKeys(Password));
+
+    /// <summary>The login keys for the stored salts, as the browser works them out at login.</summary>
+    private async Task<byte[]> LoginKeys(string password)
+    {
+        using var authClient = Host.CreateAnonymousClient(PrimaryIdentity);
+        var nonce = await RestService.For<IOwnerAuthenticationClient>(authClient).GenerateAuthenticationNonce();
+        Assert.That(nonce.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        return ZkBrowser.LoginKeys(password, nonce.Content!.SaltPassword64, nonce.Content.SaltKek64);
+    }
+
+    private static void AssertClientError(IApiResponse response, OdinClientErrorCode expected)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+        Assert.That(TestUtils.ParseProblemDetails(response.Error!), Is.EqualTo(expected), response.Error!.Content);
+    }
+}

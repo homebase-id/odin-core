@@ -28,6 +28,20 @@ public static class DriveWriteOnlyKey
     }
 
     /// <summary>
+    /// The public half of a key pair the browser made for a zero-knowledge drive.  The record has no
+    /// private half: on such a drive the browser keeps it locked by the drive key
+    /// (<see cref="StorageDriveData.ZkStorageKeyEncryptedWriteOnlyPrivateKey"/>).
+    /// </summary>
+    public static EccFullKeyData FromPublicKeyJwk(string jwk)
+    {
+        var publicKey = EccPublicKeyData.FromJwkPublicKey(jwk, LifetimeHours);
+
+        // The column holds an EccFullKeyData; this one carries the public fields and leaves the
+        // private-half fields empty.
+        return OdinSystemSerializer.Deserialize<EccFullKeyData>(OdinSystemSerializer.Serialize(publicKey));
+    }
+
+    /// <summary>
     /// Serializes for the <c>Drives.WriteOnlyKeyPair</c> column.  Null in, null out: a drive with no
     /// keypair stores NULL, which is what says deposits are not enabled for it.
     /// </summary>

@@ -54,7 +54,22 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.IsArchived = value;
     }
 
+    /// <summary>Null on a zero-knowledge drive; see <see cref="IsZeroKnowledge"/>.</summary>
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => Data.MasterKeyEncryptedStorageKey;
+
+    public DriveSharingModel SharingModel => Data.SharingModel;
+
+    /// <summary>
+    /// The drive key is locked by the owner's zero-knowledge master key, which only the browser can
+    /// open.  The server holds no copy it can open, so it never encrypts or decrypts for this drive.
+    /// </summary>
+    public bool IsZeroKnowledge => Data.ZkMasterKeyEncryptedStorageKey != null;
+
+    /// <summary>The browser's locked copy of the drive key.  Opaque to the server.</summary>
+    public string ZkMasterKeyEncryptedStorageKey => Data.ZkMasterKeyEncryptedStorageKey;
+
+    /// <summary>The browser's locked copy of the write-only private key.  Opaque to the server.</summary>
+    public string ZkStorageKeyEncryptedWriteOnlyPrivateKey => Data.ZkStorageKeyEncryptedWriteOnlyPrivateKey;
 
     /// <summary>The drive's write-only keypair; see <see cref="StorageDriveData.WriteOnlyKeyPair"/>.</summary>
     public EccFullKeyData WriteOnlyKeyPair
@@ -225,13 +240,33 @@ public sealed class StorageDriveData
     public bool IsReadonly { get; set; }
 
     /// <summary>
-    /// The encryption key used to encrypt the <see cref="ServerFileHeader.EncryptedKeyHeader"/>
+    /// The encryption key used to encrypt the <see cref="ServerFileHeader.EncryptedKeyHeader"/>.
+    /// Null on a zero-knowledge drive, whose key is in <see cref="ZkMasterKeyEncryptedStorageKey"/>.
     /// </summary>
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey { get; set; }
 
-    public byte[] EncryptedIdIv { get; init; }
+    /// <summary>
+    /// The drive id encrypted with the storage key, to check a key is this drive's.  Replaced when
+    /// the browser gives a drive a new key.
+    /// </summary>
+    public byte[] EncryptedIdIv { get; set; }
 
-    public byte[] EncryptedIdValue { get; init; }
+    public byte[] EncryptedIdValue { get; set; }
+
+    /// <summary>A column, like the addressing fields.  See <see cref="DriveSharingModel"/>.</summary>
+    public DriveSharingModel SharingModel { get; set; }
+
+    /// <summary>
+    /// The storage key of a zero-knowledge drive, locked in the browser by the owner's zero-knowledge
+    /// master key.  Opaque to the server.  Null on every other drive.
+    /// </summary>
+    public string ZkMasterKeyEncryptedStorageKey { get; set; }
+
+    /// <summary>
+    /// The write-only private key of a zero-knowledge drive, locked in the browser by the drive's
+    /// storage key.  Opaque to the server; the public half stays in <see cref="WriteOnlyKeyPair"/>.
+    /// </summary>
+    public string ZkStorageKeyEncryptedWriteOnlyPrivateKey { get; set; }
 
     /// <summary>
     /// Specifies if anonymous callers can read this drive.

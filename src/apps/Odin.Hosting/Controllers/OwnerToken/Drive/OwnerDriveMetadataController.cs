@@ -41,27 +41,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             
             var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
-            var clientDriveData = drives.Results.Select(drive =>
-                new OwnerClientDriveData()
-                {
-                    Name = drive.Name,
-                    TargetDriveInfo = drive.TargetDriveInfo,
-                    Metadata = drive.Metadata,
-                    IsReadonly = drive.IsReadonly,
-                    AllowAnonymousReads = drive.AllowAnonymousReads,
-                    AllowSubscriptions = drive.AllowSubscriptions,
-                    AllowCdn = drive.IsCdnEnabled(),
-                    RequirePayloadHashes = drive.RequirePayloadHashes,
-                    OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes,
-                    IsArchived = drive.IsArchived,
-                    IsSystemDrive = BuiltinDrives.IsProtected(drive.Id),
-                    AppId = drive.AppId,
-                    DriveSlug = drive.DriveSlug,
-                    DriveTypeSlug = drive.DriveTypeSlug,
-                    WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
-                    WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c
-                }).ToList();
+            var clientDriveData = drives.Results.Select(OwnerClientDriveData.From).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;

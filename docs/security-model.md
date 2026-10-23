@@ -9,7 +9,8 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 [app-circle-membership-status.md](app-circle-membership-status.md), [drive-addressing.md](drive-addressing.md)
 (slugs, drive public key, app-owned circles), [drive-deletion-and-app-uninstall.md](drive-deletion-and-app-uninstall.md),
 [connection-defaults.md](connection-defaults.md), [autoconnected-security-level-audit.md](autoconnected-security-level-audit.md),
-[youauth-unified-authorization.md](youauth-unified-authorization.md), [weak-key-retirement.md](weak-key-retirement.md).
+[youauth-unified-authorization.md](youauth-unified-authorization.md), [weak-key-retirement.md](weak-key-retirement.md),
+[zero-knowledge-drives.md](zero-knowledge-drives.md) (direction: sharing models, keys only on devices).
 
 ## 1. The platform
 
@@ -215,6 +216,8 @@ serverMetadata
   - local app data needs write.
 
 ## 8. Envelope encryption
+
+Where this is heading (server never sees a key): [zero-knowledge-drives.md](zero-knowledge-drives.md).
 
 ```
 master key ──► storage key (one per drive; MasterKeyEncryptedStorageKey)

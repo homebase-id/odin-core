@@ -93,6 +93,10 @@ many desktop apps are open at the time: the same build passed 1420/1420 once and
 **Workaround:** raise the limit (`sudo sysctl fs.inotify.max_user_instances=512`, persist it in
 `/etc/sysctl.d/`), or close desktop apps. CI is unaffected.
 
+**Seen again 2026-10-22** on `zk-keys-plan-a`: 50, then 148 of 1728 failed, every one in
+`OneTimeSetUp` with the same `IOException`; 96 of the 128 instances were held before the run. The
+50 from the first run passed when re-run on their own (50/50).
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.Peer.TemporalReadTests`

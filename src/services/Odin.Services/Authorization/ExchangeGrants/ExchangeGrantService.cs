@@ -189,8 +189,11 @@ namespace Odin.Services.Authorization.ExchangeGrants
         {
             // ConditionalTemporalRead also needs the storage key escrowed so the grantee can decrypt
             // in-window files while the owner is offline; the temporal API enforces the time clamp.
-            bool shouldGetStorageKey = permission.HasFlag(DrivePermission.Read) ||
-                                       permission.HasFlag(DrivePermission.ConditionalTemporalRead);
+            // A zero-knowledge drive's key is never escrowed: the server holds no copy it can open, and
+            // its key reaches an app only from the browser (docs/zero-knowledge-drives.md).
+            bool shouldGetStorageKey = !drive.IsZeroKnowledge &&
+                                       (permission.HasFlag(DrivePermission.Read) ||
+                                        permission.HasFlag(DrivePermission.ConditionalTemporalRead));
 
             var storageKey = shouldGetStorageKey ? storageKeySource.GetStorageKey(drive) : null;
 

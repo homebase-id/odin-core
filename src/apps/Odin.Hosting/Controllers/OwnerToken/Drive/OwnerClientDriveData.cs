@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
@@ -66,5 +67,49 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public bool IsSystemDrive { get; set; }
 
         public Dictionary<string, string> Attributes { get; set; }
+
+        /// <summary>Who holds which key; see <see cref="DriveSharingModel"/>.</summary>
+        public DriveSharingModel SharingModel { get; set; }
+
+        /// <summary>The drive key is locked by the zero-knowledge master key and only the browser can open it.</summary>
+        public bool IsZeroKnowledge { get; set; }
+
+        /// <summary>
+        /// A zero-knowledge drive's key, locked by the owner's zero-knowledge master key.  The owner's
+        /// browser opens it; the server cannot.  Null on every other drive.
+        /// </summary>
+        public string ZkMasterKeyEncryptedStorageKey { get; set; }
+
+        /// <summary>A zero-knowledge drive's write-only private key, locked by the drive key.  Null on every other drive.</summary>
+        public string ZkStorageKeyEncryptedWriteOnlyPrivateKey { get; set; }
+
+        public static OwnerClientDriveData From(StorageDrive drive)
+        {
+            return new OwnerClientDriveData
+            {
+                DriveId = drive.Id,
+                Name = drive.Name,
+                TargetDriveInfo = drive.TargetDriveInfo,
+                Metadata = drive.Metadata,
+                IsReadonly = drive.IsReadonly,
+                AllowAnonymousReads = drive.AllowAnonymousReads,
+                AllowSubscriptions = drive.AllowSubscriptions,
+                AllowCdn = drive.IsCdnEnabled(),
+                RequirePayloadHashes = drive.RequirePayloadHashes,
+                OwnerOnly = drive.OwnerOnly,
+                Attributes = drive.Attributes,
+                IsArchived = drive.IsArchived,
+                IsSystemDrive = BuiltinDrives.IsProtected(drive.Id),
+                AppId = drive.AppId,
+                DriveSlug = drive.DriveSlug,
+                DriveTypeSlug = drive.DriveTypeSlug,
+                WriteOnlyPublicKeyJwk = drive.WriteOnlyKeyPair?.PublicKeyJwk(),
+                WriteOnlyPublicKeyCrc32 = drive.WriteOnlyKeyPair?.crc32c,
+                SharingModel = drive.SharingModel,
+                IsZeroKnowledge = drive.IsZeroKnowledge,
+                ZkMasterKeyEncryptedStorageKey = drive.ZkMasterKeyEncryptedStorageKey,
+                ZkStorageKeyEncryptedWriteOnlyPrivateKey = drive.ZkStorageKeyEncryptedWriteOnlyPrivateKey
+            };
+        }
     }
 }
