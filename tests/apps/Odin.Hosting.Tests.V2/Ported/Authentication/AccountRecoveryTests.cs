@@ -135,7 +135,7 @@ public class AccountRecoverySectionTests : V2Fixture
 
         var response = await security.GetAccountRecoveryKey();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content!.Key, Is.Not.Null.Or.Empty, "should have the recovery key");
+        Assert.That(response.Content!.Key, Is.Not.Null.And.Not.Empty, "should have the recovery key");
 
         // now make a second request
         var requestRecoveryKeyResponse2 = await security.RequestRecoveryKey();
