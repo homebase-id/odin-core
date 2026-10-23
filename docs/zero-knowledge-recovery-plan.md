@@ -48,6 +48,21 @@ inferred.
      locked by it and clears it at logout.
 4. **Shards are locked to the holder's Shard Recovery write-only key,** which A makes zero
    knowledge. No extra key pair.
+5. **An encrypted file on a zero-knowledge drive is always `IsEncrypted = true`** (decided
+   2026-10-23). Nothing encrypted is stored as `IsEncrypted = false` with ciphertext in its
+   content; that would be a second format, to be upgraded later or kept forever beside the real
+   one.
+   - So a sealed shard is the first **deposit**: the content is encrypted with the file's own key
+     (the KeyHeader, as on any encrypted file), and that file key is sealed to a public key. When
+     dealing it's the holder's Shard Recovery write-only key; when a holder releases a shard,
+     it's the recovering browser's throwaway key.
+   - Chat, Mail and Feed deposits later reuse this format, so it is designed for them too: the
+     sealed file key must say which public key opens it.
+   - The server never re-locks such a file key. On a zero-knowledge drive it stores the file
+     key as received and returns it as stored. That pulls a piece of step 4 into B (see
+     [odin-core](#odin-core)).
+   - Today's cleartext shards (`IsEncrypted = false`, locked inside by the dealer's per-shard
+     keys) are not upgraded: browser dealing replaces them, and B2 removes the old path.
 ## Shamir in the browser
 
 ### Today's two kinds of shards
@@ -80,8 +95,8 @@ All verified by reading the code (`ShamirConfigurationService`, `ShamirRecoveryS
   shard; the code doesn't do that.
 
 **What changes for friend shards:** the dealer's browser seals each shard to the friend's Shard
-Recovery write-only public key. Only the friend's browser can open it, so the friend's approval
-becomes a real key step. The dealer keeps no per-shard keys.
+Recovery write-only public key, as a deposit (decision 5). Only the friend's browser can open it,
+so the friend's approval becomes a real key step. The dealer keeps no per-shard keys.
 
 **Automated shards:** unchanged (decision 2). They never use the holder's drive key, so
 converting an automated holder's Shard Recovery drive wouldn't break them.
@@ -95,7 +110,8 @@ converting an automated holder's Shard Recovery drive wouldn't break them.
 2. The browser makes a random Shamir secret and locks the login keys with it. It also keeps a
    copy of the secret locked by the ZK master key, for password changes.
 3. The browser splits the secret, fetches each holder's Shard Recovery write-only public key,
-   and seals one shard to each.
+   and seals one shard to each: an `IsEncrypted = true` file whose file key is sealed to that
+   public key (decision 5).
 4. The server stores the two locked blobs and sends each sealed shard to its holder on the
    existing path: a file on the holder's Shard Recovery drive (`transferService.SendFile`)
    **(V)**.
@@ -138,6 +154,17 @@ the password is newer than the shards) **(V)**. That trigger goes away for brows
   - Removed for browser-dealt setups: `PrepareFinalKeys`, the "We have assembled your recovery
     key" email, and `FinalizeRecovery`. A new read returns the sealed shards and the locked login
     keys.
+- Deposits on zero-knowledge drives (decision 5). The server stores and returns the sealed
+  file key as is, with no re-locking, wherever a shard passes:
+  - incoming peer files: the `IsEncrypted` branch needs the drive key today
+    (`PeerDriveIncomingTransferService.cs`, `hasStorageKey`) **(V)**;
+  - reads: building the reader's header re-locks the file key for the caller
+    (`DriveFileUtility.CreateClientFileHeader`) **(V)**;
+  - queries hide encrypted files from a caller without the drive key
+    (`DriveQueryServiceBase.cs`, `isEncrypted && hasStorageKey`) **(V)**; on a zero-knowledge
+    drive no caller has it on the server, so the drive permission decides instead;
+  - and plan A's refusal of encrypted uploads (`DriveIsZeroKnowledge`) becomes "refused unless
+    the file key is sealed".
 - Peer controller (`ShamirPasswordRecoveryPeerController.cs`: `request-shard`,
   `accept-player-shard`) **(V)**: request and response carry the public key and sealed shards.
 - Readiness and health (`ShamirReadinessCheckerService.cs`, `OwnerSecurityHealthService.cs`,
@@ -190,5 +217,6 @@ Inferred. Lines include tests.
 
 ## Out of scope here
 
-Everything in A, converting any drive besides Shard Recovery, deposits, Chat, the recovery
+Everything in A, converting any drive besides Shard Recovery, deposits other than shards (the
+format is set here, decision 5), Chat, the recovery
 phrase (step 3, same pattern as Shamir), and Selective Share.
