@@ -15,6 +15,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Admin.Tenants;
+using Odin.Services.Configuration;
 using Odin.Services.Base;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -130,7 +131,7 @@ public class PlanWithoutAHostingProviderTests : V2Fixture
 
         var plan = (await owner.RefitFor<IPlanClient>().GetPlan()).Content!;
 
-        Assert.That(plan.Storage.QuotaBytes, Is.EqualTo(64_424_509_440));
+        Assert.That(plan.Storage.QuotaBytes, Is.EqualTo(OdinConfiguration.HostingProviderSection.SixtyGigabytes));
         Assert.That(plan.Storage.IsOverQuota, Is.False);
         Assert.That(plan.HostingProvider, Is.Null);
     }

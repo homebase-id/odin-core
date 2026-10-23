@@ -76,15 +76,11 @@ public class TenantQuotaGuard(
         var registration = Registration();
         var quota = Quota(registration);
         var used = await UsedBytesAsync();
-        var provider = configuration.HostingProvider;
         return new IdentityPlan(
             registration?.PlanId,
             registration?.EnablePublicWebPresence ?? false,
             new StorageUsage(used, quota, IsOverQuota(registration, used, quota)),
-            provider.DisplayName == ""
-                ? null
-                : new HostingProviderInfo(provider.DisplayName,
-                    provider.UpgradeUrlFor(tenantContext.HostOdinId.DomainName, configuration.Registry.ProvisioningDomain)));
+            configuration.HostingProvider.InfoFor(tenantContext.HostOdinId.DomainName, configuration.Registry.ProvisioningDomain));
     }
 
     // The one rule: set OutOfQuota by an admin, or storing at least the quota

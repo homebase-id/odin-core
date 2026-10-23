@@ -30,13 +30,6 @@ public sealed class YouAuthUnifiedService(
 {
     //
 
-    private bool IsAutoConsentDomain(string domain)
-    {
-        return configuration.HostingProvider.AutoConsentDomains.Contains(domain.Trim().ToLowerInvariant());
-    }
-
-    //
-
     public async Task<bool> NeedConsent(
         string tenant,
         ClientType clientType,
@@ -59,12 +52,13 @@ public sealed class YouAuthUnifiedService(
         {
             // The hosting provider's own domains (HostingProvider:AutoConsentDomains): it runs this host already, so
             // knowing who the owner is gives it nothing new. Domains only, never apps.
-            if (IsAutoConsentDomain(clientIdOrDomain))
+            var domain = new AsciiDomainName(clientIdOrDomain);
+            if (configuration.HostingProvider.AutoConsentDomains.Contains(domain.DomainName))
             {
                 return false;
             }
 
-            return await domainRegistrationService.IsConsentRequiredAsync(new AsciiDomainName(clientIdOrDomain), odinContext);
+            return await domainRegistrationService.IsConsentRequiredAsync(domain, odinContext);
         }
 
         // Apps on /owner doesn't need consent

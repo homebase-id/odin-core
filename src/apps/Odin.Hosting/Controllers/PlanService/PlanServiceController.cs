@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -41,19 +40,17 @@ public class PlanServiceController(
     [HttpPut("plan")]
     public async Task<ActionResult<PlanServiceIdentity>> SetPlan(string domain, [FromBody] SetPlanServicePlanRequest request)
     {
-        // A missing plan is a 400 before we get here: [Required] on the property, [ApiController] on the class
         var previous = await tenantAdmin.SetTenantPlanAsync(domain, request.PlanId!, request.QuotaBytes, request.PublicWebPresence);
         if (previous == null)
         {
             return NotFound();
         }
 
+        // A request value left out (null) is unchanged; a previous quota of null was the host's default
         logger.LogInformation(
             "Account service set {domain} to plan {planId}, quota {quota}, public web presence {publicWebPresence} " +
-            "(was {previousPlan}, {previousQuota}, {previousPublicWebPresence}), reference {reference}",
-            domain, request.PlanId!.Trim(), request.QuotaBytes?.ToString() ?? "unchanged",
-            request.PublicWebPresence?.ToString() ?? "unchanged", previous.PlanId ?? "none",
-            previous.QuotaBytes?.ToString() ?? "default", previous.EnablePublicWebPresence, request.Reference ?? "none");
+            "(was {previous}), reference {reference}",
+            domain, request.PlanId!.Trim(), request.QuotaBytes, request.PublicWebPresence, previous, request.Reference);
 
         var registration = await identityRegistry.GetAsync(domain);
         return registration == null ? NotFound() : IdentityFrom(registration);
@@ -81,17 +78,11 @@ public class PlanServiceIdentity
     public bool PublicWebPresence { get; init; }
 }
 
-public class SetPlanServicePlanRequest
+/// <summary>
+/// The admin's plan request (<see cref="SetTenantPlanRequest"/>), plus the account service's reference
+/// </summary>
+public class SetPlanServicePlanRequest : SetTenantPlanRequest
 {
-    [Required]
-    public string? PlanId { get; init; }
-
-    /// <summary>Bytes the identity may store, more than 0; left out, unchanged</summary>
-    public long? QuotaBytes { get; init; }
-
-    /// <summary>Left out, unchanged</summary>
-    public bool? PublicWebPresence { get; init; }
-
     /// <summary>The service's own reference for why, e.g. its payment id; logged, so a change can be traced back</summary>
     public string? Reference { get; init; }
 }

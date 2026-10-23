@@ -104,33 +104,27 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         // Provisioning mapping
         string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];
 
-        // Payload move mapping: the source serves a moved identity's payloads to the target, on the
-        // provisioning domain but whether or not this host provisions, and before the tenant middleware,
+        // An API on the provisioning domain, whether or not this host provisions, mapped before the tenant middleware
+        void MapProvisioningDomainApi(string rootPath) => app.MapWhen(
+            context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&
+                       context.Request.Path.StartsWithSegments(rootPath),
+            appBranch =>
+            {
+                appBranch.UseRouting();
+                appBranch.UseEndpoints(endpoints => endpoints.MapControllers());
+            });
+
+        // Payload move: the source serves a moved identity's payloads to the target; before the tenant middleware,
         // which answers 503/409 for the paused or disabled identity being moved
         if (config.PayloadMove.SourceEnabled)
         {
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&
-                           context.Request.Path.StartsWithSegments(PayloadMoveProtocol.RootPath),
-                appBranch =>
-                {
-                    appBranch.UseRouting();
-                    appBranch.UseEndpoints(endpoints => endpoints.MapControllers());
-                });
+            MapProvisioningDomainApi(PayloadMoveProtocol.RootPath);
         }
 
-        // Plan service mapping: homebase-invites reads and sets plans here (docs/hosting-plans.md section 9), on
-        // the provisioning domain whether or not this host provisions, as payload move does
+        // Account service: homebase-invites reads and sets plans here (docs/hosting-plans.md section 9)
         if (config.Registry.AccountServiceApiKey != "")
         {
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Registry.ProvisioningDomain &&
-                           context.Request.Path.StartsWithSegments(PlanServiceApiPathConstants.RootPath),
-                appBranch =>
-                {
-                    appBranch.UseRouting();
-                    appBranch.UseEndpoints(endpoints => endpoints.MapControllers());
-                });
+            MapProvisioningDomainApi(PlanServiceApiPathConstants.RootPath);
         }
 
         // Provisioning mapping

@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
+using Odin.Services.Registry;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
@@ -1080,10 +1081,6 @@ public class OdinConfiguration
     //
 
     /// <summary>
-    /// Moving an identity's payloads to another host: this host serving them as the source, and pulling
-    /// them as the target. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
-    /// </summary>
-    /// <summary>
     /// Who runs this host for its owners, and what they give them (docs/hosting-plans.md). An identity's plan, quota
     /// and public web presence are on its registration; the plans themselves belong to the hosting provider.
     /// </summary>
@@ -1107,7 +1104,7 @@ public class OdinConfiguration
         /// The provider's own domains: a YouAuth domain sign-in from one of these needs no consent screen. Exact,
         /// lower-case names, no wildcards; never apps.
         /// </summary>
-        public List<string> AutoConsentDomains { get; init; } = [];
+        public IReadOnlySet<string> AutoConsentDomains { get; init; } = new HashSet<string>();
 
         /// <summary>
         /// The quota of an identity that has none on its registration: every identity from before quotas were
@@ -1124,18 +1121,14 @@ public class OdinConfiguration
         {
             DisplayName = config.GetOrDefault("HostingProvider:DisplayName", "").Trim();
             UpgradeUrl = config.GetOrDefault("HostingProvider:UpgradeUrl", "").Trim();
+            // Validated and lower-cased as every YouAuth domain is (AsciiDomainName), so a sign-in compares like for like
             AutoConsentDomains = config.GetOrDefault("HostingProvider:AutoConsentDomains", new List<string>())
-                .Select(d => d.Trim().ToLowerInvariant())
-                .Where(d => d != "")
-                .Distinct()
-                .ToList();
+                .Where(d => d.Trim() != "")
+                .Select(d => new AsciiDomainName(d.Trim()).DomainName)
+                .ToHashSet();
             DefaultQuotaBytes = config.GetOrDefault("HostingProvider:DefaultQuotaBytes", SixtyGigabytes);
 
             AssertValidUpgradeUrl(UpgradeUrl);
-            foreach (var domain in AutoConsentDomains)
-            {
-                AsciiDomainNameValidator.AssertValidDomain(domain);
-            }
             if (DefaultQuotaBytes <= 0)
             {
                 throw new OdinSystemException($"HostingProvider:DefaultQuotaBytes must be more than 0: {DefaultQuotaBytes}");
@@ -1152,6 +1145,12 @@ public class OdinConfiguration
         /// host's provisioning domain&gt; added. Null when there is none. Both are hints anyone can edit: the page
         /// takes the identity from YouAuth, and uses host only to pick one of the hosts it already knows.
         /// </summary>
+        /// <summary>
+        /// What an owner is told about the hosting provider: null when there is none (no display name)
+        /// </summary>
+        public HostingProviderInfo? InfoFor(string identity, string provisioningDomain) =>
+            DisplayName == "" ? null : new HostingProviderInfo(DisplayName, UpgradeUrlFor(identity, provisioningDomain));
+
         public string? UpgradeUrlFor(string identity, string provisioningDomain)
         {
             if (UpgradeUrl == "")
@@ -1179,6 +1178,10 @@ public class OdinConfiguration
         }
     }
 
+    /// <summary>
+    /// Moving an identity's payloads to another host: this host serving them as the source, and pulling
+    /// them as the target. See docs/superpowers/specs/2026-08-31-payload-migration-design.md.
+    /// </summary>
     public class PayloadMoveSection
     {
         /// <summary>

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.PlanService;
+using Odin.Services.Configuration;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Hosting;
 
@@ -25,7 +26,7 @@ public class PlanServiceApiTests : V2Fixture
 
     // The test identities' own plan label (DevEnvironmentSetup), and what they get back after each test
     private const string DevPlan = "dev-domain";
-    private const long DefaultQuota = 64_424_509_440;
+    private const long DefaultQuota = OdinConfiguration.HostingProviderSection.SixtyGigabytes;
 
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides => new Dictionary<string, string?>
     {
@@ -120,10 +121,14 @@ public class PlanServiceApiTests : V2Fixture
             OdinSystemSerializer.Serialize(new SetPlanServicePlanRequest
                 { PlanId = planId, QuotaBytes = quotaBytes, PublicWebPresence = publicWebPresence, Reference = reference }));
 
-    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string? json = null,
-        string? key = Key, string origin = ProvisioningDomain)
+    private Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string? json = null,
+        string? key = Key, string origin = ProvisioningDomain) => SendAsync(Host, method, path, json, key, origin);
+
+    // A request to api/plans/v1/{path} on origin (the provisioning domain unless a test says otherwise)
+    internal static async Task<HttpResponseMessage> SendAsync(OdinHost host, HttpMethod method, string path,
+        string? json, string? key, string origin = ProvisioningDomain)
     {
-        using var client = new HttpClient(Host.Server.CreateHandler()) { BaseAddress = new Uri($"https://{origin}/") };
+        using var client = new HttpClient(host.Server.CreateHandler()) { BaseAddress = new Uri($"https://{origin}/") };
         var request = new HttpRequestMessage(method, $"api/plans/v1/{path}");
         if (key != null)
         {
@@ -150,11 +155,7 @@ public class PlanServiceApiOffTests : V2Fixture
     [Test]
     public async Task WithoutAKeyConfiguredItIsNotFound()
     {
-        using var client = new HttpClient(Host.Server.CreateHandler()) { BaseAddress = new Uri("https://provisioning.dotyou.cloud/") };
-        var request = new HttpRequestMessage(HttpMethod.Get, $"api/plans/v1/identities/{Identities.Frodo}");
-        request.Headers.Add(PlanServiceApiPathConstants.ApiKeyHeader, "anything");
-
-        var response = await client.SendAsync(request);
+        var response = await PlanServiceApiTests.SendAsync(Host, HttpMethod.Get, $"identities/{Identities.Frodo}", null, "anything");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }

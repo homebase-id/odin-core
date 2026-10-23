@@ -23,22 +23,22 @@ public static class RegistrationJsonMapper
 
     public static string ToJson(IdentityRegistration registration)
     {
-        return Serialize(registration.StatusState, registration.Invitation, registration.QuotaBytes);
+        var state = registration.StatusState;
+        return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason, state.StatusChangedAt,
+            registration.Invitation, registration.QuotaBytes));
     }
 
     /// <summary>
-    /// <paramref name="existingJson"/> with its status replaced by <paramref name="state"/>, keeping everything else.
+    /// <paramref name="existingJson"/> with its status replaced by <paramref name="state"/>, keeping everything else:
+    /// only <see cref="ToJson"/> and <see cref="Apply"/> list the other fields.
     /// </summary>
     public static string WithStatus(string? existingJson, TenantStatusState state)
     {
-        var existing = TryParse(existingJson, out _);
-        return Serialize(state, existing?.Invitation, existing?.QuotaBytes);
-    }
-
-    private static string Serialize(TenantStatusState state, RegistrationInvitation? invitation, long? quotaBytes)
-    {
-        return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, invitation, quotaBytes));
+        var existing = TryParse(existingJson, out _) ?? new RegistrationJson(state.Status, null, null, null);
+        return OdinSystemSerializer.Serialize(existing with
+        {
+            Status = state.Status, DisabledReason = state.DisabledReason, StatusChangedAt = state.StatusChangedAt
+        });
     }
 
     /// <summary>
