@@ -1029,6 +1029,27 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
 
 ---
 
+## `Odin.Core.Storage.Tests.Cache.CrossNodeStaleFillTests`
+
+- `AFillOnOneNodeThatLoadedBeforeAnotherNodesRemoveDoesNotOutliveIt(False)`
+
+**Where:** CI, `ubuntu/sqlite/release`, PR #1996 (`feed-acl-before-queue`) commit `28ef8ce0e`, run 39984085175,
+2026-10-23. `ubuntu/postgres/release` and `windows/sqlite/debug` passed on the same commit, and the `(True)` case
+of the same test passed right after it in the same job.
+
+**Symptom:** not the test body but its `[TearDown]`: `StopNodes` (`CrossNodeStaleFillTests.cs:44`) disposes each
+node's service provider, and StackExchange.Redis throws while closing the connection:
+`NullReferenceException at StackExchange.Redis.ConnectionMultiplexer.AllComplete(Task[] tasks)
+(ConnectionMultiplexer.cs:553)`, from `CloseAsync` / `DisposeAsync`.
+
+**Not caused by the PR:** #1996 changes unencrypted feed distribution only (`FeedDriveDistributionRouter`,
+`SendUnencryptedFeedFileOutboxWorkerAsync`, a feed ACL test); nothing in the cache, Redis, or this fixture.
+
+**Cause, a hypothesis:** a race inside the Redis client while a multiplexer is disposed with its own connect or
+background tasks still settling. Undiagnosed; the failed job was re-run.
+
+---
+
 ## Seen once, not chased (2026-09-05 to 10-20)
 
 - `TransitCommentFileRoutingTests.FailsWhenSenderCannotWriteCommentOnRecipientServer` --
