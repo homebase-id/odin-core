@@ -14,9 +14,13 @@ namespace Odin.Services.Registry.Registration;
 /// </summary>
 /// <param name="PlanId">The hosting plan the code gives the new identity; null for none. Absent from older
 /// services, which reads as null.</param>
-/// <remarks>The service may still send the code's enablePublicWebPresence; it is ignored. The identity's plan
-/// decides that (docs/hosting-plans.md).</remarks>
-public record InvitationCodeUse(string Code, string? Owner, string Source, string? PlanId = null)
+/// <param name="QuotaBytes">What the plan gives (docs/hosting-plans.md): its quota, stored on the new identity;
+/// null leaves it the host's default</param>
+/// <param name="PublicWebPresence">What the plan gives: a public home page or not; null leaves it as signup
+/// would without a plan</param>
+/// <remarks>The service may still send the code's older enablePublicWebPresence; it is ignored.</remarks>
+public record InvitationCodeUse(string Code, string? Owner, string Source, string? PlanId = null, long? QuotaBytes = null,
+    bool? PublicWebPresence = null)
 {
     public RegistrationInvitation ToRegistrationInvitation() => new(Code, Owner, Source);
 }
@@ -26,7 +30,7 @@ internal record InvitationCodeValidateResponse(bool Valid);
 internal record InvitationCodeUseResponse(bool Used, InvitationCodeUse? Code);
 
 /// <summary>
-/// The invitation-code service's API, homebase-id/homebase-invites; its README has the details.
+/// The invitation-code service's API, homebase-id/raven-hosting; its README has the details.
 /// </summary>
 internal interface IInvitationCodeApi
 {
@@ -41,7 +45,7 @@ internal interface IInvitationCodeApi
 }
 
 /// <summary>
-/// odin-core's one plug point into the invitation-code service, homebase-id/homebase-invites (#1908): signup checks a
+/// odin-core's one plug point into the invitation-code service, homebase-id/raven-hosting (#1908): signup checks a
 /// code, uses it, and gives the use back if registering fails. On only when Registry:InvitationCodeService:Url and
 /// :ApiKey are both set and the URL is https (or loopback); anything else is off, with an error logged when this is created.
 /// </summary>

@@ -188,8 +188,7 @@ public sealed partial class OdinHost : IAsyncDisposable
                                 .InstancePerLifetimeScope();
                             return cb;
                         },
-                        sp.GetRequiredService<OdinConfiguration>(),
-                        sp.GetRequiredService<HostingPlans>())));
+                        sp.GetRequiredService<OdinConfiguration>())));
             })
             .ConfigureContainer<ContainerBuilder>(cb =>
             {
