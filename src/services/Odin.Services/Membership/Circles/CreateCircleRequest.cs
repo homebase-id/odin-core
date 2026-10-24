@@ -15,7 +15,7 @@ public class CreateCircleRequest
     /// The circle's address within its owning app (#1939).  Optional: made from <see cref="Name"/> when
     /// absent.  Refused if the app already holds it.  Immutable once written.
     /// </summary>
-    public OdinSlug? Slug { get; set; }
+    public OdinSlug Slug { get; set; }
     
     public string Description { get; set; }
     

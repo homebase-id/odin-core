@@ -323,7 +323,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = SystemAppConstants.ChatAppId,
-            AppSlug = appSlug == null ? null : new OdinSlug(appSlug),
+            AppSlug = appSlug == null ? default : new OdinSlug(appSlug),
             Name = "Chat without a slug",
             PermissionSet = null,
             Drives = null,

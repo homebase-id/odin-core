@@ -27,7 +27,6 @@ namespace Odin.Services.Authorization.Apps
     /// </remarks>
     public static class AppSlugGenerator
     {
-        public const int MaxLength = OdinSlug.MaxLength;
         private static readonly Regex NonSlugRun = new("[^a-z0-9]+", RegexOptions.Compiled);
 
         /// <summary>
@@ -149,7 +148,7 @@ namespace Odin.Services.Authorization.Apps
                 for (var suffix = 2; suffix <= 99; suffix++)
                 {
                     var tail = "-" + suffix;
-                    var trimmed = baseSlug[..Math.Min(baseSlug.Length, MaxLength - tail.Length)].TrimEnd('-');
+                    var trimmed = baseSlug[..Math.Min(baseSlug.Length, OdinSlug.MaxLength - tail.Length)].TrimEnd('-');
 
                     if (trimmed.Length == 0)
                     {
@@ -164,7 +163,7 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
-            var fromId = appId.ToString("N")[..MaxLength];
+            var fromId = appId.ToString("N")[..OdinSlug.MaxLength];
             if (!taken.Contains(fromId) && OdinSlug.IsValid(fromId))
             {
                 return fromId;
@@ -194,9 +193,9 @@ namespace Odin.Services.Authorization.Apps
 
             var collapsed = NonSlugRun.Replace(lowered.ToString(), "-").Trim('-');
 
-            if (collapsed.Length > MaxLength)
+            if (collapsed.Length > OdinSlug.MaxLength)
             {
-                collapsed = collapsed[..MaxLength].TrimEnd('-');
+                collapsed = collapsed[..OdinSlug.MaxLength].TrimEnd('-');
             }
 
             return collapsed.Length > 0 && OdinSlug.IsValid(collapsed) ? collapsed : null;

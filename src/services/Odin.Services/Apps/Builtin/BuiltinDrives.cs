@@ -18,7 +18,7 @@ namespace Odin.Services.Apps.Builtin;
 /// </remarks>
 public static class BuiltinDrives
 {
-    public const string ChannelDriveTypeSlug = "channel";
+    public static readonly OdinSlug ChannelDriveTypeSlug = new("channel");
 
     //
     // ============================================================================================
@@ -82,7 +82,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest PublicPostsChannelDrive = new()
     {
         Name = "Public Posts", TargetDrive = WellKnownAppDrives.PublicPostsChannelDrive, Metadata = "",
-        AppId = SystemAppConstants.FeedAppId, DriveSlug = (OdinSlug)"posts", DriveTypeSlug = (OdinSlug)ChannelDriveTypeSlug,
+        AppId = SystemAppConstants.FeedAppId, DriveSlug = (OdinSlug)"posts", DriveTypeSlug = ChannelDriveTypeSlug,
         AllowAnonymousReads = true, OwnerOnly = false, AllowSubscriptions = true,
         // The only drive seeded CDN-on: public posts and their media are what the CDN exists to serve,
         // and CdnAuthPathHandler fails outright when no drive is enabled.

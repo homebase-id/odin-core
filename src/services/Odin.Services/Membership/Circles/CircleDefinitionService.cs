@@ -526,7 +526,7 @@ namespace Odin.Services.Membership.Circles
             IReadOnlyCollection<DriveGrantRequest> registeredDrives, PermissionSet registeredPermissions)
         {
             var heldKeys = registeredPermissions?.Keys ?? [];
-            var slugs = new HashSet<string>(StringComparer.Ordinal);
+            var slugs = new HashSet<OdinSlug>();
             foreach (var circle in circles)
             {
                 if (circle == null || string.IsNullOrWhiteSpace(circle.Name))
@@ -798,23 +798,23 @@ namespace Odin.Services.Membership.Circles
         /// console's: the v18 -&gt; v19 upgrade stamps them to it.
         /// </summary>
         /// <remarks>Static so the v12 -&gt; v13 upgrade shares it, as it shares <see cref="ToRecord"/>.</remarks>
-        internal static async Task<HashSet<string>> SlugsHeldByAppAsync(IdentityDatabase db, Guid appId)
+        internal static async Task<HashSet<OdinSlug>> SlugsHeldByAppAsync(IdentityDatabase db, Guid appId)
         {
             return (await db.CircleCached.GetAllAsync())
                 .Where(r => (r.AppId ?? SystemAppConstants.OwnerConsoleAppId) == appId)
-                .Select(r => r.CircleSlug)
-                .ToHashSet(StringComparer.Ordinal);
+                .Select(r => new OdinSlug(r.CircleSlug))
+                .ToHashSet();
         }
 
         /// <summary>
         /// The slug a new circle gets: the caller's, if it named one and the app does not hold it yet;
         /// otherwise one made from the name.
         /// </summary>
-        private async Task<OdinSlug> ResolveSlugAsync(OdinSlug? requestedOrNone, string name, Guid appId)
+        private async Task<OdinSlug> ResolveSlugAsync(OdinSlug requested, string name, Guid appId)
         {
-            if (requestedOrNone is not { HasValue: true } requested)
+            if (!requested.HasValue)
             {
-                return new OdinSlug(CircleSlugGenerator.Generate(name, await SlugsHeldByAppAsync(db, appId)));
+                return CircleSlugGenerator.Generate(name, await SlugsHeldByAppAsync(db, appId));
             }
 
             // One indexed lookup -- except for the owner console, whose ownerless circles the index cannot see

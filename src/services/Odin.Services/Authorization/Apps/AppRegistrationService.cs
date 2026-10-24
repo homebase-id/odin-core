@@ -616,7 +616,7 @@ namespace Odin.Services.Authorization.Apps
         /// refusal a clear client error rather than a constraint violation.
         /// </para>
         /// </remarks>
-        private async Task<OdinSlug> AssignSlugAsync(Guid appId, OdinSlug? requested)
+        private async Task<OdinSlug> AssignSlugAsync(Guid appId, OdinSlug requested)
         {
             // Required for every app, built-ins included (#1901): missing or malformed is a client error.
             // A built-in's slug is defined in the tree (WellknownAppDefinition.AppSlug) and

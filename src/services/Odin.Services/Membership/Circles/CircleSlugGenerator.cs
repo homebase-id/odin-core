@@ -31,7 +31,7 @@ public static class CircleSlugGenerator
     /// <summary>The circles whose slug is fixed in code: the built-in apps'.</summary>
     private static readonly List<CircleDefinition> FixedCircles = BuiltinApps.AllCircles.ToList();
 
-    private static readonly HashSet<string> BuiltinSlugs = BuiltinCircleSlugs().ToHashSet();
+    private static readonly HashSet<OdinSlug> BuiltinSlugs = FixedCircles.Select(c => c.Slug).ToHashSet();
 
     /// <summary>
     /// The slugs the platform's own circles carry: the built-in apps'.
@@ -49,15 +49,15 @@ public static class CircleSlugGenerator
     /// owning app already holds.  The name's own slug if free, else <c>-2</c>, <c>-3</c>...; a name with
     /// nothing usable in it starts from <c>circle</c>.
     /// </summary>
-    public static string Generate(string? name, ISet<string> taken)
+    public static OdinSlug Generate(string? name, ISet<OdinSlug> taken)
     {
-        bool IsFree(string candidate) =>
-            OdinSlug.IsValid(candidate) && !taken.Contains(candidate) && !BuiltinSlugs.Contains(candidate);
+        bool IsFree(string candidate, out OdinSlug slug) =>
+            OdinSlug.TryParse(candidate, out slug) && !taken.Contains(slug) && !BuiltinSlugs.Contains(slug);
 
         var baseSlug = AppSlugGenerator.Slugify(name) ?? FallbackSlug;
-        if (IsFree(baseSlug))
+        if (IsFree(baseSlug, out var free))
         {
-            return baseSlug;
+            return free;
         }
 
         for (var suffix = 2; suffix <= MaxSuffix; suffix++)
@@ -65,9 +65,9 @@ public static class CircleSlugGenerator
             var tail = "-" + suffix;
             var trimmed = baseSlug[..System.Math.Min(baseSlug.Length, OdinSlug.MaxLength - tail.Length)].TrimEnd('-');
             var candidate = (trimmed.Length > 0 ? trimmed : FallbackSlug) + tail;
-            if (IsFree(candidate))
+            if (IsFree(candidate, out free))
             {
-                return candidate;
+                return free;
             }
         }
 

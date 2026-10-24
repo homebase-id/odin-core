@@ -34,7 +34,7 @@ namespace Odin.Core;
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(OdinSlugConverter))]
-public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>, IParsable<OdinSlug>
+public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>
 {
     public const int MaxLength = 14;
 
@@ -56,8 +56,7 @@ public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>, IPar
 
     private OdinSlug(string? value, string name)
     {
-        var lowered = value?.ToLowerInvariant();
-        if (!IsWellFormed(lowered))
+        if (!TryLower(value, out var lowered))
         {
             throw new OdinClientException(
                 $"{name} '{value}' is not a valid slug: letters, digits and inner hyphens only, " +
@@ -67,7 +66,10 @@ public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>, IPar
         _value = lowered;
     }
 
-    /// <summary>False only for <c>default(OdinSlug)</c>, which no constructor makes.</summary>
+    /// <summary>
+    /// False only for <c>default(OdinSlug)</c>, which no constructor makes: the one way a slug is absent
+    /// (a field left out, a JSON <c>null</c>, a query value not given).
+    /// </summary>
     public bool HasValue => _value != null;
 
     public string Value => _value ?? throw new InvalidOperationException("An empty OdinSlug");
@@ -79,24 +81,24 @@ public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>, IPar
     /// <paramref name="slug"/>, or a client error when a request left it out: the server never names
     /// anything on the caller's behalf (#1901).
     /// </summary>
-    public static OdinSlug Required(OdinSlug? slug, string name) =>
-        slug is { HasValue: true } value ? value
-            : throw new OdinClientException($"{name} is required", OdinClientErrorCode.ArgumentError);
+    public static OdinSlug Required(OdinSlug slug, string name) =>
+        slug.HasValue ? slug : throw new OdinClientException($"{name} is required", OdinClientErrorCode.ArgumentError);
 
     /// <summary>Whether <paramref name="value"/>, lowercased, is a slug.</summary>
-    public static bool IsValid([NotNullWhen(true)] string? value) => IsWellFormed(value?.ToLowerInvariant());
+    public static bool IsValid([NotNullWhen(true)] string? value) => TryLower(value, out _);
 
-    private static bool IsWellFormed([NotNullWhen(true)] string? value) =>
-        !string.IsNullOrEmpty(value) && value.Length <= MaxLength && Pattern.IsMatch(value) && !Reserved.Contains(value);
-
-    /// <summary>For route and query values (ASP.NET binds <see cref="IParsable{TSelf}"/> types).</summary>
-    public static OdinSlug Parse(string s, IFormatProvider? provider) => new(s);
-
-    /// <summary>For route and query values; a malformed one fails binding with a 400.</summary>
-    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out OdinSlug result)
+    /// <summary>The slug <paramref name="value"/> names, or false where it names none.</summary>
+    public static bool TryParse([NotNullWhen(true)] string? value, out OdinSlug result)
     {
-        result = IsValid(s) ? new OdinSlug(s) : default;
+        result = IsValid(value) ? new OdinSlug(value) : default;
         return result.HasValue;
+    }
+
+    private static bool TryLower([NotNullWhen(true)] string? value, [NotNullWhen(true)] out string? lowered)
+    {
+        lowered = value?.ToLowerInvariant();
+        return !string.IsNullOrEmpty(lowered) && lowered.Length <= MaxLength && Pattern.IsMatch(lowered) &&
+               !Reserved.Contains(lowered);
     }
 
     public static implicit operator string(OdinSlug slug) => slug.Value;

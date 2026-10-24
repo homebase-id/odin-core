@@ -62,7 +62,7 @@ public sealed partial class OwnerAdmin
         PermissionSetGrantRequest appPermissions,
         List<Guid>? authorizedCircles = null,
         PermissionSetGrantRequest? circleMemberGrantRequest = null,
-        OdinSlug? appSlug = null)
+        OdinSlug appSlug = default)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);
@@ -73,7 +73,7 @@ public sealed partial class OwnerAdmin
             AppId = appId,
 
             // Required at registration, so a caller that names none gets one derived from the app id.
-            AppSlug = appSlug ?? SlugFor(appId),
+            AppSlug = appSlug.HasValue ? appSlug : SlugFor(appId),
             PermissionSet = appPermissions.PermissionSet,
             Drives = appPermissions.Drives?.ToList(),
             AuthorizedCircles = authorizedCircles ?? new List<Guid>(),

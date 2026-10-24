@@ -121,7 +121,7 @@ public class AppSlugGeneratorTests
         var slugs = AppSlugGenerator.GenerateAll([(appId, "!!! ??? ***")]);
 
         Assert.That(OdinSlug.IsValid(slugs[appId]), Is.True);
-        Assert.That(slugs[appId], Is.EqualTo(appId.ToString("N")[..AppSlugGenerator.MaxLength]));
+        Assert.That(slugs[appId], Is.EqualTo(appId.ToString("N")[..OdinSlug.MaxLength]));
     }
 
     [Test]
@@ -178,7 +178,7 @@ public class AppSlugGeneratorTests
         if (result != null)
         {
             Assert.That(OdinSlug.IsValid(result), Is.True);
-            Assert.That(result.Length, Is.LessThanOrEqualTo(AppSlugGenerator.MaxLength));
+            Assert.That(result.Length, Is.LessThanOrEqualTo(OdinSlug.MaxLength));
         }
     }
 
@@ -190,7 +190,7 @@ public class AppSlugGeneratorTests
             (appId, "An Extremely Long Application Name That Will Not Fit")
         ]);
 
-        Assert.That(slugs[appId].Length, Is.LessThanOrEqualTo(AppSlugGenerator.MaxLength));
+        Assert.That(slugs[appId].Length, Is.LessThanOrEqualTo(OdinSlug.MaxLength));
         Assert.That(OdinSlug.IsValid(slugs[appId]), Is.True);
     }
 }

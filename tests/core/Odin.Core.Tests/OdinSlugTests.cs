@@ -59,7 +59,7 @@ public class OdinSlugTests
         Assert.That(ex!.ErrorCode, Is.EqualTo(OdinClientErrorCode.ArgumentError));
         Assert.That(ex.Message, Does.Contain("driveSlug"));
         Assert.That(OdinSlug.IsValid(value), Is.False);
-        Assert.That(OdinSlug.TryParse(value, null, out _), Is.False);
+        Assert.That(OdinSlug.TryParse(value, out _), Is.False);
     }
 
     /// <summary>The point of the type: every valid slug reads the same escaped as unescaped.</summary>
@@ -93,7 +93,7 @@ public class OdinSlugTests
                     value[j] = chars[random.Next(chars.Length)];
                 }
 
-                if (OdinSlug.TryParse(new string(value), null, out var slug))
+                if (OdinSlug.TryParse(new string(value), out var slug))
                 {
                     yield return slug;
                 }
@@ -122,7 +122,6 @@ public class OdinSlugTests
     {
         Assert.That(JsonSerializer.Serialize(new OdinSlug("Chat")), Is.EqualTo("\"chat\""));
         Assert.That(JsonSerializer.Deserialize<OdinSlug>("\"Chat\""), Is.EqualTo(new OdinSlug("chat")));
-        Assert.That(JsonSerializer.Deserialize<OdinSlug?>("null"), Is.Null);
         Assert.That(JsonSerializer.Deserialize<OdinSlug>("null").HasValue, Is.False, "a field left out");
         Assert.That(JsonSerializer.Serialize(default(OdinSlug)), Is.EqualTo("null"));
 
@@ -135,19 +134,15 @@ public class OdinSlugTests
     {
         Assert.That(OdinSlug.Required(new OdinSlug("chat"), "appSlug").Value, Is.EqualTo("chat"));
 
-        foreach (var missing in new OdinSlug?[] { null, default(OdinSlug) })
-        {
-            var ex = Assert.Throws<OdinClientException>(() => OdinSlug.Required(missing, "appSlug"));
-            Assert.That(ex!.Message, Is.EqualTo("appSlug is required"));
-        }
+        var ex = Assert.Throws<OdinClientException>(() => OdinSlug.Required(default, "appSlug"));
+        Assert.That(ex!.Message, Is.EqualTo("appSlug is required"));
     }
 
     [Test]
-    public void RouteValuesParseAsSlugs()
+    public void TryParseLowercases()
     {
-        Assert.That(OdinSlug.TryParse("Feed", null, out var slug), Is.True);
+        Assert.That(OdinSlug.TryParse("Feed", out var slug), Is.True);
         Assert.That(slug.Value, Is.EqualTo("feed"));
-        Assert.That(OdinSlug.Parse("Feed", null), Is.EqualTo(slug));
-        Assert.That(OdinSlug.TryParse(null, null, out _), Is.False);
+        Assert.That(OdinSlug.TryParse(null, out _), Is.False);
     }
 }

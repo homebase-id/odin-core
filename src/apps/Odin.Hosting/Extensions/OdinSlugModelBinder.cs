@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Odin.Core;
@@ -15,22 +14,18 @@ public sealed class OdinSlugModelBinder : IModelBinder
     public Task BindModelAsync(ModelBindingContext bindingContext)
     {
         var value = bindingContext.ValueProvider.GetValue(bindingContext.ModelName).FirstValue;
-        if (value == null && Nullable.GetUnderlyingType(bindingContext.ModelType) != null)
-        {
-            // An optional slug left out
-            bindingContext.Result = ModelBindingResult.Success(null);
-            return Task.CompletedTask;
-        }
 
-        bindingContext.Result = ModelBindingResult.Success(OdinSlug.Create(value, bindingContext.ModelName));
+        // A value left out is an absent slug, default(OdinSlug), as a JSON null is
+        bindingContext.Result = ModelBindingResult.Success(
+            value == null ? default : OdinSlug.Create(value, bindingContext.ModelName));
         return Task.CompletedTask;
     }
 }
 
 public sealed class OdinSlugModelBinderProvider : IModelBinderProvider
 {
+    private static readonly OdinSlugModelBinder Binder = new();
+
     public IModelBinder GetBinder(ModelBinderProviderContext context) =>
-        context.Metadata.ModelType == typeof(OdinSlug) || context.Metadata.ModelType == typeof(OdinSlug?)
-            ? new OdinSlugModelBinder()
-            : null;
+        context.Metadata.ModelType == typeof(OdinSlug) ? Binder : null;
 }

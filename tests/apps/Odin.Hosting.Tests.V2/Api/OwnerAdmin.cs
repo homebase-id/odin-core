@@ -90,8 +90,8 @@ public sealed partial class OwnerAdmin
         System.Collections.Generic.Dictionary<string, string>? attributes = null,
         bool allowCdn = false,
         Guid? appId = null,
-        OdinSlug? driveSlug = null,
-        OdinSlug? driveTypeSlug = null)
+        OdinSlug driveSlug = default,
+        OdinSlug driveTypeSlug = default)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
@@ -109,8 +109,8 @@ public sealed partial class OwnerAdmin
             // The server requires both slugs (#1901); a test that does not care what the drive is
             // called gets a unique one.
             AppId = appId,
-            DriveSlug = driveSlug ?? TestSlug.New(),
-            DriveTypeSlug = driveTypeSlug ?? TestSlug.DriveType,
+            DriveSlug = driveSlug.HasValue ? driveSlug : TestSlug.New(),
+            DriveTypeSlug = driveTypeSlug.HasValue ? driveTypeSlug : TestSlug.DriveType,
         });
         EnsureSuccess(response, nameof(CreateDrive));
         return response;

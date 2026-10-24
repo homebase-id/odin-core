@@ -171,7 +171,7 @@ public class CircleSlugTests : V2Fixture
     {
         Id = Guid.NewGuid(),
         Name = name,
-        Slug = slug == null ? null : new OdinSlug(slug),
+        Slug = slug == null ? default : new OdinSlug(slug),
         Permissions = new PermissionSet(PermissionKeys.ReadCircleMembership)
     };
 
@@ -179,7 +179,7 @@ public class CircleSlugTests : V2Fixture
         app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = name,
-            Slug = slug == null ? null : new OdinSlug(slug),
+            Slug = slug == null ? default : new OdinSlug(slug),
             Permissions = new PermissionSet(PermissionKeys.ReadConnections)
         });
 

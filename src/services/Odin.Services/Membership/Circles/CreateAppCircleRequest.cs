@@ -25,7 +25,7 @@ public class CreateAppCircleRequest
     /// state, finds the circle the first one made.  Optional: without it every call makes a new circle, with a
     /// slug made from <see cref="Name"/>.
     /// </summary>
-    public OdinSlug? Slug { get; set; }
+    public OdinSlug Slug { get; set; }
 
     public string Description { get; set; }
 

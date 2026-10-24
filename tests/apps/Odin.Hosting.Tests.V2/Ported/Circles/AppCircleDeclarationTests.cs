@@ -169,7 +169,7 @@ public class AppCircleDeclarationTests : V2Fixture
 
     private static CreateAppCircleRequest Declared(string slug, List<DriveGrantRequest> grants, int[] keys) => new()
     {
-        Slug = slug == null ? null : new OdinSlug(slug),
+        Slug = slug == null ? default : new OdinSlug(slug),
         Name = "Declared " + slug,
         DriveGrants = grants,
         Permissions = new PermissionSet(keys)

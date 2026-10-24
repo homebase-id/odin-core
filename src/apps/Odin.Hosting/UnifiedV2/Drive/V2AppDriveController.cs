@@ -60,16 +60,16 @@ public class V2AppDriveController(
     [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
     public async Task<List<ClientDriveData>> GetAppDrives(
         [FromRoute] OdinSlug appSlug,
-        [FromQuery] OdinSlug? type = null)
+        [FromQuery] OdinSlug type = default)
     {
         var appId = await ResolveAppIdAsync(appSlug);
         var drives = await driveManager.GetDrivesByAppIdAsync(appId, WebOdinContext);
 
         // Filtered here rather than in a second lookup: an app owns a handful of drives, and the
         // list above is already in hand.
-        if (type is { HasValue: true } typeSlug)
+        if (type.HasValue)
         {
-            drives = drives.Where(d => d.DriveTypeSlug == typeSlug).ToList();
+            drives = drives.Where(d => d.DriveTypeSlug == type).ToList();
         }
 
         return drives.Select(ToClientDriveData).ToList();

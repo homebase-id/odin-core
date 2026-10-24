@@ -100,7 +100,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                 }
 
                 var changed = await driveManager.ApplyAddressAsync(drive.Id, request.AppId.Value,
-                    request.DriveSlug!.Value, request.DriveTypeSlug!.Value, odinContext);
+                    request.DriveSlug, request.DriveTypeSlug, odinContext);
 
                 if (changed)
                 {
@@ -182,8 +182,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version13tov14
                     continue;
                 }
 
-                if (drive.AppId != request.AppId || drive.DriveSlug != request.DriveSlug!.Value ||
-                    drive.DriveTypeSlug != request.DriveTypeSlug!.Value)
+                if (drive.AppId != request.AppId || drive.DriveSlug != request.DriveSlug ||
+                    drive.DriveTypeSlug != request.DriveTypeSlug)
                 {
                     throw new OdinSystemException(
                         $"v13->v14 left drive {request.Name} disagreeing with the tree: " +
