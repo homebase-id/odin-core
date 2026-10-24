@@ -31,6 +31,13 @@ public class RecoveryNotifier(
     PushNotificationService pushNotificationService,
     IRecoveryNotificationSink notificationSink)
 {
+    /// <summary>A link's nonce data, without using it up: to check a request before it is used.</summary>
+    public async Task<string> PeekNonceDataOrFail(Guid nonceId)
+    {
+        var record = await nonceTable.PeekAsync(nonceId) ?? throw new OdinClientException("Invalid Nonce");
+        return record.data;
+    }
+
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
         var record = await nonceTable.PopAsync(nonceId);

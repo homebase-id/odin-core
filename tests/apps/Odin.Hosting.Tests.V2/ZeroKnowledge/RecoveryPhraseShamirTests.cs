@@ -1,5 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
+using Autofac;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -93,6 +94,33 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         var recovery = await Host.AnonymousRefitFor<IOwnerAuthenticationClient>(recovered.Identity.DomainName).GetPhraseRecovery();
         Assert.That(recovery.StatusCode, Is.EqualTo(HttpStatusCode.OK), recovery.Error?.Content);
         Assert.That(ZkBrowser.RecoverPassword(phrase, recovery.Content!), Is.EqualTo(NewPassword));
+    }
+
+    /// <summary>
+    /// A friend deal the server made before recovery in the browser locks the phrase and can't be dealt
+    /// again (the browser deals friends now): it goes, and the security page says so.  The first owner
+    /// request after the deploy removes it already; the takeover would too.
+    /// </summary>
+    [Test]
+    public async Task AnOldServerMadeFriendDealIsRemovedAndTheSecurityPageSaysSo()
+    {
+        var (dealer, _) = Cast();
+        await ArrangeAutomatedShardsAsync(dealer);
+
+        // What an old friend deal looks like: the same package, not automated, locking the phrase
+        var (scope, ctx) = await MigrationContextAsync(dealer);
+        var shamir = scope.Resolve<ShamirConfigurationService>();
+        var package = await shamir.GetDealerShardPackage(ctx);
+        package.UsesAutomatedRecovery = false;
+        await shamir.SaveDealerPackage(package, ctx);
+
+        await TakeOverAsync(dealer);
+
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(dealer)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.TakenOver));
+        Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.False, "the old deal is gone");
+        var needsAttention = await PlainSecurityOf(dealer).GetNeedsAttention();
+        Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
+        Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
     }
 
     /// <summary>The login's takeover, from a fresh password login as the browser does it.</summary>

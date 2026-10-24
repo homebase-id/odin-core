@@ -148,4 +148,21 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
         Assert.That((int)configureShardsResponse.StatusCode, Is.Not.InRange(200, 299), configureShardsResponse.Error?.Content);
         Assert.That((await SecurityOf(frodo).GetShardConfig()).Content, Is.Null, "the failed deal rolled back");
     }
+
+    [Test]
+    public async Task AThresholdOfOneIsRefused()
+    {
+        var (frodo, players) = Cast();
+        var deal = await ZkFriends.MakeDealAsync(frodo, ByteArrayUtil.GetRndByteArray(16),
+            players.Select(p => (p, PlayerType.Automatic)).ToList(), minMatchingShards: 2);
+        var request = new ConfigureShardsRequest
+        {
+            MinMatchingShards = 1,
+            Shards = deal.Request.Shards,
+            ShamirCopies = deal.Request.ShamirCopies
+        };
+
+        var response = await SecurityOf(frodo).ConfigureShards(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
+    }
 }

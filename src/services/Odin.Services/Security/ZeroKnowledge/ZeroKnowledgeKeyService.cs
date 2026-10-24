@@ -16,6 +16,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
+using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 
 namespace Odin.Services.Security.ZeroKnowledge;
 
@@ -92,6 +93,7 @@ public class ZeroKnowledgeKeyService(
 
         // The phrase and friend copies lock the zero-knowledge master key, which a password change
         // keeps.  Each password copy is the new password's, or none.
+        AssertSealedToCurrentKeys(existing, request.PhrasePublicKeyEncryptedPassword, request.ShamirPublicKeyEncryptedPassword);
         await SaveRecordAsync(existing with
         {
             ZkSaltKek64 = request.ZkSaltKek64,
@@ -115,11 +117,30 @@ public class ZeroKnowledgeKeyService(
             throw new OdinClientException("No friend deal to seal the password to", OdinClientErrorCode.PasswordRecoveryNotConfigured);
         }
 
+        AssertSealedToCurrentKeys(existing, request.PhrasePublicKeyEncryptedPassword, request.ShamirPublicKeyEncryptedPassword);
+
         await SaveRecordAsync(existing with
         {
             PhrasePublicKeyEncryptedPassword = request.PhrasePublicKeyEncryptedPassword ?? existing.PhrasePublicKeyEncryptedPassword,
             ShamirPublicKeyEncryptedPassword = request.ShamirPublicKeyEncryptedPassword ?? existing.ShamirPublicKeyEncryptedPassword
         });
+    }
+
+    /// <summary>
+    /// Refuses a password copy sealed to a key that is no longer the phrase's or the friends' (a tab
+    /// that read the keys before a new deal, say): the server can't open a copy, but it can read which
+    /// key it was sealed to, and a stale one would stand in for the copy every later login writes.
+    /// </summary>
+    private static void AssertSealedToCurrentKeys(ZkKeyRecord existing, string phraseCopy64, string friendsCopy64)
+    {
+        if ((phraseCopy64 != null && existing.PhrasePublicKeyJwk != null &&
+             !ZkSeal.IsSealedTo(phraseCopy64.FromBase64(), existing.PhrasePublicKeyJwk)) ||
+            (friendsCopy64 != null && existing.ShamirPublicKeyJwk != null &&
+             !ZkSeal.IsSealedTo(friendsCopy64.FromBase64(), existing.ShamirPublicKeyJwk)))
+        {
+            throw new OdinClientException("The password copy is sealed to a key that is no longer current; reload and try again",
+                OdinClientErrorCode.ArgumentError);
+        }
     }
 
     /// <summary>
@@ -190,6 +211,7 @@ public class ZeroKnowledgeKeyService(
     {
         odinContext.Caller.AssertHasMasterKey();
         var existing = await GetRecordOrFailAsync();
+        AssertSealedToCurrentKeys(existing with { PhrasePublicKeyJwk = request.PhrasePublicKeyJwk }, phrasePublicKeyEncryptedPassword, null);
         using var resetKey = request.ResetKey64.FromBase64().ToSensitiveByteArray();
         await SaveRecordAsync(existing with
         {
@@ -300,12 +322,15 @@ public class ZeroKnowledgeKeyService(
 
         // Deposits are sealed to the write-only key being dropped, so nothing can open them again: a
         // friend's shard dies with their reset, and the dealer is told to deal again (its check sees
-        // the shard gone).
+        // the shard gone).  The requests to release them go too: only gated shards, all deposits, get one.
+        var releaseRequests = (await driveMainIndex.GetAllByDriveIdAsync(driveId))
+            .Select(ServerFileHeader.FromDriveMainIndexRecord)
+            .Where(h => h.FileMetadata.AppData.FileType == ShardRequestApprovalCollector.CollectedShardRequestFileType);
         var ownerContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.ReadWrite, odinContext);
-        foreach (var deposit in encrypted)
+        foreach (var dead in encrypted.Concat(releaseRequests))
         {
-            await fileSystem.Storage.HardDeleteLongTermFile(deposit.FileMetadata.File, ownerContext);
+            await fileSystem.Storage.HardDeleteLongTermFile(dead.FileMetadata.File, ownerContext);
         }
 
         await driveManager.ApplyZeroKnowledgeKeysAsync(

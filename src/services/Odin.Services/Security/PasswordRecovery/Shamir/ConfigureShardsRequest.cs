@@ -31,8 +31,8 @@ public sealed class ConfigureShardsRequest
 
         OdinValidationUtils.AssertIsTrue(Shards.Count >= ShamirConfigurationService.MinimumPlayerCount,
             $"You need at least {ShamirConfigurationService.MinimumPlayerCount} trusted connections");
-        OdinValidationUtils.AssertIsTrue(MinMatchingShards >= 1 && MinMatchingShards <= Shards.Count,
-            "The minimum number of shards must be between 1 and the number of players");
+        OdinValidationUtils.AssertIsTrue(MinMatchingShards >= 2 && MinMatchingShards <= Shards.Count,
+            "The minimum number of shards must be between 2 and the number of players");
         OdinValidationUtils.AssertIsTrue(
             Shards.Select(s => s.Player?.OdinId).Distinct().Count() == Shards.Count &&
             Shards.Select(s => s.ShardId).Distinct().Count() == Shards.Count &&
@@ -42,6 +42,7 @@ public sealed class ConfigureShardsRequest
         foreach (var shard in Shards)
         {
             shard.Validate();
+            OdinValidationUtils.AssertIsTrue(shard.Index <= Shards.Count, "A shard's index is at most the number of players");
         }
 
         // The automatic shards are released by servers with no human, as is the dealer package, so

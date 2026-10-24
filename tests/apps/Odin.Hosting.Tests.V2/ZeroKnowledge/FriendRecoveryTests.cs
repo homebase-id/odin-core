@@ -49,12 +49,15 @@ public class FriendRecoveryTests : ShamirFixture
         DriveAsserts.AssertRejected(await AnonymousSecurityOf(frodo).GetRecoveryBundle(), OdinClientErrorCode.RecoveryNotReady);
 
         var gated = players.Where(p => config.Envelopes.Single(e => e.Player.OdinId == p.Identity).Player.Type == PlayerType.Delegate).ToList();
-        await ApproveEveryShardRequestAsync(gated.Take(1).ToList(), config);
+        var emailsBefore = RecoveryNotificationCount(frodo, RecoveryNotificationKind.FriendsApproved);
+        await ApproveEveryShardRequestAsync(gated, config);
+        Assert.That(RecoveryNotificationCount(frodo, RecoveryNotificationKind.FriendsApproved) - emailsBefore, Is.EqualTo(1),
+            "the owner is told once, at the threshold");
         Assert.That(RecoveryLink(frodo, RecoveryNotificationKind.FriendsApproved).Link, Is.Null, "the email carries no link");
 
         var rebuilt = await RebuildInTheRecoveringBrowserAsync(frodo);
         Assert.That(rebuilt.Password, Is.EqualTo(Password));
-        Assert.That(rebuilt.Bundle.Shards, Has.Count.EqualTo(3));
+        Assert.That(rebuilt.Bundle.Shards, Has.Count.EqualTo(4), "later approvals are collected too");
 
         // Another browser can't open what the server hands out
         var bundle = (await AnonymousSecurityOf(frodo).GetRecoveryBundle()).Content!;
@@ -119,6 +122,15 @@ public class FriendRecoveryTests : ShamirFixture
         DriveAsserts.AssertRejected(enter, OdinClientErrorCode.RecoveryNotReady);
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode);
 
+        // The refusal didn't use the link up: the browser that started recovery can still open it
+        var fromTheStartingBrowser = await security.EnterRecoveryMode(new EnterRecoveryModeRequest
+        {
+            Id = nonceId,
+            RecoveryPublicKeyJwk = theirs.PublicKeyJwk
+        });
+        Assert.That(fromTheStartingBrowser.StatusCode, Is.EqualTo(HttpStatusCode.OK), fromTheStartingBrowser.Error?.Content);
+        await ExitRecoveryModeAsync(frodo);
+
         // A friend deal can't be started without the browser's key
         var noKey = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest());
         Assert.That(noKey.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), noKey.Error?.Content);
@@ -129,10 +141,13 @@ public class FriendRecoveryTests : ShamirFixture
     {
         var (frodo, players, config) = await ArrangeDelegateShardsAsync();
         var friend = players[0];
+        await EnterRecoveryModeAsync(frodo);
+        Assert.That(await GetPlayerShardRequestAsync(config, friend), Is.Not.Null);
 
         // A reset with today's master key gives the friend's drive new keys; the conversion deletes the
-        // deposits sealed to the old write-only key instead of refusing
+        // deposits sealed to the old write-only key instead of refusing, and the requests to release them
         await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(friend, ZkMasterKeyOf(friend));
+        Assert.That(await GetPlayerShardRequestAsync(config, friend), Is.Null, "a request for a dead shard goes with it");
         var shardId = config.Envelopes.Single(e => e.Player.OdinId == friend.Identity).ShardId;
         var gone = await friend.Drives.Reader.GetFileHeaderByUniqueIdAsync(shardId, Odin.Services.Drives.WellKnownAppDrives.ShardRecoveryDrive.Alias);
         Assert.That(gone.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK), "the dead shard is deleted");
@@ -171,6 +186,23 @@ public class FriendRecoveryTests : ShamirFixture
         });
 
         Assert.That(response.IsSuccessStatusCode, Is.False, $"a forged shard was accepted: {response.StatusCode}");
+
+        // The gated friend's own server, without them, hands in junk as their shard
+        var gated = players.Single(p => p.Identity == gatedEnvelope.Player.OdinId);
+        var gatedClient = await Host.GetTenantScope(gated.Identity.DomainName).Resolve<IOdinHttpClientFactory>()
+            .CreateClientAsync<IPeerPasswordRecoveryHttpClient>(frodo.Identity);
+        var junk = await gatedClient.SendPlayerShard(new RetrieveShardResult
+        {
+            ResultType = RetrieveShardResultType.Complete,
+            Shard = new PlayerEncryptedShard
+            {
+                Id = gatedEnvelope.ShardId,
+                Index = 1,
+                Player = gatedEnvelope.Player,
+                DealerEncryptedShard = ByteArrayUtil.GetRndByteArray(200)
+            }
+        });
+        Assert.That(junk.IsSuccessStatusCode, Is.False, $"a shard not sealed to the recovering browser was accepted: {junk.StatusCode}");
         await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
     }
 
@@ -208,11 +240,43 @@ public class FriendRecoveryTests : ShamirFixture
         var reset = await OwnerPasswordFlow.ResetPasswordUsingRecoveryKeyAsync(Host, frodo.Identity.DomainName, phrase, NewPassword);
         Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
 
+        // Before any login removes it, the deal can't start a recovery that could give nothing back
+        var initiate = await AnonymousSecurityOf(frodo).InitiateRecoveryMode(new InitiateRecoveryModeRequest
+        {
+            RecoveryPublicKeyJwk = ZkBrowser.MakeKeyPair().PublicKeyJwk
+        });
+        DriveAsserts.AssertRejected(initiate, OdinClientErrorCode.PasswordRecoveryNotConfigured);
+
         // The next owner request removes the deal: it could recover nothing
         var owner = await OwnerSession.LoginAsync(Host, frodo.Identity.DomainName, NewPassword);
         Assert.That((await RecoveryInfoAsync(owner)).IsConfigured, Is.False, "the deal is gone");
         var needsAttention = await PlainSecurityOf(owner).GetNeedsAttention();
         Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
         Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
+    }
+
+    [Test]
+    public async Task AnExitRequestDoesNotLoseTheRecoveringBrowsersKey()
+    {
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        await EnterRecoveryModeAsync(frodo);
+
+        // Anyone can ask to exit; collecting goes on until the owner confirms it by email
+        var exit = await AnonymousSecurityOf(frodo).ExitRecoveryMode();
+        Assert.That(exit.StatusCode, Is.EqualTo(HttpStatusCode.OK), exit.Error?.Content);
+
+        await ApproveEveryShardRequestAsync(players.Take(config.MinMatchingShards).ToList(), config);
+        var rebuilt = await RebuildInTheRecoveringBrowserAsync(frodo);
+        Assert.That(rebuilt.Password, Is.EqualTo(Password));
+    }
+
+    [Test]
+    public async Task APasswordCopySealedToAnOldKeyIsRefused()
+    {
+        var (frodo, _, _) = await ArrangeDelegateShardsAsync();
+
+        var stale = await ZkOwnerSteps.SavePasswordAsync(frodo, Password, phraseCopy: null,
+            friendsCopy: ZkBrowser.SealPassword(Password, ZkBrowser.MakeKeyPair().PublicKeyJwk));
+        DriveAsserts.AssertRejected(stale, OdinClientErrorCode.ArgumentError);
     }
 }

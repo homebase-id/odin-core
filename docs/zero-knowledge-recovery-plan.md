@@ -758,6 +758,23 @@ counted.
   throwaway key (`ShamirRecoveryBundle`).
 - Logging in ends recovery mode, as it always did.
 
+**Review fixes (first round):**
+- Entering checks the browser's key before it uses up the link (`TableNonce.PeekAsync`), so a wrong
+  browser can't burn the email.
+- Asking to exit keeps the throwaway key while collecting goes on.
+- A gated shard handed in must be sealed to the throwaway key, so its holder's server can't count
+  junk towards the threshold. The browser rebuilds with the dealer's own index (the envelope's), not
+  the one a holder sends. It also tries subsets when one shard spoils the rebuild.
+- The owner is told once, at the threshold; later approvals are still collected.
+- A friend deal without its copies can't start a recovery (`PasswordRecoveryNotConfigured`): only an
+  owner request removes it, and a locked-out owner makes none.
+- Converting deletes the dead shards' release requests too.
+- A password copy sealed to a key that isn't the current one is refused.
+- The threshold is at least 2, and an index is 1 to n.
+- A peer read of a deposit passes its sealed key header through (`ReEncrypt`).
+- Sending still needs the drive key, except for a deposit.
+- The page keeps the throwaway key until recovery ends, and makes a new one for a new recovery.
+
 **Reset:** `POST authentication/zk-reset` (renamed from `zk-phrase-reset`; nothing was released) takes
 either reset key. The friends' is hkdf-sha256(S, no salt, "homebase-shamir-reset-key"), 16 bytes. A
 reset keeps the zero-knowledge master key.

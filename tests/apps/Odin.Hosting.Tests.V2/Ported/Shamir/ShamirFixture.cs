@@ -471,6 +471,10 @@ public abstract class ShamirFixture : V2Fixture
     protected RecoveryNotification RecoveryLink(OwnerSession dealer, RecoveryNotificationKind kind) =>
         _recoveryLinks.Latest(new OdinId(dealer.Identity.DomainName), kind);
 
+    /// <summary>How many <paramref name="kind"/> notifications the host sent <paramref name="dealer"/> so far.</summary>
+    protected int RecoveryNotificationCount(OwnerSession dealer, RecoveryNotificationKind kind) =>
+        _recoveryLinks.Count(new OdinId(dealer.Identity.DomainName), kind);
+
     /// <summary>
     /// The automated deal's recovery: enters recovery mode (the automated players release unasked) and
     /// finalizes with <paramref name="newPassword"/>.

@@ -21,7 +21,7 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 /// </summary>
 public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMediator mediator)
 {
-    private const int CollectedShardRequestFileType = 84099;
+    internal const int CollectedShardRequestFileType = 84099;
 
     /// <summary>
     /// Saves the request for approval

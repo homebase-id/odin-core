@@ -158,7 +158,8 @@ internal static class ZkFriends
             var locked = envelope.Player.Type == PlayerType.Delegate
                 ? ZkBrowser.Unseal(shard.DealerEncryptedShard, recoveringBrowser.PrivateKeyPkcs8)
                 : shard.DealerEncryptedShard;
-            return new ShamirSecretSharing.ShamirShard(shard.Index,
+            // The dealer's own index: a holder could send any
+            return new ShamirSecretSharing.ShamirShard(envelope.Index,
                 AesCbc.Decrypt(locked, envelope.EncryptionKey.ToSensitiveByteArray(), envelope.EncryptionIv));
         }).OrderBy(p => p.Index).ToList();
 

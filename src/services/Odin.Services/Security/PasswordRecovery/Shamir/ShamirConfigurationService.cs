@@ -609,7 +609,7 @@ public class ShamirConfigurationService(
     /// <summary>
     /// Saves the dealer information for the encrypted shards
     /// </summary>
-    private async Task SaveDealerPackage(DealerShardPackage envelope, IOdinContext odinContext)
+    internal async Task SaveDealerPackage(DealerShardPackage envelope, IOdinContext odinContext)
     {
         var existingFile = await GetDealerFileForWritingAsync(odinContext);
         if (existingFile == null)
