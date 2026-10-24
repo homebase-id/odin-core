@@ -93,6 +93,7 @@ public class FriendRecoveryTests : ShamirFixture
         var reset = await OwnerPasswordFlow.ResetPasswordWithResetKeyAsync(Host, frodo.Identity.DomainName,
             ZkFriends.ResetKey(rebuilt.Secret), NewPassword, ZkBrowser.MakeKeys(NewPassword, rebuilt.ZkMasterKey).Request);
         Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
 
         var recovered = await OwnerSession.LoginAsync(Host, frodo.Identity.DomainName, NewPassword);
         Assert.That(ZkBrowser.OpenMasterKey(NewPassword, await ZkOwnerSteps.GetStatusAsync(recovered)), Is.EqualTo(ZkMasterKeyOf(frodo)),
@@ -265,8 +266,52 @@ public class FriendRecoveryTests : ShamirFixture
         await ApproveEveryShardRequestAsync(players.Take(config.MinMatchingShards).ToList(), config);
         var rebuilt = await RebuildInTheRecoveringBrowserAsync(frodo);
         Assert.That(rebuilt.Password, Is.EqualTo(Password));
+
+        // An exit request once the friends approved doesn't take the bundle away either
+        exit = await AnonymousSecurityOf(frodo).ExitRecoveryMode();
+        Assert.That(exit.StatusCode, Is.EqualTo(HttpStatusCode.OK), exit.Error?.Content);
+        Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
+
+        // and its email's link can't be used to enter recovery: it carries no browser key
+        var exitNonce = RecoveryLink(frodo, RecoveryNotificationKind.ExitRecoveryMode).NonceId.ToString();
+        var entered = await AnonymousSecurityOf(frodo).EnterRecoveryMode(new EnterRecoveryModeRequest
+        {
+            Id = exitNonce,
+            RecoveryPublicKeyJwk = RecoveringBrowser!.PublicKeyJwk
+        });
+        DriveAsserts.AssertRejected(entered, OdinClientErrorCode.RecoveryNotReady);
     }
 
+    [Test]
+    public async Task ASecondEmailLinkDoesNotStartTheRecoveryOver()
+    {
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        var security = AnonymousSecurityOf(frodo);
+        var browser = ZkBrowser.MakeKeyPair();
+
+        // Started, then "send it again" before the first email was clicked: two links for one browser
+        var links = new List<string>();
+        for (var i = 0; i < 2; i++)
+        {
+            var initiate = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = browser.PublicKeyJwk });
+            Assert.That(initiate.StatusCode, Is.EqualTo(HttpStatusCode.OK), initiate.Error?.Content);
+            links.Add(RecoveryLink(frodo, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString());
+        }
+
+        Assert.That(links[0], Is.Not.EqualTo(links[1]));
+        var first = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = links[0], RecoveryPublicKeyJwk = browser.PublicKeyJwk });
+        Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK), first.Error?.Content);
+        RecoveringBrowser = browser;
+
+        await ApproveEveryShardRequestAsync(players.Take(config.MinMatchingShards).ToList(), config);
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingRecoveringBrowser);
+
+        // Back to the page through the other email
+        var second = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = links[1], RecoveryPublicKeyJwk = browser.PublicKeyJwk });
+        Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.OK), second.Error?.Content);
+        Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password),
+            "the collected shards and the state are as they were");
+    }
     [Test]
     public async Task APasswordCopySealedToAnOldKeyIsRefused()
     {

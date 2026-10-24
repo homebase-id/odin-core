@@ -30,6 +30,7 @@ public class ZeroKnowledgeRecoveryService(
     ShamirConfigurationService shamirConfigurationService,
     OwnerSecretService secretService,
     PublicPrivateKeyService publicPrivateKeyService,
+    ShamirRecoveryService shamirRecoveryService,
     IdentityDatabase db)
 {
     /// <summary>What the browser needs after login: the keys, and where the phrase is.</summary>
@@ -158,6 +159,9 @@ public class ZeroKnowledgeRecoveryService(
         System.Security.Cryptography.CryptographicOperations.ZeroMemory(decrypted);
         using var masterKey = await zeroKnowledgeKeyService.OpenMasterKeyWithResetKeyAsync(resetKey);
         await secretService.ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply, request.ZkKeys);
+
+        // Recovery with friends is over once the password is set, as a finalized recovery ends it
+        await shamirRecoveryService.EndRecoveryModeAfterResetAsync(odinContext);
 
         logger.LogInformation("Password reset with a recovery reset key");
     }

@@ -775,6 +775,14 @@ counted.
 - Sending still needs the drive key, except for a deposit.
 - The page keeps the throwaway key until recovery ends, and makes a new one for a new recovery.
 
+**Review fixes (second round):**
+- An exit request once the friends approved leaves the state alone, so the bundle stays.
+- An unused second link ("send it again") can't start a recovery under way over again.
+- A link that carries no browser key (the exit email's, say) can't enter a friend deal.
+- A reset with a reset key ends recovery mode, as a finalized recovery does.
+- The page forgets the throwaway key as soon as the bundle is open.
+- Deposits show as sealed in the drive explorer and are skipped by exports.
+
 **Reset:** `POST authentication/zk-reset` (renamed from `zk-phrase-reset`; nothing was released) takes
 either reset key. The friends' is hkdf-sha256(S, no salt, "homebase-shamir-reset-key"), 16 bytes. A
 reset keeps the zero-knowledge master key.

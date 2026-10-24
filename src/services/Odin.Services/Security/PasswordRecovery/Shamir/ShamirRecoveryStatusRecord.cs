@@ -2,7 +2,7 @@ using Odin.Core.Time;
 
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
-public class ShamirRecoveryStatusRecord
+public sealed record ShamirRecoveryStatusRecord
 {
     public UnixTimeUtc Updated { get; init; }
     public ShamirRecoveryState State { get; init; }

@@ -26,6 +26,7 @@ public sealed class ConfigureShardsRequest
     public void Validate()
     {
         OdinValidationUtils.AssertNotNull(Shards, nameof(Shards));
+        OdinValidationUtils.AssertIsTrue(Shards.All(s => s?.Player != null), "Every shard needs a player");
         OdinValidationUtils.AssertNotNull(ShamirCopies, nameof(ShamirCopies));
         ShamirCopies.Validate();
 

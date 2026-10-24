@@ -149,7 +149,7 @@ public abstract class ShamirFixture : V2Fixture
     private readonly Dictionary<string, byte[]> _zkMasterKeys = new();
 
     /// <summary>The recovering browser's throwaway key pair, made when recovery starts.</summary>
-    private protected ZkBrowser.KeyPair? RecoveringBrowser { get; private set; }
+    private protected ZkBrowser.KeyPair? RecoveringBrowser { get; set; }
 
     /// <summary>The zero-knowledge master key <paramref name="owner"/>'s browser holds.</summary>
     protected byte[] ZkMasterKeyOf(OwnerSession owner) => _zkMasterKeys[owner.Identity.DomainName];

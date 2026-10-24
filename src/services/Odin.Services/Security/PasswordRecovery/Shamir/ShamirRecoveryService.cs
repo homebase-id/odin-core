@@ -154,14 +154,18 @@ public class ShamirRecoveryService
     {
         await _recoveryNotifier.EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
 
-        // Collecting goes on until the owner confirms the exit, so the recovering browser's key stays
-        var status = await GetStatusRecordInternal();
-        await UpdateStatus(new ShamirRecoveryStatusRecord
+        // Nothing ends until the owner confirms the exit by email, and anyone can ask for one: collecting
+        // goes on with the recovering browser's key, and once enough friends approved, that browser can
+        // still fetch the bundle
+        var status = await GetStatusRecordInternal() ?? new ShamirRecoveryStatusRecord();
+        if (status.State != ShamirRecoveryState.AwaitingRecoveringBrowser)
         {
-            Updated = UnixTimeUtc.Now(),
-            State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToExitRecoveryMode,
-            RecoveryPublicKeyJwk = status?.RecoveryPublicKeyJwk
-        });
+            await UpdateStatus(status with
+            {
+                Updated = UnixTimeUtc.Now(),
+                State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToExitRecoveryMode
+            });
+        }
     }
 
     public async Task<ShamirRecoveryStatusRedacted> GetStatus(IOdinContext odinContext)
@@ -204,7 +208,23 @@ public class ShamirRecoveryService
             throw new OdinClientException("Open this link in the browser where you started recovery", OdinClientErrorCode.RecoveryNotReady);
         }
 
+        // A friend deal needs the key the friends seal to; a link made without one (an automated deal's,
+        // or another email's) can't enter it
+        var nc = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
+        var package = await _configurationService.GetDealerShardPackage(nc)
+                      ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
+        if (!package.UsesAutomatedRecovery && startedWith == null)
+        {
+            throw new OdinClientException("Start recovery again in this browser", OdinClientErrorCode.RecoveryNotReady);
+        }
+
         await _recoveryNotifier.GetNonceDataOrFail(nonceId);
+
+        // An unused second link ("send it again") must not start a recovery under way over again
+        if (await IsInRecoveryMode())
+        {
+            return;
+        }
 
         await UpdateStatus(new ShamirRecoveryStatusRecord()
         {
@@ -217,8 +237,6 @@ public class ShamirRecoveryService
         //TODO: move this to an outbox call
 
         // notify all players this identity needs their password shards
-        var nc = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive, DrivePermission.Read, odinContext);
-        var package = await _configurationService.GetDealerShardPackage(nc);
         foreach (var envelope in package.Envelopes)
         {
             var client = await CreateClientAsync(envelope.Player.OdinId);
@@ -249,6 +267,12 @@ public class ShamirRecoveryService
     public async Task ExitRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
     {
         await _recoveryNotifier.GetNonceDataOrFail(nonceId);
+        await ExitRecoveryModeInternal(odinContext);
+    }
+
+    /// <summary>Ends recovery mode once a reset with a reset key set a new password.</summary>
+    internal async Task EndRecoveryModeAfterResetAsync(IOdinContext odinContext)
+    {
         await ExitRecoveryModeInternal(odinContext);
     }
 
@@ -387,11 +411,10 @@ public class ShamirRecoveryService
 
             // The dealer can't open the gated shards: the browser that started recovery rebuilds the
             // secret (GetRecoveryBundleAsync).  The email carries nothing.
-            await UpdateStatus(new ShamirRecoveryStatusRecord
+            await UpdateStatus(status with
             {
                 Updated = UnixTimeUtc.Now(),
-                State = ShamirRecoveryState.AwaitingRecoveringBrowser,
-                RecoveryPublicKeyJwk = status.RecoveryPublicKeyJwk
+                State = ShamirRecoveryState.AwaitingRecoveringBrowser
             });
             await _recoveryNotifier.EnqueueFriendsApprovedEmail();
 
