@@ -514,7 +514,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var icr = await circleNetworkService.GetIcrAsync(sender, odinContext, overrideHack: true, tryUpgradeEncryption: true);
             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
-            var decryptedKeyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            var decryptedKeyHeader = encryptedKeyHeader.DecryptOrPassSealed(ref sharedSecret);
             return decryptedKeyHeader;
         }
 

@@ -35,10 +35,14 @@ public static class ZkSeal
 {
     public const byte Version = 1;
     public const int PublicKeyLength = 97;
-    private const int CoordinateLength = 48;
+    public const int CoordinateLength = 48;
     private const int IvLength = 12;
     private const int TagLength = 16;
-    private const int HeaderLength = 1 + 4 + PublicKeyLength;
+
+    /// <summary>Where the throwaway public key starts: after the version and the key id.</summary>
+    public const int PublicKeyOffset = 1 + 4;
+
+    private const int HeaderLength = PublicKeyOffset + PublicKeyLength;
 
     /// <summary>The shortest sealed value: an empty one.</summary>
     public const int MinLength = HeaderLength + IvLength + TagLength;
@@ -74,6 +78,10 @@ public static class ZkSeal
     /// <summary>Whether <paramref name="sealedValue"/> has the shape of a version 1 sealed value.</summary>
     public static bool IsSealed(byte[] sealedValue) =>
         sealedValue is { Length: >= MinLength } && sealedValue[0] == Version && sealedValue[5] == 0x04;
+
+    /// <summary>Whether <paramref name="sealedValue"/> is a sealed value, sealed to <paramref name="publicKeyJwk"/>.</summary>
+    public static bool IsSealedTo(byte[] sealedValue, string publicKeyJwk) =>
+        IsSealed(sealedValue) && ReadKeyId(sealedValue) == KeyId(publicKeyJwk);
 
     /// <summary>Which public key <paramref name="sealedValue"/> was sealed to.</summary>
     public static uint ReadKeyId(byte[] sealedValue)

@@ -9,6 +9,8 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Services.Apps;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Security.ZeroKnowledge;
 using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
 
@@ -72,17 +74,14 @@ internal static class ZkBrowser
         Assert.That(ZkSeal.IsSealed(sealedValue), Is.True, "not a version 1 sealed value");
         using var me = ECDiffieHellman.Create();
         me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
-        var throwawayAt = 5;
+        const int x = ZkSeal.PublicKeyOffset + 1;
+        const int y = x + ZkSeal.CoordinateLength;
         using var throwaway = ECDiffieHellman.Create(new ECParameters
         {
             Curve = ECCurve.NamedCurves.nistP384,
-            Q = new ECPoint
-            {
-                X = sealedValue[(throwawayAt + 1)..(throwawayAt + 49)],
-                Y = sealedValue[(throwawayAt + 49)..(throwawayAt + ZkSeal.PublicKeyLength)]
-            }
+            Q = new ECPoint { X = sealedValue[x..y], Y = sealedValue[y..(y + ZkSeal.CoordinateLength)] }
         });
-        var locked = sealedValue[(throwawayAt + ZkSeal.PublicKeyLength)..];
+        var locked = sealedValue[(ZkSeal.PublicKeyOffset + ZkSeal.PublicKeyLength)..];
         return Open(locked.ToBase64(), ZkSeal.DeriveKey(me, throwaway.PublicKey));
     }
 
@@ -114,8 +113,11 @@ internal static class ZkBrowser
     public static byte[] PhraseKey(string phrase) => BIP39Util.DecodeBIP39(phrase).GetKey();
 
     /// <summary>The reset key: hkdf-sha256 of the recovery phrase's 16 bytes, no salt, 16 bytes.</summary>
-    public static byte[] ResetKey(byte[] phraseKey) => HKDF.DeriveKey(HashAlgorithmName.SHA256, phraseKey, 16, [],
-        "homebase-recovery-reset-key".ToUtf8ByteArray());
+    public static byte[] ResetKey(byte[] phraseKey) => Hkdf16(phraseKey, "homebase-recovery-reset-key");
+
+    /// <summary>hkdf-sha256, no salt, 16 bytes: how the browser derives a reset key from a secret.</summary>
+    public static byte[] Hkdf16(byte[] secret, string info) =>
+        HKDF.DeriveKey(HashAlgorithmName.SHA256, secret, 16, [], info.ToUtf8ByteArray());
 
     /// <summary>
     /// What the browser makes from the phrase: the zero-knowledge master key locked by the phrase, the
@@ -186,4 +188,24 @@ internal static class ZkBrowser
     public static byte[] OpenWriteOnlyPrivateKey(string zkMasterKeyEncryptedStorageKey, string zkStorageKeyEncryptedWriteOnlyPrivateKey,
         byte[] zkMasterKey) =>
         Open(zkStorageKeyEncryptedWriteOnlyPrivateKey, Open(zkMasterKeyEncryptedStorageKey, zkMasterKey));
+
+    /// <summary>A new file key, sealed to <paramref name="publicKeyJwk"/> as a deposit's key header.</summary>
+    public static (KeyHeader FileKey, EncryptedKeyHeader Sealed) SealNewFileKey(string publicKeyJwk)
+    {
+        var fileKey = KeyHeader.NewRandom16();
+        return (fileKey, EncryptedKeyHeader.Sealed(fileKey.Iv, ZkSeal.Seal(fileKey.Combine().GetKey(), publicKeyJwk)));
+    }
+
+    /// <summary>
+    /// A deposit's content as the drive owner's browser opens it: the key header came back sealed, as
+    /// stored, and the drive's write-only private key opens it.
+    /// </summary>
+    public static byte[] OpenDeposit(SharedSecretEncryptedFileHeader header, byte[] writeOnlyPrivateKey)
+    {
+        Assert.That(header.FileMetadata.IsEncrypted, Is.True, "a deposit is encrypted");
+        Assert.That(header.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Sealed),
+            "a deposit's key header comes back sealed, as stored");
+        var fileKey = KeyHeader.FromCombinedBytes(Unseal(header.SharedSecretEncryptedKeyHeader.EncryptedAesKey, writeOnlyPrivateKey));
+        return fileKey.Decrypt(header.FileMetadata.AppData.Content.FromBase64());
+    }
 }

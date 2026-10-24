@@ -61,7 +61,7 @@ public sealed class ConfigureShardsRequest
 /// One player's shard, as the browser dealt it: a piece of the secret, locked by the shard's own key
 /// (<see cref="EncryptionKey"/>, AES-CBC, which the dealer package keeps, as today).
 /// </summary>
-public sealed class DealtShard
+public sealed record DealtShard
 {
     public ShamiraPlayer Player { get; init; }
     public Guid ShardId { get; init; }

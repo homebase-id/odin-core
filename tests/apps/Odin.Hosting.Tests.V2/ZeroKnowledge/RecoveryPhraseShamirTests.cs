@@ -10,7 +10,6 @@ using Odin.Core.Exceptions;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
-using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests.V2.Ported.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.ZeroKnowledge;
@@ -96,10 +95,7 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         Assert.That(ZkBrowser.RecoverPassword(phrase, recovery.Content!), Is.EqualTo(NewPassword));
     }
 
-    /// <summary>
-    /// A friend the owner is no longer connected to can't be dealt to, so the old deal can't be
-    /// repeated.  It's removed rather than block the takeover, and the security page says so.
-    /// </summary>
+    /// <summary>The login's takeover, from a fresh password login as the browser does it.</summary>
     private async Task<string> TakeOverAsync(OwnerSession dealer)
     {
         var fresh = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName);

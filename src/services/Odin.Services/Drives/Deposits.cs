@@ -1,5 +1,6 @@
 using System.Linq;
 using Odin.Core.Exceptions;
+using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
 
@@ -21,6 +22,29 @@ public static class Deposits
     public static bool IsDeposit(bool isEncrypted, EncryptedKeyHeader keyHeader) => isEncrypted && keyHeader?.IsSealed() == true;
 
     public static bool IsDeposit(ServerFileHeader header) => IsDeposit(header.FileMetadata.IsEncrypted, header.EncryptedKeyHeader);
+
+    /// <summary>
+    /// A stored file's key header, opened with the drive key as the caller holds it; a deposit's comes
+    /// back sealed, as stored, and needs no drive key.  Re-lock it with
+    /// <see cref="EncryptedKeyHeader.EncryptKeyHeaderAes"/>, which passes a sealed one on as it is.
+    /// </summary>
+    public static KeyHeader OpenWithDriveKey(ServerFileHeader header, IOdinContext odinContext)
+    {
+        if (!header.FileMetadata.IsEncrypted)
+        {
+            return KeyHeader.Empty();
+        }
+
+        if (IsDeposit(header))
+        {
+            return new SealedKeyHeader(header.EncryptedKeyHeader);
+        }
+
+        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        storageKey.Wipe();
+        return keyHeader;
+    }
 
     /// <summary>Refuses a malformed deposit, and one that carries payloads.</summary>
     public static void AssertValid(FileMetadata metadata, EncryptedKeyHeader sealedKeyHeader)
@@ -46,9 +70,12 @@ public static class Deposits
     /// A deposit is changed only by writing it again: nobody here can open its key to check an update
     /// against it or re-lock it.
     /// </summary>
-    public static void AssertNotDeposit(ServerFileHeader existingHeader)
+    public static void AssertNotDeposit(ServerFileHeader existingHeader) =>
+        AssertNotDeposit(existingHeader.FileMetadata.IsEncrypted, existingHeader.EncryptedKeyHeader);
+
+    public static void AssertNotDeposit(bool isEncrypted, EncryptedKeyHeader keyHeader)
     {
-        if (IsDeposit(existingHeader))
+        if (IsDeposit(isEncrypted, keyHeader))
         {
             throw new OdinClientException("A deposit can't be updated; write it again", OdinClientErrorCode.DepositCannotBeUpdated);
         }

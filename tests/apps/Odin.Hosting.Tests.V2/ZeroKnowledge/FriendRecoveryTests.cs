@@ -79,15 +79,7 @@ public class FriendRecoveryTests : ShamirFixture
         if (junk)
         {
             // anyone with the password can write junk as the copy
-            await WriteFriendsPasswordCopyAsync(frodo, Password);
-            var status = await ZkOwnerSteps.GetStatusAsync(frodo);
-            var written = await ZkOwnerSteps.Client(frodo).SavePassword(new Odin.Services.Security.ZeroKnowledge.ZkPasswordRequest
-            {
-                ShamirPublicKeyEncryptedPassword = ZkBrowser.SealPassword("not the password", status.ShamirPublicKeyJwk!),
-                CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
-                    Host, frodo.Identity.DomainName, Password)
-            });
-            Assert.That(written.StatusCode, Is.EqualTo(HttpStatusCode.OK), written.Error?.Content);
+            await WriteFriendsPasswordCopyAsync(frodo, Password, copy: "not the password");
         }
 
         await EnterRecoveryModeAsync(frodo);

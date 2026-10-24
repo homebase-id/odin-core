@@ -34,8 +34,7 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 internal static class ZkFriends
 {
     /// <summary>The friends' reset key: hkdf-sha256 of the secret, no salt, 16 bytes.</summary>
-    public static byte[] ResetKey(byte[] secret) => HKDF.DeriveKey(HashAlgorithmName.SHA256, secret, 16, [],
-        "homebase-shamir-reset-key".ToUtf8ByteArray());
+    public static byte[] ResetKey(byte[] secret) => ZkBrowser.Hkdf16(secret, "homebase-shamir-reset-key");
 
     public sealed record Deal(ConfigureShardsRequest Request, byte[] Secret, ZkBrowser.KeyPair ShamirKeyPair);
 
@@ -59,14 +58,15 @@ internal static class ZkFriends
             var playerRecord = new ShamiraPlayer { OdinId = player.Identity, Type = type };
             var shardId = Guid.NewGuid();
 
+            var shard = new DealtShard
+            {
+                Player = playerRecord, ShardId = shardId, Index = piece.Index,
+                EncryptionKey = shardKey, EncryptionIv = shardIv
+            };
+
             if (type == PlayerType.Automatic)
             {
-                shards.Add(new DealtShard
-                {
-                    Player = playerRecord, ShardId = shardId, Index = piece.Index,
-                    EncryptionKey = shardKey, EncryptionIv = shardIv,
-                    DealerEncryptedShard = lockedPiece
-                });
+                shards.Add(shard with { DealerEncryptedShard = lockedPiece });
                 continue;
             }
 
@@ -75,13 +75,7 @@ internal static class ZkFriends
             {
                 Id = shardId, Index = piece.Index, Player = playerRecord, DealerEncryptedShard = lockedPiece
             }, holderKey.PublicKeyJwk);
-
-            shards.Add(new DealtShard
-            {
-                Player = playerRecord, ShardId = shardId, Index = piece.Index,
-                EncryptionKey = shardKey, EncryptionIv = shardIv,
-                DepositContent = content, DepositKeyHeader = keyHeader
-            });
+            shards.Add(shard with { DepositContent = content, DepositKeyHeader = keyHeader });
         }
 
         var shamirPair = ZkBrowser.MakeKeyPair();
@@ -104,9 +98,8 @@ internal static class ZkFriends
     /// <summary>A deposit of <paramref name="shard"/>'s JSON: encrypted with a new file key, sealed to <paramref name="publicKeyJwk"/>.</summary>
     public static (string Content, EncryptedKeyHeader KeyHeader) MakeDeposit(PlayerEncryptedShard shard, string publicKeyJwk)
     {
-        var fileKey = KeyHeader.NewRandom16();
-        var content = fileKey.EncryptDataAes(OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray()).ToBase64();
-        return (content, EncryptedKeyHeader.Sealed(fileKey.Iv, ZkSeal.Seal(fileKey.Combine().GetKey(), publicKeyJwk)));
+        var (fileKey, keyHeader) = ZkBrowser.SealNewFileKey(publicKeyJwk);
+        return (fileKey.EncryptDataAes(OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray()).ToBase64(), keyHeader);
     }
 
     /// <summary>The holder's Shard Recovery write-only key, as the dealer's browser fetches it.</summary>
@@ -144,13 +137,7 @@ internal static class ZkFriends
 
         var file = await holder.Drives.Reader.GetFileHeaderByUniqueIdAsync(shardId, WellKnownAppDrives.ShardRecoveryDrive.Alias);
         Assert.That(file.StatusCode, Is.EqualTo(HttpStatusCode.OK), file.Error?.Content);
-        var header = file.Content!;
-        Assert.That(header.FileMetadata.IsEncrypted, Is.True, "a gated shard is a deposit");
-        Assert.That(header.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Sealed),
-            "a deposit's key header comes back sealed, as stored");
-
-        var fileKey = KeyHeader.FromCombinedBytes(ZkBrowser.Unseal(header.SharedSecretEncryptedKeyHeader.EncryptedAesKey, writeOnlyPrivateKey));
-        var json = fileKey.Decrypt(header.FileMetadata.AppData.Content.FromBase64()).ToStringFromUtf8Bytes();
+        var json = ZkBrowser.OpenDeposit(file.Content!, writeOnlyPrivateKey).ToStringFromUtf8Bytes();
         return OdinSystemSerializer.DeserializeOrThrow<PlayerEncryptedShard>(json);
     }
 

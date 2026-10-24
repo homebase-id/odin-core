@@ -425,7 +425,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private KeyHeader DecryptKeyHeaderWithSharedSecret(EncryptedKeyHeader sharedSecretEncryptedKeyHeader, IOdinContext odinContext)
         {
             var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptOrPassSealed(ref sharedSecret);
             return decryptedKeyHeader;
         }
 

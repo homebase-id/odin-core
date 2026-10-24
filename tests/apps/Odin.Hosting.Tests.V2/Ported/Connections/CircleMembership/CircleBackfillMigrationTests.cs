@@ -300,8 +300,7 @@ public class CircleBackfillMigrationTests : V2Fixture
         var dealerKeys = await ZkOwnerSteps.CreateKeysAsync(dealer, OwnerLogin.DefaultPassword);
         foreach (var player in players)
         {
-            var keys = await ZkOwnerSteps.CreateKeysAsync(player, OwnerLogin.DefaultPassword);
-            await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(player, keys.MasterKey);
+            await ZkOwnerSteps.MakeZeroKnowledgeAsync(player, OwnerLogin.DefaultPassword);
         }
 
         var deal = await ZkFriends.MakeDealAsync(dealer, dealerKeys.MasterKey,

@@ -26,7 +26,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LastSeen;
-using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -156,7 +155,8 @@ public class ShamirConfigurationService(
         foreach (var shard in request.Shards)
         {
             var file = shard.IsGated
-                ? await WriteGatedShardToTempDriveAsync(shard, hashedRecoveryEmail, odinContext)
+                ? await WriteShardToTempDriveAsync(shard.ShardId, shard.DepositContent, new SealedKeyHeader(shard.DepositKeyHeader),
+                    odinContext, hashedRecoveryEmail)
                 : await WritePlayerEncryptedShardToTempDrive(new PlayerEncryptedShard
                 {
                     Id = shard.ShardId,
@@ -204,7 +204,7 @@ public class ShamirConfigurationService(
                 OdinClientErrorCode.ShardHolderNotZeroKnowledge);
         }
 
-        if (ZkSeal.ReadKeyId(shard.DepositKeyHeader.EncryptedAesKey) != ZkSeal.KeyId(key.PublicKeyJwk))
+        if (!ZkSeal.IsSealedTo(shard.DepositKeyHeader.EncryptedAesKey, key.PublicKeyJwk))
         {
             throw new OdinClientException($"The shard for {holder} is not sealed to their current key",
                 OdinClientErrorCode.InvalidKeyHeader);
@@ -770,13 +770,14 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// A gated friend's shard, as a deposit: its content and key header as the browser made them.  The
-    /// friend's server can't open it, so what its checks read is in the file's plain metadata: the shard
-    /// id (<c>UniqueId</c>) and the recovery email hash (<c>GroupId</c>); that it is a deposit says the
-    /// friend must approve its release (<see cref="PlayerType.Delegate"/>).
+    /// A shard as a file on the transient drive, to be sent to its player.  A gated friend's is a
+    /// deposit: its content and key header as the browser made them.  The friend's server can't open
+    /// it, so what its checks read is in the file's plain metadata: the shard id (<c>UniqueId</c>) and the
+    /// recovery email hash (<c>GroupId</c>); that it is a deposit says the friend must approve its
+    /// release (<see cref="PlayerType.Delegate"/>).
     /// </summary>
-    private async Task<ServerFileHeader> WriteGatedShardToTempDriveAsync(DealtShard shard, Guid recoveryEmailHash,
-        IOdinContext odinContext)
+    private async Task<ServerFileHeader> WriteShardToTempDriveAsync(Guid shardId, string content, KeyHeader keyHeader,
+        IOdinContext odinContext, Guid? recoveryEmailHash = null)
     {
         var driveId = SystemDriveConstants.TransientTempDrive.Alias;
         var file = await FileSystem.Storage.CreateInternalFileId(driveId, odinContext);
@@ -787,47 +788,12 @@ public class ShamirConfigurationService(
             AppData = new AppFileMetaData()
             {
                 FileType = PlayerEncryptedShardFileType,
-                Content = shard.DepositContent,
-                UniqueId = shard.ShardId,
+                Content = content,
+                UniqueId = shardId,
                 GroupId = recoveryEmailHash
             },
 
-            IsEncrypted = true,
-            SenderOdinId = odinContext.Tenant,
-            VersionTag = SequentialGuid.CreateGuid(),
-            Payloads = []
-        };
-
-        var serverMetadata = new ServerMetadata()
-        {
-            AccessControlList = AccessControlList.OwnerOnly,
-            AllowDistribution = true
-        };
-
-        var serverFileHeader = await FileSystem.Storage.CreateServerFileHeader(file, new SealedKeyHeader(shard.DepositKeyHeader),
-            fileMetadata, serverMetadata, odinContext);
-        await FileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
-        return serverFileHeader;
-    }
-
-    private async Task<ServerFileHeader> WritePlayerEncryptedShardToTempDrive(PlayerEncryptedShard shard, IOdinContext odinContext)
-    {
-        var driveId = SystemDriveConstants.TransientTempDrive.Alias;
-        var file = await FileSystem.Storage.CreateInternalFileId(driveId, odinContext);
-
-        var keyHeader = KeyHeader.Empty();
-
-        var fileMetadata = new FileMetadata(file)
-        {
-            GlobalTransitId = Guid.NewGuid(),
-            AppData = new AppFileMetaData()
-            {
-                FileType = PlayerEncryptedShardFileType,
-                Content = PlayerEncryptedShard.Serialize(shard),
-                UniqueId = shard.Id
-            },
-
-            IsEncrypted = false,
+            IsEncrypted = keyHeader is SealedKeyHeader,
             SenderOdinId = odinContext.Tenant,
             VersionTag = SequentialGuid.CreateGuid(),
             Payloads = []
@@ -844,6 +810,9 @@ public class ShamirConfigurationService(
 
         return serverFileHeader;
     }
+
+    private Task<ServerFileHeader> WritePlayerEncryptedShardToTempDrive(PlayerEncryptedShard shard, IOdinContext odinContext) =>
+        WriteShardToTempDriveAsync(shard.Id, PlayerEncryptedShard.Serialize(shard), KeyHeader.Empty(), odinContext);
 
     /// <summary>
     /// Saves the key used to decrypt the <see cref="PlayerEncryptedShard"/>s

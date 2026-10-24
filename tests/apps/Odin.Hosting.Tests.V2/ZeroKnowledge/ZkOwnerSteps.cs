@@ -51,12 +51,14 @@ internal static class ZkOwnerSteps
         });
     }
 
-    /// <summary>Writes the password copy with proof of <paramref name="password"/>, as the login does.</summary>
-    public static async Task<ApiResponse<HttpContent>> SavePasswordAsync(OwnerSession owner, string password, string sealedPassword)
+    /// <summary>Writes the password copies given, with proof of <paramref name="password"/>, as the login does.</summary>
+    public static async Task<ApiResponse<HttpContent>> SavePasswordAsync(OwnerSession owner, string password,
+        string? phraseCopy, string? friendsCopy = null)
     {
         return await Client(owner).SavePassword(new ZkPasswordRequest
         {
-            PhrasePublicKeyEncryptedPassword = sealedPassword,
+            PhrasePublicKeyEncryptedPassword = phraseCopy,
+            ShamirPublicKeyEncryptedPassword = friendsCopy,
             CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
                 owner.Host, owner.Identity.DomainName, password)
         });
@@ -86,6 +88,18 @@ internal static class ZkOwnerSteps
         var response = await Client(owner).TakeOverPhrase(await MakeTakeoverAsync(owner, password, phrase, zkMasterKey));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return phrase;
+    }
+
+    /// <summary>
+    /// What the first login since plan A does: the zero-knowledge keys, and the Shard Recovery drive
+    /// converted.  Returns what the browser then holds.
+    /// </summary>
+    public static async Task<(byte[] ZkMasterKey, byte[] WriteOnlyPrivateKey)> MakeZeroKnowledgeAsync(OwnerSession owner,
+        string password)
+    {
+        var keys = await CreateKeysAsync(owner, password);
+        var driveKeys = await ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
+        return (keys.MasterKey, driveKeys.WriteOnlyPrivateKey);
     }
 
     public static async Task<ZkBrowser.DriveKeys> ConvertShardRecoveryDriveAsync(OwnerSession owner, byte[] zkMasterKey)

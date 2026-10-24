@@ -122,12 +122,7 @@ public class ShamirRecoveryConfigurationTests : ShamirFixture
         var first = deal.Request.Shards[0];
         var (content, keyHeader) = ZkFriends.MakeDeposit(new PlayerEncryptedShard { Id = first.ShardId },
             ZkBrowser.MakeKeyPair().PublicKeyJwk);
-        deal.Request.Shards[0] = new DealtShard
-        {
-            Player = first.Player, ShardId = first.ShardId, Index = first.Index,
-            EncryptionKey = first.EncryptionKey, EncryptionIv = first.EncryptionIv,
-            DepositContent = content, DepositKeyHeader = keyHeader
-        };
+        deal.Request.Shards[0] = first with { DepositContent = content, DepositKeyHeader = keyHeader };
 
         DriveAsserts.AssertRejected(await SecurityOf(frodo).ConfigureShards(deal.Request), OdinClientErrorCode.InvalidKeyHeader);
     }

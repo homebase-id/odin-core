@@ -60,25 +60,12 @@ public class RecoveryNotifier(
 
         if (configuration.Mailgun.Enabled)
         {
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
+            await EnqueueEmailAsync(new Envelope
             {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
-                    Subject = "Please verify your new recovery email address!",
-                    TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
-                    HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
-                },
-            };
-
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
+                Subject = "Please verify your new recovery email address!",
+                TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
+                HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
             });
         }
     }
@@ -148,25 +135,12 @@ public class RecoveryNotifier(
 
         if (configuration.Mailgun.Enabled) //for #debug state
         {
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
+            await EnqueueEmailAsync(new Envelope
             {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Email = tenantContext.Email }],
-                    Subject = "We have assembled your recovery key!",
-                    TextMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyText(tenant, link),
-                    HtmlMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyHtml(tenant, link)
-                },
-            };
-
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                To = [new NameAndEmailAddress { Email = tenantContext.Email }],
+                Subject = "We have assembled your recovery key!",
+                TextMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyText(tenant, link),
+                HtmlMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyHtml(tenant, link)
             });
         }
     }
@@ -185,25 +159,12 @@ public class RecoveryNotifier(
 
         if (configuration.Mailgun.Enabled)
         {
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
+            await EnqueueEmailAsync(new Envelope
             {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Email = tenantContext.Email }],
-                    Subject = "Your friends have approved your recovery",
-                    TextMessage = RecoveryEmails.FriendsApprovedText(tenant),
-                    HtmlMessage = RecoveryEmails.FriendsApprovedHtml(tenant)
-                },
-            };
-
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                To = [new NameAndEmailAddress { Email = tenantContext.Email }],
+                Subject = "Your friends have approved your recovery",
+                TextMessage = RecoveryEmails.FriendsApprovedText(tenant),
+                HtmlMessage = RecoveryEmails.FriendsApprovedHtml(tenant)
             });
         }
     }
@@ -215,25 +176,12 @@ public class RecoveryNotifier(
         if (configuration.Mailgun.Enabled) //for #debug state
         {
             var email = recoveryInfo.Email;
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
+            await EnqueueEmailAsync(new Envelope
             {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Email = email }],
-                    Subject = "Your Homebase Account Recovery Risk Report",
-                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention, mailAttention),
-                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention, mailAttention)
-                },
-            };
-
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                To = [new NameAndEmailAddress { Email = email }],
+                Subject = "Your Homebase Account Recovery Risk Report",
+                TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention, mailAttention),
+                HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention, mailAttention)
             });
         }
 
@@ -255,6 +203,21 @@ public class RecoveryNotifier(
             OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.SendPushNotifications));
     }
 
+
+    private async Task EnqueueEmailAsync(Envelope envelope)
+    {
+        var job = jobManager.NewJob<SendEmailJob>();
+        job.Data = new SendEmailJobData { Envelope = envelope };
+
+        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now.AddSeconds(1),
+            MaxAttempts = 20,
+            RetryDelay = TimeSpan.FromMinutes(1),
+            OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+            OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+        });
+    }
 
     private async Task<Guid> MakeNonce(string data = "")
     {

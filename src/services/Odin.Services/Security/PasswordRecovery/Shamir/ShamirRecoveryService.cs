@@ -127,8 +127,7 @@ public class ShamirRecoveryService
 
         if (!pkg.UsesAutomatedRecovery)
         {
-            ZkSeal.RawPublicKey(recoveryPublicKeyJwk ?? throw new OdinClientException(
-                "Recovery with friends needs the browser's public key", OdinClientErrorCode.ArgumentError));
+            ZkBlob.AssertPublicKey(recoveryPublicKeyJwk, nameof(InitiateRecoveryModeRequest.RecoveryPublicKeyJwk));
         }
 
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
@@ -185,8 +184,9 @@ public class ShamirRecoveryService
     /// </remarks>
     public async Task EnterRecoveryMode(Guid nonceId, string recoveryPublicKeyJwk, IOdinContext odinContext)
     {
-        var startedWith = await _recoveryNotifier.GetNonceDataOrFail(nonceId);
-        if (!string.IsNullOrEmpty(startedWith) &&
+        var nonceData = await _recoveryNotifier.GetNonceDataOrFail(nonceId);
+        var startedWith = string.IsNullOrEmpty(nonceData) ? null : nonceData;
+        if (startedWith != null &&
             (recoveryPublicKeyJwk == null || !ZkSeal.RawPublicKey(recoveryPublicKeyJwk).SequenceEqual(ZkSeal.RawPublicKey(startedWith))))
         {
             throw new OdinClientException("Open this link in the browser where you started recovery", OdinClientErrorCode.RecoveryNotReady);
@@ -196,7 +196,7 @@ public class ShamirRecoveryService
         {
             Updated = UnixTimeUtc.Now(),
             State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation,
-            RecoveryPublicKeyJwk = string.IsNullOrEmpty(startedWith) ? null : startedWith
+            RecoveryPublicKeyJwk = startedWith
         });
 
         var hashedRecoveryEmail = await _passwordKeyRecoveryService.GetHashedRecoveryEmail();
@@ -212,7 +212,7 @@ public class ShamirRecoveryService
             {
                 ShardId = envelope.ShardId,
                 HashedRecoveryEmail = hashedRecoveryEmail,
-                RecoveryPublicKeyJwk = string.IsNullOrEmpty(startedWith) ? null : startedWith
+                RecoveryPublicKeyJwk = startedWith
             });
 
             if (response.IsSuccessStatusCode)
@@ -221,7 +221,7 @@ public class ShamirRecoveryService
                 if (retrieveShardResult.ResultType == RetrieveShardResultType.Complete)
                 {
                     // From the player itself: this server called it
-                    await CollectShardAsync(retrieveShardResult, envelope.Player.OdinId, odinContext);
+                    await CollectShardAsync(retrieveShardResult, envelope.Player.OdinId, odinContext, package);
                 }
 
                 if (retrieveShardResult.ResultType == RetrieveShardResultType.WaitingForPlayer)
@@ -281,14 +281,8 @@ public class ShamirRecoveryService
         {
             // A gated shard is sealed to this identity's browser, which seals it again to the recovering
             // browser's key when the owner approves
-            if (!await _configurationService.CanReleaseAsync(stored))
-            {
-                throw new OdinClientException("This shard can no longer be opened; the dealer must deal again",
-                    OdinClientErrorCode.InvalidKeyHeader);
-            }
-
-            ZkSeal.RawPublicKey(request.RecoveryPublicKeyJwk ?? throw new OdinClientException(
-                "A gated shard is released only to the recovering browser's key", OdinClientErrorCode.ArgumentError));
+            await _configurationService.AssertCanReleaseAsync(stored);
+            ZkBlob.AssertPublicKey(request.RecoveryPublicKeyJwk, nameof(request.RecoveryPublicKeyJwk));
 
             var r = new ShardApprovalRequest
             {
@@ -322,10 +316,15 @@ public class ShamirRecoveryService
         await CollectShardAsync(result, caller, odinContext);
     }
 
-    /// <summary>Collects a shard from <paramref name="player"/>, which must be the player the dealer dealt it to.</summary>
-    private async Task CollectShardAsync(RetrieveShardResult result, OdinId player, IOdinContext odinContext)
+    /// <summary>
+    /// Collects a shard from <paramref name="player"/>, which must be the player the dealer dealt it to.
+    /// <paramref name="package"/> is the dealer package when the caller has it already.
+    /// </summary>
+    private async Task CollectShardAsync(RetrieveShardResult result, OdinId player, IOdinContext odinContext,
+        DealerShardPackage package = null)
     {
-        if (!await IsInRecoveryMode())
+        var status = await GetStatusRecordInternal();
+        if (!IsInRecoveryMode(status))
         {
             throw new OdinClientException("Not in recovery mode");
         }
@@ -342,7 +341,7 @@ public class ShamirRecoveryService
 
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        var package = await _configurationService.GetDealerShardPackage(odinContext);
+        package ??= await _configurationService.GetDealerShardPackage(odinContext);
         if (result.Shard?.Player?.OdinId != player ||
             package?.Envelopes.Any(e => e.ShardId == result.Shard.Id && e.Player.OdinId == player) != true)
         {
@@ -356,7 +355,6 @@ public class ShamirRecoveryService
         {
             // The dealer can't open the gated shards: the browser that started recovery rebuilds the
             // secret (GetRecoveryBundleAsync).  The email carries nothing.
-            var status = await GetStatusRecordInternal();
             await UpdateStatus(new ShamirRecoveryStatusRecord
             {
                 Updated = UnixTimeUtc.Now(),
@@ -459,14 +457,8 @@ public class ShamirRecoveryService
             throw new OdinClientException("Invalid shard id");
         }
 
-        if (!await _configurationService.CanReleaseAsync(stored))
-        {
-            throw new OdinClientException("This shard can no longer be opened; the dealer must deal again",
-                OdinClientErrorCode.InvalidKeyHeader);
-        }
-
-        if (sealedShard == null || !ZkSeal.IsSealed(sealedShard) ||
-            ZkSeal.ReadKeyId(sealedShard) != ZkSeal.KeyId(request.RecoveryPublicKeyJwk))
+        await _configurationService.AssertCanReleaseAsync(stored);
+        if (sealedShard == null || !ZkSeal.IsSealedTo(sealedShard, request.RecoveryPublicKeyJwk))
         {
             throw new OdinClientException("The shard must be sealed to the recovering browser's key", OdinClientErrorCode.ArgumentError);
         }
@@ -592,9 +584,10 @@ public class ShamirRecoveryService
         return (finalRecoveryKey, finalInfo);
     }
 
-    private async Task<bool> IsInRecoveryMode()
+    private async Task<bool> IsInRecoveryMode() => IsInRecoveryMode(await GetStatusRecordInternal());
+
+    private static bool IsInRecoveryMode(ShamirRecoveryStatusRecord status)
     {
-        var status = await GetStatusRecordInternal();
         if (status == null)
         {
             return false;

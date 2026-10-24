@@ -1,4 +1,5 @@
 using System;
+using Odin.Core.Exceptions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
@@ -60,7 +61,7 @@ public abstract class ShamirBaseService<TLogger>(
         }
 
         OdinId? sender = string.IsNullOrEmpty(file.FileMetadata.SenderOdinId) ? null : (OdinId)file.FileMetadata.SenderOdinId;
-        if (!file.FileMetadata.IsEncrypted)
+        if (!Deposits.IsDeposit(file.FileMetadata.IsEncrypted, file.SharedSecretEncryptedKeyHeader))
         {
             return new StoredShard(PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content), sender, null);
         }
@@ -82,6 +83,15 @@ public abstract class ShamirBaseService<TLogger>(
     /// replaces (the drive is converted again).  An unencrypted gated shard is from a deal the server
     /// made before recovery in the browser, and no longer counts.
     /// </summary>
+    public async Task AssertCanReleaseAsync(StoredShard stored)
+    {
+        if (!await CanReleaseAsync(stored))
+        {
+            throw new OdinClientException("This shard can no longer be opened; the dealer must deal again",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+    }
+
     public async Task<bool> CanReleaseAsync(StoredShard stored)
     {
         if (stored.Shard.Player.Type == PlayerType.Automatic)
@@ -96,7 +106,7 @@ public abstract class ShamirBaseService<TLogger>(
 
         var drive = await driveManager.GetDriveAsync(WellKnownAppDrives.ShardRecoveryDrive.Alias);
         return drive?.WriteOnlyKeyPair != null &&
-               ZkSeal.ReadKeyId(stored.DepositKeyHeader.EncryptedAesKey) == ZkSeal.KeyId(drive.WriteOnlyKeyPair.PublicKeyJwk());
+               ZkSeal.IsSealedTo(stored.DepositKeyHeader.EncryptedAesKey, drive.WriteOnlyKeyPair.PublicKeyJwk());
     }
 
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)

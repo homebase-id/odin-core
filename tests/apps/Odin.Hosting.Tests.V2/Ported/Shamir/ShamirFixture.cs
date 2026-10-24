@@ -187,6 +187,8 @@ public abstract class ShamirFixture : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         await DrainAndVerifyShardsAsync(dealer, players.Count);
 
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(dealer)).HasShamirPasswordCopy, Is.False,
+            "the browser deals without the password");
         if (writePasswordCopy)
         {
             await WriteFriendsPasswordCopyAsync(dealer, OwnerLogin.DefaultPassword);
@@ -211,24 +213,21 @@ public abstract class ShamirFixture : V2Fixture
             return;
         }
 
-        var keys = await ZkOwnerSteps.CreateKeysAsync(owner, OwnerLogin.DefaultPassword);
-        await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
-        _zkMasterKeys[owner.Identity.DomainName] = keys.MasterKey;
+        _zkMasterKeys[owner.Identity.DomainName] =
+            (await ZkOwnerSteps.MakeZeroKnowledgeAsync(owner, OwnerLogin.DefaultPassword)).ZkMasterKey;
     }
 
-    /// <summary>A password login after a friend deal: it seals the password to the friends' public key.</summary>
-    protected static async Task WriteFriendsPasswordCopyAsync(OwnerSession dealer, string password)
+    /// <summary>
+    /// A password login after a friend deal: it seals the password to the friends' public key.
+    /// <paramref name="copy"/> is what gets sealed; anyone with the password can seal junk instead.
+    /// </summary>
+    protected static async Task WriteFriendsPasswordCopyAsync(OwnerSession dealer, string password, string? copy = null)
     {
         var status = await ZkOwnerSteps.GetStatusAsync(dealer);
         Assert.That(status.ShamirPublicKeyJwk, Is.Not.Null, "a friend deal publishes its public key");
-        Assert.That(status.HasShamirPasswordCopy, Is.False, "the browser deals without the password");
 
-        var response = await ZkOwnerSteps.Client(dealer).SavePassword(new ZkPasswordRequest
-        {
-            ShamirPublicKeyEncryptedPassword = ZkBrowser.SealPassword(password, status.ShamirPublicKeyJwk),
-            CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
-                dealer.Host, dealer.Identity.DomainName, password)
-        });
+        var response = await ZkOwnerSteps.SavePasswordAsync(dealer, password, phraseCopy: null,
+            friendsCopy: ZkBrowser.SealPassword(copy ?? password, status.ShamirPublicKeyJwk!));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
     }
 

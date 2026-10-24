@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -220,19 +221,19 @@ public class ZeroKnowledgeKeyService(
                 OdinClientErrorCode.RecoveryPhraseNotTakenOver);
         }
 
-        foreach (var copy in resetCopies.SkipLast(1))
+        foreach (var copy in resetCopies)
         {
             try
             {
                 return copy.DecryptKeyClone(resetKey);
             }
-            catch (OdinSecurityException)
+            catch (OdinSecurityException) when (copy != resetCopies[^1])
             {
                 // not this one's key; the last copy's refusal is the answer
             }
         }
 
-        return resetCopies.Last().DecryptKeyClone(resetKey);
+        throw new UnreachableException();
     }
 
     /// <summary>

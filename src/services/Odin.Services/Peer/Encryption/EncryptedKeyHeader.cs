@@ -26,16 +26,13 @@ namespace Odin.Services.Peer.Encryption
         /// <param name="key"></param>
         /// <returns></returns>
         /// <exception cref="OdinSecurityException"></exception>
-        /// <remarks>
-        /// A sealed key header (a deposit) can't be decrypted here, and needn't be: it comes back as a
-        /// <see cref="SealedKeyHeader"/>, which every write stores and every re-lock passes on as it is
-        /// (<see cref="EncryptKeyHeaderAes"/>).
-        /// </remarks>
+        /// <remarks>Refuses a sealed key header (a deposit): nobody here can open it.</remarks>
         public KeyHeader DecryptAesToKeyHeader(ref SensitiveByteArray key)
         {
             if (IsSealed())
             {
-                return new SealedKeyHeader(this);
+                throw new OdinClientException("A sealed key header can't be opened on the server",
+                    OdinClientErrorCode.InvalidKeyHeader);
             }
 
             if (this.EncryptionVersion == 1)
@@ -50,6 +47,14 @@ namespace Odin.Services.Peer.Encryption
         }
 
         /// <remarks>A <see cref="SealedKeyHeader"/> comes back sealed, as it was given: nobody here can open it.</remarks>
+        /// <summary>
+        /// For the paths that take a deposit as it comes (an upload, a peer transfer, the inbox): a
+        /// sealed key header passes through as a <see cref="SealedKeyHeader"/>, which the write stores
+        /// as it is; any other is decrypted.
+        /// </summary>
+        public KeyHeader DecryptOrPassSealed(ref SensitiveByteArray key) =>
+            IsSealed() ? new SealedKeyHeader(this) : DecryptAesToKeyHeader(ref key);
+
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)
         {
             if (keyHeader is SealedKeyHeader sealedKeyHeader)

@@ -34,7 +34,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         Task<ApiResponse<HttpContent>> ResetPassword(ResetPasswordRequest request);
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/configure-shards")]
-        Task<ApiResponse<HttpContent>> ConfigureShards(Odin.Services.Security.PasswordRecovery.Shamir.ConfigureShardsRequest request);
+        Task<ApiResponse<HttpContent>> ConfigureShards(ConfigureShardsRequest request);
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-remote-shards")]
         Task<ApiResponse<RemoteShardVerificationResult>> VerifyShards();

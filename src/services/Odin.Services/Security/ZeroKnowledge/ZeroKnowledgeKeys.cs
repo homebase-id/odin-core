@@ -439,16 +439,14 @@ internal static class ZkBlob
         }
     }
 
-    /// <summary>A non-empty sealed value; returns its bytes.</summary>
-    public static byte[] AssertSealed(string value64, string name)
+    /// <summary>A non-empty sealed value.</summary>
+    public static void AssertSealed(string value64, string name)
     {
         var bytes = AssertBase64(value64, name);
         if (!ZkSeal.IsSealed(bytes) || bytes.Length == ZkSeal.MinLength)
         {
             throw new OdinClientException($"{name} is not a sealed value", OdinClientErrorCode.ArgumentError);
         }
-
-        return bytes;
     }
 
     /// <summary>A P-384 public key as a JWK, the only curve the browser makes and seals with.</summary>

@@ -460,7 +460,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
 
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            ? transferKeyEncryptedKeyHeader.DecryptOrPassSealed(ref clientSharedSecret)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -493,10 +493,7 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.InvalidKeyHeader);
             }
 
-            if (transferKeyEncryptedKeyHeader.IsSealed())
-            {
-                throw new OdinClientException("A deposit can't be updated; write it again", OdinClientErrorCode.DepositCannotBeUpdated);
-            }
+            Deposits.AssertNotDeposit(true, transferKeyEncryptedKeyHeader);
 
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             KeyHeader keyHeader = transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret);
