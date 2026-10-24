@@ -208,9 +208,13 @@ Agreed so far. Names may still change. SQLGenerator for anything SQL.
 
 ### Migration: setting the sharing model on existing drives
 
-Proposal, to discuss. The migration that adds `SharingModel` also fills it in for existing drives.
+The migration that adds `SharingModel` labels nothing: every existing drive stays Collaborative,
+which is today's behaviour, and so is every new drive. A drive takes its model only when the
+browser converts it, so the label never claims zero knowledge the drive doesn't have, and
+`DriveManager` refuses to save a Private drive that still has a master-key copy **(V)**. Shard
+Recovery is the first (plan A).
 
-- **Built-in drives** (`BuiltinDrives.cs`) **(V)**:
+- **The model each built-in drive gets when it is converted** (the drives in `BuiltinDrives.cs` **(V)**):
 
   | Drive | Sharing model | Why |
   |---|---|---|
@@ -219,17 +223,17 @@ Proposal, to discuss. The migration that adds `SharingModel` also fills it in fo
   | Photo Library, Sticker, Location, Lists, Moments | Selective Share | Private, with chosen shares |
   | Homepage Config, Profile, WebDrop | Selective Share | Anonymous reads are for unencrypted files |
   | Community, Public Posts | Collaborative | Members read everything |
-  | Transient temp | Unclassified for now | `SharingModel` needs an "unclassified" value, or stays empty |
+  | Transient temp | Unclassified for now | `SharingModel` has an "unclassified" value |
 
 - **Anonymous reads and temporal read grants limit which model a drive can take** (see
   [Anonymous and temporal reads](#anonymous-and-temporal-reads)).
 - **Every other drive, including third-party app drives:** Collaborative, which is today's
-  behaviour. The migration changes nothing for them.
+  behaviour.
 - **To check before a drive becomes Private:**
   - Email, Feed and Contacts may have server features that read plaintext (see [Open](#open)).
   - Chat and Mail have `OwnerOnly = false` today **(V)**, so check what reads them besides the owner.
-- **The label isn't zero knowledge yet.** The server already knows an existing drive's storage
-  key. A drive becomes zero knowledge only when the browser converts it (see
+- **Converting sets the label.** The server already knows an existing drive's storage key. A
+  drive becomes zero knowledge, and gets its model, only when the browser converts it (see
   [Converting an existing drive](#converting-an-existing-drive)).
 
 ## Getting ZK drive keys to an app

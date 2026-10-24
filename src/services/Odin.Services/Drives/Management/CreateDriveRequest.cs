@@ -56,10 +56,4 @@ public class CreateDriveRequest
     public string DriveTypeSlug { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
-
-    /// <summary>
-    /// Who holds which key (docs/zero-knowledge-drives.md).  A label only: a new drive is never zero
-    /// knowledge; the browser converts it.
-    /// </summary>
-    public DriveSharingModel SharingModel { get; set; } = DriveSharingModel.Collaborative;
 }

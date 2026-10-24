@@ -208,7 +208,9 @@ public class DriveManager : IDriveManager
             DriveSlug = driveSlug,
             DriveTypeSlug = driveTypeSlug,
             WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair),
-            SharingModel = (int)request.SharingModel
+
+            // Every new drive is Collaborative: the server made its key.  Only conversion makes one Private.
+            SharingModel = (int)DriveSharingModel.Collaborative
         };
 
         try
@@ -517,7 +519,7 @@ public class DriveManager : IDriveManager
         }
 
         storageDrive.MasterKeyEncryptedStorageKey = null;
-        storageDrive.SharingModel = DriveSharingModel.Private; // its label already, for Shard Recovery
+        storageDrive.SharingModel = DriveSharingModel.Private; // the only way a drive becomes Private
         storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
         storageDrive.EncryptedIdIv = encryptedIdIv;
         storageDrive.EncryptedIdValue = encryptedIdValue;
@@ -894,6 +896,12 @@ public class DriveManager : IDriveManager
         if (storageDrive.MasterKeyEncryptedStorageKey == null && storageDrive.ZkMasterKeyEncryptedStorageKey == null)
         {
             throw new OdinSystemException($"Drive {storageDrive.Id} has no copy of its key");
+        }
+
+        // A Private drive whose key the server can still open would only pose as one.
+        if (storageDrive.SharingModel == DriveSharingModel.Private && storageDrive.MasterKeyEncryptedStorageKey != null)
+        {
+            throw new OdinSystemException($"Drive {storageDrive.Id} is Private but the server holds its key");
         }
 
         var details = new StorageDriveDetails

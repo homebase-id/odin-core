@@ -32,7 +32,6 @@ public static class BuiltinDrives
     // --- Chat ---
     public static readonly CreateDriveRequest ChatDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Chat Drive", TargetDrive = WellKnownAppDrives.ChatDrive, Metadata = "",
         AppId = SystemAppConstants.ChatAppId, DriveSlug = "chat", DriveTypeSlug = "chat",
         AllowAnonymousReads = false,
@@ -43,7 +42,6 @@ public static class BuiltinDrives
 
     public static readonly CreateDriveRequest StickerDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "Sticker Drive", TargetDrive = WellKnownAppDrives.StickerDrive, Metadata = "",
         AppId = SystemAppConstants.ChatAppId, DriveSlug = "stickers", DriveTypeSlug = "sticker",
         AllowAnonymousReads = false, OwnerOnly = false
@@ -52,7 +50,6 @@ public static class BuiltinDrives
     // --- Contacts ---
     public static readonly CreateDriveRequest ContactDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Contacts", TargetDrive = WellKnownAppDrives.ContactDrive, Metadata = "",
         AppId = SystemAppConstants.ContactsAppId, DriveSlug = "contacts", DriveTypeSlug = "contact",
         AllowAnonymousReads = false, OwnerOnly = true
@@ -60,7 +57,6 @@ public static class BuiltinDrives
 
     public static readonly CreateDriveRequest ProfileDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "Standard Profile Info", TargetDrive = WellKnownAppDrives.ProfileDrive, Metadata = "",
         AppId = SystemAppConstants.ContactsAppId, DriveSlug = "profile", DriveTypeSlug = "profile",
         AllowAnonymousReads = true, OwnerOnly = false
@@ -69,7 +65,6 @@ public static class BuiltinDrives
     // --- Email ---
     public static readonly CreateDriveRequest EmailDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Email", TargetDrive = WellKnownAppDrives.EmailAppDrive, Metadata = "",
         AppId = SystemAppConstants.EmailAppId, DriveSlug = "email", DriveTypeSlug = "email",
         AllowAnonymousReads = false, OwnerOnly = true
@@ -78,7 +73,6 @@ public static class BuiltinDrives
     // --- Feed ---
     public static readonly CreateDriveRequest FeedDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Feed", TargetDrive = WellKnownAppDrives.FeedDrive, Metadata = "",
         AppId = SystemAppConstants.FeedAppId, DriveSlug = "feed", DriveTypeSlug = "feed",
         AllowAnonymousReads = false, OwnerOnly = true
@@ -86,7 +80,6 @@ public static class BuiltinDrives
 
     public static readonly CreateDriveRequest PublicPostsChannelDrive = new()
     {
-        SharingModel = DriveSharingModel.Collaborative,
         Name = "Public Posts", TargetDrive = WellKnownAppDrives.PublicPostsChannelDrive, Metadata = "",
         AppId = SystemAppConstants.FeedAppId, DriveSlug = "posts", DriveTypeSlug = ChannelDriveTypeSlug,
         AllowAnonymousReads = true, OwnerOnly = false, AllowSubscriptions = true,
@@ -98,7 +91,6 @@ public static class BuiltinDrives
     // --- HomePage ---
     public static readonly CreateDriveRequest HomePageConfigDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "Homepage Config", TargetDrive = WellKnownAppDrives.HomePageConfigDrive, Metadata = "",
         AppId = SystemAppConstants.HomePageAppId, DriveSlug = "home", DriveTypeSlug = "profile",
         AllowAnonymousReads = true, OwnerOnly = false
@@ -107,7 +99,6 @@ public static class BuiltinDrives
     // --- Location ---
     public static readonly CreateDriveRequest LocationDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "Location Drive", TargetDrive = WellKnownAppDrives.LocationDrive, Metadata = "",
         AppId = SystemAppConstants.LocationAppId, DriveSlug = "location", DriveTypeSlug = "location",
         AllowAnonymousReads = false, OwnerOnly = false
@@ -116,7 +107,6 @@ public static class BuiltinDrives
     // --- Mail ---
     public static readonly CreateDriveRequest MailDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Mail Drive", TargetDrive = WellKnownAppDrives.MailDrive, Metadata = "",
         AppId = SystemAppConstants.MailAppId, DriveSlug = "mail", DriveTypeSlug = "mail",
         AllowAnonymousReads = false,
@@ -127,7 +117,6 @@ public static class BuiltinDrives
     // --- Recovery ---
     public static readonly CreateDriveRequest ShardRecoveryDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Shard Recovery Drive", TargetDrive = WellKnownAppDrives.ShardRecoveryDrive, Metadata = "",
         AppId = SystemAppConstants.RecoveryAppId, DriveSlug = "shard-recovery", DriveTypeSlug = "shard-recovery",
         AllowAnonymousReads = false, OwnerOnly = false
@@ -136,7 +125,6 @@ public static class BuiltinDrives
     // --- System ---
     public static readonly CreateDriveRequest TransientTempDrive = new()
     {
-        SharingModel = DriveSharingModel.Unclassified,
         Name = "Transient temp drive", TargetDrive = SystemDriveConstants.TransientTempDrive, Metadata = "",
         AppId = SystemAppConstants.SystemAppId, DriveSlug = "transient", DriveTypeSlug = "transient",
         AllowAnonymousReads = false, OwnerOnly = false
@@ -145,7 +133,6 @@ public static class BuiltinDrives
     // --- Lists ---
     public static readonly CreateDriveRequest ListsDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "Lists Drive", TargetDrive = WellKnownAppDrives.ListsDrive, Metadata = "",
         AppId = SystemAppConstants.ListsAppId, DriveSlug = "lists", DriveTypeSlug = "list",
         AllowAnonymousReads = false, OwnerOnly = false,
@@ -158,7 +145,6 @@ public static class BuiltinDrives
     // --- Moments ---
     public static readonly CreateDriveRequest MomentsDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "Moments Drive", TargetDrive = WellKnownAppDrives.MomentsDrive, Metadata = "",
         AppId = SystemAppConstants.MomentsAppId, DriveSlug = "moments", DriveTypeSlug = "list",
         AllowAnonymousReads = false, OwnerOnly = false
@@ -167,7 +153,6 @@ public static class BuiltinDrives
     // --- Vault ---
     public static readonly CreateDriveRequest WalletDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Wallet", TargetDrive = WellKnownAppDrives.WalletDrive, Metadata = "",
         AppId = SystemAppConstants.VaultAppId, DriveSlug = "wallet", DriveTypeSlug = "profile",
         AllowAnonymousReads = false, OwnerOnly = true
@@ -179,7 +164,6 @@ public static class BuiltinDrives
     //
     public static readonly CreateDriveRequest VaultDrive = new()
     {
-        SharingModel = DriveSharingModel.Private,
         Name = "Vault", TargetDrive = WellKnownAppDrives.VaultDrive, Metadata = "",
         AppId = SystemAppConstants.VaultAppId, DriveSlug = "vault", DriveTypeSlug = "vault",
         AllowAnonymousReads = false, OwnerOnly = true
@@ -187,7 +171,6 @@ public static class BuiltinDrives
 
     public static readonly CreateDriveRequest CommunityDrive = new()
     {
-        SharingModel = DriveSharingModel.Collaborative,
         Name = "Community", TargetDrive = WellKnownAppDrives.CommunityDrive, Metadata = "",
         AppId = SystemAppConstants.CommunityAppId, DriveSlug = "community", DriveTypeSlug = "community",
         AllowAnonymousReads = false, OwnerOnly = false
@@ -195,7 +178,6 @@ public static class BuiltinDrives
 
     public static readonly CreateDriveRequest PhotoLibraryDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "Photo Library", TargetDrive = WellKnownAppDrives.PhotoLibraryDrive, Metadata = "",
         AppId = SystemAppConstants.PhotoAppId, DriveSlug = "photos", DriveTypeSlug = "photos",
         AllowAnonymousReads = false, OwnerOnly = false
@@ -206,7 +188,6 @@ public static class BuiltinDrives
     // --- Webdrop ---
     public static readonly CreateDriveRequest WebDropDrive = new()
     {
-        SharingModel = DriveSharingModel.SelectiveShare,
         Name = "WebDrop", TargetDrive = WellKnownAppDrives.WebDropDrive, Metadata = "",
         AppId = SystemAppConstants.WebdropAppId, DriveSlug = "webdrop", DriveTypeSlug = "webdrop",
         AllowAnonymousReads = true, OwnerOnly = false

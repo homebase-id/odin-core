@@ -153,6 +153,8 @@ public class ZeroKnowledgeKeysTests : V2Fixture
     {
         var owner = await LoginAsOwner();
         var keys = await CreateKeys(owner);
+        Assert.That((await GetShardRecoveryDrive(owner)).SharingModel, Is.EqualTo(DriveSharingModel.Collaborative),
+            "a drive is labelled Private only once it is converted");
         var driveKeys = await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
 
         var status = await GetStatus(owner);

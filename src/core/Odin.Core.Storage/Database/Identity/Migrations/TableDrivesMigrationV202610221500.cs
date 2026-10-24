@@ -99,74 +99,12 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             {
                 // SharingModel, ZkMasterKeyEncryptedStorageKey and ZkStorageKeyEncryptedWriteOnlyPrivateKey
                 // are new in this version and are omitted from both lists: every existing drive lands as
-                // Collaborative (the column default, today's behaviour) with no zero-knowledge key.
-                // FillSharingModelAsync then labels the built-in drives.
+                // Collaborative (the column default, today's behaviour) with no zero-knowledge key.  A
+                // drive becomes Private only when the browser converts it (DriveManager.ApplyZeroKnowledgeKeysAsync).
                 copyCommand.CommandText = "INSERT INTO DrivesMigrationsV202610221500 (rowId,identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,AppId,DriveSlug,DriveTypeSlug,WriteOnlyKeyPair,created,modified) " +
                $"SELECT rowId,identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,AppId,DriveSlug,DriveTypeSlug,WriteOnlyKeyPair,created,modified "+
                $"FROM Drives;";
                return await copyCommand.ExecuteNonQueryAsync();
-            }
-        }
-
-        // ---------------------------------------------------------------------------------------------
-        // Labelling the built-in drives (docs/zero-knowledge-drives.md, "Migration")
-        //
-        // A FROZEN copy of the migration table in that doc, keyed by drive id (a drive's id is its
-        // alias).  The ids live in Odin.Services, which this project cannot reference, and a migration
-        // must not change behaviour when they do.
-        //
-        // The label alone changes nothing: a drive is zero knowledge only once the browser converts it.
-        // Collaborative is the column default, so Community, Public Posts and every other drive need no
-        // row here.  Values match Odin.Services.Drives.DriveSharingModel.
-        // ---------------------------------------------------------------------------------------------
-        //
-        // A test pins this map as it shipped (DriveSharingModelMigrationTests).  A built-in drive added
-        // or relabelled later needs a migration of its own.
-
-        private const int Private = 1;
-        private const int SelectiveShare = 2;
-        private const int Unclassified = 3;
-
-        internal static readonly IReadOnlyDictionary<Guid, int> BuiltinSharingModels = new Dictionary<Guid, int>
-        {
-            [Guid.Parse("2612429d1c3f037282b8d42fb2cc0499")] = Private, // contacts
-            [Guid.Parse("92bbcad8-3558-417b-9376-9976c086a674")] = Private, // email
-            [Guid.Parse("4db49422ebad02e99ab96e9c477d1e08")] = Private, // feed
-            [Guid.Parse("a6f991e214b11c8c9796f664e1ec0cac")] = Private, // wallet
-            [Guid.Parse("f47ac10b58cc4372a5670e02b2c3d479")] = Private, // vault
-            [Guid.Parse("9ff813aff2d61e2f9b9db189e72d1a11")] = Private, // chat
-            [Guid.Parse("e69b5a48a663482fbfd846f3b0b143b0")] = Private, // mail
-            [Guid.Parse("46242d0d67604b2aa683f05cd48d4aef")] = Private, // shard recovery
-            [Guid.Parse("6483b7b1f71bd43eb6896c86148668cc")] = SelectiveShare, // photo library
-            [Guid.Parse("3b9c5f2e-7a41-4d6b-9e0c-8f1a2b3c4d5e")] = SelectiveShare, // stickers
-            [Guid.Parse("2e191a14-8640-4ebc-b0c8-aaac913f6fa8")] = SelectiveShare, // location
-            [Guid.Parse("a44e7a2651f44a26ad125d7627b35d0e")] = SelectiveShare, // lists
-            [Guid.Parse("a85f8562-6c74-4947-896b-619812cafccc")] = SelectiveShare, // moments
-            [Guid.Parse("ec83345af6a747d4404ef8b0f8844caa")] = SelectiveShare, // home page config
-            [Guid.Parse("8f12d8c4933813d378488d91ed23b64c")] = SelectiveShare, // profile
-            [Guid.Parse("6d1711af-8b93-43ef-b798-b84d51f25828")] = SelectiveShare, // webdrop
-            [Guid.Parse("90f5e74ab7f9efda0ac298373a32ad8c")] = Unclassified, // transient temp
-        };
-
-        // Runs on the new table, after the copy.  No identity filter: on Postgres every identity shares
-        // the table and it is migrated once.
-        // One statement per model: DriveId is not the leading column of any index, so each statement
-        // scans the table.
-        private static async Task FillSharingModelAsync(IConnectionWrapper cn)
-        {
-            foreach (var group in BuiltinSharingModels.GroupBy(kv => kv.Value))
-            {
-                await using var update = cn.CreateCommand();
-                var driveIds = group.Select((kv, i) => (Name: $"@driveId{i}", DriveId: kv.Key)).ToList();
-                update.CommandText = "UPDATE DrivesMigrationsV202610221500 SET SharingModel=@sharingModel " +
-                                     $"WHERE DriveId IN ({string.Join(",", driveIds.Select(d => d.Name))});";
-                update.AddParameter("@sharingModel", DbType.Int32, group.Key);
-                foreach (var (name, driveId) in driveIds)
-                {
-                    update.AddParameter(name, DbType.Binary, driveId);
-                }
-
-                await update.ExecuteNonQueryAsync();
             }
         }
 
@@ -182,7 +120,6 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                     await CheckSqlTableVersion(cn, "DrivesMigrationsV202610221500", MigrationVersion);
                     if (await CopyDataAsync(cn) < 0)
                         throw new MigrationException("Unable to copy the data");
-                    await FillSharingModelAsync(cn);
                     if (await VerifyRowCount(cn, "Drives", "DrivesMigrationsV202610221500") == false)
                         throw new MigrationException("Mismatching row counts");
                     await SqlHelper.RenameAsync(cn, "Drives", $"DrivesMigrationsV{PreviousVersion}");

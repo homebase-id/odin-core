@@ -4,9 +4,9 @@ namespace Odin.Services.Drives;
 /// Who holds which key to a drive (docs/zero-knowledge-drives.md, "Three sharing models").
 /// </summary>
 /// <remarks>
-/// The label alone changes nothing: a drive is zero knowledge only once the browser has converted it
-/// (<see cref="StorageDrive.IsZeroKnowledge"/>).  Stored as an int in the Drives table; the values are
-/// frozen in the Drives migration that added the column.
+/// Every drive starts Collaborative; conversion is what makes one Private, so the label never claims
+/// more than <see cref="StorageDrive.IsZeroKnowledge"/>.  Stored as an int in the Drives table; the
+/// values are frozen.
 /// </remarks>
 public enum DriveSharingModel
 {
@@ -19,6 +19,6 @@ public enum DriveSharingModel
     /// <summary>Only the owner holds the drive key; each share has its own key.</summary>
     SelectiveShare = 2,
 
-    /// <summary>Not decided yet, e.g. the transient temp drive.</summary>
+    /// <summary>Not decided yet.  Nothing sets it today.</summary>
     Unclassified = 3
 }

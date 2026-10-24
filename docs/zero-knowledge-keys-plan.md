@@ -31,19 +31,20 @@ Built on branches `zk-keys-plan-a` (odin-core, odin-js) and `zk-drive-columns`
   one locks nothing, and the server refuses it from then on: the drive id is encrypted with the
   new key. The server never encrypts for a zero-knowledge drive at all: an encrypted upload is
   refused with `DriveIsZeroKnowledge`, and a test proves it.
-- **Shard Recovery is the first Private drive.** It is labelled Private by the migration's frozen
-  map and by its `CreateDriveRequest`, and conversion sets Private as well. Conversion drops the
-  master-key copy, stores the browser's locked keys and the new write-only pair, and resets the
-  whole `OdinContextCache` after commit.
+- **Shard Recovery is the first Private drive.** It starts Collaborative like every drive, and
+  conversion makes it Private. Conversion drops the master-key copy, stores the browser's locked
+  keys and the new write-only pair, and resets the whole `OdinContextCache` after commit.
 - **The check value becomes the drive id.** The browser encrypts the drive id, but
   `AssertValidStorageKey` compares with `StorageKeyCheckValue`, which on drives older than the
   alias migration is not the drive id. Conversion sets it to the drive id.
 - **No drive is saved without a copy of its key**: a drive is zero knowledge because it has no
   master-key copy, so `DriveManager` refuses to save one with neither copy.
 - **Grants never escrow a zero-knowledge drive's key** (`ExchangeGrantService.CreateDriveGrant`).
-- **New drives get their label** from `CreateDriveRequest.SharingModel`, set on every built-in
-  drive. Existing identities get it from the migration's frozen map, which a test pins as it
-  shipped; a built-in drive added or relabelled later needs a migration of its own.
+- **A drive is Private only once it is converted.** The migration leaves every existing drive
+  Collaborative, every new drive is created Collaborative, and only conversion sets Private.
+  `DriveManager` refuses to save a Private drive that still has a master-key copy, so no drive
+  can claim zero knowledge it doesn't have. A client may trust the label. (The first draft
+  labelled Vault, Chat and others Private while the server still held their keys.)
 - **The write-only pair**: the public half is the server's usual record, built from the browser's
   JWK; the private half (PKCS8, locked by the drive key) is in a third new column,
   `ZkStorageKeyEncryptedWriteOnlyPrivateKey`.
@@ -124,9 +125,8 @@ social-sync after a run.
 ### Drive columns and migration
 
 - The generated migration, hand-edited for the new columns.
-- `SharingModel` backfill in C#, from the migration table in the drives doc. `OwnerOnly` lives in
-  the drive's details JSON, not a column. Model the pass on `FillNullAddressingAsync` in
-  `TableDrivesMigrationV202610130807.cs`.
+- No `SharingModel` backfill: every existing drive stays Collaborative until it is converted (see
+  "As built").
 - `StorageDrive` and `DriveManager` carry both fields. Drive reads return `SharingModel`, and to
   the owner, the ZK-locked drive key.
 - **Null guards: the biggest odin-core item in A.** Today the code assumes every drive has an MK
