@@ -48,7 +48,7 @@ public class ZeroKnowledgeRecoveryService(
             ZkSaltKek64 = keys?.ZkSaltKek64,
             ZkKekEncryptedZkMasterKey = keys?.ZkKekEncryptedZkMasterKey,
             RecoveryPhrase = phrase,
-            PhrasePublicKeyJwk = phrase == RecoveryPhraseState.TakenOver ? keys.PhrasePublicKeyJwk : null,
+            PhrasePublicKeyJwk = keys?.PhrasePublicKeyJwk,
             HasPasswordCopy = keys?.PhrasePublicKeyEncryptedPassword != null
         };
     }
@@ -102,10 +102,7 @@ public class ZeroKnowledgeRecoveryService(
 
         // Everything the transaction below needs, before moving the deal, which can't be undone
         await passwordKeyRecoveryService.AssertNotTakenOverAsync();
-        if (await zeroKnowledgeKeyService.GetKeysAsync(odinContext) == null)
-        {
-            throw new OdinClientException("Make the zero-knowledge keys first", OdinClientErrorCode.ZeroKnowledgeKeysNotSet);
-        }
+        await zeroKnowledgeKeyService.AssertKeysExistAsync();
 
         await shamirConfigurationService.MoveOffThePhraseAsync(odinContext);
 

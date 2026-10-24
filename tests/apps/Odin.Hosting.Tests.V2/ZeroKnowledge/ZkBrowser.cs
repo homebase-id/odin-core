@@ -128,18 +128,16 @@ internal static class ZkBrowser
     public static byte[] ResetKey(byte[] phraseKey) => HKDF.DeriveKey(HashAlgorithmName.SHA256, phraseKey, 16, [],
         "homebase-recovery-reset-key".ToUtf8ByteArray());
 
-    public sealed record PhraseCopies<T>(T Request, KeyPair PhraseKeyPair) where T : ZkPhraseCopiesRequest;
-
     /// <summary>
     /// What the browser makes from the phrase: the zero-knowledge master key locked by the phrase, the
     /// phrase locked by the zero-knowledge master key, a new key pair with its private half locked by
     /// the phrase, the phrase's check value and the reset key.
     /// </summary>
-    public static PhraseCopies<T> MakePhraseCopies<T>(string phrase, byte[] zkMasterKey) where T : ZkPhraseCopiesRequest, new()
+    public static T MakePhraseCopies<T>(string phrase, byte[] zkMasterKey) where T : ZkPhraseCopiesRequest, new()
     {
         var phraseKey = PhraseKey(phrase);
         var pair = MakeKeyPair();
-        return new PhraseCopies<T>(new T
+        return new T
         {
             PhraseKeyEncryptedZkMasterKey = Lock(zkMasterKey, phraseKey),
             ZkMasterKeyEncryptedPhraseKey = Lock(phraseKey, zkMasterKey),
@@ -147,11 +145,11 @@ internal static class ZkBrowser
             PhraseKeyEncryptedPhrasePrivateKey = Lock(pair.PrivateKeyPkcs8, phraseKey),
             PhraseCheck64 = RecoveryPhraseCheck.Compute(phraseKey),
             ResetKey64 = ResetKey(phraseKey).ToBase64()
-        }, pair);
+        };
     }
 
     public static ZkPhraseCopiesRequest MakePhraseCopies(string phrase, byte[] zkMasterKey) =>
-        MakePhraseCopies<ZkPhraseCopiesRequest>(phrase, zkMasterKey).Request;
+        MakePhraseCopies<ZkPhraseCopiesRequest>(phrase, zkMasterKey);
 
     /// <summary>What the forgot-password page gets out of the phrase: the zero-knowledge master key.</summary>
     public static byte[] RecoverZkMasterKey(string phrase, ZkPhraseRecoveryResponse recovery) =>

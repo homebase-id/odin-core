@@ -25,11 +25,11 @@ namespace Odin.Core.Cryptography.Data
 
         public string IssuedTo { get; init; }
 
-        public const int TypeId = 100;
+        public const int CatType = 100;
 
         public static readonly Guid Category = Guid.Parse("cc0b390d-ac32-450f-bbaa-0108debde248");
 
-        public int Type => TypeId;
+        public int Type => CatType;
 
         /// <summary>
         /// How long an owner session lives without use. Named so a token meant to behave like the

@@ -69,7 +69,7 @@ internal static class ZkOwnerSteps
     public static async Task<ZkPhraseTakeoverRequest> MakeTakeoverAsync(OwnerSession owner, string password,
         string phrase, byte[] zkMasterKey)
     {
-        var request = ZkBrowser.MakePhraseCopies<ZkPhraseTakeoverRequest>(phrase, zkMasterKey).Request;
+        var request = ZkBrowser.MakePhraseCopies<ZkPhraseTakeoverRequest>(phrase, zkMasterKey);
         request.PhrasePublicKeyEncryptedPassword = ZkBrowser.SealPassword(password, request.PhrasePublicKeyJwk);
         request.CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
             owner.Host, owner.Identity.DomainName, password);

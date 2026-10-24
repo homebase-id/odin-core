@@ -187,15 +187,7 @@ public class ZeroKnowledgeKeyService(
 
         await GetRecordOrFailAsync();
 
-        EccFullKeyData writeOnlyPublicKey;
-        try
-        {
-            writeOnlyPublicKey = DriveWriteOnlyKey.FromPublicKeyJwk(request.WriteOnlyPublicKeyJwk);
-        }
-        catch (Exception e) when (e is not OdinClientException)
-        {
-            throw new OdinClientException("WriteOnlyPublicKeyJwk is not a valid public key", OdinClientErrorCode.ArgumentError);
-        }
+        var writeOnlyPublicKey = DriveWriteOnlyKey.FromPublicKeyJwk(request.WriteOnlyPublicKeyJwk);
 
         var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias.Value;
 
@@ -233,6 +225,11 @@ public class ZeroKnowledgeKeyService(
     private async Task<ZkKeyRecord> GetRecordAsync()
     {
         return await Storage.GetAsync<ZkKeyRecord>(tblKeyValue, ZkKeyStorageId);
+    }
+
+    internal async Task AssertKeysExistAsync()
+    {
+        await GetRecordOrFailAsync();
     }
 
     private async Task<ZkKeyRecord> GetRecordOrFailAsync()

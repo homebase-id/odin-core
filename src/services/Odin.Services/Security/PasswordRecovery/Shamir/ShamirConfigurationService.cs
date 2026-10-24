@@ -249,6 +249,11 @@ public class ShamirConfigurationService(
     /// </remarks>
     internal async Task MoveOffThePhraseAsync(IOdinContext odinContext)
     {
+        if (!await DealLocksThePhraseAsync())
+        {
+            return;
+        }
+
         if (!await rotationGate.WaitToEnterAsync(MoveOffThePhraseWait))
         {
             throw new OdinClientException("Recovery shards are being dealt; try again later");
@@ -256,9 +261,8 @@ public class ShamirConfigurationService(
 
         try
         {
-            // Inside the gate: a rotation that just finished may have dealt it again already
-            var key = await GetKeyInternalAsync();
-            if (key == null || key.ShamirDistributionKeyEncryptedMasterKey != null)
+            // Again inside the gate: a rotation that just finished may have dealt it again already
+            if (!await DealLocksThePhraseAsync())
             {
                 return;
             }
@@ -286,6 +290,12 @@ public class ShamirConfigurationService(
     }
 
     private static readonly TimeSpan MoveOffThePhraseWait = TimeSpan.FromSeconds(5);
+
+    private async Task<bool> DealLocksThePhraseAsync()
+    {
+        var key = await GetKeyInternalAsync();
+        return key != null && key.ShamirDistributionKeyEncryptedMasterKey == null;
+    }
 
     private async Task RemoveDealAsync(IOdinContext odinContext)
     {

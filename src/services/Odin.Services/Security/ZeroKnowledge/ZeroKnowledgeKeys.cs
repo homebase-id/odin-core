@@ -317,7 +317,7 @@ public sealed class ZkConvertDriveRequest
         ZkBlob.AssertBase64(EncryptedIdIv64, nameof(EncryptedIdIv64), exactLength: 16);
         ZkBlob.AssertBase64(EncryptedIdValue64, nameof(EncryptedIdValue64), maxLength: 1024);
         ZkBlob.AssertLocked(ZkStorageKeyEncryptedWriteOnlyPrivateKey, nameof(ZkStorageKeyEncryptedWriteOnlyPrivateKey), maxLength: 4096);
-        OdinValidationUtils.AssertNotNullOrEmpty(WriteOnlyPublicKeyJwk, nameof(WriteOnlyPublicKeyJwk));
+        ZkBlob.AssertPublicKey(WriteOnlyPublicKeyJwk, nameof(WriteOnlyPublicKeyJwk));
     }
 }
 

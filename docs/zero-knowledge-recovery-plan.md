@@ -464,6 +464,14 @@ using it needs a login with the current password.
 - The takeover checks its own preconditions before touching the deal, which can't be undone.
 - A reveal that fails (the phrase waits to be typed in again) no longer spends the one free view.
 
+**Open for the friends pair** (nothing is released, so it costs nothing to change before then):
+- The seal format (throwaway P-384 public key ‖ AES-GCM) has no version byte and doesn't say which
+  public key opens it. Decision 10 wants a deposit to say so, and the friends pair makes the
+  deposit format, so it settles both there: add them to this format, or seal deposits another way.
+- The takeover's re-deal tells a permanent failure by its exception type (a client error). The
+  friends pair removes the old friend path, after which only automated deals are re-dealt, and
+  "automated recovery off on this host" can be checked explicitly.
+
 ## Size estimate
 
 Inferred. Lines include tests.

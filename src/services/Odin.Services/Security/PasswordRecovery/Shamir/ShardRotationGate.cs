@@ -13,10 +13,9 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 public class ShardRotationGate
 {
     internal const long CooldownMs = 60 * 60 * 1000;
-    private const int WaitStepMs = 50;
 
     private readonly Func<long> _nowMs;
-    private int _busy;
+    private readonly SemaphoreSlim _holder = new(1, 1);
     private long _lastFailureMs;
 
     // monotonic: a wall-clock jump must not stretch or cut the cooldown
@@ -36,7 +35,7 @@ public class ShardRotationGate
     /// </summary>
     public bool TryEnter()
     {
-        if (IsCoolingDown() || Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
+        if (IsCoolingDown() || !_holder.Wait(0))
         {
             return false;
         }
@@ -56,25 +55,11 @@ public class ShardRotationGate
     /// <paramref name="timeout"/>, and ignores the cooldown, which only throttles the auth handler's
     /// retries.  A true result must be paired with <see cref="Exit"/>.
     /// </summary>
-    public async Task<bool> WaitToEnterAsync(TimeSpan timeout)
-    {
-        var giveUpMs = _nowMs() + (long)timeout.TotalMilliseconds;
-        while (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
-        {
-            if (_nowMs() >= giveUpMs)
-            {
-                return false;
-            }
-
-            await Task.Delay(WaitStepMs);
-        }
-
-        return true;
-    }
+    public Task<bool> WaitToEnterAsync(TimeSpan timeout) => _holder.WaitAsync(timeout);
 
     public void Failed() => Interlocked.Exchange(ref _lastFailureMs, _nowMs());
 
-    public void Exit() => Volatile.Write(ref _busy, 0);
+    public void Exit() => _holder.Release();
 
     private bool IsCoolingDown()
     {

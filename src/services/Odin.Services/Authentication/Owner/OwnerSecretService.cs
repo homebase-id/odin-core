@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core;
@@ -13,7 +12,6 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
-using Odin.Services.Authorization;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
@@ -31,7 +29,7 @@ namespace Odin.Services.Authentication.Owner
         TableKeyValueCached tblKeyValue,
         TableNonce nonceTable,
         ZeroKnowledgeKeyService zeroKnowledgeKeyService,
-        ClientRegistrationStorage clientRegistrationStorage,
+        OdinContextCache contextCache,
         IdentityDatabase db)
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
@@ -241,15 +239,22 @@ namespace Odin.Services.Authentication.Owner
                 await zeroKnowledgeKeyService.DeleteAsync();
             }
 
-            tx.AddPostCommitAction(EndOwnerSessionsAsync);
+            // In the transaction, so the sessions end with the old password; the cached contexts only
+            // once it's committed, or a request could cache one again in between (#1909).
+            await EndOwnerSessionsAsync();
+            tx.AddPostCommitAction(() => contextCache.ResetAsync());
             tx.Commit();
         }
 
         private async Task EndOwnerSessionsAsync()
         {
-            var sessions = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<OwnerConsoleClientRegistration>(
-                OwnerConsoleClientRegistration.TypeId, OwnerConsoleClientRegistration.Category);
-            await clientRegistrationStorage.DeleteManyAsync(sessions.Select(r => r.Id));
+            // Live or expired
+            var sessions = await db.ClientRegistrations.GetByTypeAndCategoryIdAsync(
+                OwnerConsoleClientRegistration.CatType, OwnerConsoleClientRegistration.Category);
+            foreach (var session in sessions)
+            {
+                await db.ClientRegistrations.DeleteAsync(session.catId);
+            }
         }
 
         public async Task ResetPasswordAsync(ResetPasswordRequest request, IOdinContext odinContext)
