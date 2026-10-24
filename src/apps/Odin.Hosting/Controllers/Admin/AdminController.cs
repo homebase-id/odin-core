@@ -180,20 +180,25 @@ public class AdminController : ControllerBase
     //
 
     /// <summary>
-    /// Sets the tenant's hosting plan, and so its disk quota, and returns the previous one. 400 for a plan not in
-    /// Registry:Plans.
+    /// Sets the tenant's plan and, when given, its quota and public web presence (left out, unchanged), and returns
+    /// what it had before. 400 for an empty plan Id or a quota that is not more than 0.
     /// </summary>
     [HttpPatch("tenants/{domain}/plan")]
     public async Task<ActionResult<SetTenantPlanResponse>> SetTenantPlan(string domain, [FromBody] SetTenantPlanRequest request)
     {
-        if (!await _tenantAdmin.TenantExists(domain))
+        // A missing plan is a 400 before we get here: [Required] on the property, [ApiController] on the class
+        var previous = await _tenantAdmin.SetTenantPlanAsync(domain, request.PlanId!, request.QuotaBytes, request.PublicWebPresence);
+        if (previous == null)
         {
             return NotFound();
         }
 
-        // A missing plan is a 400 before we get here: [Required] on the property, [ApiController] on the class
-        var previous = await _tenantAdmin.SetTenantPlanAsync(domain, request.PlanId!);
-        return Ok(new SetTenantPlanResponse { PreviousPlanId = previous });
+        return Ok(new SetTenantPlanResponse
+        {
+            PreviousPlanId = previous.PlanId,
+            PreviousQuotaBytes = previous.QuotaBytes,
+            PreviousPublicWebPresence = previous.EnablePublicWebPresence,
+        });
     }
 
     //

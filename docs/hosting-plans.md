@@ -1,135 +1,151 @@
-# Hosting plans: a disk quota and a public web presence per plan
+# Hosting plans: a quota and a public web presence on each identity
 
-Status: built on branch `plan-quota` (#1974).
+Status: built on branch `upgrade-url` (#1994), replacing the `Registry:Plans` catalog of #1974. The plan behind it
+is [plan-upgrade.md](plan-upgrade.md).
 
-## Before plans
-
-- An identity's plan is `PlanId` on its registration. Since #1908 it comes only from the invitation code it
-  signed up with; without one it has none (the registry wrote `free` for that until this change).
-- `TenantQuotaGuard.AssertCanAddPayloadBytes()` is the one enforcement point. It is called only where payload
-  or thumbnail bytes are added (the upload, update and attachment writers, the peer equivalents, the profile
-  photo, contact images and the contacts' app blob) and refuses with 507 and a one-hour Retry-After. Peers keep
-  the item in their outbox and retry. It fires only while an admin has set the identity's status to
-  `OutOfQuota`.
-- Usage is already counted: `driveMainIndex.GetTotalSizeAllDrivesAsync()` is `SUM(byteCount)` over the
-  identity's index rows, cached and cleared on drive writes. The admin metrics report the same figure as
-  `totalBytes`.
-- Nothing maps a plan to a limit, and nothing compares usage to one.
-
-## Decisions
+## The model
 
 | | |
 |---|---|
-| Where plans are defined | Config, per host |
-| A plan that is not in the config, or none | Gets the `Default` plan's quota and web presence |
+| Where plans are defined | By the hosting provider, outside odin-core (raven-hosting holds the catalog) |
+| What an identity has | Its own `PlanId` (a label), `QuotaBytes` and `EnablePublicWebPresence`, on its registration |
+| An identity with no quota stored | `HostingProvider:DefaultQuotaBytes`, 60 GB unless configured |
+| Unlimited | There is none: every identity has a number of bytes |
 | What counts as usage | All indexed bytes, tombstones included (`totalBytes`) |
 | Enforcement | A live check in the existing guard, no automatic status changes |
 | Out of quota | File headers still upload and update; payloads and thumbnails do not |
-| Owner and apps | Can read their usage on the V2 API |
-| Public web presence | The plan decides it when it says, live; otherwise the identity's own setting |
+| Owner and apps | Read their plan, usage and hosting provider on the V2 API |
 
-## Design
+odin-core has no plan catalog: it does not know what a plan Id means. Whoever gives an identity a plan gives
+what it comes with at the same time: the invitation code at signup, the account service after a purchase, or an
+admin.
 
-### 1. Plans in config
+## 1. Config: `HostingProvider`
 
-```json
-"Registry": {
-  "Plans": [
-    { "Id": "legacy", "Default": true },
-    { "Id": "free-1gb", "QuotaBytes": 1073741824, "PublicWebPresence": false },
-    { "Id": "pro-100gb", "QuotaBytes": 107374182400, "PublicWebPresence": true }
-  ]
-}
-```
+Who runs this host for its owners.
 
-- `QuotaBytes` missing or null means unlimited.
-- `PublicWebPresence` missing or null leaves it to the identity (section 7).
-- No `Plans` section at all means quotas are off, so self-hosted servers and existing hosts behave as today.
-- If `Plans` is set exactly one plan is `Default: true`, and ids must be unique; otherwise the host fails at
-  startup, like the overlapping invitation-code check in `RegistrySection`.
-- The default plan is every identity's whose plan is not in the list: no plan, an unknown id, or `free`, which
-  the registry stored for no plan before this change. So every identity that existed before plans is on the
-  default plan until an admin gives it another, with no migration. Do not name a plan `free` unless it is meant
-  for all of them.
-- Lookup is by exact id, case-insensitive. An id not in the list, or a null plan, gets the default plan.
+| Key | | Default |
+|---|---|---|
+| `HostingProvider:DisplayName` | shown to owners ("We'll send you to Raven Hosting to upgrade your plan") | `""`: no hosting provider |
+| `HostingProvider:UpgradeUrl` | the provider's page for a bigger plan; absolute `https` without a `#fragment`, or the host refuses to start | `""`: none |
+| `HostingProvider:AutoConsentDomains` | domains whose YouAuth domain sign-in skips the consent screen (section 7); exact names, no wildcards | `[]` |
+| `HostingProvider:DefaultQuotaBytes` | the quota of an identity with none stored; more than 0 | `64424509440` (60 GB) |
 
-### 2. One resolver
+A self-hosted server can leave all of it out: no hosting provider, and 60 GB per identity, or what it sets.
 
-`HostingPlans` reads the config once and is the one place a plan id becomes what it gives:
-`QuotaFor(string? planId) => long?` (null for unlimited) and `PublicWebPresenceFor(planId, identitySetting)`.
-The guard, the V2 endpoint, the public pages and the admin metrics all call it, so they never disagree.
+## 2. The registration carries the plan
 
-### 3. Enforcement in the guard
+`IdentityRegistration` has `PlanId`, `QuotaBytes` (`long?`) and `EnablePublicWebPresence`. `PlanId` and
+`EnablePublicWebPresence` are columns of the registrations table; `QuotaBytes` is in its `json` column (no schema
+change), so a row written before it reads as null and the identity gets the default quota.
 
-`AssertCanAddPayloadBytes` becomes `AssertCanAddPayloadBytesAsync` and refuses when either:
+- **Existing identities** have no quota stored: they get `DefaultQuotaBytes` (60 GB, what `free` gave before)
+  and keep their own public web presence. Nothing changes for them.
+- **The quota in effect** is `QuotaBytes ?? HostingProvider:DefaultQuotaBytes`, read by the quota guard, the plan
+  endpoint, the account service API and the admin metrics.
+- **Public web presence** is the registration's own `EnablePublicWebPresence` (`TenantContext`), set with the plan.
+  Changing it re-creates the identity's tenant context, so the public page follows at once, on every node once the
+  change is announced.
 
-- the status is `OutOfQuota` (still settable by hand, for an admin who wants to stop an identity regardless of
-  plan), or
-- the identity's quota is not unlimited and its cached usage is at or above it.
+## 3. Enforcement in the guard
 
-Same 507, same Retry-After, same message to peers, so nothing downstream changes. Because the guard is only
-called where payload or thumbnail bytes are added, headers, metadata, reactions, read receipts and deletes keep
+`TenantQuotaGuard.AssertCanAddPayloadBytesAsync` refuses when either:
+
+- the status is `OutOfQuota` (settable by hand, for an admin who wants to stop an identity regardless of quota),
+  or
+- the identity's cached usage is at or above its quota in effect.
+
+It refuses with 507 and a one-hour Retry-After; peers keep the item in their outbox and retry (a recipient out of
+storage is recorded as `RecipientIdentityOutOfStorage`, waiting, not failed). It is called only where payload or
+thumbnail bytes are added (the upload, update and attachment writers, the peer equivalents, the profile photo,
+contact images and the contacts' app blob), so headers, metadata, reactions, read receipts and deletes keep
 working, and deleting files brings an identity back under its quota within a minute.
 
 It is a soft limit: an upload's size is not known until it has been streamed, so the check is "is this identity
-already full", not "would this fit". That avoids buffering or pre-declared sizes. The usage it reads is the
-same sum, cached under its own key for up to a minute rather than dropped on every write, so a busy identity
-does not pay for a full sum on each upload: an upload or two can go over, and freed space can take a minute to
-count.
+already full", not "would this fit". The usage it reads is `SUM(byteCount)` over the identity's index rows,
+cached for up to a minute: an upload or two can go over, and freed space can take a minute to count.
 
-The guard needs the identity database for the usage figure, so it changes from a per-tenant singleton to a
-per-lifetime-scope registration in `TenantServices`, and its seven callers await it.
+## 4. `GET /api/v2/plan`, for the owner and apps
 
-### 4. V2 endpoint for the owner and apps
-
-`GET /api/v2/plan`, policy `OwnerOrApp`, no permission key: the identity's plan, what it gives, and how much
-of it is used.
+Policy `OwnerOrApp`, no permission key: the identity's plan, what it gives, how much of it is used, and who to
+ask for more.
 
 ```json
 {
-  "id": "free-1gb",
-  "isDefault": false,
-  "publicWebPresence": false,
-  "storage": { "usedBytes": 734003200, "quotaBytes": 1073741824, "isOverQuota": false }
+  "id": "veterans",
+  "publicWebPresence": true,
+  "storage": { "usedBytes": 734003200, "quotaBytes": 1099511627776, "isOverQuota": false },
+  "hostingProvider": {
+    "displayName": "Raven Hosting",
+    "upgradeUrl": "https://invites.ravenhosting.cloud/upgrade?id=frodo.dotyou.cloud&host=provisioning.dotyou.cloud"
+  }
 }
 ```
 
-- `id` is the plan the identity gets, as configured: the default's for no plan or an unknown one, so an app
-  never needs the fallback rule. Null, with `isDefault` false, while plans are off.
-- `publicWebPresence` is the identity's effective setting: the plan's when it says, otherwise the identity's own.
-- `storage.quotaBytes` is null for unlimited. `storage.isOverQuota` is exactly what the guard would decide,
+- `id` is the plan on the registration, null for none.
+- `storage.quotaBytes` is the quota in effect; `storage.isOverQuota` is exactly what the guard would decide,
   including a hand-set `OutOfQuota`, so an app can explain a 507 before the user hits one.
-- What a plan gives will grow; each new thing is one more field here.
+- `hostingProvider` is null when `HostingProvider:DisplayName` is empty. Its `upgradeUrl` is null when
+  `HostingProvider:UpgradeUrl` is empty; otherwise it is ready to open: the configured address with
+  `?id=<identity>&host=<this host's provisioning domain>` added (`&` when it already has a query). Apps never
+  build it.
 
-### 5. Admin metrics
+## 5. Changing a plan
 
-`/api/admin/v1/tenants/metrics` gains `quotaBytes` per registered identity, from the same resolver.
+One registry change sets the plan Id and, when given, the quota and public web presence, saved and announced
+together. `planId` is required (trimmed, not empty); `quotaBytes` (more than 0) and `publicWebPresence` left out
+keep the identity's current values. Any plan Id is accepted: it is the provider's label.
 
-### 6. Changing a plan
+- **Admin:** `PATCH /api/admin/v1/tenants/{domain}/plan` `{ "planId", "quotaBytes", "publicWebPresence" }`,
+  returns `{ "previousPlanId", "previousQuotaBytes", "previousPublicWebPresence" }` (`previousQuotaBytes` null for
+  the default). 400 for an empty plan Id or a quota that is not more than 0, 404 for an unknown tenant.
+- **CLI:** `odin-admin tenant set-plan <tenant> <planId> [--quota-bytes N] [--public-web-presence true|false]`.
+- **The account service:** section 6.
 
-`odin-cli tenant set-plan <tenant> <plan>`, or `PATCH /api/admin/v1/tenants/{domain}/plan` with
-`{ "planId": "pro-100gb" }`, returns `{ "previousPlanId": ... }`.
+## 6. The account service API
 
-- While quotas are on, the plan must be in `Registry:Plans` (400 otherwise), so a typo cannot quietly mean
-  the default plan. While they are off any id is accepted, so plans can be assigned before quotas are turned on.
-- The registry saves and announces it like a status change. The guard reads the plan from the in-memory
-  registration, so every node enforces the new quota once it has applied the announcement.
+The hosting provider's account service (raven-hosting, which already gives plans out through invitation codes)
+manages identities on its hosts with one key, `Registry:AccountService:ApiKey`, on each host's provisioning
+domain:
 
-### 7. Public web presence
+| Call | Answer |
+|---|---|
+| `GET /api/plans/v1/identities/{domain}` | `{ "domain", "planId", "quotaBytes", "publicWebPresence", "usedBytes", "isOverQuota" }`: what the identity has now (the plan Id, the quota in effect, the public web presence) and how much of it is used, exactly as its owner's own plan page says; 404 if the identity is not on this host |
+| `PUT /api/plans/v1/identities/{domain}/plan` `{ "planId", "quotaBytes", "publicWebPresence", "reference" }` | the same, after setting it as in section 5; 400 for an empty plan Id or a quota that is not more than 0, 404 if the identity is not on this host |
 
-Whether an identity has a public home page and sitemap (`TenantContext.EnablePublicWebPresence`, checked by
-`RequirePublicWebPresenceAttribute`, the sitemap and the SSR page service).
+- The key is sent in the `Odin-Api-Key` header; a wrong or missing key is a 401. One key shared by every host, for
+  now.
+- Without a key the API is not there (404), and it is only on the provisioning domain, whether or not this host
+  provisions (like payload move). On an identity's own domain it is a 404.
+- It can only read and set plans, through the same code as `odin-admin tenant set-plan`; the admin key, which can
+  delete or move identities, never leaves the host.
+- Setting what an identity already has changes nothing, so the service retries until it hears back. `reference`
+  (the service's payment or grant id) is logged with the change.
+- The 404 for an identity not on this host is how the service finds where an identity lives: it tries the `host`
+  from the upgrade link first, if it is a host it knows, and otherwise asks each host it knows.
 
-- A plan with `PublicWebPresence: true` or `false` decides it, over the identity's own setting.
-- A plan without it, or with plans off, leaves it to the identity's own setting: on, unless it signed up with a
-  configured code in `Registry:InvitationCodesWithoutPublicWebPresence` or an admin changed it. A code from the
-  invitation-code service no longer sets it (docs/invitation-codes.md), so every plan a service code names
-  should say `PublicWebPresence`.
-- It is resolved live, when the identity's `TenantContext` is built, so changing an identity's plan (section 6)
-  changes it at once, on every node once the announcement is applied. The identity's own setting is kept, and
-  applies again if it moves to a plan that does not say.
-- Every identity from before plans is on the default plan with its own setting. Leave the default plan without
-  `PublicWebPresence` to keep them as they are; `false` there takes every such identity's public page down.
+## 7. Signing in to the hosting provider
+
+The upgrade page signs the owner in with YouAuth as a domain client (docs/youauth-unified-authorization.md).
+Nothing is installed on the identity. A domain in `HostingProvider:AutoConsentDomains` needs no consent: the
+provider already runs the host, so knowing who the owner is gives it nothing new. Every other domain asks as
+before, and apps are never auto-consented. The owner still has to be signed in to their identity in that browser.
+
+`id` and `host` in the upgrade link are hints anyone can edit. The page must act on the identity YouAuth returns,
+never on `id`, and use `host` only to pick one of the hosts it already knows (with the account service key), which
+then confirms the identity is its own. An unknown `host` is ignored, so an edited link cannot send a key anywhere.
+
+## 8. Signup with an invitation code
+
+raven-hosting's `use` answer carries the code's `planId` and what the plan gives, `quotaBytes` and
+`publicWebPresence`; the host stores all three on the new registration. A service that sends no `quotaBytes` leaves
+the default quota, and no `publicWebPresence` leaves what signup gives without a plan (on, unless a configured code
+says otherwise). The code's older `enablePublicWebPresence` is ignored.
+
+## 9. Admin metrics
+
+`/api/admin/v1/tenants/metrics` reports each registered identity's `planId` and `quotaBytes` (the quota in effect)
+next to `totalBytes`.
 
 ## Out of scope
 
@@ -139,14 +155,19 @@ Whether an identity has a public home page and sitemap (`TenantContext.EnablePub
 
 ## Tests
 
-- Config: no section means off; exactly one `Default` required; duplicate ids refused; unknown, null and
-  `free` plans resolve to the default; null `QuotaBytes` is unlimited.
-- Public web presence: a plan's `true` or `false` wins over the identity's setting; a plan without it, an
-  unknown plan whose default has none, and plans off all keep the identity's setting.
-- Guard: refuses payloads and thumbnails at or over quota, allows them under it, allows headers either way,
-  still honours a hand-set `OutOfQuota`, never refuses with quotas off or an unlimited plan.
-- Integration (V2): an identity over a small quota can upload a header but gets 507 for a payload; after a
-  delete it can upload again; the plan endpoint reports the same plan and numbers for the owner and an app.
-- Admin metrics include `quotaBytes`.
-- Set plan: a configured plan brings its quota (an over-quota identity can upload payloads again on an
-  unlimited plan), an unconfigured plan is a 400, an unknown tenant a 404.
+- Config (`HostingProviderSectionTests`): defaults (no provider, 60 GB); a stored quota wins over the default; the
+  default can be set but not to 0; the upgrade URL gets `id` and `host`, must be https without a fragment;
+  auto-consent domains are lower-cased and must be domains.
+- Registration json (`RegistrationJsonMapperTests`): the quota round-trips and survives a status change; a row from
+  before quotas has none.
+- Signup (`IdentityRegistrationServiceTest`): the code's plan, quota and public web presence are stored; without
+  them, the defaults.
+- Guard and endpoint (`PlanQuotaTests`): over a small default quota a header uploads, a payload gets 507, and the
+  plan endpoint reports the same plan, numbers and hosting provider to the owner and an app; with no provider,
+  60 GB and no `hostingProvider`.
+- Set plan (`SetTenantPlanTests`): a bigger quota lets a payload in; a plan without a public web presence takes
+  the page down and back; values left out stay; a quota of 0 or less and an empty plan are 400; an unknown tenant
+  is 404.
+- Every path that adds payload bytes (`PlanQuotaPathTests`), including peers waiting in the outbox, refuses once
+  the identity is over its quota and lets the bytes in once set-plan gives it room.
+- The account service API (`PlanServiceApiTests`) and auto-consent (`YouAuthAutoConsentTests`).

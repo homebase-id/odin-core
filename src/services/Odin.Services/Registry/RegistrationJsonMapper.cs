@@ -7,9 +7,9 @@ using Odin.Core.Time;
 namespace Odin.Services.Registry;
 
 /// <summary>
-/// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/> and the
-/// <see cref="RegistrationInvitation"/> the identity signed up with. Kept out of dedicated columns so it can grow without a
-/// schema change.
+/// Reads and writes the Registrations json column, which holds the <see cref="TenantStatusState"/>, the
+/// <see cref="RegistrationInvitation"/> the identity signed up with, and its quota. Kept out of dedicated columns so it can
+/// grow without a schema change.
 /// </summary>
 public static class RegistrationJsonMapper
 {
@@ -18,25 +18,27 @@ public static class RegistrationJsonMapper
         TenantStatus Status,
         DisabledReason? DisabledReason,
         UnixTimeUtc? StatusChangedAt,
-        RegistrationInvitation? Invitation);
+        RegistrationInvitation? Invitation,
+        long? QuotaBytes = null);
 
     public static string ToJson(IdentityRegistration registration)
     {
-        return Serialize(registration.StatusState, registration.Invitation);
+        var state = registration.StatusState;
+        return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason, state.StatusChangedAt,
+            registration.Invitation, registration.QuotaBytes));
     }
 
     /// <summary>
-    /// <paramref name="existingJson"/> with its status replaced by <paramref name="state"/>, keeping everything else.
+    /// <paramref name="existingJson"/> with its status replaced by <paramref name="state"/>, keeping everything else:
+    /// only <see cref="ToJson"/> and <see cref="Apply"/> list the other fields.
     /// </summary>
     public static string WithStatus(string? existingJson, TenantStatusState state)
     {
-        return Serialize(state, TryParse(existingJson, out _)?.Invitation);
-    }
-
-    private static string Serialize(TenantStatusState state, RegistrationInvitation? invitation)
-    {
-        return OdinSystemSerializer.Serialize(new RegistrationJson(state.Status, state.DisabledReason,
-            state.StatusChangedAt, invitation));
+        var existing = TryParse(existingJson, out _) ?? new RegistrationJson(state.Status, null, null, null);
+        return OdinSystemSerializer.Serialize(existing with
+        {
+            Status = state.Status, DisabledReason = state.DisabledReason, StatusChangedAt = state.StatusChangedAt
+        });
     }
 
     /// <summary>
@@ -52,6 +54,7 @@ public static class RegistrationJsonMapper
     {
         var parsed = TryParse(json, out var valid);
         target.Invitation = parsed?.Invitation;
+        target.QuotaBytes = parsed?.QuotaBytes;
 
         if (disabledColumn)
         {

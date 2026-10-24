@@ -961,6 +961,12 @@ kind #1909 describes is no longer a sufficient explanation: either the cause is 
 remove count does not guard is involved. Not caused by the PR: it adds soft-delete-batch and peer
 permission checks and changes no upload, payload or overwrite code.
 
+**Again 2026-10-20.** PR #1989 (`plan-endpoint`) commit `850eda8c1`, run 39500115635,
+`ubuntu/sqlite/release`: the same single `HardDeletePayloadFile -> source payload does not exist` event
+for a `pknt0001` payload, the only failure in 1710; postgres and Windows passed on the same commit. Not
+caused by the PR: it adds `GET /api/v2/plan` and a recipient-out-of-storage transfer status, and changes
+no overwrite or hard-delete code.
+
 ---
 
 ## `Odin.Hosting.Tests.Cli.IdentityKeyMaterialTests`
@@ -1031,6 +1037,27 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
 
 ---
 
+## `Odin.Core.Storage.Tests.Cache.CrossNodeStaleFillTests`
+
+- `AFillOnOneNodeThatLoadedBeforeAnotherNodesRemoveDoesNotOutliveIt(False)`
+
+**Where:** CI, `ubuntu/sqlite/release`, PR #1996 (`feed-acl-before-queue`) commit `28ef8ce0e`, run 39984085175,
+2026-10-23. `ubuntu/postgres/release` and `windows/sqlite/debug` passed on the same commit, and the `(True)` case
+of the same test passed right after it in the same job.
+
+**Symptom:** not the test body but its `[TearDown]`: `StopNodes` (`CrossNodeStaleFillTests.cs:44`) disposes each
+node's service provider, and StackExchange.Redis throws while closing the connection:
+`NullReferenceException at StackExchange.Redis.ConnectionMultiplexer.AllComplete(Task[] tasks)
+(ConnectionMultiplexer.cs:553)`, from `CloseAsync` / `DisposeAsync`.
+
+**Not caused by the PR:** #1996 changes unencrypted feed distribution only (`FeedDriveDistributionRouter`,
+`SendUnencryptedFeedFileOutboxWorkerAsync`, a feed ACL test); nothing in the cache, Redis, or this fixture.
+
+**Cause, a hypothesis:** a race inside the Redis client while a multiplexer is disposed with its own connect or
+background tasks still settling. Undiagnosed; the failed job was re-run.
+
+---
+
 ## Seen once, not chased (2026-09-05 to 10-20)
 
 - `TransitCommentFileRoutingTests.FailsWhenSenderCannotWriteCommentOnRecipientServer` --
@@ -1059,3 +1086,16 @@ only sometimes does is **undiagnosed**. It may also be the unexplained Error in 
   `Unauthorized to read to drive`. Passed on re-running the job (attempt 2) with no change, and passes on the
   ubuntu jobs of the same commit and on recent `main` Windows runs. The branch touches nothing in peer
   WebSockets (hosting plans and quota checks). Undiagnosed.
+- Four `_Universal` tests that call the admin API fail locally on macOS with `HttpRequestException: nodename
+  nor servname provided, or not known (admin.dotyou.cloud:4444)`: `AnUnsentOutboxItemsFileIsAmongTheQueuedFiles`,
+  `ItemIsDroppedOnceItHasBeenDeferredForLongerThanTheMaxAge`, `PausedSenderDoesNotSendFromItsOutbox` and
+  `TransferToPausedRecipientWaitsInSenderOutboxAndArrivesAfterResume`. Seen 2026-10-21 on branch
+  `feed-acl-before-queue`; they fail the same way with the branch's `src` changes stashed. Environment:
+  `WebScaffold` sets `Admin__Domain=admin.dotyou.cloud`, and that name does not resolve on this machine
+  (presumably it needs a hosts entry, as the identity domains have). Not a product failure.
+- `V1TagTests.CanQueryModifiedByLocalTagsMatchAtLeastOne(Owner,OK)` (Odin.Hosting.Tests.V2) -- `ubuntu/sqlite/release`,
+  branch `feed-acl-before-queue`, 2026-10-21 (run 39672278932): the owner's `QueryModified` with
+  `LocalTagsMatchAtLeastOne` returned no file carrying the tag just set (`Expected: True But was: False`, line 489).
+  The `App` and `Guest` cases of the same test passed in that job, the `postgres/release` and `windows/sqlite/debug`
+  jobs of the same commit passed, and all three cases pass locally on the branch. The branch only changes feed
+  distribution for channel drives, which this test does not touch. Undiagnosed.

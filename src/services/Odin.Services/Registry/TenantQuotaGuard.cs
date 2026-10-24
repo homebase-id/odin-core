@@ -4,30 +4,38 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 
 #nullable enable
 
 namespace Odin.Services.Registry;
 
 /// <summary>
-/// The identity's hosting plan, what it gives, and how much of it is used (docs/hosting-plans.md)
+/// The identity's plan, what it gives, how much of it is used, and who to ask for more (docs/hosting-plans.md)
 /// </summary>
-/// <param name="Id">The plan the identity gets: the default's for no plan or an unknown one; null while plans are off</param>
-/// <param name="IsDefault">Whether that is the default plan</param>
-/// <param name="PublicWebPresence">Whether the identity has a public home page: the plan's say, or its own</param>
-public record IdentityPlan(string? Id, bool IsDefault, bool PublicWebPresence, StorageUsage Storage);
+/// <param name="Id">The plan on the identity's registration, a label; null when it has none</param>
+/// <param name="PublicWebPresence">Whether the identity has a public home page</param>
+/// <param name="HostingProvider">Who runs this host for its owners; null when the host names none</param>
+public record IdentityPlan(string? Id, bool PublicWebPresence, StorageUsage Storage, HostingProviderInfo? HostingProvider);
 
 /// <summary>
-/// How much an identity stores, against what its plan allows
+/// How much an identity stores, against its quota
 /// </summary>
-/// <param name="QuotaBytes">Null for unlimited</param>
-/// <param name="IsOverQuota">Exactly what <see cref="TenantQuotaGuard"/> decides: over the plan's quota, or set
+/// <param name="QuotaBytes">The identity's own quota, or the host's default when it has none</param>
+/// <param name="IsOverQuota">Exactly what <see cref="TenantQuotaGuard"/> decides: at or over the quota, or set
 /// <see cref="TenantStatus.OutOfQuota"/> by an admin</param>
-public record StorageUsage(long UsedBytes, long? QuotaBytes, bool IsOverQuota);
+public record StorageUsage(long UsedBytes, long QuotaBytes, bool IsOverQuota);
+
+/// <summary>
+/// The hosting provider, for owners: whom they are sent to for a bigger plan
+/// </summary>
+/// <param name="UpgradeUrl">Its upgrade page for this identity, ready to open (?id=&amp;host= added); null when it has none</param>
+public record HostingProviderInfo(string DisplayName, string? UpgradeUrl);
 
 /// <summary>
 /// Refuses writes that add payload bytes while this identity is out of quota: set
-/// <see cref="TenantStatus.OutOfQuota"/> by an admin, or storing at least what its plan allows.
+/// <see cref="TenantStatus.OutOfQuota"/> by an admin, or storing at least its quota (its registration's, or the
+/// host's default).
 /// Everything else (headers, metadata, reactions, read receipts, deletes, outgoing sends) keeps working.
 /// </summary>
 /// <remarks>
@@ -41,7 +49,7 @@ public record StorageUsage(long UsedBytes, long? QuotaBytes, bool IsOverQuota);
 public class TenantQuotaGuard(
     IIdentityRegistry identityRegistry,
     TenantContext tenantContext,
-    HostingPlans hostingPlans,
+    OdinConfiguration configuration,
     TableDriveMainIndexCached driveMainIndex)
 {
     // How stale the usage behind the quota may be; see GetTotalSizeAllDrivesForQuotaAsync
@@ -50,10 +58,10 @@ public class TenantQuotaGuard(
     public async Task AssertCanAddPayloadBytesAsync()
     {
         var registration = Registration();
-        var quota = hostingPlans.QuotaFor(registration?.PlanId);
+        var quota = Quota(registration);
 
-        // Read usage only when it can matter: not with no quota, nor when the status already decides
-        var used = quota == null || registration?.Status == TenantStatus.OutOfQuota ? 0 : await UsedBytesAsync();
+        // Read usage only when it can matter: not when the status already decides
+        var used = registration?.Status == TenantStatus.OutOfQuota ? 0 : await UsedBytesAsync();
         if (IsOverQuota(registration, used, quota))
         {
             throw new OdinRetryLaterException(
@@ -66,20 +74,23 @@ public class TenantQuotaGuard(
     public async Task<IdentityPlan> GetPlanAsync()
     {
         var registration = Registration();
-        var plan = hostingPlans.PlanFor(registration?.PlanId);
+        var quota = Quota(registration);
         var used = await UsedBytesAsync();
         return new IdentityPlan(
-            plan?.Id,
-            plan?.Default ?? false,
-            registration != null && hostingPlans.PublicWebPresenceFor(registration),
-            new StorageUsage(used, plan?.QuotaBytes, IsOverQuota(registration, used, plan?.QuotaBytes)));
+            registration?.PlanId,
+            registration?.EnablePublicWebPresence ?? false,
+            new StorageUsage(used, quota, IsOverQuota(registration, used, quota)),
+            configuration.HostingProvider.InfoFor(tenantContext.HostOdinId.DomainName, configuration.Registry.ProvisioningDomain));
     }
 
-    // The one rule: set OutOfQuota by an admin, or storing at least what the plan allows
-    private static bool IsOverQuota(IdentityRegistration? registration, long used, long? quota)
+    // The one rule: set OutOfQuota by an admin, or storing at least the quota
+    private static bool IsOverQuota(IdentityRegistration? registration, long used, long quota)
     {
         return registration?.Status == TenantStatus.OutOfQuota || used >= quota;
     }
+
+    private long Quota(IdentityRegistration? registration) =>
+        configuration.HostingProvider.QuotaFor(registration?.QuotaBytes);
 
     private Task<long> UsedBytesAsync() => driveMainIndex.GetTotalSizeAllDrivesForQuotaAsync(UsageMaxAge);
 
