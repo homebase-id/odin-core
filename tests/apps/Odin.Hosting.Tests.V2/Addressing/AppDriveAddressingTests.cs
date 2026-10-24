@@ -14,7 +14,7 @@ namespace Odin.Hosting.Tests.V2.Addressing;
 
 /// <summary>
 /// The local slug-addressed drive routes, <c>/api/v2/apps/{appSlug}/drives[/{driveSlug}]</c>
-/// (docs/drive-addressing.md).  These name a drive by app and slug instead of by guid.
+/// (docs/security-model.md, Drive addressing).  These name a drive by app and slug instead of by guid.
 /// </summary>
 /// <remarks>
 /// The app half of the address is a real registration -- these tests use a built-in app the tree

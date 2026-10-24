@@ -22,7 +22,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write;
 /// <summary>
 /// Writes to a drive hosted by another identity, named by slug:
 /// <c>POST /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files/send</c> — the case
-/// docs/drive-addressing.md leads with, since sending to another identity's chat drive otherwise
+/// docs/archive/drive-addressing.md leads with, since sending to another identity's chat drive otherwise
 /// requires both hosts to share hardcoded guid constants.
 /// </summary>
 /// <remarks>

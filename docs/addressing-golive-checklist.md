@@ -1,7 +1,7 @@
 # Go-live checklist: Circle, AppRegistrations and Drive addressing
 
 Derived working checklist for the table moves (#1688), chat circle ownership (#1691), and the drive
-addressing columns. `docs/drive-addressing.md` and `docs/connection-defaults.md` remain the specs;
+addressing columns. `docs/archive/drive-addressing.md` and `docs/connection-defaults.md` remain the specs;
 where this file and those disagree, those win.
 
 Status as of 2026-08-27.
@@ -30,10 +30,10 @@ Status as of 2026-08-27.
 | 1.1 | Owning app per system drive | `scratchpad/drives.csv`. Not inferable: no drive is granted to exactly one app, and Contact/Profile/Sticker are granted to all three |
 | 1.2 | `DriveSlug` per system drive | Same file. Defaults in it are proposals, not from the codebase |
 | 1.3 | `DriveTypeSlug` values, and whether it follows the type guid or the drive | Profile/Wallet/HomePageConfig share one type guid; Moments/Lists share another. Per-type means HomePageConfig's slug reads as `profile` |
-| 1.4 | Do ownerless drives get slugs at all? | `drive-addressing.md` OQ3. The doc's invariant says `DriveSlug` is null when `AppId` is null |
+| 1.4 | Do ownerless drives get slugs at all? | `archive/drive-addressing.md` OQ3. The doc's invariant says `DriveSlug` is null when `AppId` is null |
 | 1.5 | Owning app for Confirmed / Auto-connected / Emergency Location Access | `scratchpad/circles.csv`. Emergency Location should agree with whoever owns LocationDrive |
 | 1.6 | Do Lists, Location and ShardRecovery become their own apps before or after this ships? | If before, defaulting them to chat means a second ownership migration |
-| 1.7 | Is `(AppSlug, DriveSlug)` the successor to `TargetDrive` or a parallel name? | `drive-addressing.md` OQ1. Decides whether slugs are an address or a convenience |
+| 1.7 | Is `(AppSlug, DriveSlug)` the successor to `TargetDrive` or a parallel name? | `archive/drive-addressing.md` OQ1. Decides whether slugs are an address or a convenience |
 
 ## Derivation and backfill
 
@@ -62,7 +62,7 @@ to tighten, because each one can reject a call that works today.
 | 3.6 | **Drive slug uniqueness for ownerless drives** | Impossible at the constraint level while `AppId` is null; needs a code check, or 3.5 |
 | 3.7 | **Drive slug immutability** | No update path writes it yet. Once slugs are addresses, renaming breaks other identities' links |
 | 3.8 | **Reserved-segment denylist** | `OdinSlug.Reserved` is empty and must grow whenever a literal route segment is added at `{appSlug}` or `{driveSlug}` position |
-| 3.9 | **System app slugs protected** | **Open, and now reachable.** `AppSlugGenerator` orders known apps first when *deriving*, but a caller may now supply `chat` on an identity where the chat app is not yet registered, and take it first-come. `drive-addressing.md` OQ2 (no global registry) is the same question |
+| 3.9 | **System app slugs protected** | **Open, and now reachable.** `AppSlugGenerator` orders known apps first when *deriving*, but a caller may now supply `chat` on an identity where the chat app is not yet registered, and take it first-come. `archive/drive-addressing.md` OQ2 (no global registry) is the same question |
 | 3.10 | **`Type` becomes app-scoped** | Four call sites still read it as a global vocabulary: `FollowerService`, `FollowerPerimeterService`, `FeedDriveDistributionRouter`, `FeedNotificationMapper` |
 
 ## Routes

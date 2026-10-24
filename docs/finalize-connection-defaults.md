@@ -149,7 +149,7 @@ analogue. A reader of this document would not know the drive path exists.
 **Candidates.**
 - *A short subsection beside the circle path*, noting the slug invariant (`AppId` and `DriveSlug` set
   together or both null) and that adoption is one-way.
-- *Cross-reference `drive-addressing.md`* instead, keeping drive mechanics in one place and this
+- *Cross-reference `archive/drive-addressing.md`* instead, keeping drive mechanics in one place and this
   document about connections.
 - *Cover both under one "adoption" heading*, since the rule and the escape hatch are now the same
   shape for circles and drives.

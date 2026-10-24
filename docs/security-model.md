@@ -6,8 +6,8 @@ Markers: **(V)** verified in the code (file named), **(?)** intent the code does
 the design before acting on a (?).
 
 Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key model, deposits),
-[app-circle-membership-status.md](app-circle-membership-status.md), [drive-addressing.md](drive-addressing.md)
-(slugs, drive public key, app-owned circles), [drive-deletion-and-app-uninstall.md](drive-deletion-and-app-uninstall.md),
+[app-circle-membership-status.md](app-circle-membership-status.md), [archive/drive-addressing.md](archive/drive-addressing.md)
+(the slug design's full argument; the facts are in section 3), [drive-deletion-and-app-uninstall.md](drive-deletion-and-app-uninstall.md),
 [connection-defaults.md](connection-defaults.md), [autoconnected-security-level-audit.md](autoconnected-security-level-audit.md),
 [youauth-unified-authorization.md](youauth-unified-authorization.md), [weak-key-retirement.md](weak-key-retirement.md),
 [zero-knowledge-drives.md](zero-knowledge-drives.md) (direction: sharing models, keys only on devices).
@@ -126,6 +126,50 @@ Later:
 - Tenant settings add rights on anonymous drives for authenticated and connected identities: Read always,
   Comment/React by flag (`TenantSettings.GetAnonymousDrivePermissionsFor…`) **(V)**.
 
+### Drive addressing (slugs)
+
+A drive has two names: `DriveId`, the internal handle, and `(AppSlug, DriveSlug)`, the portable one a remote caller
+uses on another identity. The original design, with its full argument, is archived in
+[archive/drive-addressing.md](archive/drive-addressing.md).
+
+- **Routes** (`UnifiedApiRouteConstants`) **(V)**: `/api/v2/apps/{appSlug}/drives/{driveSlug}/…` and
+  `/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/…`, beside the Guid routes
+  (`/api/v2/drives/{driveId}/…`). Authorization is unchanged: the slug replaces only the address, and a caller still
+  needs the drive grant.
+- **Listing** `GET /api/v2/apps/{appSlug}/drives?type=` (`V2AppDriveController`) **(V)** returns only drives the caller
+  can already reach: its own, plus cross-app grants. The owner console sees all.
+- **A drive's public key** (`…/drives/{driveSlug}/public-key`, `V2PeerAppDrivePublicKeyController`) **(V)** is served
+  only to a caller with Write on that drive; anyone else gets a security exception, not a 404, since resolving the
+  address already showed the drive exists. So a stranger with no grant can't deposit yet
+  ([weak-key-retirement.md](weak-key-retirement.md)).
+- **Slug format** (`OdinSlug`) **(V)**: `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`, 1–14 characters, for `AppSlug`, `DriveSlug`
+  and `DriveTypeSlug` alike; a reserved list (empty today) for route segments; looked up lowercase. **Refused, never
+  coerced**: a slug is immutable and ends up in other identities' URLs, so silently changing it would make an address
+  the caller didn't ask for.
+- **Uniqueness:** `AppSlug` per identity, `DriveSlug` per app (`UNIQUE(identityId, AppId, DriveSlug)`), all `NOT NULL`
+  since #1901 **(V)**.
+- **Slugs are resolved by the recipient.** `/peer/{odinId}/apps/chat/…` means whatever app *that identity* registered
+  as `chat`. An `AppSlug` is a package name, first come first served per identity, with **no global registry**: a
+  different app can register as `chat` on an identity where the real one isn't installed. It still needs a grant to
+  be written to, so this is a naming risk, not an access one. Interop is by referencing another app's drive, never by
+  taking its name.
+
+Why it is built this way:
+- **The tree is rooted at `/apps`**, not under `/drives`, so every segment names what follows it (`/drives/feed`
+  would read as "the drive called feed"), and slugs could be added without touching the Guid routes.
+- **The type stays out of every unique key:** an app may own many drives of one type (the feed app's channels),
+  told apart by `DriveSlug`. `DriveTypeSlug` is the type's readable form, kept on `Drives` beside the type Guid
+  rather than in a registry table: drives number in the tens, and a single code path writes them.
+- **`AppRegistrations` is a real table**, because `UNIQUE(identityId, AppSlug)` can't be expressed over the old
+  key-value blobs, and a slug other identities resolve against can't be "unique, best effort".
+- **`detailsJson` exists from the start**, unused, because a nullable column costs nothing now and a migration
+  across both databases later.
+- **A circle's `AppId` is a column, not a field in its JSON**, so "delete the app's circles" and the ownership check
+  on every app write are one indexed query rather than a parse of every circle.
+
+Not built from that design: validating the type pair at drive creation (#2007); retiring `metadata/channel-drives`
+(#2008); the feed services still read the global channel drive type rather than `AllowSubscriptions` (#2009).
+
 ## 4. Circles
 
 Circles are a consequence of apps: each pre-installed app brings its circle (Chat → Chat, Feed → Feed,
@@ -140,10 +184,29 @@ Location → Emergency Location Access, Contacts → Friends, …; `BuiltinApps`
   `StorageDrive.GrantCarriesStorageKey`) **(V)**. So an app *deposits* a read grant (`DepositedGrant`), and it converts to a real
   grant next time the Peer Key is in scope **(V)**.
 - **No confused deputy:** an app can't plant a circle naming a drive it can't read, which the owner's next grant would
-  otherwise make work (`drive-addressing.md`). Creation is bounded by what the app holds (section 2), and updating a
+  otherwise make work ([archive/drive-addressing.md](archive/drive-addressing.md#circles)). Creation is bounded by what the app holds (section 2), and updating a
   circle definition needs the master key (`CircleMembershipService.UpdateAsync`) **(V)**.
 - Unreviewed connections are treated as `Authenticated`, not `Connected`, when content is evaluated
   (`ReviewedSecurityTier`) **(V)**.
+
+### Enrollment: when a circle grants itself (`CircleGrantOn`) **(V)**
+
+Details in [connection-defaults.md](connection-defaults.md).
+
+| `GrantOn` | Granted |
+|---|---|
+| `None` | never automatically: manual membership. The default |
+| `Connect` | at any connection, ambient introductions included |
+| `OwnFlowConnect` | only when the connection is made through the owning app's own consent flow (the vendor case) |
+| `Review` | when the owner completes the connection review |
+
+- **Deposit-only invariant:** a `Connect` or `OwnFlowConnect` circle may grant only write/react on drives, no read
+  beyond anonymous drives, and no permission keys. Checked when the definition is written
+  (`CircleDefinitionService.AssertDepositOnlyIfAmbientAsync`), because read grants need the key ceremony the review is
+  for **(V)**.
+- **Membership implies review:** a manual or review-granted circle refuses an unreviewed contact, and the review
+  can't be cleared while the contact is in a personal circle (`CannotClearReviewWhilePersonalCircleMember`) **(V)**.
+- Anyone but the owner sees a connection redacted to the identity list (`RedactedForExternalViewer`) **(V)**.
 
 ## 5. Files and their ACL
 

@@ -17,7 +17,7 @@ namespace Odin.Hosting.UnifiedV2.Drive;
 
 /// <summary>
 /// Addressing drives by slug: <c>/api/v2/apps/{appSlug}/drives/{driveSlug}</c>
-/// (docs/drive-addressing.md).  The guid-addressed routes under <c>/api/v2/drives/{driveId}</c> are
+/// (docs/security-model.md, Drive addressing).  The guid-addressed routes under <c>/api/v2/drives/{driveId}</c> are
 /// unchanged and remain the canonical form; this is a second way to name the same drive.
 /// </summary>
 /// <remarks>
