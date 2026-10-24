@@ -85,7 +85,7 @@ public class ShardRotationGateTest
         gate.Exit();
 
         Assert.That(await gate.WaitToEnterAsync(System.TimeSpan.Zero), Is.True, "held off by the cooldown");
-        Assert.That(gate.TryEnter(), Is.False, "entered while held");
+        Assert.That(await gate.WaitToEnterAsync(System.TimeSpan.Zero), Is.False, "did not take the gate");
         gate.Exit();
     }
 

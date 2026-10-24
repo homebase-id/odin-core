@@ -153,19 +153,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         /// and the phrase's private key, both locked by the phrase, and the password sealed to the
         /// phrase's public key.  No login, because all of it is useless without the phrase, a random
         /// 128-bit key.  404 until the browser took the phrase over; the page then falls back to
-        /// <c>resetpasswdrk</c>.
+        /// <c>resetpasswdrk</c>.  409 when a reset with today's master key forgot the copies: the
+        /// phrase can't recover until the owner types it in again.
         /// </summary>
         [HttpGet("zk-phrase-recovery")]
         public async Task<ActionResult<ZkPhraseRecoveryResponse>> GetPhraseRecovery(
-            [FromServices] ZeroKnowledgeKeyService zeroKnowledgeKeyService)
+            [FromServices] ZeroKnowledgeRecoveryService zeroKnowledgeRecoveryService)
         {
-            var result = await zeroKnowledgeKeyService.GetPhraseRecoveryAsync();
-            return result == null ? NotFound() : result;
+            var (recovery, needsReentry) = await zeroKnowledgeRecoveryService.GetPhraseRecoveryAsync();
+            return recovery != null ? recovery : needsReentry ? Conflict() : NotFound();
         }
 
         /// <summary>
-        /// Recovery with the phrase when the password it gave back doesn't log in: the phrase's reset
-        /// key sets a new password.  No login; a wrong key is refused (403).
+        /// Recovery with the phrase when it gave back no password, or one that doesn't log in: the
+        /// phrase's reset key, encrypted to the host, sets a new password.  No login; a wrong key is
+        /// refused (403), a malformed request 400.
         /// </summary>
         [HttpPost("zk-phrase-reset")]
         public async Task<IActionResult> ResetPasswordWithPhrase([FromBody] ZkPhraseResetRequest request,

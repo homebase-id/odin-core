@@ -1,6 +1,8 @@
 # Recovery in the browser: plan B
 
-**Status:** design, not built (rewritten 2026-10-24). Steps 2 and 3 in the
+**Status:** the phrase pair is built on branch `zk-recovery-phrase` (odin-core and odin-js), in
+review; the friends pair is next. Names and shorthand for every key: [owner-keys.md](owner-keys.md).
+Steps 2 and 3 in the
 [order of work](zero-knowledge-drives.md#order-of-work): friend Shamir and the recovery phrase,
 together. Plan A, the keys and the Shard Recovery drive, is built and merged
 ([zero-knowledge-keys-plan.md](zero-knowledge-keys-plan.md)).
@@ -411,8 +413,8 @@ odin-js:
   they go.
 - **An old deal that can't be dealt again is removed**, not left blocking the takeover at every
   login: without the phrase it couldn't recover anything. The security page's red dot comes on
-  (`needs-attention`: not configured). The re-deal runs in its own transaction before the takeover's
-  and shares the rotation gate.
+  (`needs-attention`: not configured). The re-deal runs in its own transaction, at the handover
+  since the second review, and shares the rotation gate.
 - **Finalizing a server-dealt recovery is one transaction**, and recovery mode ends last, so a
   failure keeps the link and the collected shards.
 - **The handover skips the 14-day reveal wait once per owner** (accepted): the one exposure is an
@@ -452,25 +454,40 @@ using it needs a login with the current password.
 - Re-entering the phrase makes a new key pair but has no password to seal; the next login writes it.
 - The no-login recovery read returns the phrase copy of the ZK master key, the key pair and the
   copy; with no copy, or one that doesn't open, the page goes straight to "set a new password".
-- Any password reset ends every owner session (`OwnerSecretService.ResetPasswordUsingMasterKeyAsync`),
-  so an intruder's open session goes with it.
+- Any password reset ends every owner-console session (`OwnerSecretService.ResetPasswordUsingMasterKeyAsync`),
+  so an intruder's console session goes with it (other tokens: #2005).
+- A login can't tell a good copy from junk (only the phrase opens it), and no check value can:
+  whoever writes junk knows the password and could make the matching check. Copies don't go stale
+  on their own (a password change writes the new one, a reset with today's master key deletes the
+  record, a reset with the phrase writes it, a login fills a missing one). Junk is repaired by the
+  reset key at recovery. Decided 2026-10-24: no check value, no rewrite at every login.
 
 **Other second-review fixes:**
-- The takeover's re-deal waits for a running rotation instead of refusing, ignores the rotation's
-  one-hour failure cooldown, checks the deal again inside the gate, and deletes inside it
-  (`ShardRotationGate.WaitToEnterAsync`).
-- An old deal is removed only for a permanent cause (refused as a client error: a friend not
-  connected, automated recovery off). Anything else fails the takeover; the next login retries.
+- The old deal moves off the phrase **at the handover**, before the phrase is sent: if moving fails,
+  the phrase isn't handed over, so a failure that repeats doesn't hand it over (skipping the
+  14-day wait) at every login. Moving early is harmless: a deal locking the master key is how
+  every deal works now. The takeover checks again.
+- The re-deal waits for a running rotation instead of refusing, ignores the rotation's one-hour
+  failure cooldown, checks the deal again inside the gate, and deletes inside it
+  (`ShardRotationGate`, a semaphore).
+- An old deal is removed only for a permanent cause, checked before dealing: a friend no longer
+  connected, automated recovery off on this host, or no dealer package. Any failure of the deal
+  itself throws, and the next login retries.
 - The takeover checks its own preconditions before touching the deal, which can't be undone.
+- The no-login recovery read answers 409 when a reset with today's master key forgot the phrase
+  copies, so the page says the phrase can't recover until it's typed in again, instead of sending
+  the owner into the old reset, which refuses a taken-over phrase.
+- A reset ends owner-console sessions in its own transaction. App and YouAuth tokens, and an
+  intruder's Shamir deal or recovery email, are #2005.
+- The phrase key must be P-384; a malformed reset request is a 400, not a 500.
 - A reveal that fails (the phrase waits to be typed in again) no longer spends the one free view.
 
 **Open for the friends pair** (nothing is released, so it costs nothing to change before then):
 - The seal format (throwaway P-384 public key ‖ AES-GCM) has no version byte and doesn't say which
   public key opens it. Decision 10 wants a deposit to say so, and the friends pair makes the
   deposit format, so it settles both there: add them to this format, or seal deposits another way.
-- The takeover's re-deal tells a permanent failure by its exception type (a client error). The
-  friends pair removes the old friend path, after which only automated deals are re-dealt, and
-  "automated recovery off on this host" can be checked explicitly.
+- The friends pair removes the old friend path; the takeover's re-deal then handles automated
+  deals only.
 
 ## Size estimate
 

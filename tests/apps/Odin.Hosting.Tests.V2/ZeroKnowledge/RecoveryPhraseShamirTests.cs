@@ -70,6 +70,8 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         // valid, and the owner types it in once against the new keys.
         var keys = await ZkOwnerSteps.CreateKeysAsync(recovered, NewPassword);
         Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.NeedsReentry));
+        var unusable = await Host.AnonymousRefitFor<IOwnerAuthenticationClient>(recovered.Identity.DomainName).GetPhraseRecovery();
+        Assert.That(unusable.StatusCode, Is.EqualTo(HttpStatusCode.Conflict), "the forgot-password page must say why the phrase can't recover");
         DriveAsserts.AssertRejected(await SecurityOf(recovered).RequestRecoveryKey(), OdinClientErrorCode.RecoveryPhraseNeedsReentry);
 
         // The re-deal after a password change ran on those requests, without a phrase to read.
@@ -106,7 +108,6 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         var (dealer, players, _) = await ArrangeDelegateShardsAsync();
         Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.True);
         await PeerFlow.DisconnectAsync(players[0], dealer);
-        ExpectErrorLogEvent("Failed while creating outbox item"); // the re-deal can't send to that friend
 
         await TakeOverAsync(dealer);
 

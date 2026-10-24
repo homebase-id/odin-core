@@ -198,6 +198,13 @@ public sealed class ZkPhraseResetRequest
     public void Validate()
     {
         OdinValidationUtils.AssertNotNull(EncryptedResetKey, nameof(EncryptedResetKey));
+        if (EncryptedResetKey.KeyType != PublicPrivateKeyType.OfflineKey ||
+            !(EncryptedResetKey.Iv?.Length > 0 && EncryptedResetKey.Salt?.Length > 0 && EncryptedResetKey.EncryptedData?.Length > 0))
+        {
+            throw new OdinClientException("EncryptedResetKey must be encrypted to the offline key", OdinClientErrorCode.ArgumentError);
+        }
+
+        ZkBlob.AssertPublicKey(EncryptedResetKey.RemotePublicKeyJwk, nameof(EncryptedResetKey.RemotePublicKeyJwk));
         OdinValidationUtils.AssertNotNull(PasswordReply, nameof(PasswordReply));
         OdinValidationUtils.AssertNotNull(ZkKeys, nameof(ZkKeys));
         ZkKeys.Validate();
@@ -234,8 +241,8 @@ public sealed class ZkStatusResponse
     public RecoveryPhraseState RecoveryPhrase { get; init; }
 
     /// <summary>
-    /// The phrase's public key, while <see cref="RecoveryPhrase"/> is <see cref="RecoveryPhraseState.TakenOver"/>:
-    /// a password login or change seals the password to it.
+    /// The phrase's public key once the phrase is taken over (null before, and after a reset with
+    /// today's master key until it is typed in again): a password login or change seals the password to it.
     /// </summary>
     public string PhrasePublicKeyJwk { get; init; }
 
@@ -343,17 +350,25 @@ internal static class ZkBlob
         }
     }
 
+    /// <summary>A P-384 public key as a JWK, the only curve the browser makes and seals with.</summary>
     public static void AssertPublicKey(string jwk, string name)
     {
         OdinValidationUtils.AssertNotNullOrEmpty(jwk, name);
         try
         {
-            EccPublicKeyData.FromJwkPublicKey(jwk, 1);
+            using var parsed = System.Text.Json.JsonDocument.Parse(jwk);
+            if (parsed.RootElement.GetProperty("crv").GetString() == "P-384")
+            {
+                EccPublicKeyData.FromJwkPublicKey(jwk, 1);
+                return;
+            }
         }
         catch (Exception e) when (e is not OdinClientException)
         {
-            throw new OdinClientException($"{name} is not a valid public key", OdinClientErrorCode.ArgumentError);
+            // falls through
         }
+
+        throw new OdinClientException($"{name} is not a P-384 public key", OdinClientErrorCode.ArgumentError);
     }
 
     public static void AssertLocked(string value64, string name, int maxLength = DefaultMaxLength)

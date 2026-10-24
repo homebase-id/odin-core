@@ -24,7 +24,7 @@ public class OwnerZeroKnowledgeController(
 {
     /// <summary>
     /// What the browser needs after login: its locked master key and salt (null until it makes them),
-    /// the password copy, and where the recovery phrase is.  Whether a drive is converted is on the
+    /// where the recovery phrase is, its public key and whether the password copy exists.  Whether a drive is converted is on the
     /// drive (<see cref="OwnerClientDriveData"/>).
     /// </summary>
     [HttpGet]

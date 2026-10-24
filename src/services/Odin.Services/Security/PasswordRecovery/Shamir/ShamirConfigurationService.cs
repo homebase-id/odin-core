@@ -26,6 +26,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LastSeen;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -49,6 +50,7 @@ public class ShamirConfigurationService(
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
     ShardRotationGate rotationGate,
+    CircleNetworkService circleNetworkService,
     ILastSeenService lastSeenService) : ShamirBaseService<ShamirConfigurationService>(logger, fileSystem, driveManager, lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
@@ -93,9 +95,7 @@ public class ShamirConfigurationService(
             throw new OdinClientException("Auto-recovery not enabled in configuration");
         }
 
-        var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
-
-        if (autoPlayers.Count() < MinimumPlayerCount || configuration.AccountRecovery.AutomatedIdentityKey == Guid.Empty)
+        if (!HasAutomatedPlayers())
         {
             Logger.LogWarning("Tried to auto-configure password recovery but too few auto-players are configured.  See configuration " +
                               "Registry::AutomatedPasswordRecoveryIdentities. Minimum is {min}", MinimumPlayerCount);
@@ -103,6 +103,12 @@ public class ShamirConfigurationService(
             throw new OdinClientException("Tried to auto-configure password recovery but too few auto-players are configured");
         }
     }
+
+    private bool CanUseAutomatedRecovery() => configuration.AccountRecovery.Enabled && HasAutomatedPlayers();
+
+    private bool HasAutomatedPlayers() =>
+        (configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Count ?? 0) >= MinimumPlayerCount &&
+        configuration.AccountRecovery.AutomatedIdentityKey != Guid.Empty;
 
     public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
     {
@@ -234,18 +240,21 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// For the phrase takeover, before it: a deal from before recovery in the browser locks the
-    /// phrase, which the server is about to forget, so it's dealt again to the same players with the
-    /// same threshold.  Call it outside any transaction: a failed deal must roll back on its own.
+    /// For the phrase takeover, before the phrase is handed over: a deal from before recovery in the
+    /// browser locks the phrase, which the server is about to forget, so it's dealt again to the same
+    /// players with the same threshold.  Harmless if the takeover then never happens: a deal locking
+    /// the master key is how every deal works now.  Call it outside any transaction: a failed deal
+    /// must roll back on its own.
     /// </summary>
     /// <remarks>
     /// A deal that can't be repeated (a friend no longer connected, automated recovery off on this
-    /// host: both refused as client errors) is removed rather than kept: without the phrase it could
-    /// never recover anything, and keeping it would block the takeover at every login.  The security
-    /// page then shows recovery as not set up (<c>OwnerSecurityHealthService.GetSecurityNeedsAttentionStatus</c>).
-    /// Anything else (the database, the outbox) fails the takeover, and the next login tries again.
-    /// Shares <see cref="RotateShardKeysIfNeeded"/>'s gate, so the two never deal at once, but waits
-    /// for it and ignores its cooldown: a rotation that keeps failing must not block this.
+    /// host, no dealer package), checked before dealing, is removed rather than kept: without the
+    /// phrase it could never recover anything, and keeping it would block the takeover at every
+    /// login.  The security page then shows recovery as not set up
+    /// (<c>OwnerSecurityHealthService.GetSecurityNeedsAttentionStatus</c>).  Any other failure throws,
+    /// the phrase is not handed over, and the next login tries again.  Shares
+    /// <see cref="RotateShardKeysIfNeeded"/>'s gate, so the two never deal at once, but waits for it
+    /// and ignores its cooldown: a rotation that keeps failing must not block this.
     /// </remarks>
     internal async Task MoveOffThePhraseAsync(IOdinContext odinContext)
     {
@@ -268,25 +277,41 @@ public class ShamirConfigurationService(
             }
 
             var package = await GetDealerShardPackage(odinContext);
-            if (package != null)
+            var cannotRepeat = package == null ? "no dealer package" : await WhyTheDealCannotBeRepeatedAsync(package, odinContext);
+            if (cannotRepeat == null)
             {
-                try
-                {
-                    await DealAgainAsync(package, odinContext, movingOffThePhrase: true);
-                    return;
-                }
-                catch (OdinClientException e)
-                {
-                    Logger.LogWarning(e, "Could not deal the recovery shards again for the phrase takeover; removing the old deal");
-                }
+                await DealAgainAsync(package, odinContext, movingOffThePhrase: true);
+                return;
             }
 
+            Logger.LogWarning("The recovery shards can't be dealt again for the phrase takeover ({reason}); removing the old deal",
+                cannotRepeat);
             await RemoveDealAsync(odinContext);
         }
         finally
         {
             rotationGate.Exit();
         }
+    }
+
+    /// <summary>Null when <paramref name="package"/> can be dealt again; otherwise the permanent reason why not.</summary>
+    private async Task<string> WhyTheDealCannotBeRepeatedAsync(DealerShardPackage package, IOdinContext odinContext)
+    {
+        if (package.UsesAutomatedRecovery)
+        {
+            return CanUseAutomatedRecovery() ? null : "automated recovery is off on this host";
+        }
+
+        foreach (var player in package.Envelopes.Select(e => e.Player))
+        {
+            var icr = await circleNetworkService.GetIcrAsync(player.OdinId, odinContext, overrideHack: true);
+            if (!icr.IsConnected())
+            {
+                return $"{player.OdinId} is no longer connected";
+            }
+        }
+
+        return null;
     }
 
     private static readonly TimeSpan MoveOffThePhraseWait = TimeSpan.FromSeconds(5);

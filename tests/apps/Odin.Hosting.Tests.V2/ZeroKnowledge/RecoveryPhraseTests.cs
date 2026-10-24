@@ -132,6 +132,43 @@ public class RecoveryPhraseTests : V2Fixture
         Assert.That((await ZkOwnerSteps.GetStatusAsync(owner)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.OnServer));
     }
 
+    /// <summary>The browser only makes and seals with P-384 keys; any other key would break every later seal.</summary>
+    [Test]
+    public async Task TheTakeoverRefusesAnythingButAP384PublicKey()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await ZkOwnerSteps.CreateKeysAsync(owner, Password);
+        var phrase = (await ZkOwnerSteps.HandOverPhraseAsync(owner, Password)).Content!.Phrase;
+
+        var request = await ZkOwnerSteps.MakeTakeoverAsync(owner, Password, phrase, keys.MasterKey);
+        using var p256 = System.Security.Cryptography.ECDiffieHellman.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+        var q = p256.ExportParameters(false).Q;
+        request.PhrasePublicKeyJwk = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            kty = "EC", crv = "P-256", x = Base64UrlEncoder.Encode(q.X!), y = Base64UrlEncoder.Encode(q.Y!)
+        });
+
+        var response = await ZkOwnerSteps.Client(owner).TakeOverPhrase(request);
+        DriveAsserts.AssertRejected(response, OdinClientErrorCode.ArgumentError);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(owner)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.OnServer));
+    }
+
+    [Test]
+    public async Task AMalformedResetIsRefusedWithoutAServerError()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await ZkOwnerSteps.CreateKeysAsync(owner, Password);
+        await ZkOwnerSteps.TakeOverPhraseAsync(owner, Password, keys.MasterKey);
+
+        var reset = await RecoveryClient().ResetPasswordWithPhrase(new ZkPhraseResetRequest
+        {
+            EncryptedResetKey = new Odin.Services.EncryptionKeyService.EccEncryptedPayload(),
+            PasswordReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(Host, PrimaryIdentity, NewPassword),
+            ZkKeys = ZkBrowser.MakeKeys(NewPassword).Request
+        });
+        DriveAsserts.AssertRejected(reset, OdinClientErrorCode.ArgumentError);
+    }
+
     [Test]
     public async Task TheTakeoverNeedsThePasswordItself()
     {
