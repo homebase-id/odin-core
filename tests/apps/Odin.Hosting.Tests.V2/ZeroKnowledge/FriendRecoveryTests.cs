@@ -249,10 +249,7 @@ public class FriendRecoveryTests : ShamirFixture
 
         // The next owner request removes the deal: it could recover nothing
         var owner = await OwnerSession.LoginAsync(Host, frodo.Identity.DomainName, NewPassword);
-        Assert.That((await RecoveryInfoAsync(owner)).IsConfigured, Is.False, "the deal is gone");
-        var needsAttention = await PlainSecurityOf(owner).GetNeedsAttention();
-        Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
-        Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
+        await AssertDealGoneAndFlaggedAsync(owner);
     }
 
     [Test]

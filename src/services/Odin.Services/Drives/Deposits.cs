@@ -24,24 +24,22 @@ public static class Deposits
     public static bool IsDeposit(ServerFileHeader header) => IsDeposit(header.FileMetadata.IsEncrypted, header.EncryptedKeyHeader);
 
     /// <summary>
-    /// A stored file's key header, opened with the drive key as the caller holds it; a deposit's comes
-    /// back sealed, as stored, and needs no drive key.  Re-lock it with
+    /// A stored file's key header, opened with the drive key the caller holds; a deposit's comes back
+    /// sealed, as stored, and needs no drive key.  Any other file needs the caller to hold the drive
+    /// key, even an unencrypted one (sending a file always has).  Re-lock it with
     /// <see cref="EncryptedKeyHeader.EncryptKeyHeaderAes"/>, which passes a sealed one on as it is.
     /// </summary>
     public static KeyHeader OpenWithDriveKey(ServerFileHeader header, IOdinContext odinContext)
     {
-        if (!header.FileMetadata.IsEncrypted)
-        {
-            return KeyHeader.Empty();
-        }
-
         if (IsDeposit(header))
         {
             return new SealedKeyHeader(header.EncryptedKeyHeader);
         }
 
         var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var keyHeader = header.FileMetadata.IsEncrypted
+            ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey)
+            : KeyHeader.Empty();
         storageKey.Wipe();
         return keyHeader;
     }

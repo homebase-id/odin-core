@@ -117,10 +117,7 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         await TakeOverAsync(dealer);
 
         Assert.That((await ZkOwnerSteps.GetStatusAsync(dealer)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.TakenOver));
-        Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.False, "the old deal is gone");
-        var needsAttention = await PlainSecurityOf(dealer).GetNeedsAttention();
-        Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
-        Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
+        await AssertDealGoneAndFlaggedAsync(dealer);
     }
 
     /// <summary>The login's takeover, from a fresh password login as the browser does it.</summary>

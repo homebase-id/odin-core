@@ -373,16 +373,17 @@ public class ShamirRecoveryService
         }
 
         await _playerShardCollector.SavePlayerShard(result.Shard, odinContext);
+        if (status.State == ShamirRecoveryState.AwaitingRecoveringBrowser)
+        {
+            // Told once, at the threshold; later approvals only add shards the browser may need
+            tx.Commit();
+            return;
+        }
+
         var collectedShards = await _playerShardCollector.GetCollectShards(odinContext);
 
         if (collectedShards.Count >= package.MinMatchingShards && !package.UsesAutomatedRecovery)
         {
-            if (status.State == ShamirRecoveryState.AwaitingRecoveringBrowser)
-            {
-                // Told once; later approvals only add shards the browser may need
-                tx.Commit();
-                return;
-            }
 
             // The dealer can't open the gated shards: the browser that started recovery rebuilds the
             // secret (GetRecoveryBundleAsync).  The email carries nothing.

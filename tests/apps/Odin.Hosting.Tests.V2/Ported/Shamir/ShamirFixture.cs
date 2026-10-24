@@ -386,6 +386,15 @@ public abstract class ShamirFixture : V2Fixture
         return getConfigResponse.Content!;
     }
 
+    /// <summary>The deal is gone, and the security page's red dot is on.</summary>
+    protected static async Task AssertDealGoneAndFlaggedAsync(OwnerSession owner)
+    {
+        Assert.That((await RecoveryInfoAsync(owner)).IsConfigured, Is.False, "the deal is gone");
+        var needsAttention = await PlainSecurityOf(owner).GetNeedsAttention();
+        Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
+        Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
+    }
+
     protected static async Task<RecoveryInfo> RecoveryInfoAsync(OwnerSession owner)
     {
         var response = await PlainSecurityOf(owner).GetRecoveryInfo();

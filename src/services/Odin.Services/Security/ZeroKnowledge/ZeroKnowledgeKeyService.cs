@@ -93,7 +93,8 @@ public class ZeroKnowledgeKeyService(
 
         // The phrase and friend copies lock the zero-knowledge master key, which a password change
         // keeps.  Each password copy is the new password's, or none.
-        AssertSealedToCurrentKeys(existing, request.PhrasePublicKeyEncryptedPassword, request.ShamirPublicKeyEncryptedPassword);
+        AssertSealedTo(request.PhrasePublicKeyEncryptedPassword, existing.PhrasePublicKeyJwk);
+        AssertSealedTo(request.ShamirPublicKeyEncryptedPassword, existing.ShamirPublicKeyJwk);
         await SaveRecordAsync(existing with
         {
             ZkSaltKek64 = request.ZkSaltKek64,
@@ -117,7 +118,8 @@ public class ZeroKnowledgeKeyService(
             throw new OdinClientException("No friend deal to seal the password to", OdinClientErrorCode.PasswordRecoveryNotConfigured);
         }
 
-        AssertSealedToCurrentKeys(existing, request.PhrasePublicKeyEncryptedPassword, request.ShamirPublicKeyEncryptedPassword);
+        AssertSealedTo(request.PhrasePublicKeyEncryptedPassword, existing.PhrasePublicKeyJwk);
+        AssertSealedTo(request.ShamirPublicKeyEncryptedPassword, existing.ShamirPublicKeyJwk);
 
         await SaveRecordAsync(existing with
         {
@@ -131,12 +133,9 @@ public class ZeroKnowledgeKeyService(
     /// that read the keys before a new deal, say): the server can't open a copy, but it can read which
     /// key it was sealed to, and a stale one would stand in for the copy every later login writes.
     /// </summary>
-    private static void AssertSealedToCurrentKeys(ZkKeyRecord existing, string phraseCopy64, string friendsCopy64)
+    private static void AssertSealedTo(string copy64, string publicKeyJwk)
     {
-        if ((phraseCopy64 != null && existing.PhrasePublicKeyJwk != null &&
-             !ZkSeal.IsSealedTo(phraseCopy64.FromBase64(), existing.PhrasePublicKeyJwk)) ||
-            (friendsCopy64 != null && existing.ShamirPublicKeyJwk != null &&
-             !ZkSeal.IsSealedTo(friendsCopy64.FromBase64(), existing.ShamirPublicKeyJwk)))
+        if (copy64 != null && publicKeyJwk != null && !ZkSeal.IsSealedTo(copy64.FromBase64(), publicKeyJwk))
         {
             throw new OdinClientException("The password copy is sealed to a key that is no longer current; reload and try again",
                 OdinClientErrorCode.ArgumentError);
@@ -211,7 +210,7 @@ public class ZeroKnowledgeKeyService(
     {
         odinContext.Caller.AssertHasMasterKey();
         var existing = await GetRecordOrFailAsync();
-        AssertSealedToCurrentKeys(existing with { PhrasePublicKeyJwk = request.PhrasePublicKeyJwk }, phrasePublicKeyEncryptedPassword, null);
+        AssertSealedTo(phrasePublicKeyEncryptedPassword, request.PhrasePublicKeyJwk);
         using var resetKey = request.ResetKey64.FromBase64().ToSensitiveByteArray();
         await SaveRecordAsync(existing with
         {
@@ -308,11 +307,8 @@ public class ZeroKnowledgeKeyService(
 
         // Nothing may use the key being dropped.  Shamir writes only unencrypted files and deposits
         // here, so this only fails if something else wrote there.
-        var encrypted = (await driveMainIndex.GetAllByDriveIdAsync(driveId))
-            .Select(ServerFileHeader.FromDriveMainIndexRecord)
-            .Where(h => h.FileMetadata.IsEncrypted)
-            .ToList();
-        var lockedByTheDriveKey = encrypted.Count(h => !Deposits.IsDeposit(h));
+        var files = (await driveMainIndex.GetAllByDriveIdAsync(driveId)).Select(ServerFileHeader.FromDriveMainIndexRecord).ToList();
+        var lockedByTheDriveKey = files.Count(h => h.FileMetadata.IsEncrypted && !Deposits.IsDeposit(h));
         if (lockedByTheDriveKey > 0)
         {
             throw new OdinClientException(
@@ -323,12 +319,9 @@ public class ZeroKnowledgeKeyService(
         // Deposits are sealed to the write-only key being dropped, so nothing can open them again: a
         // friend's shard dies with their reset, and the dealer is told to deal again (its check sees
         // the shard gone).  The requests to release them go too: only gated shards, all deposits, get one.
-        var releaseRequests = (await driveMainIndex.GetAllByDriveIdAsync(driveId))
-            .Select(ServerFileHeader.FromDriveMainIndexRecord)
-            .Where(h => h.FileMetadata.AppData.FileType == ShardRequestApprovalCollector.CollectedShardRequestFileType);
         var ownerContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
             DrivePermission.ReadWrite, odinContext);
-        foreach (var dead in encrypted.Concat(releaseRequests))
+        foreach (var dead in files.Where(h => Deposits.IsDeposit(h) || ShardRequestApprovalCollector.IsReleaseRequest(h)))
         {
             await fileSystem.Storage.HardDeleteLongTermFile(dead.FileMetadata.File, ownerContext);
         }
