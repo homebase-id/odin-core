@@ -11,7 +11,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Ported.Shamir;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.ZeroKnowledge;
 
@@ -51,13 +51,13 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         AssertHasDebugLogEvent(ShamirConfigurationService.RotateShardsHasStarted, count: 1);
 
         var otherPhrase = BIP39Util.GenerateBIP39(ByteArrayUtil.GetRndByteArray(16));
-        var mistyped = await ZkOwnerSteps.Client(recovered).ReenterPhrase(ZkBrowser.MakePhraseCopies(otherPhrase, keys.MasterKey, withCheck: true));
+        var mistyped = await ZkOwnerSteps.Client(recovered).ReenterPhrase(ZkBrowser.MakePhraseCopies(otherPhrase, keys.MasterKey));
         DriveAsserts.AssertRejected(mistyped, OdinClientErrorCode.RecoveryPhraseMismatch);
 
-        var typed = await ZkOwnerSteps.Client(recovered).ReenterPhrase(ZkBrowser.MakePhraseCopies(phrase, keys.MasterKey, withCheck: true));
+        var typed = await ZkOwnerSteps.Client(recovered).ReenterPhrase(ZkBrowser.MakePhraseCopies(phrase, keys.MasterKey));
         Assert.That(typed.StatusCode, Is.EqualTo(HttpStatusCode.OK), typed.Error?.Content);
 
-        var recovery = await Host.AnonymousRefitFor<IZeroKnowledgeRecoveryClient>(recovered.Identity.DomainName).GetPhraseRecovery();
+        var recovery = await Host.AnonymousRefitFor<IOwnerAuthenticationClient>(recovered.Identity.DomainName).GetPhraseRecovery();
         Assert.That(recovery.StatusCode, Is.EqualTo(HttpStatusCode.OK), recovery.Error?.Content);
         Assert.That(ZkBrowser.RecoverPassword(phrase, recovery.Content!), Is.EqualTo(NewPassword));
     }
@@ -86,7 +86,7 @@ public class RecoveryPhraseShamirTests : ShamirFixture
     {
         var fresh = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName);
         var keys = await ZkOwnerSteps.CreateKeysAsync(fresh, OwnerLogin.DefaultPassword);
-        return await ZkOwnerSteps.TakeOverPhraseAsync(fresh, keys.MasterKey);
+        return await ZkOwnerSteps.TakeOverPhraseAsync(fresh, OwnerLogin.DefaultPassword, keys.MasterKey);
     }
 
     /// <summary>
@@ -104,16 +104,5 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         record!.ShamirDistributionKeyEncryptedRecoveryKey = record.ShamirDistributionKeyEncryptedMasterKey;
         record.ShamirDistributionKeyEncryptedMasterKey = null;
         await ShamirConfigurationService.Storage.UpsertAsync(tblKeyValue, id, record);
-    }
-
-    private static async Task<DealerShardConfig> ArrangeAutomatedShardsAsync(OwnerSession dealer)
-    {
-        var enableResponse = await dealer.RefitFor<IRefitOwnerConfiguration>().EnableAutoPasswordRecovery();
-        Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), enableResponse.Error?.Content);
-        await dealer.Sync.DrainOutboxAsync();
-
-        var config = await GetDealerShardConfigAsync(dealer);
-        Assert.That(config.UsesAutomaticRecovery, Is.True);
-        return config;
     }
 }

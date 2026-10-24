@@ -299,7 +299,7 @@ public class ShamirRecoveryService
         var package = await _configurationService.GetDealerShardPackage(odinContext);
         if (collectedShards.Count >= package.MinMatchingShards)
         {
-            var (finalRecoveryKey, finalInfo) = await PrepareFinalKeys(collectedShards, package, odinContext);
+            var (finalRecoveryKey, finalInfo) = await PrepareFinalKeys(collectedShards, package);
             await _recoveryNotifier.EnqueueFinalizeRecoveryEmail(finalInfo, finalRecoveryKey);
 
             await UpdateStatus(new ShamirRecoveryStatusRecord
@@ -420,8 +420,7 @@ public class ShamirRecoveryService
 
     private async Task<(Guid finalRecoveryKey, FinalRecoveryInfo finalInfo)> PrepareFinalKeys(
         List<PlayerEncryptedShard> collectedShards,
-        DealerShardPackage package,
-        IOdinContext odinContext)
+        DealerShardPackage package)
     {
         var decryptedShards = new List<ShamirSecretSharing.ShamirShard>();
         foreach (var shard in collectedShards)

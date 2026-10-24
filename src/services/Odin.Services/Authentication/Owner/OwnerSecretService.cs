@@ -210,14 +210,8 @@ namespace Odin.Services.Authentication.Owner
         public async Task ResetPasswordUsingRecoveryKeyAsync(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext)
         {
             var decryptedBytes = await publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
-            var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-            await ResetPasswordUsingRecoveryKeyAsync(recoveryKey, request.PasswordReply, odinContext);
-        }
-
-        public async Task ResetPasswordUsingRecoveryKeyAsync(string recoveryKey, PasswordReply reply, IOdinContext odinContext)
-        {
-            using var masterKey = await recoveryService.AssertValidKeyAsync(recoveryKey);
-            await ResetPasswordUsingMasterKeyAsync(masterKey, reply);
+            using var masterKey = await recoveryService.AssertValidKeyAsync(decryptedBytes.ToStringFromUtf8Bytes());
+            await ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply);
         }
 
         /// <summary>

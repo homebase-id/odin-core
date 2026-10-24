@@ -1,5 +1,6 @@
 using System;
 using Odin.Core;
+using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Util;
@@ -58,12 +59,27 @@ public sealed class ZkKeysRequest
     }
 }
 
-/// <summary>The password, locked by the zero-knowledge master key, as a password login writes it.</summary>
+/// <summary>
+/// The password, locked by the zero-knowledge master key, as a password login writes it, with proof
+/// of the password itself (against an authentication nonce, as a password change proves it).
+/// </summary>
 public sealed class ZkPasswordRequest
 {
     public string ZkMasterKeyEncryptedPassword { get; set; }
 
-    public void Validate() => ZkBlob.AssertLocked(ZkMasterKeyEncryptedPassword, nameof(ZkMasterKeyEncryptedPassword));
+    public PasswordReply CurrentAuthenticationPasswordReply { get; set; }
+
+    public void Validate()
+    {
+        ZkBlob.AssertLocked(ZkMasterKeyEncryptedPassword, nameof(ZkMasterKeyEncryptedPassword));
+        OdinValidationUtils.AssertNotNull(CurrentAuthenticationPasswordReply, nameof(CurrentAuthenticationPasswordReply));
+    }
+}
+
+/// <summary>Asks for the recovery phrase for the takeover, with proof of the password itself.</summary>
+public sealed class ZkPhraseHandoverRequest
+{
+    public PasswordReply CurrentAuthenticationPasswordReply { get; set; }
 }
 
 /// <summary>
@@ -76,8 +92,8 @@ public sealed class ZkPhraseCopiesRequest
     public string ZkMasterKeyEncryptedPhraseKey { get; set; }
 
     /// <summary>
-    /// Only when the owner types the phrase in again after a reset: its check value
-    /// (<see cref="RecoveryPhraseCheck"/>), so a mistyped phrase is refused.
+    /// The phrase's check value (<see cref="RecoveryPhraseCheck"/>), so the server refuses copies made
+    /// with any other phrase: one the browser got wrong at the takeover, or one mistyped later.
     /// </summary>
     public string PhraseCheck64 { get; set; }
 
@@ -85,6 +101,7 @@ public sealed class ZkPhraseCopiesRequest
     {
         ZkBlob.AssertLocked(PhraseKeyEncryptedZkMasterKey, nameof(PhraseKeyEncryptedZkMasterKey));
         ZkBlob.AssertLocked(ZkMasterKeyEncryptedPhraseKey, nameof(ZkMasterKeyEncryptedPhraseKey));
+        ZkBlob.AssertBase64(PhraseCheck64, nameof(PhraseCheck64), exactLength: RecoveryPhraseCheck.Length);
     }
 }
 
@@ -151,6 +168,9 @@ public sealed class ZkSessionKeyResponse
 public static class RecoveryPhraseCheck
 {
     private static readonly byte[] Prefix = "homebase-recovery-phrase-check".ToUtf8ByteArray();
+
+    /// <summary>A SHA-256, in bytes.</summary>
+    public const int Length = 32;
 
     public static string Compute(byte[] phraseKey) =>
         System.Security.Cryptography.SHA256.HashData(ByteArrayUtil.Combine(Prefix, phraseKey)).ToBase64();

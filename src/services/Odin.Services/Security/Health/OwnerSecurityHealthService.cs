@@ -32,7 +32,6 @@ public class OwnerSecurityHealthService(
     TenantConfigService tenantConfigService,
     ShamirConfigurationService shamirConfigurationService,
     ShamirReadinessCheckerService readinessCheckerService,
-    PublicPrivateKeyService publicPrivateKeyService,
     IDriveManager driveManager,
     ILogger<OwnerSecurityHealthService> logger,
     RecoveryNotifier recoveryNotifier,
@@ -61,20 +60,8 @@ public class OwnerSecurityHealthService(
 
     public async Task VerifyRecoveryKeyAsync(VerifyRecoveryKeyRequest request, IOdinContext odinContext)
     {
-        if ((await recoveryService.GetPhraseStateAsync()).TakenOver)
-        {
-            await recoveryService.AssertPhraseCheckAsync(request.PhraseCheck64);
-            await UpdateVerificationStatusInternalAsync(updateRecoveryKeyLastVerified: true);
-            await recoveryService.ConfirmInitialRecoveryKeyStorage(odinContext);
-            return;
-        }
-
-        var decryptedBytes = await publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
-        var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-
-        // this throws an OdinSecurityException if the key is invalid
-        var mk = await recoveryService.AssertValidKeyAsync(recoveryKey);
-        mk.Wipe();
+        odinContext.Caller.AssertHasMasterKey();
+        await recoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
         await UpdateVerificationStatusInternalAsync(updateRecoveryKeyLastVerified: true);
         await recoveryService.ConfirmInitialRecoveryKeyStorage(odinContext);
     }

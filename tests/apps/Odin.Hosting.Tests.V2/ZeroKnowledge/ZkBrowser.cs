@@ -69,16 +69,16 @@ internal static class ZkBrowser
 
     /// <summary>
     /// The browser's two phrase copies: the zero-knowledge master key locked by the phrase, and the
-    /// phrase locked by the zero-knowledge master key.  With the check value when it's typed in again.
+    /// phrase locked by the zero-knowledge master key, with the phrase's check value.
     /// </summary>
-    public static ZkPhraseCopiesRequest MakePhraseCopies(string phrase, byte[] zkMasterKey, bool withCheck = false)
+    public static ZkPhraseCopiesRequest MakePhraseCopies(string phrase, byte[] zkMasterKey)
     {
         var phraseKey = PhraseKey(phrase);
         return new ZkPhraseCopiesRequest
         {
             PhraseKeyEncryptedZkMasterKey = Lock(zkMasterKey, phraseKey),
             ZkMasterKeyEncryptedPhraseKey = Lock(phraseKey, zkMasterKey),
-            PhraseCheck64 = withCheck ? RecoveryPhraseCheck.Compute(phraseKey) : null
+            PhraseCheck64 = RecoveryPhraseCheck.Compute(phraseKey)
         };
     }
 

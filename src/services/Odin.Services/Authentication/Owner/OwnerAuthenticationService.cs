@@ -219,13 +219,9 @@ namespace Odin.Services.Authentication.Owner
         }
 
         /// <summary>
-        /// Expires the <paramref name="tokenId"/> thus making it invalid.  This can be used when a user
-        /// clicks logout.  Invalid or expired tokens are ignored.
-        /// </summary>
-        /// <param name="tokenId"></param>
-        /// <summary>
-        /// The calling session's half of the browser's stored zero-knowledge master key.  A session from
-        /// before this existed gets one now.
+        /// The calling session's half of the browser's stored zero-knowledge master key, made at login.  A
+        /// session from before then has none, and neither has the browser's other half: the next login
+        /// makes both.
         /// </summary>
         public async Task<byte[]> GetZkSessionKeyAsync(IOdinContext odinContext)
         {
@@ -233,21 +229,16 @@ namespace Odin.Services.Authentication.Owner
             var tokenId = odinContext.Caller.OdinClientContext?.AccessRegistrationId?.Value
                           ?? throw new OdinSecurityException("No owner session");
 
-            var registration = await clientRegistrationStorage.GetAsync<OwnerConsoleClientRegistration>(tokenId);
-            if (!IsAuthTokenEntryValid(registration))
-            {
-                throw new OdinClientException("Token is invalid", OdinClientErrorCode.InvalidAuthToken);
-            }
-
-            if (registration!.ZkSessionKey == null)
-            {
-                registration.ZkSessionKey = ByteArrayUtil.GetRndByteArray(16);
-                await clientRegistrationStorage.SaveAsync(registration);
-            }
-
-            return registration.ZkSessionKey;
+            var registration = await GetValidatedEntryAsync(tokenId);
+            return registration.ZkSessionKey ?? throw new OdinClientException(
+                "This session has no zero-knowledge session key; log in again", OdinClientErrorCode.PasswordLoginRequired);
         }
 
+        /// <summary>
+        /// Expires the <paramref name="tokenId"/> thus making it invalid.  This can be used when a user
+        /// clicks logout.  Invalid or expired tokens are ignored.
+        /// </summary>
+        /// <param name="tokenId"></param>
         public async Task ExpireTokenAsync(Guid tokenId)
         {
             await clientRegistrationStorage.DeleteAsync(tokenId);

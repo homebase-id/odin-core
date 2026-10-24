@@ -94,6 +94,18 @@ internal static class OwnerPasswordFlow
         return await CalculatePasswordReplyAsync(authClient, password, clientEccFullKey);
     }
 
+    /// <summary>
+    /// Proof of <paramref name="password"/> against a fresh authentication nonce, as an endpoint that
+    /// wants the password itself (a password change, the phrase handover) takes it.
+    /// </summary>
+    public static async Task<PasswordReply> CalculateAuthenticationPasswordReplyAsync(
+        OdinHost host, string identity, string password)
+    {
+        using var authClient = host.CreateAnonymousClient(identity);
+        var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+        return await CalculateAuthenticationPasswordReplyAsync(authClient, password, clientEccFullKey);
+    }
+
     /// <summary>Logs in as owner with <paramref name="password"/>, returning the raw response.</summary>
     public static async Task<ApiResponse<OwnerAuthenticationResult>> LoginAsync(
         OdinHost host, string identity, string password, EccFullKeyData clientEccFullKey)

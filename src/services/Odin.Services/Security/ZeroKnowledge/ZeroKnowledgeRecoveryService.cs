@@ -2,26 +2,31 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Util;
 
 namespace Odin.Services.Security.ZeroKnowledge;
 
 /// <summary>
-/// The browser takes over the recovery phrase the owner wrote down (docs/zero-knowledge-recovery-plan.md,
-/// decision 3): it locks the zero-knowledge master key with the phrase, and the server forgets every
-/// copy it could open.
+/// Recovery in the browser (docs/zero-knowledge-recovery-plan.md): the password copy recovery gives
+/// back, and the takeover of the recovery phrase the owner wrote down (decision 3), in which the
+/// browser locks the zero-knowledge master key with the phrase and the server forgets every copy it
+/// could open.
 /// </summary>
 /// <remarks>
-/// Its own service because it spans the phrase, the zero-knowledge keys and server-dealt Shamir, and
-/// <see cref="ShamirConfigurationService"/> sits above <see cref="ZeroKnowledgeKeyService"/>.
+/// Its own service because it spans the password, the phrase, the zero-knowledge keys and
+/// server-dealt Shamir, and <see cref="OwnerSecretService"/> and <see cref="ShamirConfigurationService"/>
+/// sit above <see cref="ZeroKnowledgeKeyService"/>.
 /// </remarks>
-public class RecoveryPhraseTakeoverService(
-    ILogger<RecoveryPhraseTakeoverService> logger,
+public class ZeroKnowledgeRecoveryService(
+    ILogger<ZeroKnowledgeRecoveryService> logger,
     ZeroKnowledgeKeyService zeroKnowledgeKeyService,
     PasswordKeyRecoveryService passwordKeyRecoveryService,
     ShamirConfigurationService shamirConfigurationService,
+    OwnerSecretService secretService,
     IdentityDatabase db)
 {
     /// <summary>What the browser needs after login: the keys, and where the phrase is.</summary>
@@ -44,9 +49,28 @@ public class RecoveryPhraseTakeoverService(
         };
     }
 
-    /// <summary>Step 1: the phrase, once, right after a password login.</summary>
-    public async Task<ZkPhraseHandoverResponse> HandOverAsync(IOdinContext odinContext)
+    /// <summary>
+    /// Writes the password copy, for keys made before recovery in the browser or a copy that no longer
+    /// matches.  Only with the password itself: a stolen session must not be able to replace what
+    /// recovery gives back.
+    /// </summary>
+    public async Task SavePasswordAsync(ZkPasswordRequest request, IOdinContext odinContext)
     {
+        odinContext.Caller.AssertHasMasterKey();
+        request.Validate();
+        await secretService.AssertValidPasswordAsync(request.CurrentAuthenticationPasswordReply);
+        await zeroKnowledgeKeyService.SavePasswordAsync(request.ZkMasterKeyEncryptedPassword);
+    }
+
+    /// <summary>
+    /// Step 1: the phrase, once, and only with the password itself, so a stolen session can't read it.
+    /// </summary>
+    public async Task<ZkPhraseHandoverResponse> HandOverAsync(ZkPhraseHandoverRequest request, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        OdinValidationUtils.AssertNotNull(request?.CurrentAuthenticationPasswordReply, "CurrentAuthenticationPasswordReply");
+        await secretService.AssertValidPasswordAsync(request!.CurrentAuthenticationPasswordReply);
+
         return new ZkPhraseHandoverResponse
         {
             Phrase = await passwordKeyRecoveryService.GetPhraseForTakeoverAsync(odinContext)
@@ -54,13 +78,16 @@ public class RecoveryPhraseTakeoverService(
     }
 
     /// <summary>
-    /// Step 2: stores the browser's copies and forgets the server's, in one transaction.  Server-dealt
-    /// Shamir that still locks the phrase is dealt again first, so it keeps working without it.
+    /// Step 2: stores the browser's copies and forgets the server's, in one transaction.  The phrase's
+    /// check value must match, so only a caller that has the phrase (from step 1) gets here.
+    /// Server-dealt Shamir that still locks the phrase is dealt again first, so it keeps working
+    /// without it.
     /// </summary>
     public async Task TakeOverAsync(ZkPhraseCopiesRequest request, IOdinContext odinContext)
     {
-        zeroKnowledgeKeyService.AssertRecentPasswordLogin(odinContext);
+        odinContext.Caller.AssertHasMasterKey();
         request.Validate();
+        await passwordKeyRecoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
 
         await using var tx = await db.BeginStackedTransactionAsync();
         await shamirConfigurationService.MoveOffThePhraseAsync(odinContext);
@@ -89,7 +116,7 @@ public class RecoveryPhraseTakeoverService(
                     : OdinClientErrorCode.RecoveryPhraseNotTakenOver);
         }
 
-        await passwordKeyRecoveryService.AssertPhraseCheckAsync(request.PhraseCheck64);
+        await passwordKeyRecoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
         await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request);
     }
 }

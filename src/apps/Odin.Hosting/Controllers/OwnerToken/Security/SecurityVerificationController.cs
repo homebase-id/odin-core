@@ -37,16 +37,7 @@ public class SecurityVerificationController(
     [HttpPost("verify-recovery-key")]
     public async Task<IActionResult> VerifyRecoveryKey([FromBody] VerifyRecoveryKeyRequest reply)
     {
-        try
-        {
-            WebOdinContext.Caller.AssertHasMasterKey();
-            await securityHealthService.VerifyRecoveryKeyAsync(reply, WebOdinContext);
-        }
-        catch (BIP39Exception e)
-        {
-            throw new OdinSecurityException("BIP39 failed", e);
-        }
-
+        await securityHealthService.VerifyRecoveryKeyAsync(reply, WebOdinContext);
         return new OkResult();
     }
 

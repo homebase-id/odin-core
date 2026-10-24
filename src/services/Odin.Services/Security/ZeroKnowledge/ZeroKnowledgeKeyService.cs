@@ -11,7 +11,6 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
@@ -32,8 +31,7 @@ public class ZeroKnowledgeKeyService(
     DriveManager driveManager,
     TableDriveMainIndexCached driveMainIndex,
     OdinContextCache contextCache,
-    IdentityDatabase db,
-    OdinConfiguration configuration)
+    IdentityDatabase db)
 {
     private static readonly Guid ZkKeyStorageId = Guid.Parse("4f1c2b8e-7d3a-4c6b-9e5f-1a2b3c4d5e6f");
     private const string ZkKeyContextKey = "b3e7c1d2-5a4f-4e8b-9c6d-7f8a9b0c1d2e";
@@ -41,27 +39,7 @@ public class ZeroKnowledgeKeyService(
     private static readonly SingleKeyValueStorage Storage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ZkKeyContextKey));
 
-    /// <summary>
-    /// How long after a password login the browser may write the password copy and take over the
-    /// phrase: the moments it holds the password.  A session token stolen later can't.
-    /// </summary>
-    private static readonly TimeSpan PasswordLoginWindow = TimeSpan.FromMinutes(5);
-
-    public void AssertRecentPasswordLogin(IOdinContext odinContext)
-    {
-        odinContext.Caller.AssertHasMasterKey();
-        var seconds = configuration.Development.PasswordLoginWindowSeconds;
-        var window = seconds.HasValue ? TimeSpan.FromSeconds(seconds.Value) : PasswordLoginWindow;
-
-        var created = odinContext.AuthTokenCreated;
-        if (created == null || UnixTimeUtc.Now() - created.Value > window)
-        {
-            throw new OdinClientException("Only right after a password login",
-                OdinClientErrorCode.PasswordLoginRequired);
-        }
-    }
-
-    /// <summary>The keys part of the status; <c>RecoveryPhraseTakeoverService</c> adds the phrase's state.</summary>
+    /// <summary>The keys part of the status; <c>ZeroKnowledgeRecoveryService</c> adds the phrase's state.</summary>
     public async Task<ZkKeyRecord> GetKeysAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -78,7 +56,7 @@ public class ZeroKnowledgeKeyService(
         request.Validate();
 
         // Insert-if-absent, not check-then-write: two first logins at once must not both win.
-        if (!await Storage.TryInsertAsync(tblKeyValue, ZkKeyStorageId, ToRecord(request, created: UnixTimeUtc.Now())))
+        if (!await Storage.TryInsertAsync(tblKeyValue, ZkKeyStorageId, ToRecord(request)))
         {
             throw new OdinClientException("Zero-knowledge keys are already set",
                 OdinClientErrorCode.ZeroKnowledgeKeysAlreadySet);
@@ -117,24 +95,16 @@ public class ZeroKnowledgeKeyService(
         });
     }
 
-    /// <summary>
-    /// Writes the password copy at a password login, for keys made before recovery in the browser
-    /// or a copy that no longer matches.
-    /// </summary>
-    public async Task SavePasswordAsync(ZkPasswordRequest request, IOdinContext odinContext)
+    /// <summary>Writes the password copy; the caller proved the password.</summary>
+    internal async Task SavePasswordAsync(string zkMasterKeyEncryptedPassword)
     {
-        AssertRecentPasswordLogin(odinContext);
-        request.Validate();
-
         var existing = await GetRecordOrFailAsync();
-        await SaveRecordAsync(existing with { ZkMasterKeyEncryptedPassword = request.ZkMasterKeyEncryptedPassword });
+        await SaveRecordAsync(existing with { ZkMasterKeyEncryptedPassword = zkMasterKeyEncryptedPassword });
     }
 
-    /// <summary>Stores the browser's two phrase copies; the caller decides when that's allowed.</summary>
+    /// <summary>Stores the browser's two phrase copies; the caller validates them and decides when.</summary>
     internal async Task SavePhraseCopiesAsync(ZkPhraseCopiesRequest request)
     {
-        request.Validate();
-
         var existing = await GetRecordOrFailAsync();
         await SaveRecordAsync(existing with
         {
@@ -242,12 +212,12 @@ public class ZeroKnowledgeKeyService(
         await Storage.UpsertAsync(tblKeyValue, ZkKeyStorageId, record with { Updated = UnixTimeUtc.Now() });
     }
 
-    private static ZkKeyRecord ToRecord(ZkKeysRequest request, UnixTimeUtc created) => new()
+    private static ZkKeyRecord ToRecord(ZkKeysRequest request) => new()
     {
         ZkSaltKek64 = request.ZkSaltKek64,
         ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
         ZkMasterKeyEncryptedPassword = request.ZkMasterKeyEncryptedPassword,
-        Created = created,
+        Created = UnixTimeUtc.Now(),
         Updated = UnixTimeUtc.Now()
     };
 }

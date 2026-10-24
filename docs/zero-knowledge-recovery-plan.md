@@ -365,21 +365,25 @@ odin-js:
   takenOver, needsReentry), `POST security/zk/password`, `POST security/zk/phrase-handover`,
   `POST security/zk/phrase-takeover`, `POST security/zk/phrase-reentry`, `GET security/zk/session-key`,
   and, with no login, `GET authentication/zk-phrase-recovery`.
-- "Right after a password login" is 5 minutes from the owner token's creation
-  (`ZeroKnowledgeKeyService.AssertRecentPasswordLogin`): the handover, the takeover and the
-  password copy. A session token stolen later can't take the phrase over.
-  `Development:PasswordLoginWindowSeconds` shortens it for tests (`PasswordLoginWindowTests`).
+- The handover and the password copy need proof of the password itself, a `PasswordReply` against
+  a fresh nonce, as a password change takes it (`OwnerSecretService.AssertValidPasswordAsync`); the
+  login has the password, so the owner is never asked. The takeover and the re-entry need the
+  phrase's check value, so copies made with any other phrase are refused. A stolen session can do
+  none of them. (A first build used a 5-minute window after login instead; replaced in review.)
 - The phrase copies and the password copy sit in plan A's ZK record, so a reset with today's master
   key forgets them with the ZK keys. The check value and `TakenOver` sit in the phrase's own record
   and survive it.
-- `RecoveryPhraseTakeoverService` holds the takeover, because it spans the phrase, the ZK keys and
-  server-dealt Shamir.
+- `ZeroKnowledgeRecoveryService` holds the password copy and the takeover, because they span the
+  password, the phrase, the ZK keys and server-dealt Shamir.
+- The health check sends only the check value, in every state; before the takeover the server
+  works out the expected one from its own copy.
 - Server-dealt Shamir: `ShamirKeyRecord.ShamirDistributionKeyEncryptedMasterKey`; the finalize nonce
   carries the distribution key. A recovery started before the deploy and finalized after it fails
   and must be started again (no compatibility for the old nonce).
 - odin-js: BIP39 in js-lib with the word list copied from odin-core; the forgot-password page tries
   the phrase first and falls back to `resetpasswdrk`; the reveal opens the locked copy; the health
-  check sends the check value; the security page asks for the phrase after a reset.
+  check sends the check value; the security page asks for the phrase after a reset. The login's
+  three reads (status, drive, session key) run together.
 
 ## Size estimate
 

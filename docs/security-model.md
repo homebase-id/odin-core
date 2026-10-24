@@ -28,8 +28,9 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
   takes the recovery phrase over, the server holds no copy of it it can open (`RecoveryKeyRecord.TakenOver`). The
   phrase locks the zero-knowledge master key, which locks the password. The phrase recovery read
   (`authentication/zk-phrase-recovery`) needs **no login**: it returns only those two locked values, useless without
-  the 128-bit phrase. The handover and the password copy are accepted only within 5 minutes of a password login
-  (`ZeroKnowledgeKeyService.AssertRecentPasswordLogin`). Server-dealt Shamir locks the master key, not the phrase.
+  the 128-bit phrase. The handover and the password copy need proof of the password itself, as a password change does
+  (`PasswordReply`, `ZeroKnowledgeRecoveryService`); the takeover needs the phrase's check value, so a stolen session
+  can do none of them. Server-dealt Shamir locks the master key, not the phrase.
   **(V)**
 
 ### Callers

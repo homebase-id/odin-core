@@ -14,6 +14,7 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
@@ -169,6 +170,18 @@ public abstract class ShamirFixture : V2Fixture
     /// </summary>
     protected ITestSecurityContextOwnerClient AnonymousSecurityOf(OwnerSession owner)
         => Host.AnonymousRefitFor<ITestSecurityContextOwnerClient>(owner.Identity.DomainName);
+
+    /// <summary>Turns on automated recovery. Note: no connections — production has none either.</summary>
+    protected static async Task<DealerShardConfig> ArrangeAutomatedShardsAsync(OwnerSession dealer)
+    {
+        var enableResponse = await dealer.RefitFor<IRefitOwnerConfiguration>().EnableAutoPasswordRecovery();
+        Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), enableResponse.Error?.Content);
+        await dealer.Sync.DrainOutboxAsync();
+
+        var config = await GetDealerShardConfigAsync(dealer);
+        Assert.That(config.UsesAutomaticRecovery, Is.True);
+        return config;
+    }
 
     /// <summary>Connection request + accept, dealer to each player. Note: no circles.</summary>
     protected static async Task PrepareConnectionsAsync(OwnerSession dealer, IEnumerable<OwnerSession> players)

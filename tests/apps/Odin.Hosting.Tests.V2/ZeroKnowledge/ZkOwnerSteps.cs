@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.Tests.V2.Auth;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Drives;
-using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.ZeroKnowledge;
 using Refit;
 
@@ -41,10 +41,31 @@ internal static class ZkOwnerSteps
         return keys;
     }
 
-    /// <summary>The login's takeover: the phrase handed over once, the browser's copies back.</summary>
-    public static async Task<string> TakeOverPhraseAsync(OwnerSession owner, byte[] zkMasterKey)
+    /// <summary>Asks for the phrase with proof of <paramref name="password"/>, as the login does.</summary>
+    public static async Task<ApiResponse<ZkPhraseHandoverResponse>> HandOverPhraseAsync(OwnerSession owner, string password)
     {
-        var handover = await Client(owner).HandOverPhrase();
+        return await Client(owner).HandOverPhrase(new ZkPhraseHandoverRequest
+        {
+            CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+                owner.Host, owner.Identity.DomainName, password)
+        });
+    }
+
+    /// <summary>Writes the password copy with proof of <paramref name="password"/>, as the login does.</summary>
+    public static async Task<ApiResponse<HttpContent>> SavePasswordAsync(OwnerSession owner, string password, string locked)
+    {
+        return await Client(owner).SavePassword(new ZkPasswordRequest
+        {
+            ZkMasterKeyEncryptedPassword = locked,
+            CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+                owner.Host, owner.Identity.DomainName, password)
+        });
+    }
+
+    /// <summary>The login's takeover: the phrase handed over once, the browser's copies back.</summary>
+    public static async Task<string> TakeOverPhraseAsync(OwnerSession owner, string password, byte[] zkMasterKey)
+    {
+        var handover = await HandOverPhraseAsync(owner, password);
         Assert.That(handover.StatusCode, Is.EqualTo(HttpStatusCode.OK), handover.Error?.Content);
         var phrase = handover.Content!.Phrase;
 
@@ -74,7 +95,7 @@ public interface IZeroKnowledgeOwnerClient
     Task<ApiResponse<HttpContent>> SavePassword([Body] ZkPasswordRequest request);
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-handover")]
-    Task<ApiResponse<ZkPhraseHandoverResponse>> HandOverPhrase();
+    Task<ApiResponse<ZkPhraseHandoverResponse>> HandOverPhrase([Body] ZkPhraseHandoverRequest request);
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-takeover")]
     Task<ApiResponse<HttpContent>> TakeOverPhrase([Body] ZkPhraseCopiesRequest request);
@@ -87,18 +108,4 @@ public interface IZeroKnowledgeOwnerClient
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/convert-shard-recovery-drive")]
     Task<ApiResponse<HttpContent>> ConvertShardRecoveryDrive([Body] ZkConvertDriveRequest request);
-}
-
-/// <summary>The security health check's phrase check.</summary>
-public interface IZeroKnowledgeHealthClient
-{
-    [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-recovery-key")]
-    Task<ApiResponse<HttpContent>> VerifyRecoveryKey([Body] VerifyRecoveryKeyRequest request);
-}
-
-/// <summary>The forgot-password page's call, with no login.</summary>
-public interface IZeroKnowledgeRecoveryClient
-{
-    [Get(OwnerApiPathConstants.AuthV1 + "/zk-phrase-recovery")]
-    Task<ApiResponse<ZkPhraseRecoveryResponse>> GetPhraseRecovery();
 }

@@ -19,7 +19,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiExplorerSettings(GroupName = "owner-v1")]
 public class OwnerZeroKnowledgeController(
     ZeroKnowledgeKeyService zeroKnowledgeKeyService,
-    RecoveryPhraseTakeoverService takeoverService,
+    ZeroKnowledgeRecoveryService recoveryService,
     OwnerAuthenticationService ownerAuthenticationService) : OdinControllerBase
 {
     /// <summary>
@@ -30,7 +30,7 @@ public class OwnerZeroKnowledgeController(
     [HttpGet]
     public async Task<ZkStatusResponse> GetStatus()
     {
-        return await takeoverService.GetStatusAsync(WebOdinContext);
+        return await recoveryService.GetStatusAsync(WebOdinContext);
     }
 
     /// <summary>Saves the keys the browser made at the owner's first login.  Refused once they exist.</summary>
@@ -41,26 +41,26 @@ public class OwnerZeroKnowledgeController(
         return Ok();
     }
 
-    /// <summary>Writes the password copy; only right after a password login.</summary>
+    /// <summary>Writes the password copy; only with proof of the password.</summary>
     [HttpPost("password")]
     public async Task<IActionResult> SavePassword([FromBody] ZkPasswordRequest request)
     {
-        await zeroKnowledgeKeyService.SavePasswordAsync(request, WebOdinContext);
+        await recoveryService.SavePasswordAsync(request, WebOdinContext);
         return Ok();
     }
 
-    /// <summary>The recovery phrase, once, for the takeover; only right after a password login.</summary>
+    /// <summary>The recovery phrase, once, for the takeover; only with proof of the password.</summary>
     [HttpPost("phrase-handover")]
-    public async Task<ZkPhraseHandoverResponse> HandOverPhrase()
+    public async Task<ZkPhraseHandoverResponse> HandOverPhrase([FromBody] ZkPhraseHandoverRequest request)
     {
-        return await takeoverService.HandOverAsync(WebOdinContext);
+        return await recoveryService.HandOverAsync(request, WebOdinContext);
     }
 
     /// <summary>The browser's phrase copies; the server then forgets its own.</summary>
     [HttpPost("phrase-takeover")]
     public async Task<IActionResult> TakeOverPhrase([FromBody] ZkPhraseCopiesRequest request)
     {
-        await takeoverService.TakeOverAsync(request, WebOdinContext);
+        await recoveryService.TakeOverAsync(request, WebOdinContext);
         return Ok();
     }
 
@@ -68,7 +68,7 @@ public class OwnerZeroKnowledgeController(
     [HttpPost("phrase-reentry")]
     public async Task<IActionResult> ReenterPhrase([FromBody] ZkPhraseCopiesRequest request)
     {
-        await takeoverService.ReenterAsync(request, WebOdinContext);
+        await recoveryService.ReenterAsync(request, WebOdinContext);
         return Ok();
     }
 

@@ -140,18 +140,6 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         Assert.That(rotated.Updated.milliseconds, Is.GreaterThan(firstShardConfig.Updated.milliseconds));
     }
 
-    /// <summary>Turns on automated recovery. Note: no connections — production has none either.</summary>
-    private static async Task<DealerShardConfig> ArrangeAutomatedShardsAsync(OwnerSession dealer)
-    {
-        var enableResponse = await dealer.RefitFor<IRefitOwnerConfiguration>().EnableAutoPasswordRecovery();
-        Assert.That(enableResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await dealer.Sync.DrainOutboxAsync();
-
-        var config = await GetDealerShardConfigAsync(dealer);
-        Assert.That(config.UsesAutomaticRecovery, Is.True);
-        return config;
-    }
-
     /// <summary>
     /// Stokes the auth handler with one owner request, which rotates, and asserts the rotation: a
     /// newer config with the same players, types, threshold and mode but fresh shard ids, delivered
