@@ -366,8 +366,34 @@ public class FriendRecoveryTests : ShamirFixture
         Assert.That(fromLaptop.StatusCode, Is.EqualTo(HttpStatusCode.OK), fromLaptop.Error?.Content);
 
         var fromPhone = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = links[1].Link, RecoveryPublicKeyJwk = phone.PublicKeyJwk });
-        DriveAsserts.AssertRejected(fromPhone, OdinClientErrorCode.RecoveryNotReady);
+        DriveAsserts.AssertRejected(fromPhone, OdinClientErrorCode.RecoveryUnderWayElsewhere);
         Assert.That((await security.GetShamirRecoverStatus()).Content!.RecoveryKeyId,
             Is.EqualTo(Odin.Services.Security.ZeroKnowledge.ZkSeal.KeyId(laptop.PublicKeyJwk)));
+    }
+
+    [Test]
+    public async Task StartingOverWhileCollectingAsksTheFriendsAgain()
+    {
+        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        await EnterRecoveryModeAsync(frodo);
+        var approver = players[0];
+        await ApproveEveryShardRequestAsync([approver], config);
+        Assert.That(await GetPlayerShardRequestAsync(config, approver), Is.Null, "an approval takes the request away");
+
+        // "Start over" from the same browser: a new link, and the friends are asked again
+        var security = AnonymousSecurityOf(frodo);
+        var again = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = RecoveringBrowser!.PublicKeyJwk });
+        Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.OK), again.Error?.Content);
+        var link = RecoveryLink(frodo, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString();
+        var entered = await security.EnterRecoveryMode(new EnterRecoveryModeRequest { Id = link, RecoveryPublicKeyJwk = RecoveringBrowser.PublicKeyJwk });
+        Assert.That(entered.StatusCode, Is.EqualTo(HttpStatusCode.OK), entered.Error?.Content);
+
+        var asked = await GetPlayerShardRequestAsync(config, approver);
+        Assert.That(asked?.RecoveryPublicKeyJwk, Is.EqualTo(RecoveringBrowser.PublicKeyJwk), "asked again, for the same browser");
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
+
+        // and what was collected still counts
+        await ApproveEveryShardRequestAsync(players.Skip(1).Take(config.MinMatchingShards - 1).ToList(), config);
+        Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
     }
 }

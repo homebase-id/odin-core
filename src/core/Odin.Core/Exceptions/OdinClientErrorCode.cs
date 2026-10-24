@@ -171,4 +171,5 @@ public enum OdinClientErrorCode
     ShardHolderNotZeroKnowledge = 9020,
     AutomaticShardsReachThreshold = 9021,
     RecoveryNotReady = 9022,
+    RecoveryUnderWayElsewhere = 9023,
 }

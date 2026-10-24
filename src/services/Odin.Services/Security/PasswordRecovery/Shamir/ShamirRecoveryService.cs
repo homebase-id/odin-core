@@ -107,10 +107,15 @@ public class ShamirRecoveryService
     public async Task InitiateRecoveryModeEntry(string recoveryPublicKeyJwk, IOdinContext odinContext)
     {
         _logger.LogDebug("Initiating recovery mode");
-        if (await IsInRecoveryMode())
+        var current = await GetStatusRecordInternal();
+        var collecting = current?.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation;
+
+        // Under way: do nothing, say nothing, to keep any insights from the wrong eyes.  Except "start
+        // over" from the browser it is under way for while shards are being collected: a new link,
+        // which asks the friends again (EnterRecoveryMode).
+        if (IsInRecoveryMode(current) && !(collecting && recoveryPublicKeyJwk != null &&
+                                          SameKey(recoveryPublicKeyJwk, current.RecoveryPublicKeyJwk)))
         {
-            // do nothing, say nothing to keep any insights
-            // from making it to the wrong eyes
             return;
         }
 
@@ -130,11 +135,17 @@ public class ShamirRecoveryService
 
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
-        await UpdateStatus(new ShamirRecoveryStatusRecord
+        if (!collecting)
         {
-            Updated = UnixTimeUtc.Now(),
-            State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode
-        });
+            // The key the email's link carries, so a browser can tell the recovery it started (the status's
+            // RecoveryKeyId); the last start wins
+            await UpdateStatus(new ShamirRecoveryStatusRecord
+            {
+                Updated = UnixTimeUtc.Now(),
+                State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode,
+                RecoveryPublicKeyJwk = pkg.UsesAutomatedRecovery ? null : recoveryPublicKeyJwk
+            });
+        }
 
         await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode,
             nonceData: pkg.UsesAutomatedRecovery ? "" : recoveryPublicKeyJwk);
@@ -202,7 +213,7 @@ public class ShamirRecoveryService
         var underWay = IsInRecoveryMode(current);
         if (underWay && !SameKey(current.RecoveryPublicKeyJwk, startedWith))
         {
-            throw new OdinClientException("Recovery is under way in another browser", OdinClientErrorCode.RecoveryNotReady);
+            throw new OdinClientException("Recovery is under way in another browser", OdinClientErrorCode.RecoveryUnderWayElsewhere);
         }
 
         await _recoveryNotifier.GetNonceDataOrFail(nonceId);

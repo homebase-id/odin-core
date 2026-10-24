@@ -778,17 +778,22 @@ counted.
   with the email: collecting goes on, and the bundle stays. (A first fix kept the key but still moved
   the state, which stranded a recovery in other ways; the state no longer moves at all, and
   `AwaitingOwnerEmailVerificationToExitRecoveryMode` is no longer set.)
-- **A second email link** ("send it again") for a recovery under way must carry the same browser key.
-  While shards are being collected it asks the friends again (one may have been unreachable); once
-  they're in, it changes nothing.
+- **A second email link** ("send it again") for a recovery under way must carry the same browser key
+  (`RecoveryUnderWayElsewhere`, 9023, otherwise). While shards are being collected it asks the
+  friends again (one may have been unreachable). "Start over" from that browser sends such a link.
+  Once the shards are in, it changes nothing.
 - A link that carries no browser key (the exit email's, say) can't enter a friend deal.
 - A reset with a reset key ends recovery mode, in the same transaction, as a finalized recovery does.
 - **The page's throwaway key:**
-  - The status gives the key id of the recovery under way (`RecoveryKeyId`). The page trusts only a
-    stored key with that id.
-  - The page forgets a stored key when a status read that started after the key was made shows
-    another recovery or none. It also forgets it after a reset, and at the owner's next login.
-  - It reuses the key only for the recovery under way.
+  - The status gives the key id of the recovery, pending or under way (`RecoveryKeyId`). Starting
+    records the key the email's link carries, and the last start wins.
+  - The page trusts only a stored key with that id, and reuses it only for that recovery. It reads a
+    fresh status before it replaces a key.
+  - It forgets a stored key when the status shows another recovery or none, after a two-minute
+    grace, so a poll answered before the start can't delete it. It forgets it after a reset, and at
+    the owner's next login.
+- **Limit:** two links clicked at the same moment from two browsers can both get in; one friend's
+  approval may then be refused. It is unlikely, and a transaction alone wouldn't close it on Postgres.
 - Deposits show as sealed in the drive explorer; a download keeps their content as stored.
 
 **Reset:** `POST authentication/zk-reset` (renamed from `zk-phrase-reset`; nothing was released) takes

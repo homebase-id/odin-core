@@ -22,8 +22,8 @@ public class ShamirRecoveryStatusRedacted
     public string Email { get; init; }
 
     /// <summary>
-    /// Which throwaway key the recovery under way is for (<c>ZkSeal.KeyId</c>), so a browser can tell
-    /// whether it is the one that started it.  Null when there is none.
+    /// Which throwaway key the recovery is for (<c>ZkSeal.KeyId</c>), pending or under way, so a browser
+    /// can tell whether it is the one that started it.  Null when there is none.
     /// </summary>
     public uint? RecoveryKeyId { get; init; }
 }
