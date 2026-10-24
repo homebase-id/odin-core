@@ -108,18 +108,17 @@ public class ShamirRecoveryService
     {
         _logger.LogDebug("Initiating recovery mode");
         var current = await GetStatusRecordInternal();
+        var pkg = await GetDealerPackageOrFailAsync(odinContext);
+        var startKey = pkg.UsesAutomatedRecovery ? null : recoveryPublicKeyJwk;
         var collecting = current?.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation;
 
         // Under way: do nothing, say nothing, to keep any insights from the wrong eyes.  Except "start
         // over" from the browser it is under way for while shards are being collected: a new link,
         // which asks the friends again (EnterRecoveryMode).
-        if (IsInRecoveryMode(current) && !(collecting && recoveryPublicKeyJwk != null &&
-                                          SameKey(recoveryPublicKeyJwk, current.RecoveryPublicKeyJwk)))
+        if (IsInRecoveryMode(current) && !(collecting && SameKey(startKey, current.RecoveryPublicKeyJwk)))
         {
             return;
         }
-
-        var pkg = await GetDealerPackageOrFailAsync(odinContext);
 
         if (!pkg.UsesAutomatedRecovery)
         {
@@ -135,20 +134,19 @@ public class ShamirRecoveryService
 
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
+        await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode, nonceData: startKey ?? "");
+
         if (!collecting)
         {
             // The key the email's link carries, so a browser can tell the recovery it started (the status's
-            // RecoveryKeyId); the last start wins
+            // RecoveryKeyId); the last start wins.  Recorded once the email is on its way.
             await UpdateStatus(new ShamirRecoveryStatusRecord
             {
                 Updated = UnixTimeUtc.Now(),
                 State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode,
-                RecoveryPublicKeyJwk = pkg.UsesAutomatedRecovery ? null : recoveryPublicKeyJwk
+                RecoveryPublicKeyJwk = startKey
             });
         }
-
-        await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode,
-            nonceData: pkg.UsesAutomatedRecovery ? "" : recoveryPublicKeyJwk);
     }
 
     public async Task InitiateRecoveryModeExit(IOdinContext odinContext)
@@ -640,8 +638,23 @@ public class ShamirRecoveryService
         return (finalRecoveryKey, finalInfo);
     }
 
-    private static bool SameKey(string jwk, string otherJwk) =>
-        jwk == null ? otherJwk == null : otherJwk != null && ZkSeal.RawPublicKey(jwk).SequenceEqual(ZkSeal.RawPublicKey(otherJwk));
+    /// <summary>Whether two public keys are the same key; a malformed one matches nothing.</summary>
+    private static bool SameKey(string jwk, string otherJwk)
+    {
+        if (jwk == null || otherJwk == null)
+        {
+            return jwk == otherJwk;
+        }
+
+        try
+        {
+            return ZkSeal.RawPublicKey(jwk).SequenceEqual(ZkSeal.RawPublicKey(otherJwk));
+        }
+        catch (OdinClientException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>The dealer package, read as recovery reads it with no login; refused when there is none.</summary>
     private async Task<DealerShardPackage> GetDealerPackageOrFailAsync(IOdinContext odinContext)
@@ -650,8 +663,6 @@ public class ShamirRecoveryService
         return await _configurationService.GetDealerShardPackage(context)
                ?? throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
     }
-
-    private async Task<bool> IsInRecoveryMode() => IsInRecoveryMode(await GetStatusRecordInternal());
 
     private static bool IsInRecoveryMode(ShamirRecoveryStatusRecord status)
     {

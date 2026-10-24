@@ -380,8 +380,12 @@ public class FriendRecoveryTests : ShamirFixture
         await ApproveEveryShardRequestAsync([approver], config);
         Assert.That(await GetPlayerShardRequestAsync(config, approver), Is.Null, "an approval takes the request away");
 
-        // "Start over" from the same browser: a new link, and the friends are asked again
+        // Under way, a start says nothing, even with a key that isn't one
         var security = AnonymousSecurityOf(frodo);
+        var junk = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = "x" });
+        Assert.That(junk.StatusCode, Is.EqualTo(HttpStatusCode.OK), junk.Error?.Content);
+
+        // "Start over" from the same browser: a new link, and the friends are asked again
         var again = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = RecoveringBrowser!.PublicKeyJwk });
         Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.OK), again.Error?.Content);
         var link = RecoveryLink(frodo, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString();

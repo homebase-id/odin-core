@@ -773,7 +773,7 @@ counted.
 - A peer read of a deposit passes its sealed key header through (`ReEncrypt`).
 - Sending still needs the drive key, except for a deposit.
 
-**Review fixes (second and third rounds):**
+**Review fixes (second to fifth rounds):**
 - **Asking to exit only sends the email.** Anyone can ask, so nothing changes until the owner confirms
   with the email: collecting goes on, and the bundle stays. (A first fix kept the key but still moved
   the state, which stranded a recovery in other ways; the state no longer moves at all, and
@@ -789,9 +789,11 @@ counted.
     records the key the email's link carries, and the last start wins.
   - The page trusts only a stored key with that id, and reuses it only for that recovery. It reads a
     fresh status before it replaces a key.
-  - It forgets a stored key when the status shows another recovery or none, after a two-minute
-    grace, so a poll answered before the start can't delete it. It forgets it after a reset, and at
-    the owner's next login.
+  - It forgets a stored key only when the status shows no recovery, or one under way for another
+    key, after a two-minute grace. A pending start never makes it forget: anyone can start one. It
+    forgets the key after a reset, and at the owner's next login. A failed status read changes
+    nothing.
+  - "Start over" works for the automated deal too, which has no browser key.
 - **Limit:** two links clicked at the same moment from two browsers can both get in; one friend's
   approval may then be refused. It is unlikely, and a transaction alone wouldn't close it on Postgres.
 - Deposits show as sealed in the drive explorer; a download keeps their content as stored.
