@@ -83,7 +83,8 @@ public class RecoveryNotifier(
         }
     }
 
-    public async Task EnqueueVerificationEmail(List<ShamiraPlayer> players, RecoveryEmailType emailType)
+    /// <param name="nonceData">Kept with the link's nonce: the recovering browser's public key, for a friend deal.</param>
+    public async Task EnqueueVerificationEmail(List<ShamiraPlayer> players, RecoveryEmailType emailType, string nonceData = "")
     {
         AssertEmailEnabled();
 
@@ -94,7 +95,7 @@ public class RecoveryNotifier(
             Domain = tenantContext.HostOdinId,
             Email = tenantContext.Email,
             Players = players,
-            NonceId = await MakeNonce(),
+            NonceId = await MakeNonce(nonceData),
             EmailType = emailType,
             Path = emailType == RecoveryEmailType.EnterRecoveryMode ? "verify-enter" : "verify-exit"
         };
@@ -156,6 +157,43 @@ public class RecoveryNotifier(
                     Subject = "We have assembled your recovery key!",
                     TextMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyText(tenant, link),
                     HtmlMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyHtml(tenant, link)
+                },
+            };
+
+            await jobManager.ScheduleJobAsync(job, new JobSchedule
+            {
+                RunAt = DateTimeOffset.Now.AddSeconds(1),
+                MaxAttempts = 20,
+                RetryDelay = TimeSpan.FromMinutes(1),
+                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+            });
+        }
+    }
+
+    /// <summary>
+    /// Enough friends approved: the owner goes back to the browser where recovery started, which
+    /// rebuilds the secret.  The email carries no link and no key (docs/zero-knowledge-recovery-plan.md,
+    /// decision 11).
+    /// </summary>
+    public async Task EnqueueFriendsApprovedEmail()
+    {
+        var tenant = tenantContext.HostOdinId;
+        notificationSink.Notify(new RecoveryNotification(tenant, RecoveryNotificationKind.FriendsApproved, null, Guid.Empty));
+
+        AssertEmailEnabled();
+
+        if (configuration.Mailgun.Enabled)
+        {
+            var job = jobManager.NewJob<SendEmailJob>();
+            job.Data = new SendEmailJobData()
+            {
+                Envelope = new Envelope
+                {
+                    To = [new NameAndEmailAddress { Email = tenantContext.Email }],
+                    Subject = "Your friends have approved your recovery",
+                    TextMessage = RecoveryEmails.FriendsApprovedText(tenant),
+                    HtmlMessage = RecoveryEmails.FriendsApprovedHtml(tenant)
                 },
             };
 

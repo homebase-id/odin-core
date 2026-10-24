@@ -1,7 +1,7 @@
 # Recovery in the browser: plan B
 
-**Status:** the phrase pair is built on branch `zk-recovery-phrase` (odin-core and odin-js), in
-review; the friends pair is next. Names and shorthand for every key: [owner-keys.md](owner-keys.md).
+**Status:** the phrase pair is built on branch `zk-recovery-phrase` (odin-core and odin-js), and the
+friends pair on `zk-recovery-friends`, which carries it ([As built](#as-built-friends-pair)).
 Steps 2 and 3 in the
 [order of work](zero-knowledge-drives.md#order-of-work): friend Shamir and the recovery phrase,
 together. Plan A, the keys and the Shard Recovery drive, is built and merged
@@ -107,6 +107,8 @@ inferred.
       public key opens it.
     - The server stores the sealed file key as received and returns it as stored; it never
       re-locks it.
+    - **Decided for shards (F1, [friends pair](#building-the-friends-pair)):** a gated shard is a
+      deposit, and zero-knowledge drives support deposits in the same PR.
 11. **Emails carry nothing secret.** They say what happened and where to go next.
 
 ## The keys
@@ -488,6 +490,305 @@ using it needs a login with the current password.
   deposit format, so it settles both there: add them to this format, or seal deposits another way.
 - The friends pair removes the old friend path; the takeover's re-deal then handles automated
   deals only.
+
+## Building the friends pair
+
+Planned 2026-10-24, built the same night ([As built](#as-built-friends-pair)). **Rule: follow today's C# code.** It has one gap, and it is the reason
+for this pair: a gated friend's shard (a friend who must approve its release, `PlayerType.Delegate`)
+isn't encrypted for that friend. Their server stores it and could release it without them. Every
+other part of today's flow stays: the same files, peer calls, collectors and endpoints. It changes
+only where zero knowledge forces it, and each change says why. Facts from reading the code are
+marked **(V)**.
+
+### Today's flow, which stays
+
+- **Dealing** (`CreateShards` **(V)**): split the secret; encrypt each shard with its own random
+  per-shard key (AES-CBC); send the holder a `PlayerEncryptedShard` (`Id`, `Index`,
+  `RecoveryEmailHash`, `Player`, `Created`, `DealerEncryptedShard`) as an unencrypted file of type
+  `74829` on its Shard Recovery drive. The per-shard keys stay with the dealer, in the dealer
+  package (`DealerShardEnvelope`). So a holder never sees a raw shard, and nobody rebuilds anything
+  without both the dealer package and the holders' files.
+- **Recovery** (`ShamirRecoveryService` **(V)**): the email check, then `request-shard` to every
+  player. An automatic player returns its shard at once. A gated player records a
+  `ShardApprovalRequest`; the friend approves in the console, and their server sends the shard to
+  the dealer (`accept-player-shard`). The dealer collects shards until it has enough.
+
+### The changes
+
+1. **A gated shard is sealed to the friend.** The dealer seals the `DealerEncryptedShard` bytes to
+   the friend's Shard Recovery write-only public key. That key's private half is locked in the
+   friend's browser (plan A: `ZkStorageKeyEncryptedWriteOnlyPrivateKey`, opened by the drive's
+   storage key, which the ZK master key opens **(V)**). So only the friend's browser can open it,
+   and what it opens is still locked by the dealer's per-shard key: the friend learns nothing, as
+   today.
+   - **As a deposit (F1, decision 10):** the shard file is `IsEncrypted = true`; its content is
+     encrypted with its own file key, and that file key is sealed to the friend's public key.
+   - The holder's checks read `Player`, `RecoveryEmailHash` and `Created` from the content today
+     **(V)** (`GetShardStoredForDealer`, `HandleReleaseShardRequest`), and the server can't read
+     encrypted content. So these move to the file's plain metadata.
+   - Automatic shards aren't sealed: their server must release them with no human.
+2. **The browser deals, not the server.** The Shamir secret now guards the ZK master key
+   (decision 2), so the server must never see it. The browser does exactly what `CreateShards` does,
+   plus the seal, and posts the result. The server runs the rest of `DistributeShards` as today:
+   it saves the dealer package and sends the files.
+3. **The friend's browser releases a gated shard.** On approve, the browser opens the ZK master
+   key (session key, decision 8), then the drive key, then the write-only private key, then the seal.
+   It seals the shard again to the recovering browser's throwaway public key and posts it. The
+   holder's server sends it to the dealer with today's `SendPlayerShard` **(V)**.
+4. **The recovering browser rebuilds the secret, not the server.** The dealer can't open a gated
+   shard, so `PrepareFinalKeys` moves to the browser (decision 2).
+   - At `initiate-recovery-mode` the browser makes the throwaway key pair and sends the public key.
+     Making it there, not at the email link, matters: the link may open in another browser.
+   - `request-shard` carries the public key, and the holder keeps it with the `ShardApprovalRequest`.
+   - Once enough shards are in, the email says "your friends have approved; go back to the browser
+     where you started". It carries no key (decision 11). Today's email carries the final key.
+   - The browser fetches one bundle: the collected shards, the per-shard keys, and the Shamir copies.
+     The server seals all of it to the throwaway public key, so only that browser can read it.
+   - The browser opens everything, rebuilds the secret with the dealer keys as `PrepareFinalKeys`
+     does, opens the password and shows it. If the password doesn't log in, it resets with the
+     reset key, as phrase recovery does (F3).
+5. **The automatic shards can never rebuild the secret on their own.** The dealer package and the
+   automatic holders are all servers. If the automatic shards reached the threshold, servers alone
+   could rebuild the secret, and so the ZK master key. The server refuses such a deal: at least one
+   gated friend must always approve.
+   - Today they can reach it **(V)**. The console's table (`ShamirDistributionDialog.tsx`,
+     `validationMatrix`) gives 5 friends and a threshold of 3 as 2 gated and 3 automatic, and the
+     3 automatic shards alone reach the threshold.
+   - The table is fixed so that gated friends ≥ friends − threshold + 1: 3 of 5.
+6. **The dealer seals only to a key that only the friend holds.** A friend whose Shard Recovery
+   drive isn't zero knowledge yet (they haven't logged in since plan A) has a write-only private key
+   the server holds.
+   - The public-key response gains a flag saying the drive is zero knowledge.
+   - Until it is, the console shows that friend as not ready for a gated shard, as readiness shows
+     other problems today.
+7. **A friend's own reset leaves their shard dead, and the dealer is told.** A reset with today's
+   master key gives the friend's drive new keys (`ConvertShardRecoveryDriveAsync` takes a new
+   write-only key pair **(V)**), so a shard sealed to the old key can't be opened.
+   - The seal says which key it was sealed to (F5). The holder's verify call compares that with its
+     current key, and the dealer's health check shows "deal again".
+
+### Deposits: what "fully supported" means
+
+A deposit is a file someone else puts on a zero-knowledge drive. The depositor encrypts the content
+with a new file key and seals that file key to the drive's write-only public key. The server stores
+the sealed file key as received, sends it on as is, and returns it as stored. It never opens or
+re-locks it (decision 10).
+
+Today every path that touches a file key assumes the server can open it with the drive's key. These
+places change (from the code map, read 2026-10-24) **(V)**:
+
+1. **Writing a file:** the server locks the key header with the drive's storage key
+   (`DriveStorageServiceBase`, `EncryptKeyHeader`). On a zero-knowledge drive this throws
+   `DriveIsZeroKnowledge` (plan A), so it must store a sealed key as given.
+2. **The outbox opens the file key to send it:** it re-locks it with the connection's shared secret
+   (`PeerOutgoingTransferService`, `CreateOutboxItems`). A deposit needs a slot that carries the
+   sealed key untouched.
+3. **Incoming transfers** need the drive's key for an encrypted file (`PeerDriveIncomingTransferService`,
+   `hasStorageKey`); without it the file goes to the inbox, which hits 1.
+4. **Reads re-lock the file key** for the reader (`DriveFileUtility.CreateClientFileHeader`). A deposit
+   returns the sealed key as stored.
+5. **Queries hide encrypted files** from a caller without the drive's key (`DriveQueryServiceBase`,
+   `FilterVisibleAsync`). On a zero-knowledge drive the drive permission decides instead.
+6. **Converting the Shard Recovery drive is refused** once any file on it is encrypted
+   (`ConvertShardRecoveryDriveAsync`). A friend's reset converts it again, and the shards they hold
+   die. That is expected (change 7): they are deleted, not left to block the conversion.
+7. **The other callers of `EncryptKeyHeader`** (`FeedWriter`, `ContactService`) keep refusing
+   zero-knowledge drives.
+
+In the browser (js-lib): seal a file key to a public key and upload a deposit; open a deposit's file
+key with the drive's write-only private key and read it.
+
+So the order is: deposits on zero-knowledge drives, with tests of their own, then gated friend
+shards on top. Both go in the friends pair, because neither is useful alone.
+
+### Smaller fixes on the way
+
+- **Only the shard's player can deliver it.** `HandleAcceptRecoveryShard` doesn't check that the
+  caller is the shard's player **(V)**, so anyone connected could fill the collector with junk. It
+  is touched anyway, so it gets the check.
+- **No rotation for friend deals.** A password change doesn't change the secret (decision 2), so
+  `RotateShardKeysIfNeeded` and the "rotation pending" flag apply to the automated deal only.
+- **A password change seals the new password twice:** once for the phrase, once for the Shamir key
+  pair (F3). `resetpasswd` carries both.
+- **The automated deal is unchanged:** server dealing, `PrepareFinalKeys`, the finalize email and
+  `FinalizeRecovery`, restoring today's master key (decision 6).
+
+### Decisions to confirm
+
+- **F1. A gated shard is a deposit** (decision 10). Decided 2026-10-24: "That's how we do it." Zero
+  knowledge drives must fully support deposits first, and gated friend shards ship in the PR where
+  they do. See [Deposits](#deposits-what-fully-supported-means).
+- **F2. Automatic friends stay, below the threshold** (change 5). Decided 2026-10-24: automatic
+  friends < the deal's minimum shards, so at least one gated approval is always needed.
+- **F3. The Shamir secret takes the phrase's shape.** Decided 2026-10-24 (option C).
+  - The shards rebuild a random 128-bit secret S.
+  - S opens a private key, and that private key opens the password. The matching public key is
+    stored, so a password change seals the new password to it without S, and the friends aren't
+    touched.
+  - The reset key is hkdf(S). With it, recovery repairs a junk copy, as phrase recovery does.
+  - S also locks the ZK master key, so a reset keeps ZK data.
+  - Rejected: keeping S readable by the ZK master key (anyone who once had the password reads
+    every later one), and re-dealing at every password change (it fails while any friend can't be
+    reached).
+- **F4. Today's friend deals are removed at ship.** Decided 2026-10-24. Their gated shards aren't sealed,
+  and production has only team and test identities on them (decision 5). The security page's red dot
+  comes on and the owner deals again in the console. No login re-deal, so no waiting for holders to
+  log in.
+- **F5. The seal format gets a version byte and the key id.** Decided 2026-10-24 (not disruptive: the
+  format exists only on this unmerged branch). The key id is the CRC32C
+  of the public key, as `DrivePublicKeyResponse.PublicKeyCrc32` already offers it "so a sealer can
+  label an envelope with the key it used" **(V)**. The phrase pair's seal changes with it; nothing is
+  released yet. (Settles the open item above.)
+
+### Work
+
+odin-core:
+1. Bring the branch up to date with main (the `OdinSlug` type, #2011).
+2. **Seal format** v1: version, key id, then today's layout, in C# and JS, with one vector both check.
+3. **Deposits on zero-knowledge drives** (the 7 places above), with tests of their own: write, send,
+   receive, read and query a deposit; refuse a deposit to a drive that isn't zero knowledge.
+4. **`configure-shards`** takes the dealt package from the browser: the player shards (gated ones
+   sealed), the dealer envelopes, and the Shamir copies. It refuses a deal whose automatic shards
+   reach the threshold, and a gated friend whose drive isn't zero knowledge. Server dealing
+   (`CreateShards`) stays for the automated deal only.
+5. **Public-key response:** the zero-knowledge flag. Readiness uses it.
+6. **Recovery:** the throwaway public key from `initiate-recovery-mode` through `request-shard` to
+   the `ShardApprovalRequest`.
+   - `approve` takes the shard sealed to that key.
+   - The accept call checks its caller.
+   - At the threshold, friend deals get a ready state and the "go back" email.
+   - A new recovery-mode read returns the bundle sealed to the throwaway key.
+7. **Shamir copies** in the ZK record, beside the phrase copies: the key pair, the password copy,
+   and the ZK master key locked by the secret. The reset key's master key copy sits beside the
+   phrase's.
+8. **Ship:** delete friend deals that aren't automated, with the red dot (F4). Exclude friend deals
+   from rotation.
+9. **Tests:** the Shamir suite rewritten for this flow with a C# "browser", not doubled. The cases:
+   - a mixed deal recovered;
+   - the password copy junk, then reset;
+   - a refused automatic-only deal;
+   - a friend not ready;
+   - a friend's reset flagged;
+   - a stranger's accept refused;
+   - automated recovery unchanged.
+
+odin-js:
+1. **js-lib:** Shamir split and rebuild ported from `ShamirSecretSharing.cs`, with C# vectors; the
+   seal v1; uploading and opening a deposit; dealing; releasing; rebuilding.
+2. **Console:**
+   - the deal dialog deals in the browser, with the fixed table;
+   - approve opens and re-seals;
+   - readiness shows friends that aren't ready.
+3. **Recovery page:** the throwaway key at initiate, the "go back" wait, the rebuild, then the
+   password or the reset, sharing the phrase screens.
+4. **Password change:** the second sealed copy.
+
+### Ship
+
+Both pairs are released together (decided earlier). The friends pair goes on new branches,
+`zk-recovery-friends`, made from `zk-recovery-phrase` in odin-core and odin-js. Their PRs target main
+and carry the phrase commits until the phrase PRs merge (no stacked PRs). Nothing is released
+between the two merges.
+
+### Size
+
+Inferred: odin-core ~1,800–2,800 lines with tests (deposits ~800–1,200 of it), odin-js
+~1,000–1,400.
+
+### As built (friends pair)
+
+Built 2026-10-24/25 on `zk-recovery-friends` (odin-core and odin-js). Facts checked in the code or by a
+test are marked **(V)**. What changed from the plan above, and the choices made while building:
+
+**Seal v1** (`ZkSeal`, js-lib `zkSeal`): base64 of `0x01 ‖ key id (4 bytes, big-endian) ‖ throwaway
+P-384 public key (97 bytes) ‖ 12-byte IV ‖ AES-GCM`. The phrase pair's seal moved to it.
+- **The key id is not `PublicKeyCrc32`** (F5 said it would be). It is the CRC of the recipient's raw
+  uncompressed point, which the browser has. `PublicKeyCrc32` hashes BouncyCastle's DER, and the same
+  key has a different DER by origin: 441 bytes read from a JWK, 464 generated, 120 as standard SPKI
+  **(V)** (a scratch program). So a browser can't reproduce it, and it isn't even stable per key.
+- `CRC32C.CalculateCRC32C` is, despite its name, the IEEE CRC-32 that zlib computes: the check value
+  of "123456789" is `cbf43926` **(V)** (a test pins it). The browser's CRC-32 matches.
+- Cross-language vectors, both ways **(V)**: a WebCrypto seal C# opens, and the JS Shamir split C#
+  rebuilds (`RecoveryPhraseTests`), and the C# split JS rebuilds (js-lib tests).
+
+**Deposits on zero-knowledge drives.** All seven places, with one limit:
+- The key header is an `EncryptedKeyHeader` of a new type, `Sealed` (12): `Iv` as is, `EncryptedAesKey`
+  = seal(write-only key, IV ‖ AES key). Decrypting one gives a `SealedKeyHeader`, and re-locking that
+  gives the sealed header back. So upload, peer receive, inbox, outbox and reads pass it through
+  unchanged without new parameters.
+- `Deposits` holds the rules. `StorageDrive.CanHoldDeposits` allows a zero-knowledge drive, or the
+  transient drive, which only sends a deposit on. Any other drive refuses one
+  (`DepositNeedsZeroKnowledgeDrive`, 9018), on upload, on receive, and at storage.
+- A query returns a deposit without the drive key; the drive permission and the ACL decide.
+- A deposit is written once (`DepositCannotBeUpdated`, 9019); it can be overwritten whole.
+- Converting the Shard Recovery drive deletes the deposits sealed to the old write-only key. It
+  still refuses files locked with the drive key.
+- **Limit: a deposit has no payloads.** A payload's key header leaves in a fixed-size response
+  header (`SharedSecretEncryptedHeader64`: IV 16, key 48, version 4), which a sealed one doesn't fit.
+  Chat and Mail attachments will need that changed.
+
+**`configure-shards`** takes `{ minMatchingShards, shards: [DealtShard], shamirCopies }`
+(`ConfigureShardsRequest`). The server refuses:
+- automatic shards that reach the threshold (`AutomaticShardsReachThreshold`, 9021);
+- a gated friend whose Shard Recovery drive isn't zero knowledge (`ShardHolderNotZeroKnowledge`,
+  9020), or a shard not sealed to their current key. It asks the friend's server for the key, with
+  the new `IsZeroKnowledge` on `DrivePublicKeyResponse`.
+
+A friend deal replaces the automated deal's master-key copy; an automated deal forgets the friend
+copies. The server deals only the automated deal now.
+
+**A gated shard on the holder** is a deposit. What the holder's checks read sits in plain metadata:
+the shard id (`UniqueId`), the recovery email hash (`GroupId`), and when it arrived. Being a deposit
+means `Delegate`. An unencrypted `Delegate` shard (an old server deal) is no longer released or
+counted.
+
+**Recovery:**
+- The throwaway public key goes with `initiate-recovery-mode` and stays with the email's nonce. The
+  email link (`GET verify-enter`) only opens the recovery page (`?enter=<id>`). The page posts the
+  nonce with its key (`POST verify-enter`), and a different key is refused (`RecoveryNotReady`,
+  9022).
+  - Why (not in the plan): anyone can start recovery. Without this, someone could start it with a
+    key of their own and wait for the owner to click that email; the friends would then seal their
+    shards to the stranger's key.
+- `request-shard` carries the key to the holder's `ShardApprovalRequest`. Approving posts
+  `{ index, sealedShard }`.
+- `accept-player-shard` takes a shard only from its own player, as the dealer package lists it.
+- At the threshold a friend deal goes to `AwaitingRecoveringBrowser` and sends a link-free email.
+  `GET recovery-bundle` returns the envelopes, the collected shards and the copies, sealed to the
+  throwaway key (`ShamirRecoveryBundle`).
+- Logging in ends recovery mode, as it always did.
+
+**Reset:** `POST authentication/zk-reset` (renamed from `zk-phrase-reset`; nothing was released) takes
+either reset key. The friends' is hkdf-sha256(S, no salt, "homebase-shamir-reset-key"), 16 bytes. A
+reset keeps the zero-knowledge master key.
+
+**Copies** (`ZkKeyRecord`):
+- `ShamirPublicKeyJwk`, `ShamirKeyEncryptedShamirPrivateKey`, `ShamirKeyEncryptedZkMasterKey`,
+  `ShamirPublicKeyEncryptedPassword`, `ShamirResetKeyEncryptedMasterKey`.
+- The password copy is missing after a deal until the next password login writes it (the console
+  deals without the password). Status shows `ShamirPublicKeyJwk` / `HasShamirPasswordCopy`.
+- A password change re-seals it.
+
+**Ship (F4) and resets:** a friend deal is never rotated. On owner requests (where rotation runs),
+a friend deal whose copies are missing is removed, and the security page's red dot comes on. That
+covers old server-made friend deals at ship, and a reset with today's master key afterwards.
+
+**Tests (V2):**
+- `FriendRecoveryTests`:
+  - a mixed deal gives the password back only in the recovering browser;
+  - junk and missing copies are repaired with the friends' reset key;
+  - entering from another browser is refused;
+  - a friend's reset leaves their shard dead and the dealer is told;
+  - only the shard's player can deliver it;
+  - a password change re-seals and deals nothing;
+  - a deal without copies is removed with the red dot.
+- `DepositTests`: write, read, query, send and receive; refused on a drive that isn't zero
+  knowledge; no payloads.
+- The Shamir suite is rewritten for friend deals with a C# browser (`ZkFriends`). The automated
+  rotation tests stay.
+- `FailedShardRotationTests` went: friend deals don't rotate, and the gate keeps its unit test
+  (`ShardRotationGateTest`).
+- The takeover's delegate cases went: the server can't make an old friend deal any more.
 
 ## Size estimate
 

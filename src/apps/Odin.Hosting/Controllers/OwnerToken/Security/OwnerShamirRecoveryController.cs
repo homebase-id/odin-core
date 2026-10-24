@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -31,23 +32,47 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         return status;
     }
 
+    /// <summary>
+    /// Starts recovery.  For a friend deal, the browser sends its throwaway public key, and must finish
+    /// recovery itself: the friends seal their shards to that key.
+    /// </summary>
     [HttpPost("initiate-recovery-mode")]
-    public async Task<IActionResult> InitiateRecoveryMode()
+    public async Task<IActionResult> InitiateRecoveryMode(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] InitiateRecoveryModeRequest request)
     {
-        await _recoveryService.InitiateRecoveryModeEntry(WebOdinContext);
+        await _recoveryService.InitiateRecoveryModeEntry(request?.RecoveryPublicKeyJwk, WebOdinContext);
         return Ok();
     }
 
+    /// <summary>
+    /// The email's link.  It only opens the recovery page, which posts the nonce back with its throwaway
+    /// public key (<see cref="EnterRecoveryMode"/>): entering recovery must come from the browser that
+    /// started it.
+    /// </summary>
     [HttpGet("verify-enter")]
-    public async Task<IActionResult> VerifyEnterRecoveryMode([FromQuery] string id, [FromQuery] string token)
+    public IActionResult VerifyEnterRecoveryMode([FromQuery] string id)
     {
         OdinValidationUtils.AssertNotNullOrEmpty(id, nameof(id));
-        // OdinValidationUtils.AssertNotNullOrEmpty(redirect, nameof(redirect));
+        return Redirect($"/owner/shamir-account-recovery?enter={Uri.EscapeDataString(id)}");
+    }
 
-        await _recoveryService.EnterRecoveryMode(Guid.Parse(id), token, WebOdinContext);
+    [HttpPost("verify-enter")]
+    public async Task<IActionResult> EnterRecoveryMode([FromBody] EnterRecoveryModeRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.Id, nameof(request.Id));
+        await _recoveryService.EnterRecoveryMode(Guid.Parse(request.Id), request.RecoveryPublicKeyJwk, WebOdinContext);
+        return Ok();
+    }
 
-        const string redirect = "/owner/shamir-account-recovery?fv=1";
-        return Redirect(redirect);
+    /// <summary>
+    /// Recovery with friends, once enough approved: the shards, the dealer's keys and the friend deal's
+    /// copies, sealed to the throwaway key of the browser that started recovery.
+    /// </summary>
+    [HttpGet("recovery-bundle")]
+    public async Task<ShamirRecoveryBundleResponse> GetRecoveryBundle()
+    {
+        return await _recoveryService.GetRecoveryBundleAsync(WebOdinContext);
     }
 
     [HttpPost("exit-recovery-mode")]

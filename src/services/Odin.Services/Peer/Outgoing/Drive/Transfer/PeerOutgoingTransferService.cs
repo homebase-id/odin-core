@@ -660,12 +660,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
 
             var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext);
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
-
-            var keyHeader = header.FileMetadata.IsEncrypted
-                ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey)
-                : KeyHeader.Empty();
-            storageKey.Wipe();
+            var keyHeader = KeyHeader.Empty();
+            if (Deposits.IsDeposit(header))
+            {
+                // A deposit goes on sealed, as it was written: the recipient's browser opens it
+                keyHeader = new SealedKeyHeader(header.EncryptedKeyHeader);
+            }
+            else if (header.FileMetadata.IsEncrypted)
+            {
+                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
+                keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                storageKey.Wipe();
+            }
 
             foreach (var r in options.Recipients!)
             {

@@ -2,6 +2,7 @@ using System;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Services.Peer.Encryption
 {
@@ -25,8 +26,18 @@ namespace Odin.Services.Peer.Encryption
         /// <param name="key"></param>
         /// <returns></returns>
         /// <exception cref="OdinSecurityException"></exception>
+        /// <remarks>
+        /// A sealed key header (a deposit) can't be decrypted here, and needn't be: it comes back as a
+        /// <see cref="SealedKeyHeader"/>, which every write stores and every re-lock passes on as it is
+        /// (<see cref="EncryptKeyHeaderAes"/>).
+        /// </remarks>
         public KeyHeader DecryptAesToKeyHeader(ref SensitiveByteArray key)
         {
+            if (IsSealed())
+            {
+                return new SealedKeyHeader(this);
+            }
+
             if (this.EncryptionVersion == 1)
             {
                 var bytes = AesCbc.Decrypt(this.EncryptedAesKey, key, this.Iv);
@@ -38,8 +49,14 @@ namespace Odin.Services.Peer.Encryption
             throw new OdinSecurityException("Unsupported encryption version");
         }
 
+        /// <remarks>A <see cref="SealedKeyHeader"/> comes back sealed, as it was given: nobody here can open it.</remarks>
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)
         {
+            if (keyHeader is SealedKeyHeader sealedKeyHeader)
+            {
+                return sealedKeyHeader.Sealed;
+            }
+
             var secureKeyHeader = keyHeader.Combine();
             var data = AesCbc.Encrypt(secureKeyHeader.GetKey(), key, iv);
             secureKeyHeader.Wipe();
@@ -51,6 +68,33 @@ namespace Odin.Services.Peer.Encryption
                 Iv = iv,
                 EncryptedAesKey = data
             };
+        }
+
+        /// <summary>
+        /// A deposit's key header: the file's key header (IV and AES key, as <see cref="KeyHeader.Combine"/>
+        /// joins them) sealed to a drive's write-only public key.  The IV is also kept as is, as for an
+        /// AES key header.
+        /// </summary>
+        public static EncryptedKeyHeader Sealed(byte[] iv, byte[] sealedKeyHeader) => new()
+        {
+            EncryptionVersion = 1,
+            Type = EncryptionType.Sealed,
+            Iv = iv,
+            EncryptedAesKey = sealedKeyHeader
+        };
+
+        public bool IsSealed() => Type == EncryptionType.Sealed;
+
+        /// <summary>
+        /// Refuses a sealed key header that isn't one: the IV must be strong and the key header a
+        /// sealed value.  Nothing more can be checked: nobody here can open it.
+        /// </summary>
+        public void AssertValidSealed()
+        {
+            if (EncryptionVersion != 1 || !ByteArrayUtil.IsStrongKey(Iv) || !ZkSeal.IsSealed(EncryptedAesKey))
+            {
+                throw new OdinClientException("The sealed key header is malformed", OdinClientErrorCode.InvalidKeyHeader);
+            }
         }
 
         public SensitiveByteArray Combine()

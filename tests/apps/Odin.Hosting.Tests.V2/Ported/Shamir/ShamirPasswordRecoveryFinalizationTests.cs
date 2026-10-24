@@ -12,11 +12,11 @@ using Odin.Services.Security.PasswordRecovery.Shamir;
 namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 
 /// <summary>
-/// Port of <c>OwnerApi/Shamir/ShamirPasswordRecoveryFinalizationTests</c>. The end of the recovery
-/// road: once enough players release their shards — <see cref="PlayerType.Delegate"/>s on approval,
-/// <see cref="PlayerType.Automatic"/> ones at once — the dealer's reassembled recovery key is mailed
-/// to it, the owner sets a new password with it, and the next owner-authenticated request rotates
-/// every shard, because the old ones are keyed to the old password.
+/// Port of <c>OwnerApi/Shamir/ShamirPasswordRecoveryFinalizationTests</c>, for the automated deal: once
+/// the automated players release their shards, the dealer's reassembled key is mailed to it, the owner
+/// sets a new password with it, and the next owner-authenticated request rotates every shard, because
+/// the old ones are keyed to the old password.  A friend deal recovers in the browser instead and is
+/// never rotated (<see cref="ZeroKnowledge.FriendRecoveryTests"/>).
 /// </summary>
 /// <remarks>
 /// <para>Checked port. Shared arrange lives on <see cref="ShamirFixture"/>; its remarks carry the
@@ -57,15 +57,16 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// <para>
 /// <b>Rotation coverage beyond the original (#1861):</b> the original's
 /// <c>ShardingIsResetAfterPasswordIsRecovered</c> becomes
-/// <see cref="ShardsAreRotatedAndRecoverTheIdentityAgain"/>, run for both player types. It drains the
+/// <see cref="ShardsAreRotatedAndRecoverTheIdentityAgain"/>, for the automated deal. It drains the
 /// rotated sends and runs <c>VerifyShards</c>, asserts a later request does not rotate again, and
 /// recovers a second time from the rotated shards alone. <c>EnableAutoPasswordRecovery</c> deals to
 /// <see cref="ShamirFixture.AutomatedPlayerIdentities"/>, so the host carries those too.
 /// </para>
 /// <para>
-/// <b>Defect in the original, fixed (#1767):</b> the first test's name promises
+/// <b>Defect in the original, fixed (#1767):</b> the delegate test's name promised
 /// "…AndPasswordCanBeReset", but the only proof it kept was that a fresh login with the new password
-/// succeeds. It now also checks that the old password no longer logs in.
+/// succeeds. The rotation test now also checks that the old password no longer logs in; the delegate
+/// half moved to <see cref="ZeroKnowledge.FriendRecoveryTests"/> with recovery in the browser.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -77,24 +78,16 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         base.HostIdentities.Union(AutomatedPlayerIdentities).ToArray();
 
     [Test]
-    public async Task DelegatePlayersCanApproveShardRequestsAndPasswordCanBeReset()
+    public async Task ShardsAreRotatedAndRecoverTheIdentityAgain()
     {
-        //
-        // Setup - distribute delegate shards
-        //
-        var (frodo, players, config) = await ArrangeDelegateShardsAsync();
+        var (frodo, _) = Cast();
+        var firstShardConfig = await ArrangeAutomatedShardsAsync(frodo);
 
-        //
-        // Act - enter recovery mode
-        //
-        await EnterRecoveryModeAsync(frodo);
+        var recovered = await RecoverAutomatedAsync(frodo, firstShardConfig, NewPassword);
+        var rotatedShardConfig = await AssertShardsRotatedAsync(recovered, firstShardConfig, rotationsSoFar: 1);
 
-        //
-        // Assert - all player delegates have a request in their list
-        //
-        await ApproveEveryShardRequestAsync(frodo, players, config);
-
-        await FinalizeRecoveryAndLoginAsync(frodo, NewPassword);
+        var recoveredAgain = await RecoverAutomatedAsync(recovered, rotatedShardConfig, SecondNewPassword);
+        await AssertShardsRotatedAsync(recoveredAgain, rotatedShardConfig, rotationsSoFar: 2);
 
         // the reset replaced the password: the one the baseline set no longer logs in
         var oldPasswordLogin = Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -102,34 +95,12 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         Assert.That(oldPasswordLogin!.Message, Does.StartWith("Authenticate failed"));
     }
 
-    /// <summary>
-    /// Recovery rotates every shard on the next owner request — the automated case is #1861, where the
-    /// dealer is not connected to its players — and the rotated shards alone recover the identity again.
-    /// </summary>
-    [TestCase(PlayerType.Delegate)]
-    [TestCase(PlayerType.Automatic)]
-    public async Task ShardsAreRotatedAndRecoverTheIdentityAgain(PlayerType playerType)
-    {
-        var (frodo, players) = Cast();
-        var firstShardConfig = playerType == PlayerType.Delegate
-            ? (await ArrangeDelegateShardsAsync()).Config
-            : await ArrangeAutomatedShardsAsync(frodo);
-
-        var recovered = await RecoverAsync(frodo, players, firstShardConfig, NewPassword);
-        var rotatedShardConfig = await AssertShardsRotatedAsync(recovered, firstShardConfig, rotationsSoFar: 1);
-
-        var recoveredAgain = await RecoverAsync(recovered, players, rotatedShardConfig, SecondNewPassword);
-        await AssertShardsRotatedAsync(recoveredAgain, rotatedShardConfig, rotationsSoFar: 2);
-    }
-
-    /// <summary>
-    /// The owner app fires several requests at once after a login; only one of them may rotate.
-    /// </summary>
     [Test]
     public async Task ConcurrentRequestsAfterRecoveryRotateOnce()
     {
-        var (frodo, players, firstShardConfig) = await ArrangeDelegateShardsAsync();
-        var recovered = await RecoverAsync(frodo, players, firstShardConfig, NewPassword);
+        var (frodo, _) = Cast();
+        var firstShardConfig = await ArrangeAutomatedShardsAsync(frodo);
+        var recovered = await RecoverAutomatedAsync(frodo, firstShardConfig, NewPassword);
 
         var configuration = recovered.RefitFor<IRefitOwnerConfiguration>();
         var responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => configuration.GetTenantSettings()));
@@ -140,12 +111,6 @@ public class ShamirPasswordRecoveryFinalizationTests : ShamirFixture
         Assert.That(rotated.Updated.milliseconds, Is.GreaterThan(firstShardConfig.Updated.milliseconds));
     }
 
-    /// <summary>
-    /// Stokes the auth handler with one owner request, which rotates, and asserts the rotation: a
-    /// newer config with the same players, types, threshold and mode but fresh shard ids, delivered
-    /// to every player. Then asserts a further request does not rotate again.
-    /// </summary>
-    /// <param name="rotationsSoFar">Rotations expected in this test's log once this one has run.</param>
     private async Task<DealerShardConfig> AssertShardsRotatedAsync(
         OwnerSession recovered, DealerShardConfig previous, int rotationsSoFar)
     {

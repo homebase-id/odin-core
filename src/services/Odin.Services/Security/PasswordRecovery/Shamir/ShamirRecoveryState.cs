@@ -23,5 +23,11 @@ public enum ShamirRecoveryState
     /// <summary>
     /// Owner has all things needed to recover their password.  They just need click the email link and reset their password
     /// </summary>
-    AwaitingOwnerFinalization
+    AwaitingOwnerFinalization,
+
+    /// <summary>
+    /// A friend deal collected enough shards.  The browser that started recovery fetches them, sealed
+    /// to its throwaway key, and rebuilds the secret itself.
+    /// </summary>
+    AwaitingRecoveringBrowser
 }

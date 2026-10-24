@@ -86,7 +86,7 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         return await ownerApi.ResetPasswordUsingRecoveryKey(identity.OdinId, recoveryKey, newPassword);
     }
 
-    public async Task<ApiResponse<HttpContent>> ConfigureShards(ConfigureShardsRequest request)
+    public async Task<ApiResponse<HttpContent>> ConfigureShards(Odin.Services.Security.PasswordRecovery.Shamir.ConfigureShardsRequest request)
     {
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
@@ -111,7 +111,7 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         var client = ownerApi.CreateAnonymousClient(identity.OdinId);
         {
             var svc = RestService.For<ITestSecurityContextOwnerClient>(client);
-            var apiResponse = await svc.InitiateRecoveryMode();
+            var apiResponse = await svc.InitiateRecoveryMode(new InitiateRecoveryModeRequest());
             return apiResponse;
         }
     }

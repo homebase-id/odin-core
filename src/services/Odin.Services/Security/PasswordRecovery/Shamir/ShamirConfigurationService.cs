@@ -32,8 +32,11 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Apps.Builtin;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Util;
+using PeerDriveQueryService = Odin.Services.Peer.Outgoing.Drive.Query.PeerDriveQueryService;
 
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -50,7 +53,8 @@ public class ShamirConfigurationService(
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
     ShardRotationGate rotationGate,
-    CircleNetworkService circleNetworkService,
+    ZeroKnowledgeKeyService zeroKnowledgeKeyService,
+    PeerDriveQueryService peerDriveQueryService,
     ILastSeenService lastSeenService) : ShamirBaseService<ShamirConfigurationService>(logger, fileSystem, driveManager, lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
@@ -85,7 +89,7 @@ public class ShamirConfigurationService(
 
         Logger.LogDebug("Configuring automated recovery for auto-players: {players}", string.Join(",", players.Select(p => p.OdinId)));
 
-        await DistributeShards(players, 3, usesAutomatic: true, odinContext);
+        await DistributeShards(players, 3, odinContext);
     }
 
     public void AssertCanUseAutomatedRecovery()
@@ -110,42 +114,136 @@ public class ShamirConfigurationService(
         (configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Count ?? 0) >= MinimumPlayerCount &&
         configuration.AccountRecovery.AutomatedIdentityKey != Guid.Empty;
 
-    public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
+    /// <summary>
+    /// A friend deal, dealt in the browser (<see cref="ConfigureShardsRequest"/>).  Replaces any deal,
+    /// automated or not.  Each gated friend must hold their Shard Recovery drive's keys only in their
+    /// browser, and their shard must be sealed to that drive's current key: anything else would let
+    /// their server release it without them.
+    /// </summary>
+    public async Task ConfigureShards(ConfigureShardsRequest request, IOdinContext odinContext)
     {
-        await DistributeShards(players, minShards, usesAutomatic: false, odinContext);
+        odinContext.Caller.AssertHasMasterKey();
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        request.Validate();
+        OdinValidationUtils.AssertValidRecipientList(request.Shards.Select(s => s.Player.OdinId), false, odinContext.Tenant);
+        await zeroKnowledgeKeyService.AssertKeysExistAsync();
+
+        foreach (var shard in request.Shards.Where(s => s.IsGated))
+        {
+            await AssertSealedToHolderAsync(shard, odinContext);
+        }
+
+        var hashedRecoveryEmail = await passwordKeyRecoveryService.GetHashedRecoveryEmail();
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+        tx.AddPostCommitAction(transferService.ProcessOutboxNow);
+
+        await SaveDealerPackage(new DealerShardPackage
+        {
+            MinMatchingShards = request.MinMatchingShards,
+            Envelopes = request.Shards.Select(s => new DealerShardEnvelope
+            {
+                Player = s.Player,
+                ShardId = s.ShardId,
+                Index = s.Index,
+                EncryptionKey = s.EncryptionKey,
+                EncryptionIv = s.EncryptionIv
+            }).ToList(),
+            UsesAutomatedRecovery = false
+        }, odinContext);
+
+        var failures = new List<OdinId>();
+        foreach (var shard in request.Shards)
+        {
+            var file = shard.IsGated
+                ? await WriteGatedShardToTempDriveAsync(shard, hashedRecoveryEmail, odinContext)
+                : await WritePlayerEncryptedShardToTempDrive(new PlayerEncryptedShard
+                {
+                    Id = shard.ShardId,
+                    Index = shard.Index,
+                    RecoveryEmailHash = hashedRecoveryEmail,
+                    Player = shard.Player,
+                    Created = UnixTimeUtc.Now(),
+                    DealerEncryptedShard = shard.DealerEncryptedShard
+                }, odinContext);
+
+            if (await SendShardAsync(shard.Player.OdinId, file, odinContext) != TransferStatus.Enqueued)
+            {
+                failures.Add(shard.Player.OdinId);
+            }
+        }
+
+        if (failures.Any())
+        {
+            throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures)}]");
+        }
+
+        // A friend deal locks no master key here: the automated deal's copy goes, and the friends'
+        // secret locks the zero-knowledge master key instead.
+        await Storage.DeleteAsync(tblKeyValue, ShamirRecordStorageId);
+        await zeroKnowledgeKeyService.SaveShamirCopiesAsync(request.ShamirCopies, odinContext);
+
+        tx.Commit();
+        Logger.LogInformation("Friend deal saved: {count} shards, {min} needed", request.Shards.Count, request.MinMatchingShards);
     }
 
     /// <summary>
-    /// Deals a fresh set of shards to <paramref name="players"/> and sends them. Automated players are
-    /// reached with the configured AutomatedIdentityKey; delegates need a connection.
+    /// Refuses a gated shard unless its holder's Shard Recovery drive is zero knowledge (their server
+    /// can't open the write-only private key) and it is sealed to that drive's current key.
     /// </summary>
-    private async Task DistributeShards(List<ShamiraPlayer> players, int minShards, bool usesAutomatic, IOdinContext odinContext,
+    private async Task AssertSealedToHolderAsync(DealtShard shard, IOdinContext odinContext)
+    {
+        var holder = shard.Player.OdinId;
+        var key = await peerDriveQueryService.GetRemoteDriveWriteOnlyPublicKeyAsync(holder, RecoveryAppSlug,
+            BuiltinDrives.ShardRecoveryDrive.DriveSlug, odinContext);
+
+        if (!key.IsZeroKnowledge)
+        {
+            throw new OdinClientException(
+                $"{holder} hasn't logged in since their recovery drive became zero knowledge; they can't hold a gated shard yet",
+                OdinClientErrorCode.ShardHolderNotZeroKnowledge);
+        }
+
+        if (ZkSeal.ReadKeyId(shard.DepositKeyHeader.EncryptedAesKey) != ZkSeal.KeyId(key.PublicKeyJwk))
+        {
+            throw new OdinClientException($"The shard for {holder} is not sealed to their current key",
+                OdinClientErrorCode.InvalidKeyHeader);
+        }
+    }
+
+    private static readonly OdinSlug RecoveryAppSlug =
+        BuiltinApps.All.Single(a => a.AppId == SystemAppConstants.RecoveryAppId).AppSlug;
+
+    /// <summary>
+    /// Deals a fresh set of shards to the automated identities <paramref name="players"/> and sends
+    /// them, reached with the configured AutomatedIdentityKey.  Only the automated deal is dealt here:
+    /// friend deals are dealt in the browser (<see cref="ConfigureShards"/>).
+    /// </summary>
+    private async Task DistributeShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext,
         bool movingOffThePhrase = false)
     {
-        if (usesAutomatic)
-        {
-            AssertCanUseAutomatedRecovery();
-        }
+        AssertCanUseAutomatedRecovery();
 
         SensitiveByteArray distributionKey = null;
         await using var tx = await db.BeginStackedTransactionAsync();
         tx.AddPostCommitAction(transferService.ProcessOutboxNow);
         try
         {
-            (distributionKey, var playerShards) = await ConfigureShardsInternal(players, minShards, usesAutomatic, odinContext);
+            (distributionKey, var playerShards) = await ConfigureShardsInternal(players, minShards, odinContext);
 
             Logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
-            var enqueueResults = usesAutomatic
-                ? await EnqueueShardsForDistributionForAutomaticIdentities(playerShards, odinContext)
-                : await EnqueueShardsForDistribution(playerShards, odinContext);
+            var enqueueResults = await EnqueueShardsForDistributionForAutomaticIdentities(playerShards, odinContext);
             var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
             if (failures.Any())
             {
-                var message = $"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]";
-                throw usesAutomatic ? new OdinSystemException(message) : new OdinClientException(message);
+                throw new OdinSystemException(
+                    $"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
             }
 
             await SaveDistributableKey(distributionKey, odinContext, movingOffThePhrase);
+
+            // The automated deal replaces a friend deal, whose copies can then recover nothing
+            await zeroKnowledgeKeyService.ForgetShamirCopiesAsync();
 
             tx.Commit();
             Logger.LogDebug("Commited shard distribution data");
@@ -166,7 +264,7 @@ public class ShamirConfigurationService(
     }
 
     private async Task<(SensitiveByteArray distributionKey, List<PlayerEncryptedShard> PlayerShards)> ConfigureShardsInternal(
-        List<ShamiraPlayer> players, int minShards, bool usesAutomatic, IOdinContext odinContext)
+        List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(players, nameof(players));
         OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount,
@@ -188,7 +286,7 @@ public class ShamirConfigurationService(
         {
             MinMatchingShards = minShards,
             Envelopes = shards.DealerEnvelops,
-            UsesAutomatedRecovery = usesAutomatic
+            UsesAutomatedRecovery = true
         };
 
         await SaveDealerPackage(package, odinContext);
@@ -277,7 +375,7 @@ public class ShamirConfigurationService(
             }
 
             var package = await GetDealerShardPackage(odinContext);
-            var cannotRepeat = package == null ? "no dealer package" : await WhyTheDealCannotBeRepeatedAsync(package, odinContext);
+            var cannotRepeat = package == null ? "no dealer package" : WhyTheDealCannotBeRepeated(package);
             if (cannotRepeat == null)
             {
                 await DealAgainAsync(package, odinContext, movingOffThePhrase: true);
@@ -295,23 +393,14 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>Null when <paramref name="package"/> can be dealt again; otherwise the permanent reason why not.</summary>
-    private async Task<string> WhyTheDealCannotBeRepeatedAsync(DealerShardPackage package, IOdinContext odinContext)
+    private string WhyTheDealCannotBeRepeated(DealerShardPackage package)
     {
-        if (package.UsesAutomatedRecovery)
+        if (!package.UsesAutomatedRecovery)
         {
-            return CanUseAutomatedRecovery() ? null : "automated recovery is off on this host";
+            return "friend deals are dealt in the browser now";
         }
 
-        foreach (var player in package.Envelopes.Select(e => e.Player))
-        {
-            var icr = await circleNetworkService.GetIcrAsync(player.OdinId, odinContext, overrideHack: true);
-            if (!icr.IsConnected())
-            {
-                return $"{player.OdinId} is no longer connected";
-            }
-        }
-
-        return null;
+        return CanUseAutomatedRecovery() ? null : "automated recovery is off on this host";
     }
 
     private static readonly TimeSpan MoveOffThePhraseWait = TimeSpan.FromSeconds(5);
@@ -336,22 +425,21 @@ public class ShamirConfigurationService(
         tx.Commit();
     }
 
-    /// <summary>Same players, threshold and mode; only the shards are new.</summary>
+    /// <summary>The automated deal again: same players and threshold; only the shards are new.</summary>
     private async Task DealAgainAsync(DealerShardPackage package, IOdinContext odinContext, bool movingOffThePhrase)
     {
         var players = package.Envelopes.Select(e => e.Player).ToList();
-        await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext,
-            movingOffThePhrase);
+        await DistributeShards(players, package.MinMatchingShards, odinContext, movingOffThePhrase);
     }
 
     /// <summary>
-    /// True when <paramref name="package"/> was dealt before the password last changed. Until it is
-    /// rotated, the shards dealt before then still reconstruct the recovery key; a delegate can only
-    /// deliver one while still connected (#1885).
+    /// True when the automated deal <paramref name="package"/> was dealt before the password last
+    /// changed.  Never for a friend deal: a password change doesn't change the friends' secret
+    /// (docs/zero-knowledge-recovery-plan.md, decision 2).
     /// </summary>
     public async Task<bool> IsRotationPending(DealerShardPackage package)
     {
-        if (null == package)
+        if (package?.UsesAutomatedRecovery != true)
         {
             return false;
         }
@@ -361,8 +449,14 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// Rotates keys in the shares using all existing players
+    /// Runs on owner requests: deals the automated deal again after a password change, and removes a
+    /// friend deal that can recover nothing.
     /// </summary>
+    /// <remarks>
+    /// A friend deal without its zero-knowledge copies was dealt by the server, before recovery in the
+    /// browser (its gated shards aren't sealed to the friends, F4), or a reset with today's master key
+    /// forgot its copies.  Removing it turns on the security page's red dot, and the owner deals again.
+    /// </remarks>
     public async Task RotateShardKeysIfNeeded(IOdinContext odinContext)
     {
         if (!rotationGate.TryEnter())
@@ -373,7 +467,12 @@ public class ShamirConfigurationService(
         try
         {
             var package = await this.GetDealerShardPackage(odinContext);
-            if (await IsRotationPending(package))
+            if (package is { UsesAutomatedRecovery: false } && !await zeroKnowledgeKeyService.HasShamirCopiesAsync())
+            {
+                Logger.LogInformation("Removing a friend deal that can recover nothing (no zero-knowledge copies)");
+                await RemoveDealAsync(odinContext);
+            }
+            else if (await IsRotationPending(package))
             {
                 Logger.LogDebug(RotateShardsHasStarted);
                 await DealAgainAsync(package, odinContext, movingOffThePhrase: false);
@@ -589,50 +688,37 @@ public class ShamirConfigurationService(
         return status;
     }
 
-    /// <summary>
-    /// Sends the shards to the list identities
-    /// </summary>
-    private async Task<Dictionary<OdinId, TransferStatus>> EnqueueShardsForDistribution(
-        List<PlayerEncryptedShard> shards,
-        IOdinContext odinContext)
+    /// <summary>Sends a friend's shard to their Shard Recovery drive; they need a connection.</summary>
+    private async Task<TransferStatus> SendShardAsync(OdinId player, ServerFileHeader file, IOdinContext odinContext)
     {
-        var results = new Dictionary<OdinId, TransferStatus>();
-
-        foreach (PlayerEncryptedShard shard in shards)
+        var transitOptions = new TransitOptions
         {
-            var header = await WritePlayerEncryptedShardToTempDrive(shard, odinContext);
-            var transitOptions = new TransitOptions
+            IsTransient = true,
+            Recipients = [player.DomainName],
+            DisableTransferHistory = true,
+            UseAppNotification = true,
+            AppNotificationOptions = new AppNotificationOptions
             {
-                IsTransient = true,
-                Recipients = [shard.Player.OdinId.DomainName],
-                DisableTransferHistory = true,
-                UseAppNotification = true,
-                AppNotificationOptions = new AppNotificationOptions
-                {
-                    AppId = SystemAppConstants.SystemAppId,
-                    TypeId = OwnerAppConstants.PasswordRecoveryRecruitedTypeId,
-                    TagId = default,
-                    Silent = false,
-                    PeerSubscriptionId = default,
-                    Recipients = null,
-                    UnEncryptedMessage = $"{odinContext.Tenant.DomainName} has added you as part of their password recovery process. "
-                },
-                RemoteTargetDrive = WellKnownAppDrives.ShardRecoveryDrive,
-                Priority = OutboxPriority.High
-            };
+                AppId = SystemAppConstants.SystemAppId,
+                TypeId = OwnerAppConstants.PasswordRecoveryRecruitedTypeId,
+                TagId = default,
+                Silent = false,
+                PeerSubscriptionId = default,
+                Recipients = null,
+                UnEncryptedMessage = $"{odinContext.Tenant.DomainName} has added you as part of their password recovery process. "
+            },
+            RemoteTargetDrive = WellKnownAppDrives.ShardRecoveryDrive,
+            Priority = OutboxPriority.High
+        };
 
-            var transferStatusMap = await transferService.SendFile(
-                header.FileMetadata.File,
-                transitOptions,
-                TransferFileType.Normal,
-                header.ServerMetadata.FileSystemType,
-                odinContext);
+        var transferStatusMap = await transferService.SendFile(
+            file.FileMetadata.File,
+            transitOptions,
+            TransferFileType.Normal,
+            file.ServerMetadata.FileSystemType,
+            odinContext);
 
-            var status = transferStatusMap[shard.Player.OdinId];
-            results.Add(shard.Player.OdinId, status);
-        }
-
-        return results;
+        return transferStatusMap[player];
     }
 
     private async Task WriteNewDealerEnvelopeFile(DealerShardPackage dealerShard, IOdinContext odinContext)
@@ -681,6 +767,47 @@ public class ShamirConfigurationService(
         header.FileMetadata.AppData.Content = DealerShardPackage.Serialize(dealerShard);
         header.FileMetadata.IsEncrypted = false;
         await FileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
+    }
+
+    /// <summary>
+    /// A gated friend's shard, as a deposit: its content and key header as the browser made them.  The
+    /// friend's server can't open it, so what its checks read is in the file's plain metadata: the shard
+    /// id (<c>UniqueId</c>) and the recovery email hash (<c>GroupId</c>); that it is a deposit says the
+    /// friend must approve its release (<see cref="PlayerType.Delegate"/>).
+    /// </summary>
+    private async Task<ServerFileHeader> WriteGatedShardToTempDriveAsync(DealtShard shard, Guid recoveryEmailHash,
+        IOdinContext odinContext)
+    {
+        var driveId = SystemDriveConstants.TransientTempDrive.Alias;
+        var file = await FileSystem.Storage.CreateInternalFileId(driveId, odinContext);
+
+        var fileMetadata = new FileMetadata(file)
+        {
+            GlobalTransitId = Guid.NewGuid(),
+            AppData = new AppFileMetaData()
+            {
+                FileType = PlayerEncryptedShardFileType,
+                Content = shard.DepositContent,
+                UniqueId = shard.ShardId,
+                GroupId = recoveryEmailHash
+            },
+
+            IsEncrypted = true,
+            SenderOdinId = odinContext.Tenant,
+            VersionTag = SequentialGuid.CreateGuid(),
+            Payloads = []
+        };
+
+        var serverMetadata = new ServerMetadata()
+        {
+            AccessControlList = AccessControlList.OwnerOnly,
+            AllowDistribution = true
+        };
+
+        var serverFileHeader = await FileSystem.Storage.CreateServerFileHeader(file, new SealedKeyHeader(shard.DepositKeyHeader),
+            fileMetadata, serverMetadata, odinContext);
+        await FileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
+        return serverFileHeader;
     }
 
     private async Task<ServerFileHeader> WritePlayerEncryptedShardToTempDrive(PlayerEncryptedShard shard, IOdinContext odinContext)

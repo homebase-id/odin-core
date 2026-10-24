@@ -15,10 +15,12 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Hosting.Tests.V2.ZeroKnowledge;
 using Odin.Services.Security;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
+using Odin.Services.Security.ZeroKnowledge;
 using Refit;
 using Serilog.Events;
 
@@ -51,7 +53,7 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// </para>
 /// <para>
 /// Nothing that <i>asserts</i> moves into the baseline with it: <see cref="PrepareConnectionsAsync"/>
-/// and <see cref="DistributeAndVerifyShardsAsync"/> both carry assertions and so stay in the tests,
+/// and <see cref="ArrangeFriendDealAsync"/> both carry assertions and so stay in the tests,
 /// where a failure is a failed test rather than a broken fixture.
 /// </para>
 /// <para>
@@ -75,6 +77,13 @@ namespace Odin.Hosting.Tests.V2.Ported.Shamir;
 /// lets <c>VerifyShards</c> — which asks each player whether it is holding the shard — come back
 /// valid. Same verdict as <c>Ported/Configuration/SystemInitializeConfigTestsAutomatedPasswordRecovery</c>,
 /// which drives the automated half of the same code path. No test here asserts on outbox contents.
+/// </para>
+/// <para>
+/// <b>Friend deals are dealt in the browser</b> (docs/zero-knowledge-recovery-plan.md, "Building the
+/// friends pair"): <see cref="ZkFriends"/> plays the browser.  Every owner in a friend deal first makes
+/// their zero-knowledge keys and converts their Shard Recovery drive, as their first login since plan A
+/// does, so a gated friend's shard can be sealed to them; <see cref="ZkMasterKeyOf"/> keeps each one's
+/// zero-knowledge master key, which their browser would hold.
 /// </para>
 /// <para>
 /// <b>No recipient inbox processing is needed and none is done.</b> The shard transfer is a
@@ -137,24 +146,90 @@ public abstract class ShamirFixture : V2Fixture
     /// <summary>The dealer and the four players, logged in by <see cref="WarmTenantBaselineAsync"/>.</summary>
     protected (OwnerSession Dealer, IReadOnlyList<OwnerSession> Players) Cast() => (_dealer, _players);
 
+    private readonly Dictionary<string, byte[]> _zkMasterKeys = new();
+
+    /// <summary>The recovering browser's throwaway key pair, made when recovery starts.</summary>
+    private protected ZkBrowser.KeyPair? RecoveringBrowser { get; private set; }
+
+    /// <summary>The zero-knowledge master key <paramref name="owner"/>'s browser holds.</summary>
+    protected byte[] ZkMasterKeyOf(OwnerSession owner) => _zkMasterKeys[owner.Identity.DomainName];
+
     /// <summary>
-    /// The arrange the five delegate fixtures open with, byte-identical in all six of their tests:
-    /// connect the cast, distribute delegate shards at the minimum allowed count, and read back the
-    /// dealer's published configuration.
+    /// The arrange the delegate fixtures open with: connect the cast, and a friend deal in which every
+    /// player is gated, at the minimum allowed count.
     /// </summary>
     protected async Task<(OwnerSession Dealer, IReadOnlyList<OwnerSession> Players, DealerShardConfig Config)>
         ArrangeDelegateShardsAsync()
     {
         var (dealer, players) = Cast();
-
-        await PrepareConnectionsAsync(dealer, players);
-
-        await DistributeAndVerifyShardsAsync(dealer, players, PlayerType.Delegate,
-            minMatchingShards: ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
-
-        var config = await GetDealerShardConfigAsync(dealer);
-
+        var config = await ArrangeFriendDealAsync(dealer, players.Select(p => (p, PlayerType.Delegate)).ToList(),
+            ShamirConfigurationService.CalculateMinAllowedShardCount(players.Count));
         return (dealer, players, config);
+    }
+
+    /// <summary>
+    /// Connects the cast, makes everyone's zero-knowledge keys and converts their Shard Recovery
+    /// drives, deals in the browser, delivers and verifies the shards, and, unless
+    /// <paramref name="writePasswordCopy"/> is false, writes the friends' password copy as the dealer's
+    /// next password login does.
+    /// </summary>
+    protected async Task<DealerShardConfig> ArrangeFriendDealAsync(OwnerSession dealer,
+        IReadOnlyList<(OwnerSession Player, PlayerType Type)> players, int minMatchingShards, bool writePasswordCopy = true)
+    {
+        await PrepareConnectionsAsync(dealer, players.Select(p => p.Player));
+        foreach (var owner in players.Select(p => p.Player).Prepend(dealer))
+        {
+            await MakeZeroKnowledgeAsync(owner);
+        }
+
+        var deal = await ZkFriends.MakeDealAsync(dealer, ZkMasterKeyOf(dealer), players, minMatchingShards);
+        var response = await SecurityOf(dealer).ConfigureShards(deal.Request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        await DrainAndVerifyShardsAsync(dealer, players.Count);
+
+        if (writePasswordCopy)
+        {
+            await WriteFriendsPasswordCopyAsync(dealer, OwnerLogin.DefaultPassword);
+        }
+
+        return await GetDealerShardConfigAsync(dealer);
+    }
+
+    /// <summary>The first half of <paramref name="players"/> automatic, the rest gated.</summary>
+    protected static IReadOnlyList<(OwnerSession Player, PlayerType Type)> MixedPlayers(IReadOnlyList<OwnerSession> players) =>
+        players.Select((p, i) => (p, i < players.Count / 2 ? PlayerType.Automatic : PlayerType.Delegate)).ToList();
+
+    /// <summary>
+    /// What <paramref name="owner"/>'s first login since plan A does: the zero-knowledge keys, and the
+    /// Shard Recovery drive converted.
+    /// </summary>
+    protected async Task MakeZeroKnowledgeAsync(OwnerSession owner)
+    {
+        if (_zkMasterKeys.ContainsKey(owner.Identity.DomainName) &&
+            (await ZkOwnerSteps.GetStatusAsync(owner)).ZkSaltKek64 != null)
+        {
+            return;
+        }
+
+        var keys = await ZkOwnerSteps.CreateKeysAsync(owner, OwnerLogin.DefaultPassword);
+        await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
+        _zkMasterKeys[owner.Identity.DomainName] = keys.MasterKey;
+    }
+
+    /// <summary>A password login after a friend deal: it seals the password to the friends' public key.</summary>
+    protected static async Task WriteFriendsPasswordCopyAsync(OwnerSession dealer, string password)
+    {
+        var status = await ZkOwnerSteps.GetStatusAsync(dealer);
+        Assert.That(status.ShamirPublicKeyJwk, Is.Not.Null, "a friend deal publishes its public key");
+        Assert.That(status.HasShamirPasswordCopy, Is.False, "the browser deals without the password");
+
+        var response = await ZkOwnerSteps.Client(dealer).SavePassword(new ZkPasswordRequest
+        {
+            ShamirPublicKeyEncryptedPassword = ZkBrowser.SealPassword(password, status.ShamirPublicKeyJwk),
+            CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+                dealer.Host, dealer.Identity.DomainName, password)
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
     }
 
     /// <summary>
@@ -204,40 +279,6 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// The request <c>configure-shards</c> takes: one <see cref="ShamiraPlayer"/> per session, all of
-    /// <paramref name="type"/>.
-    /// </summary>
-    protected static ConfigureShardsRequest ShardRequest(
-        IReadOnlyList<OwnerSession> players, PlayerType type, int minMatchingShards) => new()
-    {
-        Players = players.Select(p => new ShamiraPlayer
-        {
-            OdinId = p.Identity,
-            Type = type
-        }).ToList(),
-        MinMatchingShards = minMatchingShards
-    };
-
-    /// <summary>
-    /// Configures shards for <paramref name="players"/>, drains the dealer's outbox so they are
-    /// delivered, then asks every player to confirm it is holding its shard.
-    /// </summary>
-    protected static async Task DistributeAndVerifyShardsAsync(
-        OwnerSession dealer,
-        IReadOnlyList<OwnerSession> players,
-        PlayerType playerType,
-        int minMatchingShards)
-    {
-        var security = SecurityOf(dealer);
-
-        var configureShardsResponse =
-            await security.ConfigureShards(ShardRequest(players, playerType, minMatchingShards));
-        Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        await DrainAndVerifyShardsAsync(dealer, players.Count);
-    }
-
-    /// <summary>
     /// Drains the dealer's outbox so its shard sends are delivered, then asks every player to confirm
     /// it is holding its shard.
     /// </summary>
@@ -259,21 +300,35 @@ public abstract class ShamirFixture : V2Fixture
     }
 
     /// <summary>
-    /// Requests recovery mode, follows the emailed verify-enter link, and asserts the redirect the
-    /// controller answers with.
+    /// Requests recovery mode from a new recovering browser (<see cref="RecoveringBrowser"/>), follows
+    /// the emailed verify-enter link to the recovery page, and has the page post it back with the
+    /// browser's public key.
     /// </summary>
     protected async Task EnterRecoveryModeAsync(OwnerSession dealer)
     {
         var security = AnonymousSecurityOf(dealer);
+        RecoveringBrowser = ZkBrowser.MakeKeyPair();
 
-        var enterResponse = await security.InitiateRecoveryMode();
-        Assert.That(enterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var enterResponse = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest
+        {
+            RecoveryPublicKeyJwk = RecoveringBrowser.PublicKeyJwk
+        });
+        Assert.That(enterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), enterResponse.Error?.Content);
 
         var nonceId = RecoveryLink(dealer, RecoveryNotificationKind.EnterRecoveryMode).NonceId.ToString();
 
-        var verifyEnterResponse = await security.VerifyEnterRecoveryMode(nonceId);
+        var linkResponse = await security.VerifyEnterRecoveryMode(nonceId);
         // Windows CI has answered 403 here (docs/flakytests.md); the body names the exception behind it
-        Assert.That(verifyEnterResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), verifyEnterResponse.Error?.Content);
+        Assert.That(linkResponse.StatusCode, Is.EqualTo(HttpStatusCode.Redirect), linkResponse.Error?.Content);
+        Assert.That(linkResponse.Headers.Location?.ToString(), Does.Contain($"enter={nonceId}"),
+            "the link only opens the recovery page");
+
+        var verifyEnterResponse = await security.EnterRecoveryMode(new EnterRecoveryModeRequest
+        {
+            Id = nonceId,
+            RecoveryPublicKeyJwk = RecoveringBrowser.PublicKeyJwk
+        });
+        Assert.That(verifyEnterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), verifyEnterResponse.Error?.Content);
     }
 
     /// <summary>
@@ -358,24 +413,34 @@ public abstract class ShamirFixture : V2Fixture
         }
     }
 
-    /// <summary>Each player finds the dealer's release request in its list and approves it.</summary>
-    protected static async Task ApproveEveryShardRequestAsync(
-        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config)
+    /// <summary>
+    /// Each gated player finds the dealer's release request in its list and approves it: their browser
+    /// opens the shard and seals it again to the recovering browser's key.
+    /// </summary>
+    protected async Task ApproveEveryShardRequestAsync(IReadOnlyList<OwnerSession> players, DealerShardConfig config)
     {
         foreach (var player in players)
         {
             var item = await GetPlayerShardRequestAsync(config, player);
             Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+            Assert.That(item!.RecoveryPublicKeyJwk, Is.EqualTo(RecoveringBrowser!.PublicKeyJwk),
+                "the request carries the recovering browser's key");
 
-            // now release the shard
-            var approveResponse = await SecurityOf(player).ApproveShardRequest(new ApproveShardRequest
-            {
-                OdinId = dealer.Identity,
-                ShardId = item!.ShardId
-            });
-
-            Assert.That(approveResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var approveResponse = await ZkFriends.ApproveAsync(player, ZkMasterKeyOf(player), item);
+            Assert.That(approveResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), approveResponse.Error?.Content);
         }
+    }
+
+    /// <summary>
+    /// The recovering browser, once enough friends approved: fetches the bundle sealed to its key and
+    /// rebuilds the secret, the zero-knowledge master key and the password.
+    /// </summary>
+    private protected async Task<ZkFriends.Recovered> RebuildInTheRecoveringBrowserAsync(OwnerSession dealer)
+    {
+        await AssertRecoveryStateAsync(dealer, ShamirRecoveryState.AwaitingRecoveringBrowser);
+        var bundle = await AnonymousSecurityOf(dealer).GetRecoveryBundle();
+        Assert.That(bundle.StatusCode, Is.EqualTo(HttpStatusCode.OK), bundle.Error?.Content);
+        return ZkFriends.Rebuild(bundle.Content!, RecoveringBrowser!);
     }
 
     /// <summary>
@@ -408,20 +473,26 @@ public abstract class ShamirFixture : V2Fixture
         _recoveryLinks.Latest(new OdinId(dealer.Identity.DomainName), kind);
 
     /// <summary>
-    /// Enters recovery mode, has the delegates approve (automated players release unasked), and
+    /// The automated deal's recovery: enters recovery mode (the automated players release unasked) and
     /// finalizes with <paramref name="newPassword"/>.
     /// </summary>
-    protected async Task<OwnerSession> RecoverAsync(
-        OwnerSession dealer, IReadOnlyList<OwnerSession> players, DealerShardConfig config, string newPassword)
+    protected async Task<OwnerSession> RecoverAutomatedAsync(OwnerSession dealer, DealerShardConfig config, string newPassword)
+    {
+        Assert.That(config.UsesAutomaticRecovery, Is.True, "a friend deal recovers in the browser");
+        await EnterRecoveryModeAsync(dealer);
+        return await FinalizeRecoveryAndLoginAsync(dealer, newPassword);
+    }
+
+    /// <summary>
+    /// A friend deal's recovery: enters recovery mode, has <paramref name="approvers"/> approve, and
+    /// rebuilds in the recovering browser.
+    /// </summary>
+    private protected async Task<ZkFriends.Recovered> RecoverInBrowserAsync(OwnerSession dealer,
+        IReadOnlyList<OwnerSession> approvers, DealerShardConfig config)
     {
         await EnterRecoveryModeAsync(dealer);
-
-        if (!config.UsesAutomaticRecovery)
-        {
-            await ApproveEveryShardRequestAsync(dealer, players, config);
-        }
-
-        return await FinalizeRecoveryAndLoginAsync(dealer, newPassword);
+        await ApproveEveryShardRequestAsync(approvers, config);
+        return await RebuildInTheRecoveringBrowserAsync(dealer);
     }
 
     /// <summary>

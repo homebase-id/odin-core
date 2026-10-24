@@ -67,6 +67,15 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     public bool IsZeroKnowledge => Data.MasterKeyEncryptedStorageKey == null;
 
     /// <summary>
+    /// Whether this drive takes a deposit: a file whose key header its writer sealed to the drive's
+    /// write-only public key (<c>SealedKeyHeader</c>).  A zero-knowledge drive does, as its owner's
+    /// browser opens it; so does the transient drive, which only passes a deposit on to its recipients.
+    /// Any other drive refuses one: the server could open everything else on it, so a deposit there
+    /// would only hide from the owner what the server can't read.
+    /// </summary>
+    public bool CanHoldDeposits => IsZeroKnowledge || Id == SystemDriveConstants.TransientTempDrive.Alias;
+
+    /// <summary>
     /// Whether a grant with <paramref name="permission"/> carries the drive's storage key: reading
     /// needs it, and ConditionalTemporalRead does too so the grantee can decrypt in-window files while
     /// the owner is offline.  Never on a zero-knowledge drive, whose key reaches an app only from the

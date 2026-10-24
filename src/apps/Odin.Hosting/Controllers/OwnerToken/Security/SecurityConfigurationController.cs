@@ -30,7 +30,7 @@ public class SecurityConfigurationController(
     [HttpPost("configure-shards")]
     public async Task<IActionResult> ConfigureShards([FromBody] ConfigureShardsRequest request)
     {
-        await shamirConfigurationService.ConfigureShards(request.Players, request.MinMatchingShards, WebOdinContext);
+        await shamirConfigurationService.ConfigureShards(request, WebOdinContext);
         return Ok();
     }
 
@@ -65,7 +65,7 @@ public class SecurityConfigurationController(
     [HttpPost("approve-shard-request")]
     public async Task<IActionResult> ApproveShardRequest([FromBody] ApproveShardRequest request)
     {
-        await recoveryService.ApproveShardRequest(request.ShardId, request.OdinId, WebOdinContext);
+        await recoveryService.ApproveShardRequest(request.ShardId, request.OdinId, request.Index, request.SealedShard, WebOdinContext);
         return Ok();
     }
 

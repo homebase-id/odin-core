@@ -348,6 +348,43 @@ public static class RecoveryEmails
 
     // finalize recovery using recovery key
 
+    // recovery with friends: enough friends approved
+
+    public static string FriendsApprovedText(string domain)
+    {
+        return @$"
+            Hi {domain},
+
+            Enough of your friends have approved your recovery.
+
+            Go back to the browser where you started recovery to see your password.  It works only
+            there: that browser holds the key your friends sealed their shards to.
+
+            --
+            Team Homebase
+        ";
+    }
+
+    public static string FriendsApprovedHtml(string domain)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine("<div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;'>");
+        sb.AppendLine($"    <p style='margin-bottom: 15px;'>Hi {domain},</p>");
+        sb.AppendLine("    <p style='margin-bottom: 15px;'>Enough of your friends have approved your recovery.</p>");
+        sb.AppendLine("    <p style='margin-bottom: 15px;'>");
+        sb.AppendLine("        Go back to the browser where you started recovery to see your password. It works only there:");
+        sb.AppendLine("        that browser holds the key your friends sealed their shards to.");
+        sb.AppendLine("    </p>");
+        sb.AppendLine("    <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>");
+        sb.AppendLine("        Kind regards,<br />");
+        sb.AppendLine("        Team Homebase");
+        sb.AppendLine("    </p>");
+        sb.AppendLine("</div>");
+
+        return Template(sb.ToString());
+    }
+
     public static string FinalizeRecoveryUsingRecoveryKeyText(string domain, string link)
     {
         return @$"

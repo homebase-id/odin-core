@@ -165,15 +165,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         }
 
         /// <summary>
-        /// Recovery with the phrase when it gave back no password, or one that doesn't log in: the
-        /// phrase's reset key, encrypted to the host, sets a new password.  No login; a wrong key is
-        /// refused (403), a malformed request 400.
+        /// Recovery with the phrase or with friends when it gave back no password, or one that doesn't
+        /// log in: the reset key (from the phrase, or from the friends' secret), encrypted to the host,
+        /// sets a new password.  No login; a wrong key is refused (403), a malformed request 400.
         /// </summary>
-        [HttpPost("zk-phrase-reset")]
-        public async Task<IActionResult> ResetPasswordWithPhrase([FromBody] ZkPhraseResetRequest request,
+        [HttpPost("zk-reset")]
+        public async Task<IActionResult> ResetPasswordWithResetKey([FromBody] ZkResetRequest request,
             [FromServices] ZeroKnowledgeRecoveryService zeroKnowledgeRecoveryService)
         {
-            await zeroKnowledgeRecoveryService.ResetPasswordWithPhraseAsync(request, WebOdinContext);
+            await zeroKnowledgeRecoveryService.ResetPasswordWithResetKeyAsync(request, WebOdinContext);
             return Ok();
         }
 

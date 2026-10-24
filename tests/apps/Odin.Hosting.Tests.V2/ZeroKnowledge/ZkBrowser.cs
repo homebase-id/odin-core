@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
@@ -19,9 +20,8 @@ namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 /// </summary>
 /// <remarks>
 /// A locked value is base64 of a 12-byte IV followed by the AES-GCM ciphertext and its 16-byte tag.
-/// Keys are 16 bytes, like today's master key and drive keys.  A sealed value is base64 of a
-/// throwaway P-384 public key (97 bytes, uncompressed) and a value locked by
-/// hkdf-sha256(ECDH(throwaway, recipient), "homebase-zk-seal").
+/// Keys are 16 bytes, like today's master key and drive keys.  A sealed value is
+/// <see cref="ZkSeal"/>'s.
 /// </remarks>
 internal static class ZkBrowser
 {
@@ -47,9 +47,6 @@ internal static class ZkBrowser
         return AesGcm.Decrypt(bytes[IvLength..], key.ToSensitiveByteArray(), bytes[..IvLength]);
     }
 
-    private const int SealPublicKeyLength = 97;
-    private static readonly byte[] SealInfo = "homebase-zk-seal".ToUtf8ByteArray();
-
     /// <summary>A P-384 key pair as the browser exports it: the private half PKCS8, the public half a JWK.</summary>
     public sealed record KeyPair(byte[] PrivateKeyPkcs8, string PublicKeyJwk);
 
@@ -64,48 +61,39 @@ internal static class ZkBrowser
         return new KeyPair(ecdh.ExportPkcs8PrivateKey(), jwk);
     }
 
-    /// <summary>Seals <paramref name="data"/> to a public key: only its private half opens it.</summary>
-    public static string Seal(byte[] data, string publicKeyJwk)
+    /// <summary>Seals <paramref name="data"/> to a public key (<see cref="ZkSeal"/>): only its private half opens it.</summary>
+    public static string Seal(byte[] data, string publicKeyJwk) => ZkSeal.Seal(data, publicKeyJwk).ToBase64();
+
+    /// <summary>Opens a value <see cref="ZkSeal"/> made, as the browser does; the server never opens one.</summary>
+    public static byte[] Unseal(string sealed64, byte[] privateKeyPkcs8) => Unseal(sealed64.FromBase64(), privateKeyPkcs8);
+
+    public static byte[] Unseal(byte[] sealedValue, byte[] privateKeyPkcs8)
     {
-        using var jwk = JsonDocument.Parse(publicKeyJwk);
-        using var recipient = ECDiffieHellman.Create(new ECParameters
+        Assert.That(ZkSeal.IsSealed(sealedValue), Is.True, "not a version 1 sealed value");
+        using var me = ECDiffieHellman.Create();
+        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
+        var throwawayAt = 5;
+        using var throwaway = ECDiffieHellman.Create(new ECParameters
         {
             Curve = ECCurve.NamedCurves.nistP384,
             Q = new ECPoint
             {
-                X = Base64UrlEncoder.Decode(jwk.RootElement.GetProperty("x").GetString()!),
-                Y = Base64UrlEncoder.Decode(jwk.RootElement.GetProperty("y").GetString()!)
+                X = sealedValue[(throwawayAt + 1)..(throwawayAt + 49)],
+                Y = sealedValue[(throwawayAt + 49)..(throwawayAt + ZkSeal.PublicKeyLength)]
             }
         });
-        using var throwaway = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP384);
-        var q = throwaway.ExportParameters(false).Q;
-        var locked = Lock(data, SealKey(throwaway, recipient.PublicKey)).FromBase64();
-        return ByteArrayUtil.Combine([0x04], q.X!, q.Y!, locked).ToBase64();
+        var locked = sealedValue[(throwawayAt + ZkSeal.PublicKeyLength)..];
+        return Open(locked.ToBase64(), ZkSeal.DeriveKey(me, throwaway.PublicKey));
     }
-
-    public static byte[] Unseal(string sealed64, byte[] privateKeyPkcs8)
-    {
-        var bytes = sealed64.FromBase64();
-        using var me = ECDiffieHellman.Create();
-        me.ImportPkcs8PrivateKey(privateKeyPkcs8, out _);
-        using var throwaway = ECDiffieHellman.Create(new ECParameters
-        {
-            Curve = ECCurve.NamedCurves.nistP384,
-            Q = new ECPoint { X = bytes[1..49], Y = bytes[49..SealPublicKeyLength] }
-        });
-        return Open(bytes[SealPublicKeyLength..].ToBase64(), SealKey(me, throwaway.PublicKey));
-    }
-
-    private static byte[] SealKey(ECDiffieHellman mine, ECDiffieHellmanPublicKey theirs) =>
-        HKDF.DeriveKey(HashAlgorithmName.SHA256, mine.DeriveRawSecretAgreement(theirs), 16, [], SealInfo);
 
     public sealed record Keys(byte[] MasterKey, ZkKeysRequest Request);
 
     /// <summary>
     /// Makes the keys at first login, or re-locks <paramref name="masterKey"/> for a password change,
-    /// sealing the password to the phrase's public key once there is one.
+    /// sealing the password to the phrase's and the friends' public keys once there are any.
     /// </summary>
-    public static Keys MakeKeys(string password, byte[]? masterKey = null, string? phrasePublicKeyJwk = null)
+    public static Keys MakeKeys(string password, byte[]? masterKey = null, string? phrasePublicKeyJwk = null,
+        string? shamirPublicKeyJwk = null)
     {
         var salt64 = ByteArrayUtil.GetRndByteArray(16).ToBase64();
         masterKey ??= ByteArrayUtil.GetRndByteArray(16);
@@ -114,7 +102,8 @@ internal static class ZkBrowser
         {
             ZkSaltKek64 = salt64,
             ZkKekEncryptedZkMasterKey = Lock(masterKey, SecondPasswordKey(password, salt64)),
-            PhrasePublicKeyEncryptedPassword = phrasePublicKeyJwk == null ? null : SealPassword(password, phrasePublicKeyJwk)
+            PhrasePublicKeyEncryptedPassword = phrasePublicKeyJwk == null ? null : SealPassword(password, phrasePublicKeyJwk),
+            ShamirPublicKeyEncryptedPassword = shamirPublicKeyJwk == null ? null : SealPassword(password, shamirPublicKeyJwk)
         });
     }
 
@@ -178,19 +167,23 @@ internal static class ZkBrowser
     {
         var driveKey = ByteArrayUtil.GetRndByteArray(16);
         var (idIv, idCipher) = AesCbc.Encrypt(driveId.ToByteArray(), driveKey.ToSensitiveByteArray());
+        var pair = MakeKeyPair();
 
-        // Stands in for the browser's P-384 pair: its PKCS8 private key and its public JWK.
-        var pairKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-        var pair = new EccFullKeyData(pairKey, EccKeySize.P384, 1);
-        var privateKey = pair.privateDerBase64(pairKey).FromBase64();
-
-        return new DriveKeys(driveKey, privateKey, pair.PublicKeyJwk(), new ZkConvertDriveRequest
+        return new DriveKeys(driveKey, pair.PrivateKeyPkcs8, pair.PublicKeyJwk, new ZkConvertDriveRequest
         {
             ZkMasterKeyEncryptedStorageKey = Lock(driveKey, zkMasterKey),
             EncryptedIdIv64 = idIv.ToBase64(),
             EncryptedIdValue64 = idCipher.ToBase64(),
-            WriteOnlyPublicKeyJwk = pair.PublicKeyJwk(),
-            ZkStorageKeyEncryptedWriteOnlyPrivateKey = Lock(privateKey, driveKey)
+            WriteOnlyPublicKeyJwk = pair.PublicKeyJwk,
+            ZkStorageKeyEncryptedWriteOnlyPrivateKey = Lock(pair.PrivateKeyPkcs8, driveKey)
         });
     }
+
+    /// <summary>
+    /// A drive's write-only private key, opened as the browser opens it: the zero-knowledge master key
+    /// opens the drive key, which opens the private key.
+    /// </summary>
+    public static byte[] OpenWriteOnlyPrivateKey(string zkMasterKeyEncryptedStorageKey, string zkStorageKeyEncryptedWriteOnlyPrivateKey,
+        byte[] zkMasterKey) =>
+        Open(zkStorageKeyEncryptedWriteOnlyPrivateKey, Open(zkMasterKeyEncryptedStorageKey, zkMasterKey));
 }

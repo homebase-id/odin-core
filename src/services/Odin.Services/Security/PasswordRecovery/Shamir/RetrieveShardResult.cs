@@ -25,6 +25,12 @@ public class RetrieveShardRequest
 {
     public Guid ShardId { get; init; }
     public Guid HashedRecoveryEmail { get; init; }
+
+    /// <summary>
+    /// The recovering browser's throwaway public key: a gated friend seals their shard to it when they
+    /// approve.  Null for the automated deal.
+    /// </summary>
+    public string RecoveryPublicKeyJwk { get; init; }
 }
 
 public class ApproveShardResult

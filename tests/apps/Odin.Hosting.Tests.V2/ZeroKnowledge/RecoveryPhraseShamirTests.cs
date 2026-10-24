@@ -36,22 +36,20 @@ public class RecoveryPhraseShamirTests : ShamirFixture
     /// Owners who forgot their password never log in, so never take over: their old deal must still
     /// recover, through the phrase the server still holds.
     /// </summary>
-    [TestCase(PlayerType.Delegate)]
-    [TestCase(PlayerType.Automatic)]
-    public async Task AnOldDealStillRecoversBeforeTheTakeover(PlayerType playerType)
+    [Test]
+    public async Task AnOldDealStillRecoversBeforeTheTakeover()
     {
-        var (dealer, players) = Cast();
-        var config = await ArrangeAsync(dealer, playerType);
+        var (dealer, _) = Cast();
+        var config = await ArrangeAutomatedShardsAsync(dealer);
 
-        await RecoverAsync(dealer, players, config, NewPassword);
+        await RecoverAutomatedAsync(dealer, config, NewPassword);
     }
 
-    [TestCase(PlayerType.Delegate)]
-    [TestCase(PlayerType.Automatic)]
-    public async Task AnOldDealIsDealtAgainAtTheTakeoverAndRecoversAfterIt(PlayerType playerType)
+    [Test]
+    public async Task AnOldDealIsDealtAgainAtTheTakeoverAndRecoversAfterIt()
     {
-        var (dealer, players) = Cast();
-        var before = await ArrangeAsync(dealer, playerType);
+        var (dealer, _) = Cast();
+        var before = await ArrangeAutomatedShardsAsync(dealer);
 
         var phrase = await TakeOverAsync(dealer);
 
@@ -64,7 +62,7 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         Assert.That(after.UsesAutomaticRecovery, Is.EqualTo(before.UsesAutomaticRecovery));
         await DrainAndVerifyShardsAsync(dealer, before.Envelopes.Count);
 
-        var recovered = await RecoverAsync(dealer, players, after, NewPassword);
+        var recovered = await RecoverAutomatedAsync(dealer, after, NewPassword);
 
         // The reset forgot the zero-knowledge keys and every copy tied to them; the phrase is still
         // valid, and the owner types it in once against the new keys.
@@ -102,28 +100,6 @@ public class RecoveryPhraseShamirTests : ShamirFixture
     /// A friend the owner is no longer connected to can't be dealt to, so the old deal can't be
     /// repeated.  It's removed rather than block the takeover, and the security page says so.
     /// </summary>
-    [Test]
-    public async Task AnOldDealThatCannotBeDealtAgainIsRemovedAndTheSecurityPageSaysSo()
-    {
-        var (dealer, players, _) = await ArrangeDelegateShardsAsync();
-        Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.True);
-        await PeerFlow.DisconnectAsync(players[0], dealer);
-
-        await TakeOverAsync(dealer);
-
-        Assert.That((await ZkOwnerSteps.GetStatusAsync(dealer)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.TakenOver));
-        Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.False, "the old deal is gone");
-        var needsAttention = await PlainSecurityOf(dealer).GetNeedsAttention();
-        Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
-        Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
-    }
-
-    private async Task<DealerShardConfig> ArrangeAsync(OwnerSession dealer, PlayerType playerType) =>
-        playerType == PlayerType.Delegate
-            ? (await ArrangeDelegateShardsAsync()).Config
-            : await ArrangeAutomatedShardsAsync(dealer);
-
-    /// <summary>The login's takeover, from a fresh password login as the browser does it.</summary>
     private async Task<string> TakeOverAsync(OwnerSession dealer)
     {
         var fresh = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName);

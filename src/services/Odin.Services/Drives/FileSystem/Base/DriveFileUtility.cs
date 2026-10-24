@@ -41,7 +41,12 @@ public static class DriveFileUtility
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (header.FileMetadata.IsEncrypted)
+        if (Deposits.IsDeposit(header))
+        {
+            // A deposit: only the reader's browser opens it, with the drive's write-only private key
+            sharedSecretEncryptedKeyHeader = header.EncryptedKeyHeader;
+        }
+        else if (header.FileMetadata.IsEncrypted)
         {
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);

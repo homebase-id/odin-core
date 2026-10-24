@@ -57,9 +57,41 @@ public sealed record ZkKeyRecord
     /// </summary>
     public SymmetricKeyEncryptedAes ResetKeyEncryptedMasterKey { get; init; }
 
+    /// <summary>
+    /// The friends' public key (P-384, a JWK), made by the browser at each friend deal: the phrase
+    /// key pair's twin (docs/owner-keys.md, <c>ShamirPub</c>).
+    /// </summary>
+    public string ShamirPublicKeyJwk { get; init; }
+
+    /// <summary>The friends' private key (PKCS8), locked by the secret the friends' shards rebuild.</summary>
+    public string ShamirKeyEncryptedShamirPrivateKey { get; init; }
+
+    /// <summary>The zero-knowledge master key, locked by the secret the friends' shards rebuild.</summary>
+    public string ShamirKeyEncryptedZkMasterKey { get; init; }
+
+    /// <summary>
+    /// The password sealed to <see cref="ShamirPublicKeyJwk"/>: what recovery with friends gives back.
+    /// Null after a deal until a password login writes it: the browser deals without the password.
+    /// </summary>
+    public string ShamirPublicKeyEncryptedPassword { get; init; }
+
+    /// <summary>
+    /// Today's master key, locked by the friends' reset key (derived one way from the secret the
+    /// shards rebuild), as <see cref="ResetKeyEncryptedMasterKey"/> is by the phrase's.
+    /// </summary>
+    public SymmetricKeyEncryptedAes ShamirResetKeyEncryptedMasterKey { get; init; }
+
     public UnixTimeUtc Created { get; init; }
 
     public UnixTimeUtc Updated { get; init; }
+
+    /// <summary>
+    /// Whether a friend deal's copies are here.  Without them a friend deal can recover nothing: it was
+    /// dealt by the server, before recovery in the browser, or a reset with today's master key forgot
+    /// them.
+    /// </summary>
+    public bool HasShamirCopies() => ShamirPublicKeyJwk != null && ShamirKeyEncryptedShamirPrivateKey != null &&
+                                     ShamirKeyEncryptedZkMasterKey != null && ShamirResetKeyEncryptedMasterKey != null;
 
     /// <summary>
     /// Whether the phrase copies are here.  Once the phrase is taken over, their absence means a reset
@@ -85,14 +117,15 @@ public sealed class ZkKeysRequest
     /// </summary>
     public string PhrasePublicKeyEncryptedPassword { get; set; }
 
+    /// <summary>The new password sealed to the friends' public key, once there is a friend deal.</summary>
+    public string ShamirPublicKeyEncryptedPassword { get; set; }
+
     public void Validate()
     {
         ZkBlob.AssertBase64(ZkSaltKek64, nameof(ZkSaltKek64), exactLength: 16);
         ZkBlob.AssertLocked(ZkKekEncryptedZkMasterKey, nameof(ZkKekEncryptedZkMasterKey));
-        if (PhrasePublicKeyEncryptedPassword != null)
-        {
-            ZkBlob.AssertSealed(PhrasePublicKeyEncryptedPassword, nameof(PhrasePublicKeyEncryptedPassword));
-        }
+        ZkBlob.AssertSealedOrNull(PhrasePublicKeyEncryptedPassword, nameof(PhrasePublicKeyEncryptedPassword));
+        ZkBlob.AssertSealedOrNull(ShamirPublicKeyEncryptedPassword, nameof(ShamirPublicKeyEncryptedPassword));
     }
 }
 
@@ -103,15 +136,65 @@ public sealed class ZkKeysRequest
 /// </summary>
 public sealed class ZkPasswordRequest
 {
+    /// <summary>Sealed to the phrase's public key; null to leave that copy as it is.</summary>
     public string PhrasePublicKeyEncryptedPassword { get; set; }
+
+    /// <summary>Sealed to the friends' public key; null to leave that copy as it is.</summary>
+    public string ShamirPublicKeyEncryptedPassword { get; set; }
 
     public PasswordReply CurrentAuthenticationPasswordReply { get; set; }
 
     public void Validate()
     {
-        ZkBlob.AssertSealed(PhrasePublicKeyEncryptedPassword, nameof(PhrasePublicKeyEncryptedPassword));
+        if (PhrasePublicKeyEncryptedPassword == null && ShamirPublicKeyEncryptedPassword == null)
+        {
+            throw new OdinClientException("No password copy to save", OdinClientErrorCode.ArgumentError);
+        }
+
+        ZkBlob.AssertSealedOrNull(PhrasePublicKeyEncryptedPassword, nameof(PhrasePublicKeyEncryptedPassword));
+        ZkBlob.AssertSealedOrNull(ShamirPublicKeyEncryptedPassword, nameof(ShamirPublicKeyEncryptedPassword));
         OdinValidationUtils.AssertNotNull(CurrentAuthenticationPasswordReply, nameof(CurrentAuthenticationPasswordReply));
     }
+}
+
+/// <summary>
+/// What the browser makes at a friend deal besides the shards: the friends' key pair, the
+/// zero-knowledge master key locked by the secret the shards rebuild, and the friends' reset key.
+/// No password copy: the browser deals without the password, so the next password login seals it.
+/// </summary>
+public sealed class ZkShamirCopiesRequest
+{
+    public string ShamirPublicKeyJwk { get; set; }
+    public string ShamirKeyEncryptedShamirPrivateKey { get; set; }
+    public string ShamirKeyEncryptedZkMasterKey { get; set; }
+
+    /// <summary>
+    /// The friends' reset key: hkdf(secret), one way.  The server locks today's master key with it and
+    /// keeps nothing else of it.
+    /// </summary>
+    public string ResetKey64 { get; set; }
+
+    public void Validate()
+    {
+        ZkBlob.AssertPublicKey(ShamirPublicKeyJwk, nameof(ShamirPublicKeyJwk));
+        ZkBlob.AssertLocked(ShamirKeyEncryptedShamirPrivateKey, nameof(ShamirKeyEncryptedShamirPrivateKey));
+        ZkBlob.AssertLocked(ShamirKeyEncryptedZkMasterKey, nameof(ShamirKeyEncryptedZkMasterKey));
+        ZkBlob.AssertBase64(ResetKey64, nameof(ResetKey64), exactLength: ZkBlob.KeyLength);
+    }
+}
+
+/// <summary>
+/// The friend deal's copies recovery with friends needs, in the bundle sealed to the recovering
+/// browser.  All useless without the secret the shards rebuild.
+/// </summary>
+public sealed class ZkShamirRecoveryCopies
+{
+    public string ShamirPublicKeyJwk { get; init; }
+    public string ShamirKeyEncryptedShamirPrivateKey { get; init; }
+    public string ShamirKeyEncryptedZkMasterKey { get; init; }
+
+    /// <summary>Null when no password login wrote it since the deal; the page then offers the reset.</summary>
+    public string ShamirPublicKeyEncryptedPassword { get; init; }
 }
 
 /// <summary>Asks for the recovery phrase for the takeover, with proof of the password itself.</summary>
@@ -179,10 +262,10 @@ public sealed class ZkPhraseTakeoverRequest : ZkPhraseCopiesRequest
 }
 
 /// <summary>
-/// Recovery with the phrase when the password copy doesn't log in: the reset key, a new password, and
-/// the recovered zero-knowledge master key locked by the new password.
+/// Recovery with the phrase or with friends when the password copy doesn't log in: the reset key, a
+/// new password, and the recovered zero-knowledge master key locked by the new password.
 /// </summary>
-public sealed class ZkPhraseResetRequest
+public sealed class ZkResetRequest
 {
     /// <summary>
     /// The reset key's base64, encrypted to the host's offline key as <c>resetpasswdrk</c> sends the
@@ -251,6 +334,15 @@ public sealed class ZkStatusResponse
     /// writes one when it is missing.
     /// </summary>
     public bool HasPasswordCopy { get; init; }
+
+    /// <summary>
+    /// The friends' public key while there is a friend deal (null otherwise): a password login or
+    /// change seals the password to it too.
+    /// </summary>
+    public string ShamirPublicKeyJwk { get; init; }
+
+    /// <summary>Whether the friends' password copy exists; written, like the phrase's, only when missing.</summary>
+    public bool HasShamirPasswordCopy { get; init; }
 }
 
 /// <summary>The recovery phrase, handed over once for the takeover.</summary>
@@ -330,24 +422,33 @@ public sealed class ZkConvertDriveRequest
 
 /// <summary>
 /// The browser's locked values are opaque here; only their shape is checked.  A locked value is
-/// base64 of a 12-byte IV, the AES-GCM ciphertext and its 16-byte tag.  A sealed value is base64 of
-/// a throwaway P-384 public key (97 bytes, uncompressed) and a locked value, locked by
-/// hkdf(ECDH(throwaway, recipient)).
+/// base64 of a 12-byte IV, the AES-GCM ciphertext and its 16-byte tag.  A sealed value is
+/// <see cref="ZkSeal"/>'s.
 /// </summary>
 internal static class ZkBlob
 {
     public const int KeyLength = 16;
     private const int MinLockedLength = 12 + 1 + 16;
-    private const int SealPublicKeyLength = 97;
     private const int DefaultMaxLength = 4096;
 
-    public static void AssertSealed(string value64, string name)
+    public static void AssertSealedOrNull(string value64, string name)
+    {
+        if (value64 != null)
+        {
+            AssertSealed(value64, name);
+        }
+    }
+
+    /// <summary>A non-empty sealed value; returns its bytes.</summary>
+    public static byte[] AssertSealed(string value64, string name)
     {
         var bytes = AssertBase64(value64, name);
-        if (bytes.Length < SealPublicKeyLength + MinLockedLength || bytes[0] != 0x04)
+        if (!ZkSeal.IsSealed(bytes) || bytes.Length == ZkSeal.MinLength)
         {
             throw new OdinClientException($"{name} is not a sealed value", OdinClientErrorCode.ArgumentError);
         }
+
+        return bytes;
     }
 
     /// <summary>A P-384 public key as a JWK, the only curve the browser makes and seals with.</summary>

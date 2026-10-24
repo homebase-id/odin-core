@@ -8,7 +8,10 @@ public enum RecoveryNotificationKind
     VerifyRecoveryEmail,
     EnterRecoveryMode,
     ExitRecoveryMode,
-    FinalizeRecovery
+    FinalizeRecovery,
+
+    /// <summary>Enough friends approved; the link-free "go back to the browser where you started" email.</summary>
+    FriendsApproved
 }
 
 /// <summary>

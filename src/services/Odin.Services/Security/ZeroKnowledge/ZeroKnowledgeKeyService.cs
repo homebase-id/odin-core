@@ -13,6 +13,7 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Security.ZeroKnowledge;
@@ -31,6 +32,7 @@ public class ZeroKnowledgeKeyService(
     DriveManager driveManager,
     TableDriveMainIndexCached driveMainIndex,
     OdinContextCache contextCache,
+    StandardFileSystem fileSystem,
     IdentityDatabase db)
 {
     private static readonly Guid ZkKeyStorageId = Guid.Parse("4f1c2b8e-7d3a-4c6b-9e5f-1a2b3c4d5e6f");
@@ -87,26 +89,94 @@ public class ZeroKnowledgeKeyService(
 
         request.Validate();
 
-        // The phrase copies lock the zero-knowledge master key, which a password change keeps.  The
-        // password copy is the new password's, or none.
+        // The phrase and friend copies lock the zero-knowledge master key, which a password change
+        // keeps.  Each password copy is the new password's, or none.
         await SaveRecordAsync(existing with
         {
             ZkSaltKek64 = request.ZkSaltKek64,
             ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
-            PhrasePublicKeyEncryptedPassword = existing.PhrasePublicKeyJwk == null ? null : request.PhrasePublicKeyEncryptedPassword
+            PhrasePublicKeyEncryptedPassword = existing.PhrasePublicKeyJwk == null ? null : request.PhrasePublicKeyEncryptedPassword,
+            ShamirPublicKeyEncryptedPassword = existing.ShamirPublicKeyJwk == null ? null : request.ShamirPublicKeyEncryptedPassword
         });
     }
 
-    /// <summary>Writes the password copy; the caller proved the password.</summary>
-    internal async Task SavePasswordAsync(string phrasePublicKeyEncryptedPassword)
+    /// <summary>Writes the password copies given; the caller proved the password.</summary>
+    internal async Task SavePasswordAsync(ZkPasswordRequest request)
     {
         var existing = await GetRecordOrFailAsync();
-        if (existing.PhrasePublicKeyJwk == null)
+        if (request.PhrasePublicKeyEncryptedPassword != null && existing.PhrasePublicKeyJwk == null)
         {
             throw new OdinClientException("No phrase key to seal the password to", OdinClientErrorCode.RecoveryPhraseNotTakenOver);
         }
 
-        await SaveRecordAsync(existing with { PhrasePublicKeyEncryptedPassword = phrasePublicKeyEncryptedPassword });
+        if (request.ShamirPublicKeyEncryptedPassword != null && existing.ShamirPublicKeyJwk == null)
+        {
+            throw new OdinClientException("No friend deal to seal the password to", OdinClientErrorCode.PasswordRecoveryNotConfigured);
+        }
+
+        await SaveRecordAsync(existing with
+        {
+            PhrasePublicKeyEncryptedPassword = request.PhrasePublicKeyEncryptedPassword ?? existing.PhrasePublicKeyEncryptedPassword,
+            ShamirPublicKeyEncryptedPassword = request.ShamirPublicKeyEncryptedPassword ?? existing.ShamirPublicKeyEncryptedPassword
+        });
+    }
+
+    /// <summary>
+    /// Stores a friend deal's copies, and locks today's master key with the friends' reset key.  The
+    /// friends' password copy goes: it was sealed to the last deal's key pair.
+    /// </summary>
+    internal async Task SaveShamirCopiesAsync(ZkShamirCopiesRequest request, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        var existing = await GetRecordOrFailAsync();
+        using var resetKey = request.ResetKey64.FromBase64().ToSensitiveByteArray();
+        await SaveRecordAsync(existing with
+        {
+            ShamirPublicKeyJwk = request.ShamirPublicKeyJwk,
+            ShamirKeyEncryptedShamirPrivateKey = request.ShamirKeyEncryptedShamirPrivateKey,
+            ShamirKeyEncryptedZkMasterKey = request.ShamirKeyEncryptedZkMasterKey,
+            ShamirPublicKeyEncryptedPassword = null,
+            ShamirResetKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(secret: resetKey, dataToEncrypt: odinContext.Caller.GetMasterKey())
+        });
+    }
+
+    /// <summary>Forgets a friend deal's copies, when the deal goes.</summary>
+    internal async Task ForgetShamirCopiesAsync()
+    {
+        var existing = await GetRecordAsync();
+        if (existing?.ShamirPublicKeyJwk == null && existing?.ShamirResetKeyEncryptedMasterKey == null)
+        {
+            return;
+        }
+
+        await SaveRecordAsync(existing with
+        {
+            ShamirPublicKeyJwk = null,
+            ShamirKeyEncryptedShamirPrivateKey = null,
+            ShamirKeyEncryptedZkMasterKey = null,
+            ShamirPublicKeyEncryptedPassword = null,
+            ShamirResetKeyEncryptedMasterKey = null
+        });
+    }
+
+    internal async Task<bool> HasShamirCopiesAsync() => (await GetRecordAsync())?.HasShamirCopies() == true;
+
+    /// <summary>A friend deal's copies for recovery with friends; null without a deal that can recover.</summary>
+    internal async Task<ZkShamirRecoveryCopies> GetShamirRecoveryCopiesAsync()
+    {
+        var record = await GetRecordAsync();
+        if (record?.HasShamirCopies() != true)
+        {
+            return null;
+        }
+
+        return new ZkShamirRecoveryCopies
+        {
+            ShamirPublicKeyJwk = record.ShamirPublicKeyJwk,
+            ShamirKeyEncryptedShamirPrivateKey = record.ShamirKeyEncryptedShamirPrivateKey,
+            ShamirKeyEncryptedZkMasterKey = record.ShamirKeyEncryptedZkMasterKey,
+            ShamirPublicKeyEncryptedPassword = record.ShamirPublicKeyEncryptedPassword
+        };
     }
 
     /// <summary>
@@ -132,18 +202,37 @@ public class ZeroKnowledgeKeyService(
     }
 
     /// <summary>
-    /// Today's master key, from the reset key recovery with the phrase sends.  Refused (a key hash
-    /// mismatch, 403) for any other key.
+    /// Today's master key, from the reset key that recovery with the phrase or with friends sends.
+    /// Refused (a key hash mismatch, 403) for any other key.
     /// </summary>
     internal async Task<SensitiveByteArray> OpenMasterKeyWithResetKeyAsync(SensitiveByteArray resetKey)
     {
         var record = await GetRecordAsync();
-        if (record?.HasPhraseCopies() != true)
+        var resetCopies = new[]
         {
-            throw new OdinClientException("The recovery phrase was not taken over", OdinClientErrorCode.RecoveryPhraseNotTakenOver);
+            record?.HasPhraseCopies() == true ? record.ResetKeyEncryptedMasterKey : null,
+            record?.HasShamirCopies() == true ? record.ShamirResetKeyEncryptedMasterKey : null
+        }.Where(copy => copy != null).ToList();
+
+        if (resetCopies.Count == 0)
+        {
+            throw new OdinClientException("Neither the recovery phrase nor friends can reset the password",
+                OdinClientErrorCode.RecoveryPhraseNotTakenOver);
         }
 
-        return record.ResetKeyEncryptedMasterKey.DecryptKeyClone(resetKey);
+        foreach (var copy in resetCopies.SkipLast(1))
+        {
+            try
+            {
+                return copy.DecryptKeyClone(resetKey);
+            }
+            catch (OdinSecurityException)
+            {
+                // not this one's key; the last copy's refusal is the answer
+            }
+        }
+
+        return resetCopies.Last().DecryptKeyClone(resetKey);
     }
 
     /// <summary>
@@ -178,7 +267,8 @@ public class ZeroKnowledgeKeyService(
 
     /// <summary>
     /// Gives the Shard Recovery drive keys made in the browser.  Allowed again later (after a reset
-    /// with the recovery key, say) because the drive never holds a file encrypted with its key.
+    /// with the recovery key, say) because the drive never holds a file encrypted with its key; the
+    /// deposits sealed to the old write-only key are deleted.
     /// </summary>
     public async Task ConvertShardRecoveryDriveAsync(ZkConvertDriveRequest request, IOdinContext odinContext)
     {
@@ -193,17 +283,28 @@ public class ZeroKnowledgeKeyService(
 
         await using var tx = await db.BeginStackedTransactionAsync();
 
-        // Nothing may use the key being dropped.  Every file Shamir writes on this drive is
-        // unencrypted, so this only fails if something else wrote there.
-        var files = await driveMainIndex.GetAllByDriveIdAsync(driveId);
-        var encrypted = files
+        // Nothing may use the key being dropped.  Shamir writes only unencrypted files and deposits
+        // here, so this only fails if something else wrote there.
+        var encrypted = (await driveMainIndex.GetAllByDriveIdAsync(driveId))
             .Select(ServerFileHeader.FromDriveMainIndexRecord)
-            .Count(h => h.FileMetadata.IsEncrypted);
-        if (encrypted > 0)
+            .Where(h => h.FileMetadata.IsEncrypted)
+            .ToList();
+        var lockedByTheDriveKey = encrypted.Count(h => !Deposits.IsDeposit(h));
+        if (lockedByTheDriveKey > 0)
         {
             throw new OdinClientException(
-                $"The Shard Recovery drive holds {encrypted} encrypted file(s); it cannot be given new keys",
+                $"The Shard Recovery drive holds {lockedByTheDriveKey} encrypted file(s); it cannot be given new keys",
                 OdinClientErrorCode.DriveHasEncryptedFiles);
+        }
+
+        // Deposits are sealed to the write-only key being dropped, so nothing can open them again: a
+        // friend's shard dies with their reset, and the dealer is told to deal again (its check sees
+        // the shard gone).
+        var ownerContext = OdinContextUpgrades.UpgradeToByPassAclCheck(WellKnownAppDrives.ShardRecoveryDrive,
+            DrivePermission.ReadWrite, odinContext);
+        foreach (var deposit in encrypted)
+        {
+            await fileSystem.Storage.HardDeleteLongTermFile(deposit.FileMetadata.File, ownerContext);
         }
 
         await driveManager.ApplyZeroKnowledgeKeysAsync(

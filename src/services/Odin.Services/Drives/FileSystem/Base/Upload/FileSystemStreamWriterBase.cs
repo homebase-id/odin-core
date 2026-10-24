@@ -493,6 +493,11 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.InvalidKeyHeader);
             }
 
+            if (transferKeyEncryptedKeyHeader.IsSealed())
+            {
+                throw new OdinClientException("A deposit can't be updated; write it again", OdinClientErrorCode.DepositCannotBeUpdated);
+            }
+
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             KeyHeader keyHeader = transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret);
 
@@ -628,7 +633,12 @@ public abstract class FileSystemStreamWriterBase : IUploadPartWriter
                     OdinClientErrorCode.MissingPayloadKeys);
             }
             
-            if (metadata.IsEncrypted)
+            if (keyHeader is SealedKeyHeader sealedKeyHeader)
+            {
+                Deposits.AssertValid(metadata, sealedKeyHeader.Sealed);
+                Deposits.AssertCanHold(await _driveManager.GetDriveAsync(package.InternalFile.DriveId, failIfInvalid: true));
+            }
+            else if (metadata.IsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {

@@ -34,16 +34,24 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         Task<ApiResponse<HttpContent>> ResetPassword(ResetPasswordRequest request);
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/configure-shards")]
-        Task<ApiResponse<HttpContent>> ConfigureShards(ConfigureShardsRequest request);
+        Task<ApiResponse<HttpContent>> ConfigureShards(Odin.Services.Security.PasswordRecovery.Shamir.ConfigureShardsRequest request);
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-remote-shards")]
         Task<ApiResponse<RemoteShardVerificationResult>> VerifyShards();
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/initiate-recovery-mode")]
-        Task<ApiResponse<HttpContent>> InitiateRecoveryMode();
+        Task<ApiResponse<HttpContent>> InitiateRecoveryMode([Body] InitiateRecoveryModeRequest request);
 
+        /// <summary>The email link: it only opens the recovery page.</summary>
         [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-enter")]
         Task<ApiResponse<HttpContent>> VerifyEnterRecoveryMode(string id);
+
+        /// <summary>What the recovery page posts from the link, with its throwaway public key.</summary>
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-enter")]
+        Task<ApiResponse<HttpContent>> EnterRecoveryMode([Body] EnterRecoveryModeRequest request);
+
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/recovery-bundle")]
+        Task<ApiResponse<ShamirRecoveryBundleResponse>> GetRecoveryBundle();
         
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/exit-recovery-mode")]
         Task<ApiResponse<HttpContent>> ExitRecoveryMode();

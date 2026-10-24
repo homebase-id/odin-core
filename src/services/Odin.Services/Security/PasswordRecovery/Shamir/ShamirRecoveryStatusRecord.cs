@@ -6,6 +6,12 @@ public class ShamirRecoveryStatusRecord
 {
     public UnixTimeUtc Updated { get; init; }
     public ShamirRecoveryState State { get; init; }
+
+    /// <summary>
+    /// The recovering browser's throwaway public key (P-384, a JWK), for a friend deal: the friends
+    /// seal their shards to it, and the server seals the recovery bundle to it.
+    /// </summary>
+    public string RecoveryPublicKeyJwk { get; init; }
 }
 
 

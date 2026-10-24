@@ -49,21 +49,23 @@ public class ZeroKnowledgeRecoveryService(
             ZkKekEncryptedZkMasterKey = keys?.ZkKekEncryptedZkMasterKey,
             RecoveryPhrase = phrase,
             PhrasePublicKeyJwk = keys?.PhrasePublicKeyJwk,
-            HasPasswordCopy = keys?.PhrasePublicKeyEncryptedPassword != null
+            HasPasswordCopy = keys?.PhrasePublicKeyEncryptedPassword != null,
+            ShamirPublicKeyJwk = keys?.HasShamirCopies() == true ? keys.ShamirPublicKeyJwk : null,
+            HasShamirPasswordCopy = keys?.ShamirPublicKeyEncryptedPassword != null
         };
     }
 
     /// <summary>
-    /// Writes the password copy when it is missing (after re-entering the phrase, or a password
-    /// change that sent none).  Only with the password itself: a stolen session must not be able to
-    /// replace what recovery gives back.
+    /// Writes the password copies that are missing (after re-entering the phrase, a friend deal, or a
+    /// password change that sent none).  Only with the password itself: a stolen session must not be
+    /// able to replace what recovery gives back.
     /// </summary>
     public async Task SavePasswordAsync(ZkPasswordRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         request.Validate();
         await secretService.AssertValidPasswordAsync(request.CurrentAuthenticationPasswordReply);
-        await zeroKnowledgeKeyService.SavePasswordAsync(request.PhrasePublicKeyEncryptedPassword);
+        await zeroKnowledgeKeyService.SavePasswordAsync(request);
     }
 
     /// <summary>
@@ -131,12 +133,12 @@ public class ZeroKnowledgeRecoveryService(
     }
 
     /// <summary>
-    /// Recovery with the phrase when the password copy doesn't log in (someone with the password
-    /// sealed junk) or is missing: the reset key opens today's master key, the password is set as a
-    /// reset sets it, and the recovered zero-knowledge master key is locked by the new password.  No
-    /// login.
+    /// Recovery with the phrase or with friends when the password copy doesn't log in (someone with
+    /// the password sealed junk) or is missing: the reset key opens today's master key, the password is
+    /// set as a reset sets it, and the recovered zero-knowledge master key is locked by the new
+    /// password.  No login.
     /// </summary>
-    public async Task ResetPasswordWithPhraseAsync(ZkPhraseResetRequest request, IOdinContext odinContext)
+    public async Task ResetPasswordWithResetKeyAsync(ZkResetRequest request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         request.Validate();
@@ -157,7 +159,7 @@ public class ZeroKnowledgeRecoveryService(
         using var masterKey = await zeroKnowledgeKeyService.OpenMasterKeyWithResetKeyAsync(resetKey);
         await secretService.ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply, request.ZkKeys);
 
-        logger.LogInformation("Password reset with the recovery phrase");
+        logger.LogInformation("Password reset with a recovery reset key");
     }
 
     /// <summary>

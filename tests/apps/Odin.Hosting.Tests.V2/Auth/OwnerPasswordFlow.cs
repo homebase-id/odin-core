@@ -158,17 +158,17 @@ internal static class OwnerPasswordFlow
     }
 
     /// <summary>
-    /// Recovery with the phrase's reset key, as the forgot-password page sends it: the key encrypted
-    /// to the host, a new password, and <paramref name="zkKeys"/>.
+    /// Recovery with a reset key (the phrase's or the friends'), as the recovery pages send it: the key
+    /// encrypted to the host, a new password, and <paramref name="zkKeys"/>.
     /// </summary>
-    public static async Task<ApiResponse<HttpContent>> ResetPasswordWithPhraseAsync(
+    public static async Task<ApiResponse<HttpContent>> ResetPasswordWithResetKeyAsync(
         OdinHost host, string identity, byte[] resetKey, string newPassword, ZkKeysRequest zkKeys)
     {
         using var authClient = host.CreateAnonymousClient(identity);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
         var saltyReply = await CalculatePasswordReplyAsync(authClient, newPassword, clientEccFullKey);
 
-        return await RestService.For<IOwnerAuthenticationClient>(authClient).ResetPasswordWithPhrase(new ZkPhraseResetRequest
+        return await RestService.For<IOwnerAuthenticationClient>(authClient).ResetPasswordWithResetKey(new ZkResetRequest
         {
             EncryptedResetKey = await EncryptForHostAsync(authClient, resetKey.ToBase64(), saltyReply, clientEccFullKey),
             PasswordReply = saltyReply,

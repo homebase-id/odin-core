@@ -164,4 +164,11 @@ public enum OdinClientErrorCode
     RecoveryPhraseNotTakenOver = 9015,
     RecoveryPhraseMismatch = 9016,
     RecoveryPhraseNeedsReentry = 9017,
+
+    // Deposits on zero-knowledge drives, and recovery with friends (docs/zero-knowledge-recovery-plan.md)
+    DepositNeedsZeroKnowledgeDrive = 9018,
+    DepositCannotBeUpdated = 9019,
+    ShardHolderNotZeroKnowledge = 9020,
+    AutomaticShardsReachThreshold = 9021,
+    RecoveryNotReady = 9022,
 }

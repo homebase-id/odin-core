@@ -65,10 +65,10 @@ public class ShamirPasswordRecoveryTestForDelegates : ShamirFixture
         //
         // Assert - all player delegates have a request in their list
         //
-        await ApproveEveryShardRequestAsync(frodo, players, config);
+        await ApproveEveryShardRequestAsync(players, config);
 
         // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
-        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingOwnerFinalization);
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.AwaitingRecoveringBrowser);
 
         await ExitRecoveryModeAsync(frodo);
     }
