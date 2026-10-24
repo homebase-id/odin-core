@@ -65,8 +65,8 @@ public class PeerDriveQueryService(
                 $"{nameof(PermissionKeys.UseTransitWrite)}");
         }
 
-        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
-        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(appSlug, nameof(appSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
 
         var cacheKey = $"peer-drive-address:{odinId}:{appSlug}:{driveSlug}";
         var cached = await addressCache.TryGetAsync<TargetDrive>(cacheKey);
@@ -138,8 +138,8 @@ public class PeerDriveQueryService(
                 $"Fetching a peer drive public key requires {nameof(PermissionKeys.UseTransitWrite)}");
         }
 
-        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
-        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(appSlug, nameof(appSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
 
         var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
 

@@ -91,6 +91,21 @@ public class OdinSlugHttpTests : V2Fixture
         Assert.That(response.Error?.Content, Does.Contain("\"errorCode\":\"argumentError\""));
     }
 
+    [Test]
+    public async Task AnEmptyTypeFilterIsNoFilter()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var (client, ss) = owner.NewAdminHttpClient();
+        var api = RefitCreator.RestServiceFor<IAppDriveHttpClientApiV2>(client, ss);
+
+        var all = await api.GetAppDrives("chat");
+        var emptyFilter = await api.GetAppDrives("chat", type: "");
+
+        Assert.That(emptyFilter.StatusCode, Is.EqualTo(HttpStatusCode.OK), emptyFilter.Error?.Content);
+        Assert.That(emptyFilter.Content!.Count, Is.EqualTo(all.Content!.Count));
+        Assert.That(all.Content.Count, Is.GreaterThan(0));
+    }
+
     public interface IRawDriveCreate
     {
         [Post(OwnerApiPathConstants.DriveManagementV1 + "/create")]

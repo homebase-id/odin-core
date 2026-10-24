@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
 
 namespace Odin.Core;
@@ -37,8 +36,6 @@ namespace Odin.Core;
 public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>
 {
     public const int MaxLength = 14;
-
-    private static readonly Regex Pattern = new("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", RegexOptions.Compiled);
 
     /// <summary>
     /// Segments a slug must never collide with, because a literal sibling at the same route position
@@ -94,11 +91,29 @@ public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>
         return result.HasValue;
     }
 
+    /// <summary>
+    /// <c>^[a-z0-9]([a-z0-9-]*[a-z0-9])?$</c> after lowercasing, checked a character at a time on the value
+    /// as given: a regex <c>$</c> also matches before a trailing newline, and lowercasing first would turn
+    /// some non-ASCII letters (the Kelvin sign) into ASCII ones.
+    /// </summary>
     private static bool TryLower([NotNullWhen(true)] string? value, [NotNullWhen(true)] out string? lowered)
     {
-        lowered = value?.ToLowerInvariant();
-        return !string.IsNullOrEmpty(lowered) && lowered.Length <= MaxLength && Pattern.IsMatch(lowered) &&
-               !Reserved.Contains(lowered);
+        lowered = null;
+        if (string.IsNullOrEmpty(value) || value.Length > MaxLength || value[0] == '-' || value[^1] == '-')
+        {
+            return false;
+        }
+
+        foreach (var c in value)
+        {
+            if (!char.IsAsciiLetterOrDigit(c) && c != '-')
+            {
+                return false;
+            }
+        }
+
+        lowered = value.ToLowerInvariant();
+        return !Reserved.Contains(lowered);
     }
 
     public static implicit operator string(OdinSlug slug) => slug.Value;
@@ -108,14 +123,31 @@ public readonly struct OdinSlug : IEquatable<OdinSlug>, IEquatable<string>
     public bool Equals(OdinSlug other) => string.Equals(_value, other._value, StringComparison.Ordinal);
 
     /// <summary>Lowercases <paramref name="other"/> first, as making a slug does.</summary>
-    public bool Equals(string? other) => _value != null && other != null && _value == other.ToLowerInvariant();
-
-    public override bool Equals(object? obj) => obj switch
+    public bool Equals(string? other)
     {
-        OdinSlug other => Equals(other),
-        string other => Equals(other),
-        _ => false
-    };
+        if (_value == null || other == null || other.Length != _value.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < other.Length; i++)
+        {
+            var c = other[i];
+            if ((char.IsAsciiLetterUpper(c) ? (char)(c | 0x20) : c) != _value[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// A slug only: a string is not an <see cref="OdinSlug"/>, and its hash code differs, so a mixed
+    /// hash set or dictionary would disagree with itself.  Compare with a string through
+    /// <see cref="Equals(string)"/> or <c>==</c>.
+    /// </summary>
+    public override bool Equals(object? obj) => obj is OdinSlug other && Equals(other);
 
     public override int GetHashCode() => _value?.GetHashCode(StringComparison.Ordinal) ?? 0;
 

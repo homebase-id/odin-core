@@ -9,6 +9,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Apps;
@@ -310,26 +311,27 @@ public class AppRegistrationTests : V2Fixture
         Assert.That(transientDriveGrant, Is.Null);
     }
 
-    // An empty or blank slug can't be sent as an OdinSlug at all; OdinSlugHttpTests sends one as raw JSON.
+    // Raw JSON: an empty or blank slug can't be sent as an OdinSlug at all.
     [Test]
     [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
     public async Task ABuiltinAppRegisteredWithoutASlugIsRefused(string appSlug)
     {
         // No exceptions (#1901): a built-in's slug comes from its tree definition, and the caller sends
         // it like any other app.  The server does not fill it in.
         var owner = await LoginAsOwner();
-        var svc = owner.RefitFor<IRefitOwnerAppRegistration>();
+        var (client, ss) = owner.NewAdminHttpClient();
 
-        var response = await svc.RegisterApp(new AppRegistrationRequest
+        var response = await RefitCreator.RestServiceFor<IRawSlugRequests>(client, ss).RegisterApp(new Dictionary<string, object>
         {
-            AppId = SystemAppConstants.ChatAppId,
-            AppSlug = appSlug == null ? default : new OdinSlug(appSlug),
-            Name = "Chat without a slug",
-            PermissionSet = null,
-            Drives = null,
+            ["appId"] = SystemAppConstants.ChatAppId,
+            ["appSlug"] = appSlug,
+            ["name"] = "Chat without a slug"
         });
 
-        Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest));
+        Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.BadRequest), response.Error?.Content);
+        Assert.That(response.Error?.Content, Does.Contain("\"errorCode\":\"argumentError\""));
     }
 
     [Test]

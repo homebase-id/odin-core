@@ -15,9 +15,9 @@ public sealed class OdinSlugModelBinder : IModelBinder
     {
         var value = bindingContext.ValueProvider.GetValue(bindingContext.ModelName).FirstValue;
 
-        // A value left out is an absent slug, default(OdinSlug), as a JSON null is
+        // A value left out (or an empty ?type=) is an absent slug, default(OdinSlug), as a JSON null is
         bindingContext.Result = ModelBindingResult.Success(
-            value == null ? default : OdinSlug.Create(value, bindingContext.ModelName));
+            string.IsNullOrWhiteSpace(value) ? default : OdinSlug.Create(value, bindingContext.ModelName));
         return Task.CompletedTask;
     }
 }

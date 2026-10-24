@@ -41,8 +41,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [HttpGet("public-key")]
-        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKey(string odinId, OdinSlug appSlug,
-            OdinSlug driveSlug)
+        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKey([FromRoute] string odinId, [FromRoute] OdinSlug appSlug,
+            [FromRoute] OdinSlug driveSlug)
         {
             OdinValidationUtils.AssertIsValidOdinId(odinId, out var id);
 

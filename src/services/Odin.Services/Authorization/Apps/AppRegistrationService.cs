@@ -251,6 +251,12 @@ namespace Odin.Services.Authorization.Apps
         /// </remarks>
         public async Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(OdinSlug appSlug, IOdinContext odinContext)
         {
+            // A request that left the slug out names no app (a peer's by-slug lookup is a 404, not a 500)
+            if (!appSlug.HasValue)
+            {
+                return null;
+            }
+
             var record = await db.AppRegistrations.GetByAppSlugAsync(appSlug);
             return record == null ? null : FromRecord(record).Redacted();
         }

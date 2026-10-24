@@ -49,6 +49,10 @@ public class OdinSlugTests
     [TestCase("my<chat")]
     [TestCase("my&chat")]
     [TestCase("café", Description = "not ASCII")]
+    [TestCase("\u212Aey", Description = "the Kelvin sign lowercases to an ASCII k")]
+    [TestCase("\u0130mage", Description = "a dotted capital I lowercases to an ASCII i")]
+    [TestCase("chat\n", Description = "a regex $ matches before a trailing newline")]
+    [TestCase("\nchat")]
     [TestCase("-chat", Description = "a leading hyphen")]
     [TestCase("chat-", Description = "a trailing hyphen")]
     [TestCase("abcdefghijklmno", Description = "one over MaxLength")]
@@ -110,10 +114,12 @@ public class OdinSlugTests
         Assert.That("CHAT" == slug, Is.True);
         Assert.That(slug != "Chat", Is.False);
         Assert.That(slug.Equals("Chat"), Is.True);
-        Assert.That(slug.Equals((object)"Chat"), Is.True);
+        Assert.That(slug.Equals((object)"chat"), Is.False, "a string is not a slug: its hash code differs");
         Assert.That(slug == new OdinSlug("CHAT"), Is.True);
         Assert.That(slug == "chats", Is.False);
         Assert.That(slug == (string?)null, Is.False);
+        Assert.That(new OdinSlug("image") == "\u0131mage", Is.False, "a dotless i is not an i");
+        Assert.That(new OdinSlug("key") == "\u212Aey", Is.False, "the Kelvin sign is not a k");
         Assert.That(new HashSet<OdinSlug> { new("Chat") }.Contains(slug), Is.True);
     }
 

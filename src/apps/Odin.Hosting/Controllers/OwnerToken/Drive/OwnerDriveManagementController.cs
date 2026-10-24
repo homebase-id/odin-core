@@ -180,8 +180,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             await appRegistrationService.GetRegisteredAppOrThrowAsync(request.AppId, WebOdinContext);
 
             await driveManager.SetDriveOwningAppAsync(request.TargetDrive.Alias, request.AppId,
-                OdinSlug.Required(request.DriveSlug, nameof(request.DriveSlug)),
-                OdinSlug.Required(request.DriveTypeSlug, nameof(request.DriveTypeSlug)), WebOdinContext);
+                request.DriveSlug, request.DriveTypeSlug, WebOdinContext);
 
             return Ok();
         }
@@ -210,8 +209,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             await appRegistrationService.GetRegisteredAppOrThrowAsync(request.AppId, WebOdinContext);
 
             await driveManager.ReassignDriveOwningAppAsync(request.TargetDrive.Alias, request.AppId,
-                OdinSlug.Required(request.DriveSlug, nameof(request.DriveSlug)),
-                OdinSlug.Required(request.DriveTypeSlug, nameof(request.DriveTypeSlug)), WebOdinContext);
+                request.DriveSlug, request.DriveTypeSlug, WebOdinContext);
 
             return Ok();
         }

@@ -21,7 +21,7 @@ Status as of 2026-08-27.
 | 0.9 | `AppId` / `DriveSlug` / `DriveTypeSlug` plumbed through `StorageDrive`, `DriveManager`, `CreateDriveRequest`, `OwnerClientDriveData`; `OdinSlug` format validator | #1688 |
 | 0.12 | `OdinSlug` is a value type (`Odin.Core`), always lowercase, for app, drive, drive-type and circle slugs; a malformed one is a 400 `argumentError` in a body, route or query | this PR |
 | 0.10 | The same three on `ClientDriveData` (app and V2 routes), redacted for third parties as `Name` already is | #1688 |
-| 0.11 | `AppRegistrationRequest.AppSlug`: optional, lowercased, then format-validated and taken or refused, never silently replaced. Omitted still derives from `Name` | #1688 |
+| 0.11 | `AppRegistrationRequest.AppSlug`: lowercased, then format-validated and taken or refused, never silently replaced. Required since #1901; it is no longer derived from `Name` | #1688 |
 
 ## Blocked on decisions
 
@@ -52,7 +52,7 @@ to tighten, because each one can reject a call that works today.
 
 | # | Item | Today |
 |---|---|---|
-| 3.1 | **App slug supplied by the caller** at registration | **Done** (0.11). Optional: supplied is validated and taken verbatim, omitted derives from `Name`. Requiring it is a separate decision -- it would break every client that registers an app today |
+| 3.1 | **App slug supplied by the caller** at registration | **Done** (0.11). Required since #1901: a missing slug is refused, never derived |
 | 3.2 | **App slug immutability** across updates | Enforced: updates carry the stored slug forward, and no update request carries a slug field |
 | 3.3 | **App slug uniqueness** | Enforced by `UNIQUE(identityId, AppSlug)`, and a supplied duplicate is refused with a client error before it reaches the constraint |
 | 3.3a | **App slug is derived in two places** | `AppRegistrationService.AssignSlugAsync` and the v12 -> v13 migration, both through `AppSlugGenerator`, so a migrated app and a freshly registered one land on the same value. Decided 2026-08-27 to keep it that way rather than make the column nullable |
