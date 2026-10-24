@@ -142,10 +142,14 @@ uses on another identity. The original design, with its full argument, is archiv
   only to a caller with Write on that drive; anyone else gets a security exception, not a 404, since resolving the
   address already showed the drive exists. So a stranger with no grant can't deposit yet
   ([weak-key-retirement.md](weak-key-retirement.md)).
-- **Slug format** (`OdinSlug`) **(V)**: `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`, 1–14 characters, for `AppSlug`, `DriveSlug`
-  and `DriveTypeSlug` alike; a reserved list (empty today) for route segments; looked up lowercase. **Refused, never
-  coerced**: a slug is immutable and ends up in other identities' URLs, so silently changing it would make an address
-  the caller didn't ask for.
+- **Slug format** (`OdinSlug`): `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`, 1–14 characters, for `AppSlug`, `DriveSlug`,
+  `DriveTypeSlug` and circle slugs alike, plus a reserved list (empty today) for route segments. That is RFC 3986
+  *unreserved* narrowed to an RFC 1123 host name label, so a slug never needs escaping in a URL, HTML or JSON.
+  `OdinSlug` is a value type like `OdinId`, so an invalid one can't exist. **Always lowercase**: upper case is
+  lowercased when a slug is made, so `Chat` and `chat` are one slug, and comparing a slug with a string lowercases
+  the string. Anything else malformed is **refused, never changed**: a slug is immutable and ends up in other
+  identities' URLs, so stripping a character would make an address the caller didn't ask for. A malformed slug is a
+  400 `argumentError` in a body, route or query.
 - **Uniqueness:** `AppSlug` per identity, `DriveSlug` per app (`UNIQUE(identityId, AppId, DriveSlug)`), all `NOT NULL`
   since #1901 **(V)**.
 - **Slugs are resolved by the recipient.** `/peer/{odinId}/apps/chat/…` means whatever app *that identity* registered
