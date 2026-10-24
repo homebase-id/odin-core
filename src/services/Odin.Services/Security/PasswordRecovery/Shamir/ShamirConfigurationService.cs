@@ -264,9 +264,7 @@ public class ShamirConfigurationService(
             var package = await GetDealerShardPackage(odinContext);
             if (package != null)
             {
-                var players = package.Envelopes.Select(e => e.Player).ToList();
-                await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext,
-                    movingOffThePhrase: true);
+                await DealAgainAsync(package, odinContext, movingOffThePhrase: true);
                 return;
             }
         }
@@ -285,8 +283,7 @@ public class ShamirConfigurationService(
     private async Task RemoveDealAsync(IOdinContext odinContext)
     {
         await using var tx = await db.BeginStackedTransactionAsync();
-        var file = await FileSystem.Query.GetFileByClientUniqueIdForWriting(
-            WellKnownAppDrives.ShardRecoveryDrive.Alias, Guid.Parse(DealerShardConfigUid), odinContext);
+        var file = await GetDealerFileForWritingAsync(odinContext);
         if (file != null)
         {
             await FileSystem.Storage.HardDeleteLongTermFile(
@@ -295,6 +292,14 @@ public class ShamirConfigurationService(
 
         await Storage.DeleteAsync(tblKeyValue, ShamirRecordStorageId);
         tx.Commit();
+    }
+
+    /// <summary>Same players, threshold and mode; only the shards are new.</summary>
+    private async Task DealAgainAsync(DealerShardPackage package, IOdinContext odinContext, bool movingOffThePhrase)
+    {
+        var players = package.Envelopes.Select(e => e.Player).ToList();
+        await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext,
+            movingOffThePhrase);
     }
 
     /// <summary>
@@ -329,9 +334,7 @@ public class ShamirConfigurationService(
             if (await IsRotationPending(package))
             {
                 Logger.LogDebug(RotateShardsHasStarted);
-                // same players, threshold and mode; only the shards are new
-                var players = package.Envelopes.Select(e => e.Player).ToList();
-                await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext);
+                await DealAgainAsync(package, odinContext, movingOffThePhrase: false);
             }
         }
         catch (Exception e)
@@ -456,14 +459,18 @@ public class ShamirConfigurationService(
         return Task.FromResult((dealerRecords, playerRecords));
     }
 
+    private async Task<SharedSecretEncryptedFileHeader> GetDealerFileForWritingAsync(IOdinContext odinContext)
+    {
+        return await FileSystem.Query.GetFileByClientUniqueIdForWriting(
+            WellKnownAppDrives.ShardRecoveryDrive.Alias, Guid.Parse(DealerShardConfigUid), odinContext);
+    }
+
     /// <summary>
     /// Saves the dealer information for the encrypted shards
     /// </summary>
     private async Task SaveDealerPackage(DealerShardPackage envelope, IOdinContext odinContext)
     {
-        var driveId = WellKnownAppDrives.ShardRecoveryDrive.Alias;
-        var uid = Guid.Parse(DealerShardConfigUid);
-        var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(driveId, uid, odinContext);
+        var existingFile = await GetDealerFileForWritingAsync(odinContext);
         if (existingFile == null)
         {
             await WriteNewDealerEnvelopeFile(envelope, odinContext);
@@ -709,7 +716,7 @@ public class ShamirConfigurationService(
             return null;
         }
 
-        var phrase = (await passwordKeyRecoveryService.GetRecoveryKeyAsync(byPassWaitingPeriod: true, odinContext)).Key;
+        var phrase = await passwordKeyRecoveryService.GetPhraseForTakeoverAsync(odinContext);
 
         using var recoveryKey = BIP39Util.DecodeBIP39(phrase);
         return new ShamirKeyRecord

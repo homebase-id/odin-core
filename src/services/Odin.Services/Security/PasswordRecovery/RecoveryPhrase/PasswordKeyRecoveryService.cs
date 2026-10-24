@@ -127,12 +127,10 @@ public class PasswordKeyRecoveryService(
         {
             // Once taken over, the browser opens its copy and shows the words; the server can't.
             var takenOver = recoveryKeyRecord.TakenOver != null;
-            var lockedCopy = takenOver
-                ? (await zeroKnowledgeKeyService.GetKeysAsync(odinContext))?.ZkMasterKeyEncryptedPhraseKey
-                : null;
-            if (takenOver && lockedCopy == null)
+            var keys = takenOver ? await zeroKnowledgeKeyService.GetKeysAsync(odinContext) : null;
+            if (takenOver && keys?.HasPhraseCopies() != true)
             {
-                // A reset with today's master key forgot it; the waiting period is left as it was.
+                // The waiting period is left as it was.
                 throw new OdinClientException("Type the recovery phrase in again to keep it",
                     OdinClientErrorCode.RecoveryPhraseNeedsReentry);
             }
@@ -140,7 +138,7 @@ public class PasswordKeyRecoveryService(
             var decryptedRecoveryKey = new RecoveryKeyResult
             {
                 Key = takenOver ? null : OpenPhrase(recoveryKeyRecord, odinContext),
-                ZkMasterKeyEncryptedPhraseKey = lockedCopy,
+                ZkMasterKeyEncryptedPhraseKey = keys?.ZkMasterKeyEncryptedPhraseKey,
                 Created = recoveryKeyRecord.Created,
                 NextViewableDate = null, // doesnt matter
                 HasInitiallyReviewedKey = recoveryKeyRecord.InitialRecoveryKeyViewingDate != null

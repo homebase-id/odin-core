@@ -64,10 +64,11 @@ public class ZeroKnowledgeKeyService(
     }
 
     /// <summary>
-    /// The password change half: the browser re-locked the master key with the new password and
-    /// worked out the new login keys.  Called by <c>OwnerSecretService.ResetPasswordAsync</c> in the
-    /// same transaction as the password itself.  Nothing to do before the browser has made the keys;
-    /// once it has, a password change without them would leave them locked by the old password.
+    /// The password change half: the browser re-locked the zero-knowledge master key with the new
+    /// password.  Called by <c>OwnerSecretService</c> in the same transaction as the password itself,
+    /// for a password change and for a reset with the phrase's reset key.  Nothing to do before the
+    /// browser has made the keys; once it has, a password change without them would leave them
+    /// locked by the old password.
     /// </summary>
     public async Task RelockForPasswordChangeAsync(ZkKeysRequest request)
     {
@@ -133,22 +134,6 @@ public class ZeroKnowledgeKeyService(
 
         using var resetKey = resetKey64.FromBase64().ToSensitiveByteArray();
         return record.ResetKeyEncryptedMasterKey.DecryptKeyClone(resetKey);
-    }
-
-    /// <summary>
-    /// After a reset with the phrase: the recovered zero-knowledge master key, locked by the new
-    /// password, replaces whatever was there.  The phrase copies and the reset copy stay: the key
-    /// they lock is the same.
-    /// </summary>
-    internal async Task ReplaceKeysAfterPhraseResetAsync(ZkKeysRequest request)
-    {
-        var existing = await GetRecordOrFailAsync();
-        await SaveRecordAsync(existing with
-        {
-            ZkSaltKek64 = request.ZkSaltKek64,
-            ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
-            ZkMasterKeyEncryptedPassword = request.ZkMasterKeyEncryptedPassword
-        });
     }
 
     /// <summary>

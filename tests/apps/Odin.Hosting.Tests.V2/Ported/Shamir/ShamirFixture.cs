@@ -15,6 +15,7 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Services.Security;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
@@ -171,6 +172,14 @@ public abstract class ShamirFixture : V2Fixture
     protected ITestSecurityContextOwnerClient AnonymousSecurityOf(OwnerSession owner)
         => Host.AnonymousRefitFor<ITestSecurityContextOwnerClient>(owner.Identity.DomainName);
 
+    /// <summary>
+    /// For the owner endpoints exempt from shared-secret encryption (<c>recovery-info</c>,
+    /// <c>needs-attention</c>): they answer in plain JSON that <see cref="SecurityOf"/>'s decrypting
+    /// serializer cannot read.
+    /// </summary>
+    protected static ITestSecurityContextOwnerClient PlainSecurityOf(OwnerSession owner)
+        => RestService.For<ITestSecurityContextOwnerClient>(owner.NewAdminHttpClient().client);
+
     /// <summary>Turns on automated recovery. Note: no connections — production has none either.</summary>
     protected static async Task<DealerShardConfig> ArrangeAutomatedShardsAsync(OwnerSession dealer)
     {
@@ -323,22 +332,20 @@ public abstract class ShamirFixture : V2Fixture
         return getConfigResponse.Content!;
     }
 
+    protected static async Task<RecoveryInfo> RecoveryInfoAsync(OwnerSession owner)
+    {
+        var response = await PlainSecurityOf(owner).GetRecoveryInfo();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        Assert.That(response.Content, Is.Not.Null);
+        return response.Content!;
+    }
+
     /// <summary>
     /// Whether the owner is told their shards predate the password: the flag behind the console's
     /// needs-attention indicator and the risk report (#1861).
     /// </summary>
-    /// <remarks>
-    /// <c>recovery-info</c> is exempt from shared-secret encryption, so it answers in plain JSON that
-    /// <see cref="SecurityOf"/>'s decrypting serializer cannot read; a plain Refit client it is.
-    /// </remarks>
     protected static async Task<bool> IsRotationPendingAsync(OwnerSession owner)
-    {
-        var (client, _) = owner.NewAdminHttpClient();
-        var response = await RestService.For<ITestSecurityContextOwnerClient>(client).GetRecoveryInfo();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Content, Is.Not.Null);
-        return response.Content!.RotationPending;
-    }
+        => (await RecoveryInfoAsync(owner)).RotationPending;
 
     /// <summary>Asserts every player is holding the dealer's release request, and nothing more.</summary>
     protected static async Task AssertEveryPlayerHasRequestAsync(

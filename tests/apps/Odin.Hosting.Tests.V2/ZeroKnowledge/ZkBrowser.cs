@@ -98,8 +98,7 @@ internal static class ZkBrowser
     /// <summary>What the forgot-password page does with the phrase: the zero-knowledge master key, then the password.</summary>
     public static string RecoverPassword(string phrase, ZkPhraseRecoveryResponse recovery)
     {
-        var zkMasterKey = Open(recovery.PhraseKeyEncryptedZkMasterKey, PhraseKey(phrase));
-        return OpenPassword(recovery.ZkMasterKeyEncryptedPassword, zkMasterKey);
+        return OpenPassword(recovery.ZkMasterKeyEncryptedPassword, RecoverZkMasterKey(phrase, recovery));
     }
 
     public static byte[] OpenMasterKey(string password, ZkStatusResponse status)

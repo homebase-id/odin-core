@@ -7,7 +7,6 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
@@ -32,10 +31,6 @@ public class RecoveryPhraseShamirTests : ShamirFixture
 
     protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
         new Dictionary<string, string?> { ["Development:DealsLockThePhrase"] = "true" };
-
-    // the takeover's re-deal cannot send to the disconnected friend
-    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
-        ["Cannot resolve client access token; not connected"];
 
     /// <summary>
     /// Owners who forgot their password never log in, so never take over: their old deal must still
@@ -103,21 +98,21 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         var (dealer, players, _) = await ArrangeDelegateShardsAsync();
         Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.True);
         await PeerFlow.DisconnectAsync(players[0], dealer);
+        ExpectErrorLogEvent("Failed while creating outbox item"); // the re-deal can't send to that friend
 
         await TakeOverAsync(dealer);
 
         Assert.That((await ZkOwnerSteps.GetStatusAsync(dealer)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.TakenOver));
         Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.False, "the old deal is gone");
-        var needsAttention = await Refit.RestService.For<ITestSecurityContextOwnerClient>(dealer.NewAdminHttpClient().client)
-            .GetNeedsAttention();
+        var needsAttention = await PlainSecurityOf(dealer).GetNeedsAttention();
         Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
         Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
     }
 
-    private Task<DealerShardConfig> ArrangeAsync(OwnerSession dealer, PlayerType playerType) =>
+    private async Task<DealerShardConfig> ArrangeAsync(OwnerSession dealer, PlayerType playerType) =>
         playerType == PlayerType.Delegate
-            ? ArrangeDelegateShardsAsync().ContinueWith(t => t.Result.Config)
-            : ArrangeAutomatedShardsAsync(dealer);
+            ? (await ArrangeDelegateShardsAsync()).Config
+            : await ArrangeAutomatedShardsAsync(dealer);
 
     /// <summary>The login's takeover, from a fresh password login as the browser does it.</summary>
     private async Task<string> TakeOverAsync(OwnerSession dealer)
@@ -125,12 +120,5 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         var fresh = await OwnerSession.LoginAsync(Host, dealer.Identity.DomainName);
         var keys = await ZkOwnerSteps.CreateKeysAsync(fresh, OwnerLogin.DefaultPassword);
         return await ZkOwnerSteps.TakeOverPhraseAsync(fresh, OwnerLogin.DefaultPassword, keys.MasterKey);
-    }
-
-    private static async Task<Odin.Services.Security.RecoveryInfo> RecoveryInfoAsync(OwnerSession owner)
-    {
-        var response = await Refit.RestService.For<ITestSecurityContextOwnerClient>(owner.NewAdminHttpClient().client).GetRecoveryInfo();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
-        return response.Content!;
     }
 }

@@ -48,6 +48,12 @@ public sealed record ZkKeyRecord
     public UnixTimeUtc Created { get; init; }
 
     public UnixTimeUtc Updated { get; init; }
+
+    /// <summary>
+    /// Whether the phrase copies are here.  Once the phrase is taken over, their absence means a reset
+    /// with today's master key forgot them, and the owner types the phrase in again.
+    /// </summary>
+    public bool HasPhraseCopies() => PhraseKeyEncryptedZkMasterKey != null && ZkMasterKeyEncryptedPhraseKey != null;
 }
 
 /// <summary>
@@ -115,7 +121,7 @@ public class ZkPhraseCopiesRequest
     /// </summary>
     public string PhraseCheck64 { get; set; }
 
-    public void Validate()
+    public virtual void Validate()
     {
         ZkBlob.AssertLocked(PhraseKeyEncryptedZkMasterKey, nameof(PhraseKeyEncryptedZkMasterKey));
         ZkBlob.AssertLocked(ZkMasterKeyEncryptedPhraseKey, nameof(ZkMasterKeyEncryptedPhraseKey));
@@ -129,7 +135,7 @@ public sealed class ZkPhraseTakeoverRequest : ZkPhraseCopiesRequest
 {
     public PasswordReply CurrentAuthenticationPasswordReply { get; set; }
 
-    public new void Validate()
+    public override void Validate()
     {
         base.Validate();
         OdinValidationUtils.AssertNotNull(CurrentAuthenticationPasswordReply, nameof(CurrentAuthenticationPasswordReply));

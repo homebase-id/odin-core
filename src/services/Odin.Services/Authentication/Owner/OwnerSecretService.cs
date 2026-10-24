@@ -228,7 +228,7 @@ namespace Odin.Services.Authentication.Owner
 
             if (recoveredZkKeys != null)
             {
-                await zeroKnowledgeKeyService.ReplaceKeysAfterPhraseResetAsync(recoveredZkKeys);
+                await zeroKnowledgeKeyService.RelockForPasswordChangeAsync(recoveredZkKeys);
             }
             else
             {

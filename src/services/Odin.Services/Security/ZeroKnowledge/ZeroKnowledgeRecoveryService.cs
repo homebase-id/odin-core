@@ -37,7 +37,7 @@ public class ZeroKnowledgeRecoveryService(
 
         var phrase = !exists ? RecoveryPhraseState.None
             : !takenOver ? RecoveryPhraseState.OnServer
-            : keys?.PhraseKeyEncryptedZkMasterKey == null ? RecoveryPhraseState.NeedsReentry
+            : keys?.HasPhraseCopies() != true ? RecoveryPhraseState.NeedsReentry
             : RecoveryPhraseState.TakenOver;
 
         return new ZkStatusResponse
@@ -84,8 +84,8 @@ public class ZeroKnowledgeRecoveryService(
     /// takes the browser's word, as with every zero-knowledge copy.  The reset copy it makes itself.
     /// </summary>
     /// <remarks>
-    /// Server-dealt Shamir that still locks the phrase is dealt again first, in its own transaction:
-    /// a failed deal must roll back on its own, and then it is removed rather than block this.
+    /// Server-dealt Shamir that still locks the phrase moves off it first
+    /// (<see cref="ShamirConfigurationService.MoveOffThePhraseAsync"/>).
     /// </remarks>
     public async Task TakeOverAsync(ZkPhraseTakeoverRequest request, IOdinContext odinContext)
     {
