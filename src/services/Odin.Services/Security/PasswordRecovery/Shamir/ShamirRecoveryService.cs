@@ -113,8 +113,9 @@ public class ShamirRecoveryService
         var collecting = current?.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation;
 
         // Under way: do nothing, say nothing, to keep any insights from the wrong eyes.  Except "start
-        // over" from the browser it is under way for while shards are being collected: a new link,
-        // which asks the friends again (EnterRecoveryMode).
+        // over" while shards are being collected: a new link, which asks the friends again
+        // (EnterRecoveryMode).  For a friend deal only from the browser it is under way for; an
+        // automated deal has no browser key, so anyone may ask, and the link goes only to the owner.
         if (IsInRecoveryMode(current) && !(collecting && SameKey(startKey, current.RecoveryPublicKeyJwk)))
         {
             return;

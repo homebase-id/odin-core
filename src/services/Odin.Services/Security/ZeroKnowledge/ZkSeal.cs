@@ -112,9 +112,9 @@ public static class ZkSeal
                 return ByteArrayUtil.Combine([0x04], x, y);
             }
         }
-        catch (Exception e) when (e is JsonException or FormatException or KeyNotFoundException or InvalidOperationException)
+        catch (Exception e) when (e is not OdinClientException)
         {
-            // falls through
+            // falls through: anything malformed is the caller's
         }
 
         throw new OdinClientException("Not a P-384 public key", OdinClientErrorCode.ArgumentError);

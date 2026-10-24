@@ -382,8 +382,11 @@ public class FriendRecoveryTests : ShamirFixture
 
         // Under way, a start says nothing, even with a key that isn't one
         var security = AnonymousSecurityOf(frodo);
-        var junk = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = "x" });
-        Assert.That(junk.StatusCode, Is.EqualTo(HttpStatusCode.OK), junk.Error?.Content);
+        foreach (var notAKey in new[] { "x", "{\"kty\":\"EC\",\"crv\":\"P-384\",\"x\":null,\"y\":null}" })
+        {
+            var junk = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = notAKey });
+            Assert.That(junk.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"{notAKey}: {junk.Error?.Content}");
+        }
 
         // "Start over" from the same browser: a new link, and the friends are asked again
         var again = await security.InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = RecoveringBrowser!.PublicKeyJwk });
@@ -399,5 +402,22 @@ public class FriendRecoveryTests : ShamirFixture
         // and what was collected still counts
         await ApproveEveryShardRequestAsync(players.Skip(1).Take(config.MinMatchingShards - 1).ToList(), config);
         Assert.That((await RebuildInTheRecoveringBrowserAsync(frodo)).Password, Is.EqualTo(Password));
+    }
+
+    /// <summary>
+    /// A key that one parser would take and another couldn't read back (a coordinate with a leading
+    /// zero byte) is refused at the start, so it can never be recorded and break the status.
+    /// </summary>
+    [Test]
+    public async Task AStartWithAKeyThatCanNotBeReadBackIsRefused()
+    {
+        var (frodo, _, _) = await ArrangeDelegateShardsAsync();
+        using var jwk = System.Text.Json.JsonDocument.Parse(ZkBrowser.MakeKeyPair().PublicKeyJwk);
+        var x = Base64UrlEncoder.Decode(jwk.RootElement.GetProperty("x").GetString()!);
+        var padded = $"{{\"kty\":\"EC\",\"crv\":\"P-384\",\"x\":\"{Base64UrlEncoder.Encode([0, .. x])}\",\"y\":\"{jwk.RootElement.GetProperty("y").GetString()}\"}}";
+
+        var start = await AnonymousSecurityOf(frodo).InitiateRecoveryMode(new InitiateRecoveryModeRequest { RecoveryPublicKeyJwk = padded });
+        Assert.That(start.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), start.Error?.Content);
+        await AssertRecoveryStateAsync(frodo, ShamirRecoveryState.None);
     }
 }
