@@ -28,6 +28,24 @@ public static class DriveWriteOnlyKey
     }
 
     /// <summary>
+    /// The public half of a key pair the browser made for a zero-knowledge drive.  The record has no
+    /// private half: on such a drive the browser keeps it locked by the drive key
+    /// (<see cref="StorageDriveData.ZkStorageKeyEncryptedWriteOnlyPrivateKey"/>).
+    /// </summary>
+    public static EccFullKeyData FromPublicKeyJwk(string jwk)
+    {
+        var publicKey = EccPublicKeyData.FromJwkPublicKey(jwk, LifetimeHours);
+
+        // The column holds an EccFullKeyData; this one leaves the private-half fields empty.
+        return new EccFullKeyData
+        {
+            publicKey = publicKey.publicKey,
+            crc32c = publicKey.crc32c,
+            expiration = publicKey.expiration
+        };
+    }
+
+    /// <summary>
     /// Serializes for the <c>Drives.WriteOnlyKeyPair</c> column.  Null in, null out: a drive with no
     /// keypair stores NULL, which is what says deposits are not enabled for it.
     /// </summary>

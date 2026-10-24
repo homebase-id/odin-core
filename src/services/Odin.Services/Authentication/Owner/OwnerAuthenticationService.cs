@@ -161,6 +161,8 @@ namespace Odin.Services.Authentication.Owner
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
                 DriveId = d.Id,
+                // Null on a zero-knowledge drive: the owner keeps every permission on it, but the server
+                // holds no key to its files.
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
                 PermissionedDrive = new PermissionedDrive()
                 {

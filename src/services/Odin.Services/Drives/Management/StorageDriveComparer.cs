@@ -31,9 +31,22 @@ public static class StorageDriveComparer
         if (drive1.IsReadonly != drive2.IsReadonly) diffs.Add("IsReadonly differs");
         if (drive1.AllowSubscriptions != drive2.AllowSubscriptions) diffs.Add("AllowSubscriptions differs");
         
-        if (!drive1.MasterKeyEncryptedStorageKey.KeyEncrypted.SequenceEqual(drive2.MasterKeyEncryptedStorageKey.KeyEncrypted)) diffs.Add("MasterKeyEncryptedStorageKey KeyEncrypted differs");
-        if (!drive1.MasterKeyEncryptedStorageKey.KeyIV.SequenceEqual(drive2.MasterKeyEncryptedStorageKey.KeyIV)) diffs.Add("MasterKeyEncryptedStorageKey KeyIV differs");
-        if (!drive1.MasterKeyEncryptedStorageKey.KeyHash.SequenceEqual(drive2.MasterKeyEncryptedStorageKey.KeyHash)) diffs.Add("MasterKeyEncryptedStorageKey KeyHash differs");
+        var mk1 = drive1.MasterKeyEncryptedStorageKey;
+        var mk2 = drive2.MasterKeyEncryptedStorageKey;
+        if (mk1 is null || mk2 is null)
+        {
+            if (mk1 is null != mk2 is null) diffs.Add("MasterKeyEncryptedStorageKey differs");
+        }
+        else
+        {
+            if (!mk1.KeyEncrypted.SequenceEqual(mk2.KeyEncrypted)) diffs.Add("MasterKeyEncryptedStorageKey KeyEncrypted differs");
+            if (!mk1.KeyIV.SequenceEqual(mk2.KeyIV)) diffs.Add("MasterKeyEncryptedStorageKey KeyIV differs");
+            if (!mk1.KeyHash.SequenceEqual(mk2.KeyHash)) diffs.Add("MasterKeyEncryptedStorageKey KeyHash differs");
+        }
+
+        if (drive1.SharingModel != drive2.SharingModel) diffs.Add("SharingModel differs");
+        if (drive1.ZkMasterKeyEncryptedStorageKey != drive2.ZkMasterKeyEncryptedStorageKey) diffs.Add("ZkMasterKeyEncryptedStorageKey differs");
+        if (drive1.ZkStorageKeyEncryptedWriteOnlyPrivateKey != drive2.ZkStorageKeyEncryptedWriteOnlyPrivateKey) diffs.Add("ZkStorageKeyEncryptedWriteOnlyPrivateKey differs");
 
         if (!drive1.EncryptedIdIv.SequenceEqual(drive2.EncryptedIdIv)) diffs.Add("EncryptedIdIv differs");
         if (!drive1.EncryptedIdValue.SequenceEqual(drive2.EncryptedIdValue)) diffs.Add("EncryptedIdValue differs");

@@ -207,7 +207,10 @@ public class DriveManager : IDriveManager
             AppId = appId,
             DriveSlug = driveSlug,
             DriveTypeSlug = driveTypeSlug,
-            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair)
+            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(writeOnlyKeyPair),
+
+            // Every new drive is Collaborative: the server made its key.  Only conversion makes one Private.
+            SharingModel = (int)DriveSharingModel.Collaborative
         };
 
         try
@@ -491,6 +494,47 @@ public class DriveManager : IDriveManager
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
         return true;
+    }
+
+    /// <summary>
+    /// Gives a drive new keys made in the browser and drops the master-key copy, making it zero
+    /// knowledge.  Callers check first that no file uses the old key (ZeroKnowledgeKeyService).
+    /// </summary>
+    /// <remarks>
+    /// Replaces rather than re-locks: the server made the old drive key and write-only key pair, so it
+    /// has seen both.  The old key's copies in app and circle grants are left alone; nothing is locked
+    /// with it any more, and <see cref="StorageDrive.AssertValidStorageKey"/> refuses it from now on
+    /// because the drive id is encrypted with the new key.
+    /// </remarks>
+    internal async Task ApplyZeroKnowledgeKeysAsync(Guid driveId, string zkMasterKeyEncryptedStorageKey,
+        byte[] encryptedIdIv, byte[] encryptedIdValue, EccFullKeyData writeOnlyPublicKey,
+        string zkStorageKeyEncryptedWriteOnlyPrivateKey, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveInternal(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        storageDrive.MasterKeyEncryptedStorageKey = null;
+        storageDrive.SharingModel = DriveSharingModel.Private; // the only way a drive becomes Private
+        storageDrive.ZkMasterKeyEncryptedStorageKey = zkMasterKeyEncryptedStorageKey;
+        storageDrive.EncryptedIdIv = encryptedIdIv;
+        storageDrive.EncryptedIdValue = encryptedIdValue;
+        storageDrive.TempOriginalDriveId = storageDrive.Id; // what the browser encrypted
+        storageDrive.WriteOnlyKeyPair = writeOnlyPublicKey;
+        storageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey = zkStorageKeyEncryptedWriteOnlyPrivateKey;
+
+        var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+        if (affected != 1)
+        {
+            throw new OdinSystemException(
+                $"Converting a drive should have updated 1 and only 1 row.  Number updated: {affected}");
+        }
+
+        _logger.LogInformation("Drive {driveId} is now zero knowledge", driveId);
     }
 
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
@@ -847,6 +891,19 @@ public class DriveManager : IDriveManager
 
     private static DrivesRecord ToRecord(StorageDriveData storageDrive)
     {
+        // A missing master-key copy is what makes a drive zero knowledge, so a drive with neither
+        // copy would pass for one with no key anywhere.
+        if (storageDrive.MasterKeyEncryptedStorageKey == null && storageDrive.ZkMasterKeyEncryptedStorageKey == null)
+        {
+            throw new OdinSystemException($"Drive {storageDrive.Id} has no copy of its key");
+        }
+
+        // A Private drive whose key the server can still open would only pose as one.
+        if (storageDrive.SharingModel == DriveSharingModel.Private && storageDrive.MasterKeyEncryptedStorageKey != null)
+        {
+            throw new OdinSystemException($"Drive {storageDrive.Id} is Private but the server holds its key");
+        }
+
         var details = new StorageDriveDetails
         {
             Metadata = storageDrive.Metadata,
@@ -866,7 +923,10 @@ public class DriveManager : IDriveManager
             DriveId = storageDrive.Id,
             DriveName = storageDrive.Name,
             DriveType = storageDrive.TargetDriveInfo.Type.Value,
-            MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDrive.MasterKeyEncryptedStorageKey),
+            // Null, not the string "null", on a zero-knowledge drive.
+            MasterKeyEncryptedStorageKeyJson = storageDrive.MasterKeyEncryptedStorageKey == null
+                ? null
+                : OdinSystemSerializer.Serialize(storageDrive.MasterKeyEncryptedStorageKey),
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(details),
@@ -881,7 +941,13 @@ public class DriveManager : IDriveManager
             // Must be carried, not rebuilt: this method backs every drive upsert, and omitting the field
             // wrote NULL over the key on any rename, re-mode or archive.  Harmless while nothing minted
             // one; silent key loss now that creation does.
-            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(storageDrive.WriteOnlyKeyPair)
+            WriteOnlyKeyPair = DriveWriteOnlyKey.Serialize(storageDrive.WriteOnlyKeyPair),
+
+            // Carried for the same reason: dropping them would turn a zero-knowledge drive back into one
+            // with no key at all.
+            SharingModel = (int)storageDrive.SharingModel,
+            ZkMasterKeyEncryptedStorageKey = storageDrive.ZkMasterKeyEncryptedStorageKey,
+            ZkStorageKeyEncryptedWriteOnlyPrivateKey = storageDrive.ZkStorageKeyEncryptedWriteOnlyPrivateKey
         };
 
         return record;
@@ -958,8 +1024,9 @@ public class DriveManager : IDriveManager
                 Type = record.DriveType
             },
 
-            MasterKeyEncryptedStorageKey = OdinSystemSerializer.Deserialize<SymmetricKeyEncryptedAes>(
-                record.MasterKeyEncryptedStorageKeyJson),
+            MasterKeyEncryptedStorageKey = record.MasterKeyEncryptedStorageKeyJson == null
+                ? null
+                : OdinSystemSerializer.Deserialize<SymmetricKeyEncryptedAes>(record.MasterKeyEncryptedStorageKeyJson),
 
             EncryptedIdIv = record.EncryptedIdIv64.FromBase64(),
             EncryptedIdValue = record.EncryptedIdValue64.FromBase64(),
@@ -977,7 +1044,11 @@ public class DriveManager : IDriveManager
             AppId = record.AppId,
             WriteOnlyKeyPair = DriveWriteOnlyKey.Deserialize(record.WriteOnlyKeyPair),
             DriveSlug = record.DriveSlug,
-            DriveTypeSlug = record.DriveTypeSlug
+            DriveTypeSlug = record.DriveTypeSlug,
+
+            SharingModel = (DriveSharingModel)record.SharingModel,
+            ZkMasterKeyEncryptedStorageKey = record.ZkMasterKeyEncryptedStorageKey,
+            ZkStorageKeyEncryptedWriteOnlyPrivateKey = record.ZkStorageKeyEncryptedWriteOnlyPrivateKey
         };
 
         return sdd;

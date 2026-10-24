@@ -96,6 +96,7 @@ using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Security.ZeroKnowledge;
 using Odin.Services.Tenant.Container;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.ObjectStorage;
@@ -255,6 +256,7 @@ public static class TenantServices
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
+        cb.RegisterType<ZeroKnowledgeKeyService>().InstancePerLifetimeScope();
 
         cb.RegisterType<OwnerAuthenticationService>()
             .AsSelf()
