@@ -2,6 +2,7 @@
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using System.Linq;
@@ -89,8 +90,8 @@ public sealed partial class OwnerAdmin
         System.Collections.Generic.Dictionary<string, string>? attributes = null,
         bool allowCdn = false,
         Guid? appId = null,
-        string? driveSlug = null,
-        string? driveTypeSlug = null)
+        OdinSlug? driveSlug = null,
+        OdinSlug? driveTypeSlug = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);

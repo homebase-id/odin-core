@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Drives;
@@ -39,7 +40,7 @@ public abstract class V2PeerAppDriveControllerBase(PeerDriveQueryService peerDri
     /// — the remote does not distinguish the two, so neither can this.
     /// </summary>
     protected async Task<(OdinId Recipient, TargetDrive TargetDrive)> ResolveAsync(
-        string odinId, string appSlug, string driveSlug)
+        string odinId, OdinSlug appSlug, OdinSlug driveSlug)
     {
         AssertIsValidOdinId(odinId, out var id);
         var targetDrive = await PeerQuery.ResolveRemoteDriveAsync(id, appSlug, driveSlug, WebOdinContext);

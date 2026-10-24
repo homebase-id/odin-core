@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -37,7 +38,7 @@ public static class BuiltinApps
     /// </summary>
     public static readonly IReadOnlyList<WellknownAppDefinition> Builtin =
     [
-        new(SystemAppConstants.ChatAppId, "Chat", "chat",
+        new(SystemAppConstants.ChatAppId, "Chat", (OdinSlug)"chat",
             Drives:
             [
                 BuiltinDrives.ChatDrive,
@@ -57,7 +58,7 @@ public static class BuiltinApps
                 // Kept for Chat alone: see SystemAppConstants.ChatAppRegistrationRequest.
                 PermissionKeys.ManageCircleMembership)),
 
-        new(SystemAppConstants.ContactsAppId, "Contacts", "contacts",
+        new(SystemAppConstants.ContactsAppId, "Contacts", (OdinSlug)"contacts",
             Drives:
             [
                 BuiltinDrives.ContactDrive,
@@ -66,17 +67,17 @@ public static class BuiltinApps
             Circles: [BuiltinCircles.FriendsCircle],
             Permissions: new PermissionSet()),
 
-        new(SystemAppConstants.EmailAppId, "Email", "email",
+        new(SystemAppConstants.EmailAppId, "Email", (OdinSlug)"email",
             Drives: [BuiltinDrives.EmailDrive],
             Circles: [BuiltinCircles.EmailCircle],
             Permissions: new PermissionSet()),
         
-        new(SystemAppConstants.LocationAppId, "Location", "location",
+        new(SystemAppConstants.LocationAppId, "Location", (OdinSlug)"location",
             Drives: [BuiltinDrives.LocationDrive],
             Circles: [BuiltinCircles.EmergencyLocationAccessCircle],
             Permissions: new PermissionSet()),
 
-        new(SystemAppConstants.FeedAppId, "Feed", "feed",
+        new(SystemAppConstants.FeedAppId, "Feed", (OdinSlug)"feed",
             Drives:
             [
                 BuiltinDrives.FeedDrive,
@@ -95,30 +96,30 @@ public static class BuiltinApps
                 PermissionKeys.PublishStaticContent,
                 PermissionKeys.SendPushNotifications)),
 
-        new(SystemAppConstants.HomePageAppId, "HomePage", "homepage",
+        new(SystemAppConstants.HomePageAppId, "HomePage", (OdinSlug)"homepage",
             Drives: [BuiltinDrives.HomePageConfigDrive],
             Circles: [BuiltinCircles.HomePageCircle],
             Permissions: new PermissionSet()),
 
 
-        new(SystemAppConstants.RecoveryAppId, "Recovery", "recovery",
+        new(SystemAppConstants.RecoveryAppId, "Recovery", (OdinSlug)"recovery",
             Drives: [BuiltinDrives.ShardRecoveryDrive],
             Circles: [BuiltinCircles.RecoveryCircle],
             Permissions: new PermissionSet()),
 
         // Owns the transient drive.
 
-        new(SystemAppConstants.SystemAppId, "System", "system",
+        new(SystemAppConstants.SystemAppId, "System", (OdinSlug)"system",
             Drives: [BuiltinDrives.TransientTempDrive],
             Circles: [],
             Permissions: new PermissionSet()),
 
-        new(SystemAppConstants.MomentsAppId, "Moments", "moments",
+        new(SystemAppConstants.MomentsAppId, "Moments", (OdinSlug)"moments",
             Drives: [BuiltinDrives.MomentsDrive],
             Circles: [BuiltinCircles.MomentsCircle],
             Permissions: new PermissionSet()),
         
-        new(SystemAppConstants.WebdropAppId, "Webdrop", "webdrop",
+        new(SystemAppConstants.WebdropAppId, "Webdrop", (OdinSlug)"webdrop",
             Drives: [BuiltinDrives.WebDropDrive],
             Circles: [BuiltinCircles.WebdropCircle],
             Permissions: new PermissionSet(
@@ -132,7 +133,7 @@ public static class BuiltinApps
                 PermissionKeys.ManageProfile,
                 PermissionKeys.ReadCircleMembership)),
         
-        new(SystemAppConstants.VaultAppId, "Vault", "vault",
+        new(SystemAppConstants.VaultAppId, "Vault", (OdinSlug)"vault",
             Drives: [BuiltinDrives.VaultDrive],
             Circles: [BuiltinCircles.VaultCircle],
             Permissions: new PermissionSet()),
@@ -149,17 +150,17 @@ public static class BuiltinApps
     /// </remarks>
     public static readonly IReadOnlyList<WellknownAppDefinition> Wellknown =
     [
-        new(SystemAppConstants.CommunityAppId, "Community", "community",
+        new(SystemAppConstants.CommunityAppId, "Community", (OdinSlug)"community",
             Drives: [BuiltinDrives.CommunityDrive],
             Circles: [BuiltinCircles.CommunityCircle],
             Permissions: new PermissionSet()),
         
-        new(SystemAppConstants.PhotoAppId, "Photo", "photo",
+        new(SystemAppConstants.PhotoAppId, "Photo", (OdinSlug)"photo",
             Drives: [BuiltinDrives.PhotoLibraryDrive],
             Circles: [BuiltinCircles.PhotosCircle],
             Permissions: new PermissionSet()),
 
-        new(SystemAppConstants.SocialSyncAppId, "Social Sync", "social-sync",
+        new(SystemAppConstants.SocialSyncAppId, "Social Sync", (OdinSlug)"social-sync",
             Drives: [],
             Circles: [BuiltinCircles.SocialSyncCircle],
             Permissions: new PermissionSet()),
@@ -167,7 +168,7 @@ public static class BuiltinApps
         // BuiltinDrives.ListsDrive is seeded despite its app not being built-in, because Chat's circle-member
         // grant names it and issuing a grant for an absent drive throws (BuiltinProvisioner.CarryOverDrives).
         //
-        // new(SystemAppConstants.ListsAppId, "Lists", "lists",
+        // new(SystemAppConstants.ListsAppId, "Lists", (OdinSlug)"lists",
         //     Drives: [BuiltinDrives.ListsDrive],
         //     Circles: [BuiltinCircles.ListsCircle],
         //     Permissions: new PermissionSet()),

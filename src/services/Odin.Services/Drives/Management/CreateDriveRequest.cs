@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core;
 
 namespace Odin.Services.Drives.Management;
 
@@ -47,13 +48,13 @@ public class CreateDriveRequest
     /// The drive's portable name, unique per owning app.  Required (#1901): the server never derives
     /// one, and a missing or malformed slug is a 400.
     /// </summary>
-    public string DriveSlug { get; set; }
+    public OdinSlug? DriveSlug { get; set; }
 
     /// <summary>
     /// Readable form of the drive's type, e.g. <c>channel</c>.  Required (#1901); a missing or
     /// malformed one is a 400.
     /// </summary>
-    public string DriveTypeSlug { get; set; }
+    public OdinSlug? DriveTypeSlug { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
 }

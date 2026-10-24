@@ -535,10 +535,10 @@ namespace Odin.Services.Membership.Circles
                 }
 
                 // Required here, unlike on circles/create: a declared circle is one the app means to find again.
-                OdinSlug.AssertRequired(circle.Slug, nameof(CreateAppCircleRequest.Slug));
-                if (!slugs.Add(circle.Slug))
+                var slug = OdinSlug.Required(circle.Slug, nameof(CreateAppCircleRequest.Slug));
+                if (!slugs.Add(slug))
                 {
-                    throw new OdinClientException($"Circle slug '{circle.Slug}' is declared twice",
+                    throw new OdinClientException($"Circle slug '{slug}' is declared twice",
                         OdinClientErrorCode.ArgumentError);
                 }
 
@@ -567,7 +567,7 @@ namespace Odin.Services.Membership.Circles
             var created = new List<Guid>();
             foreach (var circle in circles)
             {
-                if (await GetCircleByAppSlugAsync(appId, circle.Slug) != null)
+                if (await GetCircleByAppSlugAsync(appId, OdinSlug.Required(circle.Slug, nameof(circle.Slug))) != null)
                 {
                     continue;
                 }
@@ -787,7 +787,7 @@ namespace Odin.Services.Membership.Circles
         /// The circle <paramref name="appId"/> holds under <paramref name="slug"/>, or null.  A miss is never
         /// cached, so the loser of a race for a slug finds the winner on the re-read.
         /// </summary>
-        public async Task<CircleDefinition> GetCircleByAppSlugAsync(Guid appId, string slug)
+        public async Task<CircleDefinition> GetCircleByAppSlugAsync(Guid appId, OdinSlug slug)
         {
             var record = await db.CircleCached.GetByAppSlugAsync(appId, slug);
             return record == null ? null : FromRecord(record);
@@ -810,13 +810,11 @@ namespace Odin.Services.Membership.Circles
         /// The slug a new circle gets: the caller's, if it named one and the app does not hold it yet;
         /// otherwise one made from the name.
         /// </summary>
-        private async Task<string> ResolveSlugAsync(string requested, string name, Guid appId)
+        private async Task<OdinSlug> ResolveSlugAsync(OdinSlug? requestedOrNone, string name, Guid appId)
         {
-            OdinSlug.AssertValidOrNull(requested, nameof(CreateCircleRequest.Slug));
-
-            if (string.IsNullOrEmpty(requested))
+            if (requestedOrNone is not { HasValue: true } requested)
             {
-                return CircleSlugGenerator.Generate(name, await SlugsHeldByAppAsync(db, appId));
+                return new OdinSlug(CircleSlugGenerator.Generate(name, await SlugsHeldByAppAsync(db, appId)));
             }
 
             // One indexed lookup -- except for the owner console, whose ownerless circles the index cannot see
@@ -842,7 +840,7 @@ namespace Odin.Services.Membership.Circles
         /// </summary>
         private async Task AssertSlugFreeInAppAsync(CircleDefinition circle, Guid appId)
         {
-            if (string.IsNullOrEmpty(circle.Slug))
+            if (!circle.Slug.HasValue)
             {
                 return;
             }
@@ -871,7 +869,7 @@ namespace Odin.Services.Membership.Circles
             // same trick ToConnectionsRecord uses for the grant collections. Restored immediately: the
             // caller's object is still live.
             definition.AppId = null;
-            definition.Slug = null;
+            definition.Slug = default;
             definition.GrantOn = CircleGrantOn.None;
             definition.Designation = CircleDesignation.Personal;
             definition.Emoji = null;
@@ -898,7 +896,7 @@ namespace Odin.Services.Membership.Circles
                 circleName = definition.Name,
                 data = data,
                 AppId = appId,
-                CircleSlug = slug,
+                CircleSlug = slug.HasValue ? slug.Value : null, // the column refuses null; that check is the table's
                 GrantOn = (int)grantOn,
                 Designation = (int)designation,
                 Emoji = emoji
@@ -910,7 +908,7 @@ namespace Odin.Services.Membership.Circles
             var definition = OdinSystemSerializer.Deserialize<CircleDefinition>(record.data.ToStringFromUtf8Bytes());
 
             definition.AppId = record.AppId;
-            definition.Slug = record.CircleSlug;
+            definition.Slug = record.CircleSlug == null ? default : new OdinSlug(record.CircleSlug);
             definition.GrantOn = (CircleGrantOn)record.GrantOn;
             definition.Designation = (CircleDesignation)record.Designation;
             definition.Emoji = record.Emoji;

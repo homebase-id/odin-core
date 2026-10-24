@@ -41,8 +41,8 @@ public class PeerAppDriveReadTests : V2Fixture
 
     // Not a built-in slug: registration is first-come, and BuiltinApps already holds chat, mail,
     // feed, vault and the rest on every identity.
-    private const string AppSlug = "ledger";
-    private const string DriveSlug = "records";
+    private static readonly OdinSlug AppSlug = new("ledger");
+    private static readonly OdinSlug DriveSlug = new("records");
     private const string PayloadKey = "pknt0001";
 
     /// <summary>
@@ -64,7 +64,7 @@ public class PeerAppDriveReadTests : V2Fixture
 
         await sam.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: AppSlug);
         await sam.Admin.CreateDrive(drive, "Sam's records", allowAnonymousReads: false, appId: appId,
-            driveSlug: DriveSlug, driveTypeSlug: "record");
+            driveSlug: DriveSlug, driveTypeSlug: new OdinSlug("record"));
 
         // Frodo is the "sender" here only in PeerFlow's naming: the argument order grants him access
         // on Sam's copy, which is what a reader needs.
@@ -371,8 +371,8 @@ public class PeerAppDriveReadTests : V2Fixture
         var (frodo, sam, _) = await SetupAsync();
 
         var appId = Guid.NewGuid();
-        var privateSlug = "private";
-        await sam.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: "second");
+        var privateSlug = new OdinSlug("private");
+        await sam.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: new OdinSlug("second"));
         await sam.Admin.CreateDrive(TargetDrive.NewTargetDrive(), "Sam's private", appId: appId,
             driveSlug: privateSlug, allowAnonymousReads: false);
 

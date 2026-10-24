@@ -377,10 +377,9 @@ public class CircleMembershipService(
             throw new OdinSecurityException("Only an app can create a circle it owns");
         }
 
-        OdinSlug.AssertValidOrNull(request.Slug, nameof(request.Slug));
-        if (!string.IsNullOrEmpty(request.Slug))
+        if (request.Slug is { HasValue: true } requestedSlug)
         {
-            var existing = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);
+            var existing = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, requestedSlug);
             if (existing != null)
             {
                 return existing.Id;
@@ -404,10 +403,10 @@ public class CircleMembershipService(
             await circleDefinitionService.CreateAsync(create);
         }
         catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.CircleSlugTaken &&
-                                            !string.IsNullOrEmpty(request.Slug))
+                                            request.Slug is { HasValue: true })
         {
             // Another device made it between the lookup and here: it is the circle this call asked for.
-            var winner = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug);
+            var winner = await circleDefinitionService.GetCircleByAppSlugAsync(appId.Value, request.Slug.Value);
             if (winner == null)
             {
                 throw;

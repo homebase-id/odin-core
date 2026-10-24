@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Apps;
 using Odin.Services.Apps.Builtin;
@@ -73,7 +74,7 @@ public class AppSlugGeneratorTests
         var slugs = AppSlugGenerator.GenerateAll([(acme, "Acme Receipts")]);
 
         Assert.That(slugs[acme], Is.EqualTo("acme-receipts"));
-        Assert.That(AppSlugGenerator.IsValid(slugs[acme]), Is.True);
+        Assert.That(OdinSlug.IsValid(slugs[acme]), Is.True);
     }
 
     [Test]
@@ -94,7 +95,7 @@ public class AppSlugGeneratorTests
 
         foreach (var slug in slugs.Values)
         {
-            Assert.That(AppSlugGenerator.IsValid(slug), Is.True, $"'{slug}' is not a valid slug");
+            Assert.That(OdinSlug.IsValid(slug), Is.True, $"'{slug}' is not a valid slug");
         }
     }
 
@@ -119,7 +120,7 @@ public class AppSlugGeneratorTests
         var appId = Guid.NewGuid();
         var slugs = AppSlugGenerator.GenerateAll([(appId, "!!! ??? ***")]);
 
-        Assert.That(AppSlugGenerator.IsValid(slugs[appId]), Is.True);
+        Assert.That(OdinSlug.IsValid(slugs[appId]), Is.True);
         Assert.That(slugs[appId], Is.EqualTo(appId.ToString("N")[..AppSlugGenerator.MaxLength]));
     }
 
@@ -131,8 +132,8 @@ public class AppSlugGeneratorTests
 
         var slugs = AppSlugGenerator.GenerateAll([(a, null), (b, "   ")]);
 
-        Assert.That(AppSlugGenerator.IsValid(slugs[a]), Is.True);
-        Assert.That(AppSlugGenerator.IsValid(slugs[b]), Is.True);
+        Assert.That(OdinSlug.IsValid(slugs[a]), Is.True);
+        Assert.That(OdinSlug.IsValid(slugs[b]), Is.True);
         Assert.That(slugs[a], Is.Not.EqualTo(slugs[b]));
     }
 
@@ -146,7 +147,7 @@ public class AppSlugGeneratorTests
         var slug = AppSlugGenerator.Generate(appId, "Acme Receipts", taken);
 
         Assert.That(slug, Is.Not.EqualTo("acme-receipts"));
-        Assert.That(AppSlugGenerator.IsValid(slug), Is.True);
+        Assert.That(OdinSlug.IsValid(slug), Is.True);
     }
 
     [Test]
@@ -176,7 +177,7 @@ public class AppSlugGeneratorTests
 
         if (result != null)
         {
-            Assert.That(AppSlugGenerator.IsValid(result), Is.True);
+            Assert.That(OdinSlug.IsValid(result), Is.True);
             Assert.That(result.Length, Is.LessThanOrEqualTo(AppSlugGenerator.MaxLength));
         }
     }
@@ -190,6 +191,6 @@ public class AppSlugGeneratorTests
         ]);
 
         Assert.That(slugs[appId].Length, Is.LessThanOrEqualTo(AppSlugGenerator.MaxLength));
-        Assert.That(AppSlugGenerator.IsValid(slugs[appId]), Is.True);
+        Assert.That(OdinSlug.IsValid(slugs[appId]), Is.True);
     }
 }

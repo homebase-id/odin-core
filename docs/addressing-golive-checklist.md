@@ -19,8 +19,9 @@ Status as of 2026-08-27.
 | 0.7 | Legacy blob read with a frozen DTO -- the `[JsonIgnore]` bug that migrated zero apps | #1688 |
 | 0.8 | Chat app owns Friends/Family/Work/Acquaintances; v13 -> v14 rebinds ownership only | #1691 |
 | 0.9 | `AppId` / `DriveSlug` / `DriveTypeSlug` plumbed through `StorageDrive`, `DriveManager`, `CreateDriveRequest`, `OwnerClientDriveData`; `OdinSlug` format validator | #1688 |
+| 0.12 | `OdinSlug` is a value type (`Odin.Core`), always lowercase, for app, drive, drive-type and circle slugs; a malformed one is a 400 `argumentError` in a body, route or query | this PR |
 | 0.10 | The same three on `ClientDriveData` (app and V2 routes), redacted for third parties as `Name` already is | #1688 |
-| 0.11 | `AppRegistrationRequest.AppSlug`: optional, format-validated, taken verbatim or refused, never silently replaced. Omitted still derives from `Name` | #1688 |
+| 0.11 | `AppRegistrationRequest.AppSlug`: optional, lowercased, then format-validated and taken or refused, never silently replaced. Omitted still derives from `Name` | #1688 |
 
 ## Blocked on decisions
 
@@ -55,7 +56,7 @@ to tighten, because each one can reject a call that works today.
 | 3.2 | **App slug immutability** across updates | Enforced: updates carry the stored slug forward, and no update request carries a slug field |
 | 3.3 | **App slug uniqueness** | Enforced by `UNIQUE(identityId, AppSlug)`, and a supplied duplicate is refused with a client error before it reaches the constraint |
 | 3.3a | **App slug is derived in two places** | `AppRegistrationService.AssignSlugAsync` and the v12 -> v13 migration, both through `AppSlugGenerator`, so a migrated app and a freshly registered one land on the same value. Decided 2026-08-27 to keep it that way rather than make the column nullable |
-| 3.3b | **Derived slugs truncate at 12 characters** | `Acme Receipts` becomes `acme-receipt`. Fine for a derived fallback; worth saying out loud before any client relies on round-tripping a name |
+| 3.3b | **Derived slugs truncate at 14 characters** (`OdinSlug.MaxLength`) | `Acme Receipts Inc` becomes `acme-receipts`. Fine for a derived fallback; worth saying out loud before any client relies on round-tripping a name |
 | 3.4 | **Drive slug required when `AppId` is set** | Not enforced. An app-owned drive can be created with no slug |
 | 3.5 | **Drive slug forbidden when `AppId` is null** | Not enforced. The doc's invariant; without it, ownerless drives can carry slugs the unique index cannot constrain (NULL `AppId` rows do not collide in either dialect) |
 | 3.6 | **Drive slug uniqueness for ownerless drives** | Impossible at the constraint level while `AppId` is null; needs a code check, or 3.5 |

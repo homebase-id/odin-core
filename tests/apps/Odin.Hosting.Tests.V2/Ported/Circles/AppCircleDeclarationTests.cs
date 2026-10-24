@@ -55,7 +55,7 @@ public class AppCircleDeclarationTests : V2Fixture
         var create = await app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = "Declared sync",
-            Slug = "sync",
+            Slug = new OdinSlug("sync"),
             Permissions = new PermissionSet(PermissionKeys.ReadConnections)
         });
         Assert.That(create.Content, Is.EqualTo((Guid)circle.Id));
@@ -111,9 +111,28 @@ public class AppCircleDeclarationTests : V2Fixture
         var owner = await LoginAsOwner();
         var drive = await CreateDriveAsync(owner);
 
-        var malformed = await Register(owner, Guid.NewGuid(), drive, DrivePermission.Read, PermissionKeys.ReadConnections,
-            Declared("Not A Slug", grants: [], keys: [PermissionKeys.ReadConnections]));
-        Assert.That(malformed.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        // Untyped: an OdinSlug can't hold it
+        var appId = Guid.NewGuid();
+        var malformed = await owner.RefitFor<IRawSlugRequests>().RegisterApp(new System.Collections.Generic.Dictionary<string, object>
+        {
+            ["appId"] = appId,
+            ["name"] = $"Test_{appId}",
+            ["appSlug"] = OwnerAdmin.SlugFor(appId).Value,
+            ["permissionSet"] = new PermissionSet(PermissionKeys.ReadConnections),
+            ["drives"] = new[] { Grant(drive, DrivePermission.Read) },
+            ["authorizedCircles"] = Array.Empty<Guid>(),
+            ["circleMemberPermissionGrant"] = new PermissionSetGrantRequest(),
+            ["circles"] = new[]
+            {
+                new System.Collections.Generic.Dictionary<string, object>
+                {
+                    ["slug"] = "Not A Slug",
+                    ["name"] = "Declared Not A Slug",
+                    ["permissions"] = new PermissionSet(PermissionKeys.ReadConnections)
+                }
+            }
+        });
+        Assert.That(malformed.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), malformed.Error?.Content);
 
         var repeated = await Register(owner, Guid.NewGuid(), drive, DrivePermission.Read, PermissionKeys.ReadConnections,
             Declared("twice", grants: [], keys: [PermissionKeys.ReadConnections]),
@@ -150,7 +169,7 @@ public class AppCircleDeclarationTests : V2Fixture
 
     private static CreateAppCircleRequest Declared(string slug, List<DriveGrantRequest> grants, int[] keys) => new()
     {
-        Slug = slug,
+        Slug = slug == null ? null : new OdinSlug(slug),
         Name = "Declared " + slug,
         DriveGrants = grants,
         Permissions = new PermissionSet(keys)

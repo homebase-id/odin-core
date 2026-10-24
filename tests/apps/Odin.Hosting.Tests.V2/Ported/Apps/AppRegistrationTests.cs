@@ -310,10 +310,9 @@ public class AppRegistrationTests : V2Fixture
         Assert.That(transientDriveGrant, Is.Null);
     }
 
+    // An empty or blank slug can't be sent as an OdinSlug at all; OdinSlugHttpTests sends one as raw JSON.
     [Test]
     [TestCase(null)]
-    [TestCase("")]
-    [TestCase("   ")]
     public async Task ABuiltinAppRegisteredWithoutASlugIsRefused(string appSlug)
     {
         // No exceptions (#1901): a built-in's slug comes from its tree definition, and the caller sends
@@ -324,7 +323,7 @@ public class AppRegistrationTests : V2Fixture
         var response = await svc.RegisterApp(new AppRegistrationRequest
         {
             AppId = SystemAppConstants.ChatAppId,
-            AppSlug = appSlug,
+            AppSlug = appSlug == null ? null : new OdinSlug(appSlug),
             Name = "Chat without a slug",
             PermissionSet = null,
             Drives = null,

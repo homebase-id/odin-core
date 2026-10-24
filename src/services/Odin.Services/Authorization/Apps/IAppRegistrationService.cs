@@ -29,7 +29,7 @@ namespace Odin.Services.Authorization.Apps
         /// The app addressed as <c>{appSlug}</c>; see
         /// <see cref="AppRegistrationService.GetAppRegistrationBySlugAsync"/>.
         /// </summary>
-        Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(string appSlug, IOdinContext odinContext);
+        Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(OdinSlug appSlug, IOdinContext odinContext);
 
         /// <summary>
         /// Resolves the appId of the app client making the current call (via its access-registration id),
@@ -53,7 +53,7 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Gives an app the slug the app tree names, if it has a different one.  Migration only.
         /// </summary>
-        Task<bool> ApplyTreeSlugAsync(Guid appId, string appSlug, IOdinContext odinContext);
+        Task<bool> ApplyTreeSlugAsync(Guid appId, OdinSlug appSlug, IOdinContext odinContext);
 
         Task<(bool isValid, ServerHalfOfClientKey? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
             ClientAuthenticationToken authToken,

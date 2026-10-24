@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -25,8 +26,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// <summary>
         /// The drive's portable name, and the readable form of its type.
         /// </summary>
-        public string DriveSlug { get; set; }
+        public OdinSlug DriveSlug { get; set; }
 
-        public string DriveTypeSlug { get; set; }
+        public OdinSlug DriveTypeSlug { get; set; }
     }
 }

@@ -53,7 +53,7 @@ namespace Odin.Services.Membership.Circles
         /// created -- by the caller, or made from the name -- and never taken from an update.  Null only for
         /// a circle still in the pre-v13 blob store, which has no column.
         /// </remarks>
-        public string Slug { get; set; }
+        public OdinSlug Slug { get; set; }
 
         /// <summary>
         /// True when the app tree declares this circle, so its owner, grant rule and designation are
@@ -166,7 +166,7 @@ namespace Odin.Services.Membership.Circles
         public Guid? AppId { get; set; }
 
         /// <summary>The circle's address within its owning app; unique per app, immutable.</summary>
-        public string Slug { get; set; }
+        public OdinSlug Slug { get; set; }
 
         /// <summary>
         /// True when the app tree declares this circle, so the next version upgrade re-applies its owner,

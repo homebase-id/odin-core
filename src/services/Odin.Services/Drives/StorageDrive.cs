@@ -113,13 +113,13 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.AppId = value;
     }
 
-    public string DriveSlug
+    public OdinSlug DriveSlug
     {
         get => Data.DriveSlug;
         set => Data.DriveSlug = value;
     }
 
-    public string DriveTypeSlug
+    public OdinSlug DriveTypeSlug
     {
         get => Data.DriveTypeSlug;
         set => Data.DriveTypeSlug = value;
@@ -321,12 +321,12 @@ public sealed class StorageDriveData
     /// The drive's portable name -- the segment a remote caller uses to address it
     /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).
     /// </summary>
-    public string DriveSlug { get; set; }
+    public OdinSlug DriveSlug { get; set; }
 
     /// <summary>
     /// Readable form of the drive's type, e.g. <c>channel</c>.  A category to filter on, not an address.
     /// </summary>
-    public string DriveTypeSlug { get; set; }
+    public OdinSlug DriveTypeSlug { get; set; }
 
     /// <summary>
     /// The drive's write-only keypair -- an ECC-384 <c>EccFullKeyData</c> holding the public half in

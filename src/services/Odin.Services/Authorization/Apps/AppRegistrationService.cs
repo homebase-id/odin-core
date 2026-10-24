@@ -249,14 +249,9 @@ namespace Odin.Services.Authorization.Apps
         /// identity that has not run the v13 migration simply has no slug-addressable apps, which is
         /// the truth rather than a gap.
         /// </remarks>
-        public async Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(string appSlug, IOdinContext odinContext)
+        public async Task<RedactedAppRegistration?> GetAppRegistrationBySlugAsync(OdinSlug appSlug, IOdinContext odinContext)
         {
-            if (string.IsNullOrWhiteSpace(appSlug))
-            {
-                return null;
-            }
-
-            var record = await db.AppRegistrations.GetByAppSlugAsync(OdinSlug.ToLookupKey(appSlug));
+            var record = await db.AppRegistrations.GetByAppSlugAsync(appSlug);
             return record == null ? null : FromRecord(record).Redacted();
         }
 
@@ -613,25 +608,26 @@ namespace Odin.Services.Authorization.Apps
         /// chose ("Homebase - Location" became <c>homebase-locat</c>), which is why a missing slug is now
         /// refused instead.  No exceptions: a built-in sends the slug its tree definition names.
         /// <para>
-        /// A requested slug is taken verbatim or refused -- never quietly replaced with a derived one.
+        /// A requested slug is taken as given (lowercased, as every <see cref="OdinSlug"/> is) or refused
+        /// -- never quietly replaced with a derived one.
         /// It is an address other identities resolve against, so handing back a different one would be
         /// worse than saying no.  Registration is first-come, and
         /// <c>UNIQUE(identityId, AppSlug)</c> would refuse it at the database anyway; this only makes the
         /// refusal a clear client error rather than a constraint violation.
         /// </para>
         /// </remarks>
-        private async Task<string> AssignSlugAsync(Guid appId, string requestedSlug)
+        private async Task<OdinSlug> AssignSlugAsync(Guid appId, OdinSlug? requested)
         {
-            // Required for every app, built-ins included (#1901): missing, empty, whitespace-only or
-            // malformed is a client error. A built-in's slug is defined in the tree
-            // (WellknownAppDefinition.AppSlug) and BuiltinProvisioner sends it like any other caller.
-            OdinSlug.AssertRequired(requestedSlug, nameof(AppRegistrationRequest.AppSlug));
+            // Required for every app, built-ins included (#1901): missing or malformed is a client error.
+            // A built-in's slug is defined in the tree (WellknownAppDefinition.AppSlug) and
+            // BuiltinProvisioner sends it like any other caller.
+            var requestedSlug = OdinSlug.Required(requested, nameof(AppRegistrationRequest.AppSlug));
 
             // The tree's slugs belong to the apps it names, registered or not: "chat" resolving to
             // whoever asked for it first would put another app at the address every client already
             // builds.
             var reservedBy = BuiltinApps.All.FirstOrDefault(
-                a => a.AppId != appId && string.Equals(a.AppSlug, requestedSlug, StringComparison.Ordinal));
+                a => a.AppId != appId && a.AppSlug == requestedSlug);
             if (reservedBy != null)
             {
                 throw new OdinClientException(
@@ -653,7 +649,7 @@ namespace Odin.Services.Authorization.Apps
             {
                 alreadyTaken = (await legacyStore.ReadAppRegistrationsAsync()).Any(reg =>
                     (Guid)reg.AppId != (Guid)appId &&
-                    string.Equals(reg.AppSlug, requestedSlug, StringComparison.Ordinal));
+                    requestedSlug == reg.AppSlug);
             }
 
             if (alreadyTaken)
@@ -679,14 +675,9 @@ namespace Odin.Services.Authorization.Apps
         /// source of truth for the apps it declares, and a registration created before that derived its
         /// slug from the display name instead: "Homebase - Location" became <c>homebase-locat</c>.
         /// </remarks>
-        public async Task<bool> ApplyTreeSlugAsync(Guid appId, string appSlug, IOdinContext odinContext)
+        public async Task<bool> ApplyTreeSlugAsync(Guid appId, OdinSlug appSlug, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-
-            if (!OdinSlug.IsValid(appSlug))
-            {
-                throw new OdinSystemException($"'{appSlug}' is not a valid app slug");
-            }
 
             var record = await db.AppRegistrations.GetAsync(appId);
             if (record == null || record.AppSlug == appSlug)
@@ -715,7 +706,7 @@ namespace Odin.Services.Authorization.Apps
 
         internal static AppRegistrationsRecord ToRecord(AppRegistration appReg)
         {
-            if (!AppSlugGenerator.IsValid(appReg.AppSlug))
+            if (!appReg.AppSlug.HasValue)
             {
                 throw new OdinSystemException(
                     $"App {appReg.AppId} has no valid slug ('{appReg.AppSlug}'); it cannot be persisted");
@@ -738,7 +729,7 @@ namespace Odin.Services.Authorization.Apps
                          ?? throw new OdinSystemException($"App registration {record.AppId} has unreadable grantJson");
 
             appReg.AppId = record.AppId;
-            appReg.AppSlug = record.AppSlug;
+            appReg.AppSlug = new OdinSlug(record.AppSlug);
             appReg.Name = record.Name;
             appReg.CorsHostName = record.CorsHostName;
 

@@ -1660,7 +1660,7 @@ public class YouAuthIntegrationTests : V2Fixture
     // identity registered it under, only the slug every installation shares.
     //
 
-    private static string NewSlug() => $"slug-{Guid.NewGuid():N}"[..20];
+    private static string NewSlug() => $"s{Guid.NewGuid():N}"[..OdinSlug.MaxLength];
 
     private async Task<HttpResponseMessage> AuthorizeAppAsync(string hobbit, string clientId, YouAuthAppParameters appParams)
     {
@@ -1702,8 +1702,8 @@ public class YouAuthIntegrationTests : V2Fixture
         // The second device knows the slug, not the id -- in whatever case it was typed
         var appParams = GetAppParams(Guid.Empty, driveAlias, driveType);
         appParams.AppId = "";
-        appParams.AppSlug = registration.AppSlug;
-        var clientId = uppercase ? registration.AppSlug.ToUpperInvariant() : registration.AppSlug;
+        appParams.AppSlug = registration.AppSlug.Value;
+        var clientId = uppercase ? registration.AppSlug.Value.ToUpperInvariant() : registration.AppSlug.Value;
 
         var response = await AuthorizeAppAsync(hobbit, clientId, appParams);
 

@@ -30,7 +30,7 @@ namespace Odin.Services.Authorization.Apps
         /// which cannot see which slugs the built-ins reserve.
         /// </para>
         /// </remarks>
-        public string AppSlug { get; set; }
+        public OdinSlug? AppSlug { get; set; }
 
         /// <summary>
         /// The host name used for CORS to allow the app to access the identity from a browser

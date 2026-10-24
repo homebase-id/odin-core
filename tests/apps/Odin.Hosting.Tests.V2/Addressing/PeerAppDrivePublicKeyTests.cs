@@ -33,8 +33,8 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    private const string AppSlug = "ledger";
-    private const string DriveSlug = "inbox";
+    private static readonly OdinSlug AppSlug = new("ledger");
+    private static readonly OdinSlug DriveSlug = new("inbox");
 
     /// <summary>
     /// Sam hosts an app-owned drive; Frodo is connected with <paramref name="frodoPermission"/> on it.
@@ -50,7 +50,7 @@ public class PeerAppDrivePublicKeyTests : V2Fixture
 
         await sam.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: AppSlug);
         await sam.Admin.CreateDrive(drive, "Sam's inbox", allowAnonymousReads: false, appId: appId,
-            driveSlug: DriveSlug, driveTypeSlug: "inbox");
+            driveSlug: DriveSlug, driveTypeSlug: new OdinSlug("inbox"));
 
         await PeerFlow.ConnectAsync(frodo, sam, drive, frodoPermission);
 

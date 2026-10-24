@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.V2.Api;
@@ -91,8 +92,14 @@ public class CircleSlugTests : V2Fixture
         var owner = await LoginAsOwner();
         var app = await CreateAppAsync(owner, Guid.NewGuid());
 
-        var response = await CreateAppCircle(app, "Bad", "Not A Slug");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        // Untyped: an OdinSlug can't hold it
+        var response = await app.RefitFor<IRawSlugRequests>().CreateAppCircle(new System.Collections.Generic.Dictionary<string, object>
+        {
+            ["name"] = "Bad",
+            ["slug"] = "Not A Slug",
+            ["permissions"] = new PermissionSet(PermissionKeys.ReadConnections)
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), response.Error?.Content);
     }
 
     [Test]
@@ -118,7 +125,7 @@ public class CircleSlugTests : V2Fixture
         Assert.That((await owner.RefitFor<IRefitOwnerCircleDefinition>().CreateCircleDefinition(request)).IsSuccessStatusCode);
 
         var circle = await owner.Admin.GetCircleDefinition(request.Id);
-        circle.Slug = "renamed";
+        circle.Slug = new OdinSlug("renamed");
         circle.Name = "Work, renamed";
         var update = await owner.Admin.TryUpdateCircleDefinition(circle);
         Assert.That(update.IsSuccessStatusCode, Is.True, $"arrange: {update.StatusCode}");
@@ -164,7 +171,7 @@ public class CircleSlugTests : V2Fixture
     {
         Id = Guid.NewGuid(),
         Name = name,
-        Slug = slug,
+        Slug = slug == null ? null : new OdinSlug(slug),
         Permissions = new PermissionSet(PermissionKeys.ReadCircleMembership)
     };
 
@@ -172,7 +179,7 @@ public class CircleSlugTests : V2Fixture
         app.RefitFor<IConnectionNetworkHttpClientApiV2>().CreateCircle(new CreateAppCircleRequest
         {
             Name = name,
-            Slug = slug,
+            Slug = slug == null ? null : new OdinSlug(slug),
             Permissions = new PermissionSet(PermissionKeys.ReadConnections)
         });
 

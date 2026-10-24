@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core;
 using Odin.Services.Authorization.Apps;
 
 namespace Odin.Hosting.Tests;
@@ -14,5 +15,5 @@ namespace Odin.Hosting.Tests;
 /// </remarks>
 public static class TestAppSlug
 {
-    public static string For(Guid appId) => AppSlugGenerator.Generate(appId, null, new HashSet<string>());
+    public static OdinSlug For(Guid appId) => new(AppSlugGenerator.Generate(appId, null, new HashSet<string>()));
 }

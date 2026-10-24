@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Base;
@@ -170,7 +171,7 @@ public class AppDriveAddressingTests : V2Fixture
     }
 
     private static Task RegisterAppAsync(OwnerSession owner, Guid appId, string appSlug) =>
-        owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: appSlug);
+        owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: new OdinSlug(appSlug));
 
     [Test]
     public async Task ADriveCreatedWithAnExplicitSlugIsAddressableByIt()
@@ -183,8 +184,8 @@ public class AppDriveAddressingTests : V2Fixture
         await RegisterAppAsync(owner, appId, appSlug);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Notes", appId: appId, driveSlug: "notes",
-            driveTypeSlug: "note");
+        await owner.Admin.CreateDrive(drive, "Notes", appId: appId, driveSlug: new OdinSlug("notes"),
+            driveTypeSlug: new OdinSlug("note"));
 
         var response = await ClientFor(owner).GetAppDrive(appSlug, "notes");
 
@@ -209,8 +210,8 @@ public class AppDriveAddressingTests : V2Fixture
 
         var driveA = TargetDrive.NewTargetDrive();
         var driveB = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(driveA, "News A", appId: appA, driveSlug: "news");
-        await owner.Admin.CreateDrive(driveB, "News B", appId: appB, driveSlug: "news");
+        await owner.Admin.CreateDrive(driveA, "News A", appId: appA, driveSlug: new OdinSlug("news"));
+        await owner.Admin.CreateDrive(driveB, "News B", appId: appB, driveSlug: new OdinSlug("news"));
 
         var fromA = await ClientFor(owner).GetAppDrive(slugA, "news");
         var fromB = await ClientFor(owner).GetAppDrive(slugB, "news");
@@ -232,11 +233,11 @@ public class AppDriveAddressingTests : V2Fixture
         await RegisterAppAsync(owner, appId, appSlug);
 
         await owner.Admin.CreateDrive(TargetDrive.NewTargetDrive(), "First", appId: appId,
-            driveSlug: "shared");
+            driveSlug: new OdinSlug("shared"));
 
         var ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await owner.Admin.CreateDrive(TargetDrive.NewTargetDrive(), "Second", appId: appId,
-                driveSlug: "shared"));
+                driveSlug: new OdinSlug("shared")));
 
         // The error has to name the conflict and carry idAlreadyExists -- a client needs to tell a
         // taken slug apart from a malformed one, and a raw UNIQUE violation would say neither.

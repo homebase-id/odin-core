@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using System.Web;
+using Odin.Core;
 using Odin.Hosting.ApiExceptions.Client;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
@@ -202,7 +203,8 @@ public class YouAuthAppParameters
 
         // A slug client_id is only found again after registration if that is the slug it registers
         // with; anything else would send the browser round the registration page forever (#1902)
-        if (!YouAuthUnifiedService.IsAppId(clientId, out _) && !OdinSlug.Matches(clientId, AppSlug))
+        if (!YouAuthUnifiedService.IsAppId(clientId, out _) &&
+            !(OdinSlug.TryParse(AppSlug, null, out var appSlug) && appSlug == clientId))
         {
             throw new BadRequestException(
                 $"{YouAuthAuthorizeRequest.ClientIdName} '{clientId}' is neither a registered app nor " +

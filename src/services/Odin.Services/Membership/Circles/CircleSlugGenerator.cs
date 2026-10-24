@@ -1,6 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Authorization.Apps;
@@ -35,13 +36,13 @@ public static class CircleSlugGenerator
     /// <summary>
     /// The slugs the platform's own circles carry: the built-in apps'.
     /// </summary>
-    public static IEnumerable<string> BuiltinCircleSlugs() => FixedCircles.Select(c => c.Slug);
+    public static IEnumerable<string> BuiltinCircleSlugs() => FixedCircles.Select(c => c.Slug.Value);
 
     /// <summary>
     /// The fixed slug of a built-in circle, or null for any other circle.
     /// </summary>
     public static string? FixedSlugFor(System.Guid circleId) =>
-        FixedCircles.FirstOrDefault(c => c.Id.Value == circleId)?.Slug;
+        FixedCircles.FirstOrDefault(c => c.Id.Value == circleId) is { } circle ? circle.Slug.Value : null;
 
     /// <summary>
     /// A slug made from <paramref name="name"/> that is not in <paramref name="taken"/>, the slugs the

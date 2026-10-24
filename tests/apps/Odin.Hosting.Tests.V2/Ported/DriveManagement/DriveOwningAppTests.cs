@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using Odin.Core;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
@@ -44,7 +46,7 @@ public class DriveOwningAppTests : V2Fixture
         var before = await owner.Admin.GetDrive(drive);
         Assert.That(before.AppId, Is.EqualTo(SystemAppConstants.OwnerConsoleAppId),
             "a drive created without an app belongs to the owner console");
-        Assert.That(before.DriveSlug, Is.Not.Null.And.Not.Empty, "and is addressed from the start");
+        Assert.That(before.DriveSlug.HasValue, Is.True, "and is addressed from the start");
 
         var response = await SetOwningApp(owner, drive, appId);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
@@ -54,7 +56,7 @@ public class DriveOwningAppTests : V2Fixture
 
         // The invariant that makes UNIQUE(identityId, AppId, DriveSlug) mean anything: an app-owned
         // row with no slug would sit outside the constraint entirely.
-        Assert.That(after.DriveSlug, Is.Not.Null.And.Not.Empty);
+        Assert.That(after.DriveSlug.HasValue, Is.True);
 
         Assert.That(after.DriveSlug, Is.EqualTo(AdoptedSlug), "the address the caller named");
         Assert.That(after.DriveTypeSlug, Is.EqualTo(AdoptedTypeSlug));
@@ -201,7 +203,7 @@ public class DriveOwningAppTests : V2Fixture
         var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Something Else Entirely", allowAnonymousReads: false, driveSlug: "news");
+        await owner.Admin.CreateDrive(drive, "Something Else Entirely", allowAnonymousReads: false, driveSlug: new OdinSlug("news"));
 
         var response = await SetOwningApp(owner, drive, appId, driveSlug, driveTypeSlug);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -218,7 +220,7 @@ public class DriveOwningAppTests : V2Fixture
         var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: "news");
+        await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: new OdinSlug("news"));
 
         var response = await SetOwningApp(owner, drive, appId, "news");
         Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
@@ -236,7 +238,7 @@ public class DriveOwningAppTests : V2Fixture
         var appId = await owner.Admin.RegisterBareApp();
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: "news");
+        await owner.Admin.CreateDrive(drive, "Whatever", allowAnonymousReads: false, driveSlug: new OdinSlug("news"));
 
         var response = await SetOwningApp(owner, drive, appId, "headlines");
         Assert.That(response.IsSuccessStatusCode, Is.True, $"Failed.  Actual response {response.StatusCode}");
@@ -388,13 +390,13 @@ public class DriveOwningAppTests : V2Fixture
         var owner = await LoginAsOwner();
 
         var drive = TargetDrive.NewTargetDrive();
-        var response = await owner.RefitFor<IRefitDriveManagement>().CreateDrive(new CreateDriveRequest
+        var response = await owner.RefitFor<IRawSlugRequests>().CreateDrive(new Dictionary<string, object>
         {
-            TargetDrive = drive,
-            Name = "Field Notes",
-            Metadata = string.Empty,
-            DriveSlug = driveSlug,
-            DriveTypeSlug = driveTypeSlug,
+            ["targetDrive"] = drive,
+            ["name"] = "Field Notes",
+            ["metadata"] = string.Empty,
+            ["driveSlug"] = driveSlug,
+            ["driveTypeSlug"] = driveTypeSlug,
         });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -414,7 +416,7 @@ public class DriveOwningAppTests : V2Fixture
         var unregistered = Guid.NewGuid();
         var drive = TargetDrive.NewTargetDrive();
         await owner.Admin.CreateDrive(drive, "Field Notes", allowAnonymousReads: false,
-            appId: unregistered, driveSlug: "field-notes", driveTypeSlug: "notes");
+            appId: unregistered, driveSlug: new OdinSlug("field-notes"), driveTypeSlug: new OdinSlug("notes"));
 
         var created = await owner.Admin.GetDrive(drive);
         Assert.That(created.AppId, Is.EqualTo(unregistered), "the app named in the request owns the drive");
@@ -434,7 +436,7 @@ public class DriveOwningAppTests : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
 
         await owner.Admin.CreateDrive(drive, "Third Party Library", allowAnonymousReads: false,
-            appId: appId, driveSlug: "library", driveTypeSlug: "library");
+            appId: appId, driveSlug: new OdinSlug("library"), driveTypeSlug: new OdinSlug("library"));
 
         await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest
         {
@@ -471,17 +473,18 @@ public class DriveOwningAppTests : V2Fixture
     private static Task<ApiResponse<HttpContent>> SetOwningApp(
         OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug = AdoptedSlug,
         string driveTypeSlug = AdoptedTypeSlug) =>
-        owner.RefitFor<IRefitDriveManagement>().SetDriveOwningApp(new SetDriveOwningAppRequest
-        {
-            TargetDrive = drive, AppId = appId, DriveSlug = driveSlug, DriveTypeSlug = driveTypeSlug,
-        });
+        owner.RefitFor<IRawSlugRequests>().SetDriveOwningApp(OwningAppRequest(drive, appId, driveSlug, driveTypeSlug));
 
     /// <summary>As <see cref="SetOwningApp"/>, for the reassign endpoint.</summary>
     private static Task<ApiResponse<HttpContent>> ReassignOwningApp(
         OwnerSession owner, TargetDrive drive, Guid appId, string driveSlug, string driveTypeSlug = AdoptedTypeSlug) =>
-        owner.RefitFor<IRefitDriveManagement>().ReassignDriveOwningApp(new SetDriveOwningAppRequest
-        {
-            TargetDrive = drive, AppId = appId, DriveSlug = driveSlug, DriveTypeSlug = driveTypeSlug,
-        });
+        owner.RefitFor<IRawSlugRequests>().ReassignDriveOwningApp(OwningAppRequest(drive, appId, driveSlug, driveTypeSlug));
+
+    // Untyped, so a refusal test can send a slug an OdinSlug can't hold.
+    private static Dictionary<string, object> OwningAppRequest(TargetDrive drive, Guid appId, string driveSlug,
+        string driveTypeSlug) => new()
+    {
+        ["targetDrive"] = drive, ["appId"] = appId, ["driveSlug"] = driveSlug, ["driveTypeSlug"] = driveTypeSlug
+    };
 
 }

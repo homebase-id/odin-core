@@ -21,14 +21,14 @@ public interface IDriveManager
     /// Hands a drive that belongs to no app to one, once.  See
     /// <see cref="DriveManager.SetDriveOwningAppAsync"/>.
     /// </summary>
-    Task SetDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+    Task SetDriveOwningAppAsync(Guid driveId, Guid appId, OdinSlug driveSlug, OdinSlug driveTypeSlug,
         IOdinContext odinContext);
 
     /// <summary>
     /// Moves a drive between owning apps, changing its address.  See
     /// <see cref="DriveManager.ReassignDriveOwningAppAsync"/>.
     /// </summary>
-    Task ReassignDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+    Task ReassignDriveOwningAppAsync(Guid driveId, Guid appId, OdinSlug driveSlug, OdinSlug driveTypeSlug,
         IOdinContext odinContext);
     Task<StorageDrive> GetDriveAsync(Guid driveId, bool failIfInvalid = false);
     Task<PagedResult<StorageDrive>> GetDrivesAsync(PageOptions pageOptions, IOdinContext odinContext);
@@ -38,7 +38,7 @@ public interface IDriveManager
     /// The drive an app addresses as <c>{driveSlug}</c>; see
     /// <see cref="DriveManager.GetDriveBySlugAsync"/>.
     /// </summary>
-    Task<StorageDrive> GetDriveBySlugAsync(Guid appId, string driveSlug, IOdinContext odinContext,
+    Task<StorageDrive> GetDriveBySlugAsync(Guid appId, OdinSlug driveSlug, IOdinContext odinContext,
         bool failIfInvalid = false);
 
     /// <summary>Every drive owned by an app that the caller may see.</summary>

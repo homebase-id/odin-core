@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Peer.Incoming.Drive.Query;
@@ -40,8 +41,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         /// <param name="driveSlug">The drive's slug within that app, e.g. <c>messages</c>.</param>
         [SwaggerOperation(Tags = [SwaggerInfo.NewStuff])]
         [HttpGet("public-key")]
-        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKey(string odinId, string appSlug,
-            string driveSlug)
+        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKey(string odinId, OdinSlug appSlug,
+            OdinSlug driveSlug)
         {
             OdinValidationUtils.AssertIsValidOdinId(odinId, out var id);
 

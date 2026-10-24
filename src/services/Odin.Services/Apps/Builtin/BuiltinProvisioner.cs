@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
@@ -164,7 +165,7 @@ public class BuiltinProvisioner(
     /// <remarks>
     /// Copied rather than assigned: the constants are shared statics, and provisioning runs per tenant.
     /// </remarks>
-    private static AppRegistrationRequest WithSlug(AppRegistrationRequest request, string appSlug) => new()
+    private static AppRegistrationRequest WithSlug(AppRegistrationRequest request, OdinSlug appSlug) => new()
     {
         AppId = request.AppId,
         Name = request.Name,

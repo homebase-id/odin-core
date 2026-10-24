@@ -36,7 +36,7 @@ public sealed partial class OwnerAdmin
     }
 
     /// <summary>A slug for a test app, derived from its id; see <see cref="TestAppSlug"/>.</summary>
-    public static string SlugFor(Guid appId) => TestAppSlug.For(appId);
+    public static OdinSlug SlugFor(Guid appId) => TestAppSlug.For(appId);
 
     /// <summary>
     /// Registers a bare app under an id the caller has already chosen, unless something is registered
@@ -62,7 +62,7 @@ public sealed partial class OwnerAdmin
         PermissionSetGrantRequest appPermissions,
         List<Guid>? authorizedCircles = null,
         PermissionSetGrantRequest? circleMemberGrantRequest = null,
-        string? appSlug = null)
+        OdinSlug? appSlug = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ss);

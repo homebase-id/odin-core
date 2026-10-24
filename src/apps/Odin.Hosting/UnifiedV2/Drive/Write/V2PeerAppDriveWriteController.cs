@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -130,8 +131,8 @@ public class V2PeerAppDriveWriteController(
     private async Task<(OdinId Recipient, TargetDrive TargetDrive)> ResolveFromRouteAsync()
     {
         var odinId = RouteData.Values["odinId"]?.ToString();
-        var appSlug = RouteData.Values["appSlug"]?.ToString();
-        var driveSlug = RouteData.Values["driveSlug"]?.ToString();
+        var appSlug = OdinSlug.Create(RouteData.Values["appSlug"]?.ToString(), "appSlug");
+        var driveSlug = OdinSlug.Create(RouteData.Values["driveSlug"]?.ToString(), "driveSlug");
 
         AssertIsValidOdinId(odinId, out var id);
 

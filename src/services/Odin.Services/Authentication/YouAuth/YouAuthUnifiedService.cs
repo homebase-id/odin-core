@@ -133,7 +133,9 @@ public sealed class YouAuthUnifiedService(
             // An app id goes straight to RegisterClientAsync, which loads the registration itself
             if (!IsAppId(clientId, out var appId))
             {
-                var appReg = await appRegistrationService.GetAppRegistrationBySlugAsync(clientId, odinContext)
+                var appReg = (OdinSlug.TryParse(clientId, null, out var appSlug)
+                                 ? await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext)
+                                 : null)
                              ?? throw new OdinClientException("App is not registered", OdinClientErrorCode.AppNotRegistered);
                 appId = appReg.AppId;
             }
@@ -247,7 +249,9 @@ public sealed class YouAuthUnifiedService(
     {
         return IsAppId(clientId, out var appId)
             ? await appRegistrationService.GetAppRegistration(appId, odinContext)
-            : await appRegistrationService.GetAppRegistrationBySlugAsync(clientId, odinContext);
+            : OdinSlug.TryParse(clientId, null, out var appSlug)
+                ? await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext)
+                : null;
     }
 
     //
