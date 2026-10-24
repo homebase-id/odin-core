@@ -54,9 +54,10 @@ public class ShamirConfigurationService(
     private const int DealerShardConfigFiletype = 44532;
     private const int PlayerEncryptedShardFileType = 74829;
     
-    private static readonly Guid ShamirRecordStorageId = Guid.Parse("39c98971-ac39-4b4b-8eee-68a1742203c6");
+    // Internal for tests that set up a deal from before recovery in the browser.
+    internal static readonly Guid ShamirRecordStorageId = Guid.Parse("39c98971-ac39-4b4b-8eee-68a1742203c6");
     private const string ContextKey = "078e018e-e6b3-4349-b635-721b43d35241";
-    private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
+    internal static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
 
     public const int MinimumPlayerCount = 3;
 
@@ -212,7 +213,8 @@ public class ShamirConfigurationService(
         };
     }
 
-    public async Task<string> DecryptRecoveryKey(SensitiveByteArray distributionKey, IOdinContext odinContext)
+    /// <summary>The master key, from the distribution key the returned shards rebuilt.</summary>
+    public async Task<SensitiveByteArray> DecryptMasterKeyAsync(SensitiveByteArray distributionKey)
     {
         var key = await GetKeyInternalAsync();
         if (key == null)
@@ -220,12 +222,40 @@ public class ShamirConfigurationService(
             throw new OdinClientException("No key found");
         }
 
-        var recoveryKey = key.ShamirDistributionKeyEncryptedRecoveryKey.DecryptKeyClone(distributionKey);
+        if (key.ShamirDistributionKeyEncryptedMasterKey != null)
+        {
+            return key.ShamirDistributionKeyEncryptedMasterKey.DecryptKeyClone(distributionKey);
+        }
 
-        var text = BIP39Util.GenerateBIP39(recoveryKey.GetKey());
-        recoveryKey.Wipe();
+        // A deal from before recovery in the browser locks the phrase, which still opens the master
+        // key until the takeover re-deals it.
+        using var recoveryKey = key.ShamirDistributionKeyEncryptedRecoveryKey.DecryptKeyClone(distributionKey);
+        return await passwordKeyRecoveryService.AssertValidKeyAsync(BIP39Util.GenerateBIP39(recoveryKey.GetKey()));
+    }
 
-        return text;
+    /// <summary>
+    /// For the phrase takeover: a deal from before recovery in the browser locks the phrase, which the
+    /// server is about to forget, so it's dealt again to the same players with the same threshold.
+    /// Fails, and so fails the takeover, when a player can't be reached; the next login tries again.
+    /// </summary>
+    internal async Task MoveOffThePhraseAsync(IOdinContext odinContext)
+    {
+        var key = await GetKeyInternalAsync();
+        if (key == null || key.ShamirDistributionKeyEncryptedMasterKey != null)
+        {
+            return;
+        }
+
+        var package = await GetDealerShardPackage(odinContext);
+        if (package == null)
+        {
+            // Nothing was dealt with it; nothing can rebuild it.
+            await Storage.DeleteAsync(tblKeyValue, ShamirRecordStorageId);
+            return;
+        }
+
+        var players = package.Envelopes.Select(e => e.Player).ToList();
+        await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext);
     }
 
     /// <summary>
@@ -607,18 +637,13 @@ public class ShamirConfigurationService(
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        // encrypt the recover key w/ distribution key
-        var k = await passwordKeyRecoveryService.GetRecoveryKeyAsync(byPassWaitingPeriod: true, odinContext);
-        var recoveryKey = BIP39Util.DecodeBIP39(k.Key);
-
+        // The master key, not the recovery phrase: once the browser takes the phrase over the server
+        // has no copy of it (docs/zero-knowledge-recovery-plan.md, decision 6).
         var masterKey = odinContext.Caller.GetMasterKey();
         var record = new ShamirKeyRecord()
         {
-            //TODO: do we need the master key encrypted as a fallback? I think this will allow us to 
-            // add additional players so long as the owner still has their password
-            MasterKeyEncryptedShamirDistributionKey = new SymmetricKeyEncryptedAes(secret: masterKey, dataToEncrypt: recoveryKey),
-            Created = UnixTimeUtc.Now(),
-            ShamirDistributionKeyEncryptedRecoveryKey = new SymmetricKeyEncryptedAes(secret: distributionKey, dataToEncrypt: recoveryKey),
+            ShamirDistributionKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(secret: distributionKey, dataToEncrypt: masterKey),
+            Created = UnixTimeUtc.Now()
         };
 
         var n = await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);

@@ -158,6 +158,13 @@ public class OdinConfiguration
         /// </summary>
         public int? RecoveryKeyWaitingPeriodSeconds { get; init; }
 
+        /// <summary>
+        /// Shortens how long after a password login the browser may take over the recovery phrase
+        /// and write the password copy (5 minutes otherwise), so a test can outlast it.  Null leaves
+        /// the production window.
+        /// </summary>
+        public int? PasswordLoginWindowSeconds { get; init; }
+
         public DevelopmentSection()
         {
             // Mockable support
@@ -172,6 +179,7 @@ public class OdinConfiguration
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
                 RecoveryKeyWaitingPeriodSeconds = config.GetOrDefault<int?>("Development:RecoveryKeyWaitingPeriodSeconds", null);
+                PasswordLoginWindowSeconds = config.GetOrDefault<int?>("Development:PasswordLoginWindowSeconds", null);
             }
         }
     }

@@ -81,6 +81,7 @@ namespace Odin.Services.Authentication.Owner
 
             var issuedTo = (OdinId)tenantProvider.GetCurrentTenant()?.Name;
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(issuedTo, noncePackage, reply, keys);
+            serverToken.ZkSessionKey = ByteArrayUtil.GetRndByteArray(16);
             await clientRegistrationStorage.SaveAsync(serverToken);
 
             // TODO: audit login some where, or in helper class below
@@ -222,6 +223,31 @@ namespace Odin.Services.Authentication.Owner
         /// clicks logout.  Invalid or expired tokens are ignored.
         /// </summary>
         /// <param name="tokenId"></param>
+        /// <summary>
+        /// The calling session's half of the browser's stored zero-knowledge master key.  A session from
+        /// before this existed gets one now.
+        /// </summary>
+        public async Task<byte[]> GetZkSessionKeyAsync(IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            var tokenId = odinContext.Caller.OdinClientContext?.AccessRegistrationId?.Value
+                          ?? throw new OdinSecurityException("No owner session");
+
+            var registration = await clientRegistrationStorage.GetAsync<OwnerConsoleClientRegistration>(tokenId);
+            if (!IsAuthTokenEntryValid(registration))
+            {
+                throw new OdinClientException("Token is invalid", OdinClientErrorCode.InvalidAuthToken);
+            }
+
+            if (registration!.ZkSessionKey == null)
+            {
+                registration.ZkSessionKey = ByteArrayUtil.GetRndByteArray(16);
+                await clientRegistrationStorage.SaveAsync(registration);
+            }
+
+            return registration.ZkSessionKey;
+        }
+
         public async Task ExpireTokenAsync(Guid tokenId)
         {
             await clientRegistrationStorage.DeleteAsync(tokenId);

@@ -8,6 +8,7 @@ using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Drives;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.ZeroKnowledge;
 using Refit;
 
@@ -32,12 +33,24 @@ internal static class ZkOwnerSteps
     public static async Task<OwnerClientDriveData> GetShardRecoveryDriveAsync(OwnerSession owner) =>
         (await owner.Admin.GetDrives()).Single(d => d.TargetDriveInfo == WellKnownAppDrives.ShardRecoveryDrive);
 
-    public static async Task<ZkBrowser.Keys> CreateKeysAsync(OwnerSession owner, string password, byte[] loginKeys)
+    public static async Task<ZkBrowser.Keys> CreateKeysAsync(OwnerSession owner, string password)
     {
-        var keys = ZkBrowser.MakeKeys(password, loginKeys);
+        var keys = ZkBrowser.MakeKeys(password);
         var response = await Client(owner).CreateKeys(keys.Request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return keys;
+    }
+
+    /// <summary>The login's takeover: the phrase handed over once, the browser's copies back.</summary>
+    public static async Task<string> TakeOverPhraseAsync(OwnerSession owner, byte[] zkMasterKey)
+    {
+        var handover = await Client(owner).HandOverPhrase();
+        Assert.That(handover.StatusCode, Is.EqualTo(HttpStatusCode.OK), handover.Error?.Content);
+        var phrase = handover.Content!.Phrase;
+
+        var response = await Client(owner).TakeOverPhrase(ZkBrowser.MakePhraseCopies(phrase, zkMasterKey));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        return phrase;
     }
 
     public static async Task<ZkBrowser.DriveKeys> ConvertShardRecoveryDriveAsync(OwnerSession owner, byte[] zkMasterKey)
@@ -57,6 +70,35 @@ public interface IZeroKnowledgeOwnerClient
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/keys")]
     Task<ApiResponse<HttpContent>> CreateKeys([Body] ZkKeysRequest request);
 
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/password")]
+    Task<ApiResponse<HttpContent>> SavePassword([Body] ZkPasswordRequest request);
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-handover")]
+    Task<ApiResponse<ZkPhraseHandoverResponse>> HandOverPhrase();
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-takeover")]
+    Task<ApiResponse<HttpContent>> TakeOverPhrase([Body] ZkPhraseCopiesRequest request);
+
+    [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-reentry")]
+    Task<ApiResponse<HttpContent>> ReenterPhrase([Body] ZkPhraseCopiesRequest request);
+
+    [Get(OwnerApiPathConstants.SecurityV1 + "/zk/session-key")]
+    Task<ApiResponse<ZkSessionKeyResponse>> GetSessionKey();
+
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/convert-shard-recovery-drive")]
     Task<ApiResponse<HttpContent>> ConvertShardRecoveryDrive([Body] ZkConvertDriveRequest request);
+}
+
+/// <summary>The security health check's phrase check.</summary>
+public interface IZeroKnowledgeHealthClient
+{
+    [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-recovery-key")]
+    Task<ApiResponse<HttpContent>> VerifyRecoveryKey([Body] VerifyRecoveryKeyRequest request);
+}
+
+/// <summary>The forgot-password page's call, with no login.</summary>
+public interface IZeroKnowledgeRecoveryClient
+{
+    [Get(OwnerApiPathConstants.AuthV1 + "/zk-phrase-recovery")]
+    Task<ApiResponse<ZkPhraseRecoveryResponse>> GetPhraseRecovery();
 }

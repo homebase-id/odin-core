@@ -23,7 +23,7 @@ public class ShamirOnZeroKnowledgeDrivesTests : ShamirFixture
         var (frodo, players) = Cast();
         foreach (var owner in players.Prepend(frodo))
         {
-            var keys = await ZkOwnerSteps.CreateKeysAsync(owner, OwnerLogin.DefaultPassword, "login keys".ToUtf8ByteArray());
+            var keys = await ZkOwnerSteps.CreateKeysAsync(owner, OwnerLogin.DefaultPassword);
             await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(owner, keys.MasterKey);
         }
 
@@ -39,7 +39,7 @@ public class ShamirOnZeroKnowledgeDrivesTests : ShamirFixture
         var status = await ZkOwnerSteps.GetStatusAsync(recovered);
         Assert.That(status.ZkSaltKek64, Is.Null);
 
-        var newKeys = await ZkOwnerSteps.CreateKeysAsync(recovered, NewPassword, "login keys".ToUtf8ByteArray());
+        var newKeys = await ZkOwnerSteps.CreateKeysAsync(recovered, NewPassword);
         await ZkOwnerSteps.ConvertShardRecoveryDriveAsync(recovered, newKeys.MasterKey);
         Assert.That((await ZkOwnerSteps.GetShardRecoveryDriveAsync(recovered)).ZkMasterKeyEncryptedStorageKey, Is.Not.Null);
     }

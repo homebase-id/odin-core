@@ -17,6 +17,7 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication;
 using Odin.Services.Security;
+using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {
@@ -27,6 +28,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         OwnerAuthenticationService authService,
         OwnerSecretService ss,
         PublicPrivateKeyService publicPrivateKeyService,
+        ZeroKnowledgeKeyService zeroKnowledgeKeyService,
         ILogger<OwnerAuthenticationController> logger)
         : OdinControllerBase
     {
@@ -145,6 +147,19 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             }
 
             return new OkResult();
+        }
+
+        /// <summary>
+        /// Recovery with the phrase (docs/zero-knowledge-recovery-plan.md): the zero-knowledge master key
+        /// locked by the phrase, and the password locked by that key.  No login, because both are
+        /// useless without the phrase, a random 128-bit key.  404 until the browser took the phrase
+        /// over; the page then falls back to <c>resetpasswdrk</c>.
+        /// </summary>
+        [HttpGet("zk-phrase-recovery")]
+        public async Task<ActionResult<ZkPhraseRecoveryResponse>> GetPhraseRecovery()
+        {
+            var result = await zeroKnowledgeKeyService.GetPhraseRecoveryAsync();
+            return result == null ? NotFound() : result;
         }
 
         [HttpPost("ispasswordset")]

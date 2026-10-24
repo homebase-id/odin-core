@@ -80,7 +80,7 @@ public class ZeroKnowledgeKeysTests : V2Fixture
         var owner = await LoginAsOwner();
         var keys = await CreateKeys(owner);
 
-        var second = ZkBrowser.MakeKeys(Password, LoginKeys);
+        var second = ZkBrowser.MakeKeys(Password);
         var response = await Client(owner).CreateKeys(second.Request);
 
         DriveAsserts.AssertRejected(response, OdinClientErrorCode.ZeroKnowledgeKeysAlreadySet);
@@ -91,8 +91,8 @@ public class ZeroKnowledgeKeysTests : V2Fixture
     public async Task TwoFirstLoginsAtOnceSaveOneSetOfKeys()
     {
         var owner = await LoginAsOwner();
-        var first = ZkBrowser.MakeKeys(Password, LoginKeys);
-        var second = ZkBrowser.MakeKeys(Password, LoginKeys);
+        var first = ZkBrowser.MakeKeys(Password);
+        var second = ZkBrowser.MakeKeys(Password);
 
         var responses = await Task.WhenAll(
             Client(owner).CreateKeys(first.Request),
@@ -129,7 +129,7 @@ public class ZeroKnowledgeKeysTests : V2Fixture
         var keys = await CreateKeys(owner);
 
         var request = await OwnerPasswordFlow.BuildResetPasswordRequestAsync(Host, PrimaryIdentity, Password, NewPassword);
-        request.ZkKeys = ZkBrowser.MakeKeys(NewPassword, "new login keys".ToUtf8ByteArray(), keys.MasterKey).Request;
+        request.ZkKeys = ZkBrowser.MakeKeys(NewPassword, keys.MasterKey).Request;
         var response = await owner.RefitFor<ITestSecurityContextOwnerClient>().ResetPassword(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
 
@@ -221,10 +221,7 @@ public class ZeroKnowledgeKeysTests : V2Fixture
 
     private static Task<ZkStatusResponse> GetStatus(OwnerSession owner) => ZkOwnerSteps.GetStatusAsync(owner);
 
-    /// <summary>The server never opens the login keys, so any bytes stand in for them here.</summary>
-    private static readonly byte[] LoginKeys = "login keys".ToUtf8ByteArray();
-
-    private static Task<ZkBrowser.Keys> CreateKeys(OwnerSession owner) => ZkOwnerSteps.CreateKeysAsync(owner, Password, LoginKeys);
+    private static Task<ZkBrowser.Keys> CreateKeys(OwnerSession owner) => ZkOwnerSteps.CreateKeysAsync(owner, Password);
 
     private static Task<OwnerClientDriveData> GetShardRecoveryDrive(OwnerSession owner) => ZkOwnerSteps.GetShardRecoveryDriveAsync(owner);
 

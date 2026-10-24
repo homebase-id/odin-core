@@ -101,6 +101,10 @@ branch base `35031efe3` is green on `main` CI
 2026-10-23, with no tests running, the desktop already held 96 of 128 instances. Not re-run on a
 clean tree (`git stash`): it passed on the same tree, so a clean run would show nothing more.
 
+**Seen again 2026-10-24** on `zk-recovery-phrase`: 84 of 1750 failed in the full run, each in 1-6 ms
+(fixture setup), across unrelated fixtures (YouAuth, plans and quota, zero knowledge); 99 of the 128
+instances were held by the desktop after the run. The 84 passed when re-run on their own (84/84).
+
 ---
 
 ## `Odin.Hosting.Tests.V2.Ported.Peer.TemporalReadTests`

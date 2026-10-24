@@ -157,4 +157,10 @@ public enum OdinClientErrorCode
     ZeroKnowledgeKeysRequired = 9010,
     DriveHasEncryptedFiles = 9011,
     DriveIsZeroKnowledge = 9012,
+
+    // Recovery in the browser (docs/zero-knowledge-recovery-plan.md)
+    PasswordLoginRequired = 9013,
+    RecoveryPhraseTakenOver = 9014,
+    RecoveryPhraseNotTakenOver = 9015,
+    RecoveryPhraseMismatch = 9016,
 }

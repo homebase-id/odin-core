@@ -216,8 +216,16 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task ResetPasswordUsingRecoveryKeyAsync(string recoveryKey, PasswordReply reply, IOdinContext odinContext)
         {
-            var masterKey = await recoveryService.AssertValidKeyAsync(recoveryKey);
+            using var masterKey = await recoveryService.AssertValidKeyAsync(recoveryKey);
+            await ResetPasswordUsingMasterKeyAsync(masterKey, reply);
+        }
 
+        /// <summary>
+        /// A reset with today's master key: the old recovery phrase before its takeover, or server-dealt
+        /// Shamir.  Restores the master key, not zero-knowledge data.
+        /// </summary>
+        public async Task ResetPasswordUsingMasterKeyAsync(SensitiveByteArray masterKey, PasswordReply reply)
+        {
             await using var tx = await db.BeginStackedTransactionAsync();
             await SavePasswordAsync(reply, masterKey);
 

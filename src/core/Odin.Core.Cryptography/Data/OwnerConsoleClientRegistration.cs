@@ -59,6 +59,14 @@ namespace Odin.Core.Cryptography.Data
 
         public NonceTable NonceKeeper { get; set; }
 
+        /// <summary>
+        /// The session's half of the browser's stored zero-knowledge master key
+        /// (docs/zero-knowledge-recovery-plan.md, decision 8).  The browser keeps the other half, the key
+        /// locked by this, in its storage; this goes only to a request carrying the session's cookie.
+        /// Gone with the session.
+        /// </summary>
+        public byte[] ZkSessionKey { get; set; }
+
         public void ExtendTokenLife()
         {
             this.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (long)TimeSpan.FromDays(30 * 6).TotalSeconds;

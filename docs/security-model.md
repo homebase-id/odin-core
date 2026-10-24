@@ -24,6 +24,13 @@ Deeper docs: [app-circle-membership-plan.md](app-circle-membership-plan.md) (key
 - **Zero-knowledge drives** (today only Shard Recovery) have no master-key copy of their key: the only copy is locked
   by the owner's zero-knowledge master key, which only the browser opens (`StorageDrive.IsZeroKnowledge`). The server
   never encrypts for one, and no grant on one carries its key (`StorageDrive.GrantCarriesStorageKey`) **(V)**.
+- **Recovery in the browser** ([zero-knowledge-recovery-plan.md](zero-knowledge-recovery-plan.md)): once the browser
+  takes the recovery phrase over, the server holds no copy of it it can open (`RecoveryKeyRecord.TakenOver`). The
+  phrase locks the zero-knowledge master key, which locks the password. The phrase recovery read
+  (`authentication/zk-phrase-recovery`) needs **no login**: it returns only those two locked values, useless without
+  the 128-bit phrase. The handover and the password copy are accepted only within 5 minutes of a password login
+  (`ZeroKnowledgeKeyService.AssertRecentPasswordLogin`). Server-dealt Shamir locks the master key, not the phrase.
+  **(V)**
 
 ### Callers
 

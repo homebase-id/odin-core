@@ -61,6 +61,14 @@ public class OwnerSecurityHealthService(
 
     public async Task VerifyRecoveryKeyAsync(VerifyRecoveryKeyRequest request, IOdinContext odinContext)
     {
+        if ((await recoveryService.GetPhraseStateAsync()).TakenOver)
+        {
+            await recoveryService.AssertPhraseCheckAsync(request.PhraseCheck64);
+            await UpdateVerificationStatusInternalAsync(updateRecoveryKeyLastVerified: true);
+            await recoveryService.ConfirmInitialRecoveryKeyStorage(odinContext);
+            return;
+        }
+
         var decryptedBytes = await publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
         var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
 

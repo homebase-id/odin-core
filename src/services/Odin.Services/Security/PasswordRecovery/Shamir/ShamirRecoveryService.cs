@@ -337,14 +337,13 @@ public class ShamirRecoveryService
         // decrypt the nonce
         var recoveryInfo = OdinSystemSerializer.DeserializeOrThrow<FinalRecoveryInfo>(data);
         var finalKeyBytes = finalKey.ToByteArray().ToSensitiveByteArray();
-        var recoveryTextBytes = AesCbc.Decrypt(recoveryInfo.Cipher, finalKeyBytes, recoveryInfo.Iv);
-        var recoveryText = recoveryTextBytes.ToStringFromUtf8Bytes();
+        using var distributionKey = AesCbc.Decrypt(recoveryInfo.Cipher, finalKeyBytes, recoveryInfo.Iv).ToSensitiveByteArray();
+        using var masterKey = await _configurationService.DecryptMasterKeyAsync(distributionKey);
 
-        // now that we have the recovery key, clean up all shards and reset status
+        // now that we have the master key, clean up all shards and reset status
         await ExitRecoveryModeInternal(odinContext);
-        
-        // look up the key from the table
-        await _secretService.ResetPasswordUsingRecoveryKeyAsync(recoveryText, passwordReply, odinContext);
+
+        await _secretService.ResetPasswordUsingMasterKeyAsync(masterKey, passwordReply);
     }
 
     public async Task<List<ShardApprovalRequest>> GetShardRequestList(IOdinContext odinContext)
@@ -447,11 +446,13 @@ public class ShamirRecoveryService
         var distributionKey = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards.OrderBy(s => s.Index).ToList(),
             ShamirConfigurationService.DistributionKeyLength);
 
-        // put the recovery text in the nonce
-        var recoveryText = await _configurationService.DecryptRecoveryKey(distributionKey.ToSensitiveByteArray(), odinContext);
+        // Put the distribution key in the nonce, locked by the key the email carries; finalize opens the
+        // master key with it.  Opened here once, so a wrong rebuild fails now and not at finalize.
+        (await _configurationService.DecryptMasterKeyAsync(distributionKey.ToSensitiveByteArray())).Wipe();
+
         var finalRecoveryKey = ByteArrayUtil.GetRandomCryptoGuid();
 
-        var (iv, cipher) = AesCbc.Encrypt(recoveryText.ToUtf8ByteArray(), finalRecoveryKey.ToByteArray().ToSensitiveByteArray());
+        var (iv, cipher) = AesCbc.Encrypt(distributionKey, finalRecoveryKey.ToByteArray().ToSensitiveByteArray());
         var finalInfo = new FinalRecoveryInfo()
         {
             Iv = iv,
