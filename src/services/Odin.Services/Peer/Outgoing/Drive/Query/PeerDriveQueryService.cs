@@ -52,7 +52,7 @@ public class PeerDriveQueryService(
     /// cache.  Only successes are cached: a miss can become a hit as soon as the remote creates the
     /// drive, and caching that would strand the caller for the TTL.
     /// </remarks>
-    public async Task<TargetDrive> ResolveRemoteDriveAsync(OdinId odinId, string appSlug, string driveSlug,
+    public async Task<TargetDrive> ResolveRemoteDriveAsync(OdinId odinId, OdinSlug appSlug, OdinSlug driveSlug,
         IOdinContext odinContext)
     {
         // Either transit permission, not Read alone: resolution serves the write routes too, and a
@@ -65,8 +65,8 @@ public class PeerDriveQueryService(
                 $"{nameof(PermissionKeys.UseTransitWrite)}");
         }
 
-        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
-        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(appSlug, nameof(appSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
 
         var cacheKey = $"peer-drive-address:{odinId}:{appSlug}:{driveSlug}";
         var cached = await addressCache.TryGetAsync<TargetDrive>(cacheKey);
@@ -128,8 +128,8 @@ public class PeerDriveQueryService(
     /// be rotated, and a cached public half would keep this identity sealing to a key the remote has
     /// stopped holding -- deposits nobody could open, with nothing to say so.
     /// </remarks>
-    public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, string appSlug,
-        string driveSlug, IOdinContext odinContext)
+    public async Task<DrivePublicKeyResponse> GetRemoteDriveWriteOnlyPublicKeyAsync(OdinId odinId, OdinSlug appSlug,
+        OdinSlug driveSlug, IOdinContext odinContext)
     {
         // Write, not read: this key exists to put data on someone else's drive.
         if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.UseTransitWrite))
@@ -138,8 +138,8 @@ public class PeerDriveQueryService(
                 $"Fetching a peer drive public key requires {nameof(PermissionKeys.UseTransitWrite)}");
         }
 
-        OdinValidationUtils.AssertNotNullOrEmpty(appSlug, nameof(appSlug));
-        OdinValidationUtils.AssertNotNullOrEmpty(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(appSlug, nameof(appSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
 
         var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
 

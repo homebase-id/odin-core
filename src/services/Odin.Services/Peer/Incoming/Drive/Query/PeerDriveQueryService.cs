@@ -141,7 +141,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         /// Not-found and not-permitted return the same null on purpose: distinguishing them would let a
         /// caller enumerate an identity's apps and drives by name.
         /// </remarks>
-        public async Task<PerimeterDriveData> ResolveDriveAddressAsync(string appSlug, string driveSlug,
+        public async Task<PerimeterDriveData> ResolveDriveAddressAsync(OdinSlug appSlug, OdinSlug driveSlug,
             IOdinContext odinContext)
         {
             var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);
@@ -194,7 +194,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         /// not something the caller can act on.
         /// </para>
         /// </remarks>
-        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKeyAsync(string appSlug, string driveSlug,
+        public async Task<DrivePublicKeyResponse> GetDriveWriteOnlyPublicKeyAsync(OdinSlug appSlug, OdinSlug driveSlug,
             IOdinContext odinContext)
         {
             var app = await appRegistrationService.GetAppRegistrationBySlugAsync(appSlug, odinContext);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
@@ -149,10 +150,10 @@ public class BuiltinProvisioner(
             throw new OdinSystemException($"Drive '{request.Name}' has no owning app");
         }
 
-        if (!OdinSlug.IsValid(request.DriveSlug) || !OdinSlug.IsValid(request.DriveTypeSlug))
+        if (!request.DriveSlug.HasValue || !request.DriveTypeSlug.HasValue)
         {
             throw new OdinSystemException(
-                $"Drive '{request.Name}' has no valid slug ('{request.DriveSlug}' / " +
+                $"Drive '{request.Name}' has no slug ('{request.DriveSlug}' / " +
                 $"'{request.DriveTypeSlug}'); it cannot be provisioned");
         }
     }
@@ -164,7 +165,7 @@ public class BuiltinProvisioner(
     /// <remarks>
     /// Copied rather than assigned: the constants are shared statics, and provisioning runs per tenant.
     /// </remarks>
-    private static AppRegistrationRequest WithSlug(AppRegistrationRequest request, string appSlug) => new()
+    private static AppRegistrationRequest WithSlug(AppRegistrationRequest request, OdinSlug appSlug) => new()
     {
         AppId = request.AppId,
         Name = request.Name,
@@ -194,10 +195,10 @@ public class BuiltinProvisioner(
                 continue;
             }
 
-            if (!OdinSlug.IsValid(app.AppSlug))
+            if (!app.AppSlug.HasValue)
             {
                 throw new OdinSystemException(
-                    $"App '{app.Name}' has no valid slug ('{app.AppSlug}'); it cannot be registered");
+                    $"App '{app.Name}' has no slug; it cannot be registered");
             }
 
             logger.LogDebug("Registering built-in app {app} as {slug}", app.Name, app.AppSlug);

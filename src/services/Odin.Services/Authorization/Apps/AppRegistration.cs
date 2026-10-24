@@ -26,7 +26,7 @@ namespace Odin.Services.Authorization.Apps
         /// (<c>/apps/{appSlug}/drives/{driveSlug}</c>).  Immutable once written, and unique per identity.
         /// </summary>
         [JsonIgnore]
-        public string AppSlug { get; set; }
+        public OdinSlug AppSlug { get; set; }
 
         [JsonIgnore]
         public string Name { get; set; }

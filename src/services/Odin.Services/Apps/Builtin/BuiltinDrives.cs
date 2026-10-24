@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -17,7 +18,7 @@ namespace Odin.Services.Apps.Builtin;
 /// </remarks>
 public static class BuiltinDrives
 {
-    public const string ChannelDriveTypeSlug = "channel";
+    public static readonly OdinSlug ChannelDriveTypeSlug = new("channel");
 
     //
     // ============================================================================================
@@ -33,7 +34,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest ChatDrive = new()
     {
         Name = "Chat Drive", TargetDrive = WellKnownAppDrives.ChatDrive, Metadata = "",
-        AppId = SystemAppConstants.ChatAppId, DriveSlug = "chat", DriveTypeSlug = "chat",
+        AppId = SystemAppConstants.ChatAppId, DriveSlug = (OdinSlug)"chat", DriveTypeSlug = (OdinSlug)"chat",
         AllowAnonymousReads = false,
         // TODO: should be owner-only, pending a decision on auto-provisioning; false so the Chat circle
         // can grant it.
@@ -43,7 +44,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest StickerDrive = new()
     {
         Name = "Sticker Drive", TargetDrive = WellKnownAppDrives.StickerDrive, Metadata = "",
-        AppId = SystemAppConstants.ChatAppId, DriveSlug = "stickers", DriveTypeSlug = "sticker",
+        AppId = SystemAppConstants.ChatAppId, DriveSlug = (OdinSlug)"stickers", DriveTypeSlug = (OdinSlug)"sticker",
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
@@ -51,14 +52,14 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest ContactDrive = new()
     {
         Name = "Contacts", TargetDrive = WellKnownAppDrives.ContactDrive, Metadata = "",
-        AppId = SystemAppConstants.ContactsAppId, DriveSlug = "contacts", DriveTypeSlug = "contact",
+        AppId = SystemAppConstants.ContactsAppId, DriveSlug = (OdinSlug)"contacts", DriveTypeSlug = (OdinSlug)"contact",
         AllowAnonymousReads = false, OwnerOnly = true
     };
 
     public static readonly CreateDriveRequest ProfileDrive = new()
     {
         Name = "Standard Profile Info", TargetDrive = WellKnownAppDrives.ProfileDrive, Metadata = "",
-        AppId = SystemAppConstants.ContactsAppId, DriveSlug = "profile", DriveTypeSlug = "profile",
+        AppId = SystemAppConstants.ContactsAppId, DriveSlug = (OdinSlug)"profile", DriveTypeSlug = (OdinSlug)"profile",
         AllowAnonymousReads = true, OwnerOnly = false
     };
 
@@ -66,7 +67,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest EmailDrive = new()
     {
         Name = "Email", TargetDrive = WellKnownAppDrives.EmailAppDrive, Metadata = "",
-        AppId = SystemAppConstants.EmailAppId, DriveSlug = "email", DriveTypeSlug = "email",
+        AppId = SystemAppConstants.EmailAppId, DriveSlug = (OdinSlug)"email", DriveTypeSlug = (OdinSlug)"email",
         AllowAnonymousReads = false, OwnerOnly = true
     };
 
@@ -74,14 +75,14 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest FeedDrive = new()
     {
         Name = "Feed", TargetDrive = WellKnownAppDrives.FeedDrive, Metadata = "",
-        AppId = SystemAppConstants.FeedAppId, DriveSlug = "feed", DriveTypeSlug = "feed",
+        AppId = SystemAppConstants.FeedAppId, DriveSlug = (OdinSlug)"feed", DriveTypeSlug = (OdinSlug)"feed",
         AllowAnonymousReads = false, OwnerOnly = true
     };
 
     public static readonly CreateDriveRequest PublicPostsChannelDrive = new()
     {
         Name = "Public Posts", TargetDrive = WellKnownAppDrives.PublicPostsChannelDrive, Metadata = "",
-        AppId = SystemAppConstants.FeedAppId, DriveSlug = "posts", DriveTypeSlug = ChannelDriveTypeSlug,
+        AppId = SystemAppConstants.FeedAppId, DriveSlug = (OdinSlug)"posts", DriveTypeSlug = ChannelDriveTypeSlug,
         AllowAnonymousReads = true, OwnerOnly = false, AllowSubscriptions = true,
         // The only drive seeded CDN-on: public posts and their media are what the CDN exists to serve,
         // and CdnAuthPathHandler fails outright when no drive is enabled.
@@ -92,7 +93,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest HomePageConfigDrive = new()
     {
         Name = "Homepage Config", TargetDrive = WellKnownAppDrives.HomePageConfigDrive, Metadata = "",
-        AppId = SystemAppConstants.HomePageAppId, DriveSlug = "home", DriveTypeSlug = "profile",
+        AppId = SystemAppConstants.HomePageAppId, DriveSlug = (OdinSlug)"home", DriveTypeSlug = (OdinSlug)"profile",
         AllowAnonymousReads = true, OwnerOnly = false
     };
 
@@ -100,7 +101,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest LocationDrive = new()
     {
         Name = "Location Drive", TargetDrive = WellKnownAppDrives.LocationDrive, Metadata = "",
-        AppId = SystemAppConstants.LocationAppId, DriveSlug = "location", DriveTypeSlug = "location",
+        AppId = SystemAppConstants.LocationAppId, DriveSlug = (OdinSlug)"location", DriveTypeSlug = (OdinSlug)"location",
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
@@ -108,7 +109,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest MailDrive = new()
     {
         Name = "Mail Drive", TargetDrive = WellKnownAppDrives.MailDrive, Metadata = "",
-        AppId = SystemAppConstants.MailAppId, DriveSlug = "mail", DriveTypeSlug = "mail",
+        AppId = SystemAppConstants.MailAppId, DriveSlug = (OdinSlug)"mail", DriveTypeSlug = (OdinSlug)"mail",
         AllowAnonymousReads = false,
         // TODO: same pending decision as ChatDrive.
         OwnerOnly = false
@@ -118,7 +119,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest ShardRecoveryDrive = new()
     {
         Name = "Shard Recovery Drive", TargetDrive = WellKnownAppDrives.ShardRecoveryDrive, Metadata = "",
-        AppId = SystemAppConstants.RecoveryAppId, DriveSlug = "shard-recovery", DriveTypeSlug = "shard-recovery",
+        AppId = SystemAppConstants.RecoveryAppId, DriveSlug = (OdinSlug)"shard-recovery", DriveTypeSlug = (OdinSlug)"shard-recovery",
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
@@ -126,7 +127,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest TransientTempDrive = new()
     {
         Name = "Transient temp drive", TargetDrive = SystemDriveConstants.TransientTempDrive, Metadata = "",
-        AppId = SystemAppConstants.SystemAppId, DriveSlug = "transient", DriveTypeSlug = "transient",
+        AppId = SystemAppConstants.SystemAppId, DriveSlug = (OdinSlug)"transient", DriveTypeSlug = (OdinSlug)"transient",
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
@@ -134,7 +135,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest ListsDrive = new()
     {
         Name = "Lists Drive", TargetDrive = WellKnownAppDrives.ListsDrive, Metadata = "",
-        AppId = SystemAppConstants.ListsAppId, DriveSlug = "lists", DriveTypeSlug = "list",
+        AppId = SystemAppConstants.ListsAppId, DriveSlug = (OdinSlug)"lists", DriveTypeSlug = (OdinSlug)"list",
         AllowAnonymousReads = false, OwnerOnly = false,
         Attributes = new Dictionary<string, string>
         {
@@ -146,7 +147,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest MomentsDrive = new()
     {
         Name = "Moments Drive", TargetDrive = WellKnownAppDrives.MomentsDrive, Metadata = "",
-        AppId = SystemAppConstants.MomentsAppId, DriveSlug = "moments", DriveTypeSlug = "list",
+        AppId = SystemAppConstants.MomentsAppId, DriveSlug = (OdinSlug)"moments", DriveTypeSlug = (OdinSlug)"list",
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
@@ -154,7 +155,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest WalletDrive = new()
     {
         Name = "Wallet", TargetDrive = WellKnownAppDrives.WalletDrive, Metadata = "",
-        AppId = SystemAppConstants.VaultAppId, DriveSlug = "wallet", DriveTypeSlug = "profile",
+        AppId = SystemAppConstants.VaultAppId, DriveSlug = (OdinSlug)"wallet", DriveTypeSlug = (OdinSlug)"profile",
         AllowAnonymousReads = false, OwnerOnly = true
     };
 
@@ -165,21 +166,21 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest VaultDrive = new()
     {
         Name = "Vault", TargetDrive = WellKnownAppDrives.VaultDrive, Metadata = "",
-        AppId = SystemAppConstants.VaultAppId, DriveSlug = "vault", DriveTypeSlug = "vault",
+        AppId = SystemAppConstants.VaultAppId, DriveSlug = (OdinSlug)"vault", DriveTypeSlug = (OdinSlug)"vault",
         AllowAnonymousReads = false, OwnerOnly = true
     };
 
     public static readonly CreateDriveRequest CommunityDrive = new()
     {
         Name = "Community", TargetDrive = WellKnownAppDrives.CommunityDrive, Metadata = "",
-        AppId = SystemAppConstants.CommunityAppId, DriveSlug = "community", DriveTypeSlug = "community",
+        AppId = SystemAppConstants.CommunityAppId, DriveSlug = (OdinSlug)"community", DriveTypeSlug = (OdinSlug)"community",
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
     public static readonly CreateDriveRequest PhotoLibraryDrive = new()
     {
         Name = "Photo Library", TargetDrive = WellKnownAppDrives.PhotoLibraryDrive, Metadata = "",
-        AppId = SystemAppConstants.PhotoAppId, DriveSlug = "photos", DriveTypeSlug = "photos",
+        AppId = SystemAppConstants.PhotoAppId, DriveSlug = (OdinSlug)"photos", DriveTypeSlug = (OdinSlug)"photos",
         AllowAnonymousReads = false, OwnerOnly = false
     };
 
@@ -189,7 +190,7 @@ public static class BuiltinDrives
     public static readonly CreateDriveRequest WebDropDrive = new()
     {
         Name = "WebDrop", TargetDrive = WellKnownAppDrives.WebDropDrive, Metadata = "",
-        AppId = SystemAppConstants.WebdropAppId, DriveSlug = "webdrop", DriveTypeSlug = "webdrop",
+        AppId = SystemAppConstants.WebdropAppId, DriveSlug = (OdinSlug)"webdrop", DriveTypeSlug = (OdinSlug)"webdrop",
         AllowAnonymousReads = true, OwnerOnly = false
     };
 

@@ -292,12 +292,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// Required (#1901): missing or malformed is a 400, and one already taken by this app is refused,
         /// not suffixed.
         /// </summary>
-        public string DriveSlug { get; set; }
+        public OdinSlug DriveSlug { get; set; }
 
         /// <summary>
         /// Readable form of the drive's type, e.g. <c>channel</c>.  A category to filter on, not an
         /// address.  Required (#1901): missing or malformed is a 400.
         /// </summary>
-        public string DriveTypeSlug { get; set; }
+        public OdinSlug DriveTypeSlug { get; set; }
     }
 }

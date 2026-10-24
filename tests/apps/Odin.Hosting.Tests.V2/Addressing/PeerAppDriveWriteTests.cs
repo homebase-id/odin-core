@@ -43,8 +43,8 @@ public class PeerAppDriveWriteTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    private const string AppSlug = "ledger";
-    private const string DriveSlug = "inbox";
+    private static readonly OdinSlug AppSlug = new("ledger");
+    private static readonly OdinSlug DriveSlug = new("inbox");
 
     private async Task<(OwnerSession frodo, OwnerSession sam, TargetDrive drive)> SetupAsync()
     {
@@ -56,7 +56,7 @@ public class PeerAppDriveWriteTests : V2Fixture
 
         await sam.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: AppSlug);
         await sam.Admin.CreateDrive(drive, "Sam's inbox", allowAnonymousReads: false, appId: appId,
-            driveSlug: DriveSlug, driveTypeSlug: "inbox");
+            driveSlug: DriveSlug, driveTypeSlug: new OdinSlug("inbox"));
         await frodo.Admin.CreateDrive(drive, "Frodo's copy", allowAnonymousReads: false);
 
         // Frodo gets read+write on Sam's copy: write to send, read to check what landed.

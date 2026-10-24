@@ -1,3 +1,4 @@
+using Odin.Core;
 namespace Odin.Services.Base.SharedTypes;
 
 /// <summary>
@@ -7,6 +8,6 @@ namespace Odin.Services.Base.SharedTypes;
 /// </summary>
 public class ResolveDriveAddressRequest
 {
-    public string AppSlug { get; set; }
-    public string DriveSlug { get; set; }
+    public OdinSlug AppSlug { get; set; }
+    public OdinSlug DriveSlug { get; set; }
 }

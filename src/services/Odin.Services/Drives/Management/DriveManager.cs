@@ -123,9 +123,9 @@ public class DriveManager : IDriveManager
 
         // Both slugs are the caller's to name (#1901): missing, empty, whitespace-only or malformed is a
         // client error. A slug is a URL segment and a wire address other identities resolve against, so
-        // the server never makes one up and never coerces one.
-        OdinSlug.AssertRequired(request.DriveSlug, nameof(request.DriveSlug));
-        OdinSlug.AssertRequired(request.DriveTypeSlug, nameof(request.DriveTypeSlug));
+        // the server never makes one up and never changes one beyond lowercasing it (OdinSlug).
+        var driveSlug = OdinSlug.Required(request.DriveSlug, nameof(request.DriveSlug));
+        var driveTypeSlug = OdinSlug.Required(request.DriveTypeSlug, nameof(request.DriveTypeSlug));
 
         // Every drive has an owner. A request that names no app is the owner acting as themselves -- the
         // wallet drive, an ad-hoc drive from the console -- and those belong to the owner-console app.
@@ -144,8 +144,6 @@ public class DriveManager : IDriveManager
         // console naming an app by hand, so a mistyped id is a real risk and the ordering cannot bite.
         // A drive created against an id nobody ever registers is addressed at nothing until one does,
         // and reassign-owner can move it.
-        var driveSlug = request.DriveSlug;
-
         // Without this a duplicate would reach the insert and surface as a raw
         // UNIQUE(identityId, AppId, DriveSlug) violation instead of a client error.
         var taken = await SlugsHeldByAppAsync(appId);
@@ -161,8 +159,6 @@ public class DriveManager : IDriveManager
                 $"Drive slug '{driveSlug}' is already used by another drive on this app",
                 OdinClientErrorCode.IdAlreadyExists);
         }
-
-        var driveTypeSlug = request.DriveTypeSlug;
 
         var mk = odinContext.Caller.GetMasterKey();
 
@@ -427,13 +423,10 @@ public class DriveManager : IDriveManager
     /// protected, so guarding on that would make it useless for the one job it has.
     /// </para>
     /// </remarks>
-    internal async Task<bool> ApplyAddressAsync(Guid driveId, Guid appId, string driveSlug,
-        string driveTypeSlug, IOdinContext odinContext)
+    internal async Task<bool> ApplyAddressAsync(Guid driveId, Guid appId, OdinSlug driveSlug,
+        OdinSlug driveTypeSlug, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-
-        OdinSlug.AssertRequired(driveSlug, nameof(driveSlug));
-        OdinSlug.AssertRequired(driveTypeSlug, nameof(driveTypeSlug));
 
         var storageDrive = await GetDriveInternal(driveId);
         if (storageDrive == null)
@@ -562,14 +555,13 @@ public class DriveManager : IDriveManager
     /// <paramref name="exceptDriveId"/> leaves out the drive being moved, whose own slug is not a
     /// collision with itself.
     /// </remarks>
-    private async Task<HashSet<string>> SlugsHeldByAppAsync(Guid appId, Guid? exceptDriveId = null)
+    private async Task<HashSet<OdinSlug>> SlugsHeldByAppAsync(Guid appId, Guid? exceptDriveId = null)
     {
         var (existingDrives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-        return new HashSet<string>(
-            existingDrives
-                .Where(d => d.AppId == appId && d.DriveId != exceptDriveId && !string.IsNullOrWhiteSpace(d.DriveSlug))
-                .Select(d => d.DriveSlug),
-            StringComparer.Ordinal);
+        return existingDrives
+            .Where(d => d.AppId == appId && d.DriveId != exceptDriveId)
+            .Select(d => new OdinSlug(d.DriveSlug))
+            .ToHashSet();
     }
 
     /// <summary>
@@ -598,7 +590,7 @@ public class DriveManager : IDriveManager
     /// the new address, and a collision inside the same app is refused rather than suffixed.
     /// </para>
     /// </remarks>
-    public async Task SetDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug, string driveTypeSlug,
+    public async Task SetDriveOwningAppAsync(Guid driveId, Guid appId, OdinSlug driveSlug, OdinSlug driveTypeSlug,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -624,8 +616,8 @@ public class DriveManager : IDriveManager
 
         // Both slugs are the caller's to name (#1901): nothing is kept or derived.  Adoption changes the
         // app half of the address regardless, so the caller states the whole new address.
-        OdinSlug.AssertRequired(driveSlug, nameof(driveSlug));
-        OdinSlug.AssertRequired(driveTypeSlug, nameof(driveTypeSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(driveTypeSlug, nameof(driveTypeSlug));
 
         var taken = await SlugsHeldByAppAsync(appId);
         if (taken.Contains(driveSlug))
@@ -682,8 +674,8 @@ public class DriveManager : IDriveManager
     /// them and provisioning re-stamps whatever it finds.
     /// </para>
     /// </remarks>
-    public async Task ReassignDriveOwningAppAsync(Guid driveId, Guid appId, string driveSlug,
-        string driveTypeSlug, IOdinContext odinContext)
+    public async Task ReassignDriveOwningAppAsync(Guid driveId, Guid appId, OdinSlug driveSlug,
+        OdinSlug driveTypeSlug, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -701,8 +693,8 @@ public class DriveManager : IDriveManager
 
         // Required, not optional. Deriving one here would pick the new address on the caller's
         // behalf at the one moment the old one stops working.
-        OdinSlug.AssertRequired(driveSlug, nameof(driveSlug));
-        OdinSlug.AssertRequired(driveTypeSlug, nameof(driveTypeSlug));
+        OdinSlug.Required(driveSlug, nameof(driveSlug));
+        OdinSlug.Required(driveTypeSlug, nameof(driveTypeSlug));
 
         // Scoped to the *new* app: the drive is arriving somewhere it has not been, and the slug that
         // was free under the old owner says nothing about this one.
@@ -830,14 +822,11 @@ public class DriveManager : IDriveManager
     /// </remarks>
     public async Task<StorageDrive?> GetDriveBySlugAsync(
         Guid appId,
-        string driveSlug,
+        OdinSlug driveSlug,
         IOdinContext odinContext,
         bool failIfInvalid = false)
     {
-        var drive = string.IsNullOrWhiteSpace(driveSlug)
-            ? null
-            : (await GetDrivesByAppIdAsync(appId, odinContext))
-                .SingleOrDefault(d => OdinSlug.Matches(d.DriveSlug, driveSlug));
+        var drive = (await GetDrivesByAppIdAsync(appId, odinContext)).SingleOrDefault(d => d.DriveSlug == driveSlug);
 
         if (drive == null && failIfInvalid)
         {
@@ -1043,8 +1032,8 @@ public class DriveManager : IDriveManager
 
             AppId = record.AppId,
             WriteOnlyKeyPair = DriveWriteOnlyKey.Deserialize(record.WriteOnlyKeyPair),
-            DriveSlug = record.DriveSlug,
-            DriveTypeSlug = record.DriveTypeSlug,
+            DriveSlug = new OdinSlug(record.DriveSlug),
+            DriveTypeSlug = new OdinSlug(record.DriveTypeSlug),
 
             SharingModel = (DriveSharingModel)record.SharingModel,
             ZkMasterKeyEncryptedStorageKey = record.ZkMasterKeyEncryptedStorageKey,

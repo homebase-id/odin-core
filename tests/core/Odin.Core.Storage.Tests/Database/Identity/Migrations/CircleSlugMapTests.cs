@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Storage.Database.Identity.Migrations;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Membership.Circles;
@@ -41,7 +42,7 @@ public class CircleSlugMapTests
     public void EveryBuiltinSlugIsValidAndUnique()
     {
         var slugs = CircleSlugGenerator.BuiltinCircleSlugs().ToList();
-        Assert.That(slugs, Is.All.Matches<string>(Odin.Services.Base.OdinSlug.IsValid));
+        Assert.That(slugs, Is.All.Matches<string>(Odin.Core.OdinSlug.IsValid));
         Assert.That(slugs, Is.Unique);
     }
 }

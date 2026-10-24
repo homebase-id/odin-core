@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -38,8 +39,8 @@ public class PeerAppDriveTemporalTests : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
 
-    private const string AppSlug = "ledger";
-    private const string DriveSlug = "records";
+    private static readonly OdinSlug AppSlug = new("ledger");
+    private static readonly OdinSlug DriveSlug = new("records");
     private const string PayloadKey = "pknt0001";
     private const int WindowSeconds = 600;
 
@@ -54,7 +55,7 @@ public class PeerAppDriveTemporalTests : V2Fixture
         await sam.Admin.RegisterApp(appId, new PermissionSetGrantRequest(), appSlug: AppSlug);
         await sam.Admin.CreateDrive(drive, "Sam's records", allowAnonymousReads: false,
             attributes: new Dictionary<string, string> { [TemporalRead.MaxAgeAttributeKey] = WindowSeconds.ToString() },
-            appId: appId, driveSlug: DriveSlug, driveTypeSlug: "record");
+            appId: appId, driveSlug: DriveSlug, driveTypeSlug: new OdinSlug("record"));
 
         await frodo.Admin.CreateDrive(drive, "Frodo's copy", allowAnonymousReads: false);
         await PeerFlow.ConnectAsync(frodo, sam, drive, DrivePermission.ConditionalTemporalRead);

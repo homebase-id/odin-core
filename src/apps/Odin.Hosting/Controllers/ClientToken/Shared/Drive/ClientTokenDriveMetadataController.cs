@@ -50,8 +50,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                 // side (drive-addressing.md, "Slugs are resolved by the recipient"), so a guest does not
                 // need to read the list to use one.
                 AppId = WebOdinContext.Caller.IsOwner ? drive.AppId : null,
-                DriveSlug = WebOdinContext.Caller.IsOwner ? drive.DriveSlug : null,
-                DriveTypeSlug = WebOdinContext.Caller.IsOwner ? drive.DriveTypeSlug : null
+                DriveSlug = WebOdinContext.Caller.IsOwner ? drive.DriveSlug : default,
+                DriveTypeSlug = WebOdinContext.Caller.IsOwner ? drive.DriveTypeSlug : default
             }).ToList();
 
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

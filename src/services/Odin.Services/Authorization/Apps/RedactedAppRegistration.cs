@@ -12,7 +12,7 @@ namespace Odin.Services.Authorization.Apps
         public GuidId AppId { get; set; }
 
         /// <summary>The app's wire address; see <see cref="AppRegistration.AppSlug"/>.</summary>
-        public string AppSlug { get; set; }
+        public OdinSlug AppSlug { get; set; }
 
         public string Name { get; set; }
 

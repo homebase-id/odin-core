@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core;
 using Odin.Services.Apps.Builtin;
 using Odin.Services.Drives;
 
@@ -43,9 +44,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// The drive's portable name, and the readable form of its type.  Both null until the
         /// addressing work assigns them; see <c>docs/drive-addressing.md</c>.
         /// </summary>
-        public string DriveSlug { get; set; }
+        public OdinSlug DriveSlug { get; set; }
 
-        public string DriveTypeSlug { get; set; }
+        public OdinSlug DriveTypeSlug { get; set; }
 
         /// <summary>
         /// The drive's write-only public key, in JWK form -- the half a remote caller seals a deposit
