@@ -52,5 +52,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         /// <summary>Recovery with the phrase, with no login.</summary>
         [Get(RootPath + "/zk-phrase-recovery")]
         Task<ApiResponse<Odin.Services.Security.ZeroKnowledge.ZkPhraseRecoveryResponse>> GetPhraseRecovery();
+
+        /// <summary>Recovery with the phrase's reset key, with no login.</summary>
+        [Post(RootPath + "/zk-phrase-reset")]
+        Task<ApiResponse<HttpContent>> ResetPasswordWithPhrase([Body] Odin.Services.Security.ZeroKnowledge.ZkPhraseResetRequest request);
     }
 }

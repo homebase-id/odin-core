@@ -68,8 +68,9 @@ public class ZeroKnowledgeRecoveryService(
     public async Task<ZkPhraseHandoverResponse> HandOverAsync(ZkPhraseHandoverRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        OdinValidationUtils.AssertNotNull(request?.CurrentAuthenticationPasswordReply, "CurrentAuthenticationPasswordReply");
-        await secretService.AssertValidPasswordAsync(request!.CurrentAuthenticationPasswordReply);
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        request.Validate();
+        await secretService.AssertValidPasswordAsync(request.CurrentAuthenticationPasswordReply);
 
         return new ZkPhraseHandoverResponse
         {
@@ -78,24 +79,46 @@ public class ZeroKnowledgeRecoveryService(
     }
 
     /// <summary>
-    /// Step 2: stores the browser's copies and forgets the server's, in one transaction.  The phrase's
-    /// check value must match, so only a caller that has the phrase (from step 1) gets here.
-    /// Server-dealt Shamir that still locks the phrase is dealt again first, so it keeps working
-    /// without it.
+    /// Step 2: stores the browser's copies and forgets the server's.  Needs the password itself and
+    /// the phrase's check value.  Neither proves the copies open: the server can't open them, so it
+    /// takes the browser's word, as with every zero-knowledge copy.  The reset copy it makes itself.
     /// </summary>
-    public async Task TakeOverAsync(ZkPhraseCopiesRequest request, IOdinContext odinContext)
+    /// <remarks>
+    /// Server-dealt Shamir that still locks the phrase is dealt again first, in its own transaction:
+    /// a failed deal must roll back on its own, and then it is removed rather than block this.
+    /// </remarks>
+    public async Task TakeOverAsync(ZkPhraseTakeoverRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
         request.Validate();
+        await secretService.AssertValidPasswordAsync(request.CurrentAuthenticationPasswordReply);
         await passwordKeyRecoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
 
-        await using var tx = await db.BeginStackedTransactionAsync();
         await shamirConfigurationService.MoveOffThePhraseAsync(odinContext);
-        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request);
-        await passwordKeyRecoveryService.CompleteTakeoverAsync(odinContext);
+
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request, odinContext);
+        await passwordKeyRecoveryService.CompleteTakeoverAsync(request.PhraseCheck64);
         tx.Commit();
 
         logger.LogInformation("Recovery phrase taken over by the browser");
+    }
+
+    /// <summary>
+    /// Recovery with the phrase when the password copy doesn't log in (someone with the password
+    /// rewrote it): the reset key opens today's master key, the password is set as a reset sets it,
+    /// and the recovered zero-knowledge master key is locked by the new password.  No login.
+    /// </summary>
+    public async Task ResetPasswordWithPhraseAsync(ZkPhraseResetRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        request.Validate();
+
+        using var masterKey = await zeroKnowledgeKeyService.OpenMasterKeyWithResetKeyAsync(request.ResetKey64);
+        await secretService.ResetPasswordUsingMasterKeyAsync(masterKey, request.PasswordReply, request.ZkKeys);
+
+        logger.LogInformation("Password reset with the recovery phrase");
     }
 
     /// <summary>
@@ -117,6 +140,6 @@ public class ZeroKnowledgeRecoveryService(
         }
 
         await passwordKeyRecoveryService.AssertPhraseCheckAsync(request.PhraseCheck64, odinContext);
-        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request);
+        await zeroKnowledgeKeyService.SavePhraseCopiesAsync(request, odinContext);
     }
 }

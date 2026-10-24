@@ -102,14 +102,52 @@ public class ZeroKnowledgeKeyService(
         await SaveRecordAsync(existing with { ZkMasterKeyEncryptedPassword = zkMasterKeyEncryptedPassword });
     }
 
-    /// <summary>Stores the browser's two phrase copies; the caller validates them and decides when.</summary>
-    internal async Task SavePhraseCopiesAsync(ZkPhraseCopiesRequest request)
+    /// <summary>
+    /// Stores the browser's two phrase copies, and locks today's master key with its reset key; the
+    /// caller validates them and decides when.
+    /// </summary>
+    internal async Task SavePhraseCopiesAsync(ZkPhraseCopiesRequest request, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        var existing = await GetRecordOrFailAsync();
+        using var resetKey = request.ResetKey64.FromBase64().ToSensitiveByteArray();
+        await SaveRecordAsync(existing with
+        {
+            PhraseKeyEncryptedZkMasterKey = request.PhraseKeyEncryptedZkMasterKey,
+            ZkMasterKeyEncryptedPhraseKey = request.ZkMasterKeyEncryptedPhraseKey,
+            ResetKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(secret: resetKey, dataToEncrypt: odinContext.Caller.GetMasterKey())
+        });
+    }
+
+    /// <summary>
+    /// Today's master key, from the reset key recovery with the phrase sends.  Refused (a key hash
+    /// mismatch) for any other key.
+    /// </summary>
+    internal async Task<SensitiveByteArray> OpenMasterKeyWithResetKeyAsync(string resetKey64)
+    {
+        var record = await GetRecordAsync();
+        if (record?.ResetKeyEncryptedMasterKey == null)
+        {
+            throw new OdinClientException("The recovery phrase was not taken over", OdinClientErrorCode.RecoveryPhraseNotTakenOver);
+        }
+
+        using var resetKey = resetKey64.FromBase64().ToSensitiveByteArray();
+        return record.ResetKeyEncryptedMasterKey.DecryptKeyClone(resetKey);
+    }
+
+    /// <summary>
+    /// After a reset with the phrase: the recovered zero-knowledge master key, locked by the new
+    /// password, replaces whatever was there.  The phrase copies and the reset copy stay: the key
+    /// they lock is the same.
+    /// </summary>
+    internal async Task ReplaceKeysAfterPhraseResetAsync(ZkKeysRequest request)
     {
         var existing = await GetRecordOrFailAsync();
         await SaveRecordAsync(existing with
         {
-            PhraseKeyEncryptedZkMasterKey = request.PhraseKeyEncryptedZkMasterKey,
-            ZkMasterKeyEncryptedPhraseKey = request.ZkMasterKeyEncryptedPhraseKey
+            ZkSaltKek64 = request.ZkSaltKek64,
+            ZkKekEncryptedZkMasterKey = request.ZkKekEncryptedZkMasterKey,
+            ZkMasterKeyEncryptedPassword = request.ZkMasterKeyEncryptedPassword
         });
     }
 

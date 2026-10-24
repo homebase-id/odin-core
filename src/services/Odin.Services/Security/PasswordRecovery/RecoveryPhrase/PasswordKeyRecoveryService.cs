@@ -127,12 +127,20 @@ public class PasswordKeyRecoveryService(
         {
             // Once taken over, the browser opens its copy and shows the words; the server can't.
             var takenOver = recoveryKeyRecord.TakenOver != null;
+            var lockedCopy = takenOver
+                ? (await zeroKnowledgeKeyService.GetKeysAsync(odinContext))?.ZkMasterKeyEncryptedPhraseKey
+                : null;
+            if (takenOver && lockedCopy == null)
+            {
+                // A reset with today's master key forgot it; the waiting period is left as it was.
+                throw new OdinClientException("Type the recovery phrase in again to keep it",
+                    OdinClientErrorCode.RecoveryPhraseNeedsReentry);
+            }
+
             var decryptedRecoveryKey = new RecoveryKeyResult
             {
                 Key = takenOver ? null : OpenPhrase(recoveryKeyRecord, odinContext),
-                ZkMasterKeyEncryptedPhraseKey = takenOver
-                    ? (await zeroKnowledgeKeyService.GetKeysAsync(odinContext))?.ZkMasterKeyEncryptedPhraseKey
-                    : null,
+                ZkMasterKeyEncryptedPhraseKey = lockedCopy,
                 Created = recoveryKeyRecord.Created,
                 NextViewableDate = null, // doesnt matter
                 HasInitiallyReviewedKey = recoveryKeyRecord.InitialRecoveryKeyViewingDate != null
@@ -234,13 +242,14 @@ public class PasswordKeyRecoveryService(
     }
 
     /// <summary>
-    /// The server's half of the takeover, once the browser stored its copies: keeps the check value
-    /// and deletes both copies the server could open.
+    /// The server's half of the takeover, once the browser stored its copies: keeps the check value,
+    /// which the caller verified with <see cref="AssertPhraseCheckAsync"/>, and deletes both copies the
+    /// server could open.
     /// </summary>
-    internal async Task CompleteTakeoverAsync(IOdinContext odinContext)
+    internal async Task CompleteTakeoverAsync(string verifiedPhraseCheck64)
     {
         var record = await GetRecordForTakeoverAsync();
-        record.PhraseCheck64 = ComputePhraseCheck(record, odinContext);
+        record.PhraseCheck64 = verifiedPhraseCheck64;
         record.MasterKeyEncryptedRecoverKey = null;
         record.RecoveryKeyEncryptedMasterKey = null;
         record.TakenOver = UnixTimeUtc.Now();

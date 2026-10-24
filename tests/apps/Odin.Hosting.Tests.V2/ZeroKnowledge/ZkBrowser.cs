@@ -67,20 +67,33 @@ internal static class ZkBrowser
     /// <summary>The recovery phrase's 16 bytes, from its 12 words.</summary>
     public static byte[] PhraseKey(string phrase) => BIP39Util.DecodeBIP39(phrase).GetKey();
 
+    /// <summary>The reset key: hkdf-sha256 of the zero-knowledge master key, no salt, 16 bytes.</summary>
+    public static byte[] ResetKey(byte[] zkMasterKey) => System.Security.Cryptography.HKDF.DeriveKey(
+        System.Security.Cryptography.HashAlgorithmName.SHA256, zkMasterKey, 16, [],
+        "homebase-recovery-reset-key".ToUtf8ByteArray());
+
     /// <summary>
     /// The browser's two phrase copies: the zero-knowledge master key locked by the phrase, and the
-    /// phrase locked by the zero-knowledge master key, with the phrase's check value.
+    /// phrase locked by the zero-knowledge master key, with the phrase's check value and the reset key.
     /// </summary>
-    public static ZkPhraseCopiesRequest MakePhraseCopies(string phrase, byte[] zkMasterKey)
+    public static T MakePhraseCopies<T>(string phrase, byte[] zkMasterKey) where T : ZkPhraseCopiesRequest, new()
     {
         var phraseKey = PhraseKey(phrase);
-        return new ZkPhraseCopiesRequest
+        return new T
         {
             PhraseKeyEncryptedZkMasterKey = Lock(zkMasterKey, phraseKey),
             ZkMasterKeyEncryptedPhraseKey = Lock(phraseKey, zkMasterKey),
-            PhraseCheck64 = RecoveryPhraseCheck.Compute(phraseKey)
+            PhraseCheck64 = RecoveryPhraseCheck.Compute(phraseKey),
+            ResetKey64 = ResetKey(zkMasterKey).ToBase64()
         };
     }
+
+    public static ZkPhraseCopiesRequest MakePhraseCopies(string phrase, byte[] zkMasterKey) =>
+        MakePhraseCopies<ZkPhraseCopiesRequest>(phrase, zkMasterKey);
+
+    /// <summary>What the forgot-password page gets out of the phrase: the zero-knowledge master key.</summary>
+    public static byte[] RecoverZkMasterKey(string phrase, ZkPhraseRecoveryResponse recovery) =>
+        Open(recovery.PhraseKeyEncryptedZkMasterKey, PhraseKey(phrase));
 
     /// <summary>What the forgot-password page does with the phrase: the zero-knowledge master key, then the password.</summary>
     public static string RecoverPassword(string phrase, ZkPhraseRecoveryResponse recovery)

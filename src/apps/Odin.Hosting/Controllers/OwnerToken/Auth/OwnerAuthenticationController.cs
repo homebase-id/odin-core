@@ -28,7 +28,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         OwnerAuthenticationService authService,
         OwnerSecretService ss,
         PublicPrivateKeyService publicPrivateKeyService,
-        ZeroKnowledgeKeyService zeroKnowledgeKeyService,
         ILogger<OwnerAuthenticationController> logger)
         : OdinControllerBase
     {
@@ -156,10 +155,23 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         /// over; the page then falls back to <c>resetpasswdrk</c>.
         /// </summary>
         [HttpGet("zk-phrase-recovery")]
-        public async Task<ActionResult<ZkPhraseRecoveryResponse>> GetPhraseRecovery()
+        public async Task<ActionResult<ZkPhraseRecoveryResponse>> GetPhraseRecovery(
+            [FromServices] ZeroKnowledgeKeyService zeroKnowledgeKeyService)
         {
             var result = await zeroKnowledgeKeyService.GetPhraseRecoveryAsync();
             return result == null ? NotFound() : result;
+        }
+
+        /// <summary>
+        /// Recovery with the phrase when the password it gave back doesn't log in: the phrase's reset
+        /// key sets a new password.  No login; a wrong key is refused (403).
+        /// </summary>
+        [HttpPost("zk-phrase-reset")]
+        public async Task<IActionResult> ResetPasswordWithPhrase([FromBody] ZkPhraseResetRequest request,
+            [FromServices] ZeroKnowledgeRecoveryService zeroKnowledgeRecoveryService)
+        {
+            await zeroKnowledgeRecoveryService.ResetPasswordWithPhraseAsync(request);
+            return Ok();
         }
 
         [HttpPost("ispasswordset")]

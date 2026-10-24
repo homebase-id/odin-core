@@ -163,8 +163,11 @@ today **(V)**) moves to the browser: open the phrase copy.
    needed: both are useless without the phrase, and a 128-bit key can't be guessed.
 3. The browser opens the ZK master key, then the password, and shows it.
 4. The owner logs in as usual, and may change it.
+5. If that password doesn't log in (someone with the password rewrote the copy), the browser
+   derives the reset key from the ZK master key and sets a new password with it; the server resets
+   the password with today's master key, and the ZK master key is locked by the new password.
 
-The server changes nothing. It can email "your recovery data was fetched" as a warning.
+Until step 5 the server changes nothing.
 
 ### Dealing to friends
 
@@ -334,8 +337,9 @@ odin-core:
 3. **Server-dealt Shamir locks the master key, not the phrase.** Today `SaveDistributableKey`
    reads the phrase on every deal and rotation, and `FinalizeRecovery` resets the password with
    the phrase text **(V)**; both break once the server has no phrase. The distribution key locks
-   the master key instead, and finalize opens it. Existing setups switch at the takeover with the
-   master key and the existing copy, so nothing is re-dealt. (`MasterKeyEncryptedShamirDistributionKey`
+   the master key instead, and finalize opens it. Existing setups are dealt again at the takeover,
+   to the same players with the same threshold (a deal that can't be repeated is removed; see
+   "As built"). (`MasterKeyEncryptedShamirDistributionKey`
    actually holds the phrase **(V)**; it goes.)
 4. **Recovery read** (no login): the phrase copy of the ZK master key and the password copy, or
    "not taken over", and the page falls back to today's reset. The global per-IP rate limiter
@@ -384,6 +388,28 @@ odin-js:
   the phrase first and falls back to `resetpasswdrk`; the reveal opens the locked copy; the health
   check sends the check value; the security page asks for the phrase after a reset. The login's
   three reads (status, drive, session key) run together.
+
+**Review fixes (2026-10-24):**
+- **A reset key, so recovery doesn't rely on copies a hijacker can rewrite.** Anyone with the
+  password can rewrite the password copy (a password change writes it), and the server can't check
+  a copy it can't open. So at the takeover the browser also sends `RK = hkdf-sha256(ZKMK,
+  "homebase-recovery-reset-key")`, one way, and the server locks today's master key with it itself
+  (`ZkKeyRecord.ResetKeyEncryptedMasterKey`), correct by construction and written once. Recovery:
+  the phrase gives `ZKMK`; if the password copy logs in, done; otherwise the browser sends `RK` with
+  a new password and `ZKMK` locked by it (`POST authentication/zk-phrase-reset`, no login) and the
+  server resets the password as today's reset does, keeping the zero-knowledge keys.
+- **The takeover also needs the password itself**, and the browser opens its copies again before
+  they go.
+- **An old deal that can't be dealt again is removed**, not left blocking the takeover at every
+  login: without the phrase it couldn't recover anything. The security page's red dot comes on
+  (`needs-attention`: not configured). The re-deal runs in its own transaction before the takeover's
+  and shares the rotation gate.
+- **Finalizing a server-dealt recovery is one transaction**, and recovery mode ends last, so a
+  failure keeps the link and the collected shards.
+- **The handover skips the 14-day reveal wait once per owner** (accepted): the one exposure is an
+  attacker who logs in with a phished password before the owner's next login.
+- `Development:DealsLockThePhrase` makes deals lock the phrase until the takeover, as every deal did
+  before, so tests start where existing owners are.
 
 ## Size estimate
 

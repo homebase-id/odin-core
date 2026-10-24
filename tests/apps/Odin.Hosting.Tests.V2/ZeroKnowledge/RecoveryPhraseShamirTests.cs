@@ -1,26 +1,28 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
+using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Auth;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Hosting.Tests.V2.Ported.Shamir;
-using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.ZeroKnowledge;
 
 namespace Odin.Hosting.Tests.V2.ZeroKnowledge;
 
 /// <summary>
-/// Server-dealt Shamir after the browser takes the recovery phrase over
-/// (docs/zero-knowledge-recovery-plan.md, decision 6): it locks the master key, not the phrase, so it
-/// keeps working once the server forgets the phrase.
+/// Server-dealt Shamir around the recovery phrase takeover (docs/zero-knowledge-recovery-plan.md,
+/// decision 6).  <c>Development:DealsLockThePhrase</c> makes every deal here lock the phrase, as every
+/// deal did before recovery in the browser, until the takeover: so these start where every existing
+/// owner is.
 /// </summary>
 [TestFixture]
 public class RecoveryPhraseShamirTests : ShamirFixture
@@ -28,23 +30,52 @@ public class RecoveryPhraseShamirTests : ShamirFixture
     protected override string[] HostIdentities =>
         base.HostIdentities.Union(AutomatedPlayerIdentities).ToArray();
 
+    protected override IReadOnlyDictionary<string, string?> ConfigOverrides =>
+        new Dictionary<string, string?> { ["Development:DealsLockThePhrase"] = "true" };
+
+    // the takeover's re-deal cannot send to the disconnected friend
+    protected override IReadOnlyCollection<string> ToleratedErrorLogSubstrings =>
+        ["Cannot resolve client access token; not connected"];
+
+    /// <summary>
+    /// Owners who forgot their password never log in, so never take over: their old deal must still
+    /// recover, through the phrase the server still holds.
+    /// </summary>
     [TestCase(PlayerType.Delegate)]
     [TestCase(PlayerType.Automatic)]
-    public async Task ServerDealtRecoveryWorksAfterTheTakeoverAndThePhraseIsTypedInOnce(PlayerType playerType)
+    public async Task AnOldDealStillRecoversBeforeTheTakeover(PlayerType playerType)
     {
         var (dealer, players) = Cast();
-        var config = playerType == PlayerType.Delegate
-            ? (await ArrangeDelegateShardsAsync()).Config
-            : await ArrangeAutomatedShardsAsync(dealer);
+        var config = await ArrangeAsync(dealer, playerType);
+
+        await RecoverAsync(dealer, players, config, NewPassword);
+    }
+
+    [TestCase(PlayerType.Delegate)]
+    [TestCase(PlayerType.Automatic)]
+    public async Task AnOldDealIsDealtAgainAtTheTakeoverAndRecoversAfterIt(PlayerType playerType)
+    {
+        var (dealer, players) = Cast();
+        var before = await ArrangeAsync(dealer, playerType);
 
         var phrase = await TakeOverAsync(dealer);
 
-        var recovered = await RecoverAsync(dealer, players, config, NewPassword);
+        var after = await GetDealerShardConfigAsync(dealer);
+        Assert.That(after.Updated.milliseconds, Is.GreaterThan(before.Updated.milliseconds));
+        Assert.That(after.Envelopes.Select(e => e.Player.OdinId), Is.EquivalentTo(before.Envelopes.Select(e => e.Player.OdinId)));
+        Assert.That(after.Envelopes.Select(e => e.ShardId), Has.None.AnyOf(before.Envelopes.Select(e => e.ShardId).ToArray()),
+            "every shard is new");
+        Assert.That(after.MinMatchingShards, Is.EqualTo(before.MinMatchingShards));
+        Assert.That(after.UsesAutomaticRecovery, Is.EqualTo(before.UsesAutomaticRecovery));
+        await DrainAndVerifyShardsAsync(dealer, before.Envelopes.Count);
+
+        var recovered = await RecoverAsync(dealer, players, after, NewPassword);
 
         // The reset forgot the zero-knowledge keys and every copy tied to them; the phrase is still
         // valid, and the owner types it in once against the new keys.
         var keys = await ZkOwnerSteps.CreateKeysAsync(recovered, NewPassword);
         Assert.That((await ZkOwnerSteps.GetStatusAsync(recovered)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.NeedsReentry));
+        DriveAsserts.AssertRejected(await SecurityOf(recovered).RequestRecoveryKey(), OdinClientErrorCode.RecoveryPhraseNeedsReentry);
 
         // The re-deal after a password change ran on those requests, without a phrase to read.
         Assert.That(await IsRotationPendingAsync(recovered), Is.False);
@@ -62,24 +93,31 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         Assert.That(ZkBrowser.RecoverPassword(phrase, recovery.Content!), Is.EqualTo(NewPassword));
     }
 
+    /// <summary>
+    /// A friend the owner is no longer connected to can't be dealt to, so the old deal can't be
+    /// repeated.  It's removed rather than block the takeover, and the security page says so.
+    /// </summary>
     [Test]
-    public async Task ADealThatLocksThePhraseIsDealtAgainAtTheTakeover()
+    public async Task AnOldDealThatCannotBeDealtAgainIsRemovedAndTheSecurityPageSaysSo()
     {
-        var (dealer, players, before) = await ArrangeDelegateShardsAsync();
-        await MakeTheDealLockThePhraseAsync(dealer);
+        var (dealer, players, _) = await ArrangeDelegateShardsAsync();
+        Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.True);
+        await PeerFlow.DisconnectAsync(players[0], dealer);
 
         await TakeOverAsync(dealer);
 
-        var after = await GetDealerShardConfigAsync(dealer);
-        Assert.That(after.Updated.milliseconds, Is.GreaterThan(before.Updated.milliseconds));
-        Assert.That(after.Envelopes.Select(e => e.Player.OdinId), Is.EquivalentTo(before.Envelopes.Select(e => e.Player.OdinId)));
-        Assert.That(after.Envelopes.Select(e => e.ShardId), Has.None.AnyOf(before.Envelopes.Select(e => e.ShardId).ToArray()),
-            "every shard is new");
-        Assert.That(after.MinMatchingShards, Is.EqualTo(before.MinMatchingShards));
-        await DrainAndVerifyShardsAsync(dealer, before.Envelopes.Count);
-
-        await RecoverAsync(dealer, players, after, NewPassword);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(dealer)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.TakenOver));
+        Assert.That((await RecoveryInfoAsync(dealer)).IsConfigured, Is.False, "the old deal is gone");
+        var needsAttention = await Refit.RestService.For<ITestSecurityContextOwnerClient>(dealer.NewAdminHttpClient().client)
+            .GetNeedsAttention();
+        Assert.That(needsAttention.StatusCode, Is.EqualTo(HttpStatusCode.OK), needsAttention.Error?.Content);
+        Assert.That(needsAttention.Content!.NeedsAttention, Is.True, "the red dot on the security page");
     }
+
+    private Task<DealerShardConfig> ArrangeAsync(OwnerSession dealer, PlayerType playerType) =>
+        playerType == PlayerType.Delegate
+            ? ArrangeDelegateShardsAsync().ContinueWith(t => t.Result.Config)
+            : ArrangeAutomatedShardsAsync(dealer);
 
     /// <summary>The login's takeover, from a fresh password login as the browser does it.</summary>
     private async Task<string> TakeOverAsync(OwnerSession dealer)
@@ -89,20 +127,10 @@ public class RecoveryPhraseShamirTests : ShamirFixture
         return await ZkOwnerSteps.TakeOverPhraseAsync(fresh, OwnerLogin.DefaultPassword, keys.MasterKey);
     }
 
-    /// <summary>
-    /// Turns the dealer's key record into one from before recovery in the browser: the field the
-    /// takeover looks at moves to the old one.  Its content never gets opened; the takeover deals again.
-    /// </summary>
-    private async Task MakeTheDealLockThePhraseAsync(OwnerSession dealer)
+    private static async Task<Odin.Services.Security.RecoveryInfo> RecoveryInfoAsync(OwnerSession owner)
     {
-        await using var scope = Host.GetTenantScope(dealer.Identity.DomainName).BeginLifetimeScope();
-        var tblKeyValue = scope.Resolve<TableKeyValueCached>();
-        var id = ShamirConfigurationService.ShamirRecordStorageId;
-
-        var record = await ShamirConfigurationService.Storage.GetAsync<ShamirKeyRecord>(tblKeyValue, id);
-        Assert.That(record?.ShamirDistributionKeyEncryptedMasterKey, Is.Not.Null);
-        record!.ShamirDistributionKeyEncryptedRecoveryKey = record.ShamirDistributionKeyEncryptedMasterKey;
-        record.ShamirDistributionKeyEncryptedMasterKey = null;
-        await ShamirConfigurationService.Storage.UpsertAsync(tblKeyValue, id, record);
+        var response = await Refit.RestService.For<ITestSecurityContextOwnerClient>(owner.NewAdminHttpClient().client).GetRecoveryInfo();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
+        return response.Content!;
     }
 }

@@ -163,4 +163,5 @@ public enum OdinClientErrorCode
     RecoveryPhraseTakenOver = 9014,
     RecoveryPhraseNotTakenOver = 9015,
     RecoveryPhraseMismatch = 9016,
+    RecoveryPhraseNeedsReentry = 9017,
 }

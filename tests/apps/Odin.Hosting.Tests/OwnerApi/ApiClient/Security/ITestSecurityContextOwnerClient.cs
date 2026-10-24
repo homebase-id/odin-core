@@ -78,8 +78,11 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-remote-player-shard")]
         Task<ApiResponse<ShardVerificationResult>> VerifyRemotePlayerShard(VerifyRemotePlayerShardRequest request);
 
-        /// <summary>The middleware leaves this path's request body unencrypted: call it through a plain client.</summary>
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-recovery-key")]
         Task<ApiResponse<HttpContent>> VerifyRecoveryKey([Body] VerifyRecoveryKeyRequest request);
+
+        /// <summary>The red dot on the security page.</summary>
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/needs-attention")]
+        Task<ApiResponse<NeedsAttentionResponse>> GetNeedsAttention();
     }
 }

@@ -54,10 +54,9 @@ public class ShamirConfigurationService(
     private const int DealerShardConfigFiletype = 44532;
     private const int PlayerEncryptedShardFileType = 74829;
     
-    // Internal for tests that set up a deal from before recovery in the browser.
-    internal static readonly Guid ShamirRecordStorageId = Guid.Parse("39c98971-ac39-4b4b-8eee-68a1742203c6");
+    private static readonly Guid ShamirRecordStorageId = Guid.Parse("39c98971-ac39-4b4b-8eee-68a1742203c6");
     private const string ContextKey = "078e018e-e6b3-4349-b635-721b43d35241";
-    internal static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
+    private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
 
     public const int MinimumPlayerCount = 3;
 
@@ -114,7 +113,8 @@ public class ShamirConfigurationService(
     /// Deals a fresh set of shards to <paramref name="players"/> and sends them. Automated players are
     /// reached with the configured AutomatedIdentityKey; delegates need a connection.
     /// </summary>
-    private async Task DistributeShards(List<ShamiraPlayer> players, int minShards, bool usesAutomatic, IOdinContext odinContext)
+    private async Task DistributeShards(List<ShamiraPlayer> players, int minShards, bool usesAutomatic, IOdinContext odinContext,
+        bool movingOffThePhrase = false)
     {
         if (usesAutomatic)
         {
@@ -139,7 +139,7 @@ public class ShamirConfigurationService(
                 throw usesAutomatic ? new OdinSystemException(message) : new OdinClientException(message);
             }
 
-            await SaveDistributableKey(distributionKey, odinContext);
+            await SaveDistributableKey(distributionKey, odinContext, movingOffThePhrase);
 
             tx.Commit();
             Logger.LogDebug("Commited shard distribution data");
@@ -234,10 +234,18 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// For the phrase takeover: a deal from before recovery in the browser locks the phrase, which the
-    /// server is about to forget, so it's dealt again to the same players with the same threshold.
-    /// Fails, and so fails the takeover, when a player can't be reached; the next login tries again.
+    /// For the phrase takeover, before it: a deal from before recovery in the browser locks the
+    /// phrase, which the server is about to forget, so it's dealt again to the same players with the
+    /// same threshold.  Call it outside any transaction: a failed deal must roll back on its own.
     /// </summary>
+    /// <remarks>
+    /// A deal that can't be repeated (a friend no longer connected, automated recovery off on this
+    /// host) is removed rather than kept: without the phrase it could never recover anything, and
+    /// keeping it would block the takeover at every login.  The security page then shows recovery
+    /// as not set up (<c>OwnerSecurityHealthService.GetSecurityNeedsAttentionStatus</c>).  Shares
+    /// <see cref="RotateShardKeysIfNeeded"/>'s gate, so the two never deal at once; when it's taken,
+    /// this throws and the next login tries again.
+    /// </remarks>
     internal async Task MoveOffThePhraseAsync(IOdinContext odinContext)
     {
         var key = await GetKeyInternalAsync();
@@ -246,16 +254,47 @@ public class ShamirConfigurationService(
             return;
         }
 
-        var package = await GetDealerShardPackage(odinContext);
-        if (package == null)
+        if (!rotationGate.TryEnter())
         {
-            // Nothing was dealt with it; nothing can rebuild it.
-            await Storage.DeleteAsync(tblKeyValue, ShamirRecordStorageId);
-            return;
+            throw new OdinClientException("Recovery shards are being dealt; try again later");
         }
 
-        var players = package.Envelopes.Select(e => e.Player).ToList();
-        await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext);
+        try
+        {
+            var package = await GetDealerShardPackage(odinContext);
+            if (package != null)
+            {
+                var players = package.Envelopes.Select(e => e.Player).ToList();
+                await DistributeShards(players, package.MinMatchingShards, package.UsesAutomatedRecovery, odinContext,
+                    movingOffThePhrase: true);
+                return;
+            }
+        }
+        catch (Exception e) when (e is OdinClientException or OdinSystemException)
+        {
+            Logger.LogWarning(e, "Could not deal the recovery shards again for the phrase takeover; removing the old deal");
+        }
+        finally
+        {
+            rotationGate.Exit();
+        }
+
+        await RemoveDealAsync(odinContext);
+    }
+
+    private async Task RemoveDealAsync(IOdinContext odinContext)
+    {
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var file = await FileSystem.Query.GetFileByClientUniqueIdForWriting(
+            WellKnownAppDrives.ShardRecoveryDrive.Alias, Guid.Parse(DealerShardConfigUid), odinContext);
+        if (file != null)
+        {
+            await FileSystem.Storage.HardDeleteLongTermFile(
+                new InternalDriveFileId(WellKnownAppDrives.ShardRecoveryDrive.Alias, file.FileId), odinContext);
+        }
+
+        await Storage.DeleteAsync(tblKeyValue, ShamirRecordStorageId);
+        tx.Commit();
     }
 
     /// <summary>
@@ -633,7 +672,7 @@ public class ShamirConfigurationService(
     /// <summary>
     /// Saves the key used to decrypt the <see cref="PlayerEncryptedShard"/>s
     /// </summary>
-    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, IOdinContext odinContext)
+    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, IOdinContext odinContext, bool movingOffThePhrase)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -646,11 +685,38 @@ public class ShamirConfigurationService(
             Created = UnixTimeUtc.Now()
         };
 
+        if (configuration.Development.DealsLockThePhrase && !movingOffThePhrase)
+        {
+            record = await DealLikeBeforeRecoveryInTheBrowserAsync(distributionKey, odinContext) ?? record;
+        }
+
         var n = await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);
         if (n != 1)
         {
             throw new OdinSystemException($"Failed to save key. {n} records affected");
         }
+    }
+
+    /// <summary>
+    /// Tests only (<c>Development:DealsLockThePhrase</c>): a deal as made before recovery in the browser,
+    /// locking the phrase.  Null once the phrase is taken over: then there's no phrase to lock.
+    /// </summary>
+    private async Task<ShamirKeyRecord> DealLikeBeforeRecoveryInTheBrowserAsync(SensitiveByteArray distributionKey,
+        IOdinContext odinContext)
+    {
+        if ((await passwordKeyRecoveryService.GetPhraseStateAsync()).TakenOver)
+        {
+            return null;
+        }
+
+        var phrase = (await passwordKeyRecoveryService.GetRecoveryKeyAsync(byPassWaitingPeriod: true, odinContext)).Key;
+
+        using var recoveryKey = BIP39Util.DecodeBIP39(phrase);
+        return new ShamirKeyRecord
+        {
+            ShamirDistributionKeyEncryptedRecoveryKey = new SymmetricKeyEncryptedAes(secret: distributionKey, dataToEncrypt: recoveryKey),
+            Created = UnixTimeUtc.Now()
+        };
     }
 
     private async Task<ShamirKeyRecord> GetKeyInternalAsync()

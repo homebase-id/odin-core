@@ -331,19 +331,19 @@ public class ShamirRecoveryService
     public async Task FinalizeRecovery(Guid nonceId, Guid finalKey, PasswordReply passwordReply,
         IOdinContext odinContext)
     {
-        // get nonce
-        var data = await _recoveryNotifier.GetNonceDataOrFail(nonceId);
+        // One transaction, and recovery mode ends last: a failure leaves the link and the collected
+        // shards as they were, so the owner can try again.
+        await using var tx = await _db.BeginStackedTransactionAsync();
 
-        // decrypt the nonce
+        var data = await _recoveryNotifier.GetNonceDataOrFail(nonceId);
         var recoveryInfo = OdinSystemSerializer.DeserializeOrThrow<FinalRecoveryInfo>(data);
         var finalKeyBytes = finalKey.ToByteArray().ToSensitiveByteArray();
         using var distributionKey = AesCbc.Decrypt(recoveryInfo.Cipher, finalKeyBytes, recoveryInfo.Iv).ToSensitiveByteArray();
         using var masterKey = await _configurationService.DecryptMasterKeyAsync(distributionKey);
 
-        // now that we have the master key, clean up all shards and reset status
-        await ExitRecoveryModeInternal(odinContext);
-
         await _secretService.ResetPasswordUsingMasterKeyAsync(masterKey, passwordReply);
+        await ExitRecoveryModeInternal(odinContext);
+        tx.Commit();
     }
 
     public async Task<List<ShardApprovalRequest>> GetShardRequestList(IOdinContext odinContext)

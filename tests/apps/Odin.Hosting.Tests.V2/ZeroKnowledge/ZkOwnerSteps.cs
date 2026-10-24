@@ -62,6 +62,16 @@ internal static class ZkOwnerSteps
         });
     }
 
+    /// <summary>The takeover's request, as the login builds it: the copies and proof of <paramref name="password"/>.</summary>
+    public static async Task<ZkPhraseTakeoverRequest> MakeTakeoverAsync(OwnerSession owner, string password,
+        string phrase, byte[] zkMasterKey)
+    {
+        var request = ZkBrowser.MakePhraseCopies<ZkPhraseTakeoverRequest>(phrase, zkMasterKey);
+        request.CurrentAuthenticationPasswordReply = await OwnerPasswordFlow.CalculateAuthenticationPasswordReplyAsync(
+            owner.Host, owner.Identity.DomainName, password);
+        return request;
+    }
+
     /// <summary>The login's takeover: the phrase handed over once, the browser's copies back.</summary>
     public static async Task<string> TakeOverPhraseAsync(OwnerSession owner, string password, byte[] zkMasterKey)
     {
@@ -69,7 +79,7 @@ internal static class ZkOwnerSteps
         Assert.That(handover.StatusCode, Is.EqualTo(HttpStatusCode.OK), handover.Error?.Content);
         var phrase = handover.Content!.Phrase;
 
-        var response = await Client(owner).TakeOverPhrase(ZkBrowser.MakePhraseCopies(phrase, zkMasterKey));
+        var response = await Client(owner).TakeOverPhrase(await MakeTakeoverAsync(owner, password, phrase, zkMasterKey));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), response.Error?.Content);
         return phrase;
     }
@@ -98,7 +108,7 @@ public interface IZeroKnowledgeOwnerClient
     Task<ApiResponse<ZkPhraseHandoverResponse>> HandOverPhrase([Body] ZkPhraseHandoverRequest request);
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-takeover")]
-    Task<ApiResponse<HttpContent>> TakeOverPhrase([Body] ZkPhraseCopiesRequest request);
+    Task<ApiResponse<HttpContent>> TakeOverPhrase([Body] ZkPhraseTakeoverRequest request);
 
     [Post(OwnerApiPathConstants.SecurityV1 + "/zk/phrase-reentry")]
     Task<ApiResponse<HttpContent>> ReenterPhrase([Body] ZkPhraseCopiesRequest request);

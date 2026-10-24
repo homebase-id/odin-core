@@ -1,5 +1,6 @@
 using System;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
@@ -35,6 +36,14 @@ public sealed record ZkKeyRecord
 
     /// <summary>The recovery phrase, locked by the zero-knowledge master key, for showing it again.</summary>
     public string ZkMasterKeyEncryptedPhraseKey { get; init; }
+
+    /// <summary>
+    /// Today's master key, locked by the reset key (derived one way from the zero-knowledge master key)
+    /// so recovery with the phrase can always reset the password, even when someone with the
+    /// password rewrote the password copy.  The server locks it itself at the takeover, so it is
+    /// correct by construction.
+    /// </summary>
+    public SymmetricKeyEncryptedAes ResetKeyEncryptedMasterKey { get; init; }
 
     public UnixTimeUtc Created { get; init; }
 
@@ -80,16 +89,25 @@ public sealed class ZkPasswordRequest
 public sealed class ZkPhraseHandoverRequest
 {
     public PasswordReply CurrentAuthenticationPasswordReply { get; set; }
+
+    public void Validate() =>
+        OdinValidationUtils.AssertNotNull(CurrentAuthenticationPasswordReply, nameof(CurrentAuthenticationPasswordReply));
 }
 
 /// <summary>
 /// The two copies the browser makes of the recovery phrase: the zero-knowledge master key locked by
-/// it, and the phrase locked by the zero-knowledge master key.
+/// it, and the phrase locked by the zero-knowledge master key; and the reset key.
 /// </summary>
-public sealed class ZkPhraseCopiesRequest
+public class ZkPhraseCopiesRequest
 {
     public string PhraseKeyEncryptedZkMasterKey { get; set; }
     public string ZkMasterKeyEncryptedPhraseKey { get; set; }
+
+    /// <summary>
+    /// The reset key: hkdf(zero-knowledge master key), one way.  The server locks today's master key
+    /// with it and keeps nothing else of it.
+    /// </summary>
+    public string ResetKey64 { get; set; }
 
     /// <summary>
     /// The phrase's check value (<see cref="RecoveryPhraseCheck"/>), so the server refuses copies made
@@ -102,6 +120,41 @@ public sealed class ZkPhraseCopiesRequest
         ZkBlob.AssertLocked(PhraseKeyEncryptedZkMasterKey, nameof(PhraseKeyEncryptedZkMasterKey));
         ZkBlob.AssertLocked(ZkMasterKeyEncryptedPhraseKey, nameof(ZkMasterKeyEncryptedPhraseKey));
         ZkBlob.AssertBase64(PhraseCheck64, nameof(PhraseCheck64), exactLength: RecoveryPhraseCheck.Length);
+        ZkBlob.AssertBase64(ResetKey64, nameof(ResetKey64), exactLength: 16);
+    }
+}
+
+/// <summary>The takeover: the phrase copies, with proof of the password itself.</summary>
+public sealed class ZkPhraseTakeoverRequest : ZkPhraseCopiesRequest
+{
+    public PasswordReply CurrentAuthenticationPasswordReply { get; set; }
+
+    public new void Validate()
+    {
+        base.Validate();
+        OdinValidationUtils.AssertNotNull(CurrentAuthenticationPasswordReply, nameof(CurrentAuthenticationPasswordReply));
+    }
+}
+
+/// <summary>
+/// Recovery with the phrase when the password copy doesn't log in: the reset key, a new password, and
+/// the recovered zero-knowledge master key locked by the new password.
+/// </summary>
+public sealed class ZkPhraseResetRequest
+{
+    public string ResetKey64 { get; set; }
+
+    /// <summary>The new password, as a password is set (against fresh salts).</summary>
+    public PasswordReply PasswordReply { get; set; }
+
+    public ZkKeysRequest ZkKeys { get; set; }
+
+    public void Validate()
+    {
+        ZkBlob.AssertBase64(ResetKey64, nameof(ResetKey64), exactLength: 16);
+        OdinValidationUtils.AssertNotNull(PasswordReply, nameof(PasswordReply));
+        OdinValidationUtils.AssertNotNull(ZkKeys, nameof(ZkKeys));
+        ZkKeys.Validate();
     }
 }
 

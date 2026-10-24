@@ -215,17 +215,28 @@ namespace Odin.Services.Authentication.Owner
         }
 
         /// <summary>
-        /// A reset with today's master key: the old recovery phrase before its takeover, or server-dealt
-        /// Shamir.  Restores the master key, not zero-knowledge data.
+        /// A reset with today's master key: the old recovery phrase before its takeover, server-dealt
+        /// Shamir, or the phrase's reset key.  Only the last brings the zero-knowledge master key back
+        /// (<paramref name="recoveredZkKeys"/>, locked by the new password by the browser that
+        /// recovered it); otherwise the zero-knowledge keys are forgotten.
         /// </summary>
-        public async Task ResetPasswordUsingMasterKeyAsync(SensitiveByteArray masterKey, PasswordReply reply)
+        public async Task ResetPasswordUsingMasterKeyAsync(SensitiveByteArray masterKey, PasswordReply reply,
+            ZkKeysRequest recoveredZkKeys = null)
         {
             await using var tx = await db.BeginStackedTransactionAsync();
             await SavePasswordAsync(reply, masterKey);
 
-            // Locked by the forgotten password, so they can never be opened again.  The browser makes
-            // new ones at the next login.
-            await zeroKnowledgeKeyService.DeleteAsync();
+            if (recoveredZkKeys != null)
+            {
+                await zeroKnowledgeKeyService.ReplaceKeysAfterPhraseResetAsync(recoveredZkKeys);
+            }
+            else
+            {
+                // Locked by the forgotten password, so they can never be opened again.  The browser makes
+                // new ones at the next login.
+                await zeroKnowledgeKeyService.DeleteAsync();
+            }
+
             tx.Commit();
         }
 

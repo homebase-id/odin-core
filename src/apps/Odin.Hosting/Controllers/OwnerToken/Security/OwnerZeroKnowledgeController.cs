@@ -58,7 +58,7 @@ public class OwnerZeroKnowledgeController(
 
     /// <summary>The browser's phrase copies; the server then forgets its own.</summary>
     [HttpPost("phrase-takeover")]
-    public async Task<IActionResult> TakeOverPhrase([FromBody] ZkPhraseCopiesRequest request)
+    public async Task<IActionResult> TakeOverPhrase([FromBody] ZkPhraseTakeoverRequest request)
     {
         await recoveryService.TakeOverAsync(request, WebOdinContext);
         return Ok();

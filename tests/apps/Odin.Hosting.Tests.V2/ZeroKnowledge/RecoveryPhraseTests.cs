@@ -36,6 +36,8 @@ public class RecoveryPhraseTests : V2Fixture
         Assert.That(BIP39Util.GenerateBIP39(phraseKey),
             Is.EqualTo("abandon amount liar amount expire adjust cage candy arch gather drum buyer"));
         Assert.That(RecoveryPhraseCheck.Compute(phraseKey), Is.EqualTo("Eo89wt2+AtmPabdl1v7jP8jYb9oHQlRxCiqqpMave6Y="));
+        Assert.That(ZkBrowser.ResetKey(phraseKey).ToBase64(), Is.EqualTo("UObib1b+8ABBLhC7sBHNOw=="),
+            "the reset key of the zero-knowledge master key 0..15");
     }
 
     [Test]
@@ -84,10 +86,79 @@ public class RecoveryPhraseTests : V2Fixture
         var keys = await ZkOwnerSteps.CreateKeysAsync(owner, Password);
 
         var otherPhrase = BIP39Util.GenerateBIP39(ByteArrayUtil.GetRndByteArray(16));
-        var response = await ZkOwnerSteps.Client(owner).TakeOverPhrase(ZkBrowser.MakePhraseCopies(otherPhrase, keys.MasterKey));
+        var response = await ZkOwnerSteps.Client(owner).TakeOverPhrase(
+            await ZkOwnerSteps.MakeTakeoverAsync(owner, Password, otherPhrase, keys.MasterKey));
 
         DriveAsserts.AssertRejected(response, OdinClientErrorCode.RecoveryPhraseMismatch);
         Assert.That((await ZkOwnerSteps.GetStatusAsync(owner)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.OnServer));
+    }
+
+    [Test]
+    public async Task TheTakeoverNeedsThePasswordItself()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await ZkOwnerSteps.CreateKeysAsync(owner, Password);
+        var phrase = (await ZkOwnerSteps.HandOverPhraseAsync(owner, Password)).Content!.Phrase;
+
+        // A session that has the phrase (an owner who never viewed it gets it at once) but not the password.
+        var response = await ZkOwnerSteps.Client(owner).TakeOverPhrase(
+            await ZkOwnerSteps.MakeTakeoverAsync(owner, "not the password", phrase, keys.MasterKey));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), response.Error?.Content);
+        Assert.That((await ZkOwnerSteps.GetStatusAsync(owner)).RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.OnServer));
+    }
+
+    /// <summary>
+    /// Someone with the password can rewrite the password copy, so it may give back a password that
+    /// doesn't work.  The reset key, which the server locked itself at the takeover, still resets
+    /// the password, and brings back the same zero-knowledge master key.
+    /// </summary>
+    [Test]
+    public async Task TheResetKeyResetsThePasswordWhenTheCopyWasRewritten()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await ZkOwnerSteps.CreateKeysAsync(owner, Password);
+        var phrase = await ZkOwnerSteps.TakeOverPhraseAsync(owner, Password, keys.MasterKey);
+
+        var rewritten = await ZkOwnerSteps.SavePasswordAsync(owner, Password, ZkBrowser.LockPassword("junk", keys.MasterKey));
+        Assert.That(rewritten.StatusCode, Is.EqualTo(HttpStatusCode.OK), rewritten.Error?.Content);
+
+        var recovery = (await RecoveryClient().GetPhraseRecovery()).Content!;
+        Assert.That(ZkBrowser.RecoverPassword(phrase, recovery), Is.EqualTo("junk"), "the copy no longer logs in");
+        var zkMasterKey = ZkBrowser.RecoverZkMasterKey(phrase, recovery);
+
+        var reset = await RecoveryClient().ResetPasswordWithPhrase(new ZkPhraseResetRequest
+        {
+            ResetKey64 = ZkBrowser.ResetKey(zkMasterKey).ToBase64(),
+            PasswordReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(Host, PrimaryIdentity, NewPassword),
+            ZkKeys = ZkBrowser.MakeKeys(NewPassword, zkMasterKey).Request
+        });
+        Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.OK), reset.Error?.Content);
+
+        var recovered = await OwnerSession.LoginAsync(Host, PrimaryIdentity, NewPassword);
+        var status = await ZkOwnerSteps.GetStatusAsync(recovered);
+        Assert.That(ZkBrowser.OpenMasterKey(NewPassword, status), Is.EqualTo(keys.MasterKey), "the same zero-knowledge master key");
+        Assert.That(status.RecoveryPhrase, Is.EqualTo(RecoveryPhraseState.TakenOver), "the phrase still recovers");
+        Assert.That(ZkBrowser.RecoverPassword(phrase, (await RecoveryClient().GetPhraseRecovery()).Content!), Is.EqualTo(NewPassword));
+    }
+
+    [Test]
+    public async Task AResetKeyFromAnythingButThePhraseIsRefused()
+    {
+        var owner = await LoginAsOwner();
+        var keys = await ZkOwnerSteps.CreateKeysAsync(owner, Password);
+        await ZkOwnerSteps.TakeOverPhraseAsync(owner, Password, keys.MasterKey);
+
+        var reset = await RecoveryClient().ResetPasswordWithPhrase(new ZkPhraseResetRequest
+        {
+            ResetKey64 = ZkBrowser.ResetKey(ByteArrayUtil.GetRndByteArray(16)).ToBase64(),
+            PasswordReply = await OwnerPasswordFlow.CalculatePasswordReplyAsync(Host, PrimaryIdentity, NewPassword),
+            ZkKeys = ZkBrowser.MakeKeys(NewPassword).Request
+        });
+
+        Assert.That(reset.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), reset.Error?.Content);
+        var login = await OwnerSession.LoginAsync(Host, PrimaryIdentity, Password);
+        Assert.That(login.Token.Id, Is.Not.EqualTo(System.Guid.Empty), "the password is as it was");
     }
 
     [Test]
@@ -141,9 +212,7 @@ public class RecoveryPhraseTests : V2Fixture
             ? await ZkOwnerSteps.TakeOverPhraseAsync(owner, Password, keys.MasterKey)
             : (await ZkOwnerSteps.HandOverPhraseAsync(owner, Password)).Content!.Phrase;
 
-        // A plain client: the middleware leaves this path's request body unencrypted, as the owner app sends it.
-        var (http, _) = owner.NewAdminHttpClient();
-        var health = Refit.RestService.For<ITestSecurityContextOwnerClient>(http);
+        var health = owner.RefitFor<ITestSecurityContextOwnerClient>();
 
         var wrong = await health.VerifyRecoveryKey(new() { PhraseCheck64 = RecoveryPhraseCheck.Compute(new byte[16]) });
         DriveAsserts.AssertRejected(wrong, OdinClientErrorCode.RecoveryPhraseMismatch);
@@ -162,6 +231,19 @@ public class RecoveryPhraseTests : V2Fixture
         Assert.That(await SessionKey(first), Is.EqualTo(a), "one session, one key");
         Assert.That(await SessionKey(second), Is.Not.EqualTo(a));
         Assert.That(a.FromBase64(), Has.Length.EqualTo(16));
+    }
+
+    [Test]
+    public async Task AfterLogoutTheSessionKeyIsGone()
+    {
+        var owner = await LoginAsOwner();
+        await SessionKey(owner);
+
+        var expire = await RecoveryClient().Expire(owner.Token.Id);
+        Assert.That(expire.StatusCode, Is.EqualTo(HttpStatusCode.OK), expire.Error?.Content);
+
+        var response = await ZkOwnerSteps.Client(owner).GetSessionKey();
+        Assert.That(response.IsSuccessStatusCode, Is.False, $"actual {response.StatusCode}");
     }
 
     private static async Task<string> SessionKey(OwnerSession owner)

@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Bitcoin.BIP39;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
