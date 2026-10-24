@@ -19,7 +19,7 @@ Status as of 2026-08-27.
 | 0.7 | Legacy blob read with a frozen DTO -- the `[JsonIgnore]` bug that migrated zero apps | #1688 |
 | 0.8 | Chat app owns Friends/Family/Work/Acquaintances; v13 -> v14 rebinds ownership only | #1691 |
 | 0.9 | `AppId` / `DriveSlug` / `DriveTypeSlug` plumbed through `StorageDrive`, `DriveManager`, `CreateDriveRequest`, `OwnerClientDriveData`; `OdinSlug` format validator | #1688 |
-| 0.12 | `OdinSlug` is a value type (`Odin.Core`), always lowercase, for app, drive, drive-type and circle slugs; a malformed one is a 400 `argumentError` in a body, route or query | this PR |
+| 0.12 | `OdinSlug` is a value type (`Odin.Core`), always lowercase, for app, drive, drive-type and circle slugs; a malformed one is a 400 `argumentError` in a body, route or query | #2011 |
 | 0.10 | The same three on `ClientDriveData` (app and V2 routes), redacted for third parties as `Name` already is | #1688 |
 | 0.11 | `AppRegistrationRequest.AppSlug`: lowercased, then format-validated and taken or refused, never silently replaced. Required since #1901; it is no longer derived from `Name` | #1688 |
 
